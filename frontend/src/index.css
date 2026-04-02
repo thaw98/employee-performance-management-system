@@ -15,3 +15,522 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* ========================================
+   Login Page (EPMS reference layout)
+   ======================================== */
+
+.epms-login-page {
+  min-height: 100vh;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.epms-login-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.epms-login-bg-circle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.06;
+  background: #0855bf;
+}
+
+.epms-login-bg-circle-1 {
+  width: 600px;
+  height: 600px;
+  top: -200px;
+  right: -100px;
+}
+
+.epms-login-bg-circle-2 {
+  width: 400px;
+  height: 400px;
+  bottom: -150px;
+  left: -100px;
+}
+
+.epms-login-bg-circle-3 {
+  width: 200px;
+  height: 200px;
+  top: 50%;
+  left: 40%;
+}
+
+.epms-login-container {
+  display: flex;
+  width: 100%;
+  max-width: 1000px;
+  min-height: 640px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow:
+    0 25px 60px -12px rgba(0, 0, 0, 0.12),
+    0 10px 20px -8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  margin: 24px;
+}
+
+.epms-login-brand {
+  width: 380px;
+  min-width: 380px;
+  background: linear-gradient(135deg, #0855bf 0%, #0747a1 40%, #053a85 100%);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px 36px;
+  position: relative;
+  overflow: hidden;
+}
+
+.epms-login-brand::after {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.epms-login-brand::before {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: -60px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.epms-login-brand-content {
+  position: relative;
+  z-index: 2;
+}
+
+.epms-login-brand-icon {
+  width: 52px;
+  height: 52px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(8px);
+}
+
+.epms-login-brand-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
+
+.epms-login-brand-subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+
+.epms-login-brand-divider {
+  width: 40px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  margin-bottom: 24px;
+}
+
+.epms-login-brand-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 32px;
+}
+
+.epms-login-brand-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.epms-login-brand-feature {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.epms-login-feature-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.epms-login-brand-footer {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  position: relative;
+  z-index: 2;
+}
+
+.epms-login-form-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+}
+
+.epms-login-form-wrapper {
+  width: 100%;
+  max-width: 380px;
+}
+
+.epms-login-mobile-logo {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  color: #0855bf;
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 28px;
+}
+
+.epms-login-mobile-logo i {
+  font-size: 28px;
+}
+
+.epms-login-form-header {
+  margin-bottom: 28px;
+}
+
+.epms-login-form-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 6px;
+}
+
+.epms-login-form-desc {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.epms-login-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  border: 1px solid #fecaca;
+}
+
+.epms-login-error i {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.epms-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.epms-login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.epms-login-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.epms-login-required {
+  color: #dc2626;
+}
+
+.epms-login-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.epms-login-input-wrapper:focus-within .epms-login-input-icon {
+  color: #0855bf;
+}
+
+.epms-login-input-icon {
+  position: absolute;
+  left: 14px;
+  color: #9ca3af;
+  font-size: 14px;
+  pointer-events: none;
+  transition: color 0.15s;
+}
+
+.epms-login-input {
+  width: 100%;
+  padding: 12px 14px 12px 42px;
+  border: 1.5px solid #94a3b8;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #1f2937;
+  background: #ffffff;
+  outline: none;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.epms-login-input-wrapper:has(.epms-login-toggle-pw) .epms-login-input {
+  padding-right: 44px;
+}
+
+.epms-login-input::placeholder {
+  color: #b0b8c4;
+}
+
+.epms-login-input:focus {
+  border-color: #0855bf;
+  box-shadow: 0 0 0 3px rgba(8, 85, 191, 0.1);
+}
+
+.epms-login-toggle-pw {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 14px;
+  transition: color 0.15s;
+}
+
+.epms-login-toggle-pw:hover {
+  color: #0855bf;
+}
+
+.epms-login-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -4px;
+}
+
+.epms-login-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #374151;
+}
+
+.epms-login-remember input {
+  display: none;
+}
+
+.epms-login-remember-checkmark {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #94a3b8;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.epms-login-remember input:checked ~ .epms-login-remember-checkmark {
+  background: #0855bf;
+  border-color: #0855bf;
+}
+
+.epms-login-remember input:checked ~ .epms-login-remember-checkmark::after {
+  content: '✓';
+  font-size: 11px;
+  color: #ffffff;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.epms-login-forgot {
+  background: none;
+  border: none;
+  color: #0855bf;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s;
+  padding: 0;
+  text-decoration: none;
+}
+
+.epms-login-forgot:hover {
+  color: #0747a1;
+  text-decoration: underline;
+}
+
+.epms-login-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 24px;
+  background: #0855bf;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  margin-top: 4px;
+}
+
+.epms-login-submit:hover:not(:disabled) {
+  background: #0747a1;
+  box-shadow: 0 6px 16px rgba(8, 85, 191, 0.25);
+  transform: translateY(-1px);
+}
+
+.epms-login-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.epms-login-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.epms-login-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: epms-spin 0.7s linear infinite;
+}
+
+@keyframes epms-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.epms-login-footer-text {
+  margin-top: 20px;
+  font-size: 13px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.epms-login-link {
+  color: #0855bf;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.epms-login-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .epms-login-container {
+    flex-direction: column;
+    max-width: 440px;
+    min-height: auto;
+    margin: 16px;
+  }
+
+  .epms-login-brand {
+    width: 100%;
+    min-width: auto;
+    padding: 32px 28px 24px;
+  }
+
+  .epms-login-brand-features {
+    display: none;
+  }
+
+  .epms-login-brand-desc {
+    margin-bottom: 0;
+  }
+
+  .epms-login-form-panel {
+    padding: 28px 24px 32px;
+  }
+
+  .epms-login-mobile-logo {
+    display: flex;
+  }
+
+  .epms-login-form-title {
+    font-size: 22px;
+  }
+
+  .epms-login-brand-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+    margin-bottom: 12px;
+  }
+
+  .epms-login-brand-title {
+    font-size: 24px;
+  }
+
+  .epms-login-brand-subtitle {
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  .epms-login-brand-divider {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .epms-login-page {
+    padding: 0;
+  }
+
+  .epms-login-container {
+    margin: 0;
+    border-radius: 0;
+    min-height: 100vh;
+  }
+
+  .epms-login-form-panel {
+    padding: 24px 20px 28px;
+  }
+}
