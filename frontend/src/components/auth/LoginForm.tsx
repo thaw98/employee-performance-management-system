@@ -73,7 +73,7 @@ export function LoginForm() {
 
       {alertMessage ? (
         <div className="epms-login-error" role="alert">
-          <i className="bi bi-exclamation-circle" aria-hidden />
+          <i className="bi bi-exclamation-circle-fill" aria-hidden />
           <span>{alertMessage}</span>
         </div>
       ) : null}
@@ -89,7 +89,7 @@ export function LoginForm() {
           </label>
           <div className="epms-login-input-wrapper">
             <span className="epms-login-input-icon">
-              <i className="bi bi-person-badge" aria-hidden />
+              <i className="bi bi-envelope-fill" aria-hidden />
             </span>
             <input
               id="identifier"
@@ -109,7 +109,7 @@ export function LoginForm() {
           </label>
           <div className="epms-login-input-wrapper">
             <span className="epms-login-input-icon">
-              <i className="bi bi-lock" aria-hidden />
+              <i className="bi bi-lock-fill" aria-hidden />
             </span>
             <input
               id="password"
@@ -128,7 +128,7 @@ export function LoginForm() {
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               <i
-                className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}
+                className={`bi ${showPassword ? 'bi-eye-slash-fill' : 'bi-eye-fill'}`}
                 aria-hidden
               />
             </button>
