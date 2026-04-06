@@ -4,8 +4,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import com.epms.backend.domain.user.Role;
-import com.epms.backend.domain.user.User;
+import com.epms.backend.entity.Role;
+import com.epms.backend.entity.User;
 import com.epms.backend.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;

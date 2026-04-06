@@ -1,4 +1,4 @@
-package com.epms.backend.auth.dto;
+package com.epms.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

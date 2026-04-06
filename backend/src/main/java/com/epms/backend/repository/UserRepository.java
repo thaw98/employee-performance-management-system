@@ -4,7 +4,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.epms.backend.domain.user.User;
+import com.epms.backend.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
