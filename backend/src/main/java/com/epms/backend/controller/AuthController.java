@@ -1,4 +1,4 @@
-package com.epms.backend.auth;
+package com.epms.backend.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,11 +10,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.epms.backend.auth.dto.AuthUserDto;
-import com.epms.backend.auth.dto.LoginRequestDto;
-import com.epms.backend.auth.dto.LoginResponseDto;
 import com.epms.backend.common.ApiResponse;
+import com.epms.backend.dto.AuthUserDto;
+import com.epms.backend.dto.LoginRequestDto;
+import com.epms.backend.dto.LoginResponseDto;
 import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.service.AuthService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

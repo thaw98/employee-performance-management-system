@@ -1,4 +1,4 @@
-package com.epms.backend.auth.dto;
+package com.epms.backend.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
