@@ -4,6 +4,7 @@ import { AppLayout } from './components/layout/AppLayout'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
+import { ProfileSettingsPage } from './pages/ProfileSettingsPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 
 function App() {
@@ -18,6 +19,16 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <AdminDashboardPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/settings/profile"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <ProfileSettingsPage />
               </AppLayout>
             </ProtectedRoute>
           }

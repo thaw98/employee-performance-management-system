@@ -34,6 +34,9 @@ public class User {
 	@Column(nullable = false, length = 32)
 	private Role role;
 
+	@Column(name = "profile_picture_base64", columnDefinition = "LONGTEXT")
+	private String profilePictureBase64;
+
 	@Column(nullable = false)
 	private boolean enabled = true;
 }
