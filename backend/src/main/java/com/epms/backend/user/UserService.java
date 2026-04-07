@@ -22,7 +22,7 @@ public class UserService {
                                 user.getId(),
                                 user.getEmployeeId(),
                                 user.getEmail(),
-                                user.getRole().name(),
+                                user.getRole().getName(),
                                 user.getProfilePictureBase64());
         }
 
@@ -38,7 +38,7 @@ public class UserService {
                                 updatedUser.getId(),
                                 updatedUser.getEmployeeId(),
                                 updatedUser.getEmail(),
-                                updatedUser.getRole().name(),
+                                updatedUser.getRole().getName(),
                                 updatedUser.getProfilePictureBase64());
         }
 }
