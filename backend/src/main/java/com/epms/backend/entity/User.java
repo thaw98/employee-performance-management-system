@@ -1,4 +1,4 @@
-package com.epms.backend.domain.user;
+package com.epms.backend.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

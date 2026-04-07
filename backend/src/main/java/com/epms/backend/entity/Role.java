@@ -1,4 +1,4 @@
-package com.epms.backend.domain.user;
+package com.epms.backend.entity;
 
 /**
  * RBAC-ready role set. Extend with permissions later if needed.
