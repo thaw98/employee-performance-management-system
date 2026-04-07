@@ -22,7 +22,8 @@ public class AdminDataInitializer implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) {
-		if (userRepository.findByEmailIgnoreCase("admin@gmail.com").isPresent()) {
+		if (userRepository.findByEmailIgnoreCase("admin@gmail.com").isPresent()
+				|| userRepository.findByEmployeeId("1").isPresent()) {
 			return;
 		}
 		User admin = new User();
