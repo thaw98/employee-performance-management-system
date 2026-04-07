@@ -1,24 +1,26 @@
 package com.epms.backend.user;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.epms.backend.entity.Role;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.UserRepository;
-import com.epms.backend.user.dto.UpdateProfileRequestDto;
 import com.epms.backend.user.dto.UserProfileDto;
 
-import lombok.RequiredArgsConstructor;
-
-import org.springframework.security.crypto.password.PasswordEncoder;
-
 @Service
-@RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Transactional(readOnly = true)
     public UserProfileDto getProfile(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -26,7 +28,7 @@ public class UserService {
                 user.getId(),
                 user.getEmployeeId(),
                 user.getEmail(),
-                user.getRole().name(),
+                user.getRole().getName(),
                 user.getProfilePictureBase64()
         );
     }
@@ -43,7 +45,7 @@ public class UserService {
                 updatedUser.getId(),
                 updatedUser.getEmployeeId(),
                 updatedUser.getEmail(),
-                updatedUser.getRole().name(),
+                updatedUser.getRole().getName(),
                 updatedUser.getProfilePictureBase64()
         );
     }
