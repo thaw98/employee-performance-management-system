@@ -55,6 +55,6 @@ public class AuthService {
 				user.getId(),
 				user.getEmployeeId(),
 				user.getEmail(),
-				user.getRole().name());
+				user.getRole().getName());
 	}
 }

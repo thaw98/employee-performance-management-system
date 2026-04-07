@@ -1,10 +1,21 @@
 package com.epms.backend.entity;
 
-/**
- * RBAC-ready role set. Extend with permissions later if needed.
- */
-public enum Role {
-	ADMIN,
-	HR,
-	EMPLOYEE
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "role")
+public class Role {
+
+	@Id
+	private Long id;
+
+	@Column(nullable = false, unique = true, length = 64)
+	private String name;
 }

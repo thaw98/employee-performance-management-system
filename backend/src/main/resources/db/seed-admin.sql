@@ -4,9 +4,9 @@
 -- If you must seed manually, generate a BCrypt hash for your password and insert:
 --   employee_id: 1
 --   email: admin@gmail.com
---   role: ADMIN
+--   role_id: 1 (HR)
 --   enabled: 1
 --
 -- Example (password hash is illustrative only — use BCryptPasswordEncoder in Java for real values):
--- INSERT INTO users (employee_id, email, password, role, enabled)
--- VALUES ('1', 'admin@gmail.com', '$2a$10$REPLACE_WITH_BCRYPT_HASH', 'ADMIN', true);
+-- INSERT INTO users (employee_id, email, password, role_id, enabled)
+-- VALUES ('1', 'admin@gmail.com', '$2a$10$REPLACE_WITH_BCRYPT_HASH', 1, true);

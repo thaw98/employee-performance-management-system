@@ -22,7 +22,7 @@ public class UserPrincipal implements UserDetails {
 		this.id = user.getId();
 		this.email = user.getEmail();
 		this.employeeId = user.getEmployeeId();
-		this.roleName = user.getRole().name();
+		this.roleName = user.getRole().getName();
 		this.passwordHash = user.getPasswordHash();
 		this.enabled = user.isEnabled();
 	}
@@ -41,7 +41,8 @@ public class UserPrincipal implements UserDetails {
 
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
-		return List.of(new SimpleGrantedAuthority("ROLE_" + roleName));
+		String authorityRole = roleName.trim().toUpperCase().replace(' ', '_');
+		return List.of(new SimpleGrantedAuthority("ROLE_" + authorityRole));
 	}
 
 	@Override
