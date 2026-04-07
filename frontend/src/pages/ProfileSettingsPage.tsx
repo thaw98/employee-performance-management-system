@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { useGetProfileQuery, useUpdateProfilePictureMutation } from '../features/user/userApi'
 
 export function ProfileSettingsPage() {
@@ -117,66 +118,60 @@ export function ProfileSettingsPage() {
         <div className="p-6 sm:p-8">
           <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-6">Personal Information</h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-              <div className="relative opacity-70">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i className="bi bi-envelope text-slate-400"></i>
+              <p className="text-sm font-medium text-slate-500 mb-1">Email Address</p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-400">
+                  <i className="bi bi-envelope text-lg"></i>
                 </div>
-                <input
-                  type="email"
-                  readOnly
-                  value={user?.email || ''}
-                  className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <p className="font-semibold text-slate-900">{user?.email || '—'}</p>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Employee ID</label>
-              <div className="relative opacity-70">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i className="bi bi-person-badge text-slate-400"></i>
+              <p className="text-sm font-medium text-slate-500 mb-1">Employee ID</p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-400">
+                  <i className="bi bi-person-badge text-lg"></i>
                 </div>
-                <input
-                  type="text"
-                  readOnly
-                  value={user?.employeeId || ''}
-                  className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 cursor-not-allowed focus:outline-none"
-                />
+                <p className="font-semibold text-slate-900">{user?.employeeId || '—'}</p>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
-              <div className="relative opacity-70">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i className="bi bi-shield-check text-slate-400"></i>
+              <p className="text-sm font-medium text-slate-500 mb-1">Role</p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-400">
+                  <i className="bi bi-shield-check text-lg"></i>
                 </div>
-                <input
-                  type="text"
-                  readOnly
-                  value={user?.role || ''}
-                  className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 cursor-not-allowed focus:outline-none capitalize"
-                />
+                <p className="font-semibold text-slate-900 capitalize">{user?.role || '—'}</p>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">System User ID</label>
-              <div className="relative opacity-70">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i className="bi bi-hash text-slate-400"></i>
+              <p className="text-sm font-medium text-slate-500 mb-1">System User ID</p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-400">
+                  <i className="bi bi-hash text-lg"></i>
                 </div>
-                <input
-                  type="text"
-                  readOnly
-                  value={user?.id?.toString() || ''}
-                  className="w-full pl-10 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 cursor-not-allowed focus:outline-none"
-                />
+                <p className="font-semibold text-slate-900">{user?.id?.toString() || '—'}</p>
               </div>
             </div>
+          </div>
+          
+          <div className="mt-10 pt-8 border-t border-slate-100 flex justify-between items-center bg-slate-50/50 -mx-6 sm:-mx-8 -mb-6 sm:-mb-8 px-6 py-6 sm:px-8">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Security & Authentication</p>
+              <p className="text-xs text-slate-500 mt-1 pb-1">Update your password to keep your account secure.</p>
+            </div>
+            <Link 
+              to="/admin/settings/password"
+              className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold shadow-sm hover:bg-slate-50 hover:text-blue-600 transition-colors flex items-center gap-2 shrink-0"
+            >
+              <i className="bi bi-shield-lock"></i>
+              Change Password
+            </Link>
           </div>
         </div>
       </div>

@@ -40,4 +40,16 @@ public class UserController {
             return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
         }
     }
+
+    @PutMapping("/password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody com.epms.backend.user.dto.UpdatePasswordRequestDto request) {
+        try {
+            userService.changePassword(principal.getId(), request.getCurrentPassword(), request.getNewPassword(), request.getConfirmPassword());
+            return ResponseEntity.ok(ApiResponse.ok("Password changed successfully", null));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
+    }
 }
