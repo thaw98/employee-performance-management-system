@@ -1,14 +1,14 @@
-package com.epms.backend.auth;
+package com.epms.backend.service;
 
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.epms.backend.auth.dto.AuthUserDto;
-import com.epms.backend.auth.dto.LoginRequestDto;
-import com.epms.backend.auth.dto.LoginResponseDto;
-import com.epms.backend.domain.user.User;
+import com.epms.backend.dto.AuthUserDto;
+import com.epms.backend.dto.LoginRequestDto;
+import com.epms.backend.dto.LoginResponseDto;
+import com.epms.backend.entity.User;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.JwtService;
 
