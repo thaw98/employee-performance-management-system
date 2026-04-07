@@ -7,6 +7,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import com.epms.backend.entity.Role;
 import com.epms.backend.entity.User;
 
 public class UserPrincipal implements UserDetails {

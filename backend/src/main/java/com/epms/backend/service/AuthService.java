@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.epms.backend.dto.AuthUserDto;
 import com.epms.backend.dto.LoginRequestDto;
 import com.epms.backend.dto.LoginResponseDto;
+import com.epms.backend.entity.Role;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.JwtService;

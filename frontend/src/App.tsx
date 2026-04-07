@@ -5,6 +5,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage'
+import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 
 function App() {
@@ -29,6 +30,16 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <ProfileSettingsPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/settings/password"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <ChangePasswordPage />
               </AppLayout>
             </ProtectedRoute>
           }
