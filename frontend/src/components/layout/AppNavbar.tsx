@@ -2,12 +2,16 @@ import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import { logout } from '../../features/auth/authSlice'
+import { useGetProfileQuery } from '../../features/user/userApi'
 
 const PRIMARY = '#0855BF'
 
 export function AppNavbar() {
   const dispatch = useAppDispatch()
-  const user = useAppSelector((s) => s.auth.user)
+  const tokenUser = useAppSelector((s) => s.auth.user)
+  const { data: profileResponse } = useGetProfileQuery()
+  
+  const user = profileResponse?.data || tokenUser
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -49,8 +53,12 @@ export function AppNavbar() {
               <span className="font-medium text-slate-900 leading-tight">{user?.email || 'User'}</span>
               <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{user?.role || 'Admin'}</span>
             </div>
-            <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border border-blue-200 shadow-sm">
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
+            <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border border-blue-200 shadow-sm overflow-hidden">
+               {profileResponse?.data?.profilePictureBase64 ? (
+                 <img src={profileResponse.data.profilePictureBase64} alt="Profile" className="h-full w-full object-cover pointer-events-none" />
+               ) : (
+                 user?.email?.charAt(0).toUpperCase() || 'U'
+               )}
             </div>
             <i className={`bi bi-chevron-down text-slate-400 text-[10px] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
           </button>
