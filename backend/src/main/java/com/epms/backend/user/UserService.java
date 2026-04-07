@@ -3,18 +3,21 @@ package com.epms.backend.user;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.epms.backend.domain.user.User;
+import com.epms.backend.entity.User;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.user.dto.UpdateProfileRequestDto;
 import com.epms.backend.user.dto.UserProfileDto;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UserProfileDto getProfile(Long userId) {
         User user = userRepository.findById(userId)
@@ -43,5 +46,22 @@ public class UserService {
                 updatedUser.getRole().name(),
                 updatedUser.getProfilePictureBase64()
         );
+    }
+
+    @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword, String confirmPassword) {
+        if (!newPassword.equals(confirmPassword)) {
+            throw new RuntimeException("New password and confirm password do not match");
+        }
+        
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+                
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new RuntimeException("Incorrect current password");
+        }
+        
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }
