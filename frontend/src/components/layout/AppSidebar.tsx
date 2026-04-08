@@ -47,34 +47,6 @@ export function AppSidebar() {
           <span className="tracking-tight">ACE Data Systems</span>
         </Link>
       </div>
-<<<<<<< HEAD
-      <div className="flex-1 py-6 px-4 overflow-y-auto">
-        <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-          Overview
-        </p>
-        <nav className="space-y-1.5">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              end
-              className={({ isActive }) =>
-                `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <i className={`bi ${item.icon} text-lg transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-                  {item.name}
-                </>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-=======
 
       <div className="flex-1 space-y-8 overflow-y-auto px-4 py-6">
         {navSections.map((section) => (
@@ -89,19 +61,17 @@ export function AppSidebar() {
                   to={item.path}
                   end={item.end}
                   className={({ isActive }) =>
-                    `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'translate-x-1 bg-blue-600 text-white shadow-md shadow-blue-200'
-                        : 'text-slate-600 hover:bg-white hover:text-blue-600'
+                    `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
+                      ? 'translate-x-1 bg-blue-600 text-white shadow-md shadow-blue-200'
+                      : 'text-slate-600 hover:bg-white hover:text-blue-600'
                     }`
                   }
                 >
                   {({ isActive }) => (
                     <>
                       <i
-                        className={`bi ${item.icon} text-base transition-colors ${
-                          isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
-                        }`}
+                        className={`bi ${item.icon} text-base transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
+                          }`}
                       />
                       {item.name}
                     </>
@@ -111,26 +81,23 @@ export function AppSidebar() {
             </nav>
           </div>
         ))}
->>>>>>> 29db6154adcca7358b57d82280bc612224da816a
       </div>
 
       <div className="border-t border-slate-200/80 bg-slate-50 p-4">
         <NavLink
           to="/admin/settings/profile"
           className={({ isActive }) =>
-            `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-              isActive
-                ? 'translate-x-1 bg-blue-600 text-white shadow-md shadow-blue-200'
-                : 'text-slate-600 hover:bg-white hover:text-blue-600'
+            `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
+              ? 'translate-x-1 bg-blue-600 text-white shadow-md shadow-blue-200'
+              : 'text-slate-600 hover:bg-white hover:text-blue-600'
             }`
           }
         >
           {({ isActive }) => (
             <>
               <i
-                className={`bi bi-gear text-base transition-colors ${
-                  isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
-                }`}
+                className={`bi bi-gear text-base transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
+                  }`}
               />
               Settings
             </>

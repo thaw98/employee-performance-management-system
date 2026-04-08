@@ -99,11 +99,9 @@ function App() {
         <Route
           path="/admin/settings/password"
           element={
-            <ProtectedRoute>
-              <AppLayout>
-                <ChangePasswordPage />
-              </AppLayout>
-            </ProtectedRoute>
+            <ProtectedLayout>
+              <ChangePasswordPage />
+            </ProtectedLayout>
           }
         />
         <Route path="/" element={<Navigate to="/login" replace />} />
