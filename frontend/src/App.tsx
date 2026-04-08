@@ -6,6 +6,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
+import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 
@@ -92,6 +93,14 @@ function App() {
           element={
             <ProtectedLayout>
               <ProfileSettingsPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/admin/settings/password"
+          element={
+            <ProtectedLayout>
+              <ChangePasswordPage />
             </ProtectedLayout>
           }
         />

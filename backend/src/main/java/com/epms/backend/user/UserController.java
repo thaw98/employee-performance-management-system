@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.user.dto.ChangePasswordRequestDto;
 import com.epms.backend.user.dto.UpdateProfilePictureRequestDto;
 import com.epms.backend.user.dto.UserProfileDto;
 
@@ -36,6 +37,22 @@ public class UserController {
         try {
             UserProfileDto profile = userService.updateProfilePicture(principal.getId(), request.getProfilePictureBase64());
             return ResponseEntity.ok(ApiResponse.ok("Profile picture updated successfully", profile));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
+    }
+
+    @PutMapping("/password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChangePasswordRequestDto request) {
+        try {
+            userService.changePassword(
+                    principal.getId(),
+                    request.getCurrentPassword(),
+                    request.getNewPassword(),
+                    request.getConfirmPassword());
+            return ResponseEntity.ok(ApiResponse.ok("Password changed successfully", null));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
         }
