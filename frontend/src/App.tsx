@@ -1,12 +1,22 @@
+import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { AppLayout } from './components/layout/AppLayout'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
+import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
+
+function ProtectedLayout({ children }: { children: ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <AppLayout>{children}</AppLayout>
+    </ProtectedRoute>
+  )
+}
 
 function App() {
   return (
@@ -17,21 +27,73 @@ function App() {
         <Route
           path="/admin/dashboard"
           element={
-            <ProtectedRoute>
-              <AppLayout>
-                <AdminDashboardPage />
-              </AppLayout>
-            </ProtectedRoute>
+            <ProtectedLayout>
+              <AdminDashboardPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/admin/manager-dashboard"
+          element={
+            <ProtectedLayout>
+              <PlaceholderPage title="Manager Dashboard" />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/admin/my-performance"
+          element={
+            <ProtectedLayout>
+              <PlaceholderPage title="My Performance" />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/admin/appraisals"
+          element={
+            <ProtectedLayout>
+              <PlaceholderPage title="Performance Appraisals" />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/admin/360-feedback"
+          element={
+            <ProtectedLayout>
+              <PlaceholderPage title="360° Feedback" />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/admin/pip-monitoring"
+          element={
+            <ProtectedLayout>
+              <PlaceholderPage title="PIP Monitoring" />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/admin/goals"
+          element={
+            <ProtectedLayout>
+              <PlaceholderPage title="Goals & KPIs" />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedLayout>
+              <PlaceholderPage title="Reports Center" />
+            </ProtectedLayout>
           }
         />
         <Route
           path="/admin/settings/profile"
           element={
-            <ProtectedRoute>
-              <AppLayout>
-                <ProfileSettingsPage />
-              </AppLayout>
-            </ProtectedRoute>
+            <ProtectedLayout>
+              <ProfileSettingsPage />
+            </ProtectedLayout>
           }
         />
         <Route
