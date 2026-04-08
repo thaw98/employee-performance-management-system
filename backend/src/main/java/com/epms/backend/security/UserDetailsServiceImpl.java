@@ -23,8 +23,15 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 		} catch (NumberFormatException ex) {
 			throw new UsernameNotFoundException("Invalid user", ex);
 		}
+		System.out.println("DEBUG: Loading user by ID: " + id);
 		return userRepository.findById(id)
-				.map(UserPrincipal::new)
-				.orElseThrow(() -> new UsernameNotFoundException("User not found"));
+				.map(user -> {
+					System.out.println("DEBUG: User found: " + user.getEmail() + " with role: " + user.getRole().getName());
+					return new UserPrincipal(user);
+				})
+				.orElseThrow(() -> {
+					System.out.println("DEBUG: User NOT found with ID: " + id);
+					return new UsernameNotFoundException("User not found");
+				});
 	}
 }

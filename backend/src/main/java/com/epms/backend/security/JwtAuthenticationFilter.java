@@ -32,6 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			@NonNull FilterChain filterChain) throws ServletException, IOException {
 
 		String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+		System.out.println("DEBUG: Auth Header: " + authHeader);
 		if (authHeader == null || !authHeader.startsWith("Bearer ")) {
 			filterChain.doFilter(request, response);
 			return;
@@ -47,7 +48,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 					userDetails.getAuthorities());
 			authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 			SecurityContextHolder.getContext().setAuthentication(authentication);
-		} catch (JwtException | org.springframework.security.core.userdetails.UsernameNotFoundException ignored) {
+		} catch (Exception ex) {
+			System.out.println("JWT AUTH FAILED: " + ex.getMessage());
+			ex.printStackTrace();
 			SecurityContextHolder.clearContext();
 		}
 
