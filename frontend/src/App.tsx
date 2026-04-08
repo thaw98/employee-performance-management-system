@@ -8,6 +8,9 @@ import { LoginPage } from './pages/LoginPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
+import PipMonitoringPage from './pages/PipMonitoringPage'
+import PipCreatePage from './pages/PipCreatePage'
+import PipDetailPage from './pages/PipDetailPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
@@ -68,7 +71,23 @@ function App() {
           path="/admin/pip-monitoring"
           element={
             <ProtectedLayout>
-              <PlaceholderPage title="PIP Monitoring" />
+              <PipMonitoringPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/admin/pip-monitoring/create"
+          element={
+            <ProtectedLayout>
+              <PipCreatePage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/admin/pip-monitoring/:id"
+          element={
+            <ProtectedLayout>
+              <PipDetailPage />
             </ProtectedLayout>
           }
         />

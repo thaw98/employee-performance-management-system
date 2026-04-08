@@ -29,10 +29,16 @@ public class AuthService {
 		String rawPassword = request.getPassword();
 
 		User user = resolveUser(identifier);
-		if (user == null || !user.isEnabled()) {
+		if (user == null) {
+			System.out.println("LOGIN FAILED: User not found with identifier: " + identifier);
+			throw new BadCredentialsException("Invalid credentials");
+		}
+		if (!user.isEnabled()) {
+			System.out.println("LOGIN FAILED: User is disabled: " + identifier);
 			throw new BadCredentialsException("Invalid credentials");
 		}
 		if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+			System.out.println("LOGIN FAILED: Password mismatch for user: " + identifier);
 			throw new BadCredentialsException("Invalid credentials");
 		}
 
@@ -52,10 +58,11 @@ public class AuthService {
 	}
 
 	private static AuthUserDto toAuthUserDto(User user) {
+		String roleName = user.getRole().getName().trim().toUpperCase().replace(' ', '_');
 		return new AuthUserDto(
 				user.getId(),
 				user.getEmployeeId(),
 				user.getEmail(),
-				user.getRole().getName());
+				roleName);
 	}
 }
