@@ -1,4 +1,5 @@
 import { Link, NavLink } from 'react-router-dom'
+import { useAppSelector } from '../../app/hooks'
 
 const PRIMARY = '#0855BF'
 
@@ -30,6 +31,8 @@ const navSections = [
 ] as const
 
 export function AppSidebar() {
+  const roleId = useAppSelector((s) => s.auth.user?.roleId)
+  const isHr = roleId === 1
   return (
     <aside className="z-20 hidden h-full w-64 shrink-0 border-r border-slate-200/80 bg-slate-50 md:flex md:flex-col">
       <div
@@ -78,6 +81,27 @@ export function AppSidebar() {
                   )}
                 </NavLink>
               ))}
+              {section.label === 'Management' && isHr ? (
+                <NavLink
+                  to="/hr/employee-account/create"
+                  className={({ isActive }) =>
+                    `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
+                      ? 'translate-x-1 bg-blue-600 text-white shadow-md shadow-blue-200'
+                      : 'text-slate-600 hover:bg-white hover:text-blue-600'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <i
+                        className={`bi bi-person-plus text-base transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
+                          }`}
+                      />
+                      Create Employee Account
+                    </>
+                  )}
+                </NavLink>
+              ) : null}
             </nav>
           </div>
         ))}

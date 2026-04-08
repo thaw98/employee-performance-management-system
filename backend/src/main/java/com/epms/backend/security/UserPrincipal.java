@@ -7,7 +7,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import com.epms.backend.entity.Role;
 import com.epms.backend.entity.User;
 
 public class UserPrincipal implements UserDetails {
@@ -15,17 +14,19 @@ public class UserPrincipal implements UserDetails {
 	private final Long id;
 	private final String email;
 	private final String employeeId;
+	private final Long roleId;
 	private final String roleName;
-	private final String passwordHash;
-	private final boolean enabled;
+	private final String password;
+	private final boolean active;
 
 	public UserPrincipal(User user) {
 		this.id = user.getId();
 		this.email = user.getEmail();
-		this.employeeId = user.getEmployeeId();
+		this.employeeId = user.getEmployee().getEmployeeId();
+		this.roleId = user.getRole().getId();
 		this.roleName = user.getRole().getName();
-		this.passwordHash = user.getPasswordHash();
-		this.enabled = user.isEnabled();
+		this.password = user.getPassword();
+		this.active = user.isActive();
 	}
 
 	public Long getId() {
@@ -40,6 +41,10 @@ public class UserPrincipal implements UserDetails {
 		return roleName;
 	}
 
+	public Long getRoleId() {
+		return roleId;
+	}
+
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
 		String authorityRole = roleName.trim().toUpperCase().replace(' ', '_');
@@ -48,7 +53,7 @@ public class UserPrincipal implements UserDetails {
 
 	@Override
 	public String getPassword() {
-		return passwordHash;
+		return password;
 	}
 
 	@Override
@@ -73,7 +78,7 @@ public class UserPrincipal implements UserDetails {
 
 	@Override
 	public boolean isEnabled() {
-		return enabled;
+		return active;
 	}
 
 	public String getEmail() {

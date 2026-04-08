@@ -63,7 +63,7 @@ export const pipApi = baseApi.injectEndpoints({
     }),
     getPipById: builder.query<Pip, number>({
       query: (id) => `/pips/${id}`,
-      providesTags: (result, error, id) => [{ type: 'PIP', id }],
+      providesTags: (_result, _error, id) => [{ type: 'PIP', id }],
       transformResponse: (response: any) => response.data,
     }),
     createPip: builder.mutation<Pip, { employeeId: string; startDate: string; endDate: string; totalHours: number; objectives: string[] }>({
@@ -80,7 +80,7 @@ export const pipApi = baseApi.injectEndpoints({
         method: 'PUT',
         body,
       }),
-      invalidatesTags: (result, error, { objectiveId }) => ['PIP'],
+      invalidatesTags: () => ['PIP'],
     }),
     scheduleMeeting: builder.mutation<FollowUpMeeting, { pipId: number; meetingTime: string }>({
       query: ({ pipId, ...body }) => ({
@@ -88,7 +88,7 @@ export const pipApi = baseApi.injectEndpoints({
         method: 'POST',
         body,
       }),
-      invalidatesTags: (result, error, { pipId }) => ['PIP'],
+      invalidatesTags: () => ['PIP'],
     }),
     closePip: builder.mutation<Pip, { pipId: number; finalOutcome: string; closingRemarks: string }>({
       query: ({ pipId, ...body }) => ({
@@ -96,7 +96,7 @@ export const pipApi = baseApi.injectEndpoints({
         method: 'PUT',
         body,
       }),
-      invalidatesTags: (result, error, { pipId }) => ['PIP'],
+      invalidatesTags: () => ['PIP'],
     }),
     reopenPip: builder.mutation<Pip, { pipId: number; reason: string }>({
       query: ({ pipId, ...body }) => ({
@@ -104,7 +104,7 @@ export const pipApi = baseApi.injectEndpoints({
         method: 'PUT',
         body,
       }),
-      invalidatesTags: (result, error, { pipId }) => ['PIP'],
+      invalidatesTags: () => ['PIP'],
     }),
     getTrainingHistory: builder.query<TrainingRecord[], string>({
       query: (employeeId) => `/pips/employees/${employeeId}/training`,

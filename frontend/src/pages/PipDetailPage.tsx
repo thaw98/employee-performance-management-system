@@ -7,7 +7,6 @@ import {
   useClosePipMutation,
   useReopenPipMutation,
   useGetTrainingHistoryQuery,
-  useGetObjectiveHistoryQuery,
 } from '../features/pip/pipApi'
 import { useSelector } from 'react-redux'
 import type { RootState } from '../app/store'

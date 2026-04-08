@@ -4,7 +4,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.epms.backend.entity.Role;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.user.dto.UserProfileDto;
@@ -27,7 +26,7 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return new UserProfileDto(
                 user.getId(),
-                user.getEmployeeId(),
+                user.getEmployee().getEmployeeId(),
                 user.getEmail(),
                 user.getRole().getName(),
                 user.getProfilePictureBase64());
@@ -43,7 +42,7 @@ public class UserService {
 
         return new UserProfileDto(
                 updatedUser.getId(),
-                updatedUser.getEmployeeId(),
+                updatedUser.getEmployee().getEmployeeId(),
                 updatedUser.getEmail(),
                 updatedUser.getRole().getName(),
                 updatedUser.getProfilePictureBase64());

@@ -12,10 +12,19 @@ import PipMonitoringPage from './pages/PipMonitoringPage'
 import PipCreatePage from './pages/PipCreatePage'
 import PipDetailPage from './pages/PipDetailPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
+import { CreateEmployeeAccountPage } from './features/employeeOnboarding/pages/CreateEmployeeAccountPage'
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
+      <AppLayout>{children}</AppLayout>
+    </ProtectedRoute>
+  )
+}
+
+function HrProtectedLayout({ children }: { children: ReactNode }) {
+  return (
+    <ProtectedRoute allowedRoleIds={[1]}>
       <AppLayout>{children}</AppLayout>
     </ProtectedRoute>
   )
@@ -105,6 +114,14 @@ function App() {
             <ProtectedLayout>
               <PlaceholderPage title="Reports Center" />
             </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/employee-account/create"
+          element={
+            <HrProtectedLayout>
+              <CreateEmployeeAccountPage />
+            </HrProtectedLayout>
           }
         />
         <Route
