@@ -78,16 +78,7 @@ export function AppNavbar() {
                   onClick={() => setIsDropdownOpen(false)}
                 >
                   <i className="bi bi-person text-lg text-slate-400 group-hover:text-blue-600 transition-colors"></i>
-                  Profile Settings
-                </Link>
-
-                <Link
-                  to="/admin/settings/password"
-                  className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-700 rounded-lg hover:bg-slate-50 hover:text-blue-700 transition-colors group"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  <i className="bi bi-shield-lock text-lg text-slate-400 group-hover:text-blue-600 transition-colors"></i>
-                  Change Password
+                  User Settings
                 </Link>
               </div>
 

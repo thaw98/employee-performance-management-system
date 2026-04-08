@@ -13,6 +13,12 @@ export interface UpdateProfilePictureRequestDto {
   profilePictureBase64: string
 }
 
+export interface UpdatePasswordRequestDto {
+  currentPassword?: string
+  newPassword?: string
+  confirmPassword?: string
+}
+
 export const userApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getProfile: builder.query<ApiResponse<UserProfileDto>, void>({
@@ -27,7 +33,14 @@ export const userApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['UserProfile'],
     }),
+    changePassword: builder.mutation<ApiResponse<void>, UpdatePasswordRequestDto>({
+      query: (body) => ({
+        url: '/users/profile/password',
+        method: 'PUT',
+        body,
+      }),
+    }),
   }),
 })
 
-export const { useGetProfileQuery, useUpdateProfilePictureMutation } = userApi
+export const { useGetProfileQuery, useUpdateProfilePictureMutation, useChangePasswordMutation } = userApi

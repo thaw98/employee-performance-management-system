@@ -1,4 +1,6 @@
-package com.epms.backend.user;
+package com.epms.backend.controller;
+
+import com.epms.backend.user.UserService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,6 +38,18 @@ public class UserController {
         try {
             UserProfileDto profile = userService.updateProfilePicture(principal.getId(), request.getProfilePictureBase64());
             return ResponseEntity.ok(ApiResponse.ok("Profile picture updated successfully", profile));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
+    }
+
+    @PutMapping("/password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody com.epms.backend.user.dto.UpdatePasswordRequestDto request) {
+        try {
+            userService.changePassword(principal.getId(), request.getCurrentPassword(), request.getNewPassword(), request.getConfirmPassword());
+            return ResponseEntity.ok(ApiResponse.ok("Password changed successfully", null));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
         }
