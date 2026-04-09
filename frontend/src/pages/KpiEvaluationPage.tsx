@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
 //MNA
 export const KpiEvaluationPage: React.FC = () => {
-    const navigate = useNavigate();
+    // const navigate = useNavigate();
     const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
     const [status, setStatus] = useState<'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'LOCKED'>('SUBMITTED');
-    const [showHistory, setShowHistory] = useState<string | null>(null);
+    // const [showHistory, setShowHistory] = useState<string | null>(null);
 
     const isLocked = status === 'LOCKED';
     const isApproved = status === 'APPROVED';
@@ -177,12 +177,12 @@ export const KpiEvaluationPage: React.FC = () => {
                                                 <td className="py-6 px-8">
                                                     <div className="font-black text-slate-800 text-base">{k.kpi}</div>
                                                     <div className="mt-2 flex items-center gap-2">
-                                                        <button
+                                                        {/* <button
                                                             onClick={() => setShowHistory(k.id)}
                                                             className="text-[9px] bg-slate-100 hover:bg-blue-600 text-slate-500 hover:text-white px-3 py-1 rounded-full font-black uppercase tracking-widest transition-all"
                                                         >
                                                             <i className="bi bi-clock-fill mr-1"></i> Revision History
-                                                        </button>
+                                                        </button> */}
                                                     </div>
                                                 </td>
                                                 <td className="py-6 px-4 text-slate-500 font-bold">{k.target}</td>
