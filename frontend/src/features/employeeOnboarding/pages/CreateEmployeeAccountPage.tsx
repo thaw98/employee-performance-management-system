@@ -1,14 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  Alert,
-  Autocomplete,
-  Box,
-  Button,
-  Checkbox,
-  FormControlLabel,
-  MenuItem,
-  TextField,
-} from '@mui/material'
 import { z } from 'zod'
 import {
   Controller,
@@ -41,7 +31,6 @@ import { buildEmployeeCreatePayload, buildEmployeeDraftPayload } from '../utils/
 import { calculateProbationEnd, formatProbationEndDisplay } from '../utils/probation'
 import { EmployeeStepper } from '../components/EmployeeStepper'
 import { NrcFields } from '../components/NrcFields'
-import type { MasterOption } from '../types/employee'
 
 const MAX_PHONE_INPUT_LENGTH = 16 // optional "+" plus up to 15 digits
 const EMPLOYEE_NAME_MAX_LENGTH = 50
@@ -65,10 +54,16 @@ const STEP1_FIELD_NAMES: FieldPath<EmployeeInfoFormValues>[] = [
 
 const STEP2_FIELD_NAMES: FieldPath<EmployeeInfoFormValues>[] = [
   'fatherName',
-  'fatherNrcNo',
-  'hasSpouse',
+  'fatherNrcStateCode',
+  'fatherNrcTownshipCode',
+  'fatherNrcType',
+  'fatherNrcNumber',
+  'maritalStatus',
   'spouseName',
-  'spouseNrcNo',
+  'spouseNrcStateCode',
+  'spouseNrcTownshipCode',
+  'spouseNrcType',
+  'spouseNrcNumber',
   'emergencyPhone',
   'emergencyRelation',
 ]
@@ -110,6 +105,140 @@ function FormSection({ icon, title, children }: { icon: string; title: string; c
       {children}
     </div>
   )
+}
+
+function Alert({
+  severity,
+  children,
+  className = '',
+}: {
+  severity: 'success' | 'error' | 'info'
+  children: ReactNode
+  className?: string
+}) {
+  const tone =
+    severity === 'success'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : severity === 'error'
+        ? 'border-red-200 bg-red-50 text-red-700'
+        : 'border-blue-200 bg-blue-50 text-blue-700'
+  return <div className={`${className} rounded-lg border px-4 py-3 text-sm ${tone}`}>{children}</div>
+}
+
+function Button({
+  variant = 'contained',
+  className = '',
+  children,
+  ...props
+}: {
+  variant?: 'contained' | 'outlined' | 'text'
+  className?: string
+  children: ReactNode
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const base = 'inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60'
+  const tone =
+    variant === 'outlined'
+      ? 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+      : variant === 'text'
+        ? 'text-slate-700 hover:bg-slate-100'
+        : 'bg-blue-600 text-white hover:bg-blue-700'
+  return (
+    <button {...props} className={`${base} ${tone} ${className}`}>
+      {children}
+    </button>
+  )
+}
+
+function MenuItem({ value, children }: { value: string; children: ReactNode }) {
+  return <option value={value}>{children}</option>
+}
+
+function TextField({
+  label,
+  error,
+  helperText,
+  select,
+  children,
+  multiline,
+  minRows,
+  fullWidth,
+  slotProps,
+  inputRef,
+  ...props
+}: {
+  label?: string
+  error?: boolean
+  helperText?: ReactNode
+  select?: boolean
+  children?: ReactNode
+  multiline?: boolean
+  minRows?: number
+  fullWidth?: boolean
+  slotProps?: {
+    htmlInput?: React.InputHTMLAttributes<HTMLInputElement>
+    input?: { readOnly?: boolean }
+    inputLabel?: { shrink?: boolean }
+  }
+  inputRef?: React.Ref<HTMLInputElement>
+} & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> &
+  React.SelectHTMLAttributes<HTMLSelectElement>) {
+  const inputBase = `w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
+    error ? 'border-red-400 focus:border-red-500' : 'border-slate-300 focus:border-blue-500'
+  }`
+  return (
+    <div className={fullWidth ? 'w-full' : ''}>
+      {label ? <label className="mb-1 block text-sm font-medium text-slate-700">{label}</label> : null}
+      {select ? (
+        <select className={inputBase} {...(props as React.SelectHTMLAttributes<HTMLSelectElement>)}>
+          {children}
+        </select>
+      ) : multiline ? (
+        <textarea
+          rows={minRows}
+          className={inputBase}
+          {...(props as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
+        />
+      ) : (
+        <input
+          className={inputBase}
+          ref={inputRef}
+          readOnly={slotProps?.input?.readOnly}
+          {...slotProps?.htmlInput}
+          {...props}
+        />
+      )}
+      {helperText ? (
+        <div className={`mt-1 text-xs ${error ? 'text-red-600' : 'text-slate-500'}`}>{helperText}</div>
+      ) : null}
+    </div>
+  )
+}
+
+function Checkbox(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input type="checkbox" className="h-4 w-4 rounded border-slate-300" {...props} />
+}
+
+function FormControlLabel({ control, label }: { control: ReactNode; label: ReactNode }) {
+  return (
+    <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+      {control}
+      <span>{label}</span>
+    </label>
+  )
+}
+
+function Box({
+  component = 'div',
+  children,
+  ...props
+}: {
+  component?: 'div' | 'form' | 'span'
+  children: ReactNode
+  [key: string]: unknown
+}) {
+  if (component === 'form') return <form {...(props as React.FormHTMLAttributes<HTMLFormElement>)}>{children}</form>
+  if (component === 'span') return <span {...(props as React.HTMLAttributes<HTMLSpanElement>)}>{children}</span>
+  return <div {...(props as React.HTMLAttributes<HTMLDivElement>)}>{children}</div>
 }
 
 export function CreateEmployeeAccountPage() {
@@ -158,7 +287,7 @@ export function CreateEmployeeAccountPage() {
   })
   const { field: probationField } = useController({ control, name: 'onProbation' })
 
-  const hasSpouse = watch('hasSpouse')
+  const maritalStatus = watch('maritalStatus')
   const onProbation = watch('onProbation')
   const probationDurationWatch = watch('probationDuration')
   const probationStartForEnd = watch('probationStartDate') || watch('dateOfJoining')
@@ -176,13 +305,12 @@ export function CreateEmployeeAccountPage() {
   const religionsOptions = religions.data?.data ?? []
   const departmentsOptions = departments.data?.data ?? []
   const positionsOptions = positions.data?.data ?? []
-  const selectedOption = (options: MasterOption[], value?: number) =>
-    options.find((opt) => opt.id === value) ?? null
-
   const employeeIdRegistration = register('employeeId')
   const emailAddressRegistration = register('emailAddress')
 
-  async function handleEmployeeIdBlur(event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  async function handleEmployeeIdBlur(
+    event: FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) {
     employeeIdRegistration.onBlur(event)
     const employeeId = event.target.value.trim()
     if (!employeeId) {
@@ -201,7 +329,9 @@ export function CreateEmployeeAccountPage() {
     }
   }
 
-  async function handleEmailAddressBlur(event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  async function handleEmailAddressBlur(
+    event: FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) {
     emailAddressRegistration.onBlur(event)
     const emailAddress = event.target.value.trim()
     if (!emailAddress) {
@@ -359,29 +489,12 @@ export function CreateEmployeeAccountPage() {
                 {...register('employeeName')}
                 error={Boolean(errors.employeeName)}
                 helperText={
-                  <Box
-                    component="span"
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      gap: 1,
-                      width: '100%',
-                    }}
-                  >
-                    <Box
-                      component="span"
-                      sx={{ flex: 1, color: errors.employeeName ? 'error.main' : 'inherit' }}
-                    >
-                      {errors.employeeName?.message}
-                    </Box>
-                    <Box
-                      component="span"
-                      sx={{ color: 'text.secondary', flexShrink: 0, typography: 'caption' }}
-                    >
+                  <span className="flex w-full items-start justify-between gap-2">
+                    <span className={errors.employeeName ? 'text-red-600' : ''}>{errors.employeeName?.message}</span>
+                    <span className="shrink-0 text-slate-400">
                       {employeeNameLength}/{EMPLOYEE_NAME_MAX_LENGTH}
-                    </Box>
-                  </Box>
+                    </span>
+                  </span>
                 }
               />
             </div>
@@ -416,22 +529,24 @@ export function CreateEmployeeAccountPage() {
                 control={control}
                 name="religionId"
                 render={({ field }) => (
-                  <Autocomplete
-                    options={religionsOptions}
-                    loading={religions.isFetching}
-                    value={selectedOption(religionsOptions, field.value)}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
-                    getOptionLabel={(option) => option.name}
-                    onChange={(_, value) => field.onChange(value?.id)}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label="Religion *"
-                        error={Boolean(errors.religionId)}
-                        helperText={errors.religionId?.message}
-                      />
-                    )}
-                  />
+                  <TextField
+                    select
+                    fullWidth
+                    label="Religion *"
+                    value={field.value ?? ''}
+                    onChange={(event) => field.onChange(event.target.value ? Number(event.target.value) : undefined)}
+                    onBlur={field.onBlur}
+                    error={Boolean(errors.religionId)}
+                    helperText={errors.religionId?.message}
+                    disabled={religions.isFetching}
+                  >
+                    <MenuItem value="">Select</MenuItem>
+                    {religionsOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </TextField>
                 )}
               />
               <TextField
@@ -462,6 +577,7 @@ export function CreateEmployeeAccountPage() {
                 <TextField
                   fullWidth
                   label="Phone Number *"
+                  autoComplete="section-primary tel"
                   slotProps={{ htmlInput: { maxLength: MAX_PHONE_INPUT_LENGTH } }}
                   {...register('phoneNo')}
                   error={Boolean(errors.phoneNo)}
@@ -531,14 +647,15 @@ export function CreateEmployeeAccountPage() {
                   error={Boolean(errors.fatherName)}
                   helperText={errors.fatherName?.message}
                 />
-                <TextField
-                  fullWidth
-                  label="Father NRC *"
-                  {...register('fatherNrcNo')}
-                  error={Boolean(errors.fatherNrcNo)}
-                  helperText={errors.fatherNrcNo?.message}
-                />
               </div>
+
+              <NrcFields 
+                control={control} 
+                errors={errors} 
+                setValue={setValue} 
+                prefix="father" 
+                label="Father NRC"
+              />
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <TextField
@@ -555,35 +672,27 @@ export function CreateEmployeeAccountPage() {
                   <MenuItem value="Divorced">Divorced</MenuItem>
                   <MenuItem value="Widowed">Widowed</MenuItem>
                 </TextField>
-                <div className="flex items-center">
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={Boolean(hasSpouse)}
-                        onChange={(e) => setValue('hasSpouse', e.target.checked)}
-                      />
-                    }
-                    label="Has Spouse"
-                  />
-                </div>
               </div>
 
-              {hasSpouse ? (
+              {maritalStatus === 'Married' ? (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <TextField
+                   <TextField
                     fullWidth
                     label="Spouse Name *"
                     {...register('spouseName')}
                     error={Boolean(errors.spouseName)}
                     helperText={errors.spouseName?.message}
                   />
-                  <TextField
-                    fullWidth
-                    label="Spouse NRC No. *"
-                    {...register('spouseNrcNo')}
-                    error={Boolean(errors.spouseNrcNo)}
-                    helperText={errors.spouseNrcNo?.message}
-                  />
+                  <div className="md:col-span-2">
+                    <NrcFields 
+                      control={control} 
+                      errors={errors} 
+                      setValue={setValue} 
+                      prefix="spouse" 
+                      label="Spouse NRC No."
+                      required={maritalStatus === 'Married'}
+                    />
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -596,6 +705,7 @@ export function CreateEmployeeAccountPage() {
                 <TextField
                   fullWidth
                   label="Emergency Mobile No. *"
+                  autoComplete="section-emergency tel"
                   slotProps={{ htmlInput: { maxLength: MAX_PHONE_INPUT_LENGTH } }}
                   {...register('emergencyPhone')}
                   error={Boolean(errors.emergencyPhone)}
@@ -643,44 +753,52 @@ export function CreateEmployeeAccountPage() {
                   control={control}
                   name="departmentId"
                   render={({ field }) => (
-                    <Autocomplete
-                      options={departmentsOptions}
-                      loading={departments.isFetching}
-                      value={selectedOption(departmentsOptions, field.value)}
-                      isOptionEqualToValue={(option, value) => option.id === value.id}
-                      getOptionLabel={(option) => option.name}
-                      onChange={(_, value) => field.onChange(value?.id)}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Department *"
-                          error={Boolean(errors.departmentId)}
-                          helperText={errors.departmentId?.message}
-                        />
-                      )}
-                    />
+                    <TextField
+                      select
+                      fullWidth
+                      label="Department *"
+                      value={field.value ?? ''}
+                      onChange={(event) =>
+                        field.onChange(event.target.value ? Number(event.target.value) : undefined)
+                      }
+                      onBlur={field.onBlur}
+                      error={Boolean(errors.departmentId)}
+                      helperText={errors.departmentId?.message}
+                      disabled={departments.isFetching}
+                    >
+                      <MenuItem value="">Select</MenuItem>
+                      {departmentsOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </TextField>
                   )}
                 />
                 <Controller
                   control={control}
                   name="positionId"
                   render={({ field }) => (
-                    <Autocomplete
-                      options={positionsOptions}
-                      loading={positions.isFetching}
-                      value={selectedOption(positionsOptions, field.value)}
-                      isOptionEqualToValue={(option, value) => option.id === value.id}
-                      getOptionLabel={(option) => option.name}
-                      onChange={(_, value) => field.onChange(value?.id)}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Position *"
-                          error={Boolean(errors.positionId)}
-                          helperText={errors.positionId?.message}
-                        />
-                      )}
-                    />
+                    <TextField
+                      select
+                      fullWidth
+                      label="Position *"
+                      value={field.value ?? ''}
+                      onChange={(event) =>
+                        field.onChange(event.target.value ? Number(event.target.value) : undefined)
+                      }
+                      onBlur={field.onBlur}
+                      error={Boolean(errors.positionId)}
+                      helperText={errors.positionId?.message}
+                      disabled={positions.isFetching}
+                    >
+                      <MenuItem value="">Select</MenuItem>
+                      {positionsOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </TextField>
                   )}
                 />
                 <TextField
@@ -863,10 +981,9 @@ export function CreateEmployeeAccountPage() {
               ) : null}
               <Button
                 variant="contained"
-                size="large"
                 onClick={() => void handleCreateAccount()}
                 disabled={!employeePkId || createAccountState.isLoading}
-                sx={{ minWidth: 220 }}
+                className="min-w-[220px]"
               >
                 {createAccountState.isLoading ? 'Creating Account...' : 'Create Employee Account'}
               </Button>

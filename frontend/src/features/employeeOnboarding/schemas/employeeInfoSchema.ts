@@ -12,14 +12,24 @@ export const GENERIC_FIELD_VALIDATION_MESSAGE = 'Please complete this field.'
 
 const g = GENERIC_FIELD_VALIDATION_MESSAGE
 
-function nrcSuperRefine(val: { nrcStateCode: string; nrcTownshipCode: string }, ctx: z.RefinementCtx) {
-  if (val.nrcStateCode && val.nrcTownshipCode) {
-    const township = allTownships.find((t) => t.short.en === val.nrcTownshipCode)
-    if (!township || township.stateCode !== val.nrcStateCode) {
+function nrcSuperRefine(
+  val: { nrcStateCode: string; nrcTownshipCode: string },
+  ctx: z.RefinementCtx,
+  pathPrefix: string = ''
+) {
+  const stateCodeField = (pathPrefix ? `${pathPrefix}NrcStateCode` : 'nrcStateCode') as any
+  const townshipCodeField = (pathPrefix ? `${pathPrefix}NrcTownshipCode` : 'nrcTownshipCode') as any
+  
+  const stateCode = (val as any)[stateCodeField]
+  const townshipCode = (val as any)[townshipCodeField]
+
+  if (stateCode && townshipCode) {
+    const township = allTownships.find((t) => t.short.en === townshipCode)
+    if (!township || township.stateCode !== stateCode) {
       ctx.addIssue({
         code: 'custom',
         message: g,
-        path: ['nrcTownshipCode'],
+        path: [townshipCodeField],
       })
     }
   }
@@ -48,11 +58,18 @@ const personalContactShape = z.object({
   maritalStatus: z.string().optional(),
   spouseName: z.string().optional(),
   spouseNrcNo: z.string().optional(),
+  spouseNrcStateCode: z.string().optional(),
+  spouseNrcTownshipCode: z.string().optional(),
+  spouseNrcType: z.string().optional(),
+  spouseNrcNumber: z.string().optional(),
   fatherName: z.string(g).min(1, g),
-  fatherNrcNo: z.string(g).min(1, g),
+  fatherNrcNo: z.string().optional(),
+  fatherNrcStateCode: z.string(g).min(1, g),
+  fatherNrcTownshipCode: z.string(g).min(1, g),
+  fatherNrcType: z.string(g).min(1, g),
+  fatherNrcNumber: z.string(g).min(1, g).regex(/^[0-9]{1,6}$/, { message: g }),
   fatherOccupation: z.string().optional(),
   spouseOccupation: z.string().optional(),
-  hasSpouse: z.boolean().default(false),
   emergencyPhone: z.string(g).regex(phoneRegex, { message: g }),
   emergencyRelation: z.string(g).min(1, g),
   nationality: z.string(g).min(1, g).max(100, g),
@@ -76,16 +93,38 @@ const employmentShape = z.object({
 
 /** Step 1: personal details, NRC, and contact (before employment). */
 export const employeePersonalContactSchema = personalContactShape
-  .superRefine(nrcSuperRefine)
+  .superRefine((val, ctx) => nrcSuperRefine(val, ctx))
+  .superRefine((val, ctx) => nrcSuperRefine(val, ctx, 'father'))
+  .superRefine((val, ctx) => nrcSuperRefine(val, ctx, 'spouse'))
   .superRefine(spouseSuperRefine)
 
-function spouseSuperRefine(val: { hasSpouse: boolean; spouseName?: string; spouseNrcNo?: string }, ctx: z.RefinementCtx) {
-  if (val.hasSpouse) {
+function spouseSuperRefine(
+  val: {
+    maritalStatus?: string
+    spouseName?: string
+    spouseNrcNo?: string
+    spouseNrcStateCode?: string
+    spouseNrcTownshipCode?: string
+    spouseNrcType?: string
+    spouseNrcNumber?: string
+  },
+  ctx: z.RefinementCtx
+) {
+  if (val.maritalStatus === 'Married') {
     if (!val.spouseName || val.spouseName.trim() === '') {
       ctx.addIssue({ code: 'custom', message: g, path: ['spouseName'] })
     }
-    if (!val.spouseNrcNo || val.spouseNrcNo.trim() === '') {
-      ctx.addIssue({ code: 'custom', message: g, path: ['spouseNrcNo'] })
+    if (!val.spouseNrcStateCode) {
+      ctx.addIssue({ code: 'custom', message: g, path: ['spouseNrcStateCode'] })
+    }
+    if (!val.spouseNrcTownshipCode) {
+      ctx.addIssue({ code: 'custom', message: g, path: ['spouseNrcTownshipCode'] })
+    }
+    if (!val.spouseNrcType) {
+      ctx.addIssue({ code: 'custom', message: g, path: ['spouseNrcType'] })
+    }
+    if (!val.spouseNrcNumber) {
+      ctx.addIssue({ code: 'custom', message: g, path: ['spouseNrcNumber'] })
     }
   }
 }
@@ -127,8 +166,11 @@ function probationSuperRefine(
 
 export const employeeInfoSchema = personalContactShape
   .merge(employmentShape)
-  .superRefine(nrcSuperRefine)
+  .superRefine((val, ctx) => nrcSuperRefine(val, ctx))
+  .superRefine((val, ctx) => nrcSuperRefine(val, ctx, 'father'))
+  .superRefine((val, ctx) => nrcSuperRefine(val, ctx, 'spouse'))
   .superRefine(spouseSuperRefine)
   .superRefine(probationSuperRefine)
 
 export type EmployeeInfoFormValues = z.infer<typeof employeeInfoSchema>
+

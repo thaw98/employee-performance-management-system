@@ -10,11 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
     "@headlessui/react": "^2.2.10",
     "@hookform/resolvers": "^5.2.2",
-    "@mui/material": "^9.0.0",
     "@reduxjs/toolkit": "^2.11.2",
     "bootstrap-icons": "^1.13.1",
     "date-fns": "^4.1.0",

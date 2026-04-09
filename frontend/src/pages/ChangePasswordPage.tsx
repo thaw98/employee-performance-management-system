@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Box, Button, Stack, TextField } from '@mui/material'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useChangePasswordMutation } from '../features/user/userApi'
@@ -66,43 +65,63 @@ export function ChangePasswordPage() {
       </div>
 
       {message ? (
-        <Alert className="mb-6" severity={message.type}>
+        <div
+          className={`mb-6 rounded-lg border px-4 py-3 text-sm ${
+            message.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
           {message.text}
-        </Alert>
+        </div>
       ) : null}
 
       <div className="bg-white shadow-[0_4px_24px_rgba(0,0,0,0.02)] rounded-2xl overflow-hidden border border-slate-100 p-6 sm:p-8">
-        <Box component="form" onSubmit={handleSubmit(onSubmit)} className="max-w-md">
-          <Stack spacing={3}>
-            <TextField
+        <form onSubmit={handleSubmit(onSubmit)} className="max-w-md space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Current password</label>
+            <input
               type="password"
               autoComplete="current-password"
-              label="Current password"
               {...register('currentPassword')}
-              error={Boolean(errors.currentPassword)}
-              helperText={errors.currentPassword?.message}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-0 transition focus:border-blue-500"
             />
-            <TextField
+            {errors.currentPassword?.message ? (
+              <p className="mt-1 text-xs text-red-600">{errors.currentPassword.message}</p>
+            ) : null}
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">New password</label>
+            <input
               type="password"
               autoComplete="new-password"
-              label="New password"
               {...register('newPassword')}
-              error={Boolean(errors.newPassword)}
-              helperText={errors.newPassword?.message}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-0 transition focus:border-blue-500"
             />
-            <TextField
+            {errors.newPassword?.message ? (
+              <p className="mt-1 text-xs text-red-600">{errors.newPassword.message}</p>
+            ) : null}
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Confirm new password</label>
+            <input
               type="password"
               autoComplete="new-password"
-              label="Confirm new password"
               {...register('confirmPassword')}
-              error={Boolean(errors.confirmPassword)}
-              helperText={errors.confirmPassword?.message}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-0 transition focus:border-blue-500"
             />
-            <Button type="submit" disabled={isLoading} variant="contained">
+            {errors.confirmPassword?.message ? (
+              <p className="mt-1 text-xs text-red-600">{errors.confirmPassword.message}</p>
+            ) : null}
+          </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
               {isLoading ? 'Updating...' : 'Update password'}
-            </Button>
-          </Stack>
-        </Box>
+          </button>
+        </form>
       </div>
     </div>
   )

@@ -30,7 +30,6 @@ export interface EmployeeInfoPayload {
   fatherNrcNo?: string
   fatherOccupation?: string
   spouseOccupation?: string
-  hasSpouse?: boolean
   emergencyPhone?: string
   emergencyRelation?: string
   departmentId: number
