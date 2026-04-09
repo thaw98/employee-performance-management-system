@@ -1,20 +1,57 @@
 import { useGetPipsQuery } from '../features/pip/pipApi'
 import { Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import { useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
-import { formatDate } from '../utils/dateUtils'
+// Removed unused formatDate
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
+  PENDING_CREATION: 'bg-yellow-100 text-yellow-700',
+  PENDING_REOPEN: 'bg-orange-100 text-orange-700',
   ACTIVE: 'bg-blue-100 text-blue-700',
   COMPLETED: 'bg-green-100 text-green-700',
   CLOSED: 'bg-slate-100 text-slate-700',
+  DENIED: 'bg-red-100 text-red-700',
 }
 
 export default function PipMonitoringPage() {
   const { data: pips, isLoading } = useGetPipsQuery()
   const { user } = useSelector((state: RootState) => state.auth)
+  const [filterTab, setFilterTab] = useState<'ALL' | 'ACTIVE' | 'CLOSED'>('ALL')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const isManagerOrAdmin = user?.role === 'HR' || user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
+  const isManager = user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
+
+  const filteredPips = useMemo(() => {
+    if (!pips) return []
+    let result = pips
+
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(p => {
+        const empName = p.employee.employee?.employeeName?.toLowerCase() || ''
+        const empId = p.employee?.employeeId?.toLowerCase() || ''
+        const email = p.employee?.email?.toLowerCase() || ''
+        const dept = p.employee.employee?.department?.departmentName?.toLowerCase() || ''
+        return empName.includes(q) || empId.includes(q) || email.includes(q) || dept.includes(q)
+      })
+    }
+
+    if (filterTab === 'ACTIVE') {
+      result = result.filter(p => ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN'].includes(p.status))
+    } else if (filterTab === 'CLOSED') {
+      result = result.filter(p => ['CLOSED', 'DENIED', 'COMPLETED'].includes(p.status))
+    }
+
+    // Sort Active to top, Closed to bottom
+    return result.slice().sort((a, b) => {
+      const isAActive = ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN'].includes(a.status)
+      const isBActive = ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN'].includes(b.status)
+      if (isAActive && !isBActive) return -1
+      if (!isAActive && isBActive) return 1
+      return 0
+    })
+  }, [pips, filterTab, searchQuery])
 
   if (isLoading) return <div className="p-8">Loading PIPs...</div>
 
@@ -25,7 +62,7 @@ export default function PipMonitoringPage() {
           <h1 className="text-2xl font-bold text-slate-900">PIP Monitoring</h1>
           <p className="text-slate-500">Manage and track performance improvement plans.</p>
         </div>
-        {isManagerOrAdmin && (
+        {isManager && (
           <Link
             to="/hr/pip-monitoring/create"
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700"
@@ -36,54 +73,67 @@ export default function PipMonitoringPage() {
         )}
       </div>
 
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-2">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setFilterTab('ALL')}
+            className={`pb-2 text-sm font-medium ${filterTab === 'ALL' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            All PIPs
+          </button>
+          <button
+            onClick={() => setFilterTab('ACTIVE')}
+            className={`pb-2 text-sm font-medium ${filterTab === 'ACTIVE' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setFilterTab('CLOSED')}
+            className={`pb-2 text-sm font-medium ${filterTab === 'CLOSED' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Closed
+          </button>
+        </div>
+        <div className="relative">
+          <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by Name, ID, Email, or Dept..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:w-64"
+          />
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-left">
           <thead className="border-b border-slate-200 bg-slate-50">
             <tr>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Employee</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Name</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">ID</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Dept</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Email</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Completed Hours</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Total Hours</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Progress</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Timeline</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {pips?.map((pip) => {
-              const totalProgress = pip.objectives.reduce((acc, obj) => acc + obj.progressPercentage, 0)
-              const avgProgress = pip.objectives.length > 0 ? Math.round(totalProgress / pip.objectives.length) : 0
-              const is100Percent = avgProgress === 100
-
+            {filteredPips.map((pip) => {
               return (
                 <tr key={pip.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-slate-900">{pip.employee.email}</span>
-                      <div className="flex gap-2">
-                        <span className="text-xs text-slate-500">ID: {pip.employee.employeeId}</span>
-                        <span className="text-xs text-blue-600 font-medium">• {pip.completedHours}/{pip.totalHours} hrs</span>
-                      </div>
-                    </div>
-                  </td>
+                  <td className="px-6 py-4 font-medium text-slate-900">{pip.employee.employee?.employeeName || 'N/A'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{pip.employee.employeeId}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{pip.employee.employee?.department?.departmentName || 'N/A'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{pip.employee.email}</td>
+                  <td className="px-6 py-4 font-semibold text-blue-600">{pip.completedHours}</td>
+                  <td className="px-6 py-4 font-semibold text-slate-900">{pip.totalHours}</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[pip.status]}`}>
-                      {pip.status}
+                      {pip.status.replace('_', ' ')}
                     </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex w-32 items-center gap-2">
-                      <div className="h-1.5 w-full rounded-full bg-slate-100">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${is100Percent ? 'bg-green-500' : 'bg-blue-500'}`}
-                          style={{ width: `${avgProgress}%` }}
-                        />
-                      </div>
-                      <span className={`text-xs font-medium ${is100Percent ? 'text-green-600' : 'text-slate-600'}`}>
-                        {avgProgress}%
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {formatDate(pip.startDate)} to {formatDate(pip.endDate)}
                   </td>
                   <td className="px-6 py-4">
                     <Link
@@ -96,9 +146,9 @@ export default function PipMonitoringPage() {
                 </tr>
               )
             })}
-            {(!pips || pips.length === 0) && (
+            {filteredPips.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                   No PIP records found.
                 </td>
               </tr>

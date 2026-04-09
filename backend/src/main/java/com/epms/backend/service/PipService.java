@@ -117,9 +117,24 @@ public class PipService {
     @Transactional
     public Pip reopenPip(Long pipId, PipReopenRequest request) {
         Pip pip = getPipById(pipId);
-        pip.setStatus("ACTIVE");
-        // Log reason if needed, maybe add to remarks
-        pip.setClosingRemarks(pip.getClosingRemarks() + "\n[REOPENED]: " + request.getReason());
+        pip.setStatus("PENDING_REOPEN");
+        pip.setReopenReason(request.getReason());
+        pip.setClosingRemarks(pip.getClosingRemarks() + "\n[REOPEN REQUESTED]: " + request.getReason());
+        return pipRepository.save(pip);
+    }
+
+    @Transactional
+    public Pip reviewPip(Long pipId, PipReviewRequest request) {
+        Pip pip = getPipById(pipId);
+        if ("CONFIRMED".equals(request.getAction())) {
+            pip.setStatus("ACTIVE");
+        } else if ("DENIED".equals(request.getAction())) {
+            if ("PENDING_CREATION".equals(pip.getStatus())) {
+                pip.setStatus("DENIED");
+            } else if ("PENDING_REOPEN".equals(pip.getStatus())) {
+                pip.setStatus("CLOSED");
+            }
+        }
         return pipRepository.save(pip);
     }
 
