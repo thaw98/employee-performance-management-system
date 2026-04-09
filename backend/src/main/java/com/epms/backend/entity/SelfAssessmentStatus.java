@@ -1,8 +1,7 @@
 package com.epms.backend.entity;
 
 public enum SelfAssessmentStatus {
-    DRAFT,
-    SUBMITTED, // Employee signed
-    MANAGER_REVIEWED, // Manager signed
-    COMPLETED // HR signed
+    UNLOCKED,  // Employee can edit
+    LOCKED,    // Submitted, waiting for HR/Manager (Employee cannot edit)
+    FINALIZED  // Fully approved (No one can edit)
 }

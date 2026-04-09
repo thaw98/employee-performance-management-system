@@ -36,7 +36,8 @@ public class SelfAssessmentController {
     }
 
     @PostMapping("/submit")
-    public ResponseEntity<ApiResponse<SelfAssessment>> submit(Authentication authentication, @RequestBody SelfAssessment sa) {
+    public ResponseEntity<ApiResponse<SelfAssessment>> submit(Authentication authentication,
+            @RequestBody SelfAssessment sa) {
         Employee employee = getEmployee(authentication);
         sa.setEmployee(employee);
         SelfAssessment saved = selfAssessmentService.submitSelfAssessment(sa);
@@ -45,23 +46,49 @@ public class SelfAssessmentController {
 
     @GetMapping("/all")
     public ResponseEntity<ApiResponse<List<SelfAssessment>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.ok("All self assessments fetched", selfAssessmentService.getAllSelfAssessments()));
+        List<SelfAssessment> list = selfAssessmentService.getAllSelfAssessments();
+        System.out.println("DEBUG: Returning " + list.size() + " assessments");
+        return ResponseEntity
+                .ok(ApiResponse.ok("All self assessments fetched", list));
     }
 
     @PostMapping("/{id}/manager-review")
-    public ResponseEntity<ApiResponse<SelfAssessment>> managerReview(@PathVariable Long id, @RequestBody ReviewRequest req) {
+    public ResponseEntity<ApiResponse<SelfAssessment>> managerReview(@PathVariable Long id,
+            @RequestBody ReviewRequest req) {
         SelfAssessment sa = selfAssessmentService.managerReview(id, req.getComments(), req.getSignature());
         return ResponseEntity.ok(ApiResponse.ok("Manager review submitted", sa));
+    }
+
+    @PostMapping("/create/all")
+    public ResponseEntity<ApiResponse<Void>> createAll() {
+        selfAssessmentService.createForAllEmployees();
+        return ResponseEntity.ok(ApiResponse.ok("Self assignments created for all employees", null));
+    }
+
+    @PostMapping("/create/{employeeId}")
+    public ResponseEntity<ApiResponse<SelfAssessment>> create(@PathVariable Long employeeId) {
+        Employee employee = new Employee();
+        employee.setId(employeeId);
+        SelfAssessment saved = selfAssessmentService.createAssignment(employee);
+        return ResponseEntity.ok(ApiResponse.ok("Self assignment created successfully", saved));
+    }
+
+    @PostMapping("/{id}/unlock")
+    public ResponseEntity<ApiResponse<SelfAssessment>> unlock(@PathVariable Long id) {
+        SelfAssessment sa = selfAssessmentService.unlock(id);
+        return ResponseEntity.ok(ApiResponse.ok("Self assignment unlocked successfully", sa));
     }
 
     @PostMapping("/{id}/hr-review")
     public ResponseEntity<ApiResponse<SelfAssessment>> hrReview(@PathVariable Long id, @RequestBody ReviewRequest req) {
         SelfAssessment sa = selfAssessmentService.hrReview(id, req.getComments(), req.getSignature());
-        return ResponseEntity.ok(ApiResponse.ok("HR review submitted", sa));
+        return ResponseEntity.ok(ApiResponse.ok("Self assignment finalized", sa));
     }
 
     private Employee getEmployee(Authentication authentication) {
-        User user = userRepository.findByEmailIgnoreCase(authentication.getName())
+        com.epms.backend.security.UserPrincipal principal = (com.epms.backend.security.UserPrincipal) authentication
+                .getPrincipal();
+        User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return user.getEmployee();
     }

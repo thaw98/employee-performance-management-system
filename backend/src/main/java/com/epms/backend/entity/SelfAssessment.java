@@ -11,7 +11,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Getter
 @Setter
 @Entity
-@Table(name = "self_assessments")
+@Table(name = "self_assessment_records")
 public class SelfAssessment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -61,6 +61,7 @@ public class SelfAssessment {
     private LocalDateTime hrSignedAt;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20)
     private SelfAssessmentStatus status;
 
     @OneToMany(mappedBy = "selfAssessment", cascade = CascadeType.ALL, orphanRemoval = true)

@@ -30,25 +30,30 @@ public class DataSeeder implements CommandLineRunner {
     private final EmployeeRepository employeeRepository;
     private final RoleRepository roleRepository;
     private final CriteriaRepository criteriaRepository;
+    private final com.epms.backend.repository.SelfAssessmentRepository selfAssessmentRepository;
 
-    public DataSeeder(DepartmentRepository departmentRepository, 
-                      PositionRepository positionRepository,
-                      UserRepository userRepository,
-                      EmployeeRepository employeeRepository,
-                      RoleRepository roleRepository,
-                      CriteriaRepository criteriaRepository) {
+    public DataSeeder(DepartmentRepository departmentRepository,
+            PositionRepository positionRepository,
+            UserRepository userRepository,
+            EmployeeRepository employeeRepository,
+            RoleRepository roleRepository,
+            CriteriaRepository criteriaRepository,
+            com.epms.backend.repository.SelfAssessmentRepository selfAssessmentRepository) {
         this.departmentRepository = departmentRepository;
         this.positionRepository = positionRepository;
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
         this.roleRepository = roleRepository;
         this.criteriaRepository = criteriaRepository;
+        this.selfAssessmentRepository = selfAssessmentRepository;
     }
 
     @Override
     public void run(String... args) throws Exception {
-        Department eng = seedDepartmentAndPositions("Engineering", Arrays.asList("Software Engineer", "QA Engineer", "DevOps Engineer"));
-        Department mkt = seedDepartmentAndPositions("Marketing", Arrays.asList("Content Writer", "SEO Specialist", "Social Media Manager"));
+        Department eng = seedDepartmentAndPositions("Engineering",
+                Arrays.asList("Software Engineer", "QA Engineer", "DevOps Engineer"));
+        Department mkt = seedDepartmentAndPositions("Marketing",
+                Arrays.asList("Content Writer", "SEO Specialist", "Social Media Manager"));
         Department hr = seedDepartmentAndPositions("HR", Arrays.asList("Recruiter", "HR Manager"));
 
         Role hrRole = roleRepository.findByNameIgnoreCase("HR").orElseGet(() -> {
@@ -69,29 +74,29 @@ public class DataSeeder implements CommandLineRunner {
                 return roleRepository.save(r);
             });
         }
-        
+
         // Ensure test user 'hr@gmail.com' exists
         User hrUser = userRepository.findByEmailIgnoreCase("hr@gmail.com").orElseGet(() -> {
             User u = new User();
             u.setEmail("hr@gmail.com");
-            u.setPassword("password"); // Will be upgraded to BCrypt on first login by AuthService
+            u.setPassword("password");
             u.setRole(hrRole);
             u.setActive(true);
             return userRepository.save(u);
         });
-            
+
         if (hrUser.getEmployee() == null) {
             Employee emp = new Employee();
             emp.setEmployeeId("EMP11");
             emp.setEmployeeName("HR Manager Admin");
             emp.setDepartment(hr);
-            
+
             Position hrPos = positionRepository.findAll().stream()
-                .filter(p -> p.getName().equalsIgnoreCase("HR Manager"))
-                .findFirst()
-                .orElse(null);
+                    .filter(p -> p.getName().equalsIgnoreCase("HR Manager"))
+                    .findFirst()
+                    .orElse(null);
             emp.setPosition(hrPos);
-            
+
             emp = employeeRepository.save(emp);
             hrUser.setEmployee(emp);
             userRepository.save(hrUser);
@@ -106,6 +111,59 @@ public class DataSeeder implements CommandLineRunner {
             seedCriteria("Dependability", "Reliability in completing tasks and following through on commitments.");
             seedCriteria("Initiative", "Proactively identifies opportunities and takes appropriate action.");
         }
+
+        // --- Seed Sample Self-Assessments ---
+        if (selfAssessmentRepository.count() == 0) {
+            seedSelfAssessment("EMP101", "Aung Ko Oo", eng, "Software Engineer",
+                    com.epms.backend.entity.SelfAssessmentStatus.FINALIZED, 92.0, "Outstanding");
+            seedSelfAssessment("EMP102", "Naing Ye Aung", eng, "DevOps Engineer",
+                    com.epms.backend.entity.SelfAssessmentStatus.LOCKED, 86.0, "Good");
+            seedSelfAssessment("EMP103", "Thiha Zaw", eng, "Software Engineer",
+                    com.epms.backend.entity.SelfAssessmentStatus.UNLOCKED, 0.0, null);
+        }
+    }
+
+    private void seedSelfAssessment(String empId, String name, Department dept, String posName,
+            com.epms.backend.entity.SelfAssessmentStatus status, double score, String cat) {
+        Employee emp = employeeRepository.findByEmployeeId(empId).orElseGet(() -> {
+            Employee e = new Employee();
+            e.setEmployeeId(empId);
+            e.setEmployeeName(name);
+            e.setDepartment(dept);
+            Position p = positionRepository.findAll().stream().filter(pos -> pos.getName().equalsIgnoreCase(posName))
+                    .findFirst().orElse(null);
+            e.setPosition(p);
+            return employeeRepository.save(e);
+        });
+
+        com.epms.backend.entity.SelfAssessment sa = new com.epms.backend.entity.SelfAssessment();
+        sa.setEmployee(emp);
+        sa.setStatus(status);
+        sa.setTotalScore(score);
+        sa.setRatingCategory(cat);
+        sa.setAssessmentDate(java.time.LocalDateTime.now());
+        sa.setCreatedAt(java.time.LocalDateTime.now());
+
+        if (status != com.epms.backend.entity.SelfAssessmentStatus.UNLOCKED) {
+            sa.setEmployeeRemarks("Completed my tasks efficiently.");
+            sa.setEmployeeSignature(name);
+            sa.setEmployeeSignedAt(java.time.LocalDateTime.now().minusDays(1));
+
+            com.epms.backend.entity.SelfAssessmentItem item = new com.epms.backend.entity.SelfAssessmentItem();
+            item.setQuestionText("I completed my assigned tasks on time");
+            item.setAnswerYesNo(true);
+            item.setRating(5);
+            item.setSelfAssessment(sa);
+            sa.setItems(Arrays.asList(item));
+        }
+
+        if (status == com.epms.backend.entity.SelfAssessmentStatus.FINALIZED) {
+            sa.setHrComments("Exceeded expectations.");
+            sa.setHrSignature("HR Admin");
+            sa.setHrSignedAt(java.time.LocalDateTime.now());
+        }
+
+        selfAssessmentRepository.save(sa);
     }
 
     private void seedCriteria(String name, String description) {
@@ -117,24 +175,24 @@ public class DataSeeder implements CommandLineRunner {
 
     private Department seedDepartmentAndPositions(String deptName, List<String> posNames) {
         Department dept = departmentRepository.findAll().stream()
-            .filter(d -> d.getName().equalsIgnoreCase(deptName))
-            .findFirst()
-            .orElseGet(() -> {
-                Department d = new Department();
-                d.setName(deptName);
-                return departmentRepository.save(d);
-            });
+                .filter(d -> d.getName().equalsIgnoreCase(deptName))
+                .findFirst()
+                .orElseGet(() -> {
+                    Department d = new Department();
+                    d.setName(deptName);
+                    return departmentRepository.save(d);
+                });
 
         for (String posName : posNames) {
             Position pos = positionRepository.findAll().stream()
-                .filter(p -> p.getName().equalsIgnoreCase(posName))
-                .findFirst()
-                .orElseGet(() -> {
-                    Position p = new Position();
-                    p.setName(posName);
-                    return p;
-                });
-            
+                    .filter(p -> p.getName().equalsIgnoreCase(posName))
+                    .findFirst()
+                    .orElseGet(() -> {
+                        Position p = new Position();
+                        p.setName(posName);
+                        return p;
+                    });
+
             if (pos.getDepartment() == null) {
                 pos.setDepartment(dept);
                 positionRepository.save(pos);

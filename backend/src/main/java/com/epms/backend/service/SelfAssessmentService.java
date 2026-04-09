@@ -15,9 +15,12 @@ import java.util.List;
 public class SelfAssessmentService {
 
     private final SelfAssessmentRepository selfAssessmentRepository;
+    private final com.epms.backend.repository.EmployeeRepository employeeRepository;
 
-    public SelfAssessmentService(SelfAssessmentRepository selfAssessmentRepository) {
+    public SelfAssessmentService(SelfAssessmentRepository selfAssessmentRepository,
+                                 com.epms.backend.repository.EmployeeRepository employeeRepository) {
         this.selfAssessmentRepository = selfAssessmentRepository;
+        this.employeeRepository = employeeRepository;
     }
 
     public List<SelfAssessment> getAllSelfAssessments() {
@@ -33,18 +36,54 @@ public class SelfAssessmentService {
     }
 
     @Transactional
+    public void createForAllEmployees() {
+        List<Employee> allEmployees = employeeRepository.findAll();
+        for (Employee emp : allEmployees) {
+            // Optional: Skip if already assigned an active one?
+            // For now, allow multiple as per "add more self-assignments" requirement.
+            createAssignment(emp);
+        }
+    }
+
+    @Transactional
+    public SelfAssessment createAssignment(Employee employee) {
+        SelfAssessment sa = new SelfAssessment();
+        sa.setEmployee(employee);
+        sa.setStatus(SelfAssessmentStatus.UNLOCKED);
+        sa.setAssessmentDate(LocalDateTime.now());
+        return selfAssessmentRepository.save(sa);
+    }
+
+    @Transactional
     public SelfAssessment submitSelfAssessment(SelfAssessment sa) {
+        SelfAssessment existing = selfAssessmentRepository.findById(sa.getId())
+                .orElseThrow(() -> new RuntimeException("Assessment not found"));
+
+        if (existing.getStatus() != SelfAssessmentStatus.UNLOCKED) {
+            throw new RuntimeException("Assessment is already submitted or finalized.");
+        }
+
+        sa.setEmployee(existing.getEmployee());
         validateRatings(sa.getItems());
         calculateScores(sa);
-        sa.setStatus(SelfAssessmentStatus.SUBMITTED);
-        sa.setEmployeeSignedAt(LocalDateTime.now());
-        sa.setAssessmentDate(LocalDateTime.now());
-        
-        // Ensure items back-reference
-        if (sa.getItems() != null) {
-            sa.getItems().forEach(item -> item.setSelfAssessment(sa));
+        existing.setItems(sa.getItems());
+        existing.setEmployeeRemarks(sa.getEmployeeRemarks());
+        existing.setEmployeeSignature(sa.getEmployeeSignature());
+        existing.setStatus(SelfAssessmentStatus.LOCKED);
+        existing.setEmployeeSignedAt(LocalDateTime.now());
+
+        if (existing.getItems() != null) {
+            existing.getItems().forEach(item -> item.setSelfAssessment(existing));
         }
-        
+
+        return selfAssessmentRepository.save(existing);
+    }
+
+    @Transactional
+    public SelfAssessment unlock(Long id) {
+        SelfAssessment sa = selfAssessmentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Assignment not found"));
+        sa.setStatus(SelfAssessmentStatus.UNLOCKED);
         return selfAssessmentRepository.save(sa);
     }
 
@@ -52,12 +91,13 @@ public class SelfAssessmentService {
     public SelfAssessment managerReview(Long id, String comments, String signature) {
         SelfAssessment sa = selfAssessmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Self Assessment not found"));
-        
+
         sa.setManagerComments(comments);
         sa.setManagerSignature(signature);
         sa.setManagerSignedAt(LocalDateTime.now());
-        sa.setStatus(SelfAssessmentStatus.MANAGER_REVIEWED);
-        
+        // Stays LOCKED until HR finalizes
+        sa.setStatus(SelfAssessmentStatus.LOCKED);
+
         return selfAssessmentRepository.save(sa);
     }
 
@@ -65,12 +105,12 @@ public class SelfAssessmentService {
     public SelfAssessment hrReview(Long id, String comments, String signature) {
         SelfAssessment sa = selfAssessmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Self Assessment not found"));
-        
+
         sa.setHrComments(comments);
         sa.setHrSignature(signature);
         sa.setHrSignedAt(LocalDateTime.now());
-        sa.setStatus(SelfAssessmentStatus.COMPLETED);
-        
+        sa.setStatus(SelfAssessmentStatus.FINALIZED);
+
         return selfAssessmentRepository.save(sa);
     }
 
@@ -92,17 +132,21 @@ public class SelfAssessmentService {
         int totalPoints = sa.getItems().stream().mapToInt(SelfAssessmentItem::getRating).sum();
         int numQuestions = sa.getItems().size();
         double score = ((double) totalPoints / (numQuestions * 5)) * 100;
-        
+
         sa.setTotalPoints(totalPoints);
         sa.setTotalScore(score);
         sa.setRatingCategory(getRatingCategory(score));
     }
 
     private String getRatingCategory(double score) {
-        if (score >= 86) return "Outstanding";
-        if (score >= 71) return "Good";
-        if (score >= 60) return "Meets Requirements";
-        if (score >= 40) return "Needs Improvement";
+        if (score >= 86)
+            return "Outstanding";
+        if (score >= 71)
+            return "Good";
+        if (score >= 60)
+            return "Meets Requirements";
+        if (score >= 40)
+            return "Needs Improvement";
         return "Unsatisfactory";
     }
 }
