@@ -18,15 +18,22 @@ export interface User {
   id: number
   employeeId: string
   email: string
+  employee?: {
+    employeeName: string
+    department?: {
+      departmentName: string
+    }
+  }
 }
 
 export interface Pip {
   id: number
   employee: User
   manager: User
-  status: 'ACTIVE' | 'COMPLETED' | 'CLOSED'
+  status: 'PENDING_CREATION' | 'PENDING_REOPEN' | 'ACTIVE' | 'COMPLETED' | 'CLOSED' | 'DENIED'
   startDate: string
   endDate: string
+  reopenReason?: string
   closingRemarks?: string
   finalOutcome?: string
   objectives: PipObjective[]
@@ -106,6 +113,14 @@ export const pipApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: () => ['PIP'],
     }),
+    reviewPip: builder.mutation<Pip, { pipId: number; action: 'CONFIRMED' | 'DENIED' }>({
+      query: ({ pipId, ...body }) => ({
+        url: `/pips/${pipId}/review`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: () => ['PIP'],
+    }),
     getTrainingHistory: builder.query<TrainingRecord[], string>({
       query: (employeeId) => `/pips/employees/${employeeId}/training`,
       transformResponse: (response: any) => response.data,
@@ -125,6 +140,7 @@ export const {
   useScheduleMeetingMutation,
   useClosePipMutation,
   useReopenPipMutation,
+  useReviewPipMutation,
   useGetTrainingHistoryQuery,
   useGetObjectiveHistoryQuery,
 } = pipApi
