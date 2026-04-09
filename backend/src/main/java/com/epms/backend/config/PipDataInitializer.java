@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.List;
 
 @Component
 @Order(3)
@@ -20,6 +19,7 @@ public class PipDataInitializer implements CommandLineRunner {
 
     private final PipRepository pipRepository;
     private final UserRepository userRepository;
+    private final EmployeeRepository employeeRepository;
     private final RoleRepository roleRepository;
     private final TrainingRecordRepository trainingRecordRepository;
     private final PasswordEncoder passwordEncoder;
@@ -96,15 +96,25 @@ public class PipDataInitializer implements CommandLineRunner {
     }
 
     private User createOrUpdateUser(String employeeId, String email, Role role) {
-        User user = userRepository.findByEmployeeId(employeeId).orElseGet(() -> {
+        Employee employee = employeeRepository.findByEmployeeId(employeeId).orElseGet(() -> {
+            Employee e = new Employee();
+            e.setEmployeeId(employeeId);
+            e.setEmployeeName(employeeId);
+            e.setEmailAddress(email);
+            e.setRecordStatus("COMPLETED");
+            return employeeRepository.save(e);
+        });
+        User user = userRepository.findByEmployee_EmployeeId(employeeId).orElseGet(() -> {
             User u = new User();
-            u.setEmployeeId(employeeId);
+            u.setEmployee(employee);
             return u;
         });
+        user.setEmployee(employee);
         user.setEmail(email);
-        user.setPasswordHash(passwordEncoder.encode("12345678"));
+        user.setPassword(passwordEncoder.encode("12345678"));
         user.setRole(role);
-        user.setEnabled(true);
+        user.setActive(true);
+        user.setMustChangePassword(false);
         return userRepository.save(user);
     }
 

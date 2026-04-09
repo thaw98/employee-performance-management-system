@@ -27,7 +27,7 @@ export default function PipMonitoringPage() {
         </div>
         {isManagerOrAdmin && (
           <Link
-            to="/admin/pip-monitoring/create"
+            to="/hr/pip-monitoring/create"
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700"
           >
             <i className="bi bi-plus-lg" />
@@ -87,7 +87,7 @@ export default function PipMonitoringPage() {
                   </td>
                   <td className="px-6 py-4">
                     <Link
-                      to={`/admin/pip-monitoring/${pip.id}`}
+                      to={`/hr/pip-monitoring/${pip.id}`}
                       className="text-sm font-semibold text-blue-600 hover:text-blue-800"
                     >
                       View Details

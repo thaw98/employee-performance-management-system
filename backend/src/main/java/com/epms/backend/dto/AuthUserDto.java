@@ -15,4 +15,5 @@ public class AuthUserDto {
 	private String employeeId;
 	private String email;
 	private String role;
+	private Long roleId;
 }

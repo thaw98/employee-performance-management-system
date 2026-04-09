@@ -73,7 +73,7 @@ export function AppNavbar() {
 
               <div className="p-1">
                 <Link
-                  to="/admin/settings/profile"
+                  to="/hr/settings/profile"
                   className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-700 rounded-lg hover:bg-slate-50 hover:text-blue-700 transition-colors group"
                   onClick={() => setIsDropdownOpen(false)}
                 >

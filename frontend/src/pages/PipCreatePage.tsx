@@ -1,43 +1,68 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Alert, Box, Button, IconButton, Stack, TextField, Typography } from '@mui/material'
+import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { z } from 'zod'
 import { useCreatePipMutation } from '../features/pip/pipApi'
+
+const pipCreateSchema = z
+  .object({
+    employeeId: z.string().min(1, 'Employee ID is required'),
+    totalHours: z.coerce.number().int().min(1, 'Total hours must be at least 1'),
+    startDate: z.string().min(1, 'Start date is required'),
+    endDate: z.string().min(1, 'End date is required'),
+    objectives: z
+      .array(
+        z.object({
+          value: z.string().min(1, 'Objective is required'),
+        }),
+      )
+      .min(1, 'At least one objective is required'),
+  })
+  .refine((v) => new Date(v.endDate) >= new Date(v.startDate), {
+    path: ['endDate'],
+    message: 'End date must be on or after start date',
+  })
+
+type PipCreateFormValues = z.infer<typeof pipCreateSchema>
 
 export default function PipCreatePage() {
   const navigate = useNavigate()
   const [createPip, { isLoading }] = useCreatePipMutation()
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const [formData, setFormData] = useState({
-    employeeId: '',
-    startDate: '',
-    endDate: '',
-    totalHours: 0,
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<PipCreateFormValues>({
+    resolver: zodResolver(pipCreateSchema) as never,
+    defaultValues: {
+      employeeId: '',
+      startDate: '',
+      endDate: '',
+      totalHours: 1,
+      objectives: [{ value: '' }],
+    },
   })
 
-  const [objectives, setObjectives] = useState([''])
+  const { fields, append, remove } = useFieldArray({ control, name: 'objectives' })
 
-  const handleAddObjective = () => setObjectives([...objectives, ''])
-  const handleObjectiveChange = (index: number, value: string) => {
-    const newObjectives = [...objectives]
-    newObjectives[index] = value
-    setObjectives(newObjectives)
-  }
-  const handleRemoveObjective = (index: number) => {
-    if (objectives.length > 1) {
-      setObjectives(objectives.filter((_, i) => i !== index))
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (values: PipCreateFormValues) => {
+    setSubmitError(null)
     try {
       await createPip({
-        ...formData,
-        objectives: objectives.filter((obj) => obj.trim() !== ''),
+        employeeId: values.employeeId.trim(),
+        startDate: values.startDate,
+        endDate: values.endDate,
+        totalHours: values.totalHours,
+        objectives: values.objectives.map((item) => item.value.trim()).filter(Boolean),
       }).unwrap()
-      navigate('/admin/pip-monitoring')
-    } catch (err) {
-      console.error('Failed to create PIP:', err)
-      alert('Failed to create PIP. Please check employee ID and try again.')
+      navigate('/hr/pip-monitoring')
+    } catch {
+      setSubmitError('Failed to create PIP. Please check employee ID and try again.')
     }
   }
 
@@ -48,106 +73,87 @@ export default function PipCreatePage() {
         <p className="text-slate-500">Initiate a Performance Improvement Plan for an employee.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Employee ID</label>
-            <input
-              type="text"
-              required
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="E.g. EMP001"
-              value={formData.employeeId}
-              onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+      <Box component="form" onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+        <Stack spacing={2}>
+          {submitError ? <Alert severity="error">{submitError}</Alert> : null}
+          <TextField
+            label="Employee ID"
+            placeholder="E.g. EMP001"
+            fullWidth
+            {...register('employeeId')}
+            error={Boolean(errors.employeeId)}
+            helperText={errors.employeeId?.message}
+          />
+          <TextField
+            type="number"
+            label="Total Hours"
+            fullWidth
+            slotProps={{ htmlInput: { min: 1 } }}
+            {...register('totalHours', { valueAsNumber: true })}
+            error={Boolean(errors.totalHours)}
+            helperText={errors.totalHours?.message}
+          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <TextField
+              type="date"
+              label="Start Date"
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+              {...register('startDate')}
+              error={Boolean(errors.startDate)}
+              helperText={errors.startDate?.message}
             />
-          </div>
- 
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Total Hours</label>
-            <input
-              type="number"
-              required
-              min="1"
-              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="E.g. 100"
-              value={formData.totalHours}
-              onChange={(e) => setFormData({ ...formData, totalHours: parseInt(e.target.value) })}
+            <TextField
+              type="date"
+              label="End Date"
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+              {...register('endDate')}
+              error={Boolean(errors.endDate)}
+              helperText={errors.endDate?.message}
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Start Date</label>
-              <input
-                type="date"
-                required
-                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">End Date</label>
-              <input
-                type="date"
-                required
-                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                value={formData.endDate}
-                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-slate-700">Improvement Objectives</label>
-            {objectives.map((obj, index) => (
-              <div key={index} className="flex gap-2">
-                <input
-                  type="text"
-                  required
-                  className="block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder={`Objective ${index + 1}`}
-                  value={obj}
-                  onChange={(e) => handleObjectiveChange(index, e.target.value)}
+          </Stack>
+          <Stack spacing={1.5}>
+            <Typography variant="subtitle2">Improvement Objectives</Typography>
+            {fields.map((field, index) => (
+              <Stack key={field.id} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+                <Controller
+                  control={control}
+                  name={`objectives.${index}.value`}
+                  render={({ field: objectiveField }) => (
+                    <TextField
+                      fullWidth
+                      label={`Objective ${index + 1}`}
+                      {...objectiveField}
+                      error={Boolean(errors.objectives?.[index]?.value)}
+                      helperText={errors.objectives?.[index]?.value?.message}
+                    />
+                  )}
                 />
-                {objectives.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveObjective(index)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
-                  >
+                {fields.length > 1 ? (
+                  <IconButton type="button" color="error" onClick={() => remove(index)} aria-label={`Remove objective ${index + 1}`}>
                     <i className="bi bi-trash" />
-                  </button>
-                )}
-              </div>
+                  </IconButton>
+                ) : null}
+              </Stack>
             ))}
-            <button
-              type="button"
-              onClick={handleAddObjective}
-              className="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
-            >
-              <i className="bi bi-plus-lg" /> Add Objective
-            </button>
-          </div>
-        </div>
+            <Box>
+              <Button type="button" variant="text" onClick={() => append({ value: '' })}>
+                <i className="bi bi-plus-lg mr-2" /> Add Objective
+              </Button>
+            </Box>
+          </Stack>
+        </Stack>
 
         <div className="flex justify-end gap-3 pt-4">
-          <button
-            type="button"
-            onClick={() => navigate('/admin/pip-monitoring')}
-            className="rounded-lg border border-slate-300 px-6 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
+          <Button type="button" variant="outlined" onClick={() => navigate('/hr/pip-monitoring')}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
-          >
+          </Button>
+          <Button type="submit" disabled={isLoading} variant="contained">
             {isLoading ? 'Creating...' : 'Create PIP'}
-          </button>
+          </Button>
         </div>
-      </form>
+      </Box>
     </div>
   )
 }

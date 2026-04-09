@@ -1,12 +1,22 @@
 import { useState } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Alert, Box, Button, Stack, TextField } from '@mui/material'
 import { useForm } from 'react-hook-form'
+import { z } from 'zod'
 import { useChangePasswordMutation } from '../features/user/userApi'
 
-type FormValues = {
-  currentPassword: string
-  newPassword: string
-  confirmPassword: string
-}
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: z.string().min(8, 'At least 8 characters'),
+    confirmPassword: z.string().min(1, 'Please confirm your new password'),
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Passwords do not match',
+  })
+
+type FormValues = z.infer<typeof changePasswordSchema>
 
 export function ChangePasswordPage() {
   const [changePassword, { isLoading }] = useChangePasswordMutation()
@@ -16,17 +26,15 @@ export function ChangePasswordPage() {
     register,
     handleSubmit,
     reset,
-    watch,
     formState: { errors },
   } = useForm<FormValues>({
+    resolver: zodResolver(changePasswordSchema) as never,
     defaultValues: {
       currentPassword: '',
       newPassword: '',
       confirmPassword: '',
     },
   })
-
-  const newPassword = watch('newPassword')
 
   const onSubmit = async (values: FormValues) => {
     setMessage(null)
@@ -57,94 +65,44 @@ export function ChangePasswordPage() {
         </p>
       </div>
 
-      {message && (
-        <div
-          className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in fade-in slide-in-from-top-2 ${message.type === 'success'
-            ? 'bg-green-50 text-green-700 border border-green-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
-            }`}
-        >
-          <i
-            className={`bi ${message.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill'} text-lg`}
-          />
+      {message ? (
+        <Alert className="mb-6" severity={message.type}>
           {message.text}
-        </div>
-      )}
+        </Alert>
+      ) : null}
 
       <div className="bg-white shadow-[0_4px_24px_rgba(0,0,0,0.02)] rounded-2xl overflow-hidden border border-slate-100 p-6 sm:p-8">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-md">
-          <div>
-            <label htmlFor="currentPassword" className="block text-sm font-medium text-slate-700 mb-1">
-              Current password
-            </label>
-            <input
-              id="currentPassword"
+        <Box component="form" onSubmit={handleSubmit(onSubmit)} className="max-w-md">
+          <Stack spacing={3}>
+            <TextField
               type="password"
               autoComplete="current-password"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              aria-invalid={errors.currentPassword ? 'true' : 'false'}
-              {...register('currentPassword', { required: 'Current password is required' })}
+              label="Current password"
+              {...register('currentPassword')}
+              error={Boolean(errors.currentPassword)}
+              helperText={errors.currentPassword?.message}
             />
-            {errors.currentPassword && (
-              <p className="mt-1 text-sm text-red-600">{errors.currentPassword.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="newPassword" className="block text-sm font-medium text-slate-700 mb-1">
-              New password
-            </label>
-            <input
-              id="newPassword"
+            <TextField
               type="password"
               autoComplete="new-password"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              aria-invalid={errors.newPassword ? 'true' : 'false'}
-              {...register('newPassword', {
-                required: 'New password is required',
-                minLength: { value: 8, message: 'At least 8 characters' },
-              })}
+              label="New password"
+              {...register('newPassword')}
+              error={Boolean(errors.newPassword)}
+              helperText={errors.newPassword?.message}
             />
-            {errors.newPassword && (
-              <p className="mt-1 text-sm text-red-600">{errors.newPassword.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-1">
-              Confirm new password
-            </label>
-            <input
-              id="confirmPassword"
+            <TextField
               type="password"
               autoComplete="new-password"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              aria-invalid={errors.confirmPassword ? 'true' : 'false'}
-              {...register('confirmPassword', {
-                required: 'Please confirm your new password',
-                validate: (v) => v === newPassword || 'Passwords do not match',
-              })}
+              label="Confirm new password"
+              {...register('confirmPassword')}
+              error={Boolean(errors.confirmPassword)}
+              helperText={errors.confirmPassword?.message}
             />
-            {errors.confirmPassword && (
-              <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <>
-                <i className="bi bi-arrow-repeat animate-spin mr-2" />
-                Updating…
-              </>
-            ) : (
-              'Update password'
-            )}
-          </button>
-        </form>
+            <Button type="submit" disabled={isLoading} variant="contained">
+              {isLoading ? 'Updating...' : 'Update password'}
+            </Button>
+          </Stack>
+        </Box>
       </div>
     </div>
   )

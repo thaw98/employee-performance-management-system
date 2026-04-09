@@ -5,6 +5,12 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    dedupe: ['@emotion/react', '@emotion/styled'],
+  },
+  optimizeDeps: {
+    include: ['@emotion/react', '@emotion/styled'],
+  },
   server: {
     proxy: {
       '/api': {

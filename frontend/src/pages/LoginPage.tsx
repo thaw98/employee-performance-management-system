@@ -7,7 +7,7 @@ export function LoginPage() {
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated)
 
   if (isAuthenticated) {
-    return <Navigate to="/admin/dashboard" replace />
+    return <Navigate to="/hr/dashboard" replace />
   }
 
   return (
