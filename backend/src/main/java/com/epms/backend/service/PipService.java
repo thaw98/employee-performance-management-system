@@ -35,7 +35,7 @@ public class PipService {
         pip.setTotalHours(request.getTotalHours() != null ? request.getTotalHours() : 0);
         pip.setCompletedHours(0);
         pip.setStatus("ACTIVE");
-        
+
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();
             obj.setDescription(desc);
@@ -82,13 +82,13 @@ public class PipService {
         update.setUpdatedBy(updatedBy);
 
         objective.setProgressPercentage(request.getProgressPercentage());
-        
+
         if (request.getCompletedHours() != null) {
             Pip pip = objective.getPip();
             pip.setCompletedHours(request.getCompletedHours());
             pipRepository.save(pip);
         }
-        
+
         progressUpdateRepository.save(update);
         return objectiveRepository.save(objective);
     }
@@ -96,12 +96,12 @@ public class PipService {
     @Transactional
     public FollowUpMeeting scheduleMeeting(Long pipId, MeetingScheduleRequest request) {
         Pip pip = getPipById(pipId);
-        
+
         FollowUpMeeting meeting = new FollowUpMeeting();
         meeting.setPip(pip);
         meeting.setMeetingTime(request.getMeetingTime());
         meeting.setStatus("SCHEDULED");
-        
+
         return meetingRepository.save(meeting);
     }
 

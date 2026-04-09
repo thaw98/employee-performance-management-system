@@ -13,6 +13,12 @@ import PipCreatePage from './pages/PipCreatePage'
 import PipDetailPage from './pages/PipDetailPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { CreateEmployeeAccountPage } from './features/employeeOnboarding/pages/CreateEmployeeAccountPage'
+import { KpiDashboardPage } from './pages/KpiDashboardPage'
+import { KpiAssignmentMatrixPage } from './pages/KpiAssignmentMatrixPage'
+import { EmployeeKpiViewPage } from './pages/EmployeeKpiViewPage'
+import { KpiEvaluationPage } from './pages/KpiEvaluationPage'
+import { KpiPeriodConfigPage } from './pages/KpiPeriodConfigPage'
+import { KpiAuditLogsPage } from './pages/KpiAuditLogsPage'
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
@@ -56,7 +62,7 @@ function App() {
           path="/hr/my-performance"
           element={
             <ProtectedLayout>
-              <PlaceholderPage title="My Performance" />
+              <EmployeeKpiViewPage />
             </ProtectedLayout>
           }
         />
@@ -64,7 +70,7 @@ function App() {
           path="/hr/appraisals"
           element={
             <ProtectedLayout>
-              <PlaceholderPage title="Performance Appraisals" />
+              <KpiEvaluationPage />
             </ProtectedLayout>
           }
         />
@@ -101,10 +107,26 @@ function App() {
           }
         />
         <Route
+          path="/hr/kpi-assign"
+          element={
+            <ProtectedLayout>
+              <KpiAssignmentMatrixPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/hr/goals"
           element={
             <ProtectedLayout>
-              <PlaceholderPage title="Goals & KPIs" />
+              <KpiDashboardPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/kpi-periods"
+          element={
+            <ProtectedLayout>
+              <KpiPeriodConfigPage />
             </ProtectedLayout>
           }
         />
@@ -121,6 +143,14 @@ function App() {
           element={
             <HrProtectedLayout>
               <CreateEmployeeAccountPage />
+            </HrProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/kpi-audit-logs"
+          element={
+            <HrProtectedLayout>
+              <KpiAuditLogsPage />
             </HrProtectedLayout>
           }
         />
