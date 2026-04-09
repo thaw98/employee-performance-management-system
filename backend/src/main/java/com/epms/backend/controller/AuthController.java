@@ -48,7 +48,8 @@ public class AuthController {
 				principal.getId(),
 				principal.getEmployeeId(),
 				principal.getEmail(),
-				principal.getRoleName());
+				principal.getRoleName(),
+				principal.getRoleId());
 		return ResponseEntity.ok(ApiResponse.ok("OK", user));
 	}
 }

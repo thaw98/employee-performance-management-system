@@ -22,16 +22,22 @@ public class AuthService {
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
 
-	@Transactional(readOnly = true)
+	@Transactional
 	public LoginResponseDto login(LoginRequestDto request) {
 		String identifier = request.getIdentifier().trim();
 		String rawPassword = request.getPassword();
 
 		User user = resolveUser(identifier);
-		if (user == null || !user.isEnabled()) {
+		if (user == null) {
+			System.out.println("LOGIN FAILED: User not found with identifier: " + identifier);
 			throw new BadCredentialsException("Invalid credentials");
 		}
-		if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+		if (!user.isActive()) {
+			System.out.println("LOGIN FAILED: User is disabled: " + identifier);
+			throw new BadCredentialsException("Invalid credentials");
+		}
+		if (!isPasswordValid(user, rawPassword)) {
+			System.out.println("LOGIN FAILED: Password mismatch for user: " + identifier);
 			throw new BadCredentialsException("Invalid credentials");
 		}
 
@@ -47,14 +53,37 @@ public class AuthService {
 		if (identifier.contains("@")) {
 			return userRepository.findByEmailIgnoreCase(identifier).orElse(null);
 		}
-		return userRepository.findByEmployeeId(identifier).orElse(null);
+		return userRepository.findByEmployee_EmployeeId(identifier).orElse(null);
+	}
+
+	private boolean isPasswordValid(User user, String rawPassword) {
+		String storedPassword = user.getPassword();
+		if (storedPassword == null || storedPassword.isBlank()) {
+			return false;
+		}
+
+		// Normal path: password already stored as a BCrypt hash.
+		if (passwordEncoder.matches(rawPassword, storedPassword)) {
+			return true;
+		}
+
+		// Backward compatibility: allow legacy plaintext and upgrade immediately.
+		if (rawPassword.equals(storedPassword)) {
+			user.setPassword(passwordEncoder.encode(rawPassword));
+			userRepository.save(user);
+			return true;
+		}
+
+		return false;
 	}
 
 	private static AuthUserDto toAuthUserDto(User user) {
+		String roleName = user.getRole().getName().trim().toUpperCase().replace(' ', '_');
 		return new AuthUserDto(
 				user.getId(),
-				user.getEmployeeId(),
+				user.getEmployee().getEmployeeId(),
 				user.getEmail(),
-				user.getRole().getName());
+				roleName,
+				user.getRole().getId());
 	}
 }

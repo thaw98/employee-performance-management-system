@@ -45,7 +45,7 @@ export function LoginForm() {
       }
       persistAuth(values.rememberMe, res.data.token, res.data.user)
       dispatch(setCredentials({ token: res.data.token, user: res.data.user }))
-      navigate('/admin/dashboard', { replace: true })
+      navigate('/hr/dashboard', { replace: true })
     } catch {
       setGenericError('Invalid credentials')
     }

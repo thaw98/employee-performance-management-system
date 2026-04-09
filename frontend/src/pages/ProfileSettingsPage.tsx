@@ -166,7 +166,7 @@ export function ProfileSettingsPage() {
               <p className="text-xs text-slate-500 mt-1 pb-1">Update your password to keep your account secure.</p>
             </div>
             <Link 
-              to="/admin/settings/password"
+              to="/hr/settings/password"
               className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold shadow-sm hover:bg-slate-50 hover:text-blue-600 transition-colors flex items-center gap-2 shrink-0"
             >
               <i className="bi bi-shield-lock"></i>

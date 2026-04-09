@@ -26,7 +26,7 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return new UserProfileDto(
                 user.getId(),
-                user.getEmployeeId(),
+                user.getEmployee().getEmployeeId(),
                 user.getEmail(),
                 user.getRole().getName(),
                 user.getProfilePictureBase64());
@@ -42,7 +42,7 @@ public class UserService {
 
         return new UserProfileDto(
                 updatedUser.getId(),
-                updatedUser.getEmployeeId(),
+                updatedUser.getEmployee().getEmployeeId(),
                 updatedUser.getEmail(),
                 updatedUser.getRole().getName(),
                 updatedUser.getProfilePictureBase64());

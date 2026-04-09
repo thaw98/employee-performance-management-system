@@ -1,0 +1,101 @@
+package com.epms.backend.controller;
+
+import com.epms.backend.common.ApiResponse;
+import com.epms.backend.dto.pip.*;
+import com.epms.backend.entity.*;
+import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.service.PipService;
+import com.epms.backend.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/pips")
+@RequiredArgsConstructor
+public class PipController {
+
+    private final PipService pipService;
+    private final UserRepository userRepository;
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('ROLE_HR', 'ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')")
+    public ResponseEntity<ApiResponse<Pip>> createPip(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody PipCreateRequest request) {
+        User manager = userRepository.findById(principal.getId()).orElseThrow();
+        Pip pip = pipService.createPip(request, manager);
+        return ResponseEntity.ok(ApiResponse.ok("PIP created successfully", pip));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<Pip>>> getPips(@AuthenticationPrincipal UserPrincipal principal) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        List<Pip> pips;
+        if (principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_HR"))) {
+            pips = pipService.getAllPips();
+        } else if (principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().matches("ROLE_(DEPARTMENT|TEAM)_HEAD"))) {
+            pips = pipService.getManagerPips(user);
+        } else {
+            pips = pipService.getEmployeePips(user);
+        }
+        return ResponseEntity.ok(ApiResponse.ok("PIPs retrieved successfully", pips));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<Pip>> getPipById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("PIP retrieved successfully", pipService.getPipById(id)));
+    }
+
+    @PutMapping("/objectives/{objectiveId}/progress")
+    @PreAuthorize("hasAnyRole('ROLE_HR', 'ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')")
+    public ResponseEntity<ApiResponse<PipObjective>> updateProgress(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long objectiveId,
+            @RequestBody ProgressUpdateRequest request) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        PipObjective objective = pipService.updateObjectiveProgress(objectiveId, request, user);
+        return ResponseEntity.ok(ApiResponse.ok("Progress updated successfully", objective));
+    }
+
+    @PostMapping("/{id}/meetings")
+    @PreAuthorize("hasAnyRole('ROLE_HR', 'ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')")
+    public ResponseEntity<ApiResponse<FollowUpMeeting>> scheduleMeeting(
+            @PathVariable Long id,
+            @RequestBody MeetingScheduleRequest request) {
+        FollowUpMeeting meeting = pipService.scheduleMeeting(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("Meeting scheduled successfully", meeting));
+    }
+
+    @PutMapping("/{id}/close")
+    @PreAuthorize("hasAnyRole('ROLE_HR', 'ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')")
+    public ResponseEntity<ApiResponse<Pip>> closePip(
+            @PathVariable Long id,
+            @RequestBody PipCloseRequest request) {
+        Pip pip = pipService.closePip(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("PIP closed successfully", pip));
+    }
+
+    @PutMapping("/{id}/reopen")
+    @PreAuthorize("hasAuthority('ROLE_HR')") // Only HR can reopen
+    public ResponseEntity<ApiResponse<Pip>> reopenPip(
+            @PathVariable Long id,
+            @RequestBody PipReopenRequest request) {
+        Pip pip = pipService.reopenPip(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("PIP reopened successfully", pip));
+    }
+
+    @GetMapping("/employees/{employeeId}/training")
+    public ResponseEntity<ApiResponse<List<TrainingRecord>>> getTrainingHistory(@PathVariable String employeeId) {
+        return ResponseEntity.ok(ApiResponse.ok("Training history retrieved successfully", pipService.getEmployeeTrainingHistory(employeeId)));
+    }
+
+    @GetMapping("/objectives/{objectiveId}/history")
+    public ResponseEntity<ApiResponse<List<PipProgressUpdate>>> getObjectiveHistory(@PathVariable Long objectiveId) {
+        return ResponseEntity.ok(ApiResponse.ok("Objective history retrieved successfully", pipService.getObjectiveHistory(objectiveId)));
+    }
+}

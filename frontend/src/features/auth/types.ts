@@ -3,6 +3,7 @@ export interface AuthUser {
   employeeId: string
   email: string
   role: string
+  roleId: number
 }
 
 export interface LoginResponseData {
