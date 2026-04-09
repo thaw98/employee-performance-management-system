@@ -23,7 +23,7 @@ public class PipController {
     private final UserRepository userRepository;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ROLE_HR', 'ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')")
     public ResponseEntity<ApiResponse<Pip>> createPip(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody PipCreateRequest request) {
@@ -81,12 +81,21 @@ public class PipController {
     }
 
     @PutMapping("/{id}/reopen")
-    @PreAuthorize("hasAuthority('ROLE_HR')") // Only HR can reopen
+    @PreAuthorize("hasAnyRole('ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')") // Manager can reopen
     public ResponseEntity<ApiResponse<Pip>> reopenPip(
             @PathVariable Long id,
             @RequestBody PipReopenRequest request) {
         Pip pip = pipService.reopenPip(id, request);
         return ResponseEntity.ok(ApiResponse.ok("PIP reopened successfully", pip));
+    }
+
+    @PutMapping("/{id}/review")
+    @PreAuthorize("hasAuthority('ROLE_HR')")
+    public ResponseEntity<ApiResponse<Pip>> reviewPip(
+            @PathVariable Long id,
+            @RequestBody PipReviewRequest request) {
+        Pip pip = pipService.reviewPip(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("PIP reviewed successfully", pip));
     }
 
     @GetMapping("/employees/{employeeId}/training")

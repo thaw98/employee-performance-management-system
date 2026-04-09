@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Alert, Box, Button, IconButton, Stack, TextField, Typography } from '@mui/material'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -72,121 +73,93 @@ export default function PipCreatePage() {
         <p className="text-slate-500">Initiate a Performance Improvement Plan for an employee.</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="space-y-4">
-          {submitError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {submitError}
-            </div>
-          ) : null}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Employee ID</label>
-            <input
-              placeholder="E.g. EMP001"
-              {...register('employeeId')}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500"
+      <Box component="form" onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+        <Stack spacing={2}>
+          {submitError ? <Alert severity="error">{submitError}</Alert> : null}
+          <TextField
+            label="Employee ID"
+            placeholder="E.g. EMP001"
+            fullWidth
+            {...register('employeeId')}
+            error={Boolean(errors.employeeId)}
+            helperText={errors.employeeId?.message}
+          />
+          <TextField
+            type="number"
+            label="Total Hours"
+            fullWidth
+            slotProps={{ htmlInput: { min: 1 } }}
+            {...register('totalHours', { valueAsNumber: true })}
+            error={Boolean(errors.totalHours)}
+            helperText={errors.totalHours?.message}
+          />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <TextField
+              type="date"
+              label="Start Date"
+              fullWidth
+              slotProps={{ 
+                inputLabel: { shrink: true },
+                htmlInput: { min: new Date().toISOString().split('T')[0] }
+              }}
+              {...register('startDate')}
+              error={Boolean(errors.startDate)}
+              helperText={errors.startDate?.message}
             />
-            {errors.employeeId?.message ? (
-              <p className="mt-1 text-xs text-red-600">{errors.employeeId.message}</p>
-            ) : null}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Total Hours</label>
-            <input
-              type="number"
-              min={1}
-              {...register('totalHours', { valueAsNumber: true })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500"
+            <TextField
+              type="date"
+              label="End Date"
+              fullWidth
+              slotProps={{ 
+                inputLabel: { shrink: true },
+                htmlInput: { min: new Date().toISOString().split('T')[0] }
+              }}
+              {...register('endDate')}
+              error={Boolean(errors.endDate)}
+              helperText={errors.endDate?.message}
             />
-            {errors.totalHours?.message ? (
-              <p className="mt-1 text-xs text-red-600">{errors.totalHours.message}</p>
-            ) : null}
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Start Date</label>
-              <input
-                type="date"
-                {...register('startDate')}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500"
-              />
-              {errors.startDate?.message ? (
-                <p className="mt-1 text-xs text-red-600">{errors.startDate.message}</p>
-              ) : null}
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">End Date</label>
-              <input
-                type="date"
-                {...register('endDate')}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500"
-              />
-              {errors.endDate?.message ? (
-                <p className="mt-1 text-xs text-red-600">{errors.endDate.message}</p>
-              ) : null}
-            </div>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-slate-700">Improvement Objectives</p>
+          </Stack>
+          <Stack spacing={1.5}>
+            <Typography variant="subtitle2">Improvement Objectives</Typography>
             {fields.map((field, index) => (
-              <div key={field.id} className="flex items-start gap-2">
+              <Stack key={field.id} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
                 <Controller
                   control={control}
                   name={`objectives.${index}.value`}
                   render={({ field: objectiveField }) => (
-                    <div className="w-full">
-                      <label className="mb-1 block text-sm font-medium text-slate-700">{`Objective ${index + 1}`}</label>
-                      <input
+                    <TextField
+                      fullWidth
+                      label={`Objective ${index + 1}`}
                       {...objectiveField}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500"
+                      error={Boolean(errors.objectives?.[index]?.value)}
+                      helperText={errors.objectives?.[index]?.value?.message}
                     />
-                      {errors.objectives?.[index]?.value?.message ? (
-                        <p className="mt-1 text-xs text-red-600">{errors.objectives[index]?.value?.message}</p>
-                      ) : null}
-                    </div>
                   )}
                 />
                 {fields.length > 1 ? (
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    aria-label={`Remove objective ${index + 1}`}
-                    className="mt-7 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50"
-                  >
+                  <IconButton type="button" color="error" onClick={() => remove(index)} aria-label={`Remove objective ${index + 1}`}>
                     <i className="bi bi-trash" />
-                  </button>
+                  </IconButton>
                 ) : null}
-              </div>
+              </Stack>
             ))}
-            <div>
-              <button
-                type="button"
-                onClick={() => append({ value: '' })}
-                className="inline-flex items-center rounded-lg px-2 py-2 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
-              >
+            <Box>
+              <Button type="button" variant="text" onClick={() => append({ value: '' })}>
                 <i className="bi bi-plus-lg mr-2" /> Add Objective
-              </button>
-            </div>
-          </div>
-        </div>
+              </Button>
+            </Box>
+          </Stack>
+        </Stack>
 
         <div className="flex justify-end gap-3 pt-4">
-          <button
-            type="button"
-            onClick={() => navigate('/hr/pip-monitoring')}
-            className="inline-flex items-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
+          <Button type="button" variant="outlined" onClick={() => navigate('/hr/pip-monitoring')}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
+          </Button>
+          <Button type="submit" disabled={isLoading} variant="contained">
             {isLoading ? 'Creating...' : 'Create PIP'}
-          </button>
+          </Button>
         </div>
-      </form>
+      </Box>
     </div>
   )
 }

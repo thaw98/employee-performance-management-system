@@ -29,4 +29,20 @@ public class DebugController {
         }
         return map;
     }
+
+    @GetMapping("/users-dump")
+    public java.util.List<Map<String, Object>> dumpUsers() {
+        return userRepository.findAll().stream().map(u -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", u.getId());
+            m.put("email", u.getEmail());
+            m.put("isActive", u.isActive());
+            m.put("hasEmployee", u.getEmployee() != null);
+            if (u.getEmployee() != null) {
+                m.put("employeeId", u.getEmployee().getId());
+                m.put("employeeName", u.getEmployee().getEmployeeName());
+            }
+            return m;
+        }).collect(java.util.stream.Collectors.toList());
+    }
 }

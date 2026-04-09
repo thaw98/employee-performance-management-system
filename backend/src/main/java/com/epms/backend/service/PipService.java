@@ -34,8 +34,8 @@ public class PipService {
         pip.setEndDate(request.getEndDate());
         pip.setTotalHours(request.getTotalHours() != null ? request.getTotalHours() : 0);
         pip.setCompletedHours(0);
-        pip.setStatus("ACTIVE");
-        
+        pip.setStatus("PENDING_CREATION");
+
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();
             obj.setDescription(desc);
@@ -82,13 +82,13 @@ public class PipService {
         update.setUpdatedBy(updatedBy);
 
         objective.setProgressPercentage(request.getProgressPercentage());
-        
+
         if (request.getCompletedHours() != null) {
             Pip pip = objective.getPip();
             pip.setCompletedHours(request.getCompletedHours());
             pipRepository.save(pip);
         }
-        
+
         progressUpdateRepository.save(update);
         return objectiveRepository.save(objective);
     }
@@ -96,12 +96,12 @@ public class PipService {
     @Transactional
     public FollowUpMeeting scheduleMeeting(Long pipId, MeetingScheduleRequest request) {
         Pip pip = getPipById(pipId);
-        
+
         FollowUpMeeting meeting = new FollowUpMeeting();
         meeting.setPip(pip);
         meeting.setMeetingTime(request.getMeetingTime());
         meeting.setStatus("SCHEDULED");
-        
+
         return meetingRepository.save(meeting);
     }
 
@@ -117,9 +117,24 @@ public class PipService {
     @Transactional
     public Pip reopenPip(Long pipId, PipReopenRequest request) {
         Pip pip = getPipById(pipId);
-        pip.setStatus("ACTIVE");
-        // Log reason if needed, maybe add to remarks
-        pip.setClosingRemarks(pip.getClosingRemarks() + "\n[REOPENED]: " + request.getReason());
+        pip.setStatus("PENDING_REOPEN");
+        pip.setReopenReason(request.getReason());
+        pip.setClosingRemarks(pip.getClosingRemarks() + "\n[REOPEN REQUESTED]: " + request.getReason());
+        return pipRepository.save(pip);
+    }
+
+    @Transactional
+    public Pip reviewPip(Long pipId, PipReviewRequest request) {
+        Pip pip = getPipById(pipId);
+        if ("CONFIRMED".equals(request.getAction())) {
+            pip.setStatus("ACTIVE");
+        } else if ("DENIED".equals(request.getAction())) {
+            if ("PENDING_CREATION".equals(pip.getStatus())) {
+                pip.setStatus("DENIED");
+            } else if ("PENDING_REOPEN".equals(pip.getStatus())) {
+                pip.setStatus("CLOSED");
+            }
+        }
         return pipRepository.save(pip);
     }
 

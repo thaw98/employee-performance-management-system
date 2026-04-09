@@ -44,7 +44,8 @@ public class User {
 	@Column(name = "is_active", nullable = false)
 	private boolean active = true;
 
-	// Legacy schema compatibility for environments where `users.enabled` still exists.
+	// Legacy schema compatibility for environments where `users.enabled` still
+	// exists.
 	@Column(name = "enabled")
 	private Boolean enabled;
 
