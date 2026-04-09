@@ -16,6 +16,12 @@ import { CreateEmployeeAccountPage } from './features/employeeOnboarding/pages/C
 import { CriteriaPage } from './pages/CriteriaPage'
 import { GiveFeedbackPage } from './pages/GiveFeedbackPage'
 import { FeedbackHistoryPage } from './pages/FeedbackHistoryPage'
+import { EmployeeKpiViewPage } from './pages/EmployeeKpiViewPage'
+import { KpiEvaluationPage } from './pages/KpiEvaluationPage'
+import { KpiAssignmentMatrixPage } from './pages/KpiAssignmentMatrixPage'
+import { KpiDashboardPage } from './pages/KpiDashboardPage'
+import { KpiPeriodConfigPage } from './pages/KpiPeriodConfigPage'
+import { KpiAuditLogsPage } from './pages/KpiAuditLogsPage'
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
