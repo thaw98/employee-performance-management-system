@@ -91,6 +91,11 @@ public class EmployeeService {
 	}
 
 	@Transactional(readOnly = true)
+	public Employee getEmployeeById(Long id) {
+		return employeeRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+	}
+
+	@Transactional(readOnly = true)
 	public boolean isEmployeeIdTaken(String employeeId) {
 		return employeeRepository.existsByEmployeeId(employeeId);
 	}

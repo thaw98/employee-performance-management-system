@@ -34,7 +34,7 @@ public class PipService {
         pip.setEndDate(request.getEndDate());
         pip.setTotalHours(request.getTotalHours() != null ? request.getTotalHours() : 0);
         pip.setCompletedHours(0);
-        pip.setStatus("PENDING_CREATION");
+        pip.setStatus("ACTIVE");
 
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();

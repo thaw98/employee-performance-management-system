@@ -16,6 +16,12 @@ import { CreateEmployeeAccountPage } from './features/employeeOnboarding/pages/C
 import { CriteriaPage } from './pages/CriteriaPage'
 import { GiveFeedbackPage } from './pages/GiveFeedbackPage'
 import { FeedbackHistoryPage } from './pages/FeedbackHistoryPage'
+import { EmployeeKpiViewPage } from './pages/EmployeeKpiViewPage'
+import { KpiEvaluationPage } from './pages/KpiEvaluationPage'
+import { KpiAssignmentMatrixPage } from './pages/KpiAssignmentMatrixPage'
+import { KpiDashboardPage } from './pages/KpiDashboardPage'
+import { KpiPeriodConfigPage } from './pages/KpiPeriodConfigPage'
+import { KpiAuditLogsPage } from './pages/KpiAuditLogsPage'
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
@@ -59,7 +65,7 @@ function App() {
           path="/hr/my-performance"
           element={
             <ProtectedLayout>
-              <PlaceholderPage title="My Performance" />
+              <EmployeeKpiViewPage />
             </ProtectedLayout>
           }
         />
@@ -67,7 +73,7 @@ function App() {
           path="/hr/appraisals"
           element={
             <ProtectedLayout>
-              <PlaceholderPage title="Performance Appraisals" />
+              <KpiEvaluationPage />
             </ProtectedLayout>
           }
         />
@@ -85,6 +91,14 @@ function App() {
           element={
             <ProtectedLayout>
               <GiveFeedbackPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/360-feedback/get"
+          element={
+            <ProtectedLayout>
+              <PlaceholderPage title="Get Feedback" />
             </ProtectedLayout>
           }
         />
@@ -121,10 +135,26 @@ function App() {
           }
         />
         <Route
+          path="/hr/kpi-assign"
+          element={
+            <ProtectedLayout>
+              <KpiAssignmentMatrixPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/hr/goals"
           element={
             <ProtectedLayout>
-              <PlaceholderPage title="Goals & KPIs" />
+              <KpiDashboardPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/kpi-periods"
+          element={
+            <ProtectedLayout>
+              <KpiPeriodConfigPage />
             </ProtectedLayout>
           }
         />
@@ -141,6 +171,14 @@ function App() {
           element={
             <HrProtectedLayout>
               <CreateEmployeeAccountPage />
+            </HrProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/kpi-audit-logs"
+          element={
+            <HrProtectedLayout>
+              <KpiAuditLogsPage />
             </HrProtectedLayout>
           }
         />
