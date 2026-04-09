@@ -6,6 +6,7 @@ import {
   useScheduleMeetingMutation,
   useClosePipMutation,
   useReopenPipMutation,
+  useReviewPipMutation,
   useGetTrainingHistoryQuery,
 } from '../features/pip/pipApi'
 import { useSelector } from 'react-redux'
@@ -22,6 +23,7 @@ export default function PipDetailPage() {
   const [scheduleMeeting] = useScheduleMeetingMutation()
   const [closePip] = useClosePipMutation()
   const [reopenPip] = useReopenPipMutation()
+  const [reviewPip] = useReviewPipMutation()
 
   const { data: trainingHistory } = useGetTrainingHistoryQuery(pip?.employee.employeeId ?? '', {
     skip: !pip?.employee.employeeId,
@@ -40,9 +42,11 @@ export default function PipDetailPage() {
   const [closeData, setCloseData] = useState({ finalOutcome: '', closingRemarks: '' })
 
   const [showReopenModal, setShowReopenModal] = useState(false)
-  const [reopenReason, setReopenReason] = useState('')
+  const [reopenReasonType, setReopenReasonType] = useState('Incomplete Goals')
+  const [customReason, setCustomReason] = useState('')
 
   const isManagerOrAdmin = user?.role === 'HR' || user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
+  const isManager = user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
   const isAdmin = user?.role === 'HR'
 
   if (isLoading || !pip) return <div className="p-8">Loading PIP details...</div>
@@ -72,9 +76,15 @@ export default function PipDetailPage() {
   }
 
   const handleReopenPip = async () => {
-    await reopenPip({ pipId, reason: reopenReason })
+    const finalReason = reopenReasonType === 'Other' ? customReason : reopenReasonType
+    await reopenPip({ pipId, reason: finalReason })
     setShowReopenModal(false)
-    setReopenReason('')
+    setReopenReasonType('Incomplete Goals')
+    setCustomReason('')
+  }
+
+  const handleReview = async (action: 'CONFIRMED' | 'DENIED') => {
+    await reviewPip({ pipId, action })
   }
 
   return (
@@ -91,7 +101,7 @@ export default function PipDetailPage() {
         </div>
 
         <div className="flex gap-3">
-          {isManagerOrAdmin && pip.status === 'ACTIVE' && (
+          {isManager && pip.status === 'ACTIVE' && (
             <>
               <button
                 onClick={() => setShowMeetingModal(true)}
@@ -107,13 +117,29 @@ export default function PipDetailPage() {
               </button>
             </>
           )}
-          {isAdmin && pip.status === 'CLOSED' && (
+          {isManager && pip.status === 'CLOSED' && (
             <button
               onClick={() => setShowReopenModal(true)}
               className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
             >
               <i className="bi bi-arrow-counterclockwise" /> Reopen PIP
             </button>
+          )}
+          {isAdmin && (pip.status === 'PENDING_CREATION' || pip.status === 'PENDING_REOPEN') && (
+            <>
+              <button
+                onClick={() => handleReview('CONFIRMED')}
+                className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+              >
+                <i className="bi bi-check-lg" /> Confirm
+              </button>
+              <button
+                onClick={() => handleReview('DENIED')}
+                className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                <i className="bi bi-x-lg" /> Deny
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -132,10 +158,10 @@ export default function PipDetailPage() {
                       <button
                         onClick={() => {
                           setShowUpdateModal({ open: true, objectiveId: obj.id })
-                          setUpdateValue({ 
-                            percentage: obj.progressPercentage, 
-                            completedHours: pip.completedHours, 
-                            feedback: '' 
+                          setUpdateValue({
+                            percentage: obj.progressPercentage,
+                            completedHours: pip.completedHours,
+                            feedback: ''
                           })
                         }}
                         className="text-sm font-semibold text-blue-600 hover:text-blue-800"
@@ -220,7 +246,7 @@ export default function PipDetailPage() {
               </div>
               <div>
                 <p className="text-xs text-slate-500">Created On</p>
-                <p className="font-medium text-slate-800">{formatDate(pip.createdAt)}</p>
+                <p className="font-medium text-slate-800">{formatDateTime(pip.createdAt)}</p>
               </div>
               <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
                 <div>
@@ -243,6 +269,12 @@ export default function PipDetailPage() {
                     <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.closingRemarks}</p>
                   </div>
                 </>
+              )}
+              {pip.reopenReason && (
+                <div className="pt-4 border-t border-slate-100">
+                  <p className="text-xs text-slate-500">Reopen Reason</p>
+                  <p className="text-sm font-medium text-orange-600 whitespace-pre-wrap">{pip.reopenReason}</p>
+                </div>
               )}
             </div>
           </section>
@@ -272,10 +304,10 @@ export default function PipDetailPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700">Total Completed Hours</label>
                 <input
-                   type="number"
-                   className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                   value={updateValue.completedHours}
-                   onChange={(e) => setUpdateValue({ ...updateValue, completedHours: parseInt(e.target.value) })}
+                  type="number"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  value={updateValue.completedHours}
+                  onChange={(e) => setUpdateValue({ ...updateValue, completedHours: parseInt(e.target.value) })}
                 />
                 <p className="text-[10px] text-slate-400 mt-1">Target: {pip.totalHours} hours</p>
               </div>
@@ -308,6 +340,7 @@ export default function PipDetailPage() {
                 <input
                   type="datetime-local"
                   required
+                  min={new Date().toISOString().slice(0, 16)}
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
                   value={meetingTime}
                   onChange={(e) => setMeetingTime(e.target.value)}
@@ -366,14 +399,28 @@ export default function PipDetailPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700">Reason for Reopening</label>
-                <textarea
-                  className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-500 focus:outline-none"
-                  rows={4}
-                  placeholder="State the reason for further action..."
-                  value={reopenReason}
-                  onChange={(e) => setReopenReason(e.target.value)}
-                />
+                <select
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+                  value={reopenReasonType}
+                  onChange={(e) => setReopenReasonType(e.target.value)}
+                >
+                  <option value="Incomplete Goals">Incomplete Goals</option>
+                  <option value="Follow-up Required">Follow-up Required</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
+              {reopenReasonType === 'Other' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Custom Reason</label>
+                  <textarea
+                    className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-500 focus:outline-none"
+                    rows={4}
+                    placeholder="State the reason for further action..."
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setShowReopenModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
