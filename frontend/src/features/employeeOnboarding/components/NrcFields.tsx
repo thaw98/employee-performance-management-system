@@ -1,4 +1,4 @@
-import { getNrcStates, getNrcTownships, getNrcTypes } from 'mm-nrc'
+import { getNrcStates, getNrcTownships, getNrcTypes } from '../utils/nrcData'
 import { useMemo } from 'react'
 import { Controller, useWatch, type Control, type FieldErrors, type UseFormSetValue } from 'react-hook-form'
 

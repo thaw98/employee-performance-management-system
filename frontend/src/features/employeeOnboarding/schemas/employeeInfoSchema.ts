@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { getNrcTownships } from 'mm-nrc'
+import { getNrcTownships } from '../utils/nrcData'
 import { phoneRegex } from '../utils/phoneValidation'
 
 const allTownships = getNrcTownships()
