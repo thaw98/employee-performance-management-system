@@ -45,7 +45,7 @@ export default function PipDetailPage() {
   const [reopenReasonType, setReopenReasonType] = useState('Incomplete Goals')
   const [customReason, setCustomReason] = useState('')
 
-  const isManagerOrAdmin = user?.role === 'HR' || user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
+  // Removed unused isManagerOrAdmin
   const isManager = user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
   const isDirectManager = isManager && user?.email === pip?.manager?.email
   const isAdmin = user?.role === 'HR'

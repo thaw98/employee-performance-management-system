@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
-import { formatDate } from '../utils/dateUtils'
+// Removed unused formatDate
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING_CREATION: 'bg-yellow-100 text-yellow-700',

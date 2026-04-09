@@ -1,14 +1,32 @@
-import { Link, NavLink } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useAppSelector } from '../../app/hooks'
 
 const PRIMARY = '#0855BF'
+
+type SubItem = { name: string; path: string }
+type NavItem = {
+  name: string;
+  path: string;
+  icon: string;
+  end: boolean;
+  subItems?: SubItem[]
+}
+type NavSection = { label: string; items: NavItem[] }
 
 export function AppSidebar() {
   const role = useAppSelector((s) => s.auth.user?.role)
   const isHr = role === 'HR'
   const isManager = role === 'DEPARTMENT_HEAD' || role === 'TEAM_HEAD'
+  const location = useLocation()
 
-  const navSections = [
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+
+  const toggleSection = (path: string) => {
+    setExpandedSections(prev => ({ ...prev, [path]: !prev[path] }))
+  }
+
+  const navSections: NavSection[] = [
     {
       label: 'Main',
       items: [
@@ -21,7 +39,18 @@ export function AppSidebar() {
       label: 'Management',
       items: [
         { name: 'Performance Appraisals', path: '/hr/appraisals', icon: 'bi-clipboard-check', end: false },
-        { name: '360° Feedback', path: '/hr/360-feedback', icon: 'bi-chat-dots', end: false },
+        {
+          name: '360° Feedback',
+          path: '/hr/360-feedback',
+          icon: 'bi-chat-dots',
+          end: false,
+          subItems: [
+            { name: 'Criteria', path: '/hr/360-feedback/criteria' },
+            { name: 'Give Feedback', path: '/hr/360-feedback/give' },
+            { name: 'Get Feedback', path: '/hr/360-feedback/get' },
+            { name: 'History', path: '/hr/360-feedback/history' }
+          ]
+        },
         { name: 'PIP Monitoring', path: '/hr/pip-monitoring', icon: 'bi-exclamation-triangle', end: false },
       ],
     },
@@ -41,7 +70,7 @@ export function AppSidebar() {
         style={{ borderBottomColor: `${PRIMARY}15` }}
       >
         <Link
-          to={isHr ? "/hr/dashboard" : "/hr/manager-dashboard"}
+          to={isHr ? "/hr/dashboard" : (isManager ? "/hr/manager-dashboard" : "/hr/my-performance")}
           className="flex items-center gap-2.5 text-xl font-bold transition-opacity hover:opacity-90"
           style={{ color: PRIMARY }}
         >
@@ -59,29 +88,71 @@ export function AppSidebar() {
               {section.label}
             </div>
             <nav className="space-y-1">
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
-                      ? 'translate-x-1 bg-blue-600 text-white shadow-md shadow-blue-200'
-                      : 'text-slate-600 hover:bg-white hover:text-blue-600'
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <i
-                        className={`bi ${item.icon} text-base transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
+              {section.items.map((item) => {
+                const isActiveOrChild = location.pathname.startsWith(item.path)
+                const isExpanded = expandedSections[item.path] !== undefined ? expandedSections[item.path] : isActiveOrChild
+
+                return (
+                  <div key={item.path}>
+                    {item.subItems ? (
+                      <button
+                        onClick={() => toggleSection(item.path)}
+                        className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActiveOrChild
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'
                           }`}
-                      />
-                      {item.name}
-                    </>
-                  )}
-                </NavLink>
-              ))}
+                      >
+                        <i
+                          className={`bi ${item.icon} text-base transition-colors ${isActiveOrChild ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600'
+                            }`}
+                        />
+                        <span className="flex-1 text-left">{item.name}</span>
+                        <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} text-xs opacity-50 transition-transform`} />
+                      </button>
+                    ) : (
+                      <NavLink
+                        to={item.path}
+                        end={item.end}
+                        className={({ isActive }) =>
+                          `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'
+                          }`
+                        }
+                      >
+                        {({ isActive }) => (
+                          <>
+                            <i
+                              className={`bi ${item.icon} text-base transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600'
+                                }`}
+                            />
+                            <span className="flex-1">{item.name}</span>
+                          </>
+                        )}
+                      </NavLink>
+                    )}
+
+                    {item.subItems && isExpanded && (
+                      <div className="ml-8 mt-1 space-y-1">
+                        {item.subItems.map(subItem => (
+                          <NavLink
+                            key={subItem.path}
+                            to={subItem.path}
+                            className={({ isActive }) =>
+                              `block rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 ${isActive
+                                ? 'text-blue-600 bg-blue-50/50 font-semibold'
+                                : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
+                              }`
+                            }
+                          >
+                            {subItem.name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
               {section.label === 'Management' && isHr ? (
                 <NavLink
                   to="/hr/employee-account/create"
@@ -132,4 +203,3 @@ export function AppSidebar() {
     </aside>
   )
 }
-
