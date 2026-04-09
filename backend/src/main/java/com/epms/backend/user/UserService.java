@@ -20,13 +20,12 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-
     public UserProfileDto getProfile(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return new UserProfileDto(
                 user.getId(),
-                user.getEmployee().getEmployeeId(),
+                user.getEmployeeId(),
                 user.getEmail(),
                 user.getRole().getName(),
                 user.getProfilePictureBase64());
@@ -42,7 +41,7 @@ public class UserService {
 
         return new UserProfileDto(
                 updatedUser.getId(),
-                updatedUser.getEmployee().getEmployeeId(),
+                updatedUser.getEmployeeId(),
                 updatedUser.getEmail(),
                 updatedUser.getRole().getName(),
                 updatedUser.getProfilePictureBase64());
@@ -57,5 +56,11 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new RuntimeException("Incorrect current password");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }
