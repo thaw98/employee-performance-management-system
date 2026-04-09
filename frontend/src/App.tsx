@@ -95,6 +95,14 @@ function App() {
           }
         />
         <Route
+          path="/hr/360-feedback/get"
+          element={
+            <ProtectedLayout>
+              <PlaceholderPage title="Get Feedback" />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/hr/360-feedback/history"
           element={
             <ProtectedLayout>
