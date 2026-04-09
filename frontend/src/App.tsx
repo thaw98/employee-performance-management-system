@@ -82,7 +82,7 @@ function App() {
           path="/hr/360-feedback/criteria"
           element={
             <ProtectedLayout>
-              <PlaceholderPage title="360 Feedback Criteria" />
+              <CriteriaPage />
             </ProtectedLayout>
           }
         />
@@ -90,7 +90,15 @@ function App() {
           path="/hr/360-feedback/give"
           element={
             <ProtectedLayout>
-              <PlaceholderPage title="Give 360 Feedback" />
+              <GiveFeedbackPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/360-feedback/get"
+          element={
+            <ProtectedLayout>
+              <PlaceholderPage title="Get Feedback" />
             </ProtectedLayout>
           }
         />
@@ -98,7 +106,7 @@ function App() {
           path="/hr/360-feedback/history"
           element={
             <ProtectedLayout>
-              <PlaceholderPage title="360 Feedback History" />
+              <FeedbackHistoryPage />
             </ProtectedLayout>
           }
         />
