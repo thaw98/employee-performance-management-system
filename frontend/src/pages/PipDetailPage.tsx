@@ -47,6 +47,7 @@ export default function PipDetailPage() {
 
   const isManagerOrAdmin = user?.role === 'HR' || user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
   const isManager = user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
+  const isDirectManager = isManager && user?.email === pip?.manager?.email
   const isAdmin = user?.role === 'HR'
 
   if (isLoading || !pip) return <div className="p-8">Loading PIP details...</div>
@@ -154,7 +155,7 @@ export default function PipDetailPage() {
                 <div key={obj.id} className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-slate-800">{obj.description}</span>
-                    {isManagerOrAdmin && pip.status === 'ACTIVE' && (
+                    {isDirectManager && pip.status === 'ACTIVE' && (
                       <button
                         onClick={() => {
                           setShowUpdateModal({ open: true, objectiveId: obj.id })
