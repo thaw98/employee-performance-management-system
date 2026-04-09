@@ -98,7 +98,10 @@ export default function PipCreatePage() {
               type="date"
               label="Start Date"
               fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{ 
+                inputLabel: { shrink: true },
+                htmlInput: { min: new Date().toISOString().split('T')[0] }
+              }}
               {...register('startDate')}
               error={Boolean(errors.startDate)}
               helperText={errors.startDate?.message}
@@ -107,7 +110,10 @@ export default function PipCreatePage() {
               type="date"
               label="End Date"
               fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{ 
+                inputLabel: { shrink: true },
+                htmlInput: { min: new Date().toISOString().split('T')[0] }
+              }}
               {...register('endDate')}
               error={Boolean(errors.endDate)}
               helperText={errors.endDate?.message}

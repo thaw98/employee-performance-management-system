@@ -63,6 +63,9 @@ public class Pip {
     @Column(nullable = false)
     private Integer completedHours = 0;
 
+    @Column(columnDefinition = "TEXT")
+    private String reopenReason;
+
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();

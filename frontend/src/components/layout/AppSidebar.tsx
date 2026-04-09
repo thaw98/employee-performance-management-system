@@ -4,57 +4,64 @@ import { useAppSelector } from '../../app/hooks'
 
 const PRIMARY = '#0855BF'
 
-/** Matches reference: MAIN / MANAGEMENT / ANALYTICS + Settings footer */
 type SubItem = { name: string; path: string }
-type NavItem = { name: string; path: string; icon: string; end: boolean; subItems?: SubItem[] }
+type NavItem = {
+  name: string;
+  path: string;
+  icon: string;
+  end: boolean;
+  subItems?: SubItem[]
+}
 type NavSection = { label: string; items: NavItem[] }
 
-const navSections: NavSection[] = [
-  {
-    label: 'Main',
-    items: [
-      { name: 'Executive View', path: '/hr/dashboard', icon: 'bi-speedometer2', end: true },
-      { name: 'Manager Dashboard', path: '/hr/manager-dashboard', icon: 'bi-people', end: false },
-      { name: 'My Performance', path: '/hr/my-performance', icon: 'bi-person', end: false },
-    ],
-  },
-  {
-    label: 'Management',
-    items: [
-      { name: 'Performance Appraisals', path: '/hr/appraisals', icon: 'bi-clipboard-check', end: false },
-      {
-        name: '360° Feedback',
-        path: '/hr/360-feedback',
-        icon: 'bi-chat-dots',
-        end: false,
-        subItems: [
-          { name: 'Criteria', path: '/hr/360-feedback/criteria' },
-          { name: 'Give Feedback', path: '/hr/360-feedback/give' },
-          { name: 'Get Feedback', path: '/hr/360-feedback/get' },
-          { name: 'History', path: '/hr/360-feedback/history' }
-        ]
-      },
-      { name: 'PIP Monitoring', path: '/hr/pip-monitoring', icon: 'bi-exclamation-triangle', end: false },
-    ],
-  },
-  {
-    label: 'Analytics',
-    items: [
-      { name: 'Goals & KPIs', path: '/hr/goals', icon: 'bi-bullseye', end: false },
-      { name: 'Reports Center', path: '/hr/reports', icon: 'bi-pie-chart', end: false },
-    ],
-  },
-]
-
 export function AppSidebar() {
-  const roleId = useAppSelector((s) => s.auth.user?.roleId)
-  const isHr = roleId === 1
+  const role = useAppSelector((s) => s.auth.user?.role)
+  const isHr = role === 'HR'
+  const isManager = role === 'DEPARTMENT_HEAD' || role === 'TEAM_HEAD'
   const location = useLocation()
+
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
 
   const toggleSection = (path: string) => {
     setExpandedSections(prev => ({ ...prev, [path]: !prev[path] }))
   }
+
+  const navSections: NavSection[] = [
+    {
+      label: 'Main',
+      items: [
+        ...(isHr ? [{ name: 'HR Dashboard', path: '/hr/dashboard', icon: 'bi-speedometer2', end: true }] : []),
+        ...(isManager ? [{ name: 'Manager Dashboard', path: '/hr/manager-dashboard', icon: 'bi-people', end: false }] : []),
+        { name: 'My Performance', path: '/hr/my-performance', icon: 'bi-person', end: false },
+      ],
+    },
+    {
+      label: 'Management',
+      items: [
+        { name: 'Performance Appraisals', path: '/hr/appraisals', icon: 'bi-clipboard-check', end: false },
+        {
+          name: '360° Feedback',
+          path: '/hr/360-feedback',
+          icon: 'bi-chat-dots',
+          end: false,
+          subItems: [
+            { name: 'Criteria', path: '/hr/360-feedback/criteria' },
+            { name: 'Give Feedback', path: '/hr/360-feedback/give' },
+            { name: 'Get Feedback', path: '/hr/360-feedback/get' },
+            { name: 'History', path: '/hr/360-feedback/history' }
+          ]
+        },
+        { name: 'PIP Monitoring', path: '/hr/pip-monitoring', icon: 'bi-exclamation-triangle', end: false },
+      ],
+    },
+    {
+      label: 'Analytics',
+      items: [
+        { name: 'Goals & KPIs', path: '/hr/goals', icon: 'bi-bullseye', end: false },
+        { name: 'Reports Center', path: '/hr/reports', icon: 'bi-pie-chart', end: false },
+      ],
+    },
+  ]
 
   return (
     <aside className="z-20 hidden h-full w-64 shrink-0 border-r border-slate-200/80 bg-slate-50 md:flex md:flex-col">
@@ -63,7 +70,7 @@ export function AppSidebar() {
         style={{ borderBottomColor: `${PRIMARY}15` }}
       >
         <Link
-          to="/hr/dashboard"
+          to={isHr ? "/hr/dashboard" : (isManager ? "/hr/manager-dashboard" : "/hr/my-performance")}
           className="flex items-center gap-2.5 text-xl font-bold transition-opacity hover:opacity-90"
           style={{ color: PRIMARY }}
         >
@@ -91,8 +98,8 @@ export function AppSidebar() {
                       <button
                         onClick={() => toggleSection(item.path)}
                         className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActiveOrChild
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'
                           }`}
                       >
                         <i
