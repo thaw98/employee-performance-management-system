@@ -52,6 +52,8 @@ export function AppSidebar() {
           ]
         },
         { name: 'PIP Monitoring', path: '/hr/pip-monitoring', icon: 'bi-exclamation-triangle', end: false },
+        { name: 'Self-Assessment', path: '/hr/self-assessment', icon: 'bi-journal-check', end: false },
+        ...(isHr || isManager ? [{ name: 'Compliance Review', path: '/hr/compliance-review', icon: 'bi-shield-check', end: false }] : []),
       ],
     },
     {

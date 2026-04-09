@@ -11,6 +11,8 @@ import com.epms.backend.repository.KpiRecordRepository;
 import com.epms.backend.repository.KpiRevisionRepository;
 import com.epms.backend.repository.KpiAuditLogRepository;
 import com.epms.backend.dto.KpiUpdateDTO;
+import com.epms.backend.entity.SelfAssessmentStatus;
+import com.epms.backend.repository.SelfAssessmentRepository;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,13 +24,16 @@ public class KpiService {
     private final KpiRecordRepository kpiRecordRepository;
     private final KpiRevisionRepository kpiRevisionRepository;
     private final KpiAuditLogRepository kpiAuditLogRepository;
+    private final SelfAssessmentRepository selfAssessmentRepository;
 
     public KpiService(KpiRecordRepository kpiRecordRepository,
             KpiRevisionRepository kpiRevisionRepository,
-            KpiAuditLogRepository kpiAuditLogRepository) {
+            KpiAuditLogRepository kpiAuditLogRepository,
+            SelfAssessmentRepository selfAssessmentRepository) {
         this.kpiRecordRepository = kpiRecordRepository;
         this.kpiRevisionRepository = kpiRevisionRepository;
         this.kpiAuditLogRepository = kpiAuditLogRepository;
+        this.selfAssessmentRepository = selfAssessmentRepository;
     }
 
     /**
@@ -53,6 +58,15 @@ public class KpiService {
                         + totalWeight + "%");
             }
             // Enforce all required fields for final submission
+            // Check if Self Assessment is completed
+            Employee emp = records.get(0).getEmployee();
+            boolean hasSelfAssessment = selfAssessmentRepository.findByEmployee(emp).stream()
+                .anyMatch(sa -> sa.getStatus() != SelfAssessmentStatus.DRAFT);
+            
+            if (!hasSelfAssessment) {
+                throw new RuntimeException("Appraisal workflow cannot proceed: Mandatory self-assessment is still incomplete.");
+            }
+
             for (KpiRecord r : records) {
                 if (r.getKpi() == null || r.getKpi().isEmpty() || r.getCategory() == null) {
                     throw new RuntimeException(
