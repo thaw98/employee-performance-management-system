@@ -4,7 +4,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.epms.backend.entity.Role;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.user.dto.UserProfileDto;
