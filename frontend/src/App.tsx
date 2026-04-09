@@ -13,9 +13,13 @@ import PipCreatePage from './pages/PipCreatePage'
 import PipDetailPage from './pages/PipDetailPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { CreateEmployeeAccountPage } from './features/employeeOnboarding/pages/CreateEmployeeAccountPage'
-import { CriteriaPage } from './pages/CriteriaPage'
-import { GiveFeedbackPage } from './pages/GiveFeedbackPage'
-import { FeedbackHistoryPage } from './pages/FeedbackHistoryPage'
+
+import { KpiPeriodConfigPage } from './pages/KpiPeriodConfigPage'
+import { KpiEvaluationPage } from './pages/KpiEvaluationPage'
+import { KpiDashboardPage } from './pages/KpiDashboardPage'
+import { KpiAuditLogsPage } from './pages/KpiAuditLogsPage'
+import { KpiAssignmentMatrixPage } from './pages/KpiAssignmentMatrixPage'
+import { EmployeeKpiViewPage } from './pages/EmployeeKpiViewPage'
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
@@ -76,7 +80,7 @@ function App() {
           path="/hr/360-feedback/criteria"
           element={
             <ProtectedLayout>
-              <CriteriaPage />
+              <PlaceholderPage title="360 Feedback Criteria" />
             </ProtectedLayout>
           }
         />
@@ -84,7 +88,7 @@ function App() {
           path="/hr/360-feedback/give"
           element={
             <ProtectedLayout>
-              <GiveFeedbackPage />
+              <PlaceholderPage title="Give 360 Feedback" />
             </ProtectedLayout>
           }
         />
@@ -92,7 +96,7 @@ function App() {
           path="/hr/360-feedback/history"
           element={
             <ProtectedLayout>
-              <FeedbackHistoryPage />
+              <PlaceholderPage title="360 Feedback History" />
             </ProtectedLayout>
           }
         />
