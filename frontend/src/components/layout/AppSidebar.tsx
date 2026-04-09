@@ -8,24 +8,24 @@ const navSections = [
   {
     label: 'Main',
     items: [
-      { name: 'Executive View', path: '/admin/dashboard', icon: 'bi-speedometer2', end: true },
-      { name: 'Manager Dashboard', path: '/admin/manager-dashboard', icon: 'bi-people', end: false },
-      { name: 'My Performance', path: '/admin/my-performance', icon: 'bi-person', end: false },
+      { name: 'Executive View', path: '/hr/dashboard', icon: 'bi-speedometer2', end: true },
+      { name: 'Manager Dashboard', path: '/hr/manager-dashboard', icon: 'bi-people', end: false },
+      { name: 'My Performance', path: '/hr/my-performance', icon: 'bi-person', end: false },
     ],
   },
   {
     label: 'Management',
     items: [
-      { name: 'Performance Appraisals', path: '/admin/appraisals', icon: 'bi-clipboard-check', end: false },
-      { name: '360° Feedback', path: '/admin/360-feedback', icon: 'bi-chat-dots', end: false },
-      { name: 'PIP Monitoring', path: '/admin/pip-monitoring', icon: 'bi-exclamation-triangle', end: false },
+      { name: 'Performance Appraisals', path: '/hr/appraisals', icon: 'bi-clipboard-check', end: false },
+      { name: '360° Feedback', path: '/hr/360-feedback', icon: 'bi-chat-dots', end: false },
+      { name: 'PIP Monitoring', path: '/hr/pip-monitoring', icon: 'bi-exclamation-triangle', end: false },
     ],
   },
   {
     label: 'Analytics',
     items: [
-      { name: 'Goals & KPIs', path: '/admin/goals', icon: 'bi-bullseye', end: false },
-      { name: 'Reports Center', path: '/admin/reports', icon: 'bi-pie-chart', end: false },
+      { name: 'Goals & KPIs', path: '/hr/goals', icon: 'bi-bullseye', end: false },
+      { name: 'Reports Center', path: '/hr/reports', icon: 'bi-pie-chart', end: false },
     ],
   },
 ] as const
@@ -40,7 +40,7 @@ export function AppSidebar() {
         style={{ borderBottomColor: `${PRIMARY}15` }}
       >
         <Link
-          to="/admin/dashboard"
+          to="/hr/dashboard"
           className="flex items-center gap-2.5 text-xl font-bold transition-opacity hover:opacity-90"
           style={{ color: PRIMARY }}
         >
@@ -109,7 +109,7 @@ export function AppSidebar() {
 
       <div className="border-t border-slate-200/80 bg-slate-50 p-4">
         <NavLink
-          to="/admin/settings/profile"
+          to="/hr/settings/profile"
           className={({ isActive }) =>
             `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
               ? 'translate-x-1 bg-blue-600 text-white shadow-md shadow-blue-200'

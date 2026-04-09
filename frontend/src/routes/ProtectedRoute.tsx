@@ -18,7 +18,7 @@ export function ProtectedRoute({ children, allowedRoleIds }: ProtectedRouteProps
   }
 
   if (allowedRoleIds && (!roleId || !allowedRoleIds.includes(roleId))) {
-    return <Navigate to="/admin/dashboard" replace />
+    return <Navigate to="/hr/dashboard" replace />
   }
 
   return children

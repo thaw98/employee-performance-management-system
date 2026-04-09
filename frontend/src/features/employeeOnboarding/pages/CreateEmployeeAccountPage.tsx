@@ -113,7 +113,12 @@ export function CreateEmployeeAccountPage() {
   async function handleEmployeeIdBlur(event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
     employeeIdRegistration.onBlur(event)
     const employeeId = event.target.value.trim()
-    if (!employeeId) return
+    if (!employeeId) {
+      if (errors.employeeId?.message === 'Employee ID already exists') {
+        clearErrors('employeeId')
+      }
+      return
+    }
     const idTaken = await checkEmployeeId(employeeId).unwrap()
     if (idTaken.data) {
       setError('employeeId', { message: 'Employee ID already exists' })
@@ -127,7 +132,12 @@ export function CreateEmployeeAccountPage() {
   async function handleEmailAddressBlur(event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
     emailAddressRegistration.onBlur(event)
     const emailAddress = event.target.value.trim()
-    if (!emailAddress) return
+    if (!emailAddress) {
+      if (errors.emailAddress?.message === 'Email already exists') {
+        clearErrors('emailAddress')
+      }
+      return
+    }
     const [employeeEmailTaken, userEmailTaken] = await Promise.all([
       checkEmailEmployees(emailAddress).unwrap(),
       checkEmailUsers(emailAddress).unwrap(),
@@ -228,7 +238,12 @@ export function CreateEmployeeAccountPage() {
                 label="Employee ID *"
                 name={employeeIdRegistration.name}
                 inputRef={employeeIdRegistration.ref}
-                onChange={employeeIdRegistration.onChange}
+                onChange={(event) => {
+                  employeeIdRegistration.onChange(event)
+                  if (!event.target.value.trim() && errors.employeeId?.message === 'Employee ID already exists') {
+                    clearErrors('employeeId')
+                  }
+                }}
                 onBlur={(event) => { void handleEmployeeIdBlur(event) }}
                 error={Boolean(errors.employeeId)}
                 helperText={errors.employeeId?.message}
@@ -343,7 +358,12 @@ export function CreateEmployeeAccountPage() {
                 label="Employee Email *"
                 name={emailAddressRegistration.name}
                 inputRef={emailAddressRegistration.ref}
-                onChange={emailAddressRegistration.onChange}
+                onChange={(event) => {
+                  emailAddressRegistration.onChange(event)
+                  if (!event.target.value.trim() && errors.emailAddress?.message === 'Email already exists') {
+                    clearErrors('emailAddress')
+                  }
+                }}
                 onBlur={(event) => { void handleEmailAddressBlur(event) }}
                 error={Boolean(errors.emailAddress)}
                 helperText={errors.emailAddress?.message}

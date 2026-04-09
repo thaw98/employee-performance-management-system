@@ -37,7 +37,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route
-          path="/admin/dashboard"
+          path="/hr/dashboard"
           element={
             <ProtectedLayout>
               <AdminDashboardPage />
@@ -45,7 +45,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/manager-dashboard"
+          path="/hr/manager-dashboard"
           element={
             <ProtectedLayout>
               <PlaceholderPage title="Manager Dashboard" />
@@ -53,7 +53,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/my-performance"
+          path="/hr/my-performance"
           element={
             <ProtectedLayout>
               <PlaceholderPage title="My Performance" />
@@ -61,7 +61,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/appraisals"
+          path="/hr/appraisals"
           element={
             <ProtectedLayout>
               <PlaceholderPage title="Performance Appraisals" />
@@ -69,7 +69,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/360-feedback"
+          path="/hr/360-feedback"
           element={
             <ProtectedLayout>
               <PlaceholderPage title="360° Feedback" />
@@ -77,7 +77,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/pip-monitoring"
+          path="/hr/pip-monitoring"
           element={
             <ProtectedLayout>
               <PipMonitoringPage />
@@ -85,7 +85,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/pip-monitoring/create"
+          path="/hr/pip-monitoring/create"
           element={
             <ProtectedLayout>
               <PipCreatePage />
@@ -93,7 +93,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/pip-monitoring/:id"
+          path="/hr/pip-monitoring/:id"
           element={
             <ProtectedLayout>
               <PipDetailPage />
@@ -101,7 +101,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/goals"
+          path="/hr/goals"
           element={
             <ProtectedLayout>
               <PlaceholderPage title="Goals & KPIs" />
@@ -109,7 +109,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/reports"
+          path="/hr/reports"
           element={
             <ProtectedLayout>
               <PlaceholderPage title="Reports Center" />
@@ -125,7 +125,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/settings/profile"
+          path="/hr/settings/profile"
           element={
             <ProtectedLayout>
               <ProfileSettingsPage />
@@ -133,7 +133,7 @@ function App() {
           }
         />
         <Route
-          path="/admin/settings/password"
+          path="/hr/settings/password"
           element={
             <ProtectedLayout>
               <ChangePasswordPage />

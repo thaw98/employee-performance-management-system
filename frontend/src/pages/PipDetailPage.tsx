@@ -81,7 +81,7 @@ export default function PipDetailPage() {
     <div className="p-8 pb-20">
       <div className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link to="/admin/pip-monitoring" className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+          <Link to="/hr/pip-monitoring" className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
             <i className="bi bi-chevron-left" />
           </Link>
           <div>
