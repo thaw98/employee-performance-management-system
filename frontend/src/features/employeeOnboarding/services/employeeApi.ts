@@ -2,6 +2,7 @@ import { baseApi } from '../../../app/baseApi'
 import type {
   ApiResponse,
   CreateEmployeeAccountResponse,
+  EmployeeDraftPayload,
   EmployeeInfo,
   EmployeeInfoPayload,
   MasterOption,
@@ -13,7 +14,7 @@ export const employeeApi = baseApi.injectEndpoints({
       query: (body) => ({ url: '/employees', method: 'POST', body }),
       invalidatesTags: ['Employee'],
     }),
-    createDraft: builder.mutation<ApiResponse<EmployeeInfo>, EmployeeInfoPayload>({
+    createDraft: builder.mutation<ApiResponse<EmployeeInfo>, EmployeeDraftPayload>({
       query: (body) => ({ url: '/employees/draft', method: 'POST', body }),
       invalidatesTags: ['Employee'],
     }),
@@ -32,9 +33,6 @@ export const employeeApi = baseApi.injectEndpoints({
     }),
     getReligions: builder.query<ApiResponse<MasterOption[]>, void>({
       query: () => '/master/religions',
-    }),
-    getNationalities: builder.query<ApiResponse<MasterOption[]>, void>({
-      query: () => '/master/nationalities',
     }),
     getDepartments: builder.query<ApiResponse<MasterOption[]>, string>({
       query: (keyword) => `/departments/autocomplete?keyword=${encodeURIComponent(keyword)}`,
@@ -61,7 +59,6 @@ export const {
   useLazyCheckEmployeeIdQuery,
   useLazyCheckEmailInEmployeesQuery,
   useGetReligionsQuery,
-  useGetNationalitiesQuery,
   useGetDepartmentsQuery,
   useGetPositionsQuery,
   useCreateEmployeeAccountMutation,

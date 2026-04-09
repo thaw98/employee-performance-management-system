@@ -1,69 +1,121 @@
 interface EmployeeStepperProps {
-  currentStep: 1 | 2
-  step1Completed: boolean
+  currentStep: 1 | 2 | 3 | 4
 }
 
-export function EmployeeStepper({ currentStep, step1Completed }: EmployeeStepperProps) {
+function StepCircle({
+  number,
+  completed,
+  active,
+}: {
+  number: number
+  completed: boolean
+  active: boolean
+}) {
+  return (
+    <div
+      className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition-all duration-300 ${
+        completed
+          ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200'
+          : active
+            ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+            : 'border-2 border-slate-200 bg-white text-slate-400'
+      }`}
+    >
+      {completed ? <i className="bi bi-check-lg text-base" /> : number}
+    </div>
+  )
+}
+
+function Connector({ complete }: { complete: boolean }) {
+  return (
+    <div
+      className={`mt-5 h-0.5 min-w-4 flex-1 rounded-full transition-colors duration-500 ${
+        complete ? 'bg-emerald-300' : 'bg-slate-200'
+      }`}
+    />
+  )
+}
+
+export function EmployeeStepper({ currentStep }: EmployeeStepperProps) {
+  const step1Done = currentStep >= 2
+  const step2Done = currentStep >= 3
+  const step3Done = currentStep >= 4
   const step1Active = currentStep === 1
   const step2Active = currentStep === 2
+  const step3Active = currentStep === 3
+  const step4Active = currentStep === 4
 
   return (
-    <div className="mb-8 flex items-start">
+    <div className="mb-8 flex w-full items-start">
       {/* Step 1 */}
-      <div className="flex min-w-35 flex-col items-center">
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition-all duration-300 ${
-            step1Completed
-              ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200'
-              : step1Active
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-              : 'border-2 border-slate-200 bg-white text-slate-400'
-          }`}
-        >
-          {step1Completed ? <i className="bi bi-check-lg text-base" /> : '1'}
-        </div>
+      <div className="flex min-w-0 max-w-30 flex-1 flex-col items-center sm:max-w-none sm:flex-none">
+        <StepCircle number={1} completed={step1Done} active={step1Active} />
         <div className="mt-2 text-center">
           <p
             className={`text-sm font-semibold leading-tight ${
-              step1Active ? 'text-blue-700' : step1Completed ? 'text-emerald-700' : 'text-slate-400'
+              step1Active ? 'text-blue-700' : step1Done ? 'text-emerald-700' : 'text-slate-400'
             }`}
           >
-            Employee Information
+            Employee Info
           </p>
-          <p className={`mt-0.5 text-xs ${step1Active || step1Completed ? 'text-slate-500' : 'text-slate-300'}`}>
-            Personal &amp; employment details
+          <p className={`mt-0.5 text-xs ${step1Active || step1Done ? 'text-slate-500' : 'text-slate-300'}`}>
+            Personal details
           </p>
         </div>
       </div>
 
-      {/* Connector */}
-      <div
-        className={`mt-5 h-0.5 flex-1 rounded-full transition-colors duration-500 ${
-          step1Completed ? 'bg-emerald-300' : 'bg-slate-200'
-        }`}
-      />
+      <Connector complete={step1Done} />
 
       {/* Step 2 */}
-      <div className="flex min-w-35 flex-col items-center">
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold transition-all duration-300 ${
-            step2Active
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-              : 'border-2 border-slate-200 bg-white text-slate-400'
-          }`}
-        >
-          2
-        </div>
+      <div className="flex min-w-0 max-w-30 flex-1 flex-col items-center sm:max-w-none sm:flex-none">
+        <StepCircle number={2} completed={step2Done} active={step2Active} />
         <div className="mt-2 text-center">
-          <p className={`text-sm font-semibold leading-tight ${step2Active ? 'text-blue-700' : 'text-slate-400'}`}>
+          <p
+            className={`text-sm font-semibold leading-tight ${
+              step2Active ? 'text-blue-700' : step2Done ? 'text-emerald-700' : 'text-slate-400'
+            }`}
+          >
+            Family & Emergency
+          </p>
+          <p className={`mt-0.5 text-xs ${step2Active || step2Done ? 'text-slate-500' : 'text-slate-300'}`}>
+            Family & Contact
+          </p>
+        </div>
+      </div>
+
+      <Connector complete={step2Done} />
+
+      {/* Step 3 */}
+      <div className="flex min-w-0 max-w-30 flex-1 flex-col items-center sm:max-w-none sm:flex-none">
+        <StepCircle number={3} completed={step3Done} active={step3Active} />
+        <div className="mt-2 text-center">
+          <p
+            className={`text-sm font-semibold leading-tight ${
+              step3Active ? 'text-blue-700' : step3Done ? 'text-emerald-700' : 'text-slate-400'
+            }`}
+          >
+            Employment Details
+          </p>
+          <p className={`mt-0.5 text-xs ${step3Active || step3Done ? 'text-slate-500' : 'text-slate-300'}`}>
+            Role & Joining
+          </p>
+        </div>
+      </div>
+
+      <Connector complete={step3Done} />
+
+      {/* Step 4 */}
+      <div className="flex min-w-0 max-w-30 flex-1 flex-col items-center sm:max-w-none sm:flex-none">
+        <StepCircle number={4} completed={false} active={step4Active} />
+        <div className="mt-2 text-center">
+          <p className={`text-sm font-semibold leading-tight ${step4Active ? 'text-blue-700' : 'text-slate-400'}`}>
             Account Creation
           </p>
-          <p className={`mt-0.5 text-xs ${step2Active ? 'text-slate-500' : 'text-slate-300'}`}>
-            Generate login credentials
+          <p className={`mt-0.5 text-xs ${step4Active ? 'text-slate-500' : 'text-slate-300'}`}>
+            Login credentials
           </p>
         </div>
       </div>
     </div>
   )
 }
-

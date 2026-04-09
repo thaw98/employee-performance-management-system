@@ -35,5 +35,11 @@ public class EmployeeInfoResponseDto {
 	private Integer probationMonth;
 	private LocalDate probationStartDate;
 	private LocalDate probationEndDate;
+	private String fatherName;
+	private String fatherNrcNo;
+	private String spouseName;
+	private String spouseNrcNo;
+	private String emergencyPhone;
+	private String emergencyRelation;
 	private String recordStatus;
 }

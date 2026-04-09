@@ -53,6 +53,9 @@ public class EmployeeInfoRequestDto {
 	private LocalDate dateOfBirth;
 
 	private String birthPlace;
+
+	@NotBlank
+	@Size(max = 500)
 	private String contactAddress;
 	private String permanentAddress;
 
@@ -71,6 +74,8 @@ public class EmployeeInfoRequestDto {
 	private String fatherNrcNo;
 	private String fatherOccupation;
 	private String spouseOccupation;
+	private String emergencyPhone;
+	private String emergencyRelation;
 
 	@NotNull
 	private Long departmentId;
@@ -78,12 +83,16 @@ public class EmployeeInfoRequestDto {
 	@NotNull
 	private Long positionId;
 
-	@NotNull
-	private Long nationalityId;
+	@NotBlank
+	@Size(max = 100)
+	private String nationality;
 
 	@NotNull
 	private LocalDate dateOfJoining;
 
 	private Boolean onProbation;
 	private LocalDate probationStartDate;
+	/** 1, 3, or 6 for fixed periods; null with {@link #probationEndDate} for custom. */
+	private Integer probationMonth;
+	private LocalDate probationEndDate;
 }

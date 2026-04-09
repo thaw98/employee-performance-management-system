@@ -71,7 +71,7 @@ export function NrcFields({ control, errors, setValue }: NrcFieldsProps) {
                 <option value="">—</option>
                 {allStates.map((state) => (
                   <option key={state.id} value={state.number.en}>
-                    {state.number.en} – {state.name.en}
+                    {state.number.en}
                   </option>
                 ))}
               </select>
@@ -148,7 +148,7 @@ export function NrcFields({ control, errors, setValue }: NrcFieldsProps) {
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                maxLength={10}
+                maxLength={6}
                 className="bg-transparent text-sm text-slate-800 focus:outline-none py-2 w-full"
                 value={field.value ?? ''}
                 onChange={(e) => field.onChange(e.target.value.replace(/[^0-9]/g, ''))}

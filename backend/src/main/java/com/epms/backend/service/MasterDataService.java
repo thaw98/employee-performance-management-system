@@ -43,6 +43,18 @@ public class MasterDataService {
 	}
 
 	@Transactional(readOnly = true)
+	public List<MasterOptionDto> autocompleteNationalities(String keyword) {
+		String k = keyword == null ? "" : keyword.trim();
+		if (k.isEmpty()) {
+			return getNationalities();
+		}
+		return nationalityRepository.findByNameContainingIgnoreCaseOrderByNameAsc(k)
+				.stream()
+				.map(n -> new MasterOptionDto(n.getId(), n.getName()))
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
 	public List<MasterOptionDto> autocompleteDepartments(String keyword) {
 		return departmentRepository.findTop20ByNameContainingIgnoreCaseOrderByNameAsc(keyword == null ? "" : keyword.trim())
 				.stream()

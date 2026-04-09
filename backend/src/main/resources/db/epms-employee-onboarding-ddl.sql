@@ -43,9 +43,6 @@ CREATE TABLE IF NOT EXISTS employees (
   department_id BIGINT NULL,
   position_id BIGINT NULL,
   nationality_id BIGINT NULL,
-  probation_month INT NULL,
-  probation_start_date DATE NULL,
-  probation_end_date DATE NULL,
   date_of_joining DATE NULL,
   passport_no VARCHAR(100) NULL,
   passport_expire_date DATE NULL,
@@ -69,6 +66,15 @@ CREATE TABLE IF NOT EXISTS employees (
   CONSTRAINT fk_employees_nationality FOREIGN KEY (nationality_id) REFERENCES nationalities(id),
   CONSTRAINT fk_employees_department FOREIGN KEY (department_id) REFERENCES departments(id),
   CONSTRAINT fk_employees_position FOREIGN KEY (position_id) REFERENCES positions(id)
+);
+
+CREATE TABLE IF NOT EXISTS employee_probation (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  employee_id BIGINT NOT NULL UNIQUE,
+  probation_month INT NULL,
+  probation_start_date DATE NULL,
+  probation_end_date DATE NULL,
+  CONSTRAINT fk_employee_probation_employee FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 );
 
 ALTER TABLE users

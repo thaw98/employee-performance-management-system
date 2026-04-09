@@ -3,6 +3,9 @@ export interface MasterOption {
   name: string
 }
 
+/** Partial body for POST/PUT draft — any mix of filled and empty fields */
+export type EmployeeDraftPayload = Partial<EmployeeInfoPayload>
+
 export interface EmployeeInfoPayload {
   employeeId: string
   employeeName: string
@@ -16,7 +19,7 @@ export interface EmployeeInfoPayload {
   religionId: number
   dateOfBirth: string
   birthPlace?: string
-  contactAddress?: string
+  contactAddress: string
   permanentAddress?: string
   phoneNo: string
   emailAddress: string
@@ -27,12 +30,18 @@ export interface EmployeeInfoPayload {
   fatherNrcNo?: string
   fatherOccupation?: string
   spouseOccupation?: string
+  hasSpouse?: boolean
+  emergencyPhone?: string
+  emergencyRelation?: string
   departmentId: number
   positionId: number
-  nationalityId: number
+  nationality: string
   dateOfJoining: string
   onProbation?: boolean
   probationStartDate?: string
+  /** 1, 3, or 6 for fixed periods; null for custom (use probationEndDate). */
+  probationMonth?: number | null
+  probationEndDate?: string | null
 }
 
 export interface EmployeeInfo extends EmployeeInfoPayload {

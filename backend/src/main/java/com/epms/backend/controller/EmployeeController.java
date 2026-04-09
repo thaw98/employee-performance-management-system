@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.epms.backend.common.ApiResponse;
+import com.epms.backend.dto.employee.EmployeeDraftRequestDto;
 import com.epms.backend.dto.employee.EmployeeInfoRequestDto;
 import com.epms.backend.dto.employee.EmployeeInfoResponseDto;
 import com.epms.backend.security.UserPrincipal;
@@ -44,7 +45,7 @@ public class EmployeeController {
 	@PostMapping("/draft")
 	public ResponseEntity<ApiResponse<EmployeeInfoResponseDto>> createDraft(
 			@AuthenticationPrincipal UserPrincipal principal,
-			@Valid @RequestBody EmployeeInfoRequestDto request) {
+			@RequestBody EmployeeDraftRequestDto request) {
 		try {
 			return ResponseEntity.ok(ApiResponse.ok("Draft saved", employeeService.saveDraft(request, principal)));
 		} catch (RuntimeException ex) {
@@ -68,7 +69,7 @@ public class EmployeeController {
 	public ResponseEntity<ApiResponse<EmployeeInfoResponseDto>> updateDraft(
 			@PathVariable Long id,
 			@AuthenticationPrincipal UserPrincipal principal,
-			@Valid @RequestBody EmployeeInfoRequestDto request) {
+			@RequestBody EmployeeDraftRequestDto request) {
 		try {
 			return ResponseEntity.ok(ApiResponse.ok("Draft updated", employeeService.updateDraft(id, request, principal)));
 		} catch (RuntimeException ex) {

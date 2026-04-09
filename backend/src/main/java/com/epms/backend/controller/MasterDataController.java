@@ -31,6 +31,12 @@ public class MasterDataController {
 		return ResponseEntity.ok(ApiResponse.ok("Nationalities", masterDataService.getNationalities()));
 	}
 
+	@GetMapping("/api/master/nationalities/autocomplete")
+	public ResponseEntity<ApiResponse<List<MasterOptionDto>>> nationalitiesAutocomplete(
+			@RequestParam(defaultValue = "") String keyword) {
+		return ResponseEntity.ok(ApiResponse.ok("Nationalities", masterDataService.autocompleteNationalities(keyword)));
+	}
+
 	@GetMapping("/api/departments/autocomplete")
 	public ResponseEntity<ApiResponse<List<MasterOptionDto>>> departments(@RequestParam(defaultValue = "") String keyword) {
 		return ResponseEntity.ok(ApiResponse.ok("Departments", masterDataService.autocompleteDepartments(keyword)));
