@@ -9,6 +9,7 @@ import {
   useGetMeQuery, 
   useSubmitFeedbackMutation 
 } from '../features/feedback/api/feedbackApi'
+import { formatDate } from '../utils/dateUtils'
 
 const getScoreGrade = (score: number) => {
   if (score >= 86) return { text: 'Outstanding', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500' }
@@ -51,7 +52,7 @@ export function GiveFeedbackPage() {
   const rolesList = rolesRes?.data || []
   const currentUser = meRes?.data
 
-  const todayStr = new Date().toLocaleDateString()
+  const todayStr = formatDate(new Date().toISOString())
 
   // Derived Target Info
   const selectedRoleName = rolesList.find(r => r.id === selectedRoleId)?.name || ''

@@ -2,31 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useAppSelector } from '../app/hooks';
 import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
+import { formatDate } from '../utils/dateUtils';
 
 const PRIMARY = '#0855BF';
 
 interface Question {
   id: number;
-  text: string;
+  subjectText: string;
 }
-
-const questions: Question[] = [
-  { id: 1, text: 'I completed my assigned tasks on time' },
-  { id: 2, text: 'My work quality met expected standards' },
-  { id: 3, text: 'I communicated clearly with my team' },
-  { id: 4, text: 'I collaborated well with others' },
-  { id: 5, text: 'I followed company rules and processes' },
-  { id: 6, text: 'I tried to learn or improve my skills' },
-  { id: 7, text: 'I met my goals this period' },
-  { id: 8, text: 'I am satisfied with my performance' },
-  { id: 9, text: 'I managed my time effectively' },
-  { id: 10, text: 'I delivered work with minimal errors' },
-  { id: 11, text: 'I supported my team members' },
-  { id: 12, text: 'I maintained a positive attitude' },
-  { id: 13, text: 'I was punctual and reliable' },
-  { id: 14, text: 'I contributed to team goals' },
-  { id: 15, text: 'I am satisfied with my performance' },
-];
 
 interface Response {
   questionId: number;
@@ -37,37 +20,53 @@ interface Response {
 
 export function SelfAssessmentPage() {
   const user = useAppSelector((state) => state.auth.user);
-  const [responses, setResponses] = useState<Response[]>(
-    questions.map(q => ({ questionId: q.id, questionText: q.text, answerYesNo: null, rating: null }))
-  );
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [responses, setResponses] = useState<Response[]>([]);
   const [remarks, setRemarks] = useState('');
   const [signature, setSignature] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingAsmt, setExistingAsmt] = useState<any>(null);
 
   useEffect(() => {
-    fetchLatestAssessment();
+    fetchData();
   }, []);
 
-  const fetchLatestAssessment = async () => {
+  const fetchData = async () => {
     try {
+      // 1. Fetch Dynamic Subjects
+      const subResp = await axios.get('/api/self-assessment-subjects');
+      const subjects: Question[] = subResp.data.data || [];
+      setQuestions(subjects);
+
+      // 2. Fetch Latest Assessment
       const resp = await axios.get('/api/self-assessments/me');
       if (resp.data.data) {
-        setExistingAsmt(resp.data.data);
-        // If it was already started or assigned, populate fields
-        if (resp.data.data.items && resp.data.data.items.length > 0) {
-          setResponses(resp.data.data.items.map((item: any, idx: number) => ({
+        const asmt = resp.data.data;
+        setExistingAsmt(asmt);
+        
+        // If it was already started or assigned, populate fields from items
+        if (asmt.items && asmt.items.length > 0) {
+          setResponses(asmt.items.map((item: any, idx: number) => ({
             questionId: idx + 1,
             questionText: item.questionText,
             answerYesNo: item.answerYesNo,
             rating: item.rating
           })));
-          setRemarks(resp.data.data.employeeRemarks || '');
-          setSignature(resp.data.data.employeeSignature || '');
+          setRemarks(asmt.employeeRemarks || '');
+          setSignature(asmt.employeeSignature || '');
+        } else {
+          // Initialize responses from dynamic subjects
+          setResponses(subjects.map((q, idx) => ({
+            questionId: idx + 1,
+            questionText: q.subjectText,
+            answerYesNo: null,
+            rating: null
+          })));
         }
       }
     } catch (err) {
-      console.error('Failed to fetch assessment', err);
+      console.error('Failed to fetch data', err);
+      toast.error('Failed to load assessment data');
     }
   };
 
@@ -103,7 +102,7 @@ export function SelfAssessmentPage() {
   };
 
   const totalPoints = responses.reduce((acc, r) => acc + (r.rating || 0), 0);
-  const totalScore = (totalPoints / (questions.length * 5)) * 100;
+  const totalScore = responses.length > 0 ? (totalPoints / (responses.length * 5)) * 100 : 0;
 
   const getRatingCategory = (score: number) => {
     if (score >= 86) return 'Outstanding';
@@ -115,6 +114,10 @@ export function SelfAssessmentPage() {
 
   const handleSubmit = async () => {
     if (!isEditable) return;
+    if (responses.length === 0) {
+        toast.error('No assessment subjects defined.');
+        return;
+    }
     if (responses.some(r => r.answerYesNo === null || r.rating === null)) {
       toast.error('Please complete all questions');
       return;
@@ -138,9 +141,14 @@ export function SelfAssessmentPage() {
       };
       await axios.post('/api/self-assessments/submit', payload);
       toast.success('Self-assessment submitted successfully');
-      fetchLatestAssessment();
+      fetchData();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Submission failed');
+      const errorMsg = err.response?.data?.message || err.message || 'Submission failed';
+      if (err.response?.status === 401) {
+        toast.error('Session expired. Please log out and back in.');
+      } else {
+        toast.error(`Error: ${errorMsg}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -195,20 +203,20 @@ export function SelfAssessmentPage() {
             <div className="p-4 bg-slate-50 rounded-lg">
               <h3 className="font-bold text-slate-700 mb-2">My Remarks</h3>
               <p className="text-slate-600 italic">"{existingAsmt.employeeRemarks || 'No remarks provided'}"</p>
-              <div className="mt-4 text-xs text-slate-400">Signed by {existingAsmt.employee?.employeeName} on {new Date(existingAsmt.employeeSignedAt).toLocaleDateString()}</div>
+              <div className="mt-4 text-xs text-slate-400">Signed by {existingAsmt.employee?.employeeName} on {formatDate(existingAsmt.employeeSignedAt)}</div>
             </div>
             <div className="p-4 bg-blue-50/50 rounded-lg">
               <h3 className="font-bold text-blue-800 mb-2">Manager Feedback</h3>
               <p className="text-blue-700 italic">"{existingAsmt.managerComments || 'Waiting for review...'}"</p>
               {existingAsmt.managerSignature && (
-                <div className="mt-4 text-xs text-slate-400">Signed on {new Date(existingAsmt.managerSignedAt).toLocaleDateString()}</div>
+                <div className="mt-4 text-xs text-slate-400">Signed on {formatDate(existingAsmt.managerSignedAt)}</div>
               )}
             </div>
             <div className="p-4 bg-purple-50/50 rounded-lg">
               <h3 className="font-bold text-purple-800 mb-2">HR Feedback</h3>
               <p className="text-purple-700 italic">"{existingAsmt.hrComments || 'Waiting for final approval...'}"</p>
               {existingAsmt.hrSignature && (
-                <div className="mt-4 text-xs text-slate-400">Signed on {new Date(existingAsmt.hrSignedAt).toLocaleDateString()}</div>
+                <div className="mt-4 text-xs text-slate-400">Signed on {formatDate(existingAsmt.hrSignedAt)}</div>
               )}
             </div>
           </div>

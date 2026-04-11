@@ -61,7 +61,7 @@ public class KpiService {
             // Check if Self Assessment is completed
             Employee emp = records.get(0).getEmployee();
             boolean hasSelfAssessment = selfAssessmentRepository.findByEmployee(emp).stream()
-                .anyMatch(sa -> sa.getStatus() != SelfAssessmentStatus.DRAFT);
+                .anyMatch(sa -> sa.getStatus() != SelfAssessmentStatus.UNLOCKED);
             
             if (!hasSelfAssessment) {
                 throw new RuntimeException("Appraisal workflow cannot proceed: Mandatory self-assessment is still incomplete.");

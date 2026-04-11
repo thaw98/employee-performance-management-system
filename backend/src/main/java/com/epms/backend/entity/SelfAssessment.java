@@ -17,7 +17,7 @@ public class SelfAssessment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
@@ -64,7 +64,7 @@ public class SelfAssessment {
     @Column(name = "status", length = 20)
     private SelfAssessmentStatus status;
 
-    @OneToMany(mappedBy = "selfAssessment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "selfAssessment", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<SelfAssessmentItem> items;
 
     @CreationTimestamp

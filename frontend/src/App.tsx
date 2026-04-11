@@ -25,6 +25,7 @@ import { KpiPeriodConfigPage } from './pages/KpiPeriodConfigPage'
 import { KpiAuditLogsPage } from './pages/KpiAuditLogsPage'
 import { SelfAssessmentPage } from './pages/SelfAssessmentPage'
 import { SelfAssessmentReviewListPage } from './pages/SelfAssessmentReviewListPage'
+import { SelfAssessmentSubjectPage } from './pages/SelfAssessmentSubjectPage'
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
@@ -200,6 +201,14 @@ function App() {
             <ProtectedLayout>
               <SelfAssessmentReviewListPage />
             </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/self-assessment-subjects"
+          element={
+            <HrProtectedLayout>
+              <SelfAssessmentSubjectPage />
+            </HrProtectedLayout>
           }
         />
         <Route

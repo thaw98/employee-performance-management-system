@@ -39,12 +39,17 @@ public class SelfAssessmentController {
     public ResponseEntity<ApiResponse<SelfAssessment>> submit(Authentication authentication,
             @RequestBody SelfAssessment sa) {
         Employee employee = getEmployee(authentication);
+        if (employee == null) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.fail("You do not have an employee profile. Please contact HR."));
+        }
         sa.setEmployee(employee);
         SelfAssessment saved = selfAssessmentService.submitSelfAssessment(sa);
         return ResponseEntity.ok(ApiResponse.ok("Self assessment submitted successfully", saved));
     }
 
     @GetMapping("/all")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR') or hasRole('Department Head') or hasRole('Team Head')")
     public ResponseEntity<ApiResponse<List<SelfAssessment>>> getAll() {
         List<SelfAssessment> list = selfAssessmentService.getAllSelfAssessments();
         System.out.println("DEBUG: Returning " + list.size() + " assessments");
@@ -60,12 +65,14 @@ public class SelfAssessmentController {
     }
 
     @PostMapping("/create/all")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR')")
     public ResponseEntity<ApiResponse<Void>> createAll() {
         selfAssessmentService.createForAllEmployees();
         return ResponseEntity.ok(ApiResponse.ok("Self assignments created for all employees", null));
     }
 
     @PostMapping("/create/{employeeId}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR')")
     public ResponseEntity<ApiResponse<SelfAssessment>> create(@PathVariable Long employeeId) {
         Employee employee = new Employee();
         employee.setId(employeeId);
@@ -74,12 +81,14 @@ public class SelfAssessmentController {
     }
 
     @PostMapping("/{id}/unlock")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR')")
     public ResponseEntity<ApiResponse<SelfAssessment>> unlock(@PathVariable Long id) {
         SelfAssessment sa = selfAssessmentService.unlock(id);
         return ResponseEntity.ok(ApiResponse.ok("Self assignment unlocked successfully", sa));
     }
 
     @PostMapping("/{id}/hr-review")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR')")
     public ResponseEntity<ApiResponse<SelfAssessment>> hrReview(@PathVariable Long id, @RequestBody ReviewRequest req) {
         SelfAssessment sa = selfAssessmentService.hrReview(id, req.getComments(), req.getSignature());
         return ResponseEntity.ok(ApiResponse.ok("Self assignment finalized", sa));

@@ -61,6 +61,13 @@ export interface PipProgressUpdate {
   createdAt: string
 }
 
+export interface EligibleEmployee {
+  employeeId: string
+  employeeName: string
+  departmentName: string
+  totalScore: number
+}
+
 export const pipApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getPips: builder.query<Pip[], void>({
@@ -129,6 +136,10 @@ export const pipApi = baseApi.injectEndpoints({
       query: (objectiveId) => `/pips/objectives/${objectiveId}/history`,
       transformResponse: (response: any) => response.data,
     }),
+    getEligibleEmployees: builder.query<EligibleEmployee[], void>({
+      query: () => '/pips/eligible-employees',
+      transformResponse: (response: any) => response.data,
+    }),
   }),
 })
 
@@ -143,4 +154,5 @@ export const {
   useReviewPipMutation,
   useGetTrainingHistoryQuery,
   useGetObjectiveHistoryQuery,
+  useGetEligibleEmployeesQuery,
 } = pipApi

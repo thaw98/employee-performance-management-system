@@ -12,6 +12,8 @@ import com.epms.backend.repository.UserRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.RoleRepository;
 import com.epms.backend.entity.Role;
+import com.epms.backend.entity.SelfAssessmentSubject;
+import com.epms.backend.repository.SelfAssessmentSubjectRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -31,6 +33,7 @@ public class DataSeeder implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final CriteriaRepository criteriaRepository;
     private final com.epms.backend.repository.SelfAssessmentRepository selfAssessmentRepository;
+    private final SelfAssessmentSubjectRepository subjectRepository;
 
     public DataSeeder(DepartmentRepository departmentRepository,
             PositionRepository positionRepository,
@@ -38,7 +41,8 @@ public class DataSeeder implements CommandLineRunner {
             EmployeeRepository employeeRepository,
             RoleRepository roleRepository,
             CriteriaRepository criteriaRepository,
-            com.epms.backend.repository.SelfAssessmentRepository selfAssessmentRepository) {
+            com.epms.backend.repository.SelfAssessmentRepository selfAssessmentRepository,
+            SelfAssessmentSubjectRepository subjectRepository) {
         this.departmentRepository = departmentRepository;
         this.positionRepository = positionRepository;
         this.userRepository = userRepository;
@@ -46,6 +50,7 @@ public class DataSeeder implements CommandLineRunner {
         this.roleRepository = roleRepository;
         this.criteriaRepository = criteriaRepository;
         this.selfAssessmentRepository = selfAssessmentRepository;
+        this.subjectRepository = subjectRepository;
     }
 
     @Override
@@ -120,6 +125,29 @@ public class DataSeeder implements CommandLineRunner {
                     com.epms.backend.entity.SelfAssessmentStatus.LOCKED, 86.0, "Good");
             seedSelfAssessment("EMP103", "Thiha Zaw", eng, "Software Engineer",
                     com.epms.backend.entity.SelfAssessmentStatus.UNLOCKED, 0.0, null);
+        }
+
+        // --- Seed Subjects ---
+        if (subjectRepository.count() == 0) {
+            String[] defaultSubjects = {
+                "I completed my assigned tasks on time",
+                "My work quality met expected standards",
+                "I communicated clearly with my team",
+                "I collaborated well with others",
+                "I followed company rules and processes",
+                "I tried to learn or improve my skills",
+                "I met my goals this period",
+                "I am satisfied with my performance",
+                "I managed my time effectively",
+                "I delivered work with minimal errors"
+            };
+            for (int i = 0; i < defaultSubjects.length; i++) {
+                SelfAssessmentSubject s = new SelfAssessmentSubject();
+                s.setSubjectText(defaultSubjects[i]);
+                s.setDisplayOrder(i + 1);
+                s.setIsActive(true);
+                subjectRepository.save(s);
+            }
         }
     }
 

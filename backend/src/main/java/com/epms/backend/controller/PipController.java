@@ -2,6 +2,7 @@ package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.pip.*;
+import com.epms.backend.dto.pip.EligibleEmployeeDTO;
 import com.epms.backend.entity.*;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.PipService;
@@ -30,6 +31,13 @@ public class PipController {
         User manager = userRepository.findById(principal.getId()).orElseThrow();
         Pip pip = pipService.createPip(request, manager);
         return ResponseEntity.ok(ApiResponse.ok("PIP created successfully", pip));
+    }
+
+    @GetMapping("/eligible-employees")
+    @PreAuthorize("hasAnyRole('ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')")
+    public ResponseEntity<ApiResponse<List<EligibleEmployeeDTO>>> getEligibleEmployees(@AuthenticationPrincipal UserPrincipal principal) {
+        User manager = userRepository.findById(principal.getId()).orElseThrow();
+        return ResponseEntity.ok(ApiResponse.ok("Eligible employees retrieved successfully", pipService.getLowPerformers(manager)));
     }
 
     @GetMapping

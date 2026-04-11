@@ -63,18 +63,28 @@ public class SelfAssessmentService {
             throw new RuntimeException("Assessment is already submitted or finalized.");
         }
 
-        sa.setEmployee(existing.getEmployee());
         validateRatings(sa.getItems());
-        calculateScores(sa);
-        existing.setItems(sa.getItems());
+
+        // Update basic fields
         existing.setEmployeeRemarks(sa.getEmployeeRemarks());
         existing.setEmployeeSignature(sa.getEmployeeSignature());
         existing.setStatus(SelfAssessmentStatus.LOCKED);
         existing.setEmployeeSignedAt(LocalDateTime.now());
 
+        // Update items: clear and add to maintain orphanRemoval and relationship
         if (existing.getItems() != null) {
-            existing.getItems().forEach(item -> item.setSelfAssessment(existing));
+            existing.getItems().clear();
         }
+        
+        if (sa.getItems() != null) {
+            for (SelfAssessmentItem item : sa.getItems()) {
+                item.setSelfAssessment(existing);
+                existing.getItems().add(item);
+            }
+        }
+
+        // Recalculate scores based on the newly added items in the entity
+        calculateScores(existing);
 
         return selfAssessmentRepository.save(existing);
     }
