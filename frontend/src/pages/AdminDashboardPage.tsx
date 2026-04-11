@@ -1,4 +1,5 @@
 import { useAppSelector } from '../app/hooks'
+import { SelfAssessmentWarning } from '../components/SelfAssessmentWarning'
 
 export function AdminDashboardPage() {
   const user = useAppSelector((s) => s.auth.user)
@@ -48,6 +49,7 @@ export function AdminDashboardPage() {
 
   return (
     <div className="px-6 py-6 md:px-8">
+      <SelfAssessmentWarning />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-500">

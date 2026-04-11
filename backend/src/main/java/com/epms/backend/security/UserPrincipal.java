@@ -22,9 +22,9 @@ public class UserPrincipal implements UserDetails {
 	public UserPrincipal(User user) {
 		this.id = user.getId();
 		this.email = user.getEmail();
-		this.employeeId = user.getEmployee().getEmployeeId();
-		this.roleId = user.getRole().getId();
-		this.roleName = user.getRole().getName();
+		this.employeeId = (user.getEmployee() != null) ? user.getEmployee().getEmployeeId() : "NONE";
+		this.roleId = (user.getRole() != null) ? user.getRole().getId() : 0L;
+		this.roleName = (user.getRole() != null) ? user.getRole().getName() : "GUEST";
 		this.password = user.getPassword();
 		this.active = user.isActive();
 	}
