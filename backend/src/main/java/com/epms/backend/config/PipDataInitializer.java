@@ -55,7 +55,7 @@ public class PipDataInitializer implements CommandLineRunner {
         pip1.setStartDate(LocalDate.now().minusDays(15));
         pip1.setEndDate(LocalDate.now().plusDays(45));
         pip1.setStatus("ACTIVE");
-        
+
         PipObjective obj1a = new PipObjective();
         obj1a.setDescription("Improve project delivery turnaround time by 20%");
         obj1a.setPip(pip1);
@@ -67,7 +67,7 @@ public class PipDataInitializer implements CommandLineRunner {
         obj1b.setProgressPercentage(60);
 
         pip1.setObjectives(Arrays.asList(obj1a, obj1b));
-        
+
         FollowUpMeeting meeting1 = new FollowUpMeeting();
         meeting1.setPip(pip1);
         meeting1.setMeetingTime(LocalDateTime.now().plusDays(5));
@@ -85,7 +85,7 @@ public class PipDataInitializer implements CommandLineRunner {
         pip2.setStatus("CLOSED");
         pip2.setFinalOutcome("SUCCESSFUL");
         pip2.setClosingRemarks("Employee showed significant improvement in coding standards and teamwork.");
-        
+
         PipObjective obj2 = new PipObjective();
         obj2.setDescription("Adopt new internal coding standards");
         obj2.setPip(pip2);
