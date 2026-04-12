@@ -47,6 +47,7 @@ public class AuthController {
 		AuthUserDto user = new AuthUserDto(
 				principal.getId(),
 				principal.getEmployeeId(),
+				principal.getName(),
 				principal.getEmail(),
 				principal.getRoleName(),
 				principal.getRoleId());

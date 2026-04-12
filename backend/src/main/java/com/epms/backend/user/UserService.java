@@ -27,6 +27,7 @@ public class UserService {
         return new UserProfileDto(
                 user.getId(),
                 user.getEmployee().getEmployeeId(),
+                user.getEmployee().getEmployeeName(),
                 user.getEmail(),
                 user.getRole().getName(),
                 user.getProfilePictureBase64());
@@ -43,6 +44,7 @@ public class UserService {
         return new UserProfileDto(
                 updatedUser.getId(),
                 updatedUser.getEmployee().getEmployeeId(),
+                updatedUser.getEmployee().getEmployeeName(),
                 updatedUser.getEmail(),
                 updatedUser.getRole().getName(),
                 updatedUser.getProfilePictureBase64());

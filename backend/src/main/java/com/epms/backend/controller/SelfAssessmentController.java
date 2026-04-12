@@ -49,7 +49,7 @@ public class SelfAssessmentController {
     }
 
     @GetMapping("/all")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR') or hasRole('Department Head') or hasRole('Team Head')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR') or hasRole('DEPARTMENT_HEAD') or hasRole('TEAM_HEAD')")
     public ResponseEntity<ApiResponse<List<SelfAssessment>>> getAll() {
         List<SelfAssessment> list = selfAssessmentService.getAllSelfAssessments();
         System.out.println("DEBUG: Returning " + list.size() + " assessments");
