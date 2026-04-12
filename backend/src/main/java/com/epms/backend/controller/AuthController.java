@@ -49,7 +49,8 @@ public class AuthController {
 				principal.getEmployeeId(),
 				principal.getEmail(),
 				principal.getRoleName(),
-				principal.getRoleId());
+				principal.getRoleId(),
+				principal.isMustChangePassword());
 		return ResponseEntity.ok(ApiResponse.ok("OK", user));
 	}
 }

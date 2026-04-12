@@ -6,14 +6,15 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import com.epms.backend.StaffTypes;
 import com.epms.backend.entity.Department;
-import com.epms.backend.entity.Nationality;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.Religion;
+import com.epms.backend.entity.StaffType;
 import com.epms.backend.repository.DepartmentRepository;
-import com.epms.backend.repository.NationalityRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.ReligionRepository;
+import com.epms.backend.repository.StaffTypeRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,16 +23,30 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MasterDataInitializer implements CommandLineRunner {
 	private final ReligionRepository religionRepository;
-	private final NationalityRepository nationalityRepository;
 	private final DepartmentRepository departmentRepository;
 	private final PositionRepository positionRepository;
+	private final StaffTypeRepository staffTypeRepository;
 
 	@Override
 	public void run(String... args) {
+		seedStaffTypes();
 		seedReligions();
-		seedNationalities();
 		seedDepartments();
 		seedPositions();
+	}
+
+	private void seedStaffTypes() {
+		if (staffTypeRepository.count() > 0) {
+			return;
+		}
+		StaffType permanent = new StaffType();
+		permanent.setId(StaffTypes.PERMANENT);
+		permanent.setName("Permanent");
+		staffTypeRepository.save(permanent);
+		StaffType probation = new StaffType();
+		probation.setId(StaffTypes.PROBATION);
+		probation.setName("Probation");
+		staffTypeRepository.save(probation);
 	}
 
 	private void seedReligions() {
@@ -42,17 +57,6 @@ public class MasterDataInitializer implements CommandLineRunner {
 			Religion religion = new Religion();
 			religion.setName(name);
 			religionRepository.save(religion);
-		});
-	}
-
-	private void seedNationalities() {
-		if (nationalityRepository.count() > 0) {
-			return;
-		}
-		List.of("Burmese", "Thai", "Indian", "Chinese").forEach(name -> {
-			Nationality nationality = new Nationality();
-			nationality.setName(name);
-			nationalityRepository.save(nationality);
 		});
 	}
 

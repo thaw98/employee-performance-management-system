@@ -16,4 +16,5 @@ public class AuthUserDto {
 	private String email;
 	private String role;
 	private Long roleId;
+	private boolean mustChangePassword;
 }

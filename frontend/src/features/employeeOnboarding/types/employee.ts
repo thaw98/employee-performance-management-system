@@ -7,13 +7,11 @@ export interface MasterOption {
 export type EmployeeDraftPayload = Partial<EmployeeInfoPayload>
 
 export interface EmployeeInfoPayload {
-  employeeId: string
+  /** Business employee id; optional on create — backend may default to the string form of the primary key. */
+  employeeId?: string
   employeeName: string
   otherName?: string
-  nrcStateCode: string
-  nrcTownshipCode: string
-  nrcType: string
-  nrcNumber: string
+  staffNrcNo: string
   gender: string
   race: string
   religionId: number
@@ -22,10 +20,8 @@ export interface EmployeeInfoPayload {
   contactAddress: string
   permanentAddress?: string
   phoneNo: string
-  emailAddress: string
-  maritalStatus?: string
-  spouseName?: string
-  spouseNrcNo?: string
+  /** Backend enum: SINGLE | MARRIED */
+  maritalStatus?: 'SINGLE' | 'MARRIED'
   fatherName?: string
   fatherNrcNo?: string
   fatherOccupation?: string
@@ -36,15 +32,26 @@ export interface EmployeeInfoPayload {
   positionId: number
   nationality: string
   dateOfJoining: string
-  onProbation?: boolean
+  passportNo?: string
+  passportExpireDate?: string
+  dateOfDemotion?: string
+  dateOfTitleChange?: string
+  dateOfPromotion?: string
+  dateOfTransfer?: string
+  staffTypeId: number
   probationStartDate?: string
   /** 1, 3, or 6 for fixed periods; null for custom (use probationEndDate). */
   probationMonth?: number | null
   probationEndDate?: string | null
+  /** Data URL or base64; stored on employees.profile_picture_base64 */
+  profilePictureBase64?: string
 }
 
 export interface EmployeeInfo extends EmployeeInfoPayload {
   id: number
+  /** Present when a login user is linked; comes from users.email. */
+  emailAddress?: string | null
+  staffTypeName?: string
   probationMonth?: number | null
   probationEndDate?: string | null
   recordStatus: 'DRAFT' | 'COMPLETED'
@@ -52,12 +59,14 @@ export interface EmployeeInfo extends EmployeeInfoPayload {
 
 export interface CreateEmployeeAccountResponse {
   userId: number
+  /** Employee table primary key (stringified for JSON). */
   employeeId: string
   email: string
   roleId: number
   mustChangePassword: boolean
   active: boolean
-  temporaryPassword: string
+  /** False when the account was created but sending the temporary password email failed. */
+  emailSent: boolean
 }
 
 export interface ApiResponse<T> {

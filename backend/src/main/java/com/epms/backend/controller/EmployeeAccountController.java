@@ -45,8 +45,8 @@ public class EmployeeAccountController {
 	}
 
 	@GetMapping("/by-employee/{employeeId}")
-	public ResponseEntity<ApiResponse<Boolean>> byEmployee(@PathVariable String employeeId) {
-		return ResponseEntity.ok(ApiResponse.ok("Checked", userRepository.findByEmployee_EmployeeId(employeeId).isPresent()));
+	public ResponseEntity<ApiResponse<Boolean>> byEmployee(@PathVariable Long employeeId) {
+		return ResponseEntity.ok(ApiResponse.ok("Checked", userRepository.findByEmployee_Id(employeeId).isPresent()));
 	}
 
 	@PutMapping("/{userId}/status")

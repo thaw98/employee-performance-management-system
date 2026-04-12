@@ -8,9 +8,12 @@ import { LoginPage } from './pages/LoginPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
+import { FirstLoginPasswordPage } from './pages/FirstLoginPasswordPage'
 import PipMonitoringPage from './pages/PipMonitoringPage'
 import PipCreatePage from './pages/PipCreatePage'
 import PipDetailPage from './pages/PipDetailPage'
+import { AuthBootstrap } from './features/auth/AuthBootstrap'
+import { FIRST_LOGIN_SET_PASSWORD_PATH } from './routes/paths'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { CreateEmployeeAccountPage } from './features/employeeOnboarding/pages/CreateEmployeeAccountPage'
 import { CriteriaPage } from './pages/CriteriaPage'
@@ -42,9 +45,18 @@ function HrProtectedLayout({ children }: { children: ReactNode }) {
 function App() {
   return (
     <BrowserRouter>
+      <AuthBootstrap />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route
+          path={FIRST_LOGIN_SET_PASSWORD_PATH}
+          element={
+            <ProtectedRoute>
+              <FirstLoginPasswordPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/hr/dashboard"
           element={

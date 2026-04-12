@@ -1,5 +1,6 @@
 import type { EmployeeInfoFormValues } from '../schemas/employeeInfoSchema'
 import type { EmployeeDraftPayload, EmployeeInfoPayload } from '../types/employee'
+import { STAFF_TYPE_PROBATION } from './staffType'
 
 function trimStr(v: unknown): string | undefined {
   if (v === undefined || v === null) return undefined
@@ -22,22 +23,19 @@ export function buildEmployeeDraftPayload(values: Partial<EmployeeInfoFormValues
       ? `${values.fatherNrcStateCode}/${values.fatherNrcTownshipCode}(${values.fatherNrcType})${values.fatherNrcNumber}`
       : trimStr(values.fatherNrcNo)
 
-  const spouseNrcNo =
-    values.spouseNrcStateCode &&
-    values.spouseNrcTownshipCode &&
-    values.spouseNrcType &&
-    values.spouseNrcNumber
-      ? `${values.spouseNrcStateCode}/${values.spouseNrcTownshipCode}(${values.spouseNrcType})${values.spouseNrcNumber}`
-      : trimStr(values.spouseNrcNo)
+  const staffNrcNo =
+    values.nrcStateCode &&
+    values.nrcTownshipCode &&
+    values.nrcType &&
+    values.nrcNumber &&
+    /^[0-9]{6}$/.test(String(values.nrcNumber).trim())
+      ? `${values.nrcStateCode}/${values.nrcTownshipCode}(${values.nrcType})${values.nrcNumber}`
+      : undefined
 
   const p: EmployeeDraftPayload = {
-    employeeId: trimStr(values.employeeId),
     employeeName: trimStr(values.employeeName),
     otherName: trimStr(values.otherName),
-    nrcStateCode: trimStr(values.nrcStateCode),
-    nrcTownshipCode: trimStr(values.nrcTownshipCode),
-    nrcType: trimStr(values.nrcType),
-    nrcNumber: trimStr(values.nrcNumber),
+    staffNrcNo,
     gender: trimStr(values.gender),
     race: trimStr(values.race),
     religionId: positiveId(values.religionId),
@@ -46,10 +44,6 @@ export function buildEmployeeDraftPayload(values: Partial<EmployeeInfoFormValues
     contactAddress: trimStr(values.contactAddress),
     permanentAddress: trimStr(values.permanentAddress),
     phoneNo: trimStr(values.phoneNo),
-    emailAddress: trimStr(values.emailAddress),
-    maritalStatus: trimStr(values.maritalStatus),
-    spouseName: trimStr(values.spouseName),
-    spouseNrcNo,
     fatherName: trimStr(values.fatherName),
     fatherNrcNo,
     fatherOccupation: trimStr(values.fatherOccupation),
@@ -60,14 +54,16 @@ export function buildEmployeeDraftPayload(values: Partial<EmployeeInfoFormValues
     positionId: positiveId(values.positionId),
     nationality: trimStr(values.nationality),
     dateOfJoining: trimStr(values.dateOfJoining),
-    onProbation: values.onProbation === true ? true : undefined,
+    staffTypeId: positiveId(values.staffTypeId),
     probationStartDate: trimStr(values.probationStartDate),
     probationMonth:
-      values.onProbation === true && values.probationDuration && values.probationDuration !== 'custom'
+      values.staffTypeId === STAFF_TYPE_PROBATION &&
+      values.probationDuration &&
+      values.probationDuration !== 'custom'
         ? Number(values.probationDuration)
         : undefined,
     probationEndDate:
-      values.onProbation === true && values.probationDuration === 'custom'
+      values.staffTypeId === STAFF_TYPE_PROBATION && values.probationDuration === 'custom'
         ? trimStr(values.probationEndDate)
         : undefined,
   }
@@ -76,40 +72,37 @@ export function buildEmployeeDraftPayload(values: Partial<EmployeeInfoFormValues
 
 /** Full create payload from validated form values (drops UI-only probation duration). */
 export function buildEmployeeCreatePayload(v: EmployeeInfoFormValues): EmployeeInfoPayload {
-  const { 
-    probationDuration, 
-    probationStartDate, 
-    probationEndDate, 
-    onProbation,
+  const {
+    probationDuration,
+    probationStartDate,
+    probationEndDate,
+    staffTypeId,
+    nrcStateCode,
+    nrcTownshipCode,
+    nrcType,
+    nrcNumber,
     fatherNrcStateCode,
     fatherNrcTownshipCode,
     fatherNrcType,
     fatherNrcNumber,
-    spouseNrcStateCode,
-    spouseNrcTownshipCode,
-    spouseNrcType,
-    spouseNrcNumber,
-    ...rest 
+    ...rest
   } = v
+
+  const staffNrcNo = `${nrcStateCode}/${nrcTownshipCode}(${nrcType})${nrcNumber}`
 
   const fatherNrcNo =
     fatherNrcStateCode && fatherNrcTownshipCode && fatherNrcType && fatherNrcNumber
       ? `${fatherNrcStateCode}/${fatherNrcTownshipCode}(${fatherNrcType})${fatherNrcNumber}`
       : v.fatherNrcNo
 
-  const spouseNrcNo =
-    spouseNrcStateCode && spouseNrcTownshipCode && spouseNrcType && spouseNrcNumber
-      ? `${spouseNrcStateCode}/${spouseNrcTownshipCode}(${spouseNrcType})${spouseNrcNumber}`
-      : v.spouseNrcNo
-
   const payload = {
     ...rest,
+    staffNrcNo,
     fatherNrcNo,
-    spouseNrcNo,
-    onProbation: Boolean(onProbation),
+    staffTypeId,
   } as EmployeeInfoPayload
 
-  if (!onProbation) {
+  if (staffTypeId !== STAFF_TYPE_PROBATION) {
     payload.probationStartDate = undefined
     payload.probationMonth = undefined
     payload.probationEndDate = undefined

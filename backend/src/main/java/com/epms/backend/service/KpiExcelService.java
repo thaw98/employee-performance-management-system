@@ -92,7 +92,7 @@ public class KpiExcelService {
             for (KpiRecord r : records) {
                 Row row = sheet.createRow(rowIdx++);
                 row.createCell(0).setCellValue(r.getId() != null ? r.getId().toString() : "");
-                row.createCell(1).setCellValue(r.getEmployee().getEmployeeId());
+                row.createCell(1).setCellValue(r.getEmployee().getId() != null ? r.getEmployee().getId().toString() : "");
                 row.createCell(2).setCellValue(r.getEmployee().getEmployeeName());
                 row.createCell(3).setCellValue(r.getPeriod().getName());
                 row.createCell(4).setCellValue(r.getKpi() != null ? r.getKpi() : "");
@@ -142,12 +142,12 @@ public class KpiExcelService {
 
                 if (empIdStr.isEmpty() || periodIdStr.isEmpty() || kpiName.isEmpty()) {
                     throw new RuntimeException(
-                            "Row " + rowIndex + " is invalid: Employee ID, Period ID, and KPI Name are required.");
+                            "Row " + rowIndex + " is invalid: Employee record ID, Period ID, and KPI Name are required.");
                 }
 
-                Employee emp = employeeRepository.findByEmployeeId(empIdStr)
+                Employee emp = employeeRepository.findById(Long.parseLong(empIdStr.trim()))
                         .orElseThrow(() -> new RuntimeException(
-                                "Row " + rowIndex + ": Employee ID " + finalEmpId + " not found."));
+                                "Row " + rowIndex + ": Employee record ID " + finalEmpId + " not found."));
 
                 KpiPeriod period = kpiPeriodRepository.findById(Long.parseLong(periodIdStr))
                         .orElseThrow(() -> new RuntimeException(

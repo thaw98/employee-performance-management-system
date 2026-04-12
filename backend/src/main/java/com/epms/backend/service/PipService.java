@@ -24,7 +24,7 @@ public class PipService {
 
     @Transactional
     public Pip createPip(PipCreateRequest request, User manager) {
-        User employee = userRepository.findByEmployee_EmployeeId(request.getEmployeeId())
+        User employee = userRepository.findByEmployee_Id(request.getEmployeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         Pip pip = new Pip();
@@ -138,8 +138,8 @@ public class PipService {
         return pipRepository.save(pip);
     }
 
-    public List<TrainingRecord> getEmployeeTrainingHistory(String employeeId) {
-        User employee = userRepository.findByEmployee_EmployeeId(employeeId)
+    public List<TrainingRecord> getEmployeeTrainingHistory(Long employeeId) {
+        User employee = userRepository.findByEmployee_Id(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
         return trainingRepository.findByEmployee(employee);
     }

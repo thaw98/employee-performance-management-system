@@ -142,7 +142,7 @@ export function GiveFeedbackPage() {
               <span className="font-semibold text-blue-800 text-right">{currentUser?.employeeName || 'N/A'}</span>
             </div>
             <div className="flex justify-between py-2 border-b border-slate-50">
-              <span className="text-slate-500 font-bold uppercase tracking-tighter">Employee ID</span>
+              <span className="text-slate-500 font-bold uppercase tracking-tighter">Employee record ID</span>
               <span className="font-semibold text-blue-800 text-right">{currentUser?.employeeId || 'N/A'}</span>
             </div>
             <div className="flex justify-between py-2 border-b border-slate-50">

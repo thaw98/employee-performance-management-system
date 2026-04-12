@@ -8,8 +8,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        // Use 127.0.0.1 so Node does not hit IPv6 (::1) / localhost resolution quirks on Windows
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
+        // Avoid premature close while Spring Boot is starting or restarting (devtools)
+        timeout: 0,
+        proxyTimeout: 0,
       },
     },
   },

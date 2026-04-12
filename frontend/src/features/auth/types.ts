@@ -4,6 +4,8 @@ export interface AuthUser {
   email: string
   role: string
   roleId: number
+  /** When true, user must change password before using the app (synced from backend). */
+  mustChangePassword?: boolean
 }
 
 export interface LoginResponseData {

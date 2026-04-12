@@ -1,26 +1,32 @@
 package com.epms.backend.service;
 
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.epms.backend.StaffTypes;
 import com.epms.backend.dto.employee.EmployeeDraftRequestDto;
 import com.epms.backend.dto.employee.EmployeeInfoRequestDto;
 import com.epms.backend.dto.employee.EmployeeInfoResponseDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.EmergencyContact;
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.EmployeeFather;
+import com.epms.backend.entity.EmployeeSpouse;
 import com.epms.backend.entity.EmployeeProbation;
-import com.epms.backend.entity.Nationality;
+import com.epms.backend.entity.Passport;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.Religion;
+import com.epms.backend.entity.StaffType;
+import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeRepository;
-import com.epms.backend.repository.NationalityRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.ReligionRepository;
+import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.UserPrincipal;
 
@@ -34,21 +40,13 @@ public class EmployeeService {
 	private final ReligionRepository religionRepository;
 	private final DepartmentRepository departmentRepository;
 	private final PositionRepository positionRepository;
-	private final NationalityRepository nationalityRepository;
+	private final StaffTypeRepository staffTypeRepository;
 
 	@Transactional
 	public EmployeeInfoResponseDto saveDraft(EmployeeDraftRequestDto request, UserPrincipal principal) {
-		String employeeId = trimToNull(request.getEmployeeId());
-		if (employeeId != null && employeeRepository.existsByEmployeeId(employeeId)) {
-			throw new IllegalArgumentException("Employee ID already exists");
-		}
-		String email = normalizeEmail(request.getEmailAddress());
-		if (email != null && isEmailTakenAnywhere(email)) {
-			throw new IllegalArgumentException("Email already exists");
-		}
 		Employee employee = new Employee();
 		applyDraft(employee, request, "DRAFT", principal.getId(), true);
-		return toDto(employeeRepository.save(employee));
+		return toDto(ensureBusinessEmployeeId(employeeRepository.save(employee)));
 	}
 
 	@Transactional
@@ -60,22 +58,8 @@ public class EmployeeService {
 	@Transactional
 	public EmployeeInfoResponseDto updateDraft(Long id, EmployeeDraftRequestDto request, UserPrincipal principal) {
 		Employee employee = employeeRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found"));
-		String employeeId = trimToNull(request.getEmployeeId());
-		if (employeeId != null && employeeRepository.existsByEmployeeIdAndIdNot(employeeId, id)) {
-			throw new IllegalArgumentException("Employee ID already exists");
-		}
-		String email = normalizeEmail(request.getEmailAddress());
-		if (email != null) {
-			if (employeeRepository.existsByEmailAddressIgnoreCaseAndIdNot(email, id)) {
-				throw new IllegalArgumentException("Email already exists");
-			}
-			if (userRepository.existsByEmailIgnoreCase(email)
-					&& (employee.getEmailAddress() == null || !employee.getEmailAddress().equalsIgnoreCase(email))) {
-				throw new IllegalArgumentException("Email already exists");
-			}
-		}
 		applyDraft(employee, request, "DRAFT", principal.getId(), false);
-		return toDto(employeeRepository.save(employee));
+		return toDto(ensureBusinessEmployeeId(employeeRepository.save(employee)));
 	}
 
 	@Transactional
@@ -96,34 +80,23 @@ public class EmployeeService {
 	}
 
 	@Transactional(readOnly = true)
-	public boolean isEmployeeIdTaken(String employeeId) {
-		return employeeRepository.existsByEmployeeId(employeeId);
-	}
-
-	@Transactional(readOnly = true)
 	public List<EmployeeInfoResponseDto> autocomplete(String keyword) {
 		String query = keyword == null ? "" : keyword.trim();
-		return employeeRepository.findTop10ByEmployeeIdContainingIgnoreCaseOrEmployeeNameContainingIgnoreCase(query, query)
-				.stream()
+		if (query.isEmpty()) {
+			return List.of();
+		}
+		if (query.matches("^[0-9]+$")) {
+			return employeeRepository.findById(Long.parseLong(query)).map(this::toDto).stream().toList();
+		}
+		return employeeRepository.findTop10ByEmployeeNameContainingIgnoreCaseOrderByIdDesc(query).stream()
 				.map(this::toDto)
 				.toList();
 	}
 
-	@Transactional(readOnly = true)
-	public boolean isEmailTakenAnywhere(String email) {
-		return employeeRepository.existsByEmailAddressIgnoreCase(email) || userRepository.existsByEmailIgnoreCase(email);
-	}
-
 	private EmployeeInfoResponseDto save(EmployeeInfoRequestDto request, UserPrincipal principal, String status) {
-		if (employeeRepository.existsByEmployeeId(request.getEmployeeId())) {
-			throw new IllegalArgumentException("Employee ID already exists");
-		}
-		if (isEmailTakenAnywhere(request.getEmailAddress())) {
-			throw new IllegalArgumentException("Email already exists");
-		}
 		Employee employee = new Employee();
 		apply(employee, request, status, principal.getId(), true);
-		return toDto(employeeRepository.save(employee));
+		return toDto(ensureBusinessEmployeeId(employeeRepository.save(employee)));
 	}
 
 	private static String trimToNull(String value) {
@@ -134,43 +107,72 @@ public class EmployeeService {
 		return t.isEmpty() ? null : t;
 	}
 
-	private static String normalizeEmail(String value) {
-		String t = trimToNull(value);
-		return t == null ? null : t.toLowerCase();
-	}
-
-	private Nationality resolveOrCreateNationality(String rawName) {
-		String name = trimToNull(rawName);
-		if (name == null) {
+	private static String fatherName(Employee e) {
+		if (e.getFather() == null) {
 			return null;
 		}
-		return nationalityRepository.findByNameIgnoreCase(name).orElseGet(() -> {
-			Nationality n = new Nationality();
-			n.setName(name);
-			return nationalityRepository.save(n);
-		});
+		return e.getFather().getFatherName();
+	}
+
+	private static String fatherNrcNo(Employee e) {
+		if (e.getFather() == null) {
+			return null;
+		}
+		return e.getFather().getFatherNrcNo();
+	}
+
+	private static String fatherOccupation(Employee e) {
+		if (e.getFather() == null) {
+			return null;
+		}
+		return e.getFather().getFatherOccupation();
+	}
+
+	private static String spouseName(Employee e) {
+		if (e.getSpouse() == null) {
+			return null;
+		}
+		return e.getSpouse().getSpouseName();
+	}
+
+	private static String spouseNrcNo(Employee e) {
+		if (e.getSpouse() == null) {
+			return null;
+		}
+		return e.getSpouse().getSpouseNrcNo();
+	}
+
+	private static String spouseOccupation(Employee e) {
+		if (e.getSpouse() == null) {
+			return null;
+		}
+		return e.getSpouse().getSpouseOccupation();
+	}
+
+	private static String passportNo(Employee e) {
+		if (e.getPassport() == null) {
+			return null;
+		}
+		return e.getPassport().getPassportNo();
+	}
+
+	private static LocalDate passportExpireDate(Employee e) {
+		if (e.getPassport() == null) {
+			return null;
+		}
+		return e.getPassport().getPassportExpireDate();
 	}
 
 	private void applyDraft(Employee employee, EmployeeDraftRequestDto r, String status, Long actorId, boolean isCreate) {
-		employee.setEmployeeId(trimToNull(r.getEmployeeId()));
+		if (r.getEmployeeId() != null) {
+			employee.setEmployeeId(trimToNull(r.getEmployeeId()));
+		}
 		employee.setEmployeeName(trimToNull(r.getEmployeeName()));
 		employee.setOtherName(trimToNull(r.getOtherName()));
 
-		String nrcState = trimToNull(r.getNrcStateCode());
-		String nrcTown = trimToNull(r.getNrcTownshipCode());
-		String nrcType = trimToNull(r.getNrcType());
-		String nrcNum = trimToNull(r.getNrcNumber());
-		employee.setNrcStateCode(nrcState);
-		employee.setNrcTownshipCode(nrcTown);
-		employee.setNrcType(nrcType);
-		employee.setNrcNumber(nrcNum);
-		if (nrcState != null && nrcTown != null && nrcType != null && nrcNum != null) {
-			employee.setNrcFull(nrcState + "/" + nrcTown + "(" + nrcType + ")" + nrcNum);
-		} else {
-			employee.setNrcFull(null);
-		}
+		employee.setStaffNrcNo(trimToNull(r.getStaffNrcNo()));
 
-		employee.setGender(trimToNull(r.getGender()));
+		employee.setGender(r.getGender());
 		employee.setRace(trimToNull(r.getRace()));
 
 		if (r.getReligionId() != null) {
@@ -185,37 +187,39 @@ public class EmployeeService {
 		employee.setContactAddress(trimToNull(r.getContactAddress()));
 		employee.setPermanentAddress(trimToNull(r.getPermanentAddress()));
 		employee.setPhoneNo(trimToNull(r.getPhoneNo()));
-		employee.setEmailAddress(normalizeEmail(r.getEmailAddress()));
-		employee.setMaritalStatus(trimToNull(r.getMaritalStatus()));
-		employee.setSpouseName(trimToNull(r.getSpouseName()));
-		employee.setSpouseNrcNo(trimToNull(r.getSpouseNrcNo()));
-		employee.setFatherName(trimToNull(r.getFatherName()));
-		employee.setFatherNrcNo(trimToNull(r.getFatherNrcNo()));
-		employee.setFatherOccupation(trimToNull(r.getFatherOccupation()));
-		employee.setSpouseOccupation(trimToNull(r.getSpouseOccupation()));
+		employee.setMaritalStatus(r.getMaritalStatus());
+		applySpouse(employee, trimToNull(r.getSpouseName()), trimToNull(r.getSpouseNrcNo()), trimToNull(r.getSpouseOccupation()));
+		applyFather(employee, trimToNull(r.getFatherName()), trimToNull(r.getFatherNrcNo()), trimToNull(r.getFatherOccupation()));
 
+		Department department = null;
 		if (r.getDepartmentId() != null) {
-			Department department = departmentRepository.findById(r.getDepartmentId()).orElseThrow(() -> new IllegalArgumentException("Invalid department"));
+			department = departmentRepository.findById(r.getDepartmentId()).orElseThrow(() -> new IllegalArgumentException("Invalid department"));
 			employee.setDepartment(department);
 		} else {
 			employee.setDepartment(null);
 		}
 		if (r.getPositionId() != null) {
 			Position position = positionRepository.findById(r.getPositionId()).orElseThrow(() -> new IllegalArgumentException("Invalid position"));
+			if (department == null) {
+				throw new IllegalArgumentException("Position requires a department");
+			}
+			assertPositionBelongsToDepartment(position, department);
 			employee.setPosition(position);
 		} else {
 			employee.setPosition(null);
 		}
-		if (trimToNull(r.getNationality()) != null) {
-			employee.setNationality(resolveOrCreateNationality(r.getNationality()));
-		} else {
-			employee.setNationality(null);
-		}
+		employee.setNationality(trimToNull(r.getNationality()));
 
 		employee.setDateOfJoining(r.getDateOfJoining());
+		applyPassport(employee, trimToNull(r.getPassportNo()), r.getPassportExpireDate());
+		employee.setDateOfDemotion(r.getDateOfDemotion());
+		employee.setDateOfTitleChange(r.getDateOfTitleChange());
+		employee.setDateOfPromotion(r.getDateOfPromotion());
+		employee.setDateOfTransfer(r.getDateOfTransfer());
 		employee.setRecordStatus(status);
 
-		applyProbation(employee, Boolean.TRUE.equals(r.getOnProbation()), r.getProbationStartDate(), r.getDateOfJoining(),
+		applyStaffType(employee, r.getStaffTypeId());
+		applyProbation(employee, isProbationStaffType(employee), r.getProbationStartDate(), r.getDateOfJoining(),
 				r.getProbationMonth(), r.getProbationEndDate());
 
 		applyEmergencyContact(employee, r.getEmergencyPhone(), r.getEmergencyRelation());
@@ -228,35 +232,22 @@ public class EmployeeService {
 
 	private EmployeeInfoResponseDto update(Long id, EmployeeInfoRequestDto request, UserPrincipal principal, String status) {
 		Employee employee = employeeRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found"));
-		if (employeeRepository.existsByEmployeeIdAndIdNot(request.getEmployeeId(), id)) {
-			throw new IllegalArgumentException("Employee ID already exists");
-		}
-		if (employeeRepository.existsByEmailAddressIgnoreCaseAndIdNot(request.getEmailAddress(), id)) {
-			throw new IllegalArgumentException("Email already exists");
-		}
-		if (userRepository.existsByEmailIgnoreCase(request.getEmailAddress())
-				&& !employee.getEmailAddress().equalsIgnoreCase(request.getEmailAddress())) {
-			throw new IllegalArgumentException("Email already exists");
-		}
 		apply(employee, request, status, principal.getId(), false);
-		return toDto(employeeRepository.save(employee));
+		return toDto(ensureBusinessEmployeeId(employeeRepository.save(employee)));
 	}
 
 	private void apply(Employee employee, EmployeeInfoRequestDto request, String status, Long actorId, boolean isCreate) {
 		Religion religion = religionRepository.findById(request.getReligionId()).orElseThrow(() -> new IllegalArgumentException("Invalid religion"));
 		Department department = departmentRepository.findById(request.getDepartmentId()).orElseThrow(() -> new IllegalArgumentException("Invalid department"));
 		Position position = positionRepository.findById(request.getPositionId()).orElseThrow(() -> new IllegalArgumentException("Invalid position"));
-		Nationality nationality = resolveOrCreateNationality(request.getNationality());
+		assertPositionBelongsToDepartment(position, department);
 
-		employee.setEmployeeId(request.getEmployeeId().trim());
+		if (request.getEmployeeId() != null) {
+			employee.setEmployeeId(trimToNull(request.getEmployeeId()));
+		}
 		employee.setEmployeeName(request.getEmployeeName().trim());
 		employee.setOtherName(request.getOtherName());
-		employee.setNrcStateCode(request.getNrcStateCode().trim());
-		employee.setNrcTownshipCode(request.getNrcTownshipCode().trim());
-		employee.setNrcType(request.getNrcType().trim());
-		employee.setNrcNumber(request.getNrcNumber().trim());
-		employee.setNrcFull(request.getNrcStateCode().trim() + "/" + request.getNrcTownshipCode().trim()
-				+ "(" + request.getNrcType().trim() + ")" + request.getNrcNumber().trim());
+		employee.setStaffNrcNo(request.getStaffNrcNo().trim());
 		employee.setGender(request.getGender());
 		employee.setRace(request.getRace().trim());
 		employee.setReligion(religion);
@@ -265,29 +256,52 @@ public class EmployeeService {
 		employee.setContactAddress(request.getContactAddress());
 		employee.setPermanentAddress(request.getPermanentAddress());
 		employee.setPhoneNo(request.getPhoneNo().trim());
-		employee.setEmailAddress(request.getEmailAddress().trim().toLowerCase());
 		employee.setMaritalStatus(request.getMaritalStatus());
-		employee.setSpouseName(request.getSpouseName());
-		employee.setSpouseNrcNo(request.getSpouseNrcNo());
-		employee.setFatherName(request.getFatherName());
-		employee.setFatherNrcNo(request.getFatherNrcNo());
-		employee.setFatherOccupation(request.getFatherOccupation());
-		employee.setSpouseOccupation(request.getSpouseOccupation());
+		applySpouse(employee, trimToNull(request.getSpouseName()), trimToNull(request.getSpouseNrcNo()),
+				trimToNull(request.getSpouseOccupation()));
+		applyFather(employee, trimToNull(request.getFatherName()), trimToNull(request.getFatherNrcNo()),
+				trimToNull(request.getFatherOccupation()));
 		employee.setDepartment(department);
 		employee.setPosition(position);
-		employee.setNationality(nationality);
+		employee.setNationality(request.getNationality().trim());
 		employee.setDateOfJoining(request.getDateOfJoining());
+		applyPassport(employee, trimToNull(request.getPassportNo()), request.getPassportExpireDate());
+		employee.setDateOfDemotion(request.getDateOfDemotion());
+		employee.setDateOfTitleChange(request.getDateOfTitleChange());
+		employee.setDateOfPromotion(request.getDateOfPromotion());
+		employee.setDateOfTransfer(request.getDateOfTransfer());
 		employee.setRecordStatus(status);
 
-		applyProbation(employee, Boolean.TRUE.equals(request.getOnProbation()), request.getProbationStartDate(), request.getDateOfJoining(),
-				request.getProbationMonth(), request.getProbationEndDate());
+		StaffType staffType = staffTypeRepository.findById(request.getStaffTypeId())
+				.orElseThrow(() -> new IllegalArgumentException("Invalid staff type"));
+		employee.setStaffType(staffType);
+		applyProbation(employee, staffType.getId().longValue() == StaffTypes.PROBATION, request.getProbationStartDate(),
+				request.getDateOfJoining(), request.getProbationMonth(), request.getProbationEndDate());
 
 		applyEmergencyContact(employee, request.getEmergencyPhone(), request.getEmergencyRelation());
+
+		if (request.getProfilePictureBase64() != null) {
+			employee.setProfilePictureBase64(trimToNull(request.getProfilePictureBase64()));
+		}
 
 		if (isCreate) {
 			employee.setCreatedBy(actorId);
 		}
 		employee.setUpdatedBy(actorId);
+	}
+
+	private void applyStaffType(Employee employee, Long staffTypeId) {
+		if (staffTypeId == null) {
+			employee.setStaffType(null);
+			return;
+		}
+		StaffType staffType = staffTypeRepository.findById(staffTypeId)
+				.orElseThrow(() -> new IllegalArgumentException("Invalid staff type"));
+		employee.setStaffType(staffType);
+	}
+
+	private static boolean isProbationStaffType(Employee employee) {
+		return employee.getStaffType() != null && employee.getStaffType().getId().longValue() == StaffTypes.PROBATION;
 	}
 
 	private void applyProbation(Employee employee, boolean onProbation, LocalDate probationStartDate, LocalDate dateOfJoining,
@@ -332,6 +346,53 @@ public class EmployeeService {
 		employee.setProbation(null);
 	}
 
+	private void applySpouse(Employee employee, String spouseName, String spouseNrcNo, String spouseOccupation) {
+		if (spouseName == null && spouseNrcNo == null && spouseOccupation == null) {
+			employee.setSpouse(null);
+			return;
+		}
+		EmployeeSpouse s = employee.getSpouse();
+		if (s == null) {
+			s = new EmployeeSpouse();
+			employee.setSpouse(s);
+			s.setEmployee(employee);
+		}
+		s.setSpouseName(spouseName);
+		s.setSpouseNrcNo(spouseNrcNo);
+		s.setSpouseOccupation(spouseOccupation);
+	}
+
+	private void applyPassport(Employee employee, String passportNo, LocalDate passportExpireDate) {
+		if (passportNo == null && passportExpireDate == null) {
+			employee.setPassport(null);
+			return;
+		}
+		Passport p = employee.getPassport();
+		if (p == null) {
+			p = new Passport();
+			p.setEmployee(employee);
+			employee.setPassport(p);
+		}
+		p.setPassportNo(passportNo);
+		p.setPassportExpireDate(passportExpireDate);
+	}
+
+	private void applyFather(Employee employee, String fatherName, String fatherNrcNo, String fatherOccupation) {
+		if (fatherName == null && fatherNrcNo == null && fatherOccupation == null) {
+			employee.setFather(null);
+			return;
+		}
+		EmployeeFather f = employee.getFather();
+		if (f == null) {
+			f = new EmployeeFather();
+			employee.setFather(f);
+			f.setEmployee(employee);
+		}
+		f.setFatherName(fatherName);
+		f.setFatherNrcNo(fatherNrcNo);
+		f.setFatherOccupation(fatherOccupation);
+	}
+
 	private void applyEmergencyContact(Employee employee, String phone, String relation) {
 		String p = trimToNull(phone);
 		String r = trimToNull(relation);
@@ -351,17 +412,30 @@ public class EmployeeService {
 		contact.setRelation(r);
 	}
 
+	private static void assertPositionBelongsToDepartment(Position position, Department department) {
+		Department positionDepartment = position.getDepartment();
+		if (positionDepartment != null && !positionDepartment.getId().equals(department.getId())) {
+			throw new IllegalArgumentException("Position does not belong to the selected department");
+		}
+	}
+
 	private void validateRequiredBusinessRules(EmployeeInfoRequestDto request) {
 		if (request.getDateOfBirth().isAfter(LocalDate.now())) {
 			throw new IllegalArgumentException("Date of birth must be in the past");
 		}
-		if (request.getDateOfJoining().isAfter(LocalDate.now())) {
+		// Date-only values from the client often follow the UTC calendar (e.g. HTML max = ISO date).
+		// Reject only if the date is strictly after "today" in both the JVM default zone and UTC,
+		// so the same civil date is not rejected when zones disagree at day boundaries.
+		LocalDate systemToday = LocalDate.now();
+		LocalDate utcToday = LocalDate.now(ZoneOffset.UTC);
+		LocalDate doj = request.getDateOfJoining();
+		if (doj.isAfter(systemToday) && doj.isAfter(utcToday)) {
 			throw new IllegalArgumentException("Date of joining cannot be in the future");
 		}
-		if (Boolean.TRUE.equals(request.getOnProbation())) {
+		if (request.getStaffTypeId().longValue() == StaffTypes.PROBATION) {
 			LocalDate start = request.getProbationStartDate() != null ? request.getProbationStartDate() : request.getDateOfJoining();
 			if (start == null) {
-				throw new IllegalArgumentException("Probation start date is required when on probation");
+				throw new IllegalArgumentException("Probation start date is required for probation staff");
 			}
 			Integer m = request.getProbationMonth();
 			boolean fixed = m != null && (m == 1 || m == 3 || m == 6);
@@ -377,40 +451,58 @@ public class EmployeeService {
 		}
 	}
 
+	private Employee ensureBusinessEmployeeId(Employee e) {
+		if (e.getEmployeeId() != null && !e.getEmployeeId().isBlank()) {
+			return e;
+		}
+		e.setEmployeeId(String.valueOf(e.getId()));
+		return employeeRepository.save(e);
+	}
+
 	private EmployeeInfoResponseDto toDto(Employee e) {
 		return EmployeeInfoResponseDto.builder()
 				.id(e.getId())
 				.employeeId(e.getEmployeeId())
 				.employeeName(e.getEmployeeName())
-				.nrcStateCode(e.getNrcStateCode())
-				.nrcTownshipCode(e.getNrcTownshipCode())
-				.nrcType(e.getNrcType())
-				.nrcNumber(e.getNrcNumber())
-				.nrcFull(e.getNrcFull())
+				.staffNrcNo(e.getStaffNrcNo())
 				.gender(e.getGender())
 				.race(e.getRace())
 				.religionId(e.getReligion() == null ? null : e.getReligion().getId())
 				.religionName(e.getReligion() == null ? null : e.getReligion().getName())
 				.dateOfBirth(e.getDateOfBirth())
 				.phoneNo(e.getPhoneNo())
-				.emailAddress(e.getEmailAddress())
+				.emailAddress(accountEmailForEmployee(e))
+				.maritalStatus(e.getMaritalStatus())
 				.departmentId(e.getDepartment() == null ? null : e.getDepartment().getId())
 				.departmentName(e.getDepartment() == null ? null : e.getDepartment().getName())
 				.positionId(e.getPosition() == null ? null : e.getPosition().getId())
 				.positionName(e.getPosition() == null ? null : e.getPosition().getName())
-				.nationalityId(e.getNationality() == null ? null : e.getNationality().getId())
-				.nationalityName(e.getNationality() == null ? null : e.getNationality().getName())
+				.nationality(e.getNationality())
+				.staffTypeId(e.getStaffType() == null ? null : e.getStaffType().getId())
+				.staffTypeName(e.getStaffType() == null ? null : e.getStaffType().getName())
 				.dateOfJoining(e.getDateOfJoining())
+				.passportNo(passportNo(e))
+				.passportExpireDate(passportExpireDate(e))
+				.dateOfDemotion(e.getDateOfDemotion())
+				.dateOfTitleChange(e.getDateOfTitleChange())
+				.dateOfPromotion(e.getDateOfPromotion())
+				.dateOfTransfer(e.getDateOfTransfer())
 				.probationMonth(e.getProbation() == null ? null : e.getProbation().getProbationMonth())
 				.probationStartDate(e.getProbation() == null ? null : e.getProbation().getProbationStartDate())
 				.probationEndDate(e.getProbation() == null ? null : e.getProbation().getProbationEndDate())
-				.fatherName(e.getFatherName())
-				.fatherNrcNo(e.getFatherNrcNo())
-				.spouseName(e.getSpouseName())
-				.spouseNrcNo(e.getSpouseNrcNo())
+				.fatherName(fatherName(e))
+				.fatherNrcNo(fatherNrcNo(e))
+				.fatherOccupation(fatherOccupation(e))
+				.spouseName(spouseName(e))
+				.spouseNrcNo(spouseNrcNo(e))
+				.spouseOccupation(spouseOccupation(e))
 				.emergencyPhone(e.getEmergencyContact() == null ? null : e.getEmergencyContact().getEmergencyPhone())
 				.emergencyRelation(e.getEmergencyContact() == null ? null : e.getEmergencyContact().getRelation())
 				.recordStatus(e.getRecordStatus())
 				.build();
+	}
+
+	private String accountEmailForEmployee(Employee e) {
+		return userRepository.findByEmployee_Id(e.getId()).map(User::getEmail).orElse(null);
 	}
 }

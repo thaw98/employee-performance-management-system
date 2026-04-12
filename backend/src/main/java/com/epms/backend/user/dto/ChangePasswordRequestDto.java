@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ChangePasswordRequestDto {
 
-    @NotBlank(message = "Current password is required")
+    /** Required when the user is not on a forced first-login password change. */
     private String currentPassword;
 
     @NotBlank(message = "New password is required")

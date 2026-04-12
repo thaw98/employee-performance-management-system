@@ -86,16 +86,6 @@ public class EmployeeController {
 		}
 	}
 
-	@GetMapping("/check-employee-id")
-	public ResponseEntity<ApiResponse<Boolean>> checkEmployeeId(@RequestParam String employeeId) {
-		return ResponseEntity.ok(ApiResponse.ok("Checked", employeeService.isEmployeeIdTaken(employeeId)));
-	}
-
-	@GetMapping("/check-email")
-	public ResponseEntity<ApiResponse<Boolean>> checkEmail(@RequestParam String email) {
-		return ResponseEntity.ok(ApiResponse.ok("Checked", employeeService.isEmailTakenAnywhere(email)));
-	}
-
 	@GetMapping("/autocomplete")
 	public ResponseEntity<ApiResponse<List<EmployeeInfoResponseDto>>> autocomplete(@RequestParam(defaultValue = "") String keyword) {
 		return ResponseEntity.ok(ApiResponse.ok("Employees", employeeService.autocomplete(keyword)));

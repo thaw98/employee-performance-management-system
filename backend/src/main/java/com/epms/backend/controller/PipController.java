@@ -99,7 +99,7 @@ public class PipController {
     }
 
     @GetMapping("/employees/{employeeId}/training")
-    public ResponseEntity<ApiResponse<List<TrainingRecord>>> getTrainingHistory(@PathVariable String employeeId) {
+    public ResponseEntity<ApiResponse<List<TrainingRecord>>> getTrainingHistory(@PathVariable Long employeeId) {
         return ResponseEntity.ok(ApiResponse.ok("Training history retrieved successfully", pipService.getEmployeeTrainingHistory(employeeId)));
     }
 

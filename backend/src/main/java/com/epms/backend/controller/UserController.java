@@ -1,6 +1,6 @@
 package com.epms.backend.controller;
 
-import com.epms.backend.user.UserService;
+import com.epms.backend.service.UserService;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

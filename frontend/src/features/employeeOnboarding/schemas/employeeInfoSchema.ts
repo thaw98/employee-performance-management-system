@@ -1,73 +1,92 @@
+import { isAfter, isBefore, parseISO, startOfDay } from 'date-fns'
 import { z } from 'zod'
 import { getNrcTownships } from '../utils/nrcData'
 import { phoneRegex } from '../utils/phoneValidation'
+import { STAFF_TYPE_PERMANENT, STAFF_TYPE_PROBATION } from '../utils/staffType'
 
 const allTownships = getNrcTownships()
 
-const today = new Date()
-today.setHours(0, 0, 0, 0)
+/** Local start of "today" for comparisons (avoid `new Date("yyyy-mm-dd")` UTC parsing). */
+function startOfTodayLocal() {
+  return startOfDay(new Date())
+}
 
 /** One user-facing message for all schema validation failures (avoids Zod default technical text). */
 export const GENERIC_FIELD_VALIDATION_MESSAGE = 'Please complete this field.'
 
 const g = GENERIC_FIELD_VALIDATION_MESSAGE
 
-function nrcSuperRefine(
-  val: { nrcStateCode: string; nrcTownshipCode: string },
-  ctx: z.RefinementCtx,
-  pathPrefix: string = ''
-) {
-  const stateCodeField = (pathPrefix ? `${pathPrefix}NrcStateCode` : 'nrcStateCode') as any
-  const townshipCodeField = (pathPrefix ? `${pathPrefix}NrcTownshipCode` : 'nrcTownshipCode') as any
-  
-  const stateCode = (val as any)[stateCodeField]
-  const townshipCode = (val as any)[townshipCodeField]
+function staffNrcSuperRefine(val: Record<string, unknown>, ctx: z.RefinementCtx) {
+  const stateCode = String(val.nrcStateCode ?? '').trim()
+  const townshipCode = String(val.nrcTownshipCode ?? '').trim()
+  if (!stateCode || !townshipCode) return
+  // Short codes like "LaMaNa" repeat across states; match state + township together.
+  const township = allTownships.find(
+    (t) => t.short.en === townshipCode && t.stateCode === stateCode,
+  )
+  if (!township) {
+    ctx.addIssue({ code: 'custom', message: g, path: ['nrcTownshipCode'] })
+  }
+}
 
-  if (stateCode && townshipCode) {
-    const township = allTownships.find((t) => t.short.en === townshipCode)
-    if (!township || township.stateCode !== stateCode) {
-      ctx.addIssue({
-        code: 'custom',
-        message: g,
-        path: [townshipCodeField],
-      })
-    }
+/** Empty father NRC is allowed; if any part is set, all parts must be valid and consistent. */
+function fatherNrcSuperRefine(val: Record<string, unknown>, ctx: z.RefinementCtx) {
+  const stateCode = String(val.fatherNrcStateCode ?? '').trim()
+  const townshipCode = String(val.fatherNrcTownshipCode ?? '').trim()
+  const type = String(val.fatherNrcType ?? '').trim()
+  const number = String(val.fatherNrcNumber ?? '').trim()
+  const parts = [stateCode, townshipCode, type, number]
+  const filledCount = parts.filter((p) => p.length > 0).length
+  if (filledCount === 0) {
+    return
+  }
+  if (filledCount < 4) {
+    if (!stateCode) ctx.addIssue({ code: 'custom', message: g, path: ['fatherNrcStateCode'] })
+    if (!townshipCode) ctx.addIssue({ code: 'custom', message: g, path: ['fatherNrcTownshipCode'] })
+    if (!type) ctx.addIssue({ code: 'custom', message: g, path: ['fatherNrcType'] })
+    if (!number) ctx.addIssue({ code: 'custom', message: g, path: ['fatherNrcNumber'] })
+    return
+  }
+  if (!/^[0-9]{1,6}$/.test(number)) {
+    ctx.addIssue({ code: 'custom', message: g, path: ['fatherNrcNumber'] })
+    return
+  }
+  const township = allTownships.find(
+    (t) => t.short.en === townshipCode && t.stateCode === stateCode,
+  )
+  if (!township) {
+    ctx.addIssue({
+      code: 'custom',
+      message: g,
+      path: ['fatherNrcTownshipCode'],
+    })
   }
 }
 
 const personalContactShape = z.object({
-  employeeId: z.string(g).regex(/^[0-9]+$/, { message: g }),
   employeeName: z.string(g).min(1, g).max(50, g),
   otherName: z.string().optional(),
   nrcStateCode: z.string(g).min(1, g),
   nrcTownshipCode: z.string(g).min(1, g),
   nrcType: z.string(g).min(1, g),
-  nrcNumber: z.string(g).min(1, g).regex(/^[0-9]{1,6}$/, { message: g }),
+  nrcNumber: z.string(g).regex(/^[0-9]{6}$/, g),
   gender: z.enum(['Male', 'Female'], g),
   race: z.string(g).min(1, g),
   religionId: z.number(g).positive(g),
   dateOfBirth: z
     .string(g)
     .min(1, g)
-    .refine((v) => new Date(v) < today, g),
+    .refine((v) => isBefore(parseISO(v), startOfTodayLocal()), g),
   birthPlace: z.string().optional(),
   contactAddress: z.string(g).min(1, g).max(500, g),
   permanentAddress: z.string().optional(),
   phoneNo: z.string(g).regex(phoneRegex, { message: g }),
-  emailAddress: z.string(g).email({ message: g }),
-  maritalStatus: z.string().optional(),
-  spouseName: z.string().optional(),
-  spouseNrcNo: z.string().optional(),
-  spouseNrcStateCode: z.string().optional(),
-  spouseNrcTownshipCode: z.string().optional(),
-  spouseNrcType: z.string().optional(),
-  spouseNrcNumber: z.string().optional(),
-  fatherName: z.string(g).min(1, g),
+  fatherName: z.string().max(100, g),
   fatherNrcNo: z.string().optional(),
-  fatherNrcStateCode: z.string(g).min(1, g),
-  fatherNrcTownshipCode: z.string(g).min(1, g),
-  fatherNrcType: z.string(g).min(1, g),
-  fatherNrcNumber: z.string(g).min(1, g).regex(/^[0-9]{1,6}$/, { message: g }),
+  fatherNrcStateCode: z.string(),
+  fatherNrcTownshipCode: z.string(),
+  fatherNrcType: z.string(),
+  fatherNrcNumber: z.string(),
   fatherOccupation: z.string().optional(),
   spouseOccupation: z.string().optional(),
   emergencyPhone: z.string(g).regex(phoneRegex, { message: g }),
@@ -84,57 +103,28 @@ const employmentShape = z.object({
   dateOfJoining: z
     .string(g)
     .min(1, g)
-    .refine((v) => new Date(v) <= today, g),
-  onProbation: z.boolean().default(false),
+    .refine((v) => !isAfter(parseISO(v), startOfTodayLocal()), g),
+  staffTypeId: z
+    .number(g)
+    .refine((n) => n === STAFF_TYPE_PERMANENT || n === STAFF_TYPE_PROBATION, g)
+    .default(STAFF_TYPE_PERMANENT),
   probationDuration: z.enum(PROBATION_DURATION_VALUES).optional(),
   probationStartDate: z.string().optional(),
   probationEndDate: z.string().optional(),
 })
 
 /** Step 1: personal details, NRC, and contact (before employment). */
-export const employeePersonalContactSchema = personalContactShape
-  .superRefine((val, ctx) => nrcSuperRefine(val, ctx))
-  .superRefine((val, ctx) => nrcSuperRefine(val, ctx, 'father'))
-  .superRefine((val, ctx) => nrcSuperRefine(val, ctx, 'spouse'))
-  .superRefine(spouseSuperRefine)
-
-function spouseSuperRefine(
-  val: {
-    maritalStatus?: string
-    spouseName?: string
-    spouseNrcNo?: string
-    spouseNrcStateCode?: string
-    spouseNrcTownshipCode?: string
-    spouseNrcType?: string
-    spouseNrcNumber?: string
-  },
-  ctx: z.RefinementCtx
-) {
-  if (val.maritalStatus === 'Married') {
-    if (!val.spouseName || val.spouseName.trim() === '') {
-      ctx.addIssue({ code: 'custom', message: g, path: ['spouseName'] })
-    }
-    if (!val.spouseNrcStateCode) {
-      ctx.addIssue({ code: 'custom', message: g, path: ['spouseNrcStateCode'] })
-    }
-    if (!val.spouseNrcTownshipCode) {
-      ctx.addIssue({ code: 'custom', message: g, path: ['spouseNrcTownshipCode'] })
-    }
-    if (!val.spouseNrcType) {
-      ctx.addIssue({ code: 'custom', message: g, path: ['spouseNrcType'] })
-    }
-    if (!val.spouseNrcNumber) {
-      ctx.addIssue({ code: 'custom', message: g, path: ['spouseNrcNumber'] })
-    }
-  }
-}
+export const employeePersonalContactSchema = personalContactShape.superRefine((val, ctx) => {
+  staffNrcSuperRefine(val as Record<string, unknown>, ctx)
+  fatherNrcSuperRefine(val as Record<string, unknown>, ctx)
+})
 
 /** Step 2: department, role, joining date, probation. */
 export const employeeEmploymentSchema = employmentShape.superRefine(probationSuperRefine)
 
 function probationSuperRefine(
   val: {
-    onProbation: boolean
+    staffTypeId: number
     dateOfJoining: string
     probationDuration?: ProbationDurationValue
     probationStartDate?: string
@@ -142,7 +132,7 @@ function probationSuperRefine(
   },
   ctx: z.RefinementCtx,
 ) {
-  if (!val.onProbation) return
+  if (val.staffTypeId !== STAFF_TYPE_PROBATION) return
   const start = (val.probationStartDate?.trim() ? val.probationStartDate : val.dateOfJoining) || ''
   if (!start) {
     ctx.addIssue({ code: 'custom', message: g, path: ['probationStartDate'] })
@@ -158,7 +148,7 @@ function probationSuperRefine(
       ctx.addIssue({ code: 'custom', message: g, path: ['probationEndDate'] })
       return
     }
-    if (new Date(end) < new Date(start)) {
+    if (isBefore(parseISO(end), parseISO(start))) {
       ctx.addIssue({ code: 'custom', message: g, path: ['probationEndDate'] })
     }
   }
@@ -166,10 +156,10 @@ function probationSuperRefine(
 
 export const employeeInfoSchema = personalContactShape
   .merge(employmentShape)
-  .superRefine((val, ctx) => nrcSuperRefine(val, ctx))
-  .superRefine((val, ctx) => nrcSuperRefine(val, ctx, 'father'))
-  .superRefine((val, ctx) => nrcSuperRefine(val, ctx, 'spouse'))
-  .superRefine(spouseSuperRefine)
+  .superRefine((val, ctx) => {
+    staffNrcSuperRefine(val as Record<string, unknown>, ctx)
+    fatherNrcSuperRefine(val as Record<string, unknown>, ctx)
+  })
   .superRefine(probationSuperRefine)
 
 export type EmployeeInfoFormValues = z.infer<typeof employeeInfoSchema>

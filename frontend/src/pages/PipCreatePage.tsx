@@ -8,7 +8,10 @@ import { useCreatePipMutation } from '../features/pip/pipApi'
 
 const pipCreateSchema = z
   .object({
-    employeeId: z.string().min(1, 'Employee ID is required'),
+    employeeId: z
+      .string()
+      .min(1, 'Employee record ID is required')
+      .regex(/^[0-9]+$/, 'Must be the numeric employee record ID'),
     totalHours: z.coerce.number().int().min(1, 'Total hours must be at least 1'),
     startDate: z.string().min(1, 'Start date is required'),
     endDate: z.string().min(1, 'End date is required'),
@@ -54,7 +57,7 @@ export default function PipCreatePage() {
     setSubmitError(null)
     try {
       await createPip({
-        employeeId: values.employeeId.trim(),
+        employeeId: Number(values.employeeId.trim()),
         startDate: values.startDate,
         endDate: values.endDate,
         totalHours: values.totalHours,
@@ -62,7 +65,7 @@ export default function PipCreatePage() {
       }).unwrap()
       navigate('/hr/pip-monitoring')
     } catch {
-      setSubmitError('Failed to create PIP. Please check employee ID and try again.')
+      setSubmitError('Failed to create PIP. Please check the employee record ID and try again.')
     }
   }
 
@@ -77,8 +80,8 @@ export default function PipCreatePage() {
         <Stack spacing={2}>
           {submitError ? <Alert severity="error">{submitError}</Alert> : null}
           <TextField
-            label="Employee ID"
-            placeholder="E.g. EMP001"
+            label="Employee record ID"
+            placeholder="Numeric ID from the employee record"
             fullWidth
             {...register('employeeId')}
             error={Boolean(errors.employeeId)}

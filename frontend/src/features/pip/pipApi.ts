@@ -16,9 +16,9 @@ export interface FollowUpMeeting {
 
 export interface User {
   id: number
-  employeeId: string
   email: string
   employee?: {
+    id: number
     employeeName: string
     department?: {
       departmentName: string
@@ -73,7 +73,7 @@ export const pipApi = baseApi.injectEndpoints({
       providesTags: (_result, _error, id) => [{ type: 'PIP', id }],
       transformResponse: (response: any) => response.data,
     }),
-    createPip: builder.mutation<Pip, { employeeId: string; startDate: string; endDate: string; totalHours: number; objectives: string[] }>({
+    createPip: builder.mutation<Pip, { employeeId: number; startDate: string; endDate: string; totalHours: number; objectives: string[] }>({
       query: (body) => ({
         url: '/pips',
         method: 'POST',

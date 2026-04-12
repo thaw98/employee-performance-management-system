@@ -14,5 +14,6 @@ public class CreateEmployeeAccountResponseDto {
 	private Long roleId;
 	private boolean mustChangePassword;
 	private boolean active;
-	private String temporaryPassword;
+	/** False when SMTP fails after the user row was created (account still exists). */
+	private boolean emailSent;
 }

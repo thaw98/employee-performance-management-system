@@ -130,7 +130,7 @@ export function ProfileSettingsPage() {
             </div>
 
             <div>
-              <p className="text-sm font-medium text-slate-500 mb-1">Employee ID</p>
+              <p className="text-sm font-medium text-slate-500 mb-1">Employee record ID</p>
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-400">
                   <i className="bi bi-person-badge text-lg"></i>

@@ -2,6 +2,9 @@ package com.epms.backend.dto.employee;
 
 import java.time.LocalDate;
 
+import com.epms.backend.entity.Gender;
+import com.epms.backend.entity.MaritalStatus;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,11 +17,8 @@ public class EmployeeDraftRequestDto {
 	private String employeeId;
 	private String employeeName;
 	private String otherName;
-	private String nrcStateCode;
-	private String nrcTownshipCode;
-	private String nrcType;
-	private String nrcNumber;
-	private String gender;
+	private String staffNrcNo;
+	private Gender gender;
 	private String race;
 	private Long religionId;
 	private LocalDate dateOfBirth;
@@ -26,8 +26,7 @@ public class EmployeeDraftRequestDto {
 	private String contactAddress;
 	private String permanentAddress;
 	private String phoneNo;
-	private String emailAddress;
-	private String maritalStatus;
+	private MaritalStatus maritalStatus;
 	private String spouseName;
 	private String spouseNrcNo;
 	private String fatherName;
@@ -40,7 +39,13 @@ public class EmployeeDraftRequestDto {
 	private Long positionId;
 	private String nationality;
 	private LocalDate dateOfJoining;
-	private Boolean onProbation;
+	private String passportNo;
+	private LocalDate passportExpireDate;
+	private LocalDate dateOfDemotion;
+	private LocalDate dateOfTitleChange;
+	private LocalDate dateOfPromotion;
+	private LocalDate dateOfTransfer;
+	private Long staffTypeId;
 	private LocalDate probationStartDate;
 	private Integer probationMonth;
 	private LocalDate probationEndDate;

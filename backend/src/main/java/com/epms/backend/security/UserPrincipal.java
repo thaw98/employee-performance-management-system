@@ -7,6 +7,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.User;
 
 public class UserPrincipal implements UserDetails {
@@ -18,15 +19,21 @@ public class UserPrincipal implements UserDetails {
 	private final String roleName;
 	private final String password;
 	private final boolean active;
+	private final boolean mustChangePassword;
 
 	public UserPrincipal(User user) {
 		this.id = user.getId();
 		this.email = user.getEmail();
-		this.employeeId = user.getEmployee().getEmployeeId();
+		this.employeeId = resolveBusinessEmployeeId(user.getEmployee());
 		this.roleId = user.getRole().getId();
 		this.roleName = user.getRole().getName();
 		this.password = user.getPassword();
 		this.active = user.isActive();
+		this.mustChangePassword = user.isMustChangePassword();
+	}
+
+	public boolean isMustChangePassword() {
+		return mustChangePassword;
 	}
 
 	public Long getId() {
@@ -83,5 +90,13 @@ public class UserPrincipal implements UserDetails {
 
 	public String getEmail() {
 		return email;
+	}
+
+	private static String resolveBusinessEmployeeId(Employee employee) {
+		String businessId = employee.getEmployeeId();
+		if (businessId != null && !businessId.isBlank()) {
+			return businessId.trim();
+		}
+		return String.valueOf(employee.getId());
 	}
 }

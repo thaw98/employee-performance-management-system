@@ -30,7 +30,7 @@ export default function PipMonitoringPage() {
       const q = searchQuery.toLowerCase()
       result = result.filter(p => {
         const empName = p.employee.employee?.employeeName?.toLowerCase() || ''
-        const empId = p.employee?.employeeId?.toLowerCase() || ''
+        const empId = (p.employee?.employee?.id != null ? String(p.employee.employee.id) : '').toLowerCase()
         const email = p.employee?.email?.toLowerCase() || ''
         const dept = p.employee.employee?.department?.departmentName?.toLowerCase() || ''
         return empName.includes(q) || empId.includes(q) || email.includes(q) || dept.includes(q)
@@ -125,7 +125,7 @@ export default function PipMonitoringPage() {
               return (
                 <tr key={pip.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 font-medium text-slate-900">{pip.employee.employee?.employeeName || 'N/A'}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{pip.employee.employeeId}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{pip.employee.employee?.id ?? '—'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{pip.employee.employee?.department?.departmentName || 'N/A'}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{pip.employee.email}</td>
                   <td className="px-6 py-4 font-semibold text-blue-600">{pip.completedHours}</td>

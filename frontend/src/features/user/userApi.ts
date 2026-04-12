@@ -14,7 +14,8 @@ export interface UpdateProfilePictureRequestDto {
 }
 
 export interface ChangePasswordRequestDto {
-  currentPassword: string
+  /** Required for normal password change from settings; omitted on forced first-login change. */
+  currentPassword?: string
   newPassword: string
   confirmPassword: string
 }

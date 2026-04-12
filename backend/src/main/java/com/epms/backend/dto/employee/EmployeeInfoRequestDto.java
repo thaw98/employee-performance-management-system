@@ -2,7 +2,9 @@ package com.epms.backend.dto.employee;
 
 import java.time.LocalDate;
 
-import jakarta.validation.constraints.Email;
+import com.epms.backend.entity.Gender;
+import com.epms.backend.entity.MaritalStatus;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -13,8 +15,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class EmployeeInfoRequestDto {
-	@NotBlank
-	@Pattern(regexp = "^[0-9]+$", message = "Employee ID must be numeric only")
+	/** Optional business id; if omitted, defaults to the string form of the employee primary key after save. */
+	@Size(max = 100)
 	private String employeeId;
 
 	@NotBlank
@@ -24,24 +26,11 @@ public class EmployeeInfoRequestDto {
 	private String otherName;
 
 	@NotBlank
-	@Pattern(regexp = "^(1[0-4]|[1-9])$", message = "Invalid NRC state code")
-	private String nrcStateCode;
+	@Size(max = 100)
+	private String staffNrcNo;
 
-	@NotBlank
-	@Pattern(regexp = "^[A-Z]{3,10}$", message = "Invalid NRC township code")
-	private String nrcTownshipCode;
-
-	@NotBlank
-	@Pattern(regexp = "^[A-Z]{1,2}$", message = "Invalid NRC type")
-	private String nrcType;
-
-	@NotBlank
-	@Pattern(regexp = "^[0-9]{1,10}$", message = "NRC number must be digits only")
-	private String nrcNumber;
-
-	@NotBlank
-	@Pattern(regexp = "^(Male|Female)$", message = "Gender must be Male or Female")
-	private String gender;
+	@NotNull
+	private Gender gender;
 
 	@NotBlank
 	private String race;
@@ -63,11 +52,7 @@ public class EmployeeInfoRequestDto {
 	@Pattern(regexp = "^\\+?[0-9]{8,15}$", message = "Invalid phone number format")
 	private String phoneNo;
 
-	@NotBlank
-	@Email
-	private String emailAddress;
-
-	private String maritalStatus;
+	private MaritalStatus maritalStatus;
 	private String spouseName;
 	private String spouseNrcNo;
 	private String fatherName;
@@ -90,9 +75,21 @@ public class EmployeeInfoRequestDto {
 	@NotNull
 	private LocalDate dateOfJoining;
 
-	private Boolean onProbation;
+	@NotNull
+	private Long staffTypeId;
+
+	private String passportNo;
+	private LocalDate passportExpireDate;
+	private LocalDate dateOfDemotion;
+	private LocalDate dateOfTitleChange;
+	private LocalDate dateOfPromotion;
+	private LocalDate dateOfTransfer;
+
 	private LocalDate probationStartDate;
 	/** 1, 3, or 6 for fixed periods; null with {@link #probationEndDate} for custom. */
 	private Integer probationMonth;
 	private LocalDate probationEndDate;
+
+	/** Optional data URL or base64; persisted on {@code employees.profile_picture_base64}. Omitted on update leaves existing value unchanged. */
+	private String profilePictureBase64;
 }

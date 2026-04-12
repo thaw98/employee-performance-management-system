@@ -25,24 +25,28 @@ export const employeeApi = baseApi.injectEndpoints({
       query: ({ id, body }) => ({ url: `/employees/${id}`, method: 'PUT', body }),
       invalidatesTags: ['Employee'],
     }),
-    checkEmployeeId: builder.query<ApiResponse<boolean>, string>({
-      query: (employeeId) => `/employees/check-employee-id?employeeId=${encodeURIComponent(employeeId)}`,
-    }),
-    checkEmailInEmployees: builder.query<ApiResponse<boolean>, string>({
-      query: (email) => `/employees/check-email?email=${encodeURIComponent(email)}`,
-    }),
     getReligions: builder.query<ApiResponse<MasterOption[]>, void>({
       query: () => '/master/religions',
     }),
     getDepartments: builder.query<ApiResponse<MasterOption[]>, string>({
       query: (keyword) => `/departments/autocomplete?keyword=${encodeURIComponent(keyword)}`,
     }),
-    getPositions: builder.query<ApiResponse<MasterOption[]>, string>({
-      query: (keyword) => `/positions/autocomplete?keyword=${encodeURIComponent(keyword)}`,
+    getPositions: builder.query<
+      ApiResponse<MasterOption[]>,
+      { keyword: string; departmentId?: number }
+    >({
+      query: ({ keyword, departmentId }) => {
+        const params = new URLSearchParams()
+        params.set('keyword', keyword)
+        if (departmentId != undefined) {
+          params.set('departmentId', String(departmentId))
+        }
+        return `/positions/autocomplete?${params.toString()}`
+      },
     }),
     createEmployeeAccount: builder.mutation<
       ApiResponse<CreateEmployeeAccountResponse>,
-      { employeePkId: number }
+      { employeePkId: number; email: string; profilePictureBase64?: string }
     >({
       query: (body) => ({ url: '/users/employee-account', method: 'POST', body }),
     }),
@@ -56,8 +60,6 @@ export const {
   useCreateEmployeeMutation,
   useCreateDraftMutation,
   useUpdateEmployeeMutation,
-  useLazyCheckEmployeeIdQuery,
-  useLazyCheckEmailInEmployeesQuery,
   useGetReligionsQuery,
   useGetDepartmentsQuery,
   useGetPositionsQuery,

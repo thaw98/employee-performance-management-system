@@ -52,6 +52,8 @@ public class SecurityConfig {
 		http
 				.csrf(csrf -> csrf.disable())
 				.cors(cors -> {})
+				.httpBasic(httpBasic -> httpBasic.disable())
+				.formLogin(formLogin -> formLogin.disable())
 				.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

@@ -6,6 +6,7 @@ import { useAppDispatch } from '../../app/hooks'
 import { useLoginMutation } from '../../features/auth/authApi'
 import { persistAuth } from '../../features/auth/authStorage'
 import { setCredentials } from '../../features/auth/authSlice'
+import { FIRST_LOGIN_SET_PASSWORD_PATH } from '../../routes/paths'
 
 interface LoginFormValues {
   identifier: string
@@ -45,7 +46,11 @@ export function LoginForm() {
       }
       persistAuth(values.rememberMe, res.data.token, res.data.user)
       dispatch(setCredentials({ token: res.data.token, user: res.data.user }))
-      navigate('/hr/dashboard', { replace: true })
+      if (res.data.user.mustChangePassword) {
+        navigate(FIRST_LOGIN_SET_PASSWORD_PATH, { replace: true })
+      } else {
+        navigate('/hr/dashboard', { replace: true })
+      }
     } catch {
       setGenericError('Invalid credentials')
     }
@@ -85,7 +90,7 @@ export function LoginForm() {
       >
         <div className="epms-login-field">
           <label className="epms-login-label" htmlFor="identifier">
-            Email or Employee ID <span className="epms-login-required">*</span>
+            Email or numeric record ID <span className="epms-login-required">*</span>
           </label>
           <div className="epms-login-input-wrapper">
             <span className="epms-login-input-icon">

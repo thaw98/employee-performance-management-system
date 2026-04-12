@@ -12,7 +12,7 @@ interface NrcFieldsProps {
   control: Control<EmployeeInfoFormValues>
   errors: FieldErrors<EmployeeInfoFormValues>
   setValue: UseFormSetValue<EmployeeInfoFormValues>
-  prefix?: 'father' | 'spouse'
+  prefix?: 'father'
   label?: string
   required?: boolean
 }
@@ -66,7 +66,7 @@ export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Numb
           name={stateFieldName}
           render={({ field }) => (
             <div className="flex flex-col justify-center px-2 min-w-[90px]">
-              <span className="text-[10px] text-slate-400 leading-none mb-0.5">State</span>
+              <span className="text-[10px] text-sky-600 leading-none mb-0.5">State</span>
               <select
                 className={selectBase}
                 value={field.value ?? ''}
@@ -76,7 +76,7 @@ export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Numb
                 }}
                 onBlur={field.onBlur}
               >
-                <option value="">—</option>
+                <option value="">_</option>
                 {allStates.map((state) => (
                   <option key={state.id} value={state.number.en}>
                     {state.number.en}
@@ -96,7 +96,7 @@ export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Numb
           name={townshipFieldName}
           render={({ field }) => (
             <div className="flex flex-col justify-center px-2 flex-1 min-w-[110px]">
-              <span className="text-[10px] text-slate-400 leading-none mb-0.5">Township</span>
+              <span className="text-[10px] text-sky-600 leading-none mb-0.5">Township</span>
               <select
                 className={selectBase}
                 value={field.value ?? ''}
@@ -104,7 +104,7 @@ export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Numb
                 onBlur={field.onBlur}
                 disabled={!nrcStateCode}
               >
-                <option value="">—</option>
+                <option value="">_</option>
                 {filteredTownships.map((township) => (
                   <option key={township.id} value={township.short.en}>
                     {township.short.en} — {township.name.en}
@@ -124,14 +124,14 @@ export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Numb
           name={typeFieldName}
           render={({ field }) => (
             <div className="flex flex-col justify-center px-2 min-w-[80px]">
-              <span className="text-[10px] text-slate-400 leading-none mb-0.5">Type</span>
+              <span className="text-[10px] text-sky-600 leading-none mb-0.5">Type</span>
               <select
                 className={selectBase}
                 value={field.value ?? ''}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
               >
-                <option value="">—</option>
+                <option value="">_</option>
                 {allTypes.map((type) => (
                   <option key={type.id} value={type.name.en}>
                     {type.name.en}
@@ -151,7 +151,7 @@ export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Numb
           name={numberFieldName}
           render={({ field }) => (
             <div className="flex flex-col justify-center px-2 flex-1 min-w-[90px]">
-              <span className="text-[10px] text-slate-400 leading-none mb-0.5">Number</span>
+              <span className="text-[10px] text-sky-600 leading-none mb-0.5">Number</span>
               <input
                 type="text"
                 inputMode="numeric"

@@ -11,6 +11,7 @@ import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.RoleRepository;
+import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.entity.Role;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
@@ -30,19 +31,22 @@ public class DataSeeder implements CommandLineRunner {
     private final EmployeeRepository employeeRepository;
     private final RoleRepository roleRepository;
     private final CriteriaRepository criteriaRepository;
+    private final StaffTypeRepository staffTypeRepository;
 
     public DataSeeder(DepartmentRepository departmentRepository, 
                       PositionRepository positionRepository,
                       UserRepository userRepository,
                       EmployeeRepository employeeRepository,
                       RoleRepository roleRepository,
-                      CriteriaRepository criteriaRepository) {
+                      CriteriaRepository criteriaRepository,
+                      StaffTypeRepository staffTypeRepository) {
         this.departmentRepository = departmentRepository;
         this.positionRepository = positionRepository;
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
         this.roleRepository = roleRepository;
         this.criteriaRepository = criteriaRepository;
+        this.staffTypeRepository = staffTypeRepository;
     }
 
     @Override
@@ -82,7 +86,6 @@ public class DataSeeder implements CommandLineRunner {
             
         if (hrUser.getEmployee() == null) {
             Employee emp = new Employee();
-            emp.setEmployeeId("EMP11");
             emp.setEmployeeName("HR Manager Admin");
             emp.setDepartment(hr);
             
@@ -91,7 +94,8 @@ public class DataSeeder implements CommandLineRunner {
                 .findFirst()
                 .orElse(null);
             emp.setPosition(hrPos);
-            
+            staffTypeRepository.findById(StaffTypes.PERMANENT).ifPresent(emp::setStaffType);
+
             emp = employeeRepository.save(emp);
             hrUser.setEmployee(emp);
             userRepository.save(hrUser);
