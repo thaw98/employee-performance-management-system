@@ -37,6 +37,17 @@ export function AppSidebar() {
       label: 'Main',
       items: [
         ...(isHr ? [{ name: 'HR Dashboard', path: '/hr/dashboard', icon: 'bi-speedometer2', end: true }] : []),
+        ...(isHr
+          ? [
+              {
+                name: 'Employee',
+                path: '/hr/employee-account',
+                icon: 'bi-person-badge',
+                end: false,
+                subItems: [{ name: 'Create Employee Account', path: '/hr/employee-account/create' }],
+              },
+            ]
+          : []),
         ...(isManager ? [{ name: 'Manager Dashboard', path: '/hr/manager-dashboard', icon: 'bi-people', end: false }] : []),
         { name: 'My Performance', path: '/hr/my-performance', icon: 'bi-person', end: false },
       ],
@@ -172,28 +183,6 @@ export function AppSidebar() {
                   </div>
                 )
               })}
-              {section.label === 'Management' && isHr ? (
-                <NavLink
-                  to="/hr/employee-account/create"
-                  end
-                  className={({ isActive }) =>
-                    `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
-                      ? SIDEBAR_LINK_ACTIVE
-                      : SIDEBAR_LINK_IDLE
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <i
-                        className={`bi bi-person-plus text-base transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
-                          }`}
-                      />
-                      Create Employee Account
-                    </>
-                  )}
-                </NavLink>
-              ) : null}
             </nav>
           </div>
         ))}

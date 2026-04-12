@@ -1,6 +1,7 @@
 package com.epms.backend.config;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 
 @Component
 @Order(2)
+@ConditionalOnProperty(name = "epms.autoseed.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class AdminDataInitializer implements CommandLineRunner {
 

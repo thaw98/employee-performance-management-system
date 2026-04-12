@@ -15,7 +15,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class EmployeeInfoRequestDto {
-	/** Optional business id; if omitted, defaults to the string form of the employee primary key after save. */
+	/** Optional business id (digits only, max 100); if omitted, defaults to the string form of the employee PK after save. */
 	@Size(max = 100)
 	private String employeeId;
 

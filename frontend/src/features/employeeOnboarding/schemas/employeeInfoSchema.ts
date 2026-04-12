@@ -64,6 +64,11 @@ function fatherNrcSuperRefine(val: Record<string, unknown>, ctx: z.RefinementCtx
 }
 
 const personalContactShape = z.object({
+  /** Business employee number (digits only); stored on employees.employee_id and shown on the user profile after account link. */
+  employeeId: z
+    .string(g)
+    .min(1, g)
+    .regex(/^[0-9]{1,100}$/, 'Use digits only (no letters or spaces).'),
   employeeName: z.string(g).min(1, g).max(50, g),
   otherName: z.string().optional(),
   nrcStateCode: z.string(g).min(1, g),

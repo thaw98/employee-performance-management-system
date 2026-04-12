@@ -44,6 +44,33 @@ CREATE TABLE IF NOT EXISTS employee_probation (
   probation_end_date DATE NULL
 );
 
+CREATE TABLE IF NOT EXISTS currencies (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  code VARCHAR(10) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  symbol VARCHAR(10) NULL,
+  UNIQUE KEY uq_currencies_code (code)
+);
+
+CREATE TABLE IF NOT EXISTS employee_compliance (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  compliance_earned_points INT NULL,
+  compliance_balance_points INT NULL
+);
+
+CREATE TABLE IF NOT EXISTS work_permit (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  work_permit_no VARCHAR(100) NULL,
+  work_permit_valid_date DATE NULL,
+  work_permit_expire_date DATE NULL
+);
+
+CREATE TABLE IF NOT EXISTS employee_tax (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  tax_status VARCHAR(100) NULL,
+  tax_no VARCHAR(100) NULL
+);
+
 CREATE TABLE IF NOT EXISTS employees (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   employee_id VARCHAR(100) NULL,
@@ -60,9 +87,22 @@ CREATE TABLE IF NOT EXISTS employees (
   phone_no VARCHAR(20) NULL,
   marital_status ENUM('SINGLE','MARRIED') NULL,
   employee_spouse_id BIGINT NULL,
+  employee_compliance_id BIGINT NULL,
   department_id BIGINT NULL,
   position_id BIGINT NULL,
   nationality VARCHAR(100) NULL,
+  currency_id BIGINT NULL,
+  work_permit_id BIGINT NULL,
+  employee_tax_id BIGINT NULL,
+  cost_allocate VARCHAR(200) NULL,
+  pay_type VARCHAR(100) NULL,
+  salary DECIMAL(14, 2) NULL,
+  date_of_pay_type_changed DATE NULL,
+  date_of_currency_change DATE NULL,
+  ssb_status VARCHAR(100) NULL,
+  ssb_no VARCHAR(100) NULL,
+  ace_internal_phone_no VARCHAR(30) NULL,
+  pay_by_backlog TINYINT(1) NOT NULL DEFAULT 0,
   staff_type_id BIGINT NULL,
   employee_probation_id BIGINT NULL,
   employee_father_id BIGINT NULL,
@@ -71,9 +111,6 @@ CREATE TABLE IF NOT EXISTS employees (
   date_of_title_change DATE NULL,
   date_of_promotion DATE NULL,
   date_of_transfer DATE NULL,
-  work_permit_no VARCHAR(100) NULL,
-  work_permit_valid_date DATE NULL,
-  work_permit_expire_date DATE NULL,
   labour_registration_no VARCHAR(100) NULL,
   permanent_phone_no VARCHAR(20) NULL,
   present_phone_no VARCHAR(20) NULL,
@@ -95,7 +132,11 @@ CREATE TABLE IF NOT EXISTS employees (
   CONSTRAINT fk_employees_staff_type FOREIGN KEY (staff_type_id) REFERENCES staff_type(id),
   CONSTRAINT fk_employees_employee_probation FOREIGN KEY (employee_probation_id) REFERENCES employee_probation(id),
   CONSTRAINT fk_employees_employee_father FOREIGN KEY (employee_father_id) REFERENCES employee_father(id),
-  CONSTRAINT fk_employees_employee_spouse FOREIGN KEY (employee_spouse_id) REFERENCES employee_spouse(id)
+  CONSTRAINT fk_employees_employee_spouse FOREIGN KEY (employee_spouse_id) REFERENCES employee_spouse(id),
+  CONSTRAINT fk_employees_currency FOREIGN KEY (currency_id) REFERENCES currencies(id),
+  CONSTRAINT fk_employees_work_permit FOREIGN KEY (work_permit_id) REFERENCES work_permit(id),
+  CONSTRAINT fk_employees_employee_compliance FOREIGN KEY (employee_compliance_id) REFERENCES employee_compliance(id),
+  CONSTRAINT fk_employees_employee_tax FOREIGN KEY (employee_tax_id) REFERENCES employee_tax(id)
 );
 
 CREATE TABLE IF NOT EXISTS passport (

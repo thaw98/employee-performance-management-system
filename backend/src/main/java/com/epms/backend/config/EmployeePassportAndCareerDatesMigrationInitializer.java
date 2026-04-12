@@ -1,5 +1,11 @@
 package com.epms.backend.config;
 
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.sql.Types;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.sql.DataSource;
@@ -8,14 +14,17 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Ensures a {@code passport} row table exists (migrating legacy {@code employees.passport_no} /
- * {@code employees.passport_expire_date} when present), and ensures career-tracking date columns
- * exist on {@code employees} for databases created before those fields were added.
+ * Ensures a {@code passport} table exists (without {@code employee_id}; link is
+ * {@code employees.passport_id}), migrates legacy shapes and legacy
+ * {@code employees.passport_no} / {@code employees.passport_expire_date}, and
+ * ensures career-tracking date columns exist on {@code employees}.
  */
 @Component
 @Slf4j
@@ -46,7 +55,10 @@ public class EmployeePassportAndCareerDatesMigrationInitializer implements BeanP
 			return;
 		}
 		ensurePassportTable(jdbc);
+		ensureEmployeesPassportIdColumn(jdbc);
+		migratePassportEmployeeIdToEmployeesPassportId(jdbc);
 		migrateLegacyPassportColumnsFromEmployees(jdbc);
+		ensureEmployeesPassportForeignKey(jdbc);
 		addColumnIfMissing(jdbc, "date_of_demotion", "DATE NULL");
 		addColumnIfMissing(jdbc, "date_of_title_change", "DATE NULL");
 		addColumnIfMissing(jdbc, "date_of_promotion", "DATE NULL");
@@ -60,14 +72,44 @@ public class EmployeePassportAndCareerDatesMigrationInitializer implements BeanP
 		jdbc.execute("""
 				CREATE TABLE passport (
 				  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-				  employee_id BIGINT NOT NULL,
 				  passport_no VARCHAR(100) NULL,
-				  passport_expire_date DATE NULL,
-				  UNIQUE KEY uq_passport_employee (employee_id),
-				  CONSTRAINT fk_passport_employee FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+				  passport_expire_date DATE NULL
 				)
 				""");
 		log.info("Created table passport");
+	}
+
+	private void ensureEmployeesPassportIdColumn(JdbcTemplate jdbc) {
+		if (columnExists(jdbc, "employees", "passport_id")) {
+			return;
+		}
+		jdbc.execute("ALTER TABLE employees ADD COLUMN `passport_id` BIGINT NULL");
+		log.info("Added employees.passport_id column");
+	}
+
+	/**
+	 * Legacy: passport.employee_id referenced employees.id. Move link to employees.passport_id and drop
+	 * passport.employee_id.
+	 */
+	private void migratePassportEmployeeIdToEmployeesPassportId(JdbcTemplate jdbc) {
+		if (!tableExists(jdbc, "passport") || !columnExists(jdbc, "passport", "employee_id")) {
+			return;
+		}
+		int updated = jdbc.update("""
+				UPDATE employees e
+				INNER JOIN passport p ON p.employee_id = e.id
+				SET e.passport_id = p.id
+				""");
+		if (updated > 0) {
+			log.info("Set employees.passport_id for {} row(s) from legacy passport.employee_id", updated);
+		}
+		String fkName = foreignKeyOnColumn(jdbc, "passport", "employee_id");
+		if (fkName != null) {
+			jdbc.execute("ALTER TABLE passport DROP FOREIGN KEY `" + fkName.replace("`", "``") + "`");
+			log.info("Dropped foreign key {} on passport.employee_id", fkName);
+		}
+		jdbc.execute("ALTER TABLE passport DROP COLUMN `employee_id`");
+		log.info("Dropped passport.employee_id (FK now employees.passport_id)");
 	}
 
 	private void migrateLegacyPassportColumnsFromEmployees(JdbcTemplate jdbc) {
@@ -76,31 +118,52 @@ public class EmployeePassportAndCareerDatesMigrationInitializer implements BeanP
 		if (!hasPassportNo && !hasPassportExpire) {
 			return;
 		}
-		int inserted;
-		if (hasPassportNo && hasPassportExpire) {
-			inserted = jdbc.update("""
-					INSERT INTO passport (employee_id, passport_no, passport_expire_date)
-					SELECT e.id, e.passport_no, e.passport_expire_date FROM employees e
-					WHERE NOT EXISTS (SELECT 1 FROM passport p WHERE p.employee_id = e.id)
-					AND (e.passport_no IS NOT NULL OR e.passport_expire_date IS NOT NULL)
-					""");
-		} else if (hasPassportNo) {
-			inserted = jdbc.update("""
-					INSERT INTO passport (employee_id, passport_no, passport_expire_date)
-					SELECT e.id, e.passport_no, NULL FROM employees e
-					WHERE NOT EXISTS (SELECT 1 FROM passport p WHERE p.employee_id = e.id)
-					AND e.passport_no IS NOT NULL
-					""");
-		} else {
-			inserted = jdbc.update("""
-					INSERT INTO passport (employee_id, passport_no, passport_expire_date)
-					SELECT e.id, NULL, e.passport_expire_date FROM employees e
-					WHERE NOT EXISTS (SELECT 1 FROM passport p WHERE p.employee_id = e.id)
-					AND e.passport_expire_date IS NOT NULL
-					""");
+		if (!tableExists(jdbc, "passport")) {
+			ensurePassportTable(jdbc);
 		}
-		if (inserted > 0) {
-			log.info("Migrated {} passport row(s) from employees into passport", inserted);
+		ensureEmployeesPassportIdColumn(jdbc);
+		List<Map<String, Object>> rows = jdbc.queryForList("""
+				SELECT id, passport_no, passport_expire_date FROM employees
+				WHERE (passport_no IS NOT NULL OR passport_expire_date IS NOT NULL)
+				AND passport_id IS NULL
+				""");
+		for (Map<String, Object> row : rows) {
+			Long empId = ((Number) row.get("id")).longValue();
+			final String passportNo = (String) row.get("passport_no");
+			Object expireObj = row.get("passport_expire_date");
+			final java.sql.Date expire;
+			if (expireObj instanceof java.sql.Date d) {
+				expire = d;
+			} else if (expireObj instanceof LocalDate ld) {
+				expire = java.sql.Date.valueOf(ld);
+			} else {
+				expire = null;
+			}
+			KeyHolder keyHolder = new GeneratedKeyHolder();
+			jdbc.update(connection -> {
+				PreparedStatement ps = connection.prepareStatement(
+						"INSERT INTO passport (passport_no, passport_expire_date) VALUES (?, ?)",
+						Statement.RETURN_GENERATED_KEYS);
+				if (passportNo != null) {
+					ps.setString(1, passportNo);
+				} else {
+					ps.setNull(1, Types.VARCHAR);
+				}
+				if (expire != null) {
+					ps.setDate(2, expire);
+				} else {
+					ps.setNull(2, Types.DATE);
+				}
+				return ps;
+			}, keyHolder);
+			Number key = keyHolder.getKey();
+			if (key == null) {
+				throw new IllegalStateException("Failed to read generated passport id");
+			}
+			jdbc.update("UPDATE employees SET passport_id = ? WHERE id = ?", key.longValue(), empId);
+		}
+		if (!rows.isEmpty()) {
+			log.info("Migrated {} passport row(s) from employees columns into passport", rows.size());
 		}
 		if (hasPassportNo) {
 			jdbc.execute("ALTER TABLE employees DROP COLUMN `passport_no`");
@@ -112,12 +175,41 @@ public class EmployeePassportAndCareerDatesMigrationInitializer implements BeanP
 		}
 	}
 
+	private void ensureEmployeesPassportForeignKey(JdbcTemplate jdbc) {
+		if (!columnExists(jdbc, "employees", "passport_id") || !tableExists(jdbc, "passport")) {
+			return;
+		}
+		if (foreignKeyOnColumn(jdbc, "employees", "passport_id") != null) {
+			return;
+		}
+		jdbc.execute("""
+				ALTER TABLE employees
+				ADD CONSTRAINT fk_employees_passport
+				FOREIGN KEY (passport_id) REFERENCES passport(id) ON DELETE SET NULL
+				""");
+		log.info("Added fk_employees_passport on employees.passport_id");
+	}
+
 	private void addColumnIfMissing(JdbcTemplate jdbc, String columnName, String sqlType) {
 		if (columnExists(jdbc, "employees", columnName)) {
 			return;
 		}
 		jdbc.execute("ALTER TABLE employees ADD COLUMN `" + columnName + "` " + sqlType);
 		log.info("Added employees.{} column", columnName);
+	}
+
+	private static String foreignKeyOnColumn(JdbcTemplate jdbc, String tableName, String columnName) {
+		List<String> names = jdbc.queryForList(
+				"""
+						SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+						WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?
+						AND REFERENCED_TABLE_NAME IS NOT NULL
+						LIMIT 1
+						""",
+				String.class,
+				tableName,
+				columnName);
+		return names.isEmpty() ? null : names.get(0);
 	}
 
 	private static boolean tableExists(JdbcTemplate jdbc, String tableName) {

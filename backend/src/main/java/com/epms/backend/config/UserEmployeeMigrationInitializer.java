@@ -6,7 +6,6 @@ import java.sql.ResultSet;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.sql.DataSource;
 
@@ -32,8 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Ordered {
 
-	private static final AtomicBoolean MIGRATION_DONE = new AtomicBoolean(false);
-
 	@Override
 	public int getOrder() {
 		return 10;
@@ -44,13 +41,9 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 		if (!"dataSource".equals(beanName) || !(bean instanceof DataSource dataSource)) {
 			return bean;
 		}
-		if (!MIGRATION_DONE.compareAndSet(false, true)) {
-			return bean;
-		}
 		try {
 			runMigration(dataSource);
 		} catch (Exception e) {
-			MIGRATION_DONE.set(false);
 			throw new BeanCreationException("User/employee id migration failed", e);
 		}
 		return bean;
@@ -62,6 +55,11 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 				|| !columnExists(dataSource, "users", "employee_id")) {
 			return;
 		}
+
+		// Legacy databases may still have users.employee_id -> employees.employee_id. Repair logic
+		// assigns employees.id (PK), so the old constraint must be removed first; the correct FK to
+		// employees(id) is added in ensureUsersForeignKeyToEmployeesId.
+		dropUserEmployeeForeignKeys(dataSource, jdbcTemplate);
 
 		// Fix rows where users.employee_id is 0, NULL, or not a real employees.id (e.g. MySQL coerced
 		// legacy strings to 0, or a past failed migration left orphans). Must run even when the column
@@ -105,31 +103,67 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 	 * Creates minimal {@code employees} rows when a user has no valid {@code users.employee_id}, so
 	 * {@link #repairInvalidUserEmployeeReferences} can match on email. Only runs while
 	 * {@code employees.email_address} still exists (removed later by {@link EmployeeEmailAddressColumnDropInitializer}).
+	 * <p>
+	 * After {@code email_address} is dropped, stubs use a unique business {@code employees.employee_id}
+	 * of the form {@code USR-}{@code users.id} and link {@code users.employee_id} to the new row.
 	 */
 	private void ensureStubEmployeesForOrphanUsers(DataSource dataSource, JdbcTemplate jdbcTemplate) throws Exception {
-		if (!columnExists(dataSource, "employees", "email_address")) {
+		if (columnExists(dataSource, "employees", "email_address")) {
+			int inserted = jdbcTemplate.update(
+					"""
+							INSERT INTO employees (employee_name, email_address)
+							SELECT
+							  COALESCE(NULLIF(TRIM(SUBSTRING_INDEX(TRIM(u.email), '@', 1)), ''), 'User') AS employee_name,
+							  TRIM(u.email) AS email_address
+							FROM users u
+							WHERE TRIM(COALESCE(u.email, '')) <> ''
+							  AND (
+							    u.employee_id IS NULL
+							    OR u.employee_id = 0
+							    OR NOT EXISTS (SELECT 1 FROM employees ex WHERE ex.id = u.employee_id)
+							  )
+							  AND NOT EXISTS (
+							    SELECT 1 FROM employees e
+							    WHERE LOWER(TRIM(e.email_address)) = LOWER(TRIM(u.email))
+							  )
+							""");
+			if (inserted > 0) {
+				log.info("Inserted {} stub employee row(s) for user(s) with no employees.email_address match", inserted);
+			}
 			return;
 		}
+
 		int inserted = jdbcTemplate.update(
 				"""
-						INSERT INTO employees (employee_name, email_address)
+						INSERT INTO employees (employee_name, employee_id)
 						SELECT
-						  COALESCE(NULLIF(TRIM(SUBSTRING_INDEX(TRIM(u.email), '@', 1)), ''), 'User') AS employee_name,
-						  TRIM(u.email) AS email_address
+						  COALESCE(NULLIF(TRIM(SUBSTRING_INDEX(TRIM(COALESCE(u.email, '')), '@', 1)), ''), CONCAT('User ', u.id)) AS employee_name,
+						  CONCAT('USR-', u.id) AS employee_id
 						FROM users u
-						WHERE TRIM(COALESCE(u.email, '')) <> ''
-						  AND (
+						WHERE (
 						    u.employee_id IS NULL
 						    OR u.employee_id = 0
 						    OR NOT EXISTS (SELECT 1 FROM employees ex WHERE ex.id = u.employee_id)
 						  )
 						  AND NOT EXISTS (
-						    SELECT 1 FROM employees e
-						    WHERE LOWER(TRIM(e.email_address)) = LOWER(TRIM(u.email))
+						    SELECT 1 FROM employees e WHERE e.employee_id = CONCAT('USR-', u.id)
 						  )
 						""");
 		if (inserted > 0) {
-			log.info("Inserted {} stub employee row(s) for user(s) with no employees.email_address match", inserted);
+			log.info("Inserted {} stub employee row(s) after employees.email_address was dropped (USR-{{userId}} keys)",
+					inserted);
+		}
+		int linked = jdbcTemplate.update(
+				"""
+						UPDATE users u
+						INNER JOIN employees e ON e.employee_id = CONCAT('USR-', u.id)
+						SET u.employee_id = e.id
+						WHERE u.employee_id IS NULL
+						   OR u.employee_id = 0
+						   OR NOT EXISTS (SELECT 1 FROM employees ex WHERE ex.id = u.employee_id)
+						""");
+		if (linked > 0) {
+			log.info("Linked {} user row(s) to migration stub employees (USR-{{userId}})", linked);
 		}
 	}
 
@@ -171,15 +205,68 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 						  AND u.%s IS NULL
 						""".formatted(tmp, tmp));
 
+		// Rows with NULL legacy employee_id still need employees.id in tmp before NOT NULL — e.g. user
+		// rows whose email matched a stub employee but employee_id was never back-filled.
+		if (columnExists(dataSource, "employees", "email_address")) {
+			jdbcTemplate.execute(
+					"""
+							UPDATE users u
+							INNER JOIN employees e
+							  ON LOWER(TRIM(e.email_address)) = LOWER(TRIM(u.email))
+							 AND TRIM(COALESCE(e.email_address, '')) <> ''
+							 AND TRIM(COALESCE(u.email, '')) <> ''
+							SET u.%s = e.id
+							WHERE u.%s IS NULL
+							""".formatted(tmp, tmp));
+
+			int stubsForTmp = jdbcTemplate.update(
+					"""
+							INSERT INTO employees (employee_name, email_address)
+							SELECT
+							  COALESCE(NULLIF(TRIM(SUBSTRING_INDEX(TRIM(COALESCE(u.email, '')), '@', 1)), ''), CONCAT('User ', u.id)) AS employee_name,
+							  CASE WHEN TRIM(COALESCE(u.email, '')) <> ''
+							    THEN TRIM(u.email)
+							    ELSE CONCAT('user-', u.id, '@migration.stub')
+							  END AS email_address
+							FROM users u
+							WHERE u.%s IS NULL
+							  AND NOT EXISTS (
+							    SELECT 1 FROM employees ex
+							    WHERE ex.email_address = CASE WHEN TRIM(COALESCE(u.email, '')) <> ''
+							      THEN TRIM(u.email)
+							      ELSE CONCAT('user-', u.id, '@migration.stub')
+							    END
+							  )
+							""".formatted(tmp));
+			if (stubsForTmp > 0) {
+				log.info("Inserted {} stub employee row(s) so users.{} can be resolved for NOT NULL migration",
+						stubsForTmp, tmp);
+			}
+
+			jdbcTemplate.execute(
+					"""
+							UPDATE users u
+							INNER JOIN employees e
+							  ON (
+							    (TRIM(COALESCE(u.email, '')) <> ''
+							      AND LOWER(TRIM(e.email_address)) = LOWER(TRIM(u.email)))
+							    OR (TRIM(COALESCE(u.email, '')) = ''
+							      AND e.email_address = CONCAT('user-', u.id, '@migration.stub'))
+							  )
+							SET u.%s = e.id
+							WHERE u.%s IS NULL
+							""".formatted(tmp, tmp));
+		}
+
 		Integer unresolved = jdbcTemplate.queryForObject(
-				"SELECT COUNT(*) FROM users WHERE employee_id IS NOT NULL AND " + tmp + " IS NULL",
+				"SELECT COUNT(*) FROM users WHERE " + tmp + " IS NULL",
 				Integer.class);
 		if (unresolved != null && unresolved > 0) {
 			List<String> samples = jdbcTemplate.query(
 					"""
 							SELECT CONCAT('id=', u.id, ', employee_id=', u.employee_id, ', email=', u.email)
 							FROM users u
-							WHERE u.employee_id IS NOT NULL AND u.%s IS NULL
+							WHERE u.%s IS NULL
 							LIMIT 10
 							""".formatted(tmp),
 					(rs, rowNum) -> rs.getString(1));
