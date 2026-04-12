@@ -82,6 +82,7 @@ public class AuthService {
 		return new AuthUserDto(
 				user.getId(),
 				user.getEmployee().getEmployeeId(),
+				user.getEmployee().getEmployeeName(),
 				user.getEmail(),
 				roleName,
 				user.getRole().getId());

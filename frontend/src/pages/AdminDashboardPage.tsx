@@ -3,7 +3,7 @@ import { SelfAssessmentWarning } from '../components/SelfAssessmentWarning'
 
 export function AdminDashboardPage() {
   const user = useAppSelector((s) => s.auth.user)
-  const welcomeName = user?.email ? user.email.split('@')[0] : 'Admin'
+  const welcomeName = user?.name || (user?.email ? user.email.split('@')[0] : 'Admin')
 
   const summaryCards = [
     {

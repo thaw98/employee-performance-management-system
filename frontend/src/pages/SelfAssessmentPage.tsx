@@ -43,7 +43,7 @@ export function SelfAssessmentPage() {
       if (resp.data.data) {
         const asmt = resp.data.data;
         setExistingAsmt(asmt);
-        
+
         // If it was already started or assigned, populate fields from items
         if (asmt.items && asmt.items.length > 0) {
           setResponses(asmt.items.map((item: any, idx: number) => ({
@@ -115,8 +115,8 @@ export function SelfAssessmentPage() {
   const handleSubmit = async () => {
     if (!isEditable) return;
     if (responses.length === 0) {
-        toast.error('No assessment subjects defined.');
-        return;
+      toast.error('No assessment subjects defined.');
+      return;
     }
     if (responses.some(r => r.answerYesNo === null || r.rating === null)) {
       toast.error('Please complete all questions');
