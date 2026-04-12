@@ -53,7 +53,14 @@ public class AuthService {
 		if (identifier.contains("@")) {
 			return userRepository.findByEmailIgnoreCase(identifier).orElse(null);
 		}
-		return userRepository.findByEmployee_EmployeeId(identifier).orElse(null);
+		if (identifier.matches("^[0-9]+$")) {
+			try {
+				return userRepository.findByEmployee_Id(Long.parseLong(identifier)).orElse(null);
+			} catch (NumberFormatException ex) {
+				return null;
+			}
+		}
+		return null;
 	}
 
 	private boolean isPasswordValid(User user, String rawPassword) {
@@ -79,11 +86,21 @@ public class AuthService {
 
 	private static AuthUserDto toAuthUserDto(User user) {
 		String roleName = user.getRole().getName().trim().toUpperCase().replace(' ', '_');
+		var emp = user.getEmployee();
+		String employeeIdStr = emp.getEmployeeId();
+		if (employeeIdStr == null || employeeIdStr.isBlank()) {
+			employeeIdStr = String.valueOf(emp.getId());
+		} else {
+			employeeIdStr = employeeIdStr.trim();
+		}
 		return new AuthUserDto(
 				user.getId(),
+				employeeIdStr,
 				user.getEmployee().getEmployeeId(),
+				user.getEmployee().getEmployeeName(),
 				user.getEmail(),
 				roleName,
-				user.getRole().getId());
+				user.getRole().getId(),
+				user.isMustChangePassword());
 	}
 }

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 
 import { AppLayout } from './components/layout/AppLayout'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
@@ -8,9 +9,12 @@ import { LoginPage } from './pages/LoginPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
+import { FirstLoginPasswordPage } from './pages/FirstLoginPasswordPage'
 import PipMonitoringPage from './pages/PipMonitoringPage'
 import PipCreatePage from './pages/PipCreatePage'
 import PipDetailPage from './pages/PipDetailPage'
+import { AuthBootstrap } from './features/auth/AuthBootstrap'
+import { FIRST_LOGIN_SET_PASSWORD_PATH } from './routes/paths'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { CreateEmployeeAccountPage } from './features/employeeOnboarding/pages/CreateEmployeeAccountPage'
 import { CriteriaPage } from './pages/CriteriaPage'
@@ -22,6 +26,9 @@ import { KpiAssignmentMatrixPage } from './pages/KpiAssignmentMatrixPage'
 import { KpiDashboardPage } from './pages/KpiDashboardPage'
 import { KpiPeriodConfigPage } from './pages/KpiPeriodConfigPage'
 import { KpiAuditLogsPage } from './pages/KpiAuditLogsPage'
+import { SelfAssessmentPage } from './pages/SelfAssessmentPage'
+import { SelfAssessmentReviewListPage } from './pages/SelfAssessmentReviewListPage'
+import { SelfAssessmentSubjectPage } from './pages/SelfAssessmentSubjectPage'
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
@@ -42,9 +49,19 @@ function HrProtectedLayout({ children }: { children: ReactNode }) {
 function App() {
   return (
     <BrowserRouter>
+      <AuthBootstrap />
+      <Toaster position="top-right" />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route
+          path={FIRST_LOGIN_SET_PASSWORD_PATH}
+          element={
+            <ProtectedRoute>
+              <FirstLoginPasswordPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/hr/dashboard"
           element={
@@ -91,6 +108,14 @@ function App() {
           element={
             <ProtectedLayout>
               <GiveFeedbackPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/360-feedback/get"
+          element={
+            <ProtectedLayout>
+              <PlaceholderPage title="Get Feedback" />
             </ProtectedLayout>
           }
         />
@@ -171,6 +196,30 @@ function App() {
           element={
             <HrProtectedLayout>
               <KpiAuditLogsPage />
+            </HrProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/self-assessment"
+          element={
+            <ProtectedLayout>
+              <SelfAssessmentPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/compliance-review"
+          element={
+            <ProtectedLayout>
+              <SelfAssessmentReviewListPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/self-assessment-subjects"
+          element={
+            <HrProtectedLayout>
+              <SelfAssessmentSubjectPage />
             </HrProtectedLayout>
           }
         />

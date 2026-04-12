@@ -6,7 +6,8 @@ import java.util.List;
 
 @Data
 public class PipCreateRequest {
-    private String employeeId;
+    /** {@link com.epms.backend.entity.Employee} primary key (same as {@code users.employee_id} FK). */
+    private Long employeeId;
     private LocalDate startDate;
     private LocalDate endDate;
     private Integer totalHours;

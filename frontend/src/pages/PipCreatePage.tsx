@@ -1,14 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Box, Button, IconButton, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Autocomplete, Box, Button, IconButton, Stack, TextField, Typography } from '@mui/material'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
-import { useCreatePipMutation } from '../features/pip/pipApi'
+import { useCreatePipMutation, useGetEligibleEmployeesQuery } from '../features/pip/pipApi'
 
 const pipCreateSchema = z
   .object({
-    employeeId: z.string().min(1, 'Employee ID is required'),
+    employeeId: z
+      .string()
+      .min(1, 'Employee record ID is required')
+      .regex(/^[0-9]+$/, 'Must be the numeric employee record ID'),
     totalHours: z.coerce.number().int().min(1, 'Total hours must be at least 1'),
     startDate: z.string().min(1, 'Start date is required'),
     endDate: z.string().min(1, 'End date is required'),
@@ -29,7 +32,8 @@ type PipCreateFormValues = z.infer<typeof pipCreateSchema>
 
 export default function PipCreatePage() {
   const navigate = useNavigate()
-  const [createPip, { isLoading }] = useCreatePipMutation()
+  const { data: eligibleEmployees, isLoading: isLoadingEmployees } = useGetEligibleEmployeesQuery()
+  const [createPip, { isLoading: isCreating }] = useCreatePipMutation()
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const {
@@ -54,7 +58,7 @@ export default function PipCreatePage() {
     setSubmitError(null)
     try {
       await createPip({
-        employeeId: values.employeeId.trim(),
+        employeeId: Number(values.employeeId.trim()),
         startDate: values.startDate,
         endDate: values.endDate,
         totalHours: values.totalHours,
@@ -62,7 +66,7 @@ export default function PipCreatePage() {
       }).unwrap()
       navigate('/hr/pip-monitoring')
     } catch {
-      setSubmitError('Failed to create PIP. Please check employee ID and try again.')
+      setSubmitError('Failed to create PIP. Please check the employee record ID and try again.')
     }
   }
 
@@ -76,13 +80,39 @@ export default function PipCreatePage() {
       <Box component="form" onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
         <Stack spacing={2}>
           {submitError ? <Alert severity="error">{submitError}</Alert> : null}
-          <TextField
-            label="Employee ID"
-            placeholder="E.g. EMP001"
-            fullWidth
-            {...register('employeeId')}
-            error={Boolean(errors.employeeId)}
-            helperText={errors.employeeId?.message}
+          <Controller
+            name="employeeId"
+            control={control}
+            render={({ field }) => (
+              <Autocomplete
+                loading={isLoadingEmployees}
+                options={eligibleEmployees || []}
+                getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}) - ${option.departmentName}`}
+                onChange={(_, data) => field.onChange(data?.employeeId || '')}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select Low Performer"
+                    placeholder="Search by name, ID or department"
+                    error={Boolean(errors.employeeId)}
+                    helperText={errors.employeeId?.message || "Only employees with KPI score < 70% are shown."}
+                  />
+                )}
+                renderOption={(props, option) => {
+                  const { key, ...rest } = props as any; // MUI 5/6 specific key handling
+                  return (
+                    <li key={key} {...rest}>
+                      <Box>
+                        <Typography variant="body1">{option.employeeName} ({option.employeeId})</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Dept: {option.departmentName} | KPI Score: {option.totalScore?.toFixed(2)}%
+                        </Typography>
+                      </Box>
+                    </li>
+                  );
+                }}
+              />
+            )}
           />
           <TextField
             type="number"
@@ -98,7 +128,7 @@ export default function PipCreatePage() {
               type="date"
               label="Start Date"
               fullWidth
-              slotProps={{ 
+              slotProps={{
                 inputLabel: { shrink: true },
                 htmlInput: { min: new Date().toISOString().split('T')[0] }
               }}
@@ -110,7 +140,7 @@ export default function PipCreatePage() {
               type="date"
               label="End Date"
               fullWidth
-              slotProps={{ 
+              slotProps={{
                 inputLabel: { shrink: true },
                 htmlInput: { min: new Date().toISOString().split('T')[0] }
               }}
@@ -155,8 +185,8 @@ export default function PipCreatePage() {
           <Button type="button" variant="outlined" onClick={() => navigate('/hr/pip-monitoring')}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isLoading} variant="contained">
-            {isLoading ? 'Creating...' : 'Create PIP'}
+          <Button type="submit" disabled={isCreating} variant="contained">
+            {isCreating ? 'Creating...' : 'Create PIP'}
           </Button>
         </div>
       </Box>

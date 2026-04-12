@@ -2,12 +2,16 @@ import { Navigate } from 'react-router-dom'
 
 import { LoginForm } from '../components/auth/LoginForm'
 import { useAppSelector } from '../app/hooks'
+import { FIRST_LOGIN_SET_PASSWORD_PATH } from '../routes/paths'
 
 export function LoginPage() {
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated)
+  const mustChangePassword = useAppSelector((s) => s.auth.user?.mustChangePassword === true)
 
   if (isAuthenticated) {
-    return <Navigate to="/hr/dashboard" replace />
+    return (
+      <Navigate to={mustChangePassword ? FIRST_LOGIN_SET_PASSWORD_PATH : '/hr/dashboard'} replace />
+    )
   }
 
   return (

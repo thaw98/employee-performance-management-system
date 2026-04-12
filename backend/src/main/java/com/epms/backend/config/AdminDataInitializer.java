@@ -27,25 +27,24 @@ public class AdminDataInitializer implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) {
-		createOrUpdateAdmin("1", "admin@gmail.com", "System HR");
+		createOrUpdateAdmin("admin@gmail.com", "System HR");
 		// Keep legacy/demo login working for teams that still use hr@gmail.com.
-		createOrUpdateAdmin("HR001", "hr@gmail.com", "HR Manager");
+		createOrUpdateAdmin("hr@gmail.com", "HR Manager");
 	}
 
-	private void createOrUpdateAdmin(String employeeId, String email, String name) {
-		Employee employee = employeeRepository.findByEmployeeId(employeeId).orElseGet(() -> {
-			Employee e = new Employee();
-			e.setEmployeeId(employeeId);
-			e.setEmployeeName(name);
-			e.setEmailAddress(email);
-			e.setRecordStatus("COMPLETED");
-			return employeeRepository.save(e);
-		});
-
-		User admin = userRepository.findByEmailIgnoreCase(email)
-				.or(() -> userRepository.findByEmployee_EmployeeId(employeeId))
-				.orElseGet(User::new);
-		admin.setEmployee(employee);
+	private void createOrUpdateAdmin(String email, String name) {
+		User admin = userRepository.findByEmailIgnoreCase(email).orElseGet(User::new);
+		Employee employee = admin.getEmployee();
+		if (employee == null) {
+			employee = new Employee();
+			employee.setEmployeeName(name);
+			employee.setRecordStatus("COMPLETED");
+			employee = employeeRepository.save(employee);
+			admin.setEmployee(employee);
+		} else {
+			employee.setEmployeeName(name);
+			employeeRepository.save(employee);
+		}
 		admin.setEmail(email);
 		admin.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
 		admin.setRole(roleRepository.findById(1L)

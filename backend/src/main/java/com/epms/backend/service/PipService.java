@@ -21,10 +21,18 @@ public class PipService {
     private final FollowUpMeetingRepository meetingRepository;
     private final TrainingRecordRepository trainingRepository;
     private final UserRepository userRepository;
+    private final KpiRecordRepository kpiRecordRepository;
+
+    public List<EligibleEmployeeDTO> getLowPerformers(User manager) {
+        if (manager.getEmployee() == null) {
+            return new ArrayList<>();
+        }
+        return kpiRecordRepository.findLowPerformersByManager(manager.getEmployee().getId());
+    }
 
     @Transactional
     public Pip createPip(PipCreateRequest request, User manager) {
-        User employee = userRepository.findByEmployee_EmployeeId(request.getEmployeeId())
+        User employee = userRepository.findByEmployee_Id(request.getEmployeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         Pip pip = new Pip();
@@ -138,8 +146,8 @@ public class PipService {
         return pipRepository.save(pip);
     }
 
-    public List<TrainingRecord> getEmployeeTrainingHistory(String employeeId) {
-        User employee = userRepository.findByEmployee_EmployeeId(employeeId)
+    public List<TrainingRecord> getEmployeeTrainingHistory(Long employeeId) {
+        User employee = userRepository.findByEmployee_Id(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
         return trainingRepository.findByEmployee(employee);
     }

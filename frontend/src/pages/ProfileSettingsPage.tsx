@@ -82,7 +82,7 @@ export function ProfileSettingsPage() {
               {user?.profilePictureBase64 ? (
                 <img src={user.profilePictureBase64} alt="Profile" className="h-full w-full object-cover" />
               ) : (
-                user?.email?.charAt(0).toUpperCase() || 'U'
+                user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'
               )}
             </div>
             {!isUpdating && (
@@ -101,7 +101,7 @@ export function ProfileSettingsPage() {
           </div>
 
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-slate-900">{user?.email || 'User'}</h2>
+            <h2 className="text-xl font-bold text-slate-900">{user?.name || 'User'}</h2>
             <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mt-1">
               {user?.role || 'Admin'}
             </p>
@@ -130,7 +130,7 @@ export function ProfileSettingsPage() {
             </div>
 
             <div>
-              <p className="text-sm font-medium text-slate-500 mb-1">Employee ID</p>
+              <p className="text-sm font-medium text-slate-500 mb-1">Employee record ID</p>
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-400">
                   <i className="bi bi-person-badge text-lg"></i>

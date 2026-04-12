@@ -6,14 +6,18 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,7 +32,8 @@ public class Employee {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(name = "employee_id", unique = true, length = 50)
+	/** Business-facing employee identifier (distinct from primary key {@link #id}). */
+	@Column(name = "employee_id", length = 100, unique = true)
 	private String employeeId;
 
 	@Column(name = "employee_name", length = 50)
@@ -37,23 +42,12 @@ public class Employee {
 	@Column(name = "other_name", length = 100)
 	private String otherName;
 
-	@Column(name = "nrc_state_code", length = 10)
-	private String nrcStateCode;
+	@Column(name = "staff_nrc_no", length = 100)
+	private String staffNrcNo;
 
-	@Column(name = "nrc_township_code", length = 50)
-	private String nrcTownshipCode;
-
-	@Column(name = "nrc_type", length = 10)
-	private String nrcType;
-
-	@Column(name = "nrc_number", length = 20)
-	private String nrcNumber;
-
-	@Column(name = "nrc_full", length = 100)
-	private String nrcFull;
-
-	@Column(name = "gender", length = 20)
-	private String gender;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "gender", columnDefinition = "ENUM('Male','Female')")
+	private Gender gender;
 
 	@Column(name = "race", length = 100)
 	private String race;
@@ -77,29 +71,13 @@ public class Employee {
 	@Column(name = "phone_no", length = 20)
 	private String phoneNo;
 
-	@Column(name = "email_address", unique = true, length = 255)
-	private String emailAddress;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "marital_status", columnDefinition = "ENUM('SINGLE','MARRIED')")
+	private MaritalStatus maritalStatus;
 
-	@Column(name = "marital_status", length = 50)
-	private String maritalStatus;
-
-	@Column(name = "spouse_name", length = 100)
-	private String spouseName;
-
-	@Column(name = "spouse_nrc_no", length = 100)
-	private String spouseNrcNo;
-
-	@Column(name = "father_name", length = 100)
-	private String fatherName;
-
-	@Column(name = "father_nrc_no", length = 100)
-	private String fatherNrcNo;
-
-	@Column(name = "father_occupation", length = 100)
-	private String fatherOccupation;
-
-	@Column(name = "spouse_occupation", length = 100)
-	private String spouseOccupation;
+	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	@JoinColumn(name = "employee_spouse_id")
+	private EmployeeSpouse spouse;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "department_id")
@@ -109,24 +87,48 @@ public class Employee {
 	@JoinColumn(name = "position_id")
 	private Position position;
 
+	@Column(name = "nationality", length = 100)
+	private String nationality;
+
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "nationality_id")
-	private Nationality nationality;
+	@JoinColumn(name = "staff_type_id")
+	private StaffType staffType;
 
-	@Column(name = "probation_month")
-	private Integer probationMonth;
+	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	@JoinColumn(name = "employee_probation_id")
+	private EmployeeProbation probation;
 
-	@Column(name = "probation_start_date")
-	private LocalDate probationStartDate;
+	@OneToOne(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
+	private EmergencyContact emergencyContact;
 
-	@Column(name = "probation_end_date")
-	private LocalDate probationEndDate;
+	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	@JoinColumn(name = "employee_father_id")
+	private EmployeeFather father;
 
 	@Column(name = "date_of_joining")
 	private LocalDate dateOfJoining;
 
+	@OneToOne(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
+	private Passport passport;
+
+	@Column(name = "date_of_demotion")
+	private LocalDate dateOfDemotion;
+
+	@Column(name = "date_of_title_change")
+	private LocalDate dateOfTitleChange;
+
+	@Column(name = "date_of_promotion")
+	private LocalDate dateOfPromotion;
+
+	@Column(name = "date_of_transfer")
+	private LocalDate dateOfTransfer;
+
 	@Column(name = "record_status", length = 20)
 	private String recordStatus;
+
+	/** Data URL or raw base64; mirrors login profile when account exists. */
+	@Column(name = "profile_picture_base64", columnDefinition = "LONGTEXT")
+	private String profilePictureBase64;
 
 	@Column(name = "created_by")
 	private Long createdBy;

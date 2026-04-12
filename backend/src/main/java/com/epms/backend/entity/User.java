@@ -25,7 +25,7 @@ public class User {
 	private Long id;
 
 	@OneToOne(optional = false)
-	@JoinColumn(name = "employee_id", referencedColumnName = "employee_id", nullable = false, unique = true)
+	@JoinColumn(name = "employee_id", nullable = false, unique = true)
 	private Employee employee;
 
 	@Column(nullable = false, unique = true, length = 255)
@@ -37,9 +37,6 @@ public class User {
 	@ManyToOne(optional = false)
 	@JoinColumn(name = "role_id", nullable = false)
 	private Role role;
-
-	@Column(name = "profile_picture_base64", columnDefinition = "LONGTEXT")
-	private String profilePictureBase64;
 
 	@Column(name = "is_active", nullable = false)
 	private boolean active = true;

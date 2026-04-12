@@ -80,7 +80,7 @@ public class FeedbackService {
         d.setId(u.getId());
         if (u.getEmployee() != null) {
             d.setEmployeeDbId(u.getEmployee().getId());
-            d.setEmployeeId(u.getEmployee().getEmployeeId());
+            d.setEmployeeId(String.valueOf(u.getEmployee().getId()));
             d.setEmployeeName(u.getEmployee().getEmployeeName());
             d.setDepartmentName(u.getEmployee().getDepartment() != null ? u.getEmployee().getDepartment().getName() : "N/A");
             d.setPositionName(u.getEmployee().getPosition() != null ? u.getEmployee().getPosition().getName() : "N/A");

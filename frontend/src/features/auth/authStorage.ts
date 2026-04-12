@@ -34,3 +34,14 @@ export function clearAuthStorage() {
   sessionStorage.removeItem(TOKEN_KEY)
   sessionStorage.removeItem(USER_KEY)
 }
+
+/** Updates stored user JSON wherever the session token lives (after login or profile sync). */
+export function updatePersistedUser(user: AuthUser) {
+  if (localStorage.getItem(TOKEN_KEY)) {
+    localStorage.setItem(USER_KEY, JSON.stringify(user))
+    return
+  }
+  if (sessionStorage.getItem(TOKEN_KEY)) {
+    sessionStorage.setItem(USER_KEY, JSON.stringify(user))
+  }
+}

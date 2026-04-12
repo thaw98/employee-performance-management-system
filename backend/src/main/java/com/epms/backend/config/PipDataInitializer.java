@@ -36,9 +36,9 @@ public class PipDataInitializer implements CommandLineRunner {
         Role employeeRole = roleRepository.findByNameIgnoreCase("Employee")
                 .orElseThrow(() -> new IllegalStateException("Role 'Employee' missing"));
 
-        User manager = createOrUpdateUser("MGR001", "manager@gmail.com", teamHeadRole);
-        User employee1 = createOrUpdateUser("EMP001", "employee1@gmail.com", employeeRole);
-        User employee2 = createOrUpdateUser("EMP002", "employee2@gmail.com", employeeRole);
+        User manager = createOrUpdateUser("manager@gmail.com", "Manager User", teamHeadRole);
+        User employee1 = createOrUpdateUser("employee1@gmail.com", "Employee One", employeeRole);
+        User employee2 = createOrUpdateUser("employee2@gmail.com", "Employee Two", employeeRole);
 
         // 2. Sample Training Records
         if (trainingRecordRepository.count() == 0) {
@@ -95,21 +95,19 @@ public class PipDataInitializer implements CommandLineRunner {
         pipRepository.save(pip2);
     }
 
-    private User createOrUpdateUser(String employeeId, String email, Role role) {
-        Employee employee = employeeRepository.findByEmployeeId(employeeId).orElseGet(() -> {
-            Employee e = new Employee();
-            e.setEmployeeId(employeeId);
-            e.setEmployeeName(employeeId);
-            e.setEmailAddress(email);
-            e.setRecordStatus("COMPLETED");
-            return employeeRepository.save(e);
-        });
-        User user = userRepository.findByEmployee_EmployeeId(employeeId).orElseGet(() -> {
-            User u = new User();
-            u.setEmployee(employee);
-            return u;
-        });
-        user.setEmployee(employee);
+    private User createOrUpdateUser(String email, String displayName, Role role) {
+        User user = userRepository.findByEmailIgnoreCase(email).orElseGet(User::new);
+        Employee employee = user.getEmployee();
+        if (employee == null) {
+            employee = new Employee();
+            employee.setEmployeeName(displayName);
+            employee.setRecordStatus("COMPLETED");
+            employee = employeeRepository.save(employee);
+            user.setEmployee(employee);
+        } else {
+            employee.setEmployeeName(displayName);
+            employeeRepository.save(employee);
+        }
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode("12345678"));
         user.setRole(role);

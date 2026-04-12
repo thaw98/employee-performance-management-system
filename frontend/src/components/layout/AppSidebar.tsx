@@ -4,6 +4,12 @@ import { useAppSelector } from '../../app/hooks'
 
 const PRIMARY = '#0855BF'
 
+/** Same active treatment as Create Employee Account / Settings (sidebar consistency). */
+const SIDEBAR_LINK_ACTIVE =
+  'translate-x-1 bg-blue-600 text-white shadow-md shadow-blue-200'
+const SIDEBAR_LINK_IDLE =
+  'text-slate-600 hover:bg-white hover:text-blue-600'
+
 type SubItem = { name: string; path: string }
 type NavItem = {
   name: string;
@@ -52,6 +58,18 @@ export function AppSidebar() {
           ]
         },
         { name: 'PIP Monitoring', path: '/hr/pip-monitoring', icon: 'bi-exclamation-triangle', end: false },
+        { 
+          name: 'Self-Assessment', 
+          path: '/hr/self-assessment', 
+          icon: 'bi-journal-check', 
+          end: false,
+          subItems: isHr ? [
+            { name: 'My Assessment', path: '/hr/self-assessment' },
+            { name: 'Subjects Management', path: '/hr/self-assessment-subjects' },
+            { name: 'Compliance Review', path: '/hr/compliance-review' }
+          ] : undefined
+        },
+        ...(isManager && !isHr ? [{ name: 'Compliance Review', path: '/hr/compliance-review', icon: 'bi-shield-check', end: false }] : []),
       ],
     },
     {
@@ -98,12 +116,12 @@ export function AppSidebar() {
                       <button
                         onClick={() => toggleSection(item.path)}
                         className={`w-full group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActiveOrChild
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'
+                            ? SIDEBAR_LINK_ACTIVE
+                            : SIDEBAR_LINK_IDLE
                           }`}
                       >
                         <i
-                          className={`bi ${item.icon} text-base transition-colors ${isActiveOrChild ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600'
+                          className={`bi ${item.icon} text-base transition-colors ${isActiveOrChild ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
                             }`}
                         />
                         <span className="flex-1 text-left">{item.name}</span>
@@ -115,15 +133,15 @@ export function AppSidebar() {
                         end={item.end}
                         className={({ isActive }) =>
                           `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-blue-600'
+                            ? SIDEBAR_LINK_ACTIVE
+                            : SIDEBAR_LINK_IDLE
                           }`
                         }
                       >
                         {({ isActive }) => (
                           <>
                             <i
-                              className={`bi ${item.icon} text-base transition-colors ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600'
+                              className={`bi ${item.icon} text-base transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
                                 }`}
                             />
                             <span className="flex-1">{item.name}</span>
@@ -138,9 +156,10 @@ export function AppSidebar() {
                           <NavLink
                             key={subItem.path}
                             to={subItem.path}
+                            end
                             className={({ isActive }) =>
                               `block rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 ${isActive
-                                ? 'text-blue-600 bg-blue-50/50 font-semibold'
+                                ? 'bg-blue-600/15 font-semibold text-blue-700 ring-1 ring-blue-600/20'
                                 : 'text-slate-500 hover:bg-slate-50 hover:text-blue-600'
                               }`
                             }
@@ -156,10 +175,11 @@ export function AppSidebar() {
               {section.label === 'Management' && isHr ? (
                 <NavLink
                   to="/hr/employee-account/create"
+                  end
                   className={({ isActive }) =>
                     `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
-                      ? 'translate-x-1 bg-blue-600 text-white shadow-md shadow-blue-200'
-                      : 'text-slate-600 hover:bg-white hover:text-blue-600'
+                      ? SIDEBAR_LINK_ACTIVE
+                      : SIDEBAR_LINK_IDLE
                     }`
                   }
                 >
@@ -184,8 +204,8 @@ export function AppSidebar() {
           to="/hr/settings/profile"
           className={({ isActive }) =>
             `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
-              ? 'translate-x-1 bg-blue-600 text-white shadow-md shadow-blue-200'
-              : 'text-slate-600 hover:bg-white hover:text-blue-600'
+              ? SIDEBAR_LINK_ACTIVE
+              : SIDEBAR_LINK_IDLE
             }`
           }
         >

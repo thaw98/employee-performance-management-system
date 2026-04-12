@@ -47,9 +47,11 @@ public class AuthController {
 		AuthUserDto user = new AuthUserDto(
 				principal.getId(),
 				principal.getEmployeeId(),
+				principal.getName(),
 				principal.getEmail(),
 				principal.getRoleName(),
-				principal.getRoleId());
+				principal.getRoleId(),
+				principal.isMustChangePassword());
 		return ResponseEntity.ok(ApiResponse.ok("OK", user));
 	}
 }

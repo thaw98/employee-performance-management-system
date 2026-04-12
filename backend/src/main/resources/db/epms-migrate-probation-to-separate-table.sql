@@ -1,0 +1,11 @@
+-- Probation data lives in employee_probation; employees references it via employee_probation_id.
+--
+-- Do not run ad-hoc DDL unless you know your current schema. On application startup,
+-- EmployeeProbationSchemaMigrationInitializer (BeanPostProcessor on the DataSource) runs before
+-- Hibernate and:
+-- 1. Creates employee_probation without employee_id when missing
+-- 2. Copies employees.probation_month / probation_start_date / probation_end_date into new rows and sets employees.employee_probation_id
+-- 3. If legacy employee_probation.employee_id exists, sets employees.employee_probation_id from it and drops that column
+-- 4. Adds fk_employees_employee_probation and drops denormalized probation columns on employees
+--
+-- Greenfield schema: see epms-employee-onboarding-ddl.sql (employee_probation created before employees).

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatDate } from '../utils/dateUtils';
 //MNA
 type PeriodType = 'MONTHLY' | 'ANNUAL' | 'BUDGET_YEAR';
 
@@ -169,7 +170,7 @@ export const KpiPeriodConfigPage: React.FC = () => {
                                 <div>
                                     <h4 className="font-bold text-slate-800">{p.name}</h4>
                                     <p className="text-xs text-slate-500 font-medium">
-                                        {p.startDate} — {p.endDate} • <span className="text-blue-600">{p.type.replace('_', ' ')}</span>
+                                        {formatDate(p.startDate)} — {formatDate(p.endDate)} • <span className="text-blue-600">{p.type.replace('_', ' ')}</span>
                                     </p>
                                 </div>
                             </div>

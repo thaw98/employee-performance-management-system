@@ -2,6 +2,7 @@ import { baseApi } from '../../../app/baseApi'
 import type {
   ApiResponse,
   CreateEmployeeAccountResponse,
+  EmployeeDraftPayload,
   EmployeeInfo,
   EmployeeInfoPayload,
   MasterOption,
@@ -13,7 +14,7 @@ export const employeeApi = baseApi.injectEndpoints({
       query: (body) => ({ url: '/employees', method: 'POST', body }),
       invalidatesTags: ['Employee'],
     }),
-    createDraft: builder.mutation<ApiResponse<EmployeeInfo>, EmployeeInfoPayload>({
+    createDraft: builder.mutation<ApiResponse<EmployeeInfo>, EmployeeDraftPayload>({
       query: (body) => ({ url: '/employees/draft', method: 'POST', body }),
       invalidatesTags: ['Employee'],
     }),
@@ -24,27 +25,28 @@ export const employeeApi = baseApi.injectEndpoints({
       query: ({ id, body }) => ({ url: `/employees/${id}`, method: 'PUT', body }),
       invalidatesTags: ['Employee'],
     }),
-    checkEmployeeId: builder.query<ApiResponse<boolean>, string>({
-      query: (employeeId) => `/employees/check-employee-id?employeeId=${encodeURIComponent(employeeId)}`,
-    }),
-    checkEmailInEmployees: builder.query<ApiResponse<boolean>, string>({
-      query: (email) => `/employees/check-email?email=${encodeURIComponent(email)}`,
-    }),
     getReligions: builder.query<ApiResponse<MasterOption[]>, void>({
       query: () => '/master/religions',
-    }),
-    getNationalities: builder.query<ApiResponse<MasterOption[]>, void>({
-      query: () => '/master/nationalities',
     }),
     getDepartments: builder.query<ApiResponse<MasterOption[]>, string>({
       query: (keyword) => `/departments/autocomplete?keyword=${encodeURIComponent(keyword)}`,
     }),
-    getPositions: builder.query<ApiResponse<MasterOption[]>, string>({
-      query: (keyword) => `/positions/autocomplete?keyword=${encodeURIComponent(keyword)}`,
+    getPositions: builder.query<
+      ApiResponse<MasterOption[]>,
+      { keyword: string; departmentId?: number }
+    >({
+      query: ({ keyword, departmentId }) => {
+        const params = new URLSearchParams()
+        params.set('keyword', keyword)
+        if (departmentId != undefined) {
+          params.set('departmentId', String(departmentId))
+        }
+        return `/positions/autocomplete?${params.toString()}`
+      },
     }),
     createEmployeeAccount: builder.mutation<
       ApiResponse<CreateEmployeeAccountResponse>,
-      { employeePkId: number }
+      { employeePkId: number; email: string; profilePictureBase64?: string }
     >({
       query: (body) => ({ url: '/users/employee-account', method: 'POST', body }),
     }),
@@ -58,10 +60,7 @@ export const {
   useCreateEmployeeMutation,
   useCreateDraftMutation,
   useUpdateEmployeeMutation,
-  useLazyCheckEmployeeIdQuery,
-  useLazyCheckEmailInEmployeesQuery,
   useGetReligionsQuery,
-  useGetNationalitiesQuery,
   useGetDepartmentsQuery,
   useGetPositionsQuery,
   useCreateEmployeeAccountMutation,

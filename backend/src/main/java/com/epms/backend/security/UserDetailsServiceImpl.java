@@ -4,6 +4,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.epms.backend.repository.UserRepository;
 
@@ -16,6 +17,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 	private final UserRepository userRepository;
 
 	@Override
+	@Transactional(readOnly = true)
 	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 		long id;
 		try {
@@ -26,7 +28,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 		System.out.println("DEBUG: Loading user by ID: " + id);
 		return userRepository.findById(id)
 				.map(user -> {
-					System.out.println("DEBUG: User found: " + user.getEmail() + " with role: " + user.getRole().getName());
+					String rName = (user.getRole() != null) ? user.getRole().getName() : "UNDEFINED";
+					System.out.println("DEBUG: User found: " + user.getEmail() + " with role: " + rName);
 					return new UserPrincipal(user);
 				})
 				.orElseThrow(() -> {

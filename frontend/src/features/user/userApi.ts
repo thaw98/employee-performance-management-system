@@ -4,6 +4,7 @@ import type { ApiResponse } from '../auth/types'
 export interface UserProfileDto {
   id: number
   employeeId: string
+  name: string
   email: string
   role: string
   profilePictureBase64?: string
@@ -14,7 +15,8 @@ export interface UpdateProfilePictureRequestDto {
 }
 
 export interface ChangePasswordRequestDto {
-  currentPassword: string
+  /** Required for normal password change from settings; omitted on forced first-login change. */
+  currentPassword?: string
   newPassword: string
   confirmPassword: string
 }

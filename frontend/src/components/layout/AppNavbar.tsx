@@ -50,14 +50,14 @@ export function AppNavbar() {
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
             <div className="hidden sm:flex flex-col items-end">
-              <span className="font-medium text-slate-900 leading-tight">{user?.email || 'User'}</span>
+              <span className="font-medium text-slate-900 leading-tight">{user?.name || 'User'}</span>
               <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{user?.role || 'Admin'}</span>
             </div>
             <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border border-blue-200 shadow-sm overflow-hidden">
                {profileResponse?.data?.profilePictureBase64 ? (
                  <img src={profileResponse.data.profilePictureBase64} alt="Profile" className="h-full w-full object-cover pointer-events-none" />
                ) : (
-                 user?.email?.charAt(0).toUpperCase() || 'U'
+                 user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'
                )}
             </div>
             <i className={`bi bi-chevron-down text-slate-400 text-[10px] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
@@ -67,7 +67,7 @@ export function AppNavbar() {
           {isDropdownOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-slate-100 py-1.5 z-50 transform origin-top-right transition-all animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="px-4 py-3 border-b border-slate-100 sm:hidden">
-                <p className="text-sm font-semibold text-slate-900 truncate">{user?.email || 'User'}</p>
+                <p className="text-sm font-semibold text-slate-900 truncate">{user?.name || 'User'}</p>
                 <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-0.5">{user?.role || 'Admin'}</p>
               </div>
 

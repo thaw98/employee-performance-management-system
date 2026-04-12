@@ -25,9 +25,13 @@ export default function PipDetailPage() {
   const [reopenPip] = useReopenPipMutation()
   const [reviewPip] = useReviewPipMutation()
 
-  const { data: trainingHistory } = useGetTrainingHistoryQuery(pip?.employee.employeeId ?? '', {
-    skip: !pip?.employee.employeeId,
-  })
+  const employeeRecordId = pip?.employee?.employee?.id
+  const { data: trainingHistory } = useGetTrainingHistoryQuery(
+    employeeRecordId != null ? String(employeeRecordId) : '',
+    {
+      skip: employeeRecordId == null,
+    },
+  )
 
   const [showUpdateModal, setShowUpdateModal] = useState<{ open: boolean; objectiveId: number | null }>({
     open: false,
@@ -97,7 +101,7 @@ export default function PipDetailPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">PIP Details: {pip.employee.email}</h1>
-            <p className="text-slate-500">Employee ID: {pip.employee.employeeId} | Status: <span className="font-semibold uppercase">{pip.status}</span></p>
+            <p className="text-slate-500">Employee record ID: {pip.employee.employee?.id ?? '—'} | Status: <span className="font-semibold uppercase">{pip.status}</span></p>
           </div>
         </div>
 

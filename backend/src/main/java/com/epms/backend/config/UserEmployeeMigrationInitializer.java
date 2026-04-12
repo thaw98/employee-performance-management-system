@@ -6,92 +6,256 @@ import java.sql.ResultSet;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.sql.DataSource;
 
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.core.annotation.Order;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanCreationException;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.core.Ordered;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Ensures {@code users.employee_id} is a BIGINT foreign key to {@code employees.id}. Legacy string
+ * {@code users.employee_id} values are resolved using {@code employees.employee_id} when present.
+ * <p>
+ * Runs as a {@link BeanPostProcessor} on the primary {@code dataSource} bean so this executes
+ * <strong>before</strong> Hibernate {@code ddl-auto} builds the schema. A {@link CommandLineRunner}
+ * would run too late and Hibernate would attempt {@code ALTER COLUMN ... BIGINT} while legacy string
+ * values (e.g. {@code MGR001}) are still stored.
+ */
 @Component
-@Order(1)
-@RequiredArgsConstructor
-public class UserEmployeeMigrationInitializer implements CommandLineRunner {
+@Slf4j
+public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Ordered {
 
-	private final DataSource dataSource;
-	private final JdbcTemplate jdbcTemplate;
+	private static final AtomicBoolean MIGRATION_DONE = new AtomicBoolean(false);
 
 	@Override
-	public void run(String... args) throws Exception {
-		if (!tableExists("users") || !tableExists("employees") || !columnExists("users", "employee_id")) {
-			return;
-		}
-
-		int employeeIdColumnType = getColumnType("users", "employee_id");
-		if (employeeIdColumnType == Types.BIGINT) {
-			migrateNumericEmployeeIdColumnToEmployeeCode();
-		}
-
-		ensureEmployeeForeignKeyToEmployeesEmployeeId();
+	public int getOrder() {
+		return 10;
 	}
 
-	private void migrateNumericEmployeeIdColumnToEmployeeCode() throws Exception {
-		// Clean up any stale temp column from interrupted runs.
-		if (columnExists("users", "employee_id_tmp")) {
-			jdbcTemplate.execute("ALTER TABLE users DROP COLUMN employee_id_tmp");
+	@Override
+	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+		if (!"dataSource".equals(beanName) || !(bean instanceof DataSource dataSource)) {
+			return bean;
 		}
-		if (!columnExists("users", "employee_id_new")) {
-			jdbcTemplate.execute("ALTER TABLE users ADD COLUMN employee_id_new VARCHAR(50) NULL");
+		if (!MIGRATION_DONE.compareAndSet(false, true)) {
+			return bean;
 		}
-
-		// Numeric legacy shape: users.employee_id stores employees.id.
-		jdbcTemplate.execute("""
-				UPDATE users u
-				JOIN employees e ON e.id = u.employee_id
-				SET u.employee_id_new = e.employee_id
-				WHERE u.employee_id_new IS NULL
-				""");
-
-		Integer unresolvedCount = jdbcTemplate.queryForObject(
-				"SELECT COUNT(*) FROM users WHERE employee_id IS NOT NULL AND employee_id_new IS NULL",
-				Integer.class);
-		if (unresolvedCount != null && unresolvedCount > 0) {
-			throw new IllegalStateException(
-					"Cannot migrate users.employee_id values to employees.employee_id. "
-							+ "Found users with employee_id values that do not match employees table.");
+		try {
+			runMigration(dataSource);
+		} catch (Exception e) {
+			MIGRATION_DONE.set(false);
+			throw new BeanCreationException("User/employee id migration failed", e);
 		}
-
-		dropUserEmployeeForeignKeys();
-		jdbcTemplate.execute("ALTER TABLE users DROP COLUMN employee_id");
-		jdbcTemplate.execute("ALTER TABLE users CHANGE COLUMN employee_id_new employee_id VARCHAR(50) NULL");
-		jdbcTemplate.execute("ALTER TABLE users MODIFY COLUMN employee_id VARCHAR(50) NOT NULL");
+		return bean;
 	}
 
-	private void ensureEmployeeForeignKeyToEmployeesEmployeeId() throws Exception {
-		if (!columnExists("users", "employee_id")) {
+	private void runMigration(DataSource dataSource) throws Exception {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+		if (!tableExists(dataSource, "users") || !tableExists(dataSource, "employees")
+				|| !columnExists(dataSource, "users", "employee_id")) {
 			return;
 		}
 
-		if (hasEmployeeIdForeignKeyToEmployeesEmployeeId()) {
+		// Fix rows where users.employee_id is 0, NULL, or not a real employees.id (e.g. MySQL coerced
+		// legacy strings to 0, or a past failed migration left orphans). Must run even when the column
+		// is already BIGINT — otherwise we skip varchar migration and never repair.
+		repairInvalidUserEmployeeReferences(dataSource, jdbcTemplate);
+		ensureStubEmployeesForOrphanUsers(dataSource, jdbcTemplate);
+		repairInvalidUserEmployeeReferences(dataSource, jdbcTemplate);
+
+		migrateUsersEmployeeIdToEmployeesPk(dataSource, jdbcTemplate);
+		ensureStubEmployeesForOrphanUsers(dataSource, jdbcTemplate);
+		repairInvalidUserEmployeeReferences(dataSource, jdbcTemplate);
+		ensureUsersForeignKeyToEmployeesId(dataSource, jdbcTemplate);
+	}
+
+	/**
+	 * Sets {@code users.employee_id} from {@code employees.id} using login email when the current FK
+	 * value does not reference an existing employee. Skipped when {@code employees.email_address}
+	 * was already dropped (see {@link EmployeeEmailAddressColumnDropInitializer}).
+	 */
+	private void repairInvalidUserEmployeeReferences(DataSource dataSource, JdbcTemplate jdbcTemplate)
+			throws Exception {
+		if (!columnExists(dataSource, "employees", "email_address")) {
 			return;
 		}
+		int updated = jdbcTemplate.update(
+				"""
+						UPDATE users u
+						INNER JOIN employees e
+						  ON LOWER(TRIM(e.email_address)) = LOWER(TRIM(u.email))
+						 AND TRIM(COALESCE(e.email_address, '')) <> ''
+						SET u.employee_id = e.id
+						WHERE NOT EXISTS (SELECT 1 FROM employees x WHERE x.id = u.employee_id)
+						   OR u.employee_id = 0
+						""");
+		if (updated > 0) {
+			log.info("Repaired {} user row(s): users.employee_id set from employees.id by email match", updated);
+		}
+	}
 
-		dropUserEmployeeForeignKeys();
+	/**
+	 * Creates minimal {@code employees} rows when a user has no valid {@code users.employee_id}, so
+	 * {@link #repairInvalidUserEmployeeReferences} can match on email. Only runs while
+	 * {@code employees.email_address} still exists (removed later by {@link EmployeeEmailAddressColumnDropInitializer}).
+	 */
+	private void ensureStubEmployeesForOrphanUsers(DataSource dataSource, JdbcTemplate jdbcTemplate) throws Exception {
+		if (!columnExists(dataSource, "employees", "email_address")) {
+			return;
+		}
+		int inserted = jdbcTemplate.update(
+				"""
+						INSERT INTO employees (employee_name, email_address)
+						SELECT
+						  COALESCE(NULLIF(TRIM(SUBSTRING_INDEX(TRIM(u.email), '@', 1)), ''), 'User') AS employee_name,
+						  TRIM(u.email) AS email_address
+						FROM users u
+						WHERE TRIM(COALESCE(u.email, '')) <> ''
+						  AND (
+						    u.employee_id IS NULL
+						    OR u.employee_id = 0
+						    OR NOT EXISTS (SELECT 1 FROM employees ex WHERE ex.id = u.employee_id)
+						  )
+						  AND NOT EXISTS (
+						    SELECT 1 FROM employees e
+						    WHERE LOWER(TRIM(e.email_address)) = LOWER(TRIM(u.email))
+						  )
+						""");
+		if (inserted > 0) {
+			log.info("Inserted {} stub employee row(s) for user(s) with no employees.email_address match", inserted);
+		}
+	}
+
+	private void migrateUsersEmployeeIdToEmployeesPk(DataSource dataSource, JdbcTemplate jdbcTemplate) throws Exception {
+		int type = getColumnType(dataSource, "users", "employee_id");
+		if (type == Types.BIGINT) {
+			return;
+		}
+		if (type != Types.VARCHAR && type != Types.CHAR && type != Types.LONGNVARCHAR && type != Types.LONGVARCHAR) {
+			throw new IllegalStateException("Unsupported users.employee_id SQL type for migration: " + type);
+		}
+
+		log.info("Migrating users.employee_id from string business key to employees.id (BIGINT)");
+		dropUserEmployeeForeignKeys(dataSource, jdbcTemplate);
+
+		final String tmp = "employee_id_to_pk_tmp";
+		if (columnExists(dataSource, "users", tmp)) {
+			jdbcTemplate.execute("ALTER TABLE users DROP COLUMN " + tmp);
+		}
+		jdbcTemplate.execute("ALTER TABLE users ADD COLUMN " + tmp + " BIGINT NULL");
+
+		if (columnExists(dataSource, "employees", "employee_id")) {
+			jdbcTemplate.execute(
+					"""
+							UPDATE users u
+							INNER JOIN employees e
+							  ON LOWER(TRIM(e.employee_id)) = LOWER(TRIM(CAST(u.employee_id AS CHAR)))
+							SET u.%s = e.id
+							""".formatted(tmp));
+		}
+
+		// Legacy string was numeric employee PK
 		jdbcTemplate.execute(
-				"ALTER TABLE users ADD CONSTRAINT fk_users_employee FOREIGN KEY (employee_id) REFERENCES employees(employee_id)");
+				"""
+						UPDATE users u
+						INNER JOIN employees e ON e.id = CAST(u.employee_id AS UNSIGNED)
+						SET u.%s = e.id
+						WHERE u.employee_id REGEXP '^[0-9]+$'
+						  AND u.%s IS NULL
+						""".formatted(tmp, tmp));
+
+		Integer unresolved = jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM users WHERE employee_id IS NOT NULL AND " + tmp + " IS NULL",
+				Integer.class);
+		if (unresolved != null && unresolved > 0) {
+			List<String> samples = jdbcTemplate.query(
+					"""
+							SELECT CONCAT('id=', u.id, ', employee_id=', u.employee_id, ', email=', u.email)
+							FROM users u
+							WHERE u.employee_id IS NOT NULL AND u.%s IS NULL
+							LIMIT 10
+							""".formatted(tmp),
+					(rs, rowNum) -> rs.getString(1));
+			jdbcTemplate.execute("ALTER TABLE users DROP COLUMN " + tmp);
+			throw new IllegalStateException(
+					"Cannot migrate users.employee_id: " + unresolved
+							+ " row(s) do not match employees (by business key or email). Examples: " + samples);
+		}
+
+		jdbcTemplate.execute("ALTER TABLE users DROP COLUMN employee_id");
+		jdbcTemplate.execute("ALTER TABLE users CHANGE COLUMN " + tmp + " employee_id BIGINT NOT NULL");
 	}
 
-	private void dropUserEmployeeForeignKeys() throws Exception {
-		List<String> fkNames = getEmployeeForeignKeyNamesOnUsers();
+	private void ensureUsersForeignKeyToEmployeesId(DataSource dataSource, JdbcTemplate jdbcTemplate) throws Exception {
+		if (hasUsersForeignKeyToEmployeesId(dataSource)) {
+			return;
+		}
+		int orphanCount = countOrphanUserEmployeeReferences(jdbcTemplate);
+		if (orphanCount > 0) {
+			List<String> samples = jdbcTemplate.query(
+					"""
+							SELECT CONCAT('user id=', u.id, ', employee_id=', u.employee_id, ', email=', u.email)
+							FROM users u
+							LEFT JOIN employees e ON e.id = u.employee_id
+							WHERE (u.employee_id IS NULL OR u.employee_id = 0 OR e.id IS NULL)
+							LIMIT 15
+							""",
+					(rs, rowNum) -> rs.getString(1));
+			throw new IllegalStateException(
+					"Cannot add users.employee_id foreign key: " + orphanCount
+							+ " user row(s) still reference a missing employees.id after repair. "
+							+ "Fix users.employee_id or delete orphan users. Rows: "
+							+ samples);
+		}
+		dropUserEmployeeForeignKeys(dataSource, jdbcTemplate);
+		jdbcTemplate.execute(
+				"ALTER TABLE users ADD CONSTRAINT fk_users_employee FOREIGN KEY (employee_id) REFERENCES employees(id)");
+	}
+
+	private int countOrphanUserEmployeeReferences(JdbcTemplate jdbcTemplate) {
+		Integer count = jdbcTemplate.queryForObject(
+				"""
+						SELECT COUNT(*)
+						FROM users u
+						LEFT JOIN employees e ON e.id = u.employee_id
+						WHERE u.employee_id IS NOT NULL
+						  AND e.id IS NULL
+						""",
+				Integer.class);
+		return count == null ? 0 : count;
+	}
+
+	private boolean hasUsersForeignKeyToEmployeesId(DataSource dataSource) throws Exception {
+		try (Connection connection = dataSource.getConnection()) {
+			DatabaseMetaData metaData = connection.getMetaData();
+			try (ResultSet rs = metaData.getImportedKeys(connection.getCatalog(), null, "users")) {
+				while (rs.next()) {
+					if ("employee_id".equalsIgnoreCase(rs.getString("FKCOLUMN_NAME"))
+							&& "employees".equalsIgnoreCase(rs.getString("PKTABLE_NAME"))
+							&& "id".equalsIgnoreCase(rs.getString("PKCOLUMN_NAME"))) {
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+	}
+
+	private void dropUserEmployeeForeignKeys(DataSource dataSource, JdbcTemplate jdbcTemplate) throws Exception {
+		List<String> fkNames = getEmployeeForeignKeyNamesOnUsers(dataSource);
 		for (String fkName : fkNames) {
 			jdbcTemplate.execute("ALTER TABLE users DROP FOREIGN KEY " + fkName);
 		}
 	}
 
-	private List<String> getEmployeeForeignKeyNamesOnUsers() throws Exception {
+	private List<String> getEmployeeForeignKeyNamesOnUsers(DataSource dataSource) throws Exception {
 		try (Connection connection = dataSource.getConnection()) {
 			DatabaseMetaData metaData = connection.getMetaData();
 			List<String> names = new ArrayList<>();
@@ -112,26 +276,7 @@ public class UserEmployeeMigrationInitializer implements CommandLineRunner {
 		}
 	}
 
-	private boolean hasEmployeeIdForeignKeyToEmployeesEmployeeId() throws Exception {
-		try (Connection connection = dataSource.getConnection()) {
-			DatabaseMetaData metaData = connection.getMetaData();
-			try (ResultSet rs = metaData.getImportedKeys(connection.getCatalog(), null, "users")) {
-				while (rs.next()) {
-					String fkColumn = rs.getString("FKCOLUMN_NAME");
-					String pkTable = rs.getString("PKTABLE_NAME");
-					String pkColumn = rs.getString("PKCOLUMN_NAME");
-					if ("employee_id".equalsIgnoreCase(fkColumn)
-							&& "employees".equalsIgnoreCase(pkTable)
-							&& "employee_id".equalsIgnoreCase(pkColumn)) {
-						return true;
-					}
-				}
-			}
-			return false;
-		}
-	}
-
-	private int getColumnType(String tableName, String columnName) throws Exception {
+	private int getColumnType(DataSource dataSource, String tableName, String columnName) throws Exception {
 		try (Connection connection = dataSource.getConnection()) {
 			DatabaseMetaData metaData = connection.getMetaData();
 			try (ResultSet rs = metaData.getColumns(connection.getCatalog(), null, tableName, columnName)) {
@@ -143,7 +288,7 @@ public class UserEmployeeMigrationInitializer implements CommandLineRunner {
 		}
 	}
 
-	private boolean tableExists(String tableName) throws Exception {
+	private boolean tableExists(DataSource dataSource, String tableName) throws Exception {
 		try (Connection connection = dataSource.getConnection()) {
 			DatabaseMetaData metaData = connection.getMetaData();
 			try (ResultSet rs = metaData.getTables(connection.getCatalog(), null, tableName, new String[] { "TABLE" })) {
@@ -152,7 +297,7 @@ public class UserEmployeeMigrationInitializer implements CommandLineRunner {
 		}
 	}
 
-	private boolean columnExists(String tableName, String columnName) throws Exception {
+	private boolean columnExists(DataSource dataSource, String tableName, String columnName) throws Exception {
 		try (Connection connection = dataSource.getConnection()) {
 			DatabaseMetaData metaData = connection.getMetaData();
 			try (ResultSet rs = metaData.getColumns(connection.getCatalog(), null, tableName, columnName)) {
