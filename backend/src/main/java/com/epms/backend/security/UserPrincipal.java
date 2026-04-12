@@ -25,13 +25,10 @@ public class UserPrincipal implements UserDetails {
 	public UserPrincipal(User user) {
 		this.id = user.getId();
 		this.email = user.getEmail();
-		this.employeeId = (user.getEmployee() != null) ? user.getEmployee().getEmployeeId() : "NONE";
+		this.employeeId = resolveBusinessEmployeeId(user.getEmployee());
 		this.roleId = (user.getRole() != null) ? user.getRole().getId() : 0L;
 		this.roleName = (user.getRole() != null) ? user.getRole().getName() : "GUEST";
 		this.name = (user.getEmployee() != null) ? user.getEmployee().getEmployeeName() : "User";
-		this.employeeId = resolveBusinessEmployeeId(user.getEmployee());
-		this.roleId = user.getRole().getId();
-		this.roleName = user.getRole().getName();
 		this.password = user.getPassword();
 		this.active = user.isActive();
 		this.mustChangePassword = user.isMustChangePassword();
@@ -102,6 +99,9 @@ public class UserPrincipal implements UserDetails {
 	}
 
 	private static String resolveBusinessEmployeeId(Employee employee) {
+		if (employee == null) {
+			return "NONE";
+		}
 		String businessId = employee.getEmployeeId();
 		if (businessId != null && !businessId.isBlank()) {
 			return businessId.trim();

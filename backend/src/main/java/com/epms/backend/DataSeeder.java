@@ -21,7 +21,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 @Component
 @Order(5)
@@ -37,19 +36,13 @@ public class DataSeeder implements CommandLineRunner {
     private final com.epms.backend.repository.SelfAssessmentRepository selfAssessmentRepository;
     private final SelfAssessmentSubjectRepository subjectRepository;
 
-    public DataSeeder(DepartmentRepository departmentRepository, 
-                      PositionRepository positionRepository,
-                      UserRepository userRepository,
-                      EmployeeRepository employeeRepository,
-                      RoleRepository roleRepository,
-                      CriteriaRepository criteriaRepository,
-                      StaffTypeRepository staffTypeRepository) {
     public DataSeeder(DepartmentRepository departmentRepository,
             PositionRepository positionRepository,
             UserRepository userRepository,
             EmployeeRepository employeeRepository,
             RoleRepository roleRepository,
             CriteriaRepository criteriaRepository,
+            StaffTypeRepository staffTypeRepository,
             com.epms.backend.repository.SelfAssessmentRepository selfAssessmentRepository,
             SelfAssessmentSubjectRepository subjectRepository) {
         this.departmentRepository = departmentRepository;

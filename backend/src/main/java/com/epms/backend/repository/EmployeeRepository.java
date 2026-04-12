@@ -19,5 +19,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
 	List<Employee> findTop10ByEmployeeNameContainingIgnoreCaseOrderByIdDesc(String employeeName);
 
+	Optional<Employee> findByEmployeeId(String employeeId);
+
 }
 

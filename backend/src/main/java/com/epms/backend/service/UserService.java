@@ -79,6 +79,7 @@ public class UserService {
         return new UserProfileDto(
                 user.getId(),
                 String.valueOf(user.getEmployee().getId()),
+                user.getEmployee().getEmployeeName(),
                 user.getEmail(),
                 user.getRole().getName(),
                 user.getEmployee().getProfilePictureBase64());
