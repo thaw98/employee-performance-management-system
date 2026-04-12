@@ -32,7 +32,7 @@ public class Employee {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	/** Business-facing employee number as digits-only text (distinct from primary key {@link #id}). */
+	/** Business-facing employee number (distinct from primary key {@link #id}); assigned by the client, not auto-filled from {@link #id}. */
 	@Column(name = "employee_id", length = 100, unique = true)
 	private String employeeId;
 

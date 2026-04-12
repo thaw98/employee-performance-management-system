@@ -33,6 +33,7 @@ export function buildEmployeeDraftPayload(values: Partial<EmployeeInfoFormValues
       : undefined
 
   const p: EmployeeDraftPayload = {
+    employeeId: trimStr(values.employeeId),
     employeeName: trimStr(values.employeeName),
     otherName: trimStr(values.otherName),
     staffNrcNo,

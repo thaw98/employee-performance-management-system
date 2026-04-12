@@ -78,12 +78,7 @@ public class EmployeeAccountService {
 			emailSent = false;
 			log.error("Employee user {} created but temporary password email failed: {}", saved.getEmail(), ex.getMessage());
 		}
-		String businessEmployeeId = employee.getEmployeeId();
-		if (businessEmployeeId == null || businessEmployeeId.isBlank()) {
-			businessEmployeeId = String.valueOf(employee.getId());
-		} else {
-			businessEmployeeId = businessEmployeeId.trim();
-		}
+		String businessEmployeeId = trimToNull(employee.getEmployeeId());
 		return new CreateEmployeeAccountResponseDto(
 				saved.getId(),
 				businessEmployeeId,
@@ -102,17 +97,20 @@ public class EmployeeAccountService {
 		user.setActive(active);
 		User saved = userRepository.save(user);
 		var emp = saved.getEmployee();
-		String empIdStr = emp.getEmployeeId();
-		if (empIdStr == null || empIdStr.isBlank()) {
-			empIdStr = String.valueOf(emp.getId());
-		} else {
-			empIdStr = empIdStr.trim();
-		}
+		String empIdStr = trimToNull(emp.getEmployeeId());
 		return new UserAccountStatusDto(
 				saved.getId(),
 				empIdStr,
 				saved.getEmail(),
 				saved.isActive());
+	}
+
+	private static String trimToNull(String value) {
+		if (value == null) {
+			return null;
+		}
+		String t = value.trim();
+		return t.isEmpty() ? null : t;
 	}
 
 	private String generateTemporaryPassword(int length) {

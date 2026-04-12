@@ -110,7 +110,7 @@ export function SelfAssessmentReviewListPage() {
         const searchStr = filterText.toLowerCase();
         return (
             sa.employee.employeeName.toLowerCase().includes(searchStr) ||
-            sa.employee.employeeId.toLowerCase().includes(searchStr) ||
+            (sa.employee.employeeId ?? '').toLowerCase().includes(searchStr) ||
             sa.employee.department?.name.toLowerCase().includes(searchStr) ||
             sa.employee.position?.name.toLowerCase().includes(searchStr)
         );
@@ -305,7 +305,7 @@ export function SelfAssessmentReviewListPage() {
                                     >
                                         <div>
                                             <div className="font-bold text-slate-700">{emp.employeeName}</div>
-                                            <div className="text-xs text-slate-400">{emp.employeeId} • {emp.department?.name}</div>
+                                            <div className="text-xs text-slate-400">{emp.employeeId ?? '—'} • {emp.department?.name}</div>
                                         </div>
                                         {selectedEmp?.id === emp.id && <i className="bi bi-check-circle-fill text-blue-600" />}
                                     </div>
@@ -331,7 +331,7 @@ export function SelfAssessmentReviewListPage() {
                             <div>
                                 <h2 className="text-xl font-bold text-slate-800">Reviewing {selectedAsmt.employee.employeeName}'s Assessment</h2>
                                 <div className="flex gap-4 mt-1">
-                                    <p className="text-xs text-slate-500"><span className="font-bold text-slate-400">ID:</span> {selectedAsmt.employee.employeeId}</p>
+                                    <p className="text-xs text-slate-500"><span className="font-bold text-slate-400">ID:</span> {selectedAsmt.employee.employeeId ?? '—'}</p>
                                     <p className="text-xs text-slate-500"><span className="font-bold text-slate-400">Dept:</span> {selectedAsmt.employee.department?.name}</p>
                                     <p className="text-xs text-slate-500"><span className="font-bold text-slate-400">Pos:</span> {selectedAsmt.employee.position?.name}</p>
                                 </div>

@@ -37,8 +37,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EmployeeService {
 
-	/** When set, business {@code employees.employee_id} is numeric text only (no letter prefixes). */
-	private static final Pattern BUSINESS_EMPLOYEE_ID_DIGITS = Pattern.compile("^[0-9]{1,100}$");
+	/** Business {@code employees.employee_id}: letters, digits, dots, underscores, hyphens (column length 100). */
+	private static final Pattern BUSINESS_EMPLOYEE_ID = Pattern.compile("^[A-Za-z0-9._\\-]{1,100}$");
 
 	private final EmployeeRepository employeeRepository;
 	private final UserRepository userRepository;
@@ -52,12 +52,12 @@ public class EmployeeService {
 		validateOptionalBusinessEmployeeId(request.getEmployeeId());
 		Employee employee = new Employee();
 		applyDraft(employee, request, "DRAFT", principal.getId(), true);
-		return toDto(ensureBusinessEmployeeId(employeeRepository.save(employee)));
+		return toDto(employeeRepository.save(employee));
 	}
 
 	@Transactional
 	public EmployeeInfoResponseDto saveCompleted(EmployeeInfoRequestDto request, UserPrincipal principal) {
-		validateRequiredBusinessRules(request);
+		validateRequiredBusinessRules(request, true);
 		return save(request, principal, "COMPLETED");
 	}
 
@@ -66,12 +66,12 @@ public class EmployeeService {
 		validateOptionalBusinessEmployeeId(request.getEmployeeId());
 		Employee employee = employeeRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 		applyDraft(employee, request, "DRAFT", principal.getId(), false);
-		return toDto(ensureBusinessEmployeeId(employeeRepository.save(employee)));
+		return toDto(employeeRepository.save(employee));
 	}
 
 	@Transactional
 	public EmployeeInfoResponseDto updateCompleted(Long id, EmployeeInfoRequestDto request, UserPrincipal principal) {
-		validateRequiredBusinessRules(request);
+		validateRequiredBusinessRules(request, false);
 		return update(id, request, principal, "COMPLETED");
 	}
 
@@ -103,7 +103,7 @@ public class EmployeeService {
 	private EmployeeInfoResponseDto save(EmployeeInfoRequestDto request, UserPrincipal principal, String status) {
 		Employee employee = new Employee();
 		apply(employee, request, status, principal.getId(), true);
-		return toDto(ensureBusinessEmployeeId(employeeRepository.save(employee)));
+		return toDto(employeeRepository.save(employee));
 	}
 
 	private static String trimToNull(String value) {
@@ -240,7 +240,7 @@ public class EmployeeService {
 	private EmployeeInfoResponseDto update(Long id, EmployeeInfoRequestDto request, UserPrincipal principal, String status) {
 		Employee employee = employeeRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 		apply(employee, request, status, principal.getId(), false);
-		return toDto(ensureBusinessEmployeeId(employeeRepository.save(employee)));
+		return toDto(employeeRepository.save(employee));
 	}
 
 	private void apply(Employee employee, EmployeeInfoRequestDto request, String status, Long actorId, boolean isCreate) {
@@ -249,7 +249,9 @@ public class EmployeeService {
 		Position position = positionRepository.findById(request.getPositionId()).orElseThrow(() -> new IllegalArgumentException("Invalid position"));
 		assertPositionBelongsToDepartment(position, department);
 
-		if (request.getEmployeeId() != null) {
+		if (isCreate) {
+			employee.setEmployeeId(trimToNull(request.getEmployeeId()));
+		} else if (request.getEmployeeId() != null) {
 			employee.setEmployeeId(trimToNull(request.getEmployeeId()));
 		}
 		employee.setEmployeeName(request.getEmployeeName().trim());
@@ -425,8 +427,21 @@ public class EmployeeService {
 		}
 	}
 
-	private void validateRequiredBusinessRules(EmployeeInfoRequestDto request) {
-		validateOptionalBusinessEmployeeId(request.getEmployeeId());
+	private void validateRequiredBusinessRules(EmployeeInfoRequestDto request, boolean isCreate) {
+		String trimmedEmpId = trimToNull(request.getEmployeeId());
+		if (isCreate) {
+			if (trimmedEmpId == null) {
+				throw new IllegalArgumentException("Employee ID is required.");
+			}
+			validateBusinessEmployeeIdFormat(trimmedEmpId);
+		} else {
+			if (request.getEmployeeId() != null && trimmedEmpId == null) {
+				throw new IllegalArgumentException("Employee ID cannot be blank.");
+			}
+			if (trimmedEmpId != null) {
+				validateBusinessEmployeeIdFormat(trimmedEmpId);
+			}
+		}
 		if (request.getDateOfBirth().isAfter(LocalDate.now())) {
 			throw new IllegalArgumentException("Date of birth must be in the past");
 		}
@@ -458,27 +473,20 @@ public class EmployeeService {
 		}
 	}
 
-	/**
-	 * Optional business id: omit or blank to auto-fill from primary key; if provided, must be digits only
-	 * (1–100 characters), e.g. {@code "42"} — no letter prefixes such as EMP or HR.
-	 */
+	/** Optional on drafts: if provided, must match {@link #BUSINESS_EMPLOYEE_ID}. */
 	private void validateOptionalBusinessEmployeeId(String raw) {
 		String v = trimToNull(raw);
 		if (v == null) {
 			return;
 		}
-		if (!BUSINESS_EMPLOYEE_ID_DIGITS.matcher(v).matches()) {
-			throw new IllegalArgumentException(
-					"Employee ID must contain digits only (no letters or prefixes). Leave empty to use the system number.");
-		}
+		validateBusinessEmployeeIdFormat(v);
 	}
 
-	private Employee ensureBusinessEmployeeId(Employee e) {
-		if (e.getEmployeeId() != null && !e.getEmployeeId().isBlank()) {
-			return e;
+	private void validateBusinessEmployeeIdFormat(String v) {
+		if (!BUSINESS_EMPLOYEE_ID.matcher(v).matches()) {
+			throw new IllegalArgumentException(
+					"Employee ID may use letters, digits, dots, underscores, and hyphens (1–100 characters).");
 		}
-		e.setEmployeeId(String.valueOf(e.getId()));
-		return employeeRepository.save(e);
 	}
 
 	private EmployeeInfoResponseDto toDto(Employee e) {

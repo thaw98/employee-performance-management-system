@@ -238,7 +238,7 @@ export function SelfAssessmentPage() {
           </div>
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Employee ID</span>
-            <div className="font-medium text-slate-700">{user?.employeeId}</div>
+            <div className="font-medium text-slate-700">{user?.employeeId ?? '—'}</div>
           </div>
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Department</span>

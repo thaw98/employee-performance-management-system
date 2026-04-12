@@ -31,6 +31,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Ordered {
 
+	/**
+	 * Stub numeric {@code employees.employee_id} when the column is a numeric SQL type; VARCHAR stubs
+	 * use {@code CONCAT('EPMS-', users.id)} instead.
+	 */
+	private static final long STUB_EMPLOYEE_ID_NUMERIC_BASE = 9_000_000_000L;
+
 	@Override
 	public int getOrder() {
 		return 10;
@@ -104,8 +110,9 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 	 * {@link #repairInvalidUserEmployeeReferences} can match on email. Only runs while
 	 * {@code employees.email_address} still exists (removed later by {@link EmployeeEmailAddressColumnDropInitializer}).
 	 * <p>
-	 * After {@code email_address} is dropped, stubs use a unique business {@code employees.employee_id}
-	 * of the form {@code USR-}{@code users.id} and link {@code users.employee_id} to the new row.
+	 * After {@code email_address} is dropped, stubs use a unique business {@code employees.employee_id}:
+	 * {@code CONCAT('EPMS-', users.id)} when the column is non-numeric, or {@code 9_000_000_000 + users.id}
+	 * when the column is a numeric type, then link {@code users.employee_id} to the new row.
 	 */
 	private void ensureStubEmployeesForOrphanUsers(DataSource dataSource, JdbcTemplate jdbcTemplate) throws Exception {
 		if (columnExists(dataSource, "employees", "email_address")) {
@@ -133,12 +140,25 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 			return;
 		}
 
+		int employeeIdSqlType = getColumnType(dataSource, "employees", "employee_id");
+		boolean numericEmployeeId = isNumericSqlType(employeeIdSqlType);
+		int userIdSqlType = getColumnType(dataSource, "users", "id");
+		boolean numericUserId = isNumericSqlType(userIdSqlType);
+		// Legacy DBs may use VARCHAR primary keys (e.g. "USR-1"); arithmetic on u.id then fails.
+		String stubNumericExpr = numericUserId
+				? "(" + STUB_EMPLOYEE_ID_NUMERIC_BASE + " + u.id)"
+				: "(" + STUB_EMPLOYEE_ID_NUMERIC_BASE
+						+ " + (CRC32(CONCAT('epms|user|', CAST(u.id AS CHAR))) % 1000000000))";
+		String stubKeySql = numericEmployeeId
+				? stubNumericExpr
+				: "CONCAT('EPMS-', CAST(u.id AS CHAR))";
+
 		int inserted = jdbcTemplate.update(
 				"""
 						INSERT INTO employees (employee_name, employee_id)
 						SELECT
 						  COALESCE(NULLIF(TRIM(SUBSTRING_INDEX(TRIM(COALESCE(u.email, '')), '@', 1)), ''), CONCAT('User ', u.id)) AS employee_name,
-						  CONCAT('USR-', u.id) AS employee_id
+						  %s AS employee_id
 						FROM users u
 						WHERE (
 						    u.employee_id IS NULL
@@ -146,25 +166,42 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 						    OR NOT EXISTS (SELECT 1 FROM employees ex WHERE ex.id = u.employee_id)
 						  )
 						  AND NOT EXISTS (
-						    SELECT 1 FROM employees e WHERE e.employee_id = CONCAT('USR-', u.id)
+						    SELECT 1 FROM employees e WHERE e.employee_id = %s
 						  )
-						""");
+						""".formatted(stubKeySql, stubKeySql));
 		if (inserted > 0) {
-			log.info("Inserted {} stub employee row(s) after employees.email_address was dropped (USR-{{userId}} keys)",
-					inserted);
+			log.info(
+					"Inserted {} stub employee row(s) after employees.email_address was dropped (business key: {})",
+					inserted,
+					numericEmployeeId ? STUB_EMPLOYEE_ID_NUMERIC_BASE + " + users.id" : "CONCAT('EPMS-', users.id)");
 		}
 		int linked = jdbcTemplate.update(
 				"""
 						UPDATE users u
-						INNER JOIN employees e ON e.employee_id = CONCAT('USR-', u.id)
+						INNER JOIN employees e ON e.employee_id = %s
 						SET u.employee_id = e.id
 						WHERE u.employee_id IS NULL
 						   OR u.employee_id = 0
 						   OR NOT EXISTS (SELECT 1 FROM employees ex WHERE ex.id = u.employee_id)
-						""");
+						""".formatted(stubKeySql));
 		if (linked > 0) {
-			log.info("Linked {} user row(s) to migration stub employees (USR-{{userId}})", linked);
+			log.info(
+					"Linked {} user row(s) to migration stub employees ({})",
+					linked,
+					numericEmployeeId ? STUB_EMPLOYEE_ID_NUMERIC_BASE + " + users.id" : "CONCAT('EPMS-', users.id)");
 		}
+	}
+
+	private static boolean isNumericSqlType(int sqlType) {
+		return sqlType == Types.BIGINT
+				|| sqlType == Types.INTEGER
+				|| sqlType == Types.SMALLINT
+				|| sqlType == Types.TINYINT
+				|| sqlType == Types.FLOAT
+				|| sqlType == Types.REAL
+				|| sqlType == Types.DOUBLE
+				|| sqlType == Types.DECIMAL
+				|| sqlType == Types.NUMERIC;
 	}
 
 	private void migrateUsersEmployeeIdToEmployeesPk(DataSource dataSource, JdbcTemplate jdbcTemplate) throws Exception {

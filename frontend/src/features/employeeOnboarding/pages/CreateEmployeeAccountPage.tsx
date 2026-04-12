@@ -612,12 +612,11 @@ export function CreateEmployeeAccountPage() {
                   fullWidth
                   label="Employee ID *"
                   autoComplete="off"
-                  inputMode="numeric"
-                  slotProps={{ htmlInput: { pattern: '[0-9]*' } }}
                   {...register('employeeId')}
                   error={Boolean(errors.employeeId)}
                   helperText={
-                    errors.employeeId?.message ?? 'Digits only. Must be unique.'
+                    errors.employeeId?.message ??
+                    'Your business employee number (letters, digits, hyphens, etc.). Must be unique — not the database id.'
                   }
                 />
               </div>

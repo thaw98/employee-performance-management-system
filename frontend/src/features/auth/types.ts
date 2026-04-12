@@ -1,6 +1,7 @@
 export interface AuthUser {
   id: number
-  employeeId: string
+  /** Business employee number from {@code employees.employee_id}; null if not set (not the database primary key). */
+  employeeId: string | null
   name: string
   email: string
   role: string

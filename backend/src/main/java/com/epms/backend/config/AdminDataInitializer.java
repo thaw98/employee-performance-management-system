@@ -34,17 +34,26 @@ public class AdminDataInitializer implements CommandLineRunner {
 		createOrUpdateAdmin("hr@gmail.com", "HR Manager");
 	}
 
+	private static String seedBusinessEmployeeId(String email) {
+		String local = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+		return "ADM-" + local.replace('.', '-');
+	}
+
 	private void createOrUpdateAdmin(String email, String name) {
 		User admin = userRepository.findByEmailIgnoreCase(email).orElseGet(User::new);
 		Employee employee = admin.getEmployee();
 		if (employee == null) {
 			employee = new Employee();
 			employee.setEmployeeName(name);
+			employee.setEmployeeId(seedBusinessEmployeeId(email));
 			employee.setRecordStatus("COMPLETED");
 			employee = employeeRepository.save(employee);
 			admin.setEmployee(employee);
 		} else {
 			employee.setEmployeeName(name);
+			if (employee.getEmployeeId() == null || employee.getEmployeeId().isBlank()) {
+				employee.setEmployeeId(seedBusinessEmployeeId(email));
+			}
 			employeeRepository.save(employee);
 		}
 		admin.setEmail(email);

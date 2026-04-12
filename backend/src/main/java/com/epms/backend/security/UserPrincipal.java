@@ -116,6 +116,6 @@ public class UserPrincipal implements UserDetails {
 		if (businessId != null && !businessId.isBlank()) {
 			return businessId.trim();
 		}
-		return String.valueOf(employee.getId());
+		return null;
 	}
 }

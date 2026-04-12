@@ -97,17 +97,26 @@ public class PipDataInitializer implements CommandLineRunner {
         pipRepository.save(pip2);
     }
 
+    private static String seedBusinessEmployeeId(String email) {
+        String local = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+        return "PIP-" + local.replace('.', '-');
+    }
+
     private User createOrUpdateUser(String email, String displayName, Role role) {
         User user = userRepository.findByEmailIgnoreCase(email).orElseGet(User::new);
         Employee employee = user.getEmployee();
         if (employee == null) {
             employee = new Employee();
             employee.setEmployeeName(displayName);
+            employee.setEmployeeId(seedBusinessEmployeeId(email));
             employee.setRecordStatus("COMPLETED");
             employee = employeeRepository.save(employee);
             user.setEmployee(employee);
         } else {
             employee.setEmployeeName(displayName);
+            if (employee.getEmployeeId() == null || employee.getEmployeeId().isBlank()) {
+                employee.setEmployeeId(seedBusinessEmployeeId(email));
+            }
             employeeRepository.save(employee);
         }
         user.setEmail(email);
