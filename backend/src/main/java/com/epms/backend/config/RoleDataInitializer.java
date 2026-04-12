@@ -25,10 +25,7 @@ public class RoleDataInitializer implements CommandLineRunner {
 	}
 
 	private void seedRole(Long id, String name) {
-		if (roleRepository.existsById(id)) {
-			return;
-		}
-		Role role = new Role();
+		Role role = roleRepository.findById(id).orElse(new Role());
 		role.setId(id);
 		role.setName(name);
 		roleRepository.save(role);
