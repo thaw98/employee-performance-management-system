@@ -4,6 +4,7 @@ import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -14,6 +15,7 @@ import java.util.Arrays;
 
 @Component
 @Order(3)
+@ConditionalOnProperty(name = "epms.autoseed.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class PipDataInitializer implements CommandLineRunner {
 

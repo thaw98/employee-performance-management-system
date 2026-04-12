@@ -17,7 +17,6 @@ import {
   type EmployeeInfoFormValues,
 } from '../schemas/employeeInfoSchema'
 import {
-  useCreateDraftMutation,
   useCreateEmployeeAccountMutation,
   useCreateEmployeeMutation,
   useGetDepartmentsQuery,
@@ -25,7 +24,7 @@ import {
   useGetReligionsQuery,
   useLazyCheckUserEmailQuery,
 } from '../services/employeeApi'
-import { buildEmployeeCreatePayload, buildEmployeeDraftPayload } from '../utils/draftPayload'
+import { buildEmployeeCreatePayload } from '../utils/draftPayload'
 import { calculateProbationEnd, formatProbationEndDisplay } from '../utils/probation'
 import { STAFF_TYPE_PERMANENT, STAFF_TYPE_PROBATION } from '../utils/staffType'
 import { EmployeeStepper } from '../components/EmployeeStepper'
@@ -35,6 +34,7 @@ const MAX_PHONE_INPUT_LENGTH = 16 // optional "+" plus up to 15 digits
 const EMPLOYEE_NAME_MAX_LENGTH = 50
 
 const STEP1_FIELD_NAMES: FieldPath<EmployeeInfoFormValues>[] = [
+  'employeeId',
   'employeeName',
   'nrcStateCode',
   'nrcTownshipCode',
@@ -261,15 +261,15 @@ export function CreateEmployeeAccountPage() {
   const [accountSuccess, setAccountSuccess] = useState(false)
   const [accountEmailSent, setAccountEmailSent] = useState(true)
   const [accountError, setAccountError] = useState('')
+  const [finalSubmitLoading, setFinalSubmitLoading] = useState(false)
   const [formMessage, setFormMessage] = useState('')
   const [formMessageSeverity, setFormMessageSeverity] = useState<'success' | 'error' | 'info'>('info')
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null)
   const [photoError, setPhotoError] = useState('')
   const photoInputRef = useRef<HTMLInputElement>(null)
 
-  const [createEmployee, createEmployeeState] = useCreateEmployeeMutation()
-  const [createDraft, createDraftState] = useCreateDraftMutation()
-  const [createAccount, createAccountState] = useCreateEmployeeAccountMutation()
+  const [createEmployee] = useCreateEmployeeMutation()
+  const [createAccount] = useCreateEmployeeAccountMutation()
   const [checkEmailUsers] = useLazyCheckUserEmailQuery()
 
   const religions = useGetReligionsQuery()
@@ -287,6 +287,7 @@ export function CreateEmployeeAccountPage() {
   } = useForm<EmployeeInfoFormValues>({
     resolver: zodResolver(employeeInfoSchema) as Resolver<EmployeeInfoFormValues>,
     defaultValues: {
+      employeeId: '',
       dateOfJoining: today(),
       staffTypeId: STAFF_TYPE_PERMANENT,
       probationDuration: '3',
@@ -383,32 +384,9 @@ export function CreateEmployeeAccountPage() {
       applyZodIssues(fullParsed.error.issues, setError)
       return
     }
-    const v = fullParsed.data
-    const createPayload = buildEmployeeCreatePayload(v)
-    const res = await createEmployee(
-      profilePhoto ? { ...createPayload, profilePictureBase64: profilePhoto } : createPayload,
-    ).unwrap()
-    if (!res.success || !res.data) {
-      setFormMessage(res.message || 'Unable to save employee information')
-      setFormMessageSeverity('error')
-      return
-    }
-    setEmployeePkId(res.data.id)
     setLoginEmailError('')
     setSavedValues(values as EmployeeInfoFormValues)
     setStep(3)
-  }
-
-  async function submitDraft() {
-    setFormMessage('')
-    try {
-      const res = await createDraft(buildEmployeeDraftPayload(getValues())).unwrap()
-      setFormMessage(res.success ? 'Draft saved successfully.' : res.message)
-      setFormMessageSeverity(res.success ? 'success' : 'error')
-    } catch {
-      setFormMessage('Unable to save draft.')
-      setFormMessageSeverity('error')
-    }
   }
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -462,8 +440,9 @@ export function CreateEmployeeAccountPage() {
   }
 
   async function handleCreateAccount() {
-    if (!employeePkId) return
+    if (finalSubmitLoading || accountSuccess) return
     setAccountError('')
+    setFormMessage('')
     const email = loginEmail.trim().toLowerCase()
     const emailParsed = z.string().email({ message: 'Enter a valid email address.' }).safeParse(email)
     if (!emailParsed.success) {
@@ -476,14 +455,39 @@ export function CreateEmployeeAccountPage() {
       setLoginEmailError('Email already exists')
       return
     }
-    const payload: { employeePkId: number; email: string; profilePictureBase64?: string } = {
-      employeePkId,
-      email,
+    const values = getValues()
+    const fullParsed = employeeInfoSchema.safeParse(values)
+    if (!fullParsed.success) {
+      applyZodIssues(fullParsed.error.issues, setError)
+      setFormMessage('Some information is missing or invalid. Use Back to edit earlier steps.')
+      setFormMessageSeverity('error')
+      return
     }
-    if (profilePhoto) {
-      payload.profilePictureBase64 = profilePhoto
-    }
+    const v = fullParsed.data
+    const createPayload = buildEmployeeCreatePayload(v)
+    setFinalSubmitLoading(true)
+    let employeeCreatedInRequest = false
     try {
+      const empRes = await createEmployee(
+        profilePhoto ? { ...createPayload, profilePictureBase64: profilePhoto } : createPayload,
+      ).unwrap()
+      if (!empRes.success || !empRes.data) {
+        setFormMessage(empRes.message || 'Unable to save employee information')
+        setFormMessageSeverity('error')
+        return
+      }
+      const newPk = empRes.data.id
+      employeeCreatedInRequest = true
+      setEmployeePkId(newPk)
+      setSavedValues(values as EmployeeInfoFormValues)
+
+      const payload: { employeePkId: number; email: string; profilePictureBase64?: string } = {
+        employeePkId: newPk,
+        email,
+      }
+      if (profilePhoto) {
+        payload.profilePictureBase64 = profilePhoto
+      }
       const res = await createAccount(payload).unwrap()
       if (res.success && res.data) {
         setLoginEmail(res.data.email)
@@ -493,7 +497,15 @@ export function CreateEmployeeAccountPage() {
         setAccountError(res.message || 'Failed to create account')
       }
     } catch (err: unknown) {
-      setAccountError(apiErrorMessage(err) || 'Failed to create account')
+      const msg = apiErrorMessage(err)
+      if (!employeeCreatedInRequest) {
+        setFormMessage(msg || 'Unable to save employee information')
+        setFormMessageSeverity('error')
+      } else {
+        setAccountError(msg || 'Failed to create account')
+      }
+    } finally {
+      setFinalSubmitLoading(false)
     }
   }
 
@@ -594,6 +606,20 @@ export function CreateEmployeeAccountPage() {
                   </div>
                 )}
                 {photoError ? <p className="mt-2 text-center text-xs text-red-600">{photoError}</p> : null}
+              </div>
+              <div className="w-full">
+                <TextField
+                  fullWidth
+                  label="Employee ID *"
+                  autoComplete="off"
+                  inputMode="numeric"
+                  slotProps={{ htmlInput: { pattern: '[0-9]*' } }}
+                  {...register('employeeId')}
+                  error={Boolean(errors.employeeId)}
+                  helperText={
+                    errors.employeeId?.message ?? 'Digits only. Must be unique.'
+                  }
+                />
               </div>
               <div className="w-full">
                 <TextField
@@ -796,14 +822,6 @@ export function CreateEmployeeAccountPage() {
             <span className="mr-auto w-full text-xs text-slate-400 sm:w-auto">
               Fields marked with <span className="text-red-400">*</span> are required
             </span>
-            <Button
-              type="button"
-              variant="outlined"
-              onClick={() => void submitDraft()}
-              disabled={createDraftState.isLoading}
-            >
-              {createDraftState.isLoading ? 'Saving...' : 'Save Draft'}
-            </Button>
             <Button type="button" variant="contained" onClick={() => void submitStep1Next()}>
               Next
             </Button>
@@ -988,21 +1006,8 @@ export function CreateEmployeeAccountPage() {
             <Button type="button" variant="text" onClick={() => setStep(1)}>
               Back
             </Button>
-            <Button
-              type="button"
-              variant="outlined"
-              onClick={() => void submitDraft()}
-              disabled={createDraftState.isLoading}
-            >
-              {createDraftState.isLoading ? 'Saving...' : 'Save Draft'}
-            </Button>
-            <Button
-              type="button"
-              variant="contained"
-              onClick={() => void submitStep2Next()}
-              disabled={createEmployeeState.isLoading}
-            >
-              {createEmployeeState.isLoading ? 'Saving...' : 'Next'}
+            <Button type="button" variant="contained" onClick={() => void submitStep2Next()}>
+              Next
             </Button>
           </div>
         </Box>
@@ -1015,8 +1020,10 @@ export function CreateEmployeeAccountPage() {
                 <i className="bi bi-check-lg text-xl text-white" />
               </div>
               <div>
-                <p className="font-semibold text-emerald-800">Employee Information Saved</p>
-                <p className="text-xs text-emerald-600">Steps 1–2 completed — ready to create system account</p>
+                <p className="font-semibold text-emerald-800">Review employee details</p>
+                <p className="text-xs text-emerald-600">
+                  Steps 1–2 completed — submit below to add the employee record and create the system account
+                </p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -1025,6 +1032,11 @@ export function CreateEmployeeAccountPage() {
                   label: 'Record ID',
                   value: employeePkId != null ? String(employeePkId) : '—',
                   icon: 'bi-hash',
+                },
+                {
+                  label: 'Employee ID',
+                  value: savedValues?.employeeId?.trim() ? savedValues.employeeId : '—',
+                  icon: 'bi-person-vcard',
                 },
                 { label: 'Employee Name', value: savedValues?.employeeName ?? '—', icon: 'bi-person' },
                 { label: 'Department', value: departmentName, icon: 'bi-building' },
@@ -1084,6 +1096,11 @@ export function CreateEmployeeAccountPage() {
                 </div>
               </div>
 
+              {formMessage && formMessageSeverity !== 'success' ? (
+                <div className="mb-4">
+                  <Alert severity={formMessageSeverity === 'info' ? 'info' : 'error'}>{formMessage}</Alert>
+                </div>
+              ) : null}
               {accountError ? (
                 <div className="mb-4">
                   <Alert severity="error">{accountError}</Alert>
@@ -1092,10 +1109,10 @@ export function CreateEmployeeAccountPage() {
               <Button
                 variant="contained"
                 onClick={() => void handleCreateAccount()}
-                disabled={!employeePkId || !loginEmail.trim() || createAccountState.isLoading}
+                disabled={!loginEmail.trim() || finalSubmitLoading}
                 className="min-w-[220px]"
               >
-                {createAccountState.isLoading ? 'Creating Account...' : 'Create Employee Account'}
+                {finalSubmitLoading ? 'Submitting...' : 'Create Employee Account'}
               </Button>
             </div>
           ) : (

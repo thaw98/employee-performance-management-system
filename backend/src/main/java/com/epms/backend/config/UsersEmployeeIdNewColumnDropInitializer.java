@@ -14,7 +14,8 @@ import org.springframework.stereotype.Component;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Drops legacy {@code users.employee_id_new} if present. The canonical link to an employee is
+ * Drops legacy columns left from employee-id migrations if present: {@code users.employee_id_new}
+ * and {@code users.employee_id_to_pk_tmp}. The canonical link to an employee is
  * {@code users.employee_id} ({@link com.epms.backend.entity.User#getEmployee()}).
  */
 @Component
@@ -34,19 +35,27 @@ public class UsersEmployeeIdNewColumnDropInitializer implements BeanPostProcesso
 		try {
 			dropColumnIfPresent(dataSource);
 		} catch (Exception e) {
-			throw new BeanCreationException("users.employee_id_new drop failed", e);
+			throw new BeanCreationException("users legacy employee_id column cleanup failed", e);
 		}
 		return bean;
 	}
 
 	private void dropColumnIfPresent(DataSource dataSource) throws Exception {
 		JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-		if (!tableExists(jdbc, "users") || !columnExists(jdbc, "users", "employee_id_new")) {
+		if (!tableExists(jdbc, "users")) {
 			return;
 		}
-		dropForeignKeysOnColumn(jdbc, "users", "employee_id_new");
-		log.info("Dropping legacy column users.employee_id_new");
-		jdbc.execute("ALTER TABLE users DROP COLUMN employee_id_new");
+		dropUsersColumnIfPresent(jdbc, "employee_id_to_pk_tmp");
+		dropUsersColumnIfPresent(jdbc, "employee_id_new");
+	}
+
+	private void dropUsersColumnIfPresent(JdbcTemplate jdbc, String columnName) throws Exception {
+		if (!columnExists(jdbc, "users", columnName)) {
+			return;
+		}
+		dropForeignKeysOnColumn(jdbc, "users", columnName);
+		log.info("Dropping legacy column users.{}", columnName);
+		jdbc.execute("ALTER TABLE users DROP COLUMN `" + columnName + "`");
 	}
 
 	private static void dropForeignKeysOnColumn(JdbcTemplate jdbc, String tableName, String columnName) {

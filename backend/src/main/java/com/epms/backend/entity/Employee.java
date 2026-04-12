@@ -32,7 +32,7 @@ public class Employee {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	/** Business-facing employee identifier (distinct from primary key {@link #id}). */
+	/** Business-facing employee number as digits-only text (distinct from primary key {@link #id}). */
 	@Column(name = "employee_id", length = 100, unique = true)
 	private String employeeId;
 
@@ -108,7 +108,8 @@ public class Employee {
 	@Column(name = "date_of_joining")
 	private LocalDate dateOfJoining;
 
-	@OneToOne(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
+	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+	@JoinColumn(name = "passport_id")
 	private Passport passport;
 
 	@Column(name = "date_of_demotion")

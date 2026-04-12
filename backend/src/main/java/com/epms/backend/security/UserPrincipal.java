@@ -23,15 +23,25 @@ public class UserPrincipal implements UserDetails {
 	private final boolean mustChangePassword;
 
 	public UserPrincipal(User user) {
-		this.id = user.getId();
-		this.email = user.getEmail();
-		this.employeeId = resolveBusinessEmployeeId(user.getEmployee());
-		this.roleId = (user.getRole() != null) ? user.getRole().getId() : 0L;
-		this.roleName = (user.getRole() != null) ? user.getRole().getName() : "GUEST";
-		this.name = (user.getEmployee() != null) ? user.getEmployee().getEmployeeName() : "User";
-		this.password = user.getPassword();
-		this.active = user.isActive();
-		this.mustChangePassword = user.isMustChangePassword();
+		Long id = user.getId();
+		String email = user.getEmail();
+		String employeeId = resolveBusinessEmployeeId(user.getEmployee());
+		Long roleId = (user.getRole() != null) ? user.getRole().getId() : 0L;
+		String roleName = (user.getRole() != null) ? user.getRole().getName() : "GUEST";
+		String name = (user.getEmployee() != null) ? user.getEmployee().getEmployeeName() : "User";
+		String password = user.getPassword();
+		boolean active = user.isActive();
+		boolean mustChangePassword = user.isMustChangePassword();
+
+		this.id = id;
+		this.email = email;
+		this.employeeId = employeeId;
+		this.roleId = roleId;
+		this.roleName = roleName;
+		this.name = name;
+		this.password = password;
+		this.active = active;
+		this.mustChangePassword = mustChangePassword;
 	}
 
 	public boolean isMustChangePassword() {

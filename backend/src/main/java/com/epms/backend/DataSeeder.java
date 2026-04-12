@@ -16,6 +16,7 @@ import com.epms.backend.entity.Role;
 import com.epms.backend.entity.SelfAssessmentSubject;
 import com.epms.backend.repository.SelfAssessmentSubjectRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,7 @@ import java.util.List;
 
 @Component
 @Order(5)
+@ConditionalOnProperty(name = "epms.autoseed.enabled", havingValue = "true")
 public class DataSeeder implements CommandLineRunner {
 
     private final DepartmentRepository departmentRepository;
@@ -123,11 +125,11 @@ public class DataSeeder implements CommandLineRunner {
 
         // --- Seed Sample Self-Assessments ---
         if (selfAssessmentRepository.count() == 0) {
-            seedSelfAssessment("EMP101", "Aung Ko Oo", eng, "Software Engineer",
+            seedSelfAssessment("101", "Aung Ko Oo", eng, "Software Engineer",
                     com.epms.backend.entity.SelfAssessmentStatus.FINALIZED, 92.0, "Outstanding");
-            seedSelfAssessment("EMP102", "Naing Ye Aung", eng, "DevOps Engineer",
+            seedSelfAssessment("102", "Naing Ye Aung", eng, "DevOps Engineer",
                     com.epms.backend.entity.SelfAssessmentStatus.LOCKED, 86.0, "Good");
-            seedSelfAssessment("EMP103", "Thiha Zaw", eng, "Software Engineer",
+            seedSelfAssessment("103", "Thiha Zaw", eng, "Software Engineer",
                     com.epms.backend.entity.SelfAssessmentStatus.UNLOCKED, 0.0, null);
         }
 

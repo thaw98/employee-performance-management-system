@@ -3,6 +3,7 @@ package com.epms.backend.service;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,10 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class EmployeeService {
+
+	/** When set, business {@code employees.employee_id} is numeric text only (no letter prefixes). */
+	private static final Pattern BUSINESS_EMPLOYEE_ID_DIGITS = Pattern.compile("^[0-9]{1,100}$");
+
 	private final EmployeeRepository employeeRepository;
 	private final UserRepository userRepository;
 	private final ReligionRepository religionRepository;
@@ -44,6 +49,7 @@ public class EmployeeService {
 
 	@Transactional
 	public EmployeeInfoResponseDto saveDraft(EmployeeDraftRequestDto request, UserPrincipal principal) {
+		validateOptionalBusinessEmployeeId(request.getEmployeeId());
 		Employee employee = new Employee();
 		applyDraft(employee, request, "DRAFT", principal.getId(), true);
 		return toDto(ensureBusinessEmployeeId(employeeRepository.save(employee)));
@@ -57,6 +63,7 @@ public class EmployeeService {
 
 	@Transactional
 	public EmployeeInfoResponseDto updateDraft(Long id, EmployeeDraftRequestDto request, UserPrincipal principal) {
+		validateOptionalBusinessEmployeeId(request.getEmployeeId());
 		Employee employee = employeeRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 		applyDraft(employee, request, "DRAFT", principal.getId(), false);
 		return toDto(ensureBusinessEmployeeId(employeeRepository.save(employee)));
@@ -370,7 +377,6 @@ public class EmployeeService {
 		Passport p = employee.getPassport();
 		if (p == null) {
 			p = new Passport();
-			p.setEmployee(employee);
 			employee.setPassport(p);
 		}
 		p.setPassportNo(passportNo);
@@ -420,6 +426,7 @@ public class EmployeeService {
 	}
 
 	private void validateRequiredBusinessRules(EmployeeInfoRequestDto request) {
+		validateOptionalBusinessEmployeeId(request.getEmployeeId());
 		if (request.getDateOfBirth().isAfter(LocalDate.now())) {
 			throw new IllegalArgumentException("Date of birth must be in the past");
 		}
@@ -448,6 +455,21 @@ public class EmployeeService {
 			if (request.getProbationEndDate() != null && request.getProbationEndDate().isBefore(start)) {
 				throw new IllegalArgumentException("Probation end date must be on or after probation start date");
 			}
+		}
+	}
+
+	/**
+	 * Optional business id: omit or blank to auto-fill from primary key; if provided, must be digits only
+	 * (1–100 characters), e.g. {@code "42"} — no letter prefixes such as EMP or HR.
+	 */
+	private void validateOptionalBusinessEmployeeId(String raw) {
+		String v = trimToNull(raw);
+		if (v == null) {
+			return;
+		}
+		if (!BUSINESS_EMPLOYEE_ID_DIGITS.matcher(v).matches()) {
+			throw new IllegalArgumentException(
+					"Employee ID must contain digits only (no letters or prefixes). Leave empty to use the system number.");
 		}
 	}
 
