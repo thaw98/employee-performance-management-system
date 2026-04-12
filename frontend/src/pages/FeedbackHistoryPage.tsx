@@ -1,6 +1,7 @@
 import { useGetFeedbackHistoryQuery } from '../features/feedback/api/feedbackApi'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { formatDate } from '../utils/dateUtils'
 
 export function FeedbackHistoryPage() {
   const { data: historyRes, isLoading } = useGetFeedbackHistoryQuery()
@@ -11,11 +12,11 @@ export function FeedbackHistoryPage() {
 
   const exportPDF = () => {
     const doc = new jsPDF()
-    
+
     doc.setFontSize(20)
     doc.text('Feedback History Report', 14, 22)
     doc.setFontSize(11)
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30)
+    doc.text(`Generated on: ${formatDate(new Date().toISOString())}`, 14, 30)
 
     let yPos = 40
 
@@ -30,16 +31,16 @@ export function FeedbackHistoryPage() {
       doc.setFont('helvetica', 'bold')
       doc.text(`Evaluatee: ${h.evaluateeName}`, 14, yPos)
       yPos += 7
-      
+
       doc.setFontSize(11)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Date: ${new Date(h.assessmentDate).toLocaleDateString()} | Pos: ${h.evaluateePosition} | Dept: ${h.evaluateeDepartment}`, 14, yPos)
+      doc.text(`Date: ${formatDate(h.assessmentDate)} | Pos: ${h.evaluateePosition} | Dept: ${h.evaluateeDepartment}`, 14, yPos)
       yPos += 7
       doc.text(`Score: ${Math.round(h.totalScore)}/100 (${h.scoreGrade}) | Points: ${h.totalPoints}`, 14, yPos)
       yPos += 10
 
       const tableData = h.details.map(d => [d.criteriaName, d.rating.toString(), d.comment || '-'])
-      
+
       autoTable(doc, {
         startY: yPos,
         head: [['Criteria', 'Rating', 'Comment']],
@@ -67,8 +68,8 @@ export function FeedbackHistoryPage() {
           <h1 className="text-2xl font-bold text-slate-800">Feedback History</h1>
           <p className="text-slate-500 mt-1">Review the feedbacks you have provided to other employees.</p>
         </div>
-        <button 
-          onClick={exportPDF} 
+        <button
+          onClick={exportPDF}
           className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-lg shadow font-medium flex items-center gap-2 transition"
         >
           <i className="bi bi-file-earmark-pdf-fill" /> Export to PDF
@@ -99,11 +100,11 @@ export function FeedbackHistoryPage() {
                     {h.scoreGrade}
                   </div>
                   <div className="text-xs text-slate-400 font-medium">
-                    {new Date(h.assessmentDate).toLocaleDateString()}
+                    {formatDate(h.assessmentDate)}
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-4 mb-4 flex-1">
                 {h.details.map((d, i) => (
                   <div key={i} className="text-sm">

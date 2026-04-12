@@ -17,6 +17,7 @@ public class UserPrincipal implements UserDetails {
 	private final String employeeId;
 	private final Long roleId;
 	private final String roleName;
+	private final String name;
 	private final String password;
 	private final boolean active;
 	private final boolean mustChangePassword;
@@ -24,6 +25,10 @@ public class UserPrincipal implements UserDetails {
 	public UserPrincipal(User user) {
 		this.id = user.getId();
 		this.email = user.getEmail();
+		this.employeeId = (user.getEmployee() != null) ? user.getEmployee().getEmployeeId() : "NONE";
+		this.roleId = (user.getRole() != null) ? user.getRole().getId() : 0L;
+		this.roleName = (user.getRole() != null) ? user.getRole().getName() : "GUEST";
+		this.name = (user.getEmployee() != null) ? user.getEmployee().getEmployeeName() : "User";
 		this.employeeId = resolveBusinessEmployeeId(user.getEmployee());
 		this.roleId = user.getRole().getId();
 		this.roleName = user.getRole().getName();
@@ -86,6 +91,10 @@ public class UserPrincipal implements UserDetails {
 	@Override
 	public boolean isEnabled() {
 		return active;
+	}
+
+	public String getName() {
+		return name;
 	}
 
 	public String getEmail() {

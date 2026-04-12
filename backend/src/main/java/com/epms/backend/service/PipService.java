@@ -21,6 +21,14 @@ public class PipService {
     private final FollowUpMeetingRepository meetingRepository;
     private final TrainingRecordRepository trainingRepository;
     private final UserRepository userRepository;
+    private final KpiRecordRepository kpiRecordRepository;
+
+    public List<EligibleEmployeeDTO> getLowPerformers(User manager) {
+        if (manager.getEmployee() == null) {
+            return new ArrayList<>();
+        }
+        return kpiRecordRepository.findLowPerformersByManager(manager.getEmployee().getId());
+    }
 
     @Transactional
     public Pip createPip(PipCreateRequest request, User manager) {

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 
 import { AppLayout } from './components/layout/AppLayout'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
@@ -25,6 +26,9 @@ import { KpiAssignmentMatrixPage } from './pages/KpiAssignmentMatrixPage'
 import { KpiDashboardPage } from './pages/KpiDashboardPage'
 import { KpiPeriodConfigPage } from './pages/KpiPeriodConfigPage'
 import { KpiAuditLogsPage } from './pages/KpiAuditLogsPage'
+import { SelfAssessmentPage } from './pages/SelfAssessmentPage'
+import { SelfAssessmentReviewListPage } from './pages/SelfAssessmentReviewListPage'
+import { SelfAssessmentSubjectPage } from './pages/SelfAssessmentSubjectPage'
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
@@ -46,6 +50,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthBootstrap />
+      <Toaster position="top-right" />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -191,6 +196,30 @@ function App() {
           element={
             <HrProtectedLayout>
               <KpiAuditLogsPage />
+            </HrProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/self-assessment"
+          element={
+            <ProtectedLayout>
+              <SelfAssessmentPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/compliance-review"
+          element={
+            <ProtectedLayout>
+              <SelfAssessmentReviewListPage />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/hr/self-assessment-subjects"
+          element={
+            <HrProtectedLayout>
+              <SelfAssessmentSubjectPage />
             </HrProtectedLayout>
           }
         />

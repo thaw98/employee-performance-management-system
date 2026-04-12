@@ -2,6 +2,7 @@ package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.pip.*;
+import com.epms.backend.dto.pip.EligibleEmployeeDTO;
 import com.epms.backend.entity.*;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.PipService;
@@ -23,13 +24,20 @@ public class PipController {
     private final UserRepository userRepository;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD')")
     public ResponseEntity<ApiResponse<Pip>> createPip(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody PipCreateRequest request) {
         User manager = userRepository.findById(principal.getId()).orElseThrow();
         Pip pip = pipService.createPip(request, manager);
         return ResponseEntity.ok(ApiResponse.ok("PIP created successfully", pip));
+    }
+
+    @GetMapping("/eligible-employees")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD')")
+    public ResponseEntity<ApiResponse<List<EligibleEmployeeDTO>>> getEligibleEmployees(@AuthenticationPrincipal UserPrincipal principal) {
+        User manager = userRepository.findById(principal.getId()).orElseThrow();
+        return ResponseEntity.ok(ApiResponse.ok("Eligible employees retrieved successfully", pipService.getLowPerformers(manager)));
     }
 
     @GetMapping
@@ -52,7 +60,7 @@ public class PipController {
     }
 
     @PutMapping("/objectives/{objectiveId}/progress")
-    @PreAuthorize("hasAnyRole('ROLE_HR', 'ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
     public ResponseEntity<ApiResponse<PipObjective>> updateProgress(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long objectiveId,
@@ -63,7 +71,7 @@ public class PipController {
     }
 
     @PostMapping("/{id}/meetings")
-    @PreAuthorize("hasAnyRole('ROLE_HR', 'ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
     public ResponseEntity<ApiResponse<FollowUpMeeting>> scheduleMeeting(
             @PathVariable Long id,
             @RequestBody MeetingScheduleRequest request) {
@@ -72,7 +80,7 @@ public class PipController {
     }
 
     @PutMapping("/{id}/close")
-    @PreAuthorize("hasAnyRole('ROLE_HR', 'ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
     public ResponseEntity<ApiResponse<Pip>> closePip(
             @PathVariable Long id,
             @RequestBody PipCloseRequest request) {
@@ -81,7 +89,7 @@ public class PipController {
     }
 
     @PutMapping("/{id}/reopen")
-    @PreAuthorize("hasAnyRole('ROLE_DEPARTMENT_HEAD', 'ROLE_TEAM_HEAD')") // Manager can reopen
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD')") // Manager can reopen
     public ResponseEntity<ApiResponse<Pip>> reopenPip(
             @PathVariable Long id,
             @RequestBody PipReopenRequest request) {
@@ -90,7 +98,7 @@ public class PipController {
     }
 
     @PutMapping("/{id}/review")
-    @PreAuthorize("hasAuthority('ROLE_HR')")
+    @PreAuthorize("hasRole('HR')")
     public ResponseEntity<ApiResponse<Pip>> reviewPip(
             @PathVariable Long id,
             @RequestBody PipReviewRequest request) {

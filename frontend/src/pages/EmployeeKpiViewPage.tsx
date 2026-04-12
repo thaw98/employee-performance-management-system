@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SelfAssessmentWarning } from '../components/SelfAssessmentWarning';
 
 export const EmployeeKpiViewPage: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState('2026');
@@ -24,6 +25,7 @@ export const EmployeeKpiViewPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 font-inter animate-in fade-in duration-500">
+      <SelfAssessmentWarning />
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

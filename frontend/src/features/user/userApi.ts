@@ -4,6 +4,7 @@ import type { ApiResponse } from '../auth/types'
 export interface UserProfileDto {
   id: number
   employeeId: string
+  name: string
   email: string
   role: string
   profilePictureBase64?: string

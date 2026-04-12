@@ -1,6 +1,7 @@
 export interface AuthUser {
   id: number
   employeeId: string
+  name: string
   email: string
   role: string
   roleId: number

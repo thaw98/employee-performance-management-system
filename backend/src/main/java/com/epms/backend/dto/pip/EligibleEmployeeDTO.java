@@ -1,0 +1,15 @@
+package com.epms.backend.dto.pip;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class EligibleEmployeeDTO {
+    private String employeeId;
+    private String employeeName;
+    private String departmentName;
+    private Double totalScore;
+}
