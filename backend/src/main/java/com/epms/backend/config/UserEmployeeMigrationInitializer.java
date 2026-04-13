@@ -90,6 +90,23 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 		if (!columnExists(dataSource, "employees", "email_address")) {
 			return;
 		}
+		boolean numericUserEmployeeId = isNumericSqlType(getColumnType(dataSource, "users", "employee_id"));
+		String invalidUserEmployeeRefPredicate = numericUserEmployeeId
+				? """
+						(
+						  u.employee_id IS NULL
+						  OR u.employee_id = 0
+						  OR NOT EXISTS (SELECT 1 FROM employees x WHERE x.id = u.employee_id)
+						)
+						"""
+				: """
+						(
+						  u.employee_id IS NULL
+						  OR TRIM(CAST(u.employee_id AS CHAR)) = ''
+						  OR CAST(u.employee_id AS CHAR) NOT REGEXP '^[0-9]+$'
+						  OR NOT EXISTS (SELECT 1 FROM employees x WHERE x.id = CAST(u.employee_id AS UNSIGNED))
+						)
+						""";
 		int updated = jdbcTemplate.update(
 				"""
 						UPDATE users u
@@ -97,9 +114,8 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 						  ON LOWER(TRIM(e.email_address)) = LOWER(TRIM(u.email))
 						 AND TRIM(COALESCE(e.email_address, '')) <> ''
 						SET u.employee_id = e.id
-						WHERE NOT EXISTS (SELECT 1 FROM employees x WHERE x.id = u.employee_id)
-						   OR u.employee_id = 0
-						""");
+						WHERE %s
+						""".formatted(invalidUserEmployeeRefPredicate));
 		if (updated > 0) {
 			log.info("Repaired {} user row(s): users.employee_id set from employees.id by email match", updated);
 		}
@@ -115,6 +131,23 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 	 * when the column is a numeric type, then link {@code users.employee_id} to the new row.
 	 */
 	private void ensureStubEmployeesForOrphanUsers(DataSource dataSource, JdbcTemplate jdbcTemplate) throws Exception {
+		boolean numericUserEmployeeId = isNumericSqlType(getColumnType(dataSource, "users", "employee_id"));
+		String invalidUserEmployeeRefPredicate = numericUserEmployeeId
+				? """
+						(
+						  u.employee_id IS NULL
+						  OR u.employee_id = 0
+						  OR NOT EXISTS (SELECT 1 FROM employees ex WHERE ex.id = u.employee_id)
+						)
+						"""
+				: """
+						(
+						  u.employee_id IS NULL
+						  OR TRIM(CAST(u.employee_id AS CHAR)) = ''
+						  OR CAST(u.employee_id AS CHAR) NOT REGEXP '^[0-9]+$'
+						  OR NOT EXISTS (SELECT 1 FROM employees ex WHERE ex.id = CAST(u.employee_id AS UNSIGNED))
+						)
+						""";
 		if (columnExists(dataSource, "employees", "email_address")) {
 			int inserted = jdbcTemplate.update(
 					"""
@@ -124,16 +157,12 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 							  TRIM(u.email) AS email_address
 							FROM users u
 							WHERE TRIM(COALESCE(u.email, '')) <> ''
-							  AND (
-							    u.employee_id IS NULL
-							    OR u.employee_id = 0
-							    OR NOT EXISTS (SELECT 1 FROM employees ex WHERE ex.id = u.employee_id)
-							  )
+							  AND %s
 							  AND NOT EXISTS (
 							    SELECT 1 FROM employees e
 							    WHERE LOWER(TRIM(e.email_address)) = LOWER(TRIM(u.email))
 							  )
-							""");
+							""".formatted(invalidUserEmployeeRefPredicate));
 			if (inserted > 0) {
 				log.info("Inserted {} stub employee row(s) for user(s) with no employees.email_address match", inserted);
 			}
@@ -160,15 +189,11 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 						  COALESCE(NULLIF(TRIM(SUBSTRING_INDEX(TRIM(COALESCE(u.email, '')), '@', 1)), ''), CONCAT('User ', u.id)) AS employee_name,
 						  %s AS employee_id
 						FROM users u
-						WHERE (
-						    u.employee_id IS NULL
-						    OR u.employee_id = 0
-						    OR NOT EXISTS (SELECT 1 FROM employees ex WHERE ex.id = u.employee_id)
-						  )
+						WHERE %s
 						  AND NOT EXISTS (
 						    SELECT 1 FROM employees e WHERE e.employee_id = %s
 						  )
-						""".formatted(stubKeySql, stubKeySql));
+						""".formatted(stubKeySql, invalidUserEmployeeRefPredicate, stubKeySql));
 		if (inserted > 0) {
 			log.info(
 					"Inserted {} stub employee row(s) after employees.email_address was dropped (business key: {})",
@@ -180,10 +205,8 @@ public class UserEmployeeMigrationInitializer implements BeanPostProcessor, Orde
 						UPDATE users u
 						INNER JOIN employees e ON e.employee_id = %s
 						SET u.employee_id = e.id
-						WHERE u.employee_id IS NULL
-						   OR u.employee_id = 0
-						   OR NOT EXISTS (SELECT 1 FROM employees ex WHERE ex.id = u.employee_id)
-						""".formatted(stubKeySql));
+						WHERE %s
+						""".formatted(stubKeySql, invalidUserEmployeeRefPredicate));
 		if (linked > 0) {
 			log.info(
 					"Linked {} user row(s) to migration stub employees ({})",
