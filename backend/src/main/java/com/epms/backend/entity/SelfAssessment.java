@@ -42,13 +42,13 @@ public class SelfAssessment {
     @Column(name = "hr_comments", columnDefinition = "TEXT")
     private String hrComments;
 
-    @Column(name = "employee_signature")
+    @Column(name = "employee_signature", columnDefinition = "TEXT")
     private String employeeSignature;
 
-    @Column(name = "manager_signature")
+    @Column(name = "manager_signature", columnDefinition = "TEXT")
     private String managerSignature;
 
-    @Column(name = "hr_signature")
+    @Column(name = "hr_signature", columnDefinition = "TEXT")
     private String hrSignature;
 
     @Column(name = "employee_signed_at")

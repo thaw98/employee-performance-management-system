@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppSelector } from '../app/hooks';
 import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { formatDate } from '../utils/dateUtils';
+import SignatureCanvas from 'react-signature-canvas';
 
 const PRIMARY = '#0855BF';
 
@@ -24,8 +25,50 @@ export function SelfAssessmentPage() {
   const [responses, setResponses] = useState<Response[]>([]);
   const [remarks, setRemarks] = useState('');
   const [signature, setSignature] = useState('');
+  const [signatureType, setSignatureType] = useState<'draw' | 'upload'>('draw');
+  const sigCanvas = useRef<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingAsmt, setExistingAsmt] = useState<any>(null);
+
+  const handleClearSignature = () => {
+    if (sigCanvas.current) {
+      sigCanvas.current.clear();
+      setSignature('');
+    }
+  };
+
+  const handleSignatureEnd = () => {
+    if (sigCanvas.current) {
+      setSignature(sigCanvas.current.getCanvas().toDataURL('image/png'));
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSignature(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const renderSignature = (sig: string) => {
+    if (!sig) return null;
+    if (sig.startsWith('data:image')) {
+      return <img src={sig} alt="Signature" className="max-h-16 inline-block" />;
+    }
+    if (sig.startsWith('data:')) {
+      return (
+        <div className="flex items-center gap-2 text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
+          <i className="bi bi-shield-lock-fill text-lg"></i>
+          <span className="text-sm font-semibold">Digital Certificate</span>
+        </div>
+      );
+    }
+    return <span className="font-serif text-xl italic">{sig}</span>;
+  };
 
   useEffect(() => {
     fetchData();
@@ -200,23 +243,43 @@ export function SelfAssessmentPage() {
           </table>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-4 bg-slate-50 rounded-lg">
-              <h3 className="font-bold text-slate-700 mb-2">My Remarks</h3>
-              <p className="text-slate-600 italic">"{existingAsmt.employeeRemarks || 'No remarks provided'}"</p>
-              <div className="mt-4 text-xs text-slate-400">Signed by {existingAsmt.employee?.employeeName} on {formatDate(existingAsmt.employeeSignedAt)}</div>
-            </div>
-            <div className="p-4 bg-blue-50/50 rounded-lg">
-              <h3 className="font-bold text-blue-800 mb-2">Manager Feedback</h3>
-              <p className="text-blue-700 italic">"{existingAsmt.managerComments || 'Waiting for review...'}"</p>
-              {existingAsmt.managerSignature && (
-                <div className="mt-4 text-xs text-slate-400">Signed on {formatDate(existingAsmt.managerSignedAt)}</div>
+            <div className="p-4 bg-slate-50 rounded-lg flex flex-col">
+              <div>
+                <h3 className="font-bold text-slate-700 mb-2">My Remarks</h3>
+                <p className="text-slate-600 italic">"{existingAsmt.employeeRemarks || 'No remarks provided'}"</p>
+              </div>
+              {existingAsmt.employeeSignature && (
+                <div className="mt-auto border-t border-slate-200 pt-4">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Digitally Signed By</div>
+                  <div className="min-h-[4rem] flex items-center">{renderSignature(existingAsmt.employeeSignature)}</div>
+                  <div className="mt-2 text-xs text-slate-400">{existingAsmt.employee?.employeeName} on {formatDate(existingAsmt.employeeSignedAt)}</div>
+                </div>
               )}
             </div>
-            <div className="p-4 bg-purple-50/50 rounded-lg">
-              <h3 className="font-bold text-purple-800 mb-2">HR Feedback</h3>
-              <p className="text-purple-700 italic">"{existingAsmt.hrComments || 'Waiting for final approval...'}"</p>
+            <div className="p-4 bg-blue-50/50 rounded-lg flex flex-col">
+              <div>
+                <h3 className="font-bold text-blue-800 mb-2">Manager Feedback</h3>
+                <p className="text-blue-700 italic">"{existingAsmt.managerComments || 'Waiting for review...'}"</p>
+              </div>
+              {existingAsmt.managerSignature && (
+                <div className="mt-auto border-t border-blue-200/50 pt-4">
+                  <div className="text-[10px] font-bold text-blue-400 uppercase mb-1">Digitally Signed By</div>
+                  <div className="min-h-[4rem] flex items-center">{renderSignature(existingAsmt.managerSignature)}</div>
+                  <div className="mt-2 text-xs text-blue-500">on {formatDate(existingAsmt.managerSignedAt)}</div>
+                </div>
+              )}
+            </div>
+            <div className="p-4 bg-purple-50/50 rounded-lg flex flex-col">
+              <div>
+                <h3 className="font-bold text-purple-800 mb-2">HR Feedback</h3>
+                <p className="text-purple-700 italic">"{existingAsmt.hrComments || 'Waiting for final approval...'}"</p>
+              </div>
               {existingAsmt.hrSignature && (
-                <div className="mt-4 text-xs text-slate-400">Signed on {formatDate(existingAsmt.hrSignedAt)}</div>
+                <div className="mt-auto border-t border-purple-200/50 pt-4">
+                  <div className="text-[10px] font-bold text-purple-400 uppercase mb-1">Digitally Signed By</div>
+                  <div className="min-h-[4rem] flex items-center">{renderSignature(existingAsmt.hrSignature)}</div>
+                  <div className="mt-2 text-xs text-purple-500">on {formatDate(existingAsmt.hrSignedAt)}</div>
+                </div>
               )}
             </div>
           </div>
@@ -348,13 +411,42 @@ export function SelfAssessmentPage() {
 
               <div>
                 <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Employee Signature</label>
-                <input
-                  type="text"
-                  value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
-                  className="w-full font-serif text-2xl border-0 border-b-2 border-slate-100 focus:border-blue-500 focus:ring-0 px-0 py-2"
-                  placeholder="Type your name as signature"
-                />
+                {signature ? (
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 flex items-center justify-between">
+                    {renderSignature(signature)}
+                    <button onClick={() => { setSignature(''); if (sigCanvas.current) sigCanvas.current.clear(); }} className="text-red-500 text-sm font-medium hover:underline">Clear</button>
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="flex border-b border-slate-200 bg-slate-50">
+                      <button onClick={() => setSignatureType('draw')} className={`flex-1 py-2 text-sm font-medium ${signatureType === 'draw' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Draw Signature</button>
+                      <button onClick={() => setSignatureType('upload')} className={`flex-1 py-2 text-sm font-medium ${signatureType === 'upload' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Upload File</button>
+                    </div>
+                    <div className="p-4 bg-white">
+                      {signatureType === 'draw' ? (
+                        <div className="border border-slate-200 rounded bg-slate-50 relative">
+                          <SignatureCanvas 
+                            ref={sigCanvas} 
+                            onEnd={handleSignatureEnd}
+                            canvasProps={{ className: 'w-full h-32 cursor-crosshair' }} 
+                          />
+                          <button onClick={handleClearSignature} className="absolute top-2 right-2 text-xs text-slate-400 hover:text-red-500 bg-white px-2 py-1 rounded border border-slate-200 shadow-sm">Reset</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center w-full">
+                          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <i className="bi bi-cloud-arrow-up text-2xl text-slate-400 mb-2"></i>
+                              <p className="text-sm text-slate-500"><span className="font-semibold">Click to upload</span> signature file</p>
+                              <p className="text-xs text-slate-400 mt-1">Image or Certificate file</p>
+                            </div>
+                            <input type="file" className="hidden" accept="image/*,.pdf,.p12,.cer,.pem" onChange={handleFileUpload} />
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <p className="mt-2 text-[10px] text-slate-400 italic">By signing above, you confirm that this self-assessment is an honest reflection of your performance.</p>
               </div>
 

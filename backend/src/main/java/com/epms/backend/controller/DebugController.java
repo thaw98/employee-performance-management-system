@@ -13,7 +13,12 @@ import java.util.Map;
 @RequestMapping("/api/debug")
 public class DebugController {
     private final com.epms.backend.repository.UserRepository userRepository;
-    public DebugController(com.epms.backend.repository.UserRepository userRepository) { this.userRepository = userRepository; }
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    public DebugController(com.epms.backend.repository.UserRepository userRepository, org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+        this.userRepository = userRepository;
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     @GetMapping("/auth-check")
     public Map<String, Object> checkAuth(@AuthenticationPrincipal UserPrincipal principal) {
@@ -44,5 +49,17 @@ public class DebugController {
             }
             return m;
         }).collect(java.util.stream.Collectors.toList());
+    }
+
+    @GetMapping("/migrate-db")
+    public String migrateDb() {
+        try {
+            jdbcTemplate.execute("ALTER TABLE self_assessment_records MODIFY employee_signature MEDIUMTEXT");
+            jdbcTemplate.execute("ALTER TABLE self_assessment_records MODIFY manager_signature MEDIUMTEXT");
+            jdbcTemplate.execute("ALTER TABLE self_assessment_records MODIFY hr_signature MEDIUMTEXT");
+            return "Migration successful!";
+        } catch (Exception e) {
+            return "Error migrating DB: " + e.getMessage();
+        }
     }
 }

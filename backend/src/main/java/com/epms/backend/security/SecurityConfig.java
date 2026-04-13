@@ -25,8 +25,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-	private static final String UNAUTH_JSON =
-			"{\"success\":false,\"message\":\"Invalid credentials\",\"data\":null}";
+	private static final String UNAUTH_JSON = "{\"success\":false,\"message\":\"Invalid credentials\",\"data\":null}";
 
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -51,13 +50,16 @@ public class SecurityConfig {
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
 				.csrf(csrf -> csrf.disable())
-				.cors(cors -> {})
+				.cors(cors -> {
+				})
 				.httpBasic(httpBasic -> httpBasic.disable())
 				.formLogin(formLogin -> formLogin.disable())
 				.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.requestMatchers("/api/auth/login").permitAll()
+						.requestMatchers("/api/debug/migrate-db").permitAll()
+						.requestMatchers("/error").permitAll()
 						.anyRequest().authenticated())
 				.exceptionHandling(e -> e.authenticationEntryPoint((request, response, authException) -> {
 					response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
