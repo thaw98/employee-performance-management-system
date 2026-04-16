@@ -8,11 +8,11 @@ import com.epms.backend.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-	Optional<User> findByEmailIgnoreCase(String email);
+	Optional<User> findByEmployee_EmailIgnoreCase(String email);
 
 	Optional<User> findByEmployee_Id(Long employeeId);
 
-	boolean existsByEmailIgnoreCase(String email);
+	boolean existsByEmployee_EmailIgnoreCase(String email);
 
 	boolean existsByEmployee_Id(Long employeePkId);
 }

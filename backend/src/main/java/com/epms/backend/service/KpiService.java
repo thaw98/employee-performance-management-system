@@ -14,8 +14,9 @@ import com.epms.backend.dto.KpiUpdateDTO;
 import com.epms.backend.entity.SelfAssessmentStatus;
 import com.epms.backend.repository.SelfAssessmentRepository;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
-import java.util.stream.Collectors;
 
 //MNA
 @Service
@@ -45,17 +46,19 @@ public class KpiService {
             return records;
 
         // Calculate total weight for validation
-        double totalWeight = records.stream()
-                .mapToDouble(r -> r.getWeight() != null ? r.getWeight() : 0.0)
-                .sum();
+        BigDecimal totalWeight = records.stream()
+                .map(KpiRecord::getWeight)
+                .map(KpiService::zeroIfNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // FR-KPI-06: Strict Validation for Final Submission
         if (isFinalSubmission) {
-            if (Math.abs(totalWeight - 100.0) > 0.001) {
-                logAudit(null, "VALIDATION_FAILURE", "Submission blocked: Total weight " + totalWeight + "%",
+            BigDecimal diff = totalWeight.subtract(BigDecimal.valueOf(100)).abs();
+            if (diff.compareTo(new BigDecimal("0.001")) > 0) {
+                logAudit(null, "VALIDATION_FAILURE", "Submission blocked: Total weight " + totalWeight.doubleValue() + "%",
                         actorName);
                 throw new RuntimeException("Final Submission Failed: Total KPI weight must be exactly 100%. Current: "
-                        + totalWeight + "%");
+                        + totalWeight.doubleValue() + "%");
             }
             // Enforce all required fields for final submission
             // Check if Self Assessment is completed
@@ -83,7 +86,7 @@ public class KpiService {
 
         String action = isFinalSubmission ? "FINAL_SUBMISSION" : "DRAFT_SAVE";
         logAudit(null, action,
-                "Batch saved as " + (isFinalSubmission ? "SUBMITTED" : "DRAFT") + ". Weight: " + totalWeight + "%",
+                "Batch saved as " + (isFinalSubmission ? "SUBMITTED" : "DRAFT") + ". Weight: " + totalWeight.doubleValue() + "%",
                 actorName);
 
         return saved;
@@ -179,11 +182,18 @@ public class KpiService {
                         : (actual / target) * 100;
                 record.setScore(score);
             }
-            double weight = record.getWeight() != null ? record.getWeight() : 0.0;
-            record.setWeightedScore((record.getScore() * weight) / 100);
+            BigDecimal weight = zeroIfNull(record.getWeight());
+            BigDecimal score = BigDecimal.valueOf(record.getScore() == null ? 0.0 : record.getScore());
+            record.setWeightedScore(
+                    score.multiply(weight).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
         } catch (Exception e) {
             record.setScore(0.0);
+            record.setWeightedScore(BigDecimal.ZERO);
         }
+    }
+
+    private static BigDecimal zeroIfNull(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     private void logAudit(Long kpiRecordId, String action, String details, String actor) {

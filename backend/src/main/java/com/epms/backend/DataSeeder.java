@@ -86,7 +86,7 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         // Ensure test user 'hr@gmail.com' exists
-        User hrUser = userRepository.findByEmailIgnoreCase("hr@gmail.com").orElseGet(() -> {
+        User hrUser = userRepository.findByEmployee_EmailIgnoreCase("hr@gmail.com").orElseGet(() -> {
             User u = new User();
             u.setEmail("hr@gmail.com");
             u.setPassword("password");

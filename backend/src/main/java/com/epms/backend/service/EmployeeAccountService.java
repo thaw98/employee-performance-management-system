@@ -38,17 +38,14 @@ public class EmployeeAccountService {
 		Employee employee = employeeRepository.findById(request.getEmployeePkId())
 				.orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 
-		String recordStatus = employee.getRecordStatus() == null ? "" : employee.getRecordStatus().trim();
-		if (!"COMPLETED".equalsIgnoreCase(recordStatus)) {
-			throw new IllegalArgumentException("Employee information must be completed before account creation");
-		}
 		if (userRepository.existsByEmployee_Id(employee.getId())) {
 			throw new IllegalArgumentException("User account already exists for this employee");
 		}
 		String email = request.getEmail().trim().toLowerCase();
-		if (userRepository.existsByEmailIgnoreCase(email)) {
+		if (userRepository.existsByEmployee_EmailIgnoreCase(email)) {
 			throw new IllegalArgumentException("Email already exists in users");
 		}
+		employee.setEmail(email);
 
 		Role employeeRole = roleRepository.findById(4L)
 				.orElseThrow(() -> new IllegalStateException("Role id 4 (Employee) is missing"));

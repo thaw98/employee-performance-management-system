@@ -19,5 +19,5 @@ public interface SelfAssessmentRepository extends JpaRepository<SelfAssessment, 
     List<SelfAssessment> findByEmployee(Employee employee);
 
     @EntityGraph(attributePaths = {"employee", "employee.department", "employee.position", "items"})
-    Optional<SelfAssessment> findTopByEmployeeOrderByCreatedAtDesc(Employee employee);
+    Optional<SelfAssessment> findTopByEmployeeOrderByCreatedDateDesc(Employee employee);
 }

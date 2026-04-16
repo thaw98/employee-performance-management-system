@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.Set;
-import java.util.ArrayList;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,14 +16,12 @@ import com.epms.backend.dto.FeedbackTargetDto;
 import com.epms.backend.dto.FeedbackHistoryDto;
 import com.epms.backend.dto.FeedbackHistoryDetailDto;
 import com.epms.backend.entity.Criteria;
-import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.Feedback;
 import com.epms.backend.entity.FeedbackDetail;
 import com.epms.backend.entity.User;
 import com.epms.backend.entity.Position;
 import com.epms.backend.dto.DepartmentPositionDto;
 import com.epms.backend.repository.CriteriaRepository;
-import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.FeedbackRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.repository.PositionRepository;
@@ -40,7 +37,6 @@ public class FeedbackService {
     private final UserRepository userRepository;
     private final FeedbackRepository feedbackRepository;
     private final CriteriaRepository criteriaRepository;
-    private final EmployeeRepository employeeRepository;
     private final PositionRepository positionRepository;
 
     @Transactional(readOnly = true)
@@ -51,7 +47,7 @@ public class FeedbackService {
 
         log.info("Fetching feedback targets for user id: {}", currentUserId);
 
-        List<Feedback> pastFeedbacks = feedbackRepository.findByEvaluatorId(currentUserId);
+        List<Feedback> pastFeedbacks = feedbackRepository.findByEvaluator_Id(currentUser.getEmployee().getId());
         Set<Long> alreadyEvaluatedEmployeeIds = pastFeedbacks.stream()
                 .filter(f -> f.getEvaluatee() != null)
                 .map(f -> f.getEvaluatee().getId())
@@ -111,7 +107,7 @@ public class FeedbackService {
         }
 
         Feedback feedback = new Feedback();
-        feedback.setEvaluator(currentUser);
+        feedback.setEvaluator(currentUser.getEmployee());
         feedback.setEvaluateePosition(position);
         feedback.setEvaluateeName(dto.getEvaluateeName());
         feedback.setAssessmentDate(LocalDate.now());
@@ -136,7 +132,9 @@ public class FeedbackService {
     @Transactional(readOnly = true)
     public List<FeedbackHistoryDto> getHistory(String currentUserIdStr) {
         Long currentUserId = Long.parseLong(currentUserIdStr);
-        List<Feedback> feedbacks = feedbackRepository.findByEvaluatorId(currentUserId);
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        List<Feedback> feedbacks = feedbackRepository.findByEvaluator_Id(currentUser.getEmployee().getId());
         return feedbacks.stream().map(f -> {
             FeedbackHistoryDto dto = new FeedbackHistoryDto();
             dto.setId(f.getId());

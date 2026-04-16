@@ -44,19 +44,20 @@ public class PipDataInitializer implements CommandLineRunner {
 
         // 2. Sample Training Records
         if (trainingRecordRepository.count() == 0) {
-            createTraining(employee1, "Advanced React Workshop", LocalDate.now().minusMonths(2), "Completed");
-            createTraining(employee1, "Communication Skills", LocalDate.now().minusMonths(1), "Completed");
-            createTraining(employee2, "Java Performance Tuning", LocalDate.now().minusMonths(3), "Completed");
+            createTraining(employee1.getEmployee(), "Advanced React Workshop", LocalDate.now().minusMonths(2), "Completed");
+            createTraining(employee1.getEmployee(), "Communication Skills", LocalDate.now().minusMonths(1), "Completed");
+            createTraining(employee2.getEmployee(), "Java Performance Tuning", LocalDate.now().minusMonths(3), "Completed");
         }
 
         // 3. Sample PIPs
         // Active PIP for Employee 1
         Pip pip1 = new Pip();
-        pip1.setEmployee(employee1);
-        pip1.setManager(manager);
+        pip1.setEmployee(employee1.getEmployee());
+        pip1.setManager(manager.getEmployee());
+        pip1.setCreatedBy(manager.getEmployee());
         pip1.setStartDate(LocalDate.now().minusDays(15));
         pip1.setEndDate(LocalDate.now().plusDays(45));
-        pip1.setStatus("ACTIVE");
+        pip1.setStatus("Active");
 
         PipObjective obj1a = new PipObjective();
         obj1a.setDescription("Improve project delivery turnaround time by 20%");
@@ -73,18 +74,22 @@ public class PipDataInitializer implements CommandLineRunner {
         FollowUpMeeting meeting1 = new FollowUpMeeting();
         meeting1.setPip(pip1);
         meeting1.setMeetingTime(LocalDateTime.now().plusDays(5));
-        meeting1.setStatus("SCHEDULED");
+        meeting1.setStatus("Scheduled");
+        meeting1.getMeeting().setManager(manager.getEmployee());
+        meeting1.getMeeting().setEmployee(employee1.getEmployee());
+        meeting1.getMeeting().setCreatedBy(manager.getEmployee());
         pip1.setFollowUpMeetings(Arrays.asList(meeting1));
 
         pipRepository.save(pip1);
 
         // Closed PIP for Employee 2
         Pip pip2 = new Pip();
-        pip2.setEmployee(employee2);
-        pip2.setManager(manager);
+        pip2.setEmployee(employee2.getEmployee());
+        pip2.setManager(manager.getEmployee());
+        pip2.setCreatedBy(manager.getEmployee());
         pip2.setStartDate(LocalDate.now().minusMonths(3));
         pip2.setEndDate(LocalDate.now().minusMonths(1));
-        pip2.setStatus("CLOSED");
+        pip2.setStatus("Closed");
         pip2.setFinalOutcome("SUCCESSFUL");
         pip2.setClosingRemarks("Employee showed significant improvement in coding standards and teamwork.");
 
@@ -103,17 +108,19 @@ public class PipDataInitializer implements CommandLineRunner {
     }
 
     private User createOrUpdateUser(String email, String displayName, Role role) {
-        User user = userRepository.findByEmailIgnoreCase(email).orElseGet(User::new);
+        User user = userRepository.findByEmployee_EmailIgnoreCase(email).orElseGet(User::new);
         Employee employee = user.getEmployee();
         if (employee == null) {
             employee = new Employee();
             employee.setEmployeeName(displayName);
             employee.setEmployeeId(seedBusinessEmployeeId(email));
-            employee.setRecordStatus("COMPLETED");
+            employee.setStatus("Active");
+            employee.setEmail(email);
             employee = employeeRepository.save(employee);
             user.setEmployee(employee);
         } else {
             employee.setEmployeeName(displayName);
+            employee.setEmail(email);
             if (employee.getEmployeeId() == null || employee.getEmployeeId().isBlank()) {
                 employee.setEmployeeId(seedBusinessEmployeeId(email));
             }
@@ -127,7 +134,7 @@ public class PipDataInitializer implements CommandLineRunner {
         return userRepository.save(user);
     }
 
-    private void createTraining(User employee, String name, LocalDate date, String status) {
+    private void createTraining(Employee employee, String name, LocalDate date, String status) {
         TrainingRecord tr = new TrainingRecord();
         tr.setEmployee(employee);
         tr.setTrainingName(name);

@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -99,11 +100,11 @@ public class KpiExcelService {
                 row.createCell(5).setCellValue(r.getCategory() != null ? r.getCategory() : "");
                 row.createCell(6).setCellValue(r.getTarget() != null ? r.getTarget() : "");
                 row.createCell(7).setCellValue(r.getUnit() != null ? r.getUnit() : "");
-                row.createCell(8).setCellValue(r.getWeight() != null ? r.getWeight() : 0);
+                row.createCell(8).setCellValue(r.getWeight() != null ? r.getWeight().doubleValue() : 0d);
                 row.createCell(9).setCellValue(r.getLogicDirection() != null ? r.getLogicDirection() : "");
                 row.createCell(10).setCellValue(r.getActual() != null ? r.getActual() : "");
                 row.createCell(11).setCellValue(r.getScore() != null ? r.getScore() : 0);
-                row.createCell(12).setCellValue(r.getWeightedScore() != null ? r.getWeightedScore() : 0);
+                row.createCell(12).setCellValue(r.getWeightedScore() != null ? r.getWeightedScore().doubleValue() : 0d);
                 row.createCell(13).setCellValue(r.getStatus() != null ? r.getStatus().name() : "");
             }
 
@@ -163,7 +164,7 @@ public class KpiExcelService {
 
                 try {
                     String wStr = getCellStringValue(row.getCell(7));
-                    record.setWeight(wStr.isEmpty() ? 0.0 : Double.parseDouble(wStr));
+                    record.setWeight(wStr.isEmpty() ? BigDecimal.ZERO : new BigDecimal(wStr));
                 } catch (NumberFormatException e) {
                     throw new RuntimeException("Row " + rowIndex + ": Weight must be a valid number.");
                 }

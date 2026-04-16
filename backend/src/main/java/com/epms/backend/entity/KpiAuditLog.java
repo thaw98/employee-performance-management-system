@@ -1,8 +1,6 @@
 package com.epms.backend.entity;
 
-import java.time.LocalDateTime;
-
-import org.hibernate.annotations.CreationTimestamp;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,33 +8,38 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-//MNA
+@Entity
+@Table(name = "kpi_audit_log")
 @Getter
 @Setter
-@Entity
-@Table(name = "kpi_audit_logs")
+@NoArgsConstructor
 public class KpiAuditLog {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "audit_id")
+    private Long id;
 
-	@Column(name = "kpi_record_id")
-	private Long kpiRecordId;
+    @Column(name = "employee_kpi_id")
+    private Long kpiRecordId;
 
-	@Column(name = "action", length = 100)
-	private String action; // e.g., "WEIGHT_VALIDATION", "SUBMISSION", "DRAFT_SAVE"
+    @Column(name = "field_name")
+    private String action;
 
-	@Column(name = "details", columnDefinition = "TEXT")
-	private String details;
+    @Column(name = "new_value", columnDefinition = "text")
+    private String details;
 
-	@Column(name = "performed_by")
-	private String performedBy;
+    @Column(name = "reason", columnDefinition = "text")
+    private String reason;
 
-	@CreationTimestamp
-	@Column(name = "created_at", updatable = false)
-	private LocalDateTime createdAt;
+    @Column(name = "change_date")
+    private Instant createdAt;
+
+    @Transient
+    private String performedBy;
 }

@@ -73,9 +73,11 @@ public class PipController {
     @PostMapping("/{id}/meetings")
     @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
     public ResponseEntity<ApiResponse<FollowUpMeeting>> scheduleMeeting(
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
             @RequestBody MeetingScheduleRequest request) {
-        FollowUpMeeting meeting = pipService.scheduleMeeting(id, request);
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        FollowUpMeeting meeting = pipService.scheduleMeeting(id, request, user);
         return ResponseEntity.ok(ApiResponse.ok("Meeting scheduled successfully", meeting));
     }
 

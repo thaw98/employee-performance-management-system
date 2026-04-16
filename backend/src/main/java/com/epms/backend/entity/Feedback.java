@@ -1,5 +1,6 @@
 package com.epms.backend.entity;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,45 +16,61 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
+@Table(name = "feedback_360")
 @Getter
 @Setter
-@Entity
-@Table(name = "feedbacks")
+@NoArgsConstructor
 public class Feedback {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "feedback_id")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "evaluator_user_id", nullable = false)
-    private User evaluator;
+    @JoinColumn(name = "reviewer_id", nullable = false)
+    private Employee evaluator;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "evaluatee_employee_id", nullable = true)
+    @JoinColumn(name = "target_employee_id")
     private Employee evaluatee;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "evaluatee_position_id", nullable = true)
-    private Position evaluateePosition;
+    @Column(name = "reviewer_relationship")
+    private String reviewerRelationship;
 
-    @Column(name = "evaluatee_name", length = 255)
-    private String evaluateeName;
+    @Column(name = "submission_date")
+    private Instant submissionDate;
 
-    @Column(name = "assessment_date", nullable = false)
+    @Column(name = "assigned_date")
+    private Instant assignedDate;
+
+    @Column(name = "due_date")
     private LocalDate assessmentDate;
 
-    @Column(name = "total_points", nullable = false)
-    private Integer totalPoints;
-
-    @Column(name = "total_score", nullable = false)
-    private Double totalScore;
-
-    @Column(name = "score_grade", length = 50)
-    private String scoreGrade; // e.g. "Outstanding"
+    @Column(name = "status")
+    private String status;
 
     @OneToMany(mappedBy = "feedback", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FeedbackDetail> details = new ArrayList<>();
+
+    @Transient
+    private Position evaluateePosition;
+
+    @Transient
+    private String evaluateeName;
+
+    @Transient
+    private Integer totalPoints;
+
+    @Transient
+    private Double totalScore;
+
+    @Transient
+    private String scoreGrade;
 }

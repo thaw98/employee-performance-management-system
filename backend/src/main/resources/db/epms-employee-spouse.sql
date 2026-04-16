@@ -1,6 +1,0 @@
--- Spouse data lives in employee_spouse; employees.employee_spouse_id -> employee_spouse.id.
--- See epms-employee-onboarding-ddl.sql for the canonical shape.
---
--- On startup, EmployeeSpouseSchemaMigrationInitializer (BeanPostProcessor on dataSource, before
--- Hibernate ddl-auto) copies legacy denormalized spouse columns on employees into employee_spouse,
--- wires employees.employee_spouse_id, and drops those columns.

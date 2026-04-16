@@ -1,5 +1,7 @@
 package com.epms.backend.dto.pip;
 
+import java.math.BigDecimal;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -11,5 +13,5 @@ public class EligibleEmployeeDTO {
     private String employeeId;
     private String employeeName;
     private String departmentName;
-    private Double totalScore;
+    private BigDecimal totalScore;
 }

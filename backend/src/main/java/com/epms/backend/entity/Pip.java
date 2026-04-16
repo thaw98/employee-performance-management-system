@@ -1,73 +1,108 @@
 package com.epms.backend.entity;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Entity
+@Table(name = "performance_improvement_plan")
 @Getter
 @Setter
-@Entity
-@Table(name = "pips")
+@NoArgsConstructor
 public class Pip {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "pip_id")
     private Long id;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
-    private User employee;
+    private Employee employee;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id", nullable = false)
-    private User manager;
+    private Employee manager;
 
-    @Column(nullable = false)
-    private String status; // ACTIVE, COMPLETED, CLOSED
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cycle_id")
+    private KpiPeriod period;
 
-    @Column(nullable = false)
-    @JsonFormat(pattern = "dd/MM/yyyy")
+    @Column(name = "status", length = 20)
+    private String status;
+
+    @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
-    @Column(nullable = false)
-    @JsonFormat(pattern = "dd/MM/yyyy")
+    @Column(name = "target_end_date", nullable = false)
     private LocalDate endDate;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "actual_end_date")
+    private LocalDate actualEndDate;
+
+    @Column(name = "overall_progress_percentage", precision = 5, scale = 2)
+    private BigDecimal overallProgressPercentage;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", nullable = false)
+    private Employee createdBy;
+
+    @Column(name = "created_date")
+    private Instant createdDate;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "closed_by")
+    private Employee closedBy;
+
+    @Column(name = "closed_date")
+    private Instant closedDate;
+
+    @Column(name = "closing_remarks", columnDefinition = "text")
     private String closingRemarks;
 
-    @Column
-    private String finalOutcome;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reopened_by")
+    private Employee reopenedBy;
 
-    @OneToMany(mappedBy = "pip", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<PipObjective> objectives;
+    @Column(name = "reopened_date")
+    private Instant reopenedDate;
 
-    @OneToMany(mappedBy = "pip", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<FollowUpMeeting> followUpMeetings;
-
-    @Column(nullable = false, updatable = false)
-    @JsonFormat(pattern = "dd/MM/yyyy HH:mm")
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-    @Column
-    @JsonFormat(pattern = "dd/MM/yyyy HH:mm")
-    private LocalDateTime updatedAt = LocalDateTime.now();
-
-    @Column(nullable = false)
-    private Integer totalHours = 0;
-
-    @Column(nullable = false)
-    private Integer completedHours = 0;
-
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "reopen_reason", columnDefinition = "text")
     private String reopenReason;
 
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    @Column(name = "updated_date")
+    private Instant updatedDate;
+
+    @OneToMany(mappedBy = "pip", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PipObjective> objectives = new ArrayList<>();
+
+    @OneToMany(mappedBy = "pip", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FollowUpMeeting> followUpMeetings = new ArrayList<>();
+
+    @Transient
+    private Integer totalHours;
+
+    @Transient
+    private Integer completedHours;
+
+    @Transient
+    private String finalOutcome;
 }

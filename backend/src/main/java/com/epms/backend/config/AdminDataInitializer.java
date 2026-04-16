@@ -40,17 +40,19 @@ public class AdminDataInitializer implements CommandLineRunner {
 	}
 
 	private void createOrUpdateAdmin(String email, String name) {
-		User admin = userRepository.findByEmailIgnoreCase(email).orElseGet(User::new);
+		User admin = userRepository.findByEmployee_EmailIgnoreCase(email).orElseGet(User::new);
 		Employee employee = admin.getEmployee();
 		if (employee == null) {
 			employee = new Employee();
 			employee.setEmployeeName(name);
 			employee.setEmployeeId(seedBusinessEmployeeId(email));
-			employee.setRecordStatus("COMPLETED");
+			employee.setStatus("Active");
+			employee.setEmail(email);
 			employee = employeeRepository.save(employee);
 			admin.setEmployee(employee);
 		} else {
 			employee.setEmployeeName(name);
+			employee.setEmail(email);
 			if (employee.getEmployeeId() == null || employee.getEmployeeId().isBlank()) {
 				employee.setEmployeeId(seedBusinessEmployeeId(email));
 			}

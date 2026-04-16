@@ -32,7 +32,7 @@ public class SelfAssessmentService {
     }
 
     public SelfAssessment getLatestSelfAssessment(Employee employee) {
-        return selfAssessmentRepository.findTopByEmployeeOrderByCreatedAtDesc(employee).orElse(null);
+        return selfAssessmentRepository.findTopByEmployeeOrderByCreatedDateDesc(employee).orElse(null);
     }
 
     @Transactional

@@ -1,7 +1,0 @@
--- Father data lives in employee_father; employees.employee_father_id -> employee_father.id.
--- See epms-employee-onboarding-ddl.sql for the canonical shape.
---
--- On startup, EmployeeFatherSchemaMigrationInitializer:
--- - migrates legacy employee_father.employee_info_id / employee_id when present;
--- - moves the FK to employees.employee_father_id and drops denormalized father columns on employees;
--- - drops the employee_info table when it still exists.

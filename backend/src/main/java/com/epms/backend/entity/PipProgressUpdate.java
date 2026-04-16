@@ -1,37 +1,76 @@
 package com.epms.backend.entity;
 
-import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Entity
+@Table(name = "pip_progress_update")
 @Getter
 @Setter
-@Entity
-@Table(name = "pip_progress_updates")
+@NoArgsConstructor
 public class PipProgressUpdate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "update_id")
     private Long id;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "objective_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pip_id", nullable = false)
+    private Pip pip;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "objective_id")
     private PipObjective objective;
 
-    @Column(nullable = false)
+    @Column(name = "update_date", nullable = false)
+    private LocalDate updateDate;
+
+    @Column(name = "progress_value", precision = 10, scale = 2, nullable = false)
+    private BigDecimal progressValue;
+
+    @Column(name = "comments", columnDefinition = "text")
+    private String comments;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "updated_by", nullable = false)
+    private Employee updatedBy;
+
+    @Column(name = "created_date")
+    private Instant createdDate;
+
+    @Transient
     private Integer previousPercentage;
 
-    @Column(nullable = false)
-    private Integer newPercentage;
+    @Transient
+    public Integer getNewPercentage() {
+        return progressValue == null ? null : progressValue.intValue();
+    }
 
-    @Column(columnDefinition = "TEXT")
-    private String feedback;
+    public void setNewPercentage(Integer newPercentage) {
+        this.progressValue = newPercentage == null ? null : BigDecimal.valueOf(newPercentage);
+    }
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "updated_by", nullable = false)
-    private User updatedBy;
+    public String getFeedback() {
+        return comments;
+    }
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    public void setFeedback(String feedback) {
+        this.comments = feedback;
+    }
 }

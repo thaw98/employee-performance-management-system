@@ -1,60 +1,56 @@
 package com.epms.backend.entity;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-//MNA
+@Entity
+@Table(name = "appraisal_cycle")
 @Getter
 @Setter
-@Entity
-@Table(name = "kpi_periods")
+@NoArgsConstructor
 public class KpiPeriod {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "cycle_id")
+    private Long id;
 
-	@Column(name = "name", length = 100, nullable = false)
-	private String name;
+    @Column(name = "cycle_name")
+    private String name;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "period_type", length = 30)
-	private PeriodType periodType;
+    @Column(name = "status")
+    private String status;
 
-	@Column(name = "start_date")
-	private LocalDate startDate;
+    @Column(name = "start_date")
+    private LocalDate startDate;
 
-	@Column(name = "end_date")
-	private LocalDate endDate;
+    @Column(name = "end_date")
+    private LocalDate endDate;
 
-	@Column(name = "review_start_date")
-	private LocalDate reviewStartDate;
+    @Transient
+    public boolean isActive() {
+        return "Active".equalsIgnoreCase(status);
+    }
 
-	@Column(name = "review_end_date")
-	private LocalDate reviewEndDate;
+    @Transient
+    public Boolean getIsActive() {
+        return isActive();
+    }
 
-	@Column(name = "is_active")
-	private Boolean isActive;
-
-	@CreationTimestamp
-	@Column(name = "created_at", updatable = false)
-	private LocalDateTime createdAt;
-
-	@UpdateTimestamp
-	@Column(name = "updated_at")
-	private LocalDateTime updatedAt;
+    public void setIsActive(Boolean active) {
+        if (active == null) {
+            return;
+        }
+        this.status = active ? "Active" : "Draft";
+    }
 }

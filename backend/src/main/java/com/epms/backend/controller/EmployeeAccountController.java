@@ -41,7 +41,7 @@ public class EmployeeAccountController {
 
 	@GetMapping("/check-email")
 	public ResponseEntity<ApiResponse<Boolean>> checkEmail(@RequestParam String email) {
-		return ResponseEntity.ok(ApiResponse.ok("Checked", userRepository.existsByEmailIgnoreCase(email)));
+		return ResponseEntity.ok(ApiResponse.ok("Checked", userRepository.existsByEmployee_EmailIgnoreCase(email)));
 	}
 
 	@GetMapping("/by-employee/{employeeId}")

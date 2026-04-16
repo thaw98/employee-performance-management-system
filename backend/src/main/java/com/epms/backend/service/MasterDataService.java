@@ -2,6 +2,7 @@ package com.epms.backend.service;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -11,7 +12,6 @@ import com.epms.backend.dto.master.MasterOptionDto;
 import com.epms.backend.entity.Position;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.PositionRepository;
-import com.epms.backend.repository.ReligionRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -19,16 +19,15 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MasterDataService {
 	private static final Set<String> EXCLUDED_POSITION_NAMES = Set.of("CEO", "COO", "Chairman");
+	private static final List<String> RELIGIONS = List.of("Buddhist", "Christian", "Hindu", "Muslim");
 
-	private final ReligionRepository religionRepository;
 	private final DepartmentRepository departmentRepository;
 	private final PositionRepository positionRepository;
 
 	@Transactional(readOnly = true)
 	public List<MasterOptionDto> getReligions() {
-		return religionRepository.findAllByOrderByNameAsc()
-				.stream()
-				.map(r -> new MasterOptionDto(r.getId(), r.getName()))
+		return IntStream.range(0, RELIGIONS.size())
+				.mapToObj(index -> new MasterOptionDto((long) index + 1, RELIGIONS.get(index)))
 				.toList();
 	}
 

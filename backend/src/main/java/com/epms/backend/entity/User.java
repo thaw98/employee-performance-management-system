@@ -1,57 +1,71 @@
 package com.epms.backend.entity;
 
+import java.time.Instant;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
+@Table(name = "user_account")
 @Getter
 @Setter
-@Entity
-@Table(name = "users")
+@NoArgsConstructor
 public class User {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "user_id")
+    private Long id;
 
-	@OneToOne(optional = false)
-	@JoinColumn(name = "employee_id", nullable = false, unique = true)
-	private Employee employee;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    private Employee employee;
 
-	@Column(nullable = false, unique = true, length = 255)
-	private String email;
+    @Column(name = "password_hash", nullable = false, length = 255)
+    private String password;
 
-	@Column(name = "password", nullable = false, length = 255)
-	private String password;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", nullable = false)
+    private Role role;
 
-	@ManyToOne(optional = false)
-	@JoinColumn(name = "role_id", nullable = false)
-	private Role role;
+    @Column(name = "is_active")
+    private boolean active = true;
 
-	@Column(name = "is_active", nullable = false)
-	private boolean active = true;
+    @Column(name = "last_login")
+    private Instant lastLogin;
 
-	// Legacy schema compatibility for environments where `users.enabled` still
-	// exists.
-	@Column(name = "enabled")
-	private Boolean enabled;
+    @Column(name = "created_date")
+    private Instant createdDate;
 
-	@Column(name = "must_change_password", nullable = false)
-	private boolean mustChangePassword = true;
+    @Column(name = "password_reset_token", length = 255)
+    private String passwordResetToken;
 
-	@PrePersist
-	@PreUpdate
-	private void syncLegacyEnabledColumn() {
-		this.enabled = this.active;
-	}
+    @Column(name = "token_expiry")
+    private Instant tokenExpiry;
+
+    @Transient
+    private boolean mustChangePassword;
+
+    public String getEmail() {
+        return employee != null ? employee.getEmail() : null;
+    }
+
+    public void setEmail(String email) {
+        if (employee == null) {
+            employee = new Employee();
+        }
+        employee.setEmail(email);
+    }
 }

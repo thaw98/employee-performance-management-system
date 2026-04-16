@@ -1,9 +1,7 @@
 package com.epms.backend.entity;
 
-import java.time.LocalDateTime;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import java.math.BigDecimal;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,75 +14,128 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-//MNA
+@Entity
+@Table(name = "employee_kpi")
 @Getter
 @Setter
-@Entity
-@Table(name = "kpi_records")
+@NoArgsConstructor
 public class KpiRecord {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "employee_kpi_id")
+    private Long id;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "employee_id", nullable = false)
-	private Employee employee;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id", nullable = false)
+    private Employee employee;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "manager_id")
-	private Employee manager;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cycle_id", nullable = false)
+    private KpiPeriod period;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "period_id", nullable = false)
-	private KpiPeriod period;
+    @Column(name = "kpi_name", nullable = false)
+    private String kpi;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "template_id")
-	private KpiTemplate template;
+    @Column(name = "category", nullable = false)
+    private String category;
 
-	@Column(name = "kpi", length = 255, nullable = false)
-	private String kpi;
+    @Column(name = "target_value", precision = 10, scale = 2)
+    private BigDecimal targetValue;
 
-	@Column(name = "category", length = 100)
-	private String category;
+    @Column(name = "unit")
+    private String unit;
 
-	@Column(name = "logic_direction", length = 20) // "higher" or "lower"
-	private String logicDirection;
+    @Column(name = "weight_percentage", precision = 5, scale = 2)
+    private BigDecimal weight;
 
-	@Column(name = "target", length = 255)
-	private String target;
+    @Column(name = "priority_level")
+    private String priorityLevel;
 
-	@Column(name = "unit", length = 100)
-	private String unit;
+    @Column(name = "actual_value", precision = 10, scale = 2)
+    private BigDecimal actualValue;
 
-	@Column(name = "actual", length = 255)
-	private String actual;
+    @Column(name = "weighted_score", precision = 5, scale = 2)
+    private BigDecimal weightedScore;
 
-	@Column(name = "weight")
-	private Double weight;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private KpiStatus status;
 
-	@Column(name = "score")
-	private Double score;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private Employee createdBy;
 
-	@Column(name = "weighted_score")
-	private Double weightedScore;
+    @Column(name = "created_date")
+    private Instant createdDate;
 
-	@Column(name = "dynamic_data", columnDefinition = "JSON")
-	private String dynamicData;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "updated_by")
+    private Employee updatedBy;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "status", length = 50)
-	private KpiStatus status;
+    @Column(name = "updated_date")
+    private Instant updatedDate;
 
-	@CreationTimestamp
-	@Column(name = "created_at", updatable = false)
-	private LocalDateTime createdAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "locked_by")
+    private Employee lockedBy;
 
-	@UpdateTimestamp
-	@Column(name = "updated_at")
-	private LocalDateTime updatedAt;
+    @Column(name = "locked_date")
+    private Instant lockedDate;
+
+    @Column(name = "revision_number")
+    private Integer revisionNumber;
+
+    @Transient
+    private Employee manager;
+
+    @Transient
+    private String target;
+
+    @Transient
+    private String actual;
+
+    @Transient
+    private Double score;
+
+    @Transient
+    private String logicDirection;
+
+    public String getTarget() {
+        return target != null ? target : (targetValue == null ? null : stripZeros(targetValue));
+    }
+
+    public void setTarget(String target) {
+        this.target = target;
+        this.targetValue = parseDecimal(target);
+    }
+
+    public String getActual() {
+        return actual != null ? actual : (actualValue == null ? null : stripZeros(actualValue));
+    }
+
+    public void setActual(String actual) {
+        this.actual = actual;
+        this.actualValue = parseDecimal(actual);
+    }
+
+    private static BigDecimal parseDecimal(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.replaceAll("[^\\d.-]", ""));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private static String stripZeros(BigDecimal value) {
+        return value.stripTrailingZeros().toPlainString();
+    }
 }

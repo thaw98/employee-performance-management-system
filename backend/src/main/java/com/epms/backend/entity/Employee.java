@@ -1,10 +1,7 @@
 package com.epms.backend.entity;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -19,129 +16,138 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
+@Table(name = "employee")
 @Getter
 @Setter
-@Entity
-@Table(name = "employees")
+@NoArgsConstructor
 public class Employee {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "employee_id")
+    private Long id;
 
-	/** Business-facing employee number (distinct from primary key {@link #id}); assigned by the client, not auto-filled from {@link #id}. */
-	@Column(name = "employee_id", length = 100, unique = true)
-	private String employeeId;
+    @Column(name = "staff_no", unique = true, length = 20)
+    private String employeeId;
 
-	@Column(name = "employee_name", length = 50)
-	private String employeeName;
+    @Column(name = "full_name", nullable = false, length = 100)
+    private String employeeName;
 
-	@Column(name = "other_name", length = 100)
-	private String otherName;
+    @Column(name = "email", length = 100)
+    private String email;
 
-	@Column(name = "staff_nrc_no", length = 100)
-	private String staffNrcNo;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "gender", columnDefinition = "ENUM('Male','Female')")
-	private Gender gender;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "position_id")
+    private Position position;
 
-	@Column(name = "race", length = 100)
-	private String race;
+    @Column(name = "level_code", length = 10)
+    private String levelCode;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "religion_id")
-	private Religion religion;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id")
+    private Employee manager;
 
-	@Column(name = "date_of_birth")
-	private LocalDate dateOfBirth;
+    @Column(name = "hire_date")
+    private LocalDate dateOfJoining;
 
-	@Column(name = "birth_place", length = 255)
-	private String birthPlace;
+    @Column(name = "status", length = 20)
+    private String status;
 
-	@Column(name = "contact_address", length = 500)
-	private String contactAddress;
+    @Column(name = "staff_nrc_no", length = 100)
+    private String staffNrcNo;
 
-	@Column(name = "permanent_address", length = 500)
-	private String permanentAddress;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "staff_type_id")
+    private StaffType staffType;
 
-	@Column(name = "phone_no", length = 20)
-	private String phoneNo;
+    @Column(name = "profile_picture_base_64", columnDefinition = "longtext")
+    private String profilePictureBase64;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "marital_status", columnDefinition = "ENUM('SINGLE','MARRIED')")
-	private MaritalStatus maritalStatus;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender")
+    private Gender gender;
 
-	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-	@JoinColumn(name = "employee_spouse_id")
-	private EmployeeSpouse spouse;
+    @Column(name = "religion", length = 20)
+    private String religion;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "department_id")
-	private Department department;
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "father_id")
+    private EmployeeFather father;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "position_id")
-	private Position position;
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "employee_probation")
+    private EmployeeProbation probation;
 
-	@Column(name = "nationality", length = 100)
-	private String nationality;
+    @OneToOne(mappedBy = "employee", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private EmergencyContact emergencyContact;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "staff_type_id")
-	private StaffType staffType;
+    @Column(name = "created_date")
+    private Instant createdDate;
 
-	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-	@JoinColumn(name = "employee_probation_id")
-	private EmployeeProbation probation;
+    @Column(name = "updated_date")
+    private Instant updatedDate;
 
-	@OneToOne(mappedBy = "employee", cascade = CascadeType.ALL, orphanRemoval = true)
-	private EmergencyContact emergencyContact;
+    @Transient
+    private String otherName;
 
-	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-	@JoinColumn(name = "employee_father_id")
-	private EmployeeFather father;
+    @Transient
+    private String race;
 
-	@Column(name = "date_of_joining")
-	private LocalDate dateOfJoining;
+    @Transient
+    private LocalDate dateOfBirth;
 
-	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-	@JoinColumn(name = "passport_id")
-	private Passport passport;
+    @Transient
+    private String birthPlace;
 
-	@Column(name = "date_of_demotion")
-	private LocalDate dateOfDemotion;
+    @Transient
+    private String contactAddress;
 
-	@Column(name = "date_of_title_change")
-	private LocalDate dateOfTitleChange;
+    @Transient
+    private String permanentAddress;
 
-	@Column(name = "date_of_promotion")
-	private LocalDate dateOfPromotion;
+    @Transient
+    private String phoneNo;
 
-	@Column(name = "date_of_transfer")
-	private LocalDate dateOfTransfer;
+    @Transient
+    private MaritalStatus maritalStatus;
 
-	@Column(name = "record_status", length = 20)
-	private String recordStatus;
+    @Transient
+    private String nationality;
 
-	/** Data URL or raw base64; mirrors login profile when account exists. */
-	@Column(name = "profile_picture_base64", columnDefinition = "LONGTEXT")
-	private String profilePictureBase64;
+    @Transient
+    private LocalDate dateOfDemotion;
 
-	@Column(name = "created_by")
-	private Long createdBy;
+    @Transient
+    private LocalDate dateOfTitleChange;
 
-	@Column(name = "updated_by")
-	private Long updatedBy;
+    @Transient
+    private LocalDate dateOfPromotion;
 
-	@CreationTimestamp
-	@Column(name = "created_at", updatable = false)
-	private LocalDateTime createdAt;
+    @Transient
+    private LocalDate dateOfTransfer;
 
-	@UpdateTimestamp
-	@Column(name = "updated_at")
-	private LocalDateTime updatedAt;
+    @Transient
+    private String recordStatus;
+
+    @Transient
+    private Long createdBy;
+
+    @Transient
+    private Long updatedBy;
+
+    @Transient
+    private EmployeeSpouse spouse;
+
+    @Transient
+    private Passport passport;
 }

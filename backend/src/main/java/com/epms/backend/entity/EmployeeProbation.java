@@ -7,31 +7,32 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Getter
-@Setter
 @Entity
 @Table(name = "employee_probation")
+@Getter
+@Setter
+@NoArgsConstructor
 public class EmployeeProbation {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-	@OneToOne(mappedBy = "probation", fetch = FetchType.LAZY)
-	private Employee employee;
+    @Column(name = "probation_date")
+    private LocalDate probationEndDate;
 
-	@Column(name = "probation_month")
-	private Integer probationMonth;
+    @Column(name = "probation_month")
+    private Integer probationMonth;
 
-	@Column(name = "probation_start_date")
-	private LocalDate probationStartDate;
+    @Column(name = "probation_start_date")
+    private LocalDate probationStartDate;
 
-	@Column(name = "probation_end_date")
-	private LocalDate probationEndDate;
+    @Transient
+    private Employee employee;
 }

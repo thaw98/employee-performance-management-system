@@ -1,5 +1,7 @@
 package com.epms.backend.entity;
 
+import java.time.Instant;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -10,15 +12,19 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
+@Table(name = "feedback_360_rating")
 @Getter
 @Setter
-@Entity
-@Table(name = "feedback_details")
+@NoArgsConstructor
 public class FeedbackDetail {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "rating_id")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -29,9 +35,12 @@ public class FeedbackDetail {
     @JoinColumn(name = "criteria_id", nullable = false)
     private Criteria criteria;
 
-    @Column(nullable = false)
+    @Column(name = "rating_value")
     private Integer rating;
 
-    @Column(length = 1000)
+    @Column(name = "comments", columnDefinition = "text")
     private String comment;
+
+    @Column(name = "created_date")
+    private Instant createdDate;
 }

@@ -51,7 +51,7 @@ public class AuthService {
 
 	private User resolveUser(String identifier) {
 		if (identifier.contains("@")) {
-			return userRepository.findByEmailIgnoreCase(identifier).orElse(null);
+			return userRepository.findByEmployee_EmailIgnoreCase(identifier).orElse(null);
 		}
 		if (identifier.matches("^[0-9]+$")) {
 			try {

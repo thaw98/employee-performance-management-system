@@ -7,5 +7,5 @@ import com.epms.backend.entity.Feedback;
 
 @Repository
 public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
-    java.util.List<Feedback> findByEvaluatorId(Long evaluatorId);
+    java.util.List<Feedback> findByEvaluator_Id(Long evaluatorId);
 }

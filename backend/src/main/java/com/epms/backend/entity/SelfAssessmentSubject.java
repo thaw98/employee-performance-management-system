@@ -1,24 +1,33 @@
 package com.epms.backend.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@Entity
+@Table(name = "self_assessment_question")
 @Getter
 @Setter
-@Entity
-@Table(name = "self_assessment_subjects")
+@NoArgsConstructor
 public class SelfAssessmentSubject {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "question_id")
     private Long id;
 
-    @Column(name = "subject_text", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "question_text", columnDefinition = "text", nullable = false)
     private String subjectText;
 
-    @Column(name = "display_order")
+    @Column(name = "sort_order")
     private Integer displayOrder;
 
     @Column(name = "is_active")
-    private Boolean isActive = true;
+    private Boolean isActive;
 }

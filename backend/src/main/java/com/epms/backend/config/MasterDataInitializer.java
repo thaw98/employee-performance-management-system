@@ -9,11 +9,9 @@ import org.springframework.stereotype.Component;
 import com.epms.backend.StaffTypes;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Position;
-import com.epms.backend.entity.Religion;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.PositionRepository;
-import com.epms.backend.repository.ReligionRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -22,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 @Order(4)
 @RequiredArgsConstructor
 public class MasterDataInitializer implements CommandLineRunner {
-	private final ReligionRepository religionRepository;
 	private final DepartmentRepository departmentRepository;
 	private final PositionRepository positionRepository;
 	private final StaffTypeRepository staffTypeRepository;
@@ -30,7 +27,6 @@ public class MasterDataInitializer implements CommandLineRunner {
 	@Override
 	public void run(String... args) {
 		seedStaffTypes();
-		seedReligions();
 		seedDepartments();
 		seedPositions();
 	}
@@ -47,17 +43,6 @@ public class MasterDataInitializer implements CommandLineRunner {
 		probation.setId(StaffTypes.PROBATION);
 		probation.setName("Probation");
 		staffTypeRepository.save(probation);
-	}
-
-	private void seedReligions() {
-		if (religionRepository.count() > 0) {
-			return;
-		}
-		List.of("Buddhist", "Christian", "Muslim", "Hindu").forEach(name -> {
-			Religion religion = new Religion();
-			religion.setName(name);
-			religionRepository.save(religion);
-		});
 	}
 
 	private void seedDepartments() {
