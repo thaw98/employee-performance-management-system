@@ -110,6 +110,7 @@ public class EmployeeProbationSchemaMigrationInitializer implements BeanPostProc
 		if (!columnExists(dataSource, "employees", "employee_probation_id")) {
 			jdbc.execute("ALTER TABLE employees ADD COLUMN employee_probation_id BIGINT NULL");
 		}
+		alignEmployeeProbationFkColumnType(jdbc);
 		if (!hasForeignKeyOnColumn(jdbc, "employees", "employee_probation_id", "employee_probation", "id")) {
 			jdbc.execute("""
 					ALTER TABLE employees
@@ -118,6 +119,30 @@ public class EmployeeProbationSchemaMigrationInitializer implements BeanPostProc
 					""");
 		}
 		log.info("employees.employee_probation_id migration finished");
+	}
+
+	private void alignEmployeeProbationFkColumnType(JdbcTemplate jdbc) {
+		String referencedType = jdbc.queryForObject("""
+				SELECT COLUMN_TYPE
+				FROM information_schema.COLUMNS
+				WHERE TABLE_SCHEMA = DATABASE()
+				  AND TABLE_NAME = 'employee_probation'
+				  AND COLUMN_NAME = 'id'
+				""", String.class);
+		String currentType = jdbc.queryForObject("""
+				SELECT COLUMN_TYPE
+				FROM information_schema.COLUMNS
+				WHERE TABLE_SCHEMA = DATABASE()
+				  AND TABLE_NAME = 'employees'
+				  AND COLUMN_NAME = 'employee_probation_id'
+				""", String.class);
+		if (referencedType == null || currentType == null) {
+			return;
+		}
+		if (!referencedType.equalsIgnoreCase(currentType)) {
+			jdbc.execute("ALTER TABLE employees MODIFY COLUMN employee_probation_id " + referencedType + " NULL");
+			log.info("Aligned employees.employee_probation_id type to {}", referencedType);
+		}
 	}
 
 	private void copyDenormalizedProbationColumnsIntoEmployeeProbation(JdbcTemplate jdbc, DataSource dataSource)
