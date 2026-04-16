@@ -9,7 +9,7 @@ import lombok.Setter;
 public class LoginRequestDto {
 
 	@NotBlank(message = "Invalid credentials")
-	private String identifier;
+	private String email;
 
 	@NotBlank(message = "Invalid credentials")
 	private String password;

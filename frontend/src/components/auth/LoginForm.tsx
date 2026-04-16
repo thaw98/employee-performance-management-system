@@ -9,7 +9,7 @@ import { setCredentials } from '../../features/auth/authSlice'
 import { FIRST_LOGIN_SET_PASSWORD_PATH } from '../../routes/paths'
 
 interface LoginFormValues {
-  identifier: string
+  email: string
   password: string
   rememberMe: boolean
 }
@@ -27,7 +27,7 @@ export function LoginForm() {
     formState: { errors },
   } = useForm<LoginFormValues>({
     defaultValues: {
-      identifier: '',
+      email: '',
       password: '',
       rememberMe: false,
     },
@@ -37,7 +37,7 @@ export function LoginForm() {
     setGenericError(null)
     try {
       const res = await login({
-        identifier: values.identifier.trim(),
+        email: values.email.trim(),
         password: values.password,
       }).unwrap()
       if (!res.success || !res.data) {
@@ -58,7 +58,7 @@ export function LoginForm() {
 
   const alertMessage =
     genericError ||
-    errors.identifier?.message ||
+    errors.email?.message ||
     errors.password?.message ||
     null
 
@@ -89,21 +89,21 @@ export function LoginForm() {
         noValidate
       >
         <div className="epms-login-field">
-          <label className="epms-login-label" htmlFor="identifier">
-            Email or numeric record ID <span className="epms-login-required">*</span>
+          <label className="epms-login-label" htmlFor="email">
+            Work email <span className="epms-login-required">*</span>
           </label>
           <div className="epms-login-input-wrapper">
             <span className="epms-login-input-icon">
               <i className="bi bi-envelope-fill" aria-hidden />
             </span>
             <input
-              id="identifier"
-              type="text"
+              id="email"
+              type="email"
               className="epms-login-input"
-              placeholder="you@acedatasystems.com or EMP-001"
+              placeholder="you@acedatasystems.com"
               autoComplete="username"
-              aria-invalid={errors.identifier ? 'true' : 'false'}
-              {...register('identifier', { required: 'This field is required' })}
+              aria-invalid={errors.email ? 'true' : 'false'}
+              {...register('email', { required: 'This field is required' })}
             />
           </div>
         </div>

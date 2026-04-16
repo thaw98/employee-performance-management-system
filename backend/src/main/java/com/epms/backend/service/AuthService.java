@@ -24,10 +24,10 @@ public class AuthService {
 
 	@Transactional
 	public LoginResponseDto login(LoginRequestDto request) {
-		String identifier = request.getIdentifier().trim();
+		String identifier = request.getEmail().trim();
 		String rawPassword = request.getPassword();
 
-		User user = resolveUser(identifier);
+		User user = userRepository.findByEmployee_EmailIgnoreCase(identifier).orElse(null);
 		if (user == null) {
 			System.out.println("LOGIN FAILED: User not found with identifier: " + identifier);
 			throw new BadCredentialsException("Invalid credentials");
@@ -47,20 +47,6 @@ public class AuthService {
 		response.setTokenType("Bearer");
 		response.setUser(toAuthUserDto(user));
 		return response;
-	}
-
-	private User resolveUser(String identifier) {
-		if (identifier.contains("@")) {
-			return userRepository.findByEmployee_EmailIgnoreCase(identifier).orElse(null);
-		}
-		if (identifier.matches("^[0-9]+$")) {
-			try {
-				return userRepository.findByEmployee_Id(Long.parseLong(identifier)).orElse(null);
-			} catch (NumberFormatException ex) {
-				return null;
-			}
-		}
-		return null;
 	}
 
 	private boolean isPasswordValid(User user, String rawPassword) {

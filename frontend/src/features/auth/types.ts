@@ -23,6 +23,6 @@ export interface ApiResponse<T> {
 }
 
 export interface LoginRequestBody {
-  identifier: string
+  email: string
   password: string
 }
