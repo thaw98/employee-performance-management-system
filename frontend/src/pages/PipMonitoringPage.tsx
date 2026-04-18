@@ -1,5 +1,5 @@
 import { useGetPipsQuery } from '../features/pip/pipApi'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
@@ -16,11 +16,12 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function PipMonitoringPage() {
   const { data: pips, isLoading } = useGetPipsQuery()
+  const location = useLocation()
   const { user } = useSelector((state: RootState) => state.auth)
   const [filterTab, setFilterTab] = useState<'ALL' | 'ACTIVE' | 'CLOSED'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
 
-  const isManager = user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
+  const canCreate = user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
 
   const filteredPips = useMemo(() => {
     if (!pips) return []
@@ -62,9 +63,9 @@ export default function PipMonitoringPage() {
           <h1 className="text-2xl font-bold text-slate-900">PIP Monitoring</h1>
           <p className="text-slate-500">Manage and track performance improvement plans.</p>
         </div>
-        {isManager && (
+        {canCreate && (
           <Link
-            to="/hr/pip-monitoring/create"
+            to="create"
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700"
           >
             <i className="bi bi-plus-lg" />
@@ -117,6 +118,7 @@ export default function PipMonitoringPage() {
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Completed Hours</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Total Hours</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Progress</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Actions</th>
             </tr>
           </thead>
@@ -136,8 +138,19 @@ export default function PipMonitoringPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-16 rounded-full bg-slate-100">
+                        <div 
+                          className={`h-full rounded-full ${pip.overallProgressPercentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`} 
+                          style={{ width: `${pip.overallProgressPercentage}%` }} 
+                        />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-500">{pip.overallProgressPercentage}%</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
                     <Link
-                      to={`/hr/pip-monitoring/${pip.id}`}
+                      to={`${location.pathname}/${pip.id}`}
                       className="text-sm font-semibold text-blue-600 hover:text-blue-800"
                     >
                       View Details

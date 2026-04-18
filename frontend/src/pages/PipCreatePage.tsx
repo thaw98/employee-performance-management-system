@@ -64,7 +64,7 @@ export default function PipCreatePage() {
         totalHours: values.totalHours,
         objectives: values.objectives.map((item) => item.value.trim()).filter(Boolean),
       }).unwrap()
-      navigate('/hr/pip-monitoring')
+      navigate('../', { relative: 'path' })
     } catch {
       setSubmitError('Failed to create PIP. Please check the employee record ID and try again.')
     }
@@ -182,7 +182,7 @@ export default function PipCreatePage() {
         </Stack>
 
         <div className="flex justify-end gap-3 pt-4">
-          <Button type="button" variant="outlined" onClick={() => navigate('/hr/pip-monitoring')}>
+          <Button type="button" variant="outlined" onClick={() => navigate('../', { relative: 'path' })}>
             Cancel
           </Button>
           <Button type="submit" disabled={isCreating} variant="contained">

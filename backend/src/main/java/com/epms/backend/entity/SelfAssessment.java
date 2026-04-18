@@ -28,6 +28,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+
 public class SelfAssessment {
 
     @Id
@@ -88,6 +89,16 @@ public class SelfAssessment {
 
     @Column(name = "updated_date")
     private Instant updatedDate;
+
+    @jakarta.persistence.PrePersist
+    protected void onCreate() {
+        if (createdDate == null) {
+            createdDate = java.time.Instant.now();
+        }
+    }
+
+    @Column(name = "correction_remarks", columnDefinition = "text")
+    private String correctionRemarks;
 
     @OneToMany(mappedBy = "selfAssessment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SelfAssessmentItem> items = new ArrayList<>();

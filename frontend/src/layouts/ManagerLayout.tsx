@@ -11,7 +11,8 @@ import {
   Bell,
   ChevronDown,
   ShieldCheck,
-  Search
+  Search,
+  Zap
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -26,7 +27,7 @@ const ManagerLayout: React.FC = () => {
 
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/login/manager');
+    navigate('/login');
   };
 
   const menuItems = [
@@ -34,6 +35,8 @@ const ManagerLayout: React.FC = () => {
     { icon: <Users size={20} />, label: 'My Team', path: '/manager/team' },
     { icon: <Target size={20} />, label: 'KPIs', path: '/manager/kpis' },
     { icon: <FileText size={20} />, label: 'Self Assessments', path: '/manager/assessments' },
+    { icon: <ShieldCheck size={20} />, label: 'My Self Assessments', path: '/manager/my-assessment' },
+    { icon: <Zap size={20} />, label: 'Team PIPs', path: '/manager/pip' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/manager/appraisals' },
     { icon: <MessageSquare size={20} />, label: 'Feedback', path: '/manager/feedback' },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/manager/meetings' },
