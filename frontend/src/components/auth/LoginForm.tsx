@@ -1,175 +1,174 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { Link, useNavigate } from 'react-router-dom'
+// frontend/src/components/auth/LoginForm.tsx
 
-import { useAppDispatch } from '../../app/hooks'
-import { useLoginMutation } from '../../features/auth/authApi'
-import { persistAuth } from '../../features/auth/authStorage'
-import { setCredentials } from '../../features/auth/authSlice'
-import { FIRST_LOGIN_SET_PASSWORD_PATH } from '../../routes/paths'
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useDispatch } from 'react-redux';
+import { Eye, EyeOff, Lock, Mail, ArrowRight } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-interface LoginFormValues {
-  email: string
-  password: string
-  rememberMe: boolean
-}
+import { useLoginMutation } from '../../features/auth/authApi';
+import { setCredentials } from '../../features/auth/authSlice';
+import { getDashboardPath } from '../../utils/dashboardRedirect';
+
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(1, 'Password is required'),
+  rememberMe: z.boolean().optional(),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
-  const navigate = useNavigate()
-  const dispatch = useAppDispatch()
-  const [login, { isLoading }] = useLoginMutation()
-  const [showPassword, setShowPassword] = useState(false)
-  const [genericError, setGenericError] = useState<string | null>(null)
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const [login, { isLoading }] = useLoginMutation();
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: '',
       password: '',
       rememberMe: false,
     },
-  })
+  });
 
   const onSubmit = async (values: LoginFormValues) => {
-    setGenericError(null)
-    try {
-      const res = await login({
-        email: values.email.trim(),
-        password: values.password,
-      }).unwrap()
-      if (!res.success || !res.data) {
-        setGenericError('Invalid credentials')
-        return
-      }
-      persistAuth(values.rememberMe, res.data.token, res.data.user)
-      dispatch(setCredentials({ token: res.data.token, user: res.data.user }))
-      if (res.data.user.mustChangePassword) {
-        navigate(FIRST_LOGIN_SET_PASSWORD_PATH, { replace: true })
-      } else {
-        navigate('/hr/dashboard', { replace: true })
-      }
-    } catch {
-      setGenericError('Invalid credentials')
-    }
-  }
+    setError(null);
 
-  const alertMessage =
-    genericError ||
-    errors.email?.message ||
-    errors.password?.message ||
-    null
+    try {
+      const response = await login({
+        email: values.email.trim().toLowerCase(),
+        password: values.password,
+      }).unwrap();
+
+      if (!response.success || !response.data) {
+        setError('Invalid email or password');
+        toast.error('Invalid email or password');
+        return;
+      }
+
+      const { token, user } = response.data;
+
+      // Save credentials to Redux and storage
+      dispatch(setCredentials({ token, user, rememberMe: values.rememberMe }));
+
+      toast.success(`Welcome back, ${user.name}!`);
+
+      // Check if password change is required
+      if (user.mustChangePassword) {
+        navigate('/first-login/set-password', { replace: true });
+        return;
+      }
+
+      // Redirect to appropriate dashboard based on role
+      const dashboardPath = getDashboardPath(user);
+      navigate(dashboardPath, { replace: true });
+
+    } catch (err: any) {
+      const errorMessage = err?.data?.message || err?.message || 'Invalid email or password';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    }
+  };
 
   return (
-    <div className="epms-login-form-wrapper">
-      <div className="epms-login-mobile-logo">
-        <i className="bi bi-bar-chart-line-fill" aria-hidden />
-        <span>EPMS</span>
-      </div>
-
-      <div className="epms-login-form-header">
-        <h2 className="epms-login-form-title">Welcome Back</h2>
-        <p className="epms-login-form-desc">
-          Sign in to your performance management portal
-        </p>
-      </div>
-
-      {alertMessage ? (
-        <div className="epms-login-error" role="alert">
-          <i className="bi bi-exclamation-circle-fill" aria-hidden />
-          <span>{alertMessage}</span>
+    <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+      {error && (
+        <div className="rounded-xl bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100 flex items-center gap-2">
+          <i className="bi bi-exclamation-triangle-fill" />
+          {error}
         </div>
-      ) : null}
+      )}
 
-      <form
-        className="epms-login-form"
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
-      >
-        <div className="epms-login-field">
-          <label className="epms-login-label" htmlFor="email">
-            Work email <span className="epms-login-required">*</span>
+      <div className="space-y-4">
+        {/* Email Field */}
+        <div>
+          <label className="mb-1.5 block text-sm font-bold text-slate-700">
+            Work Email <span className="text-red-500">*</span>
           </label>
-          <div className="epms-login-input-wrapper">
-            <span className="epms-login-input-icon">
-              <i className="bi bi-envelope-fill" aria-hidden />
-            </span>
+          <div className="relative">
+            <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
-              id="email"
               type="email"
-              className="epms-login-input"
-              placeholder="you@acedatasystems.com"
-              autoComplete="username"
-              aria-invalid={errors.email ? 'true' : 'false'}
-              {...register('email', { required: 'This field is required' })}
+              placeholder="you@company.com"
+              className={`w-full rounded-xl border bg-white py-3.5 pl-12 pr-4 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${errors.email
+                ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
+                : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'
+                }`}
+              {...register('email')}
             />
           </div>
+          {errors.email && (
+            <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+          )}
         </div>
 
-        <div className="epms-login-field">
-          <label className="epms-login-label" htmlFor="password">
-            Password <span className="epms-login-required">*</span>
+        {/* Password Field */}
+        <div>
+          <label className="mb-1.5 block text-sm font-bold text-slate-700">
+            Password <span className="text-red-500">*</span>
           </label>
-          <div className="epms-login-input-wrapper">
-            <span className="epms-login-input-icon">
-              <i className="bi bi-lock-fill" aria-hidden />
-            </span>
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
-              id="password"
               type={showPassword ? 'text' : 'password'}
-              className="epms-login-input"
               placeholder="Enter your password"
-              autoComplete="current-password"
-              aria-invalid={errors.password ? 'true' : 'false'}
-              {...register('password', { required: 'This field is required' })}
+              className={`w-full rounded-xl border bg-white py-3.5 pl-12 pr-12 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${errors.password
+                ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
+                : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'
+                }`}
+              {...register('password')}
             />
             <button
               type="button"
-              className="epms-login-toggle-pw"
-              onClick={() => setShowPassword((v) => !v)}
-              tabIndex={-1}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
-              <i
-                className={`bi ${showPassword ? 'bi-eye-slash-fill' : 'bi-eye-fill'}`}
-                aria-hidden
-              />
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </div>
-        </div>
-
-        <div className="epms-login-options">
-          <label className="epms-login-remember">
-            <input type="checkbox" {...register('rememberMe')} />
-            <span className="epms-login-remember-checkmark" />
-            <span>Remember me</span>
-          </label>
-          <Link to="/forgot-password" className="epms-login-forgot">
-            Forgot Password?
-          </Link>
-        </div>
-
-        <button
-          type="submit"
-          className="epms-login-submit"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <span className="epms-login-spinner" />
-          ) : (
-            <>
-              Sign In
-              <i className="bi bi-arrow-right" aria-hidden />
-            </>
+          {errors.password && (
+            <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
           )}
-        </button>
-      </form>
+        </div>
+      </div>
 
-      <p className="epms-login-footer-text">
-        Need help? Contact <span className="epms-login-link">IT Support</span>
-      </p>
-    </div>
-  )
+      {/* Remember Me */}
+      <div className="flex items-center justify-between">
+        <label className="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-0"
+            {...register('rememberMe')}
+          />
+          <span className="text-sm font-medium text-slate-600">Remember me</span>
+        </label>
+      </div>
+
+      {/* Submit Button */}
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 font-bold text-white transition-all hover:bg-blue-700 disabled:opacity-50"
+      >
+        {isLoading ? (
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+        ) : (
+          <>
+            Sign In
+            <ArrowRight className="h-5 w-5" />
+          </>
+        )}
+      </button>
+    </form>
+  );
 }

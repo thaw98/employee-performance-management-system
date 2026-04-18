@@ -1,9 +1,9 @@
 import { useAppSelector } from '../app/hooks'
 import { SelfAssessmentWarning } from '../components/SelfAssessmentWarning'
 
-export function AdminDashboardPage() {
+export function HRDashboardPage() {
   const user = useAppSelector((s) => s.auth.user)
-  const welcomeName = user?.name || (user?.email ? user.email.split('@')[0] : 'Admin')
+  const welcomeName = user?.name || (user?.email ? user.email.split('@')[0] : 'HR')
 
   const summaryCards = [
     {
@@ -55,13 +55,13 @@ export function AdminDashboardPage() {
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span className="text-blue-700">Home</span>
             <span>/</span>
-            <span className="font-medium text-slate-800">Admin Dashboard</span>
+            <span className="font-medium text-slate-800">HR Dashboard</span>
           </div>
           <h1 className="mt-2 text-2xl font-semibold text-slate-900">
             Welcome back, {welcomeName}
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Signed in as <span className="font-medium text-slate-800">{user?.role ?? 'Admin'}</span>
+            Signed in as <span className="font-medium text-slate-800">{user?.role ?? 'HR'}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">

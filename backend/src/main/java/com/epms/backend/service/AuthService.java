@@ -13,79 +13,87 @@ import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.JwtService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
-	private final UserRepository userRepository;
-	private final PasswordEncoder passwordEncoder;
-	private final JwtService jwtService;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-	@Transactional
-	public LoginResponseDto login(LoginRequestDto request) {
-		String identifier = request.getEmail().trim();
-		String rawPassword = request.getPassword();
+    @Transactional
+    public LoginResponseDto login(LoginRequestDto request) {
+        String email = request.getEmail().trim().toLowerCase();
+        String rawPassword = request.getPassword();
 
-		User user = userRepository.findByEmployee_EmailIgnoreCase(identifier).orElse(null);
-		if (user == null) {
-			System.out.println("LOGIN FAILED: User not found with identifier: " + identifier);
-			throw new BadCredentialsException("Invalid credentials");
-		}
-		if (!user.isActive()) {
-			System.out.println("LOGIN FAILED: User is disabled: " + identifier);
-			throw new BadCredentialsException("Invalid credentials");
-		}
-		if (!isPasswordValid(user, rawPassword)) {
-			System.out.println("LOGIN FAILED: Password mismatch for user: " + identifier);
-			throw new BadCredentialsException("Invalid credentials");
-		}
+        log.info("Login attempt for email: {}", email);
 
-		String token = jwtService.generateToken(user);
-		LoginResponseDto response = new LoginResponseDto();
-		response.setToken(token);
-		response.setTokenType("Bearer");
-		response.setUser(toAuthUserDto(user));
-		return response;
-	}
+        User user = userRepository.findByEmployee_EmailIgnoreCase(email)
+                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
-	private boolean isPasswordValid(User user, String rawPassword) {
-		String storedPassword = user.getPassword();
-		if (storedPassword == null || storedPassword.isBlank()) {
-			return false;
-		}
+        if (!user.isActive()) {
+            log.warn("User is inactive: {}", email);
+            throw new BadCredentialsException("Invalid credentials");
+        }
 
-		// Normal path: password already stored as a BCrypt hash.
-		if (passwordEncoder.matches(rawPassword, storedPassword)) {
-			return true;
-		}
+        if (!isPasswordValid(user, rawPassword)) {
+            log.warn("Invalid password for user: {}", email);
+            throw new BadCredentialsException("Invalid credentials");
+        }
 
-		// Backward compatibility: allow legacy plaintext and upgrade immediately.
-		if (rawPassword.equals(storedPassword)) {
-			user.setPassword(passwordEncoder.encode(rawPassword));
-			userRepository.save(user);
-			return true;
-		}
+        String token = jwtService.generateToken(user);
+        log.info("Login successful for user: {}", email);
 
-		return false;
-	}
+        LoginResponseDto response = new LoginResponseDto();
+        response.setToken(token);
+        response.setTokenType("Bearer");
+        response.setUser(toAuthUserDto(user));
+        return response;
+    }
 
-	private static AuthUserDto toAuthUserDto(User user) {
-		String roleName = user.getRole().getName().trim().toUpperCase().replace(' ', '_');
-		var emp = user.getEmployee();
-		String employeeIdStr = emp.getEmployeeId();
-		if (employeeIdStr == null || employeeIdStr.isBlank()) {
-			employeeIdStr = String.valueOf(emp.getId());
-		} else {
-			employeeIdStr = employeeIdStr.trim();
-		}
-		return new AuthUserDto(
-				user.getId(),
-				employeeIdStr,
-				user.getEmployee().getEmployeeName(),
-				user.getEmail(),
-				roleName,
-				user.getRole().getId(),
-				user.isMustChangePassword());
-	}
+    private boolean isPasswordValid(User user, String rawPassword) {
+        String storedPassword = user.getPassword();
+        if (storedPassword == null || storedPassword.isBlank()) {
+            return false;
+        }
+
+        // Try BCrypt match first
+        if (passwordEncoder.matches(rawPassword, storedPassword)) {
+            return true;
+        }
+
+        // Fallback: Allow plain text password and upgrade to BCrypt
+        if (rawPassword.equals(storedPassword)) {
+            String encodedPassword = passwordEncoder.encode(rawPassword);
+            user.setPassword(encodedPassword);
+            userRepository.save(user);
+            log.info("Upgraded plain text password to BCrypt for user: {}", user.getEmail());
+            return true;
+        }
+
+        return false;
+    }
+
+    private AuthUserDto toAuthUserDto(User user) {
+        var emp = user.getEmployee();
+        String roleName = user.getRole().getName();
+        String employeeIdStr = emp.getEmployeeId();
+        
+        if (employeeIdStr == null || employeeIdStr.isBlank()) {
+            employeeIdStr = String.valueOf(emp.getId());
+        }
+        
+        return AuthUserDto.builder()
+                .id(user.getId())
+                .employeeId(employeeIdStr)
+                .name(emp.getEmployeeName())
+                .email(emp.getEmail())
+                .role(roleName)
+                .roleId(user.getRole().getId())
+                .mustChangePassword(user.isMustChangePassword())
+                .build();
+    }
 }

@@ -1,32 +1,38 @@
-import type { ReactNode } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
-
-import { useAppSelector } from '../app/hooks'
-
-import { FIRST_LOGIN_SET_PASSWORD_PATH } from './paths'
+// src/routes/ProtectedRoute.tsx
+import { type ReactNode } from 'react';
+import { Navigate, useLocation, Outlet } from 'react-router-dom';
+import { useAppSelector } from '../app/hooks';
+import { getDashboardPath, getRoleGroup } from '../utils/dashboardRedirect';
+import { FIRST_LOGIN_SET_PASSWORD_PATH } from './paths';
 
 interface ProtectedRouteProps {
-  children: ReactNode
-  allowedRoleIds?: number[]
+  children?: ReactNode;
+  allowedRoleGroups?: ('HR' | 'MANAGER' | 'EMPLOYEE')[];
 }
 
-export function ProtectedRoute({ children, allowedRoleIds }: ProtectedRouteProps) {
-  const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated)
-  const roleId = useAppSelector((s) => s.auth.user?.roleId)
-  const mustChangePassword = useAppSelector((s) => s.auth.user?.mustChangePassword === true)
-  const location = useLocation()
+export function ProtectedRoute({ children, allowedRoleGroups }: ProtectedRouteProps) {
+  const { isAuthenticated, user, token } = useAppSelector((state) => state.auth);
+  const location = useLocation();
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />
+  // Not authenticated
+  if (!isAuthenticated || !token || !user) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (mustChangePassword && location.pathname !== FIRST_LOGIN_SET_PASSWORD_PATH) {
-    return <Navigate to={FIRST_LOGIN_SET_PASSWORD_PATH} replace />
+  // Must change password
+  if (user.mustChangePassword && location.pathname !== FIRST_LOGIN_SET_PASSWORD_PATH) {
+    return <Navigate to={FIRST_LOGIN_SET_PASSWORD_PATH} replace />;
   }
 
-  if (allowedRoleIds && (!roleId || !allowedRoleIds.includes(roleId))) {
-    return <Navigate to="/hr/dashboard" replace />
+  // Role-based access control
+  if (allowedRoleGroups && allowedRoleGroups.length > 0) {
+    const userRoleGroup = getRoleGroup(user);
+    if (!allowedRoleGroups.includes(userRoleGroup)) {
+      // Redirect to their own dashboard
+      const dashboardPath = getDashboardPath(user);
+      return <Navigate to={dashboardPath} replace />;
+    }
   }
 
-  return children
+  return children ? <>{children}</> : <Outlet />;
 }
