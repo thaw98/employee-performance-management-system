@@ -30,7 +30,7 @@ const HrLayout: React.FC = () => {
 
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/login/hr');
+    navigate('/login');
   };
 
   const menuItems = [
@@ -38,6 +38,7 @@ const HrLayout: React.FC = () => {
     { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
     { icon: <Target size={20} />, label: 'KPI Management', path: '/hr/kpi-mgmt' },
     { icon: <ClipboardList size={20} />, label: 'Self Assessments', path: '/hr/assessments' },
+    { icon: <ShieldCheck size={20} />, label: 'Assessment Questions', path: '/hr/assessment-subitems' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/hr/appraisals' },
     { icon: <RefreshCcw size={20} />, label: '360° Feedback', path: '/hr/360-feedback' },
     { icon: <Zap size={20} />, label: 'PIP Management', path: '/hr/pip' },

@@ -25,7 +25,8 @@ export function SelfAssessmentPage() {
   const [responses, setResponses] = useState<Response[]>([]);
   const [remarks, setRemarks] = useState('');
   const [signature, setSignature] = useState('');
-  const [signatureType, setSignatureType] = useState<'draw' | 'upload'>('draw');
+  const [signatureType, setSignatureType] = useState<'draw' | 'upload' | 'saved'>('draw');
+  const [savedSignatures, setSavedSignatures] = useState<any[]>([]);
   const sigCanvas = useRef<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingAsmt, setExistingAsmt] = useState<any>(null);
@@ -77,21 +78,21 @@ export function SelfAssessmentPage() {
   const fetchData = async () => {
     try {
       // 1. Fetch Dynamic Subjects
-      const subResp = await axios.get('/api/self-assessment-subjects');
+      const subResp = await axios.get('/self-assessment-subjects');
       const subjects: Question[] = subResp.data.data || [];
       setQuestions(subjects);
 
       // 2. Fetch Latest Assessment
-      const resp = await axios.get('/api/self-assessments/me');
+      const resp = await axios.get('/self-assessments/me');
       if (resp.data.data) {
         const asmt = resp.data.data;
         setExistingAsmt(asmt);
 
         // If it was already started or assigned, populate fields from items
         if (asmt.items && asmt.items.length > 0) {
-          setResponses(asmt.items.map((item: any, idx: number) => ({
-            questionId: idx + 1,
-            questionText: item.questionText,
+          setResponses(asmt.items.map((item: any) => ({
+            questionId: item.subject?.id || 0,
+            questionText: item.subject?.subjectText || item.questionText,
             answerYesNo: item.answerYesNo,
             rating: item.rating
           })));
@@ -99,14 +100,17 @@ export function SelfAssessmentPage() {
           setSignature(asmt.employeeSignature || '');
         } else {
           // Initialize responses from dynamic subjects
-          setResponses(subjects.map((q, idx) => ({
-            questionId: idx + 1,
+          setResponses(subjects.map((q) => ({
+            questionId: q.id,
             questionText: q.subjectText,
             answerYesNo: null,
             rating: null
           })));
         }
       }
+      // 3. Fetch Saved Signatures
+      const sigResp = await axios.get('/signatures');
+      setSavedSignatures(sigResp.data.data || []);
     } catch (err) {
       console.error('Failed to fetch data', err);
       toast.error('Failed to load assessment data');
@@ -177,12 +181,12 @@ export function SelfAssessmentPage() {
         employeeRemarks: remarks,
         employeeSignature: signature,
         items: responses.map(r => ({
-          questionText: r.questionText,
+          subject: { id: r.questionId },
           answerYesNo: r.answerYesNo,
           rating: r.rating
         }))
       };
-      await axios.post('/api/self-assessments/submit', payload);
+      await axios.post('/self-assessments/submit', payload);
       toast.success('Self-assessment submitted successfully');
       fetchData();
     } catch (err: any) {
@@ -334,7 +338,7 @@ export function SelfAssessmentPage() {
                 <tr key={resp.questionId} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
                   <td className="py-4 px-6 text-slate-700 font-medium">
                     <div className="flex gap-4">
-                      <span className="text-slate-300 font-mono w-4">{resp.questionId}</span>
+                      <span className="text-slate-300 font-mono w-4">{questions.findIndex(s => s.id === resp.questionId) + 1}</span>
                       {resp.questionText}
                     </div>
                   </td>
@@ -421,18 +425,21 @@ export function SelfAssessmentPage() {
                     <div className="flex border-b border-slate-200 bg-slate-50">
                       <button onClick={() => setSignatureType('draw')} className={`flex-1 py-2 text-sm font-medium ${signatureType === 'draw' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Draw Signature</button>
                       <button onClick={() => setSignatureType('upload')} className={`flex-1 py-2 text-sm font-medium ${signatureType === 'upload' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Upload File</button>
+                      {savedSignatures.length > 0 && (
+                        <button onClick={() => setSignatureType('saved')} className={`flex-1 py-2 text-sm font-medium ${signatureType === 'saved' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Use Saved</button>
+                      )}
                     </div>
                     <div className="p-4 bg-white">
                       {signatureType === 'draw' ? (
                         <div className="border border-slate-200 rounded bg-slate-50 relative">
-                          <SignatureCanvas 
-                            ref={sigCanvas} 
+                          <SignatureCanvas
+                            ref={sigCanvas}
                             onEnd={handleSignatureEnd}
-                            canvasProps={{ className: 'w-full h-32 cursor-crosshair' }} 
+                            canvasProps={{ className: 'w-full h-32 cursor-crosshair' }}
                           />
                           <button onClick={handleClearSignature} className="absolute top-2 right-2 text-xs text-slate-400 hover:text-red-500 bg-white px-2 py-1 rounded border border-slate-200 shadow-sm">Reset</button>
                         </div>
-                      ) : (
+                      ) : signatureType === 'upload' ? (
                         <div className="flex items-center justify-center w-full">
                           <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -442,6 +449,18 @@ export function SelfAssessmentPage() {
                             </div>
                             <input type="file" className="hidden" accept="image/*,.pdf,.p12,.cer,.pem" onChange={handleFileUpload} />
                           </label>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3 max-h-40 overflow-y-auto">
+                          {savedSignatures.map((sig, i) => (
+                            <div
+                              key={i}
+                              onClick={() => setSignature(sig.signatureData)}
+                              className="border border-slate-100 rounded-lg p-2 hover:border-blue-500 cursor-pointer flex items-center justify-center bg-slate-50"
+                            >
+                              {renderSignature(sig.signatureData)}
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>

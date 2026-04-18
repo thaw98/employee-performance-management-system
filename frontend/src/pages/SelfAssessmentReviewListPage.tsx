@@ -12,7 +12,8 @@ export function SelfAssessmentReviewListPage() {
     const [selectedAsmt, setSelectedAsmt] = useState<any>(null);
     const [comments, setComments] = useState('');
     const [signature, setSignature] = useState('');
-    const [signatureType, setSignatureType] = useState<'draw' | 'upload'>('draw');
+    const [signatureType, setSignatureType] = useState<'draw' | 'upload' | 'saved'>('draw');
+    const [savedSignatures, setSavedSignatures] = useState<any[]>([]);
     const sigCanvas = useRef<any>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -87,8 +88,11 @@ export function SelfAssessmentReviewListPage() {
 
     const fetchAssessments = async () => {
         try {
-            const resp = await axios.get('/api/self-assessments/all');
+            const resp = await axios.get('/self-assessments/all');
             setAssessments(resp.data.data || []);
+            
+            const sigResp = await axios.get('/signatures');
+            setSavedSignatures(sigResp.data.data || []);
         } catch (err) {
             toast.error('Failed to fetch assessments');
         }
@@ -96,7 +100,7 @@ export function SelfAssessmentReviewListPage() {
 
     const searchEmployees = async () => {
         try {
-            const resp = await axios.get(`/api/employees/autocomplete?keyword=${searchKeyword}`);
+            const resp = await axios.get(`/employees/autocomplete?keyword=${searchKeyword}`);
             setEmployees(resp.data.data || []);
         } catch (err) {
             toast.error('Failed to find employees');
@@ -106,7 +110,7 @@ export function SelfAssessmentReviewListPage() {
     const handleCreateAssignment = async () => {
         if (!selectedEmp) return;
         try {
-            await axios.post(`/api/self-assessments/create/${selectedEmp.id}`);
+            await axios.post(`/self-assessments/create/${selectedEmp.id}`);
             toast.success(`Assignment created for ${selectedEmp.employeeName}`);
             setShowAssignModal(false);
             setSelectedEmp(null);
@@ -118,7 +122,7 @@ export function SelfAssessmentReviewListPage() {
 
     const handleUnlock = async (id: number) => {
         try {
-            await axios.post(`/api/self-assessments/${id}/unlock`);
+            await axios.post(`/self-assessments/${id}/unlock`);
             toast.success('Assignment unlocked for employee edits');
             fetchAssessments();
         } catch (err) {
@@ -134,8 +138,8 @@ export function SelfAssessmentReviewListPage() {
         setIsSubmitting(true);
         try {
             const endpoint = isHr
-                ? `/api/self-assessments/${selectedAsmt.id}/hr-review`
-                : `/api/self-assessments/${selectedAsmt.id}/manager-review`;
+                ? `/self-assessments/${selectedAsmt.id}/hr-review`
+                : `/self-assessments/${selectedAsmt.id}/manager-review`;
             await axios.post(endpoint, { comments, signature });
             toast.success(isHr ? 'Self-assignment Finalized' : 'Review submitted successfully');
             setSelectedAsmt(null);
@@ -144,6 +148,25 @@ export function SelfAssessmentReviewListPage() {
             fetchAssessments();
         } catch (err) {
             toast.error('Failed to submit review');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleRequestCorrection = async () => {
+        if (!comments.trim()) {
+            toast.error('Please provide remarks for the correction request');
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            await axios.post(`/self-assessments/${selectedAsmt.id}/request-correction`, { remarks: comments });
+            toast.success('Correction request sent to employee');
+            setSelectedAsmt(null);
+            setComments('');
+            fetchAssessments();
+        } catch (err) {
+            toast.error('Failed to request correction');
         } finally {
             setIsSubmitting(false);
         }
@@ -171,7 +194,7 @@ export function SelfAssessmentReviewListPage() {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                 <div>
                     <h1 className="text-4xl font-black tracking-tight" style={{ color: PRIMARY }}>Compliance Review</h1>
-                    <p className="text-slate-500 mt-1 font-medium italic text-sm">Monitor and finalize organizational self-assessments.</p>
+                    <p className="text-slate-500 mt-1 font-medium italic text-sm">Monitor and finalize organizational self-assessment questions.</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4">
@@ -198,7 +221,7 @@ export function SelfAssessmentReviewListPage() {
                                 onClick={async () => {
                                     if (window.confirm('Assign self-assessment to ALL employees?')) {
                                         try {
-                                            await axios.post('/api/self-assessments/create/all');
+                                            await axios.post('/self-assessments/create/all');
                                             toast.success('Assigned to all employees');
                                             fetchAssessments();
                                         } catch (err) {
@@ -402,13 +425,13 @@ export function SelfAssessmentReviewListPage() {
 
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between border-b pb-2">
-                                    <h3 className="font-bold text-slate-800">Employee Detailed Responses</h3>
-                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold uppercase">{selectedAsmt.items.length} Subjects</span>
+                                    <h3 className="font-bold text-slate-800">Employee Detailed Questions</h3>
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-bold uppercase">{selectedAsmt.items.length} Questions</span>
                                 </div>
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                                     {selectedAsmt.items.map((item: any, idx: number) => (
                                         <div key={idx} className="flex flex-col p-4 bg-slate-50/50 border border-slate-100 rounded-2xl hover:bg-white hover:shadow-md transition-all">
-                                            <div className="text-sm text-slate-600 font-semibold line-clamp-2 min-h-[2.5rem] mb-3">{item.questionText}</div>
+                                            <div className="text-sm text-slate-600 font-semibold line-clamp-2 min-h-[2.5rem] mb-3">{item.subject?.subjectText || item.questionText}</div>
                                             <div className="flex justify-between items-end mt-auto pt-3 border-t border-slate-200/50">
                                                 <div className="flex gap-4">
                                                     <div className="flex flex-col">
@@ -475,6 +498,9 @@ export function SelfAssessmentReviewListPage() {
                                                         <div className="flex border-b border-slate-200 bg-slate-50">
                                                             <button onClick={() => setSignatureType('draw')} className={`flex-1 py-2 text-sm font-medium ${signatureType === 'draw' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Draw Signature</button>
                                                             <button onClick={() => setSignatureType('upload')} className={`flex-1 py-2 text-sm font-medium ${signatureType === 'upload' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Upload File</button>
+                                                            {savedSignatures.length > 0 && (
+                                                                <button onClick={() => setSignatureType('saved')} className={`flex-1 py-2 text-sm font-medium ${signatureType === 'saved' ? 'bg-white text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Use Saved</button>
+                                                            )}
                                                         </div>
                                                         <div className="p-4 bg-white">
                                                             {signatureType === 'draw' ? (
@@ -486,7 +512,7 @@ export function SelfAssessmentReviewListPage() {
                                                                     />
                                                                     <button onClick={handleClearSignature} className="absolute top-2 right-2 text-xs text-slate-400 hover:text-red-500 bg-white px-2 py-1 rounded border border-slate-200 shadow-sm">Reset</button>
                                                                 </div>
-                                                            ) : (
+                                                            ) : signatureType === 'upload' ? (
                                                                 <div className="flex items-center justify-center w-full">
                                                                     <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors">
                                                                         <div className="flex flex-col items-center justify-center">
@@ -494,6 +520,18 @@ export function SelfAssessmentReviewListPage() {
                                                                         </div>
                                                                         <input type="file" className="hidden" accept="image/*,.pdf,.p12,.cer,.pem" onChange={handleFileUpload} />
                                                                     </label>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="grid grid-cols-2 gap-3 max-h-40 overflow-y-auto">
+                                                                    {savedSignatures.map((sig, i) => (
+                                                                        <div 
+                                                                            key={i} 
+                                                                            onClick={() => setSignature(sig.signatureData)}
+                                                                            className="border border-slate-100 rounded-lg p-2 hover:border-blue-500 cursor-pointer flex items-center justify-center bg-slate-50"
+                                                                        >
+                                                                            {renderSignature(sig.signatureData)}
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -577,9 +615,16 @@ export function SelfAssessmentReviewListPage() {
                                             <button
                                                 onClick={handleReview}
                                                 disabled={isSubmitting}
-                                                className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-purple-700 transition-colors"
+                                                className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-purple-700 transition-colors mb-3"
                                             >
                                                 {isSubmitting ? 'Submitting...' : 'Approve & Finalize'}
+                                            </button>
+                                            <button
+                                                onClick={handleRequestCorrection}
+                                                disabled={isSubmitting}
+                                                className="w-full py-3 bg-white text-red-600 border border-red-200 rounded-xl font-bold text-sm hover:bg-red-50 transition-colors"
+                                            >
+                                                Request Correction
                                             </button>
                                         </div>
                                     )}

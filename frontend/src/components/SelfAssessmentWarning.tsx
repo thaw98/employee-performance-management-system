@@ -15,10 +15,10 @@ export function SelfAssessmentWarning() {
 
     const fetchStatus = async () => {
         try {
-            const resp = await axios.get('/api/self-assessments/me');
+            const resp = await axios.get('/self-assessments/me');
             // If no data or status is DRAFT (though our logic currently only has SUBMITTED+), show warning.
             // In our current logic, /me returns the latest. If null, they haven't started.
-            if (!resp.data.data) {
+            if (!resp.data.data || resp.data.data.status === 'UNLOCKED') {
                 setShow(true);
             } else {
                 setShow(false);

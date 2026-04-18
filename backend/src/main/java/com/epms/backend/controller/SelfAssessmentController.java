@@ -23,9 +23,17 @@ public class SelfAssessmentController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<SelfAssessment>> getMyLatest(Authentication authentication) {
-        Employee employee = getEmployee(authentication);
-        SelfAssessment sa = selfAssessmentService.getLatestSelfAssessment(employee);
-        return ResponseEntity.ok(ApiResponse.ok("Latest self assessment fetched", sa));
+        try {
+            Employee employee = getEmployee(authentication);
+            if (employee == null) {
+                return ResponseEntity.ok(ApiResponse.ok("No employee profile found", null));
+            }
+            SelfAssessment sa = selfAssessmentService.getLatestSelfAssessment(employee);
+            return ResponseEntity.ok(ApiResponse.ok("Latest self assessment fetched", sa));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(ApiResponse.fail("Internal Error in getMyLatest: " + e.getMessage()));
+        }
     }
 
     @GetMapping("/my-history")
@@ -51,10 +59,15 @@ public class SelfAssessmentController {
     @GetMapping("/all")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR') or hasRole('DEPARTMENT_HEAD') or hasRole('TEAM_HEAD')")
     public ResponseEntity<ApiResponse<List<SelfAssessment>>> getAll() {
-        List<SelfAssessment> list = selfAssessmentService.getAllSelfAssessments();
-        System.out.println("DEBUG: Returning " + list.size() + " assessments");
-        return ResponseEntity
-                .ok(ApiResponse.ok("All self assessments fetched", list));
+        try {
+            List<SelfAssessment> list = selfAssessmentService.getAllSelfAssessments();
+            System.out.println("DEBUG: Returning " + list.size() + " assessments");
+            return ResponseEntity
+                    .ok(ApiResponse.ok("All self assessments fetched", list));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(ApiResponse.fail("Internal Error in getAll: " + e.getMessage()));
+        }
     }
 
     @PostMapping("/{id}/manager-review")
@@ -94,11 +107,39 @@ public class SelfAssessmentController {
         return ResponseEntity.ok(ApiResponse.ok("Self assignment finalized", sa));
     }
 
+    @PostMapping("/{id}/request-correction")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR') or hasRole('DEPARTMENT_HEAD')")
+    public ResponseEntity<ApiResponse<SelfAssessment>> requestCorrection(@PathVariable Long id, @RequestBody CorrectionRequest req) {
+        SelfAssessment sa = selfAssessmentService.requestCorrection(id, req.getRemarks());
+        return ResponseEntity.ok(ApiResponse.ok("Correction requested", sa));
+    }
+
+    @lombok.Data
+    public static class CorrectionRequest {
+        private String remarks;
+    }
+
     private Employee getEmployee(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            System.err.println("DEBUG: Authentication or principal is null");
+            return null;
+        }
+        
+        if (!(authentication.getPrincipal() instanceof com.epms.backend.security.UserPrincipal)) {
+            System.err.println("DEBUG: Principal is not UserPrincipal: " + authentication.getPrincipal().getClass().getName());
+            return null;
+        }
+
         com.epms.backend.security.UserPrincipal principal = (com.epms.backend.security.UserPrincipal) authentication
                 .getPrincipal();
         User user = userRepository.findById(principal.getId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElse(null);
+        
+        if (user == null) {
+            System.err.println("DEBUG: User not found for ID: " + principal.getId());
+            return null;
+        }
+        
         return user.getEmployee();
     }
 

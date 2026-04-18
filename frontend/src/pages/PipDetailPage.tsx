@@ -40,7 +40,10 @@ export default function PipDetailPage() {
   const [updateValue, setUpdateValue] = useState({ percentage: 0, completedHours: 0, feedback: '' })
 
   const [showMeetingModal, setShowMeetingModal] = useState(false)
-  const [meetingTime, setMeetingTime] = useState('')
+  const [meetingDate, setMeetingDate] = useState('')
+  const [meetingHour, setMeetingHour] = useState('12')
+  const [meetingMinute, setMeetingMinute] = useState('00')
+  const [meetingPeriod, setMeetingPeriod] = useState('AM')
 
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [closeData, setCloseData] = useState({ finalOutcome: '', closingRemarks: '' })
@@ -70,9 +73,17 @@ export default function PipDetailPage() {
   }
 
   const handleScheduleMeeting = async () => {
-    await scheduleMeeting({ pipId, meetingTime })
+    // Convert AM/PM to 24-hour format for the backend
+    let hour = parseInt(meetingHour)
+    if (meetingPeriod === 'PM' && hour < 12) hour += 12
+    if (meetingPeriod === 'AM' && hour === 12) hour = 0
+    
+    const timeStr = `${hour.toString().padStart(2, '0')}:${meetingMinute}:00`
+    const isoTime = `${meetingDate}T${timeStr}`
+    
+    await scheduleMeeting({ pipId, meetingTime: isoTime })
     setShowMeetingModal(false)
-    setMeetingTime('')
+    setMeetingDate('')
   }
 
   const handleClosePip = async () => {
@@ -341,15 +352,52 @@ export default function PipDetailPage() {
             <h3 className="mb-4 text-lg font-bold">Schedule Follow-Up Meeting</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Date & Time</label>
+                <label className="block text-sm font-medium text-slate-700">Date</label>
                 <input
-                  type="datetime-local"
+                  type="date"
                   required
-                  min={new Date().toISOString().slice(0, 16)}
+                  min={new Date().toISOString().split('T')[0]}
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
-                  value={meetingTime}
-                  onChange={(e) => setMeetingTime(e.target.value)}
+                  value={meetingDate}
+                  onChange={(e) => setMeetingDate(e.target.value)}
                 />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Hour</label>
+                  <select 
+                    value={meetingHour} 
+                    onChange={e => setMeetingHour(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => (i + 1).toString()).map(h => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Minute</label>
+                  <select 
+                    value={meetingMinute} 
+                    onChange={e => setMeetingMinute(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
+                  >
+                    {['00', '15', '30', '45'].map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">AM/PM</label>
+                  <select 
+                    value={meetingPeriod} 
+                    onChange={e => setMeetingPeriod(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
