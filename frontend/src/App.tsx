@@ -30,6 +30,7 @@ import PipCreatePage from './pages/PipCreatePage';
 import PipDetailPage from './pages/PipDetailPage';
 import { CriteriaPage } from './pages/hr/CriteriaPage';
 import { AppraisalsPage } from './pages/hr/AppraisalsPage';
+import { KpiManagementPage } from './pages/hr/KpiManagementPage';
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
               <Route path="pip/:id" element={<PipDetailPage />} />
               <Route path="360-feedback/criteria" element={<CriteriaPage />} />
               <Route path="appraisals" element={<AppraisalsPage />} />
+              <Route path="kpi-management" element={<KpiManagementPage />} />
               <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
             </Route>
           </Route>
