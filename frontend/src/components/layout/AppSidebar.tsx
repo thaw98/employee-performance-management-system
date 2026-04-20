@@ -62,7 +62,7 @@ export function AppSidebar() {
           icon: 'bi-chat-dots',
           end: false,
           subItems: [
-            { name: 'Criteria', path: '/hr/360-feedback/criteria' },
+            ...(isHr ? [{ name: 'Criteria', path: '/hr/360-feedback/criteria' }] : []),
             { name: 'Give Feedback', path: '/hr/360-feedback/give' },
             { name: 'Get Feedback', path: '/hr/360-feedback/get' },
             { name: 'History', path: '/hr/360-feedback/history' }

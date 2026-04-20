@@ -18,23 +18,34 @@ public class CriteriaService {
     private final CriteriaRepository criteriaRepository;
 
     public List<CriteriaDto> getAllCriteria() {
-        return criteriaRepository.findAll().stream().map(this::mapToDto).collect(Collectors.toList());
+        return criteriaRepository.findAllByOrderBySortOrderAscIdAsc().stream().map(this::mapToDto).collect(Collectors.toList());
     }
 
     public CriteriaDto createCriteria(CriteriaDto dto) {
+        if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+            throw new RuntimeException("Criteria name is required");
+        }
         Criteria criteria = new Criteria();
         criteria.setName(dto.getName());
         criteria.setDescription(dto.getDescription());
-        criteria.setActive(true);
+        criteria.setActive(dto.isActive());
+        criteria.setSortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0);
         Criteria saved = criteriaRepository.save(criteria);
         return mapToDto(saved);
     }
 
     public CriteriaDto updateCriteria(Long id, CriteriaDto dto) {
+        if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+            throw new RuntimeException("Criteria name is required");
+        }
         Criteria criteria = criteriaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Criteria not found"));
         criteria.setName(dto.getName());
         criteria.setDescription(dto.getDescription());
+        criteria.setActive(dto.isActive());
+        if (dto.getSortOrder() != null) {
+            criteria.setSortOrder(dto.getSortOrder());
+        }
         Criteria saved = criteriaRepository.save(criteria);
         return mapToDto(saved);
     }
@@ -49,6 +60,7 @@ public class CriteriaService {
         dto.setName(criteria.getName());
         dto.setDescription(criteria.getDescription());
         dto.setActive(criteria.isActive());
+        dto.setSortOrder(criteria.getSortOrder());
         return dto;
     }
 }
