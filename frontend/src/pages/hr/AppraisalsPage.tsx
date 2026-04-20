@@ -23,7 +23,7 @@ import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, Hash, Type, HelpCi
 const PRIMARY = '#0855BF';
 
 interface Category {
-    id: number;
+    id?: number;
     name: string;
     description: string;
     status: boolean;
@@ -31,7 +31,7 @@ interface Category {
 }
 
 interface Question {
-    id: number;
+    id?: number;
     categoryId: number;
     questionText: string;
     answerType: string;
@@ -48,7 +48,7 @@ interface SortableCategoryRowProps {
 }
 
 function SortableCategoryRow({ category, index, onEdit, onDelete }: SortableCategoryRowProps) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category.id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category.id! });
     const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 1 : 0, opacity: isDragging ? 0.5 : 1 };
 
     return (
@@ -74,7 +74,7 @@ function SortableCategoryRow({ category, index, onEdit, onDelete }: SortableCate
             <td className="p-6 text-center">
                 <div className="flex items-center justify-center gap-2">
                     <button onClick={() => onEdit(category)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"><Pencil size={18} /></button>
-                    <button onClick={() => onDelete(category.id)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"><Trash2 size={18} /></button>
+                    <button onClick={() => onDelete(category.id!)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"><Trash2 size={18} /></button>
                 </div>
             </td>
         </tr>
@@ -89,7 +89,7 @@ interface SortableQuestionRowProps {
 }
 
 function SortableQuestionRow({ question, index, onEdit, onDelete }: SortableQuestionRowProps) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: question.id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: question.id! });
     const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 1 : 0, opacity: isDragging ? 0.5 : 1 };
 
     return (
@@ -114,7 +114,7 @@ function SortableQuestionRow({ question, index, onEdit, onDelete }: SortableQues
             <td className="p-6 text-center">
                 <div className="flex items-center justify-center gap-2">
                     <button onClick={() => onEdit(question)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"><Pencil size={18} /></button>
-                    <button onClick={() => onDelete(question.id)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"><Trash2 size={18} /></button>
+                    <button onClick={() => onDelete(question.id!)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"><Trash2 size={18} /></button>
                 </div>
             </td>
         </tr>
@@ -370,7 +370,7 @@ export function AppraisalsPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        <SortableContext items={categories.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                                        <SortableContext items={categories.map(c => c.id!)} strategy={verticalListSortingStrategy}>
                                             {categories.map((cat, index) => (
                                                 <SortableCategoryRow
                                                     key={cat.id}
@@ -444,7 +444,7 @@ export function AppraisalsPage() {
                                             {questions.length === 0 ? (
                                                 <tr><td colSpan={4} className="p-20 text-center text-slate-400 font-bold italic">No questions found for this category.</td></tr>
                                             ) : (
-                                                <SortableContext items={questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                                                <SortableContext items={questions.map(q => q.id!)} strategy={verticalListSortingStrategy}>
                                                     {questions.map((q, index) => (
                                                         <SortableQuestionRow
                                                             key={q.id}
