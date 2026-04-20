@@ -21,7 +21,7 @@ export default function PipMonitoringPage() {
   const [filterTab, setFilterTab] = useState<'ALL' | 'ACTIVE' | 'CLOSED'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
 
-  const canCreate = user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
+  const canCreate = user?.roleId === 2 || user?.roleId === 3 || user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD' || user?.role === 'MANAGER'
 
   const filteredPips = useMemo(() => {
     if (!pips) return []
@@ -140,9 +140,9 @@ export default function PipMonitoringPage() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 w-16 rounded-full bg-slate-100">
-                        <div 
-                          className={`h-full rounded-full ${pip.overallProgressPercentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`} 
-                          style={{ width: `${pip.overallProgressPercentage}%` }} 
+                        <div
+                          className={`h-full rounded-full ${pip.overallProgressPercentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                          style={{ width: `${pip.overallProgressPercentage}%` }}
                         />
                       </div>
                       <span className="text-[10px] font-bold text-slate-500">{pip.overallProgressPercentage}%</span>

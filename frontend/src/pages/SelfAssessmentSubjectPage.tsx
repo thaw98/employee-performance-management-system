@@ -145,11 +145,10 @@ export function SelfAssessmentSubitemPage() {
                                             <div className="text-base font-bold text-slate-700 group-hover:text-slate-900 transition-colors">{sub.subjectText}</div>
                                         </td>
                                         <td className="p-6 text-center">
-                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm border ${
-                                                sub.isActive 
-                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                                                : 'bg-slate-50 text-slate-400 border-slate-100'
-                                            }`}>
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm border ${sub.isActive
+                                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                                    : 'bg-slate-50 text-slate-400 border-slate-100'
+                                                }`}>
                                                 <div className={`w-1.5 h-1.5 rounded-full ${sub.isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                                                 {sub.isActive ? 'Active' : 'Inactive'}
                                             </span>
@@ -159,14 +158,14 @@ export function SelfAssessmentSubitemPage() {
                                                 <button
                                                     onClick={() => handleEdit(sub)}
                                                     className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center group/btn"
-                                                    title="Edit Subitem"
+                                                    title="Edit Question"
                                                 >
                                                     <Pencil size={18} className="group-hover/btn:scale-110 transition-transform" />
                                                 </button>
                                                 <button
                                                     onClick={() => setShowDeleteConfirm(sub.id || null)}
                                                     className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center group/btn"
-                                                    title="Delete Subitem"
+                                                    title="Delete Question"
                                                 >
                                                     <Trash2 size={18} className="group-hover/btn:scale-110 transition-transform" />
                                                 </button>
@@ -183,7 +182,7 @@ export function SelfAssessmentSubitemPage() {
             {/* Form Modal */}
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div 
+                    <div
                         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
                         onClick={() => !isLoading && setShowModal(false)}
                     />
@@ -196,7 +195,7 @@ export function SelfAssessmentSubitemPage() {
                                 </div>
                                 <span>{editingSubitem ? 'EDIT QUESTION' : 'CREATE NEW QUESTION'}</span>
                             </h3>
-                            <button 
+                            <button
                                 onClick={() => setShowModal(false)}
                                 className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-colors"
                             >
@@ -274,7 +273,7 @@ export function SelfAssessmentSubitemPage() {
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                    <div 
+                    <div
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
                         onClick={() => setShowDeleteConfirm(null)}
                     />
@@ -287,13 +286,13 @@ export function SelfAssessmentSubitemPage() {
                             <p className="text-sm text-slate-500 font-medium px-4">This action cannot be undone. All future self-assessment forms will no longer include this question.</p>
                         </div>
                         <div className="flex gap-3">
-                            <button 
+                            <button
                                 onClick={() => setShowDeleteConfirm(null)}
                                 className="flex-1 py-4 bg-slate-50 text-slate-500 rounded-2xl font-black text-xs hover:bg-slate-100 transition-all"
                             >
                                 NO, CANCEL
                             </button>
-                            <button 
+                            <button
                                 onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)}
                                 className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-xs shadow-lg shadow-red-100 hover:bg-red-600 transition-all active:scale-95"
                             >

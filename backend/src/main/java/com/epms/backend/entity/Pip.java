@@ -97,10 +97,10 @@ public class Pip {
     @OneToMany(mappedBy = "pip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FollowUpMeeting> followUpMeetings = new ArrayList<>();
 
-    @Transient
+    @Column(name = "total_hours")
     private Integer totalHours;
 
-    @Transient
+    @Column(name = "completed_hours")
     private Integer completedHours;
 
     @Transient
