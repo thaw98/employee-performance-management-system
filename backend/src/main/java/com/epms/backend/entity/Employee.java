@@ -47,7 +47,7 @@ public class Employee {
     @JoinColumn(name = "department_id")
     private Department department;
 
-    /** Denormalized from {@link Department#getParentDepartment()} for the employee's assigned department. */
+    /** Mirrors the selected department for compatibility with legacy schemas. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_department_id")
     private Department parentDepartment;
