@@ -1,5 +1,6 @@
 package com.epms.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -33,6 +34,7 @@ public class PipObjective {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pip_id", nullable = false)
+    @JsonIgnore
     private Pip pip;
 
     @Column(name = "objective_description", columnDefinition = "text", nullable = false)

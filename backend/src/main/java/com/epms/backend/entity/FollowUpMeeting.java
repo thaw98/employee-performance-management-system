@@ -1,5 +1,6 @@
 package com.epms.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,6 +34,7 @@ public class FollowUpMeeting {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pip_id", nullable = false)
+    @JsonIgnore
     private Pip pip;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
