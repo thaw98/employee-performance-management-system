@@ -49,10 +49,10 @@ interface SortableCategoryRowProps {
 
 function SortableCategoryRow({ category, index, onEdit, onDelete }: SortableCategoryRowProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category.id! });
-    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 1 : 0, opacity: isDragging ? 0.5 : 1 };
+    const style = { transform: CSS.Translate.toString(transform), transition, zIndex: isDragging ? 20 : 0, opacity: isDragging ? 0.3 : 1 };
 
     return (
-        <tr ref={setNodeRef} style={style} className={`bg-white hover:bg-slate-50/50 transition-all group ${isDragging ? 'shadow-2xl relative z-10' : ''}`}>
+        <tr ref={setNodeRef} style={style} className={`bg-white hover:bg-slate-50 border-b border-slate-50 group ${isDragging ? 'shadow-2xl relative z-20' : ''}`}>
             <td className="p-6 text-center">
                 <div className="flex items-center justify-center gap-3">
                     <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-2 text-slate-300 hover:text-blue-400 transition-colors">
@@ -90,10 +90,10 @@ interface SortableQuestionRowProps {
 
 function SortableQuestionRow({ question, index, onEdit, onDelete }: SortableQuestionRowProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: question.id! });
-    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 1 : 0, opacity: isDragging ? 0.5 : 1 };
+    const style = { transform: CSS.Translate.toString(transform), transition, zIndex: isDragging ? 20 : 0, opacity: isDragging ? 0.3 : 1 };
 
     return (
-        <tr ref={setNodeRef} style={style} className={`bg-white hover:bg-slate-50/50 transition-all group ${isDragging ? 'shadow-2xl relative z-10' : ''}`}>
+        <tr ref={setNodeRef} style={style} className={`bg-white hover:bg-slate-50 border-b border-slate-50 group ${isDragging ? 'shadow-2xl relative z-20' : ''}`}>
             <td className="p-6 text-center">
                 <div className="flex items-center justify-center gap-3">
                     <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-2 text-slate-300 hover:text-blue-400 transition-colors">

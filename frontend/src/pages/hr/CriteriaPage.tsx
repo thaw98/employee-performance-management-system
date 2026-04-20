@@ -48,17 +48,17 @@ function SortableCriteriaRow({ criteria, index, onEdit, onDelete }: SortableCrit
     } = useSortable({ id: criteria.id! });
 
     const style = {
-        transform: CSS.Transform.toString(transform),
+        transform: CSS.Translate.toString(transform),
         transition,
-        zIndex: isDragging ? 1 : 0,
-        opacity: isDragging ? 0.5 : 1,
+        zIndex: isDragging ? 20 : 0,
+        opacity: isDragging ? 0.3 : 1,
     };
 
     return (
         <tr 
             ref={setNodeRef} 
             style={style} 
-            className={`hover:bg-slate-50/30 transition-colors group ${isDragging ? 'bg-blue-50/50 shadow-2xl relative z-10' : ''}`}
+            className={`bg-white border-b border-slate-50 group ${isDragging ? 'shadow-2xl relative z-20' : 'hover:bg-slate-50/50 transition-colors'}`}
         >
             <td className="p-6 text-center">
                 <div className="flex items-center justify-center gap-3">

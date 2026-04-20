@@ -71,15 +71,16 @@ function SortableRow({
     });
 
     const style = {
-        transform: CSS.Transform.toString(transform),
+        transform: CSS.Translate.toString(transform),
         transition,
+        zIndex: isDragging ? 20 : 0,
     };
 
     return (
         <tr
             ref={setNodeRef}
             style={style}
-            className={`hover:bg-slate-50/30 transition-colors group ${isDragging ? 'opacity-80 shadow-lg bg-white' : ''
+            className={`bg-white border-b border-slate-50 group ${isDragging ? 'shadow-2xl relative z-20 opacity-50' : 'hover:bg-slate-50 transition-colors'
                 }`}
         >
             <td className="p-6">
