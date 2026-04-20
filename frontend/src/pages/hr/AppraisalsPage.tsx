@@ -202,7 +202,12 @@ export function AppraisalsPage() {
                                         <td className="p-6 font-bold text-slate-700">{cat.name}</td>
                                         <td className="p-6 text-xs text-slate-500">{cat.description}</td>
                                         <td className="p-6 text-center">
-                                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${cat.status ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm border ${
+                                                cat.status 
+                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                                                : 'bg-slate-50 text-slate-400 border-slate-100'
+                                            }`}>
+                                                <div className={`w-1.5 h-1.5 rounded-full ${cat.status ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                                                 {cat.status ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
@@ -258,17 +263,28 @@ export function AppraisalsPage() {
                                     <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
                                         <th className="p-6 w-16 text-center">#</th>
                                         <th className="p-6">Question Text</th>
+                                        <th className="p-6 text-center">Status</th>
                                         <th className="p-6 text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
                                     {questions.length === 0 ? (
-                                        <tr><td colSpan={3} className="p-12 text-center text-slate-400 font-bold italic">No questions found for this category.</td></tr>
+                                        <tr><td colSpan={4} className="p-12 text-center text-slate-400 font-bold italic">No questions found for this category.</td></tr>
                                     ) : (
                                         questions.map((q, index) => (
                                             <tr key={q.id} className="hover:bg-slate-50/50 transition-colors">
                                                 <td className="p-6 text-center font-black text-slate-300">#{index + 1}</td>
                                                 <td className="p-6 font-bold text-slate-700">{q.questionText}</td>
+                                                <td className="p-6 text-center">
+                                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm border ${
+                                                        q.status 
+                                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                                                        : 'bg-slate-50 text-slate-400 border-slate-100'
+                                                    }`}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${q.status ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                                        {q.status ? 'Active' : 'Inactive'}
+                                                    </span>
+                                                </td>
                                                 <td className="p-6 flex justify-center gap-2">
                                                     <button onClick={() => { setEditingQuestion(q); setQueForm({ ...q }); setShowQueModal(true); }} className="p-2 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-colors"><Pencil size={16}/></button>
                                                     <button onClick={() => handleDeleteQuestion(q.id!)} className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={16}/></button>
