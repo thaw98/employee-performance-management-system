@@ -43,8 +43,15 @@ const HrLayout: React.FC = () => {
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/hr/dashboard' },
     { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
     { icon: <Target size={20} />, label: 'KPI Management', path: '/hr/kpi-mgmt' },
-    { icon: <ClipboardList size={20} />, label: 'Self Assessments', path: '/hr/assessments' },
-    { icon: <ShieldCheck size={20} />, label: 'Assessment Questions', path: '/hr/assessment-subitems' },
+    { 
+      icon: <ClipboardList size={20} />, 
+      label: 'Self Assessments', 
+      path: '/hr/assessments-group',
+      subItems: [
+        { label: 'Compliance Review', path: '/hr/assessments' },
+        { label: 'Assessment Questions', path: '/hr/assessment-subitems' }
+      ]
+    },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/hr/appraisals' },
     { 
       icon: <RefreshCcw size={20} />, 
@@ -82,10 +89,10 @@ const HrLayout: React.FC = () => {
         <div className="p-6 border-b border-slate-100">
            <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold overflow-hidden">
-                 {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
+                 {user?.name?.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
-                 <h4 className="text-sm font-bold text-slate-900 truncate uppercase mt-1">{user?.firstName} {user?.lastName}</h4>
+                 <h4 className="text-sm font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</h4>
                  <div className="flex items-center gap-2">
                     <p className="text-[10px] font-bold text-slate-400 uppercase truncate">CEO</p>
                     <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[8px] font-black uppercase">HR</span>
@@ -195,11 +202,11 @@ const HrLayout: React.FC = () => {
               
               <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
                  <div className="text-right">
-                    <p className="text-xs font-bold text-slate-900 truncate uppercase mt-1">{user?.firstName} {user?.lastName}</p>
+                    <p className="text-xs font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</p>
                     <p className="text-[10px] font-bold text-slate-400 uppercase">CEO</p>
                  </div>
                  <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
-                    {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
+                    {user?.name?.charAt(0)}
                  </div>
                  <ChevronDown size={16} className="text-slate-400" />
               </div>
