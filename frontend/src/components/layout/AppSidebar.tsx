@@ -55,7 +55,15 @@ export function AppSidebar() {
     {
       label: 'Management',
       items: [
-        { name: 'Performance Appraisals', path: '/hr/appraisals', icon: 'bi-clipboard-check', end: false },
+        { 
+          name: 'Appraisals', 
+          path: '/hr/appraisals-group', 
+          icon: 'bi-clipboard-check', 
+          end: false,
+          subItems: [
+            { name: 'Management', path: '/hr/appraisals' }
+          ]
+        },
         {
           name: '360° Feedback',
           path: '/hr/360-feedback',

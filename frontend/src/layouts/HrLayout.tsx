@@ -52,7 +52,14 @@ const HrLayout: React.FC = () => {
         { label: 'Assessment Questions', path: '/hr/assessment-subitems' }
       ]
     },
-    { icon: <Award size={20} />, label: 'Appraisals', path: '/hr/appraisals' },
+    { 
+      icon: <Award size={20} />, 
+      label: 'Appraisals', 
+      path: '/hr/appraisals-group',
+      subItems: [
+        { label: 'Management', path: '/hr/appraisals' }
+      ]
+    },
     { 
       icon: <RefreshCcw size={20} />, 
       label: '360° Feedback', 
