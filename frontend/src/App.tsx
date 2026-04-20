@@ -27,6 +27,7 @@ import { SelfAssessmentSubitemPage } from './pages/SelfAssessmentSubjectPage';
 import PipMonitoringPage from './pages/PipMonitoringPage';
 import PipCreatePage from './pages/PipCreatePage';
 import PipDetailPage from './pages/PipDetailPage';
+import { CriteriaPage } from './pages/hr/CriteriaPage';
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
               <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
               <Route path="pip" element={<PipMonitoringPage />} />
               <Route path="pip/:id" element={<PipDetailPage />} />
+              <Route path="360-feedback/criteria" element={<CriteriaPage />} />
               <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
             </Route>
           </Route>

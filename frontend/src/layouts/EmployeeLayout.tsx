@@ -61,10 +61,10 @@ const EmployeeLayout: React.FC = () => {
         <div className="p-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold overflow-hidden">
-              {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
+              {user?.name?.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-bold text-slate-900 truncate uppercase mt-1">{user?.firstName} {user?.lastName}</h4>
+              <h4 className="text-sm font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</h4>
               <div className="flex items-center gap-2">
                 <p className="text-[10px] font-bold text-slate-400 uppercase truncate">SE</p>
                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[8px] font-black uppercase">EMPLOYEE</span>
@@ -130,11 +130,11 @@ const EmployeeLayout: React.FC = () => {
 
             <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
               <div className="text-right">
-                <p className="text-xs font-bold text-slate-900 truncate uppercase mt-1">{user?.firstName} {user?.lastName}</p>
+                <p className="text-xs font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</p>
                 <p className="text-[10px] font-bold text-slate-400 uppercase">SE</p>
               </div>
               <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
-                {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
+                {user?.name?.charAt(0)}
               </div>
               <ChevronDown size={16} className="text-slate-400" />
             </div>
