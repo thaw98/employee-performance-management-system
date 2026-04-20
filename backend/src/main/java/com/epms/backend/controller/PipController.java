@@ -24,7 +24,7 @@ public class PipController {
     private final UserRepository userRepository;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
     public ResponseEntity<ApiResponse<Pip>> createPip(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody PipCreateRequest request) {
@@ -34,10 +34,12 @@ public class PipController {
     }
 
     @GetMapping("/eligible-employees")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD')")
-    public ResponseEntity<ApiResponse<List<EligibleEmployeeDTO>>> getEligibleEmployees(@AuthenticationPrincipal UserPrincipal principal) {
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<List<EligibleEmployeeDTO>>> getEligibleEmployees(
+            @AuthenticationPrincipal UserPrincipal principal) {
         User manager = userRepository.findById(principal.getId()).orElseThrow();
-        return ResponseEntity.ok(ApiResponse.ok("Eligible employees retrieved successfully", pipService.getLowPerformers(manager)));
+        return ResponseEntity
+                .ok(ApiResponse.ok("Eligible employees retrieved successfully", pipService.getLowPerformers(manager)));
     }
 
     @GetMapping
@@ -46,7 +48,8 @@ public class PipController {
         List<Pip> pips;
         if (principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_HR"))) {
             pips = pipService.getAllPips();
-        } else if (principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().matches("ROLE_(DEPARTMENT|TEAM)_HEAD"))) {
+        } else if (principal.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().matches("ROLE_(DEPARTMENT|TEAM)_HEAD|ROLE_MANAGER"))) {
             pips = pipService.getManagerPips(user);
         } else {
             pips = pipService.getEmployeePips(user);
@@ -60,7 +63,7 @@ public class PipController {
     }
 
     @PutMapping("/objectives/{objectiveId}/progress")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
     public ResponseEntity<ApiResponse<PipObjective>> updateProgress(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long objectiveId,
@@ -71,7 +74,7 @@ public class PipController {
     }
 
     @PostMapping("/{id}/meetings")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
     public ResponseEntity<ApiResponse<FollowUpMeeting>> scheduleMeeting(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
@@ -82,7 +85,7 @@ public class PipController {
     }
 
     @PutMapping("/{id}/close")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
     public ResponseEntity<ApiResponse<Pip>> closePip(
             @PathVariable Long id,
             @RequestBody PipCloseRequest request) {
@@ -91,7 +94,7 @@ public class PipController {
     }
 
     @PutMapping("/{id}/reopen")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD')") // Manager can reopen
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')") // Manager can reopen
     public ResponseEntity<ApiResponse<Pip>> reopenPip(
             @PathVariable Long id,
             @RequestBody PipReopenRequest request) {
@@ -110,11 +113,13 @@ public class PipController {
 
     @GetMapping("/employees/{employeeId}/training")
     public ResponseEntity<ApiResponse<List<TrainingRecord>>> getTrainingHistory(@PathVariable Long employeeId) {
-        return ResponseEntity.ok(ApiResponse.ok("Training history retrieved successfully", pipService.getEmployeeTrainingHistory(employeeId)));
+        return ResponseEntity.ok(ApiResponse.ok("Training history retrieved successfully",
+                pipService.getEmployeeTrainingHistory(employeeId)));
     }
 
     @GetMapping("/objectives/{objectiveId}/history")
     public ResponseEntity<ApiResponse<List<PipProgressUpdate>>> getObjectiveHistory(@PathVariable Long objectiveId) {
-        return ResponseEntity.ok(ApiResponse.ok("Objective history retrieved successfully", pipService.getObjectiveHistory(objectiveId)));
+        return ResponseEntity.ok(ApiResponse.ok("Objective history retrieved successfully",
+                pipService.getObjectiveHistory(objectiveId)));
     }
 }

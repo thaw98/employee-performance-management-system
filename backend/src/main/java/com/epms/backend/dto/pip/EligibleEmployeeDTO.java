@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class EligibleEmployeeDTO {
+    private Long employeeRecordId;
     private String employeeId;
     private String employeeName;
     private String departmentName;

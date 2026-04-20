@@ -8,10 +8,7 @@ import { useCreatePipMutation, useGetEligibleEmployeesQuery } from '../features/
 
 const pipCreateSchema = z
   .object({
-    employeeId: z
-      .string()
-      .min(1, 'Employee record ID is required')
-      .regex(/^[0-9]+$/, 'Must be the numeric employee record ID'),
+    employeeId: z.coerce.number().int().min(1, 'Employee record ID is required'),
     totalHours: z.coerce.number().int().min(1, 'Total hours must be at least 1'),
     startDate: z.string().min(1, 'Start date is required'),
     endDate: z.string().min(1, 'End date is required'),
@@ -56,6 +53,13 @@ export default function PipCreatePage() {
 
   const onSubmit = async (values: PipCreateFormValues) => {
     setSubmitError(null)
+    console.log('[PIP Create] Submitting payload:', {
+      employeeId: Number(values.employeeId.trim()),
+      startDate: values.startDate,
+      endDate: values.endDate,
+      totalHours: values.totalHours,
+      objectives: values.objectives.map((item) => item.value.trim()).filter(Boolean),
+    })
     try {
       await createPip({
         employeeId: Number(values.employeeId.trim()),
@@ -65,8 +69,14 @@ export default function PipCreatePage() {
         objectives: values.objectives.map((item) => item.value.trim()).filter(Boolean),
       }).unwrap()
       navigate('../', { relative: 'path' })
-    } catch {
-      setSubmitError('Failed to create PIP. Please check the employee record ID and try again.')
+    } catch (err: any) {
+      console.error('[PIP Create] Error:', err)
+      const msg =
+        err?.data?.message ||
+        err?.error ||
+        err?.message ||
+        'Failed to create PIP. Unknown error — check console.'
+      setSubmitError(msg)
     }
   }
 
@@ -87,8 +97,8 @@ export default function PipCreatePage() {
               <Autocomplete
                 loading={isLoadingEmployees}
                 options={eligibleEmployees || []}
-                getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}) - ${option.departmentName}`}
-                onChange={(_, data) => field.onChange(data?.employeeId || '')}
+                getOptionLabel={(option) => `${option.employeeName}${option.employeeId ? ` (${option.employeeId})` : ''} - ${option.departmentName}`}
+                onChange={(_, data) => field.onChange(data?.employeeRecordId ? String(data.employeeRecordId) : '')}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -103,7 +113,7 @@ export default function PipCreatePage() {
                   return (
                     <li key={key} {...rest}>
                       <Box>
-                        <Typography variant="body1">{option.employeeName} ({option.employeeId})</Typography>
+                        <Typography variant="body1">{option.employeeName}{option.employeeId ? ` (${option.employeeId})` : ''}</Typography>
                         <Typography variant="caption" color="text.secondary">
                           Dept: {option.departmentName} | KPI Score: {option.totalScore?.toFixed(2)}%
                         </Typography>

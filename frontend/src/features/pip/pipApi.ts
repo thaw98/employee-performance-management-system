@@ -62,6 +62,7 @@ export interface PipProgressUpdate {
 }
 
 export interface EligibleEmployee {
+  employeeRecordId: number
   employeeId: string
   employeeName: string
   departmentName: string

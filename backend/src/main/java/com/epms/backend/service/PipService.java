@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,7 @@ public class PipService {
         return employeeRepository.findAll().stream()
                 .filter(employee -> employee.getManager() != null && employee.getManager().getId().equals(manager.getEmployee().getId()))
                 .map(employee -> new EligibleEmployeeDTO(
+                        employee.getId(),
                         employee.getEmployeeId(),
                         employee.getEmployeeName(),
                         employee.getDepartment() == null ? null : employee.getDepartment().getName(),
@@ -44,13 +46,19 @@ public class PipService {
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         Pip pip = new Pip();
+        Employee pipManager = employee.getManager() != null ? employee.getManager() : (manager.getEmployee() != null ? manager.getEmployee() : employee);
+        Employee pipCreator = manager.getEmployee() != null ? manager.getEmployee() : (employee.getManager() != null ? employee.getManager() : employee);
+        
         pip.setEmployee(employee);
-        pip.setManager(manager.getEmployee());
-        pip.setCreatedBy(manager.getEmployee());
+        pip.setManager(pipManager);
+        pip.setCreatedBy(pipCreator);
         pip.setStartDate(request.getStartDate());
         pip.setEndDate(request.getEndDate());
         pip.setStatus("Active");
         pip.setOverallProgressPercentage(BigDecimal.ZERO);
+        pip.setTotalHours(request.getTotalHours());
+        pip.setCompletedHours(0);
+        pip.setCreatedDate(Instant.now());
 
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();
