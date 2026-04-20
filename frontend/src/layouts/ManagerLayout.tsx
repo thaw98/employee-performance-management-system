@@ -75,7 +75,6 @@ const ManagerLayout: React.FC = () => {
            <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold overflow-hidden">
                  {user?.name?.charAt(0)}
-                 {initialsFromName(user?.name)}
               </div>
               <div className="flex-1 min-w-0">
                  <h4 className="text-sm font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</h4>
@@ -150,7 +149,6 @@ const ManagerLayout: React.FC = () => {
                  </div>
                  <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
                     {user?.name?.charAt(0)}
-                    {initialsFromName(user?.name)}
                  </div>
                  <ChevronDown size={16} className="text-slate-400" />
               </div>

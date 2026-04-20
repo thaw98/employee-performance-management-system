@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from '../app/axiosInstance';
 import { useAppSelector } from '../app/hooks';
 import { toast } from 'react-hot-toast';
-import { formatDate } from '../utils/dateUtils';
+import { formatDate, formatDateTime } from '../utils/dateUtils';
 import SignatureCanvas from 'react-signature-canvas';
 
 const PRIMARY = '#0855BF';

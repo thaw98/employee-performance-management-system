@@ -35,4 +35,3 @@ build/
 ### stop tracking application.properties not to conflict with team members ###
 src/main/resources/application-local.properties
 .env
-uploads/

@@ -24,8 +24,6 @@ import {
   useGetReligionsQuery,
   useLazyCheckUserEmailQuery,
 } from '../services/employeeApi'
-import { useUploadProfilePictureMutation } from '../../user/userApi'
-import { toTitleCasePersonName } from '../../../utils/personName'
 import { buildEmployeeCreatePayload } from '../utils/draftPayload'
 import { calculateProbationEnd, formatProbationEndDisplay } from '../utils/probation'
 import { STAFF_TYPE_PERMANENT, STAFF_TYPE_PROBATION } from '../utils/staffType'
@@ -280,7 +278,6 @@ export function CreateEmployeeAccountPage() {
 
   const [createEmployee] = useCreateEmployeeMutation()
   const [createAccount] = useCreateEmployeeAccountMutation()
-  const [uploadProfilePicture] = useUploadProfilePictureMutation()
   const [checkEmailUsers] = useLazyCheckUserEmailQuery()
 
   const religions = useGetReligionsQuery()
@@ -333,9 +330,9 @@ export function CreateEmployeeAccountPage() {
   const employeeNameLength = (watch('employeeName') ?? '').length
   const computedPresetProbationEndIso =
     isProbationStaff &&
-      probationDurationWatch &&
-      probationDurationWatch !== 'custom' &&
-      probationStartForEnd
+    probationDurationWatch &&
+    probationDurationWatch !== 'custom' &&
+    probationStartForEnd
       ? calculateProbationEnd(probationStartForEnd, Number(probationDurationWatch))
       : ''
   const computedPresetProbationEndDisplay = computedPresetProbationEndIso
