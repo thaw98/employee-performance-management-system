@@ -22,8 +22,9 @@ type NavSection = { label: string; items: NavItem[] }
 
 export function AppSidebar() {
   const role = useAppSelector((s) => s.auth.user?.role)
-  const isHr = role === 'HR'
-  const isManager = role === 'DEPARTMENT_HEAD' || role === 'TEAM_HEAD'
+  const roleId = useAppSelector((s) => s.auth.user?.roleId)
+  const isHr = roleId === 1 || role === 'HR'
+  const isManager = roleId === 2 || roleId === 3 || role === 'DEPARTMENT_HEAD' || role === 'TEAM_HEAD'
   const location = useLocation()
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
@@ -40,11 +41,11 @@ export function AppSidebar() {
         ...(isHr
           ? [
               {
-                name: 'Employee',
+                name: 'Employees',
                 path: '/hr/employee-account',
                 icon: 'bi-person-badge',
                 end: false,
-                subItems: [{ name: 'Create Employee Account', path: '/hr/employee-account/create' }],
+                subItems: [{ name: 'Create Employee Account', path: '/hr/employees/create-account' }],
               },
             ]
           : []),

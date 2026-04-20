@@ -39,9 +39,21 @@ const HrLayout: React.FC = () => {
     setExpandedMenus(prev => ({ ...prev, [label]: !prev[label] }));
   };
 
+  const isHrAdmin = user?.roleId === 1;
+
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/hr/dashboard' },
-    { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
+    isHrAdmin
+      ? {
+          icon: <Users size={20} />,
+          label: 'Employees',
+          path: '/hr/employees',
+          subItems: [
+            { label: 'Employee List', path: '/hr/employees' },
+            { label: 'Create Employee Account', path: '/hr/employees/create-account' }
+          ]
+        }
+      : { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
     { icon: <Target size={20} />, label: 'KPI Management', path: '/hr/kpi-mgmt' },
     {
       icon: <ClipboardList size={20} />,
