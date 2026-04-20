@@ -125,17 +125,6 @@ function SortableRow({
             <td className="p-6">
                 <div className="flex justify-center gap-2">
                     <button
-                        onClick={() => onToggleStatus(subject)}
-                        className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${subject.isActive
-                                ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                                : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-                            }`}
-                        title={subject.isActive ? 'Deactivate Question' : 'Activate Question'}
-                    >
-                        {subject.isActive ? <Power size={18} /> : <PowerOff size={18} />}
-                    </button>
-
-                    <button
                         onClick={() => onEdit(subject)}
                         className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"
                         title="Edit Question"
@@ -551,42 +540,23 @@ export function SelfAssessmentSubitemPage() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                                        Display Order
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
+                                <div className="flex flex-col justify-end h-[46px]">
+                                    <label className="group flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:bg-white hover:border-blue-100 transition-all">
+                                        <div className={`w-10 h-6 rounded-full relative transition-all ${form.isActive ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${form.isActive ? 'left-5' : 'left-1'}`} />
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            className="hidden"
+                                            checked={form.isActive}
+                                            onChange={e => setForm({ ...form, isActive: e.target.checked })}
+                                        />
+                                        <span className={`text-xs font-black uppercase ${form.isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                            {form.isActive ? 'Active' : 'Inactive'}
+                                        </span>
                                     </label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-black text-slate-700 focus:bg-white focus:border-blue-500 outline-none transition-all"
-                                        value={form.displayOrder}
-                                        onChange={(e) =>
-                                            setForm({
-                                                ...form,
-                                                displayOrder: Math.max(1, parseInt(e.target.value) || 1),
-                                            })
-                                        }
-                                    />
-                                    <p className="text-[10px] text-slate-400 ml-1">
-                                        Leave as is for auto-positioning
-                                    </p>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                                        Status
-                                    </label>
-                                    <select
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 focus:bg-white focus:border-blue-500 outline-none transition-all cursor-pointer"
-                                        value={form.isActive ? 'active' : 'inactive'}
-                                        onChange={(e) =>
-                                            setForm({ ...form, isActive: e.target.value === 'active' })
-                                        }
-                                    >
-                                        <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
-                                    </select>
                                 </div>
                             </div>
                         </div>

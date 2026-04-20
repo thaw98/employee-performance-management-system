@@ -1,7 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { Plus, Pencil, Trash2, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import {
+    DndContext,
+    PointerSensor,
+    KeyboardSensor,
+    closestCenter,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    useSortable,
+    arrayMove,
+    verticalListSortingStrategy,
+    sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Plus, Pencil, Trash2, X, AlertTriangle, CheckCircle2, GripVertical } from 'lucide-react';
 
 const PRIMARY = '#0855BF';
 
@@ -13,12 +30,97 @@ interface Criteria {
     active: boolean;
 }
 
+interface SortableCriteriaRowProps {
+    criteria: Criteria;
+    index: number;
+    onEdit: (c: Criteria) => void;
+    onDelete: (id: number) => void;
+}
+
+function SortableCriteriaRow({ criteria, index, onEdit, onDelete }: SortableCriteriaRowProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: criteria.id! });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 1 : 0,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <tr 
+            ref={setNodeRef} 
+            style={style} 
+            className={`hover:bg-slate-50/30 transition-colors group ${isDragging ? 'bg-blue-50/50 shadow-2xl relative z-10' : ''}`}
+        >
+            <td className="p-6 text-center">
+                <div className="flex items-center justify-center gap-3">
+                    <button 
+                        {...attributes} 
+                        {...listeners}
+                        className="cursor-grab active:cursor-grabbing p-2 text-slate-300 hover:text-blue-400 transition-colors"
+                    >
+                        <GripVertical size={20} />
+                    </button>
+                    <span className="font-black text-slate-300 text-lg group-hover:text-blue-200 transition-colors">#{index + 1}</span>
+                </div>
+            </td>
+            <td className="p-6">
+                <div className="text-base font-bold text-slate-700 group-hover:text-slate-900 transition-colors">{criteria.name}</div>
+                {criteria.description && (
+                    <div className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">{criteria.description}</div>
+                )}
+            </td>
+            <td className="p-6 text-center">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm border ${criteria.active
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                        : 'bg-slate-50 text-slate-400 border-slate-100'
+                    }`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${criteria.active ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    {criteria.active ? 'Active' : 'Inactive'}
+                </span>
+            </td>
+            <td className="p-6">
+                <div className="flex justify-center gap-3">
+                    <button
+                        onClick={() => onEdit(criteria)}
+                        className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center group/btn"
+                        title="Edit Criteria"
+                    >
+                        <Pencil size={18} className="group-hover/btn:scale-110 transition-transform" />
+                    </button>
+                    <button
+                        onClick={() => onDelete(criteria.id!)}
+                        className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center group/btn"
+                        title="Delete Criteria"
+                    >
+                        <Trash2 size={18} className="group-hover/btn:scale-110 transition-transform" />
+                    </button>
+                </div>
+            </td>
+        </tr>
+    );
+}
+
 export function CriteriaPage() {
     const [criteriaList, setCriteriaList] = useState<Criteria[]>([]);
     const [editingCriteria, setEditingCriteria] = useState<Criteria | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isReordering, setIsReordering] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
 
     const [form, setForm] = useState<Criteria>({
         name: '',
@@ -34,10 +136,41 @@ export function CriteriaPage() {
     const fetchCriteria = async () => {
         try {
             const resp = await axios.get('/criteria');
-            setCriteriaList(resp.data.data || []);
+            const data = resp.data.data || [];
+            // Ensure data is sorted by sortOrder from backend initially
+            setCriteriaList([...data].sort((a, b) => a.sortOrder - b.sortOrder));
         } catch (err) {
             console.error(err);
             toast.error('Failed to fetch criteria list');
+        }
+    };
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = criteriaList.findIndex(c => c.id === active.id);
+        const newIndex = criteriaList.findIndex(c => c.id === over.id);
+
+        const newList = arrayMove(criteriaList, oldIndex, newIndex).map((item, idx) => ({
+            ...item,
+            sortOrder: idx + 1
+        }));
+
+        setCriteriaList(newList);
+        setIsReordering(true);
+
+        try {
+            // Persist all sortOrder changes
+            await Promise.all(newList.map(item => 
+                axios.put(`/criteria/${item.id}`, item)
+            ));
+            toast.success('Order updated');
+        } catch (err) {
+            toast.error('Failed to update order');
+            fetchCriteria();
+        } finally {
+            setIsReordering(false);
         }
     };
 
@@ -80,8 +213,8 @@ export function CriteriaPage() {
     const handleEdit = (criteria: Criteria) => {
         setEditingCriteria(criteria);
         // Ensure null description or missing values are handled safely in the UI
-        setForm({ 
-            ...criteria, 
+        setForm({
+            ...criteria,
             description: criteria.description || '',
             sortOrder: criteria.sortOrder || 1
         });
@@ -117,6 +250,13 @@ export function CriteriaPage() {
                 </button>
             </div>
 
+            {isReordering && (
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 text-sm text-blue-700 flex items-center gap-2 animate-pulse">
+                    <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+                    <span>Synchronizing order with server...</span>
+                </div>
+            )}
+
             {/* List section */}
             <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
@@ -127,77 +267,58 @@ export function CriteriaPage() {
                     </div>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-white text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
-                                <th className="p-6 w-20 text-center">Order</th>
-                                <th className="p-6">Criteria Details</th>
-                                <th className="p-6 w-32 text-center">Status</th>
-                                <th className="p-6 w-40 text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            {criteriaList.length === 0 ? (
-                                <tr>
-                                    <td colSpan={4} className="p-16 text-center">
-                                        <div className="flex flex-col items-center gap-3 grayscale opacity-30">
-                                            <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center">
-                                                <Plus size={32} className="text-slate-400" />
-                                            </div>
-                                            <p className="text-slate-500 font-bold italic">No criteria defined yet.</p>
-                                        </div>
-                                    </td>
+                    <DndContext 
+                        sensors={sensors} 
+                        collisionDetection={closestCenter} 
+                        onDragEnd={handleDragEnd}
+                    >
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-white text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                                    <th className="p-6 w-32 text-center">#</th>
+                                    <th className="p-6">Criteria Details</th>
+                                    <th className="p-6 w-32 text-center">Status</th>
+                                    <th className="p-6 w-40 text-center">Actions</th>
                                 </tr>
-                            ) : (
-                                criteriaList.map(criteria => (
-                                    <tr key={criteria.id} className="hover:bg-slate-50/30 transition-colors group">
-                                        <td className="p-6 font-black text-slate-300 text-lg text-center group-hover:text-blue-200 transition-colors">#{criteria.sortOrder}</td>
-                                        <td className="p-6">
-                                            <div className="text-base font-bold text-slate-700 group-hover:text-slate-900 transition-colors">{criteria.name}</div>
-                                            {criteria.description && (
-                                                <div className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">{criteria.description}</div>
-                                            )}
-                                        </td>
-                                        <td className="p-6 text-center">
-                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm border ${
-                                                criteria.active 
-                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                                                : 'bg-slate-50 text-slate-400 border-slate-100'
-                                            }`}>
-                                                <div className={`w-1.5 h-1.5 rounded-full ${criteria.active ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                                                {criteria.active ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td className="p-6">
-                                            <div className="flex justify-center gap-3">
-                                                <button
-                                                    onClick={() => handleEdit(criteria)}
-                                                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center group/btn"
-                                                    title="Edit Criteria"
-                                                >
-                                                    <Pencil size={18} className="group-hover/btn:scale-110 transition-transform" />
-                                                </button>
-                                                <button
-                                                    onClick={() => setShowDeleteConfirm(criteria.id || null)}
-                                                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center group/btn"
-                                                    title="Delete Criteria"
-                                                >
-                                                    <Trash2 size={18} className="group-hover/btn:scale-110 transition-transform" />
-                                                </button>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {criteriaList.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="p-16 text-center">
+                                            <div className="flex flex-col items-center gap-3 grayscale opacity-30">
+                                                <div className="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center">
+                                                    <Plus size={32} className="text-slate-400" />
+                                                </div>
+                                                <p className="text-slate-500 font-bold italic">No criteria defined yet.</p>
                                             </div>
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                ) : (
+                                    <SortableContext 
+                                        items={criteriaList.map(c => c.id!)} 
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        {criteriaList.map((criteria, index) => (
+                                            <SortableCriteriaRow 
+                                                key={criteria.id} 
+                                                criteria={criteria} 
+                                                index={index} 
+                                                onEdit={handleEdit} 
+                                                onDelete={(id) => setShowDeleteConfirm(id)} 
+                                            />
+                                        ))}
+                                    </SortableContext>
+                                )}
+                            </tbody>
+                        </table>
+                    </DndContext>
                 </div>
             </div>
 
             {/* Form Modal */}
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div 
+                    <div
                         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
                         onClick={() => !isLoading && setShowModal(false)}
                     />
@@ -210,7 +331,7 @@ export function CriteriaPage() {
                                 </div>
                                 <span>{editingCriteria ? 'EDIT CRITERIA' : 'CREATE NEW CRITERIA'}</span>
                             </h3>
-                            <button 
+                            <button
                                 onClick={() => setShowModal(false)}
                                 className="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-colors"
                             >
@@ -291,7 +412,7 @@ export function CriteriaPage() {
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                    <div 
+                    <div
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
                         onClick={() => setShowDeleteConfirm(null)}
                     />
@@ -304,13 +425,13 @@ export function CriteriaPage() {
                             <p className="text-sm text-slate-500 font-medium px-4">This action cannot be undone. You are about to permanently delete this feedback criteria.</p>
                         </div>
                         <div className="flex gap-3">
-                            <button 
+                            <button
                                 onClick={() => setShowDeleteConfirm(null)}
                                 className="flex-1 py-4 bg-slate-50 text-slate-500 rounded-2xl font-black text-xs hover:bg-slate-100 transition-all"
                             >
                                 NO, CANCEL
                             </button>
-                            <button 
+                            <button
                                 onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)}
                                 className="flex-1 py-4 bg-red-500 text-white rounded-2xl font-black text-xs shadow-lg shadow-red-100 hover:bg-red-600 transition-all active:scale-95"
                             >

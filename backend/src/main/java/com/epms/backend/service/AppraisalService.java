@@ -22,7 +22,7 @@ public class AppraisalService {
 
     // Category CRUD
     public List<AppraisalCategoryDto> getAllCategories() {
-        return categoryRepository.findAll().stream()
+        return categoryRepository.findAllByOrderBySortOrderAsc().stream()
                 .map(this::mapToCategoryDto)
                 .collect(Collectors.toList());
     }
@@ -36,6 +36,7 @@ public class AppraisalService {
         category.setName(dto.getName());
         category.setDescription(dto.getDescription());
         category.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
+        category.setSortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0);
         return mapToCategoryDto(categoryRepository.save(category));
     }
 
@@ -51,6 +52,7 @@ public class AppraisalService {
         category.setName(dto.getName());
         category.setDescription(dto.getDescription());
         category.setStatus(dto.getStatus());
+        category.setSortOrder(dto.getSortOrder());
         return mapToCategoryDto(categoryRepository.save(category));
     }
 
@@ -108,6 +110,7 @@ public class AppraisalService {
         dto.setName(entity.getName());
         dto.setDescription(entity.getDescription());
         dto.setStatus(entity.getStatus());
+        dto.setSortOrder(entity.getSortOrder());
         return dto;
     }
 
