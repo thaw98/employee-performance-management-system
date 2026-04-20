@@ -26,6 +26,9 @@ public class AppraisalCategory {
     @Column(nullable = false)
     private Boolean status = true; // true for active, false for inactive
 
+    @Column(name = "sort_order")
+    private Integer sortOrder = 0;
+
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AppraisalQuestion> questions;
 }

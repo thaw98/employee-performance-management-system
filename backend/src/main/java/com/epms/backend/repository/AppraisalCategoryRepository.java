@@ -8,4 +8,5 @@ import org.springframework.stereotype.Repository;
 public interface AppraisalCategoryRepository extends JpaRepository<AppraisalCategory, Long> {
     boolean existsByName(String name);
     boolean existsByNameAndIdNot(String name, Long id);
+    java.util.List<AppraisalCategory> findAllByOrderBySortOrderAsc();
 }
