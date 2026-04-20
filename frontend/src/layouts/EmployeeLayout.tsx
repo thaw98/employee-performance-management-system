@@ -1,11 +1,8 @@
-import React from 'react';
 import {
   Target,
   FileText,
-  Award,
   MessageSquare,
   Calendar,
-  BarChart,
   LayoutDashboard,
   Bell,
   ChevronDown,
@@ -18,6 +15,16 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../store/store';
 import { logout } from '../store/authSlice';
+
+function initialsFromName(name: string | undefined) {
+  if (!name) return '?'
+  return name
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
 
 const EmployeeLayout: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
@@ -59,18 +66,18 @@ const EmployeeLayout: React.FC = () => {
 
         {/* User Profile Card */}
         <div className="p-6 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold overflow-hidden">
-              {user?.name?.charAt(0)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</h4>
-              <div className="flex items-center gap-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase truncate">SE</p>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[8px] font-black uppercase">EMPLOYEE</span>
+           <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold overflow-hidden">
+                 {initialsFromName(user?.name)}
               </div>
-            </div>
-          </div>
+              <div className="flex-1 min-w-0">
+                 <h4 className="text-sm font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</h4>
+                 <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase truncate">SE</p>
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[8px] font-black uppercase">EMPLOYEE</span>
+                 </div>
+              </div>
+           </div>
         </div>
 
         {/* Navigation */}
@@ -112,33 +119,33 @@ const EmployeeLayout: React.FC = () => {
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Top Header */}
         <header className="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Dashboard</h2>
-            <p className="text-xs font-bold text-slate-400 text-slate-400">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <div className="relative group flex items-center bg-slate-100 rounded-full px-4 py-2 border border-transparent focus-within:border-emerald-200 focus-within:bg-white transition-all">
-              <Search size={18} className="text-slate-400" />
-              <input type="text" placeholder="Search..." className="bg-transparent border-none focus:ring-0 text-sm font-medium ml-2 w-48" />
-            </div>
-
-            <button className="relative w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors">
-              <Bell size={22} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
-
-            <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
-              <div className="text-right">
-                <p className="text-xs font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase">SE</p>
+           <div>
+              <h2 className="text-xl font-bold text-slate-900">Dashboard</h2>
+              <p className="text-xs font-bold text-slate-400 text-slate-400">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+           </div>
+           
+           <div className="flex items-center gap-6">
+              <div className="relative group flex items-center bg-slate-100 rounded-full px-4 py-2 border border-transparent focus-within:border-emerald-200 focus-within:bg-white transition-all">
+                 <Search size={18} className="text-slate-400" />
+                 <input type="text" placeholder="Search..." className="bg-transparent border-none focus:ring-0 text-sm font-medium ml-2 w-48" />
               </div>
-              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
-                {user?.name?.charAt(0)}
+              
+              <button className="relative w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors">
+                 <Bell size={22} />
+                 <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              </button>
+              
+              <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
+                 <div className="text-right">
+                    <p className="text-xs font-bold text-slate-900 truncate uppercase mt-1">{user?.firstName} {user?.lastName}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">SE</p>
+                 </div>
+                 <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
+                    {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
+                 </div>
+                 <ChevronDown size={16} className="text-slate-400" />
               </div>
-              <ChevronDown size={16} className="text-slate-400" />
-            </div>
-          </div>
+           </div>
         </header>
 
         {/* Page Content */}

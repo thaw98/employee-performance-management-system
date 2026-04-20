@@ -12,7 +12,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -56,8 +55,8 @@ public class User {
     @Column(name = "token_expiry")
     private Instant tokenExpiry;
 
-    @Transient
-    private boolean mustChangePassword;
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = true;
 
     public String getEmail() {
         return employee != null ? employee.getEmail() : null;

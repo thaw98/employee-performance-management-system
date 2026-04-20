@@ -1,12 +1,12 @@
 import React from 'react';
-import { 
-  Users, 
-  Target, 
-  FileText, 
-  Award, 
-  MessageSquare, 
-  Calendar, 
-  BarChart, 
+import {
+  Users,
+  Target,
+  FileText,
+  Award,
+  MessageSquare,
+  Calendar,
+  BarChart,
   LayoutDashboard,
   Bell,
   ChevronDown,
@@ -39,30 +39,42 @@ const HrLayout: React.FC = () => {
     setExpandedMenus(prev => ({ ...prev, [label]: !prev[label] }));
   };
 
+  const isHrAdmin = user?.roleId === 1;
+
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/hr/dashboard' },
-    { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
+    isHrAdmin
+      ? {
+          icon: <Users size={20} />,
+          label: 'Employees',
+          path: '/hr/employees',
+          subItems: [
+            { label: 'Employee List', path: '/hr/employees' },
+            { label: 'Create Employee Account', path: '/hr/employees/create-account' }
+          ]
+        }
+      : { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
     { icon: <Target size={20} />, label: 'KPI Management', path: '/hr/kpi-mgmt' },
-    { 
-      icon: <ClipboardList size={20} />, 
-      label: 'Self Assessments', 
+    {
+      icon: <ClipboardList size={20} />,
+      label: 'Self Assessments',
       path: '/hr/assessments-group',
       subItems: [
         { label: 'Compliance Review', path: '/hr/assessments' },
         { label: 'Assessment Questions', path: '/hr/assessment-subitems' }
       ]
     },
-    { 
-      icon: <Award size={20} />, 
-      label: 'Appraisals', 
+    {
+      icon: <Award size={20} />,
+      label: 'Appraisals',
       path: '/hr/appraisals-group',
       subItems: [
         { label: 'Management', path: '/hr/appraisals' }
       ]
     },
-    { 
-      icon: <RefreshCcw size={20} />, 
-      label: '360° Feedback', 
+    {
+      icon: <RefreshCcw size={20} />,
+      label: '360° Feedback',
       path: '/hr/360-feedback',
       subItems: [
         { label: 'Criteria', path: '/hr/360-feedback/criteria' },
@@ -112,7 +124,7 @@ const HrLayout: React.FC = () => {
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path || (item.subItems && item.subItems.some(sub => location.pathname.startsWith(sub.path)));
-            
+
             if (item.subItems) {
               const isExpanded = expandedMenus[item.label] !== undefined ? expandedMenus[item.label] : isActive;
               return (
@@ -174,7 +186,7 @@ const HrLayout: React.FC = () => {
 
         {/* Footer */}
         <div className="p-4 border-t border-slate-100">
-           <button 
+           <button
              onClick={handleLogout}
              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-400 hover:text-red-500 transition-colors"
             >
@@ -195,18 +207,18 @@ const HrLayout: React.FC = () => {
               <h2 className="text-xl font-bold text-slate-900">Dashboard</h2>
               <p className="text-xs font-bold text-slate-400 text-slate-400">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
            </div>
-           
+
            <div className="flex items-center gap-6">
               <div className="relative group flex items-center bg-slate-100 rounded-full px-4 py-2 border border-transparent focus-within:border-emerald-200 focus-within:bg-white transition-all">
                  <Search size={18} className="text-slate-400" />
                  <input type="text" placeholder="Organizational search..." className="bg-transparent border-none focus:ring-0 text-sm font-medium ml-2 w-48" />
               </div>
-              
+
               <button className="relative w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-colors">
                  <Bell size={22} />
                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
               </button>
-              
+
               <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
                  <div className="text-right">
                     <p className="text-xs font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</p>

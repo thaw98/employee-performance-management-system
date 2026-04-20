@@ -19,6 +19,7 @@ import EmployeeLayout from './layouts/EmployeeLayout';
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
 
 // Performance Modules
 import { SelfAssessmentPage } from './pages/SelfAssessmentPage';
@@ -48,6 +49,7 @@ function App() {
           <Route element={<ProtectedRoute allowedRoleGroups={['HR']} />}>
             <Route path="/hr" element={<HrLayout />}>
               <Route path="dashboard" element={<HRDashboardPage />} />
+              <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
               <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
               <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
               <Route path="pip" element={<PipMonitoringPage />} />

@@ -34,6 +34,8 @@ public class EmployeeInfoRequestDto {
 
 	private String religion;
 
+	@NotBlank(message = "Father name is required")
+	@Size(max = 100)
 	private String fatherName;
 	private String fatherNrcNo;
 	private String fatherOccupation;
@@ -45,10 +47,6 @@ public class EmployeeInfoRequestDto {
 
 	@NotNull
 	private Long positionId;
-
-	@NotBlank
-	@Size(max = 10)
-	private String levelCode;
 
 	private Long managerId;
 
@@ -63,5 +61,5 @@ public class EmployeeInfoRequestDto {
 	private Integer probationMonth;
 	private LocalDate probationEndDate;
 
-	private String profilePictureBase64;
+	private String profilePictureUrl;
 }

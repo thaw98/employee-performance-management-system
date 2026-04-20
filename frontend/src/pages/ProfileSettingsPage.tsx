@@ -1,12 +1,14 @@
 import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useGetProfileQuery, useUpdateProfilePictureMutation } from '../features/user/userApi'
+import { resolveProfilePictureSrc } from '../utils/mediaUrl'
 
 export function ProfileSettingsPage() {
   const { data: profileResponse, isLoading } = useGetProfileQuery()
   const [updateProfilePicture, { isLoading: isUpdating }] = useUpdateProfilePictureMutation()
 
   const user = profileResponse?.data || null
+  const pictureSrc = resolveProfilePictureSrc(user?.profilePictureUrl)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -21,19 +23,15 @@ export function ProfileSettingsPage() {
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = async (event) => {
-      const base64String = event.target?.result as string
-      try {
-        setMessage(null)
-        await updateProfilePicture({ profilePictureBase64: base64String }).unwrap()
-        setMessage({ type: 'success', text: 'Profile picture updated successfully!' })
-        setTimeout(() => setMessage(null), 3000)
-      } catch (err: any) {
-        setMessage({ type: 'error', text: err.data?.message || 'Failed to update profile picture' })
-      }
+    try {
+      setMessage(null)
+      await updateProfilePicture(file).unwrap()
+      setMessage({ type: 'success', text: 'Profile picture updated successfully!' })
+      setTimeout(() => setMessage(null), 3000)
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'data' in err ? (err as { data?: { message?: string } }).data?.message : undefined
+      setMessage({ type: 'error', text: msg || 'Failed to update profile picture' })
     }
-    reader.readAsDataURL(file)
   }
 
   if (isLoading) {
@@ -79,8 +77,8 @@ export function ProfileSettingsPage() {
               className={`h-24 w-24 rounded-full bg-blue-100 text-blue-700 flex flex-shrink-0 items-center justify-center text-4xl font-bold border-4 border-white shadow-sm overflow-hidden 
                 ${isUpdating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
-              {user?.profilePictureBase64 ? (
-                <img src={user.profilePictureBase64} alt="Profile" className="h-full w-full object-cover" />
+              {pictureSrc ? (
+                <img src={pictureSrc} alt="Profile" className="h-full w-full object-cover" />
               ) : (
                 user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'
               )}

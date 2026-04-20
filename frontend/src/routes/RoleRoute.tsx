@@ -1,27 +1,24 @@
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import type { RootState } from '../store/store';
-import type { RoleGroup } from '../types/auth';
+import { Navigate, Outlet } from 'react-router-dom'
+
+import { useAppSelector } from '../app/hooks'
+import type { RoleGroup } from '../types/auth'
+import { getDashboardPath, getRoleGroup } from '../utils/dashboardRedirect'
 
 interface RoleRouteProps {
-  allowedRoles: RoleGroup[];
+  allowedRoles: RoleGroup[]
 }
 
-const RoleRoute: React.FC<RoleRouteProps> = ({ allowedRoles }) => {
-  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+export default function RoleRoute({ allowedRoles }: RoleRouteProps) {
+  const { user, isAuthenticated } = useAppSelector((state) => state.auth)
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />
   }
 
-  if (user && !allowedRoles.includes(user.roleGroup)) {
-    // Redirect to their own dashboard if they try to access wrong one
-    const dashboardPath = `/${user.roleGroup.toLowerCase()}/dashboard`;
-    return <Navigate to={dashboardPath} replace />;
+  const group = getRoleGroup(user)
+  if (!allowedRoles.includes(group)) {
+    return <Navigate to={getDashboardPath(user)} replace />
   }
 
-  return <Outlet />;
-};
-
-export default RoleRoute;
+  return <Outlet />
+}

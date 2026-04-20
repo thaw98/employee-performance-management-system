@@ -5,17 +5,24 @@ import javax.sql.DataSource;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.core.Ordered;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Adds {@code employees.profile_picture_base64} for employee portrait (data URL or base64).
+ * Ensures {@code employee.profile_picture_base64} exists (JPA maps portrait here). Renames legacy
+ * {@code profile_picture_base_64} if present; previously a migration incorrectly targeted {@code employees}.
  */
 @Component
 @Slf4j
-public class EmployeeProfilePictureColumnMigrationInitializer implements BeanPostProcessor {
+public class EmployeeProfilePictureColumnMigrationInitializer implements BeanPostProcessor, Ordered {
+
+	@Override
+	public int getOrder() {
+		return 20;
+	}
 
 	@Override
 	public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
@@ -25,19 +32,41 @@ public class EmployeeProfilePictureColumnMigrationInitializer implements BeanPos
 		try {
 			migrate(dataSource);
 		} catch (Exception e) {
-			throw new BeanCreationException("employees.profile_picture_base64 migration failed", e);
+			throw new BeanCreationException("employee.profile_picture_base64 migration failed", e);
 		}
 		return bean;
 	}
 
 	private void migrate(DataSource dataSource) throws Exception {
 		JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-		if (!tableExists(jdbc, "employees")) {
+		if (!tableExists(jdbc, "employee")) {
 			return;
 		}
-		if (!columnExists(jdbc, "employees", "profile_picture_base64")) {
-			jdbc.execute("ALTER TABLE employees ADD COLUMN profile_picture_base64 LONGTEXT NULL");
-			log.info("Added employees.profile_picture_base64 column");
+		boolean hasNew = columnExists(jdbc, "employee", "profile_picture_base64");
+		boolean hasLegacy = columnExists(jdbc, "employee", "profile_picture_base_64");
+
+		if (hasLegacy && !hasNew) {
+			jdbc.execute(
+					"ALTER TABLE employee CHANGE COLUMN profile_picture_base_64 profile_picture_base64 LONGTEXT NULL");
+			log.info("Renamed employee.profile_picture_base_64 to profile_picture_base64");
+			return;
+		}
+		if (hasLegacy && hasNew) {
+			int copied = jdbc.update("""
+					UPDATE employee SET profile_picture_base64 = profile_picture_base_64
+					WHERE (profile_picture_base64 IS NULL OR TRIM(profile_picture_base64) = '')
+					  AND profile_picture_base_64 IS NOT NULL AND TRIM(profile_picture_base_64) <> ''
+					""");
+			if (copied > 0) {
+				log.info("Copied {} profile picture(s) from profile_picture_base_64 to profile_picture_base64", copied);
+			}
+			jdbc.execute("ALTER TABLE employee DROP COLUMN profile_picture_base_64");
+			log.info("Dropped legacy employee.profile_picture_base_64");
+			return;
+		}
+		if (!hasNew) {
+			jdbc.execute("ALTER TABLE employee ADD COLUMN profile_picture_base64 LONGTEXT NULL");
+			log.info("Added employee.profile_picture_base64 column");
 		}
 	}
 

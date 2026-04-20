@@ -17,5 +17,5 @@ public class CreateEmployeeAccountRequestDto {
 	@Email
 	private String email;
 
-	private String profilePictureBase64;
+	private String profilePictureUrl;
 }

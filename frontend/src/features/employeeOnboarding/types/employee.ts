@@ -43,8 +43,8 @@ export interface EmployeeInfoPayload {
   /** 1, 3, or 6 for fixed periods; null for custom (use probationEndDate). */
   probationMonth?: number | null
   probationEndDate?: string | null
-  /** Data URL or base64; stored on employees.profile_picture_base64 */
-  profilePictureBase64?: string
+  /** URL from POST /api/files/profile-pictures or http(s) */
+  profilePictureUrl?: string
 }
 
 export interface EmployeeInfo extends EmployeeInfoPayload {

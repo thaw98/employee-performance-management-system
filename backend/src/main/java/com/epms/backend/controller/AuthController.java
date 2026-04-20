@@ -16,6 +16,8 @@ import com.epms.backend.dto.LoginRequestDto;
 import com.epms.backend.dto.LoginResponseDto;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.AuthService;
+import com.epms.backend.service.UserService;
+import com.epms.backend.user.dto.ChangePasswordRequestDto;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
 	private final AuthService authService;
+	private final UserService userService;
 
 	@PostMapping("/login")
 	public ResponseEntity<ApiResponse<LoginResponseDto>> login(@Valid @RequestBody LoginRequestDto request) {
@@ -35,6 +38,26 @@ public class AuthController {
 		} catch (BadCredentialsException ex) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
 					.body(ApiResponse.fail("Invalid credentials"));
+		}
+	}
+
+	@PostMapping("/change-password")
+	public ResponseEntity<ApiResponse<Void>> changePassword(
+			@AuthenticationPrincipal UserPrincipal principal,
+			@Valid @RequestBody ChangePasswordRequestDto request) {
+		if (principal == null) {
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+					.body(ApiResponse.fail("Invalid credentials"));
+		}
+		try {
+			userService.changePassword(
+					principal.getId(),
+					request.getCurrentPassword(),
+					request.getNewPassword(),
+					request.getConfirmPassword());
+			return ResponseEntity.ok(ApiResponse.ok("Password changed successfully", null));
+		} catch (RuntimeException e) {
+			return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
 		}
 	}
 

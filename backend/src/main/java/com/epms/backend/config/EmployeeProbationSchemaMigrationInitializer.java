@@ -56,6 +56,7 @@ public class EmployeeProbationSchemaMigrationInitializer implements BeanPostProc
 	private void runMigration(DataSource dataSource) throws Exception {
 		JdbcTemplate jdbc = new JdbcTemplate(dataSource);
 		ensureEmployeeProbationTable(jdbc, dataSource);
+		renameLegacyProbationDateColumnIfPresent(jdbc, dataSource);
 		migrateOldEmployeeIdColumnOffProbation(jdbc, dataSource);
 		ensureEmployeeProbationFkOnEmployees(jdbc, dataSource);
 		copyDenormalizedProbationColumnsIntoEmployeeProbation(jdbc, dataSource);
@@ -75,6 +76,27 @@ public class EmployeeProbationSchemaMigrationInitializer implements BeanPostProc
 				)
 				""");
 		log.info("Created table employee_probation");
+	}
+
+	/**
+	 * Older Hibernate mappings used {@code probation_date} for the probation end; align to {@code probation_end_date}.
+	 */
+	private void renameLegacyProbationDateColumnIfPresent(JdbcTemplate jdbc, DataSource dataSource) throws Exception {
+		if (!tableExists(dataSource, "employee_probation")) {
+			return;
+		}
+		if (!columnExists(dataSource, "employee_probation", "probation_date")) {
+			return;
+		}
+		if (columnExists(dataSource, "employee_probation", "probation_end_date")) {
+			log.warn("employee_probation has both probation_date and probation_end_date; leaving columns unchanged");
+			return;
+		}
+		jdbc.execute("""
+				ALTER TABLE employee_probation
+				CHANGE COLUMN probation_date probation_end_date DATE NULL
+				""");
+		log.info("Renamed employee_probation.probation_date to probation_end_date");
 	}
 
 	/**

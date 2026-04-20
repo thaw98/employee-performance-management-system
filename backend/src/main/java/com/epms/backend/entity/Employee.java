@@ -34,25 +34,27 @@ public class Employee {
     @Column(name = "employee_id")
     private Long id;
 
-    @Column(name = "staff_no", unique = true, length = 20)
+    @Column(name = "staff_no", unique = true, length = 50)
     private String employeeId;
 
-    @Column(name = "full_name", nullable = false, length = 100)
+    @Column(name = "full_name", nullable = false, length = 50)
     private String employeeName;
 
-    @Column(name = "email", length = 100)
+    @Column(name = "email", length = 255)
     private String email;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id")
     private Department department;
 
+    /** Denormalized from {@link Department#getParentDepartment()} for the employee's assigned department. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_department_id")
+    private Department parentDepartment;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_id")
     private Position position;
-
-    @Column(name = "level_code", length = 10)
-    private String levelCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id")
@@ -71,8 +73,8 @@ public class Employee {
     @JoinColumn(name = "staff_type_id")
     private StaffType staffType;
 
-    @Column(name = "profile_picture_base_64", columnDefinition = "longtext")
-    private String profilePictureBase64;
+    @Column(name = "profile_picture_url", length = 2048)
+    private String profilePictureUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "gender")
@@ -89,7 +91,8 @@ public class Employee {
     @JoinColumn(name = "employee_probation")
     private EmployeeProbation probation;
 
-    @OneToOne(mappedBy = "employee", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "emergency_contact_id")
     private EmergencyContact emergencyContact;
 
     @Column(name = "created_date")
@@ -104,25 +107,25 @@ public class Employee {
     @Transient
     private String race;
 
-    @Transient
+    @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
     @Transient
     private String birthPlace;
 
-    @Transient
-    private String contactAddress;
+    @Column(name = "address", columnDefinition = "TEXT")
+    private String address;
 
     @Transient
     private String permanentAddress;
 
-    @Transient
+    @Column(name = "phone_number", length = 20)
     private String phoneNo;
 
     @Transient
     private MaritalStatus maritalStatus;
 
-    @Transient
+    @Column(name = "nationality", length = 100)
     private String nationality;
 
     @Transient
@@ -140,10 +143,10 @@ public class Employee {
     @Transient
     private String recordStatus;
 
-    @Transient
+    @Column(name = "created_by")
     private Long createdBy;
 
-    @Transient
+    @Column(name = "updated_by")
     private Long updatedBy;
 
     @Transient

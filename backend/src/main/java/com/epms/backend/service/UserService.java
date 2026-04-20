@@ -3,7 +3,10 @@ package com.epms.backend.service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.epms.backend.audit.AuditActionType;
+import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.EmployeeRepository;
@@ -16,14 +19,20 @@ public class UserService {
     private final UserRepository userRepository;
     private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditService auditService;
+    private final ProfilePictureStorageService profilePictureStorageService;
 
     public UserService(
             UserRepository userRepository,
             EmployeeRepository employeeRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            AuditService auditService,
+            ProfilePictureStorageService profilePictureStorageService) {
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditService = auditService;
+        this.profilePictureStorageService = profilePictureStorageService;
     }
 
     @Transactional(readOnly = true)
@@ -32,10 +41,13 @@ public class UserService {
     }
 
     @Transactional
-    public UserProfileDto updateProfilePicture(Long userId, String profilePictureBase64) {
+    public UserProfileDto updateProfilePicture(Long userId, MultipartFile file) {
         User user = findUserById(userId);
         Employee employee = user.getEmployee();
-        employee.setProfilePictureBase64(profilePictureBase64);
+        String previous = employee.getProfilePictureUrl();
+        String url = profilePictureStorageService.store(file);
+        profilePictureStorageService.deleteIfStored(previous);
+        employee.setProfilePictureUrl(url);
         employeeRepository.save(employee);
         return toUserProfileDto(user);
     }
@@ -56,7 +68,9 @@ public class UserService {
 
         User user = findUserById(userId);
 
-        if (!user.isMustChangePassword()) {
+        boolean forcedFirstLogin = user.isMustChangePassword();
+
+        if (!forcedFirstLogin) {
             if (currentPassword == null || currentPassword.isBlank()) {
                 throw new RuntimeException("Current password is required");
             }
@@ -68,6 +82,18 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setMustChangePassword(false);
         userRepository.save(user);
+
+        if (forcedFirstLogin) {
+            String description = "Employee user_account_id %d completed first-login password change".formatted(user.getId());
+            auditService.record(
+                    AuditActionType.PASSWORD_CHANGED_FIRST_LOGIN,
+                    AuditTargetType.USER_ACCOUNT,
+                    user.getId(),
+                    user.getId(),
+                    user.getRole().getId(),
+                    description,
+                    null);
+        }
     }
 
     private User findUserById(Long userId) {
@@ -82,6 +108,6 @@ public class UserService {
                 user.getEmployee().getEmployeeName(),
                 user.getEmail(),
                 user.getRole().getName(),
-                user.getEmployee().getProfilePictureBase64());
+                user.getEmployee().getProfilePictureUrl());
     }
 }

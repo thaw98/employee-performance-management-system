@@ -24,7 +24,6 @@ public class EmployeeInfoResponseDto {
 	private String departmentName;
 	private Long positionId;
 	private String positionName;
-	private String levelCode;
 	private Long managerId;
 	private String managerName;
 	private Long staffTypeId;
@@ -38,5 +37,5 @@ public class EmployeeInfoResponseDto {
 	private String fatherOccupation;
 	private String emergencyPhone;
 	private String emergencyRelation;
-	private String profilePictureBase64;
+	private String profilePictureUrl;
 }

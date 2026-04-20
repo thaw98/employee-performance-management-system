@@ -7,11 +7,12 @@ export interface UserProfileDto {
   name: string
   email: string
   role: string
-  profilePictureBase64?: string
+  /** Relative path (e.g. /api/public/profile-pictures/...) or absolute URL */
+  profilePictureUrl?: string
 }
 
-export interface UpdateProfilePictureRequestDto {
-  profilePictureBase64: string
+export interface ProfilePictureUploadResponseDto {
+  profilePictureUrl: string
 }
 
 export interface ChangePasswordRequestDto {
@@ -27,22 +28,42 @@ export const userApi = baseApi.injectEndpoints({
       query: () => '/users/profile',
       providesTags: ['UserProfile'],
     }),
-    updateProfilePicture: builder.mutation<ApiResponse<UserProfileDto>, UpdateProfilePictureRequestDto>({
-      query: (body) => ({
-        url: '/users/profile/picture',
-        method: 'PUT',
-        body,
-      }),
+    updateProfilePicture: builder.mutation<ApiResponse<UserProfileDto>, File>({
+      query: (file) => {
+        const body = new FormData()
+        body.append('file', file)
+        return {
+          url: '/users/profile/picture',
+          method: 'PUT',
+          body,
+        }
+      },
       invalidatesTags: ['UserProfile'],
+    }),
+    uploadProfilePicture: builder.mutation<ApiResponse<ProfilePictureUploadResponseDto>, File>({
+      query: (file) => {
+        const body = new FormData()
+        body.append('file', file)
+        return {
+          url: '/files/profile-pictures',
+          method: 'POST',
+          body,
+        }
+      },
     }),
     changePassword: builder.mutation<ApiResponse<null>, ChangePasswordRequestDto>({
       query: (body) => ({
-        url: '/users/profile/password',
-        method: 'PUT',
+        url: '/auth/change-password',
+        method: 'POST',
         body,
       }),
     }),
   }),
 })
 
-export const { useGetProfileQuery, useUpdateProfilePictureMutation, useChangePasswordMutation } = userApi
+export const {
+  useGetProfileQuery,
+  useUpdateProfilePictureMutation,
+  useUploadProfilePictureMutation,
+  useChangePasswordMutation,
+} = userApi

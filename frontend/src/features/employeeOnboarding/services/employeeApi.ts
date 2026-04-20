@@ -46,7 +46,7 @@ export const employeeApi = baseApi.injectEndpoints({
     }),
     createEmployeeAccount: builder.mutation<
       ApiResponse<CreateEmployeeAccountResponse>,
-      { employeePkId: number; email: string; profilePictureBase64?: string }
+      { employeePkId: number; email: string; profilePictureUrl?: string }
     >({
       query: (body) => ({ url: '/users/employee-account', method: 'POST', body }),
     }),

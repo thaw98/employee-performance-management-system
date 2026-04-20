@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppSelector } from '../app/hooks';
 import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
@@ -21,7 +21,7 @@ interface Response {
 
 export function SelfAssessmentPage() {
   const user = useAppSelector((state) => state.auth.user);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [, setQuestions] = useState<Question[]>([]);
   const [responses, setResponses] = useState<Response[]>([]);
   const [remarks, setRemarks] = useState('');
   const [signature, setSignature] = useState('');

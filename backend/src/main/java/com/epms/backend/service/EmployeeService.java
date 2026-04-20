@@ -26,6 +26,8 @@ import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.util.PersonNameNormalizer;
+import com.epms.backend.validation.ProfilePictureUrlValidator;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,7 +36,6 @@ import lombok.RequiredArgsConstructor;
 public class EmployeeService {
 
 	private static final Pattern BUSINESS_EMPLOYEE_ID = Pattern.compile("^[A-Za-z0-9._\\-]{1,20}$");
-	private static final Pattern LEVEL_CODE = Pattern.compile("^L0[1-9]$");
 
 	private final EmployeeRepository employeeRepository;
 	private final DepartmentRepository departmentRepository;
@@ -44,7 +45,6 @@ public class EmployeeService {
 	@Transactional
 	public EmployeeInfoResponseDto saveDraft(EmployeeDraftRequestDto request, UserPrincipal principal) {
 		validateOptionalBusinessEmployeeId(request.getEmployeeId());
-		validateOptionalLevelCode(request.getLevelCode());
 		Employee employee = new Employee();
 		applyDraft(employee, request, principal, true);
 		return toDto(employeeRepository.save(employee));
@@ -61,7 +61,6 @@ public class EmployeeService {
 	@Transactional
 	public EmployeeInfoResponseDto updateDraft(Long id, EmployeeDraftRequestDto request, UserPrincipal principal) {
 		validateOptionalBusinessEmployeeId(request.getEmployeeId());
-		validateOptionalLevelCode(request.getLevelCode());
 		Employee employee = employeeRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 		applyDraft(employee, request, principal, false);
 		return toDto(employeeRepository.save(employee));
@@ -103,9 +102,9 @@ public class EmployeeService {
 	private void applyDraft(Employee employee, EmployeeDraftRequestDto request, UserPrincipal principal, boolean isCreate) {
 		if (isCreate) {
 			employee.setEmployeeId(defaultIfBlank(trimToNull(request.getEmployeeId()), generateDraftStaffNo()));
-			employee.setEmployeeName(defaultIfBlank(trimToNull(request.getEmployeeName()), "Draft Employee"));
+			String draftName = PersonNameNormalizer.normalize(request.getEmployeeName());
+			employee.setEmployeeName(draftName.isEmpty() ? "Draft Employee" : draftName);
 			employee.setEmail(defaultIfBlank(trimToNull(request.getEmail()), generateDraftEmail()));
-			employee.setLevelCode(defaultIfBlank(trimToNull(request.getLevelCode()), "L09"));
 			employee.setDateOfJoining(request.getDateOfJoining() != null ? request.getDateOfJoining() : LocalDate.now());
 			employee.setStatus(normalizeStatus(request.getStatus(), "Inactive"));
 		}
@@ -114,13 +113,13 @@ public class EmployeeService {
 			employee.setEmployeeId(trimToNull(request.getEmployeeId()));
 		}
 		if (request.getEmployeeName() != null) {
-			employee.setEmployeeName(defaultIfBlank(trimToNull(request.getEmployeeName()), employee.getEmployeeName()));
+			String n = PersonNameNormalizer.normalize(request.getEmployeeName());
+			if (!n.isEmpty()) {
+				employee.setEmployeeName(n);
+			}
 		}
 		if (request.getEmail() != null) {
 			employee.setEmail(defaultIfBlank(trimToNull(request.getEmail()), employee.getEmail()));
-		}
-		if (request.getLevelCode() != null) {
-			employee.setLevelCode(trimToNull(request.getLevelCode()));
 		}
 		if (request.getDateOfJoining() != null) {
 			employee.setDateOfJoining(request.getDateOfJoining());
@@ -131,8 +130,8 @@ public class EmployeeService {
 		if (request.getGender() != null) {
 			employee.setGender(request.getGender());
 		}
-		if (request.getProfilePictureBase64() != null) {
-			employee.setProfilePictureBase64(trimToNull(request.getProfilePictureBase64()));
+		if (request.getProfilePictureUrl() != null) {
+			employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
 		}
 
 		employee.setStaffNrcNo(firstNonNull(trimToNull(request.getStaffNrcNo()), employee.getStaffNrcNo()));
@@ -148,17 +147,16 @@ public class EmployeeService {
 
 	private void applyCompleted(Employee employee, EmployeeInfoRequestDto request, UserPrincipal principal, boolean isCreate) {
 		employee.setEmployeeId(trimToNull(request.getEmployeeId()));
-		employee.setEmployeeName(request.getEmployeeName().trim());
+		employee.setEmployeeName(PersonNameNormalizer.normalize(request.getEmployeeName()));
 		employee.setEmail(request.getEmail().trim().toLowerCase(Locale.ROOT));
 		employee.setStaffNrcNo(trimToNull(request.getStaffNrcNo()));
 		employee.setGender(request.getGender());
 		employee.setReligion(normalizeReligion(request.getReligion()));
-		employee.setLevelCode(request.getLevelCode().trim());
 		employee.setDateOfJoining(request.getDateOfJoining());
 		employee.setStatus(normalizeStatus(request.getStatus(), "Active"));
 
-		if (request.getProfilePictureBase64() != null) {
-			employee.setProfilePictureBase64(trimToNull(request.getProfilePictureBase64()));
+		if (request.getProfilePictureUrl() != null) {
+			employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
 		}
 
 		applyDepartmentAndPosition(employee, request.getDepartmentId(), request.getPositionId(), true);
@@ -175,10 +173,12 @@ public class EmployeeService {
 			department = departmentRepository.findById(departmentId)
 					.orElseThrow(() -> new IllegalArgumentException("Invalid department"));
 			employee.setDepartment(department);
+			employee.setParentDepartment(department.getParentDepartment());
 		} else if (required) {
 			throw new IllegalArgumentException("Department is required");
 		} else {
 			employee.setDepartment(null);
+			employee.setParentDepartment(null);
 		}
 
 		if (positionId != null) {
@@ -265,7 +265,7 @@ public class EmployeeService {
 	}
 
 	private void applyFather(Employee employee, String fatherName, String fatherNrcNo, String fatherOccupation) {
-		String normalizedName = trimToNull(fatherName);
+		String normalizedName = trimToNull(PersonNameNormalizer.normalize(fatherName));
 		String normalizedNrcNo = trimToNull(fatherNrcNo);
 		String normalizedOccupation = trimToNull(fatherOccupation);
 
@@ -295,7 +295,6 @@ public class EmployeeService {
 		EmergencyContact contact = employee.getEmergencyContact();
 		if (contact == null) {
 			contact = new EmergencyContact();
-			contact.setEmployee(employee);
 			employee.setEmergencyContact(contact);
 		}
 		contact.setEmergencyPhone(normalizedPhone);
@@ -320,7 +319,6 @@ public class EmployeeService {
 			validateBusinessEmployeeIdFormat(trimmedEmpId);
 		}
 
-		validateLevelCode(request.getLevelCode());
 		validateJoiningDate(request.getDateOfJoining());
 
 		if (request.getStaffTypeId() == StaffTypes.PROBATION && request.getProbationMonth() == null
@@ -340,20 +338,6 @@ public class EmployeeService {
 		if (!BUSINESS_EMPLOYEE_ID.matcher(value).matches()) {
 			throw new IllegalArgumentException(
 					"Employee ID may use letters, digits, dots, underscores, and hyphens (1-20 characters).");
-		}
-	}
-
-	private void validateOptionalLevelCode(String levelCode) {
-		String value = trimToNull(levelCode);
-		if (value != null) {
-			validateLevelCode(value);
-		}
-	}
-
-	private void validateLevelCode(String value) {
-		String normalized = trimToNull(value);
-		if (normalized == null || !LEVEL_CODE.matcher(normalized).matches()) {
-			throw new IllegalArgumentException("Level code must be one of L01 to L09");
 		}
 	}
 
@@ -428,7 +412,6 @@ public class EmployeeService {
 				.departmentName(employee.getDepartment() == null ? null : employee.getDepartment().getName())
 				.positionId(employee.getPosition() == null ? null : employee.getPosition().getId())
 				.positionName(employee.getPosition() == null ? null : employee.getPosition().getName())
-				.levelCode(employee.getLevelCode())
 				.managerId(employee.getManager() == null ? null : employee.getManager().getId())
 				.managerName(employee.getManager() == null ? null : employee.getManager().getEmployeeName())
 				.staffTypeId(employee.getStaffType() == null ? null : employee.getStaffType().getId())
@@ -442,7 +425,7 @@ public class EmployeeService {
 				.fatherOccupation(employee.getFather() == null ? null : employee.getFather().getFatherOccupation())
 				.emergencyPhone(employee.getEmergencyContact() == null ? null : employee.getEmergencyContact().getEmergencyPhone())
 				.emergencyRelation(employee.getEmergencyContact() == null ? null : employee.getEmergencyContact().getRelation())
-				.profilePictureBase64(employee.getProfilePictureBase64())
+				.profilePictureUrl(employee.getProfilePictureUrl())
 				.build();
 	}
 }
