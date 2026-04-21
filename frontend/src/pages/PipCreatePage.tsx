@@ -3,8 +3,11 @@ import { Alert, Autocomplete, Box, Button, IconButton, Stack, TextField, Typogra
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useSelector } from 'react-redux'
 import { z } from 'zod'
 import { useCreatePipMutation, useGetEligibleEmployeesQuery } from '../features/pip/pipApi'
+import { getRoleGroup } from '../utils/dashboardRedirect'
+import type { RootState } from '../app/store'
 
 const pipCreateSchema = z
   .object({
@@ -32,9 +35,11 @@ type PipCreateFormValues = z.infer<typeof pipCreateSchema>
 
 export default function PipCreatePage() {
   const navigate = useNavigate()
+  const { user } = useSelector((state: RootState) => state.auth)
   const { data: eligibleEmployees, isLoading: isLoadingEmployees } = useGetEligibleEmployeesQuery()
   const [createPip, { isLoading: isCreating }] = useCreatePipMutation()
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const routeBase = user ? (getRoleGroup(user as never) === 'HR' ? '/hr/pip-monitoring' : '/manager/pip') : '/manager/pip'
 
   const {
     control,
@@ -64,7 +69,7 @@ export default function PipCreatePage() {
         totalHours: values.totalHours,
         objectives: values.objectives.map((item) => item.value.trim()).filter(Boolean),
       }).unwrap()
-      navigate('/hr/pip-monitoring')
+      navigate(routeBase)
     } catch {
       setSubmitError('Failed to create PIP. Please check the employee record ID and try again.')
     }
@@ -87,8 +92,8 @@ export default function PipCreatePage() {
               <Autocomplete
                 loading={isLoadingEmployees}
                 options={eligibleEmployees || []}
-                getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}) - ${option.departmentName}`}
-                onChange={(_, data) => field.onChange(data?.employeeId || '')}
+                getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}${option.staffId ? ` / ${option.staffId}` : ''}) - ${option.departmentName}`}
+                onChange={(_, data) => field.onChange(data?.employeeId != null ? String(data.employeeId) : '')}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -105,7 +110,7 @@ export default function PipCreatePage() {
                       <Box>
                         <Typography variant="body1">{option.employeeName} ({option.employeeId})</Typography>
                         <Typography variant="caption" color="text.secondary">
-                          Dept: {option.departmentName} | KPI Score: {option.totalScore?.toFixed(2)}%
+                          Dept: {option.departmentName} | Staff ID: {option.staffId || 'N/A'} | KPI Score: {option.totalScore?.toFixed(2) ?? 'N/A'}%
                         </Typography>
                       </Box>
                     </li>
@@ -182,7 +187,7 @@ export default function PipCreatePage() {
         </Stack>
 
         <div className="flex justify-end gap-3 pt-4">
-          <Button type="button" variant="outlined" onClick={() => navigate('/hr/pip-monitoring')}>
+          <Button type="button" variant="outlined" onClick={() => navigate(routeBase)}>
             Cancel
           </Button>
           <Button type="submit" disabled={isCreating} variant="contained">

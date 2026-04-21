@@ -62,23 +62,38 @@ export interface PipProgressUpdate {
 }
 
 export interface EligibleEmployee {
-  employeeId: string
+  employeeId: number
+  staffId?: string
   employeeName: string
   departmentName: string
   totalScore: number
 }
+
+const normalizeStatus = (status?: string): Pip['status'] => {
+  const normalized = (status ?? '').trim().toUpperCase().replace(/\s+/g, '_')
+  if (normalized === 'REOPENED') return 'ACTIVE'
+  if (normalized === 'ACTIVE' || normalized === 'CLOSED' || normalized === 'COMPLETED' || normalized === 'DENIED' || normalized === 'PENDING_CREATION' || normalized === 'PENDING_REOPEN') {
+    return normalized
+  }
+  return 'ACTIVE'
+}
+
+const normalizePip = (pip: any): Pip => ({
+  ...pip,
+  status: normalizeStatus(pip?.status),
+})
 
 export const pipApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getPips: builder.query<Pip[], void>({
       query: () => '/pips',
       providesTags: ['PIP'],
-      transformResponse: (response: any) => response.data,
+      transformResponse: (response: any) => (response.data ?? []).map(normalizePip),
     }),
     getPipById: builder.query<Pip, number>({
       query: (id) => `/pips/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'PIP', id }],
-      transformResponse: (response: any) => response.data,
+      transformResponse: (response: any) => normalizePip(response.data),
     }),
     createPip: builder.mutation<Pip, { employeeId: number; startDate: string; endDate: string; totalHours: number; objectives: string[] }>({
       query: (body) => ({
@@ -87,6 +102,7 @@ export const pipApi = baseApi.injectEndpoints({
         body,
       }),
       invalidatesTags: ['PIP'],
+      transformResponse: (response: any) => normalizePip(response.data),
     }),
     updateProgress: builder.mutation<PipObjective, { objectiveId: number; progressPercentage: number; completedHours: number; feedback: string }>({
       query: ({ objectiveId, ...body }) => ({
@@ -111,6 +127,7 @@ export const pipApi = baseApi.injectEndpoints({
         body,
       }),
       invalidatesTags: () => ['PIP'],
+      transformResponse: (response: any) => normalizePip(response.data),
     }),
     reopenPip: builder.mutation<Pip, { pipId: number; reason: string }>({
       query: ({ pipId, ...body }) => ({
@@ -119,6 +136,7 @@ export const pipApi = baseApi.injectEndpoints({
         body,
       }),
       invalidatesTags: () => ['PIP'],
+      transformResponse: (response: any) => normalizePip(response.data),
     }),
     reviewPip: builder.mutation<Pip, { pipId: number; action: 'CONFIRMED' | 'DENIED' }>({
       query: ({ pipId, ...body }) => ({
@@ -127,6 +145,7 @@ export const pipApi = baseApi.injectEndpoints({
         body,
       }),
       invalidatesTags: () => ['PIP'],
+      transformResponse: (response: any) => normalizePip(response.data),
     }),
     getTrainingHistory: builder.query<TrainingRecord[], string>({
       query: (employeeId) => `/pips/employees/${employeeId}/training`,

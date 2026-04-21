@@ -19,6 +19,9 @@ import EmployeeLayout from './layouts/EmployeeLayout';
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+import PipMonitoringPage from './pages/PipMonitoringPage';
+import PipCreatePage from './pages/PipCreatePage';
+import PipDetailPage from './pages/PipDetailPage';
 
 function App() {
   return (
@@ -38,6 +41,10 @@ function App() {
           <Route element={<ProtectedRoute allowedRoleGroups={['HR']} />}>
             <Route path="/hr" element={<HrLayout />}>
               <Route path="dashboard" element={<HRDashboardPage />} />
+              <Route path="pip" element={<Navigate to="/hr/pip-monitoring" replace />} />
+              <Route path="pip-monitoring" element={<PipMonitoringPage />} />
+              <Route path="pip-monitoring/create" element={<PipCreatePage />} />
+              <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
               <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
             </Route>
           </Route>
@@ -46,6 +53,9 @@ function App() {
           <Route element={<ProtectedRoute allowedRoleGroups={['MANAGER']} />}>
             <Route path="/manager" element={<ManagerLayout />}>
               <Route path="dashboard" element={<ManagerDashboardPage />} />
+              <Route path="pip" element={<PipMonitoringPage />} />
+              <Route path="pip/create" element={<PipCreatePage />} />
+              <Route path="pip/:id" element={<PipDetailPage />} />
               <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
             </Route>
           </Route>

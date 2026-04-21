@@ -40,7 +40,7 @@ const HrLayout: React.FC = () => {
     { icon: <ClipboardList size={20} />, label: 'Self Assessments', path: '/hr/assessments' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/hr/appraisals' },
     { icon: <RefreshCcw size={20} />, label: '360° Feedback', path: '/hr/360-feedback' },
-    { icon: <Zap size={20} />, label: 'PIP Management', path: '/hr/pip' },
+    { icon: <Zap size={20} />, label: 'PIP Management', path: '/hr/pip-monitoring' },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/hr/meetings' },
     { icon: <BarChart size={20} />, label: 'Reports', path: '/hr/reports' },
   ];

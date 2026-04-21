@@ -9,13 +9,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
 public class PipService {
+
+    private static final String STATUS_ACTIVE = "ACTIVE";
+    private static final String STATUS_CLOSED = "CLOSED";
+    private static final String STATUS_SCHEDULED = "SCHEDULED";
 
     private final PipRepository pipRepository;
     private final PipObjectiveRepository objectiveRepository;
@@ -31,6 +37,7 @@ public class PipService {
         return employeeRepository.findAll().stream()
                 .filter(employee -> employee.getManager() != null && employee.getManager().getId().equals(manager.getEmployee().getId()))
                 .map(employee -> new EligibleEmployeeDTO(
+                        employee.getId(),
                         employee.getEmployeeId(),
                         employee.getEmployeeName(),
                         employee.getDepartment() == null ? null : employee.getDepartment().getName(),
@@ -40,17 +47,31 @@ public class PipService {
 
     @Transactional
     public Pip createPip(PipCreateRequest request, User manager) {
+        Employee managerEmployee = requireManagerEmployee(manager);
         Employee employee = employeeRepository.findById(request.getEmployeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
+        if (employee.getManager() == null || !employee.getManager().getId().equals(managerEmployee.getId())) {
+            throw new RuntimeException("You can only create PIPs for employees under your supervision");
+        }
+
+        boolean hasOpenPip = pipRepository.findByEmployeeAndStatusIn(employee, List.of(STATUS_ACTIVE, "REOPENED"))
+                .stream()
+                .anyMatch(pip -> !STATUS_CLOSED.equalsIgnoreCase(normalizeStatus(pip.getStatus())));
+        if (hasOpenPip) {
+            throw new RuntimeException("An active PIP already exists for this employee");
+        }
+
         Pip pip = new Pip();
         pip.setEmployee(employee);
-        pip.setManager(manager.getEmployee());
-        pip.setCreatedBy(manager.getEmployee());
+        pip.setManager(managerEmployee);
+        pip.setCreatedBy(managerEmployee);
         pip.setStartDate(request.getStartDate());
         pip.setEndDate(request.getEndDate());
-        pip.setStatus("Active");
+        pip.setStatus(STATUS_ACTIVE);
         pip.setOverallProgressPercentage(BigDecimal.ZERO);
+        pip.setCreatedDate(Instant.now());
+        pip.setUpdatedDate(Instant.now());
 
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();
@@ -77,79 +98,108 @@ public class PipService {
         return pipRepository.findAll();
     }
 
-    public Pip getPipById(Long id) {
-        return pipRepository.findById(id)
+    public Pip getPipById(Long id, User actor) {
+        Pip pip = pipRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("PIP not found"));
+        authorizePipAccess(pip, actor);
+        return pip;
     }
 
     @Transactional
     public PipObjective updateObjectiveProgress(Long objectiveId, ProgressUpdateRequest request, User updatedBy) {
         PipObjective objective = objectiveRepository.findById(objectiveId)
                 .orElseThrow(() -> new RuntimeException("Objective not found"));
+        Pip pip = objective.getPip();
+        authorizeManagerAction(pip, updatedBy);
 
-        if (!"Active".equalsIgnoreCase(objective.getPip().getStatus())
-                && !"Reopened".equalsIgnoreCase(objective.getPip().getStatus())) {
+        if (!STATUS_ACTIVE.equals(normalizeStatus(pip.getStatus()))
+                && !"REOPENED".equals(normalizeStatus(pip.getStatus()))) {
             throw new RuntimeException("Cannot update progress on a closed PIP");
         }
 
         PipProgressUpdate update = new PipProgressUpdate();
-        update.setPip(objective.getPip());
+        update.setPip(pip);
         update.setObjective(objective);
         update.setPreviousPercentage(objective.getProgressPercentage());
         update.setNewPercentage(request.getProgressPercentage());
         update.setFeedback(request.getFeedback());
         update.setUpdatedBy(updatedBy.getEmployee());
         update.setUpdateDate(LocalDate.now());
+        update.setCreatedDate(Instant.now());
 
         objective.setProgressPercentage(request.getProgressPercentage());
-        updatePipProgress(objective.getPip());
+        pip.setUpdatedDate(Instant.now());
+        updatePipProgress(pip);
 
         progressUpdateRepository.save(update);
-        pipRepository.save(objective.getPip());
+        pipRepository.save(pip);
         return objectiveRepository.save(objective);
     }
 
     @Transactional
     public FollowUpMeeting scheduleMeeting(Long pipId, MeetingScheduleRequest request, User actor) {
-        Pip pip = getPipById(pipId);
+        Pip pip = getPipById(pipId, actor);
+        authorizeManagerAction(pip, actor);
+
+        if (!STATUS_ACTIVE.equals(normalizeStatus(pip.getStatus()))
+                && !"REOPENED".equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Meetings can only be scheduled for active PIPs");
+        }
 
         FollowUpMeeting meeting = new FollowUpMeeting();
         meeting.setPip(pip);
         meeting.setMeetingTime(request.getMeetingTime());
-        meeting.setStatus("Scheduled");
+        meeting.setStatus(STATUS_SCHEDULED);
         meeting.getMeeting().setManager(pip.getManager());
         meeting.getMeeting().setEmployee(pip.getEmployee());
         meeting.getMeeting().setCreatedBy(actor.getEmployee());
-        meeting.getMeeting().setStatus("Scheduled");
+        meeting.getMeeting().setStatus(STATUS_SCHEDULED);
+        meeting.setCreatedDate(Instant.now());
+        meeting.setUpdatedDate(Instant.now());
+        pip.setUpdatedDate(Instant.now());
 
         return meetingRepository.save(meeting);
     }
 
     @Transactional
-    public Pip closePip(Long pipId, PipCloseRequest request) {
-        Pip pip = getPipById(pipId);
-        pip.setStatus("Closed");
+    public Pip closePip(Long pipId, PipCloseRequest request, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!isHr(actor) && !isDirectManager(pip, actor)) {
+            throw new RuntimeException("You are not allowed to close this PIP");
+        }
+        pip.setStatus(STATUS_CLOSED);
         pip.setActualEndDate(LocalDate.now());
         pip.setClosingRemarks(request.getClosingRemarks());
+        pip.setFinalOutcome(request.getFinalOutcome());
+        pip.setClosedBy(actor.getEmployee());
+        pip.setClosedDate(Instant.now());
+        pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
     }
 
     @Transactional
-    public Pip reopenPip(Long pipId, PipReopenRequest request) {
-        Pip pip = getPipById(pipId);
-        pip.setStatus("Reopened");
-        pip.setReopenReason(request.getReason());
-        return pipRepository.save(pip);
-    }
-
-    @Transactional
-    public Pip reviewPip(Long pipId, PipReviewRequest request) {
-        Pip pip = getPipById(pipId);
-        if ("CONFIRMED".equals(request.getAction())) {
-            pip.setStatus("Active");
-        } else if ("DENIED".equals(request.getAction())) {
-            pip.setStatus("Closed");
+    public Pip reopenPip(Long pipId, PipReopenRequest request, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!isHr(actor)) {
+            throw new RuntimeException("Only HR can reopen a PIP");
         }
+        pip.setStatus(STATUS_ACTIVE);
+        pip.setReopenReason(request.getReason());
+        pip.setReopenedBy(actor.getEmployee());
+        pip.setReopenedDate(Instant.now());
+        pip.setUpdatedDate(Instant.now());
+        return pipRepository.save(pip);
+    }
+
+    @Transactional
+    public Pip reviewPip(Long pipId, PipReviewRequest request, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if ("CONFIRMED".equals(request.getAction())) {
+            pip.setStatus(STATUS_ACTIVE);
+        } else if ("DENIED".equals(request.getAction())) {
+            pip.setStatus(STATUS_CLOSED);
+        }
+        pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
     }
 
@@ -176,5 +226,49 @@ public class PipService {
                 .average()
                 .orElse(0.0);
         pip.setOverallProgressPercentage(BigDecimal.valueOf(average).setScale(2, RoundingMode.HALF_UP));
+    }
+
+    private Employee requireManagerEmployee(User actor) {
+        if (actor.getEmployee() == null) {
+            throw new RuntimeException("The current account is not linked to an employee record");
+        }
+        return actor.getEmployee();
+    }
+
+    private void authorizePipAccess(Pip pip, User actor) {
+        if (isHr(actor)) {
+            return;
+        }
+        if (actor.getEmployee() == null) {
+            throw new RuntimeException("The current account is not linked to an employee record");
+        }
+        Long actorEmployeeId = actor.getEmployee().getId();
+        if (pip.getEmployee() != null && pip.getEmployee().getId().equals(actorEmployeeId)) {
+            return;
+        }
+        if (pip.getManager() != null && pip.getManager().getId().equals(actorEmployeeId)) {
+            return;
+        }
+        throw new RuntimeException("You are not allowed to access this PIP");
+    }
+
+    private void authorizeManagerAction(Pip pip, User actor) {
+        if (!isDirectManager(pip, actor)) {
+            throw new RuntimeException("Only the assigned manager can perform this action");
+        }
+    }
+
+    private boolean isDirectManager(Pip pip, User actor) {
+        return actor.getEmployee() != null
+                && pip.getManager() != null
+                && pip.getManager().getId().equals(actor.getEmployee().getId());
+    }
+
+    private boolean isHr(User actor) {
+        return actor.getRole() != null && "HR".equalsIgnoreCase(actor.getRole().getRoleName());
+    }
+
+    private String normalizeStatus(String status) {
+        return status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
     }
 }

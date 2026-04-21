@@ -2,6 +2,7 @@ import { useGetPipsQuery } from '../features/pip/pipApi'
 import { Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useState, useMemo } from 'react'
+import { getRoleGroup } from '../utils/dashboardRedirect'
 import type { RootState } from '../app/store'
 // Removed unused formatDate
 
@@ -21,6 +22,7 @@ export default function PipMonitoringPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   const isManager = user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
+  const routeBase = user ? (getRoleGroup(user as never) === 'HR' ? '/hr/pip-monitoring' : '/manager/pip') : '/manager/pip'
 
   const filteredPips = useMemo(() => {
     if (!pips) return []
@@ -64,7 +66,7 @@ export default function PipMonitoringPage() {
         </div>
         {isManager && (
           <Link
-            to="/hr/pip-monitoring/create"
+            to={`${routeBase}/create`}
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-700"
           >
             <i className="bi bi-plus-lg" />
@@ -137,7 +139,7 @@ export default function PipMonitoringPage() {
                   </td>
                   <td className="px-6 py-4">
                     <Link
-                      to={`/hr/pip-monitoring/${pip.id}`}
+                      to={`${routeBase}/${pip.id}`}
                       className="text-sm font-semibold text-blue-600 hover:text-blue-800"
                     >
                       View Details

@@ -11,7 +11,8 @@ import {
   Bell,
   ChevronDown,
   ShieldCheck,
-  Search
+  Search,
+  AlertTriangle
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -36,6 +37,7 @@ const ManagerLayout: React.FC = () => {
     { icon: <FileText size={20} />, label: 'Self Assessments', path: '/manager/assessments' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/manager/appraisals' },
     { icon: <MessageSquare size={20} />, label: 'Feedback', path: '/manager/feedback' },
+    { icon: <AlertTriangle size={20} />, label: 'PIP Management', path: '/manager/pip' },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/manager/meetings' },
     { icon: <BarChart size={20} />, label: 'Reports', path: '/manager/reports' },
   ];

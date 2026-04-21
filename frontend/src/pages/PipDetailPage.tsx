@@ -12,6 +12,7 @@ import {
 import { useSelector } from 'react-redux'
 import type { RootState } from '../app/store'
 import { formatDate, formatDateTime } from '../utils/dateUtils'
+import { getRoleGroup } from '../utils/dashboardRedirect'
 
 export default function PipDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -51,8 +52,9 @@ export default function PipDetailPage() {
 
   // Removed unused isManagerOrAdmin
   const isManager = user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
-  const isDirectManager = isManager && user?.email === pip?.manager?.email
+  const isDirectManager = isManager && (user?.email === pip?.manager?.email || user?.employeeId === (pip?.manager as any)?.employeeId)
   const isAdmin = user?.role === 'HR'
+  const routeBase = user ? (getRoleGroup(user as never) === 'HR' ? '/hr/pip-monitoring' : '/manager/pip') : '/manager/pip'
 
   if (isLoading || !pip) return <div className="p-8">Loading PIP details...</div>
 
@@ -96,7 +98,7 @@ export default function PipDetailPage() {
     <div className="p-8 pb-20">
       <div className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link to="/hr/pip-monitoring" className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+          <Link to={routeBase} className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
             <i className="bi bi-chevron-left" />
           </Link>
           <div>
@@ -106,7 +108,7 @@ export default function PipDetailPage() {
         </div>
 
         <div className="flex gap-3">
-          {isManager && pip.status === 'ACTIVE' && (
+          {isDirectManager && pip.status === 'ACTIVE' && (
             <>
               <button
                 onClick={() => setShowMeetingModal(true)}
@@ -122,7 +124,7 @@ export default function PipDetailPage() {
               </button>
             </>
           )}
-          {isManager && pip.status === 'CLOSED' && (
+          {isAdmin && pip.status === 'CLOSED' && (
             <button
               onClick={() => setShowReopenModal(true)}
               className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
