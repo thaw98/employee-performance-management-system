@@ -12,12 +12,12 @@ import org.springframework.data.jpa.repository.EntityGraph;
 @Repository
 public interface SelfAssessmentRepository extends JpaRepository<SelfAssessment, Long> {
 
-    @EntityGraph(attributePaths = {"employee", "employee.department", "employee.position", "items"})
+    @EntityGraph(attributePaths = {"employee", "employee.department", "employee.position", "items", "items.subject"})
     List<SelfAssessment> findAll();
 
-    @EntityGraph(attributePaths = {"employee", "employee.department", "employee.position", "items"})
+    @EntityGraph(attributePaths = {"employee", "employee.department", "employee.position", "items", "items.subject"})
     List<SelfAssessment> findByEmployee(Employee employee);
 
-    @EntityGraph(attributePaths = {"employee", "employee.department", "employee.position", "items"})
+    @EntityGraph(attributePaths = {"employee", "employee.department", "employee.position", "items", "items.subject"})
     Optional<SelfAssessment> findTopByEmployeeOrderByCreatedDateDesc(Employee employee);
 }

@@ -41,7 +41,10 @@ export default function PipDetailPage() {
   const [updateValue, setUpdateValue] = useState({ percentage: 0, completedHours: 0, feedback: '' })
 
   const [showMeetingModal, setShowMeetingModal] = useState(false)
-  const [meetingTime, setMeetingTime] = useState('')
+  const [meetingDate, setMeetingDate] = useState('')
+  const [meetingHour, setMeetingHour] = useState('12')
+  const [meetingMinute, setMeetingMinute] = useState('00')
+  const [meetingPeriod, setMeetingPeriod] = useState('AM')
 
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [closeData, setCloseData] = useState({ finalOutcome: '', closingRemarks: '' })
@@ -49,53 +52,145 @@ export default function PipDetailPage() {
   const [showReopenModal, setShowReopenModal] = useState(false)
   const [reopenReasonType, setReopenReasonType] = useState('Incomplete Goals')
   const [customReason, setCustomReason] = useState('')
+  const [showReviewDenyModal, setShowReviewDenyModal] = useState(false)
+  const [reviewReasonType, setReviewReasonType] = useState('Policy Not Met')
+  const [reviewCustomReason, setReviewCustomReason] = useState('')
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  // Removed unused isManagerOrAdmin
-  const isManager = user?.role === 'DEPARTMENT_HEAD' || user?.role === 'TEAM_HEAD'
-  const isDirectManager = isManager && (user?.email === pip?.manager?.email || user?.employeeId === (pip?.manager as any)?.employeeId)
-  const isAdmin = user?.role === 'HR'
-  const routeBase = user ? (getRoleGroup(user as never) === 'HR' ? '/hr/pip-monitoring' : '/manager/pip') : '/manager/pip'
+  const roleGroup = user ? getRoleGroup(user as never) : 'EMPLOYEE'
+  const isManager = roleGroup === 'MANAGER'
+  const isAdmin = roleGroup === 'HR'
+  const isDirectManager = Boolean(
+    isManager &&
+      pip &&
+      (
+        (user?.id != null && user.id === pip.manager?.id) ||
+        (user?.email && pip.manager?.email && user.email.toLowerCase() === pip.manager.email.toLowerCase()) ||
+        (user?.employeeId && pip.manager?.employeeId && user.employeeId === pip.manager.employeeId)
+      )
+  )
+  const routeBase = roleGroup === 'HR' ? '/hr/pip-monitoring' : '/manager/pip'
 
   if (isLoading || !pip) return <div className="p-8">Loading PIP details...</div>
 
   const handleUpdateProgress = async () => {
     if (showUpdateModal.objectiveId) {
-      await updateProgress({
-        objectiveId: showUpdateModal.objectiveId,
-        progressPercentage: updateValue.percentage,
-        completedHours: updateValue.completedHours,
-        feedback: updateValue.feedback,
-      })
-      setShowUpdateModal({ open: false, objectiveId: null })
-      setUpdateValue({ percentage: 0, completedHours: 0, feedback: '' })
+      try {
+        setActionError(null)
+        await updateProgress({
+          objectiveId: showUpdateModal.objectiveId,
+          progressPercentage: updateValue.percentage,
+          completedHours: updateValue.completedHours,
+          feedback: updateValue.feedback,
+        }).unwrap()
+        setShowUpdateModal({ open: false, objectiveId: null })
+        setUpdateValue({ percentage: 0, completedHours: 0, feedback: '' })
+      } catch (error: any) {
+        console.error('[PIP Detail] Update progress failed:', error)
+        setActionError(error?.data?.message || error?.error || 'Failed to update progress.')
+      }
     }
   }
 
   const handleScheduleMeeting = async () => {
-    await scheduleMeeting({ pipId, meetingTime })
-    setShowMeetingModal(false)
-    setMeetingTime('')
+    if (!meetingDate) {
+      setActionError('Meeting date is required.')
+      return
+    }
+
+    // Convert AM/PM to 24-hour format for the backend
+    let hour = parseInt(meetingHour)
+    if (meetingPeriod === 'PM' && hour < 12) hour += 12
+    if (meetingPeriod === 'AM' && hour === 12) hour = 0
+    
+    const timeStr = `${hour.toString().padStart(2, '0')}:${meetingMinute}:00`
+    const isoTime = `${meetingDate}T${timeStr}`
+
+    try {
+      setActionError(null)
+      await scheduleMeeting({ pipId, meetingTime: isoTime }).unwrap()
+      setShowMeetingModal(false)
+      setMeetingDate('')
+    } catch (error: any) {
+      console.error('[PIP Detail] Schedule meeting failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to schedule meeting.')
+    }
   }
 
   const handleClosePip = async () => {
-    await closePip({ pipId, ...closeData })
-    setShowCloseModal(false)
+    if (!closeData.finalOutcome.trim()) {
+      setActionError('Final outcome is required.')
+      return
+    }
+    if (!closeData.closingRemarks.trim()) {
+      setActionError('Closing remarks are required.')
+      return
+    }
+
+    try {
+      setActionError(null)
+      await closePip({ pipId, ...closeData }).unwrap()
+      setShowCloseModal(false)
+    } catch (error: any) {
+      console.error('[PIP Detail] Close PIP failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to close PIP.')
+    }
   }
 
   const handleReopenPip = async () => {
     const finalReason = reopenReasonType === 'Other' ? customReason : reopenReasonType
-    await reopenPip({ pipId, reason: finalReason })
-    setShowReopenModal(false)
-    setReopenReasonType('Incomplete Goals')
-    setCustomReason('')
+    if (!finalReason.trim()) {
+      setActionError('Reopen reason is required.')
+      return
+    }
+    try {
+      setActionError(null)
+      await reopenPip({ pipId, reason: finalReason }).unwrap()
+      setShowReopenModal(false)
+      setReopenReasonType('Incomplete Goals')
+      setCustomReason('')
+    } catch (error: any) {
+      console.error('[PIP Detail] Reopen PIP failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to reopen PIP.')
+    }
   }
 
   const handleReview = async (action: 'CONFIRMED' | 'DENIED') => {
-    await reviewPip({ pipId, action })
+    try {
+      setActionError(null)
+      await reviewPip({ pipId, action }).unwrap()
+    } catch (error: any) {
+      console.error('[PIP Detail] Review PIP failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to review PIP.')
+    }
+  }
+
+  const handleDenyReview = async () => {
+    const finalReason = reviewReasonType === 'Other' ? reviewCustomReason : reviewReasonType
+    if (!finalReason.trim()) {
+      setActionError('Deny reason is required.')
+      return
+    }
+
+    try {
+      setActionError(null)
+      await reviewPip({ pipId, action: 'DENIED', reason: finalReason }).unwrap()
+      setShowReviewDenyModal(false)
+      setReviewReasonType('Policy Not Met')
+      setReviewCustomReason('')
+    } catch (error: any) {
+      console.error('[PIP Detail] Deny review failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to deny request.')
+    }
   }
 
   return (
     <div className="p-8 pb-20">
+      {actionError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
       <div className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link to={routeBase} className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
@@ -124,15 +219,25 @@ export default function PipDetailPage() {
               </button>
             </>
           )}
-          {isAdmin && pip.status === 'CLOSED' && (
+          {isDirectManager && pip.status === 'PENDING_CLOSE' && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
+              Close request pending HR review
+            </div>
+          )}
+          {isDirectManager && pip.status === 'CLOSED' && (
             <button
               onClick={() => setShowReopenModal(true)}
               className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
             >
-              <i className="bi bi-arrow-counterclockwise" /> Reopen PIP
+              <i className="bi bi-arrow-counterclockwise" /> Request Reopen
             </button>
           )}
-          {isAdmin && (pip.status === 'PENDING_CREATION' || pip.status === 'PENDING_REOPEN') && (
+          {isDirectManager && pip.status === 'PENDING_REOPEN' && (
+            <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-700">
+              Reopen request pending HR review
+            </div>
+          )}
+          {isAdmin && (pip.status === 'PENDING_CREATION' || pip.status === 'PENDING_REOPEN' || pip.status === 'PENDING_CLOSE') && (
             <>
               <button
                 onClick={() => handleReview('CONFIRMED')}
@@ -141,7 +246,7 @@ export default function PipDetailPage() {
                 <i className="bi bi-check-lg" /> Confirm
               </button>
               <button
-                onClick={() => handleReview('DENIED')}
+                onClick={() => setShowReviewDenyModal(true)}
                 className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
               >
                 <i className="bi bi-x-lg" /> Deny
@@ -283,6 +388,12 @@ export default function PipDetailPage() {
                   <p className="text-sm font-medium text-orange-600 whitespace-pre-wrap">{pip.reopenReason}</p>
                 </div>
               )}
+              {pip.reviewReason && (
+                <div className="pt-4 border-t border-slate-100">
+                  <p className="text-xs text-slate-500">HR Review Reason</p>
+                  <p className="text-sm font-medium text-red-600 whitespace-pre-wrap">{pip.reviewReason}</p>
+                </div>
+              )}
             </div>
           </section>
         </div>
@@ -343,15 +454,52 @@ export default function PipDetailPage() {
             <h3 className="mb-4 text-lg font-bold">Schedule Follow-Up Meeting</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Date & Time</label>
+                <label className="block text-sm font-medium text-slate-700">Date</label>
                 <input
-                  type="datetime-local"
+                  type="date"
                   required
-                  min={new Date().toISOString().slice(0, 16)}
+                  min={new Date().toISOString().split('T')[0]}
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
-                  value={meetingTime}
-                  onChange={(e) => setMeetingTime(e.target.value)}
+                  value={meetingDate}
+                  onChange={(e) => setMeetingDate(e.target.value)}
                 />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Hour</label>
+                  <select 
+                    value={meetingHour} 
+                    onChange={e => setMeetingHour(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => (i + 1).toString()).map(h => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Minute</label>
+                  <select 
+                    value={meetingMinute} 
+                    onChange={e => setMeetingMinute(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
+                  >
+                    {['00', '15', '30', '45'].map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">AM/PM</label>
+                  <select 
+                    value={meetingPeriod} 
+                    onChange={e => setMeetingPeriod(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
@@ -393,7 +541,13 @@ export default function PipDetailPage() {
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setShowCloseModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
-              <button onClick={handleClosePip} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Close PIP</button>
+              <button
+                onClick={handleClosePip}
+                disabled={!closeData.finalOutcome.trim() || !closeData.closingRemarks.trim()}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+              >
+                Submit Close Request
+              </button>
             </div>
           </div>
         </div>
@@ -402,7 +556,7 @@ export default function PipDetailPage() {
       {showReopenModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Reopen PIP</h3>
+            <h3 className="mb-4 text-lg font-bold">Submit Reopen Request</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700">Reason for Reopening</label>
@@ -431,7 +585,46 @@ export default function PipDetailPage() {
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setShowReopenModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
-              <button onClick={handleReopenPip} className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700">Reopen</button>
+              <button onClick={handleReopenPip} className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700">Submit Request</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReviewDenyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-bold">Deny Request</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Reason</label>
+                <select
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+                  value={reviewReasonType}
+                  onChange={(e) => setReviewReasonType(e.target.value)}
+                >
+                  <option value="Policy Not Met">Policy Not Met</option>
+                  <option value="Insufficient Evidence">Insufficient Evidence</option>
+                  <option value="Need More Manager Notes">Need More Manager Notes</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              {reviewReasonType === 'Other' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Custom Reason</label>
+                  <textarea
+                    className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-500 focus:outline-none"
+                    rows={4}
+                    placeholder="Enter deny reason..."
+                    value={reviewCustomReason}
+                    onChange={(e) => setReviewCustomReason(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setShowReviewDenyModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+              <button onClick={handleDenyReview} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Deny Request</button>
             </div>
           </div>
         </div>

@@ -1,18 +1,16 @@
 package com.epms.backend.dto;
 
 import lombok.Data;
-import java.time.LocalDate;
-import java.util.List;
+import java.time.Instant;
 
 @Data
 public class FeedbackHistoryDto {
     private Long id;
+    private Instant date;
     private String evaluateeName;
-    private String evaluateeDepartment;
-    private String evaluateePosition;
-    private LocalDate assessmentDate;
-    private Integer totalPoints;
-    private Double totalScore;
-    private String scoreGrade;
-    private List<FeedbackHistoryDetailDto> details;
+    private String evaluateeStaffNo;
+    private String position;
+    private String role;
+    private Double score;
+    private String remark;
 }

@@ -26,12 +26,11 @@ public class EmployeeDraftRequestDto {
 	private String emergencyRelation;
 	private Long departmentId;
 	private Long positionId;
-	private String levelCode;
 	private Long managerId;
 	private LocalDate dateOfJoining;
 	private Long staffTypeId;
 	private String status;
 	private Integer probationMonth;
 	private LocalDate probationEndDate;
-	private String profilePictureBase64;
+	private String profilePictureUrl;
 }

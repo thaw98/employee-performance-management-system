@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,7 +24,7 @@ export function ForgotPasswordPage() {
     resolver: zodResolver(forgotSchema),
   });
 
-  const onSubmit = async (data: ForgotFormValues) => {
+  const onSubmit = async (_data: ForgotFormValues) => {
     setIsLoading(true);
     try {
       // API call would go here

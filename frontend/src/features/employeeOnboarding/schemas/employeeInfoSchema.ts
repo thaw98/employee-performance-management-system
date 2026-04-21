@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getNrcTownships } from '../utils/nrcData'
 import { phoneRegex } from '../utils/phoneValidation'
 import { STAFF_TYPE_PERMANENT, STAFF_TYPE_PROBATION } from '../utils/staffType'
+import { toTitleCasePersonName } from '../../../utils/personName'
 
 const allTownships = getNrcTownships()
 
@@ -69,7 +70,7 @@ const personalContactShape = z.object({
     .string(g)
     .min(1, g)
     .regex(/^[A-Za-z0-9._-]{1,100}$/, 'Use letters, digits, dots, underscores, or hyphens only (1–100 characters).'),
-  employeeName: z.string(g).min(1, g).max(50, g),
+  employeeName: z.string(g).min(1, g).max(50, g).transform(toTitleCasePersonName),
   otherName: z.string().optional(),
   nrcStateCode: z.string(g).min(1, g),
   nrcTownshipCode: z.string(g).min(1, g),
@@ -86,7 +87,11 @@ const personalContactShape = z.object({
   contactAddress: z.string(g).min(1, g).max(500, g),
   permanentAddress: z.string().optional(),
   phoneNo: z.string(g).regex(phoneRegex, { message: g }),
-  fatherName: z.string().max(100, g),
+  fatherName: z
+    .string()
+    .min(1, 'Father name is required')
+    .max(100, g)
+    .transform(toTitleCasePersonName),
   fatherNrcNo: z.string().optional(),
   fatherNrcStateCode: z.string(),
   fatherNrcTownshipCode: z.string(),

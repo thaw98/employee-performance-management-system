@@ -16,11 +16,20 @@ public class SelfAssessmentService {
 
     private final SelfAssessmentRepository selfAssessmentRepository;
     private final com.epms.backend.repository.EmployeeRepository employeeRepository;
+    private final com.epms.backend.repository.UserRepository userRepository;
+    private final com.epms.backend.repository.SelfAssessmentSubjectRepository subjectRepository;
+    private final NotificationService notificationService;
 
     public SelfAssessmentService(SelfAssessmentRepository selfAssessmentRepository,
-                                 com.epms.backend.repository.EmployeeRepository employeeRepository) {
+            com.epms.backend.repository.EmployeeRepository employeeRepository,
+            com.epms.backend.repository.UserRepository userRepository,
+            com.epms.backend.repository.SelfAssessmentSubjectRepository subjectRepository,
+            NotificationService notificationService) {
         this.selfAssessmentRepository = selfAssessmentRepository;
         this.employeeRepository = employeeRepository;
+        this.userRepository = userRepository;
+        this.subjectRepository = subjectRepository;
+        this.notificationService = notificationService;
     }
 
     public List<SelfAssessment> getAllSelfAssessments() {
@@ -75,9 +84,14 @@ public class SelfAssessmentService {
         if (existing.getItems() != null) {
             existing.getItems().clear();
         }
-        
+
         if (sa.getItems() != null) {
             for (SelfAssessmentItem item : sa.getItems()) {
+                if (item.getSubject() != null && item.getSubject().getId() != null) {
+                    item.setSubject(subjectRepository.findById(item.getSubject().getId())
+                            .orElseThrow(
+                                    () -> new RuntimeException("Subject not found: " + item.getSubject().getId())));
+                }
                 item.setSelfAssessment(existing);
                 existing.getItems().add(item);
             }
@@ -108,6 +122,12 @@ public class SelfAssessmentService {
         // Stays LOCKED until HR finalizes
         sa.setStatus(SelfAssessmentStatus.LOCKED);
 
+        // SA-7: Notify employee
+        userRepository.findByEmployee_Id(sa.getEmployee().getId()).ifPresent(user -> {
+            notificationService.send(user, "Manager Review Submitted",
+                    "Your manager has reviewed your self-assessment. Comments: " + comments);
+        });
+
         return selfAssessmentRepository.save(sa);
     }
 
@@ -120,6 +140,25 @@ public class SelfAssessmentService {
         sa.setHrSignature(signature);
         sa.setHrSignedAt(LocalDateTime.now());
         sa.setStatus(SelfAssessmentStatus.FINALIZED);
+
+        return selfAssessmentRepository.save(sa);
+    }
+
+    @Transactional
+    public SelfAssessment requestCorrection(Long id, String remarks) {
+        SelfAssessment sa = selfAssessmentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Self Assessment not found"));
+
+        sa.setCorrectionRemarks(remarks);
+        sa.setStatus(SelfAssessmentStatus.UNLOCKED); // Unlock for employee
+        sa.setEmployeeSignature(null); // Clear employee signature to force re-signing
+        sa.setEmployeeSignedAt(null);
+
+        // Notify employee
+        userRepository.findByEmployee_Id(sa.getEmployee().getId()).ifPresent(user -> {
+            notificationService.send(user, "Correction Requested",
+                    "HR has requested a correction on your self-assessment: " + remarks);
+        });
 
         return selfAssessmentRepository.save(sa);
     }
@@ -141,7 +180,7 @@ public class SelfAssessmentService {
     private void calculateScores(SelfAssessment sa) {
         int totalPoints = sa.getItems().stream().mapToInt(SelfAssessmentItem::getRating).sum();
         int numQuestions = sa.getItems().size();
-        double score = ((double) totalPoints / (numQuestions * 5)) * 100;
+        double score = (numQuestions > 0) ? ((double) totalPoints / (numQuestions * 5)) * 100 : 0.0;
 
         sa.setTotalPoints(totalPoints);
         sa.setTotalScore(score);

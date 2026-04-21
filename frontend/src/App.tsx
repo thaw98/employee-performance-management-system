@@ -19,9 +19,24 @@ import EmployeeLayout from './layouts/EmployeeLayout';
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
+import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
+import EditEmployeePage from './pages/hr/employees/EditEmployeePage';
+
+// Performance Modules
+import { SelfAssessmentPage } from './pages/SelfAssessmentPage';
+import { SelfAssessmentReviewListPage } from './pages/SelfAssessmentReviewListPage';
+import { SelfAssessmentSubitemPage } from './pages/SelfAssessmentSubjectPage';
 import PipMonitoringPage from './pages/PipMonitoringPage';
 import PipCreatePage from './pages/PipCreatePage';
 import PipDetailPage from './pages/PipDetailPage';
+import { CriteriaPage } from './pages/hr/CriteriaPage';
+import { AppraisalsPage } from './pages/hr/AppraisalsPage';
+import { GiveFeedbackPage } from './pages/GiveFeedbackPage';
+import { FeedbackHistoryPage } from './pages/FeedbackHistoryPage';
+import { GetFeedbackPage } from './pages/GetFeedbackPage';
+import { KpiManagementPage } from './pages/hr/KpiManagementPage';
+import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 
 function App() {
   return (
@@ -41,10 +56,20 @@ function App() {
           <Route element={<ProtectedRoute allowedRoleGroups={['HR']} />}>
             <Route path="/hr" element={<HrLayout />}>
               <Route path="dashboard" element={<HRDashboardPage />} />
-              <Route path="pip" element={<Navigate to="/hr/pip-monitoring" replace />} />
-              <Route path="pip-monitoring" element={<PipMonitoringPage />} />
-              <Route path="pip-monitoring/create" element={<PipCreatePage />} />
-              <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
+              <Route path="employees" element={<EmployeeListPage />} />
+              <Route path="employees/:employeeId/edit" element={<EditEmployeePage />} />
+              <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
+              <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
+              <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
+              <Route path="pip" element={<PipMonitoringPage />} />
+              <Route path="pip/:id" element={<PipDetailPage />} />
+              <Route path="360-feedback/criteria" element={<CriteriaPage />} />
+              <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
+              <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+              <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
+              <Route path="appraisals" element={<AppraisalsPage />} />
+              <Route path="kpi-management" element={<KpiManagementPage />} />
+              <Route path="kpi-assigned" element={<KpiAssignedPage />} />
               <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
             </Route>
           </Route>
@@ -53,9 +78,14 @@ function App() {
           <Route element={<ProtectedRoute allowedRoleGroups={['MANAGER']} />}>
             <Route path="/manager" element={<ManagerLayout />}>
               <Route path="dashboard" element={<ManagerDashboardPage />} />
+              <Route path="my-assessment" element={<SelfAssessmentPage />} />
+              <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
               <Route path="pip" element={<PipMonitoringPage />} />
               <Route path="pip/create" element={<PipCreatePage />} />
               <Route path="pip/:id" element={<PipDetailPage />} />
+              <Route path="feedback/give" element={<GiveFeedbackPage />} />
+              <Route path="feedback/received" element={<GetFeedbackPage />} />
+              <Route path="feedback/history" element={<FeedbackHistoryPage />} />
               <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
             </Route>
           </Route>
@@ -64,6 +94,12 @@ function App() {
           <Route element={<ProtectedRoute allowedRoleGroups={['EMPLOYEE']} />}>
             <Route path="/employee" element={<EmployeeLayout />}>
               <Route path="dashboard" element={<EmployeeDashboardPage />} />
+              <Route path="assessment" element={<SelfAssessmentPage />} />
+              <Route path="pip" element={<PipMonitoringPage />} />
+              <Route path="pip/:id" element={<PipDetailPage />} />
+              <Route path="feedback/give" element={<GiveFeedbackPage />} />
+              <Route path="feedback/received" element={<GetFeedbackPage />} />
+              <Route path="feedback/history" element={<FeedbackHistoryPage />} />
               <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
             </Route>
           </Route>

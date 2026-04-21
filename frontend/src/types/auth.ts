@@ -9,7 +9,7 @@ export interface User {
   role: string;
   roleId: number;
   mustChangePassword?: boolean;
-  profilePictureBase64?: string;
+  profilePictureUrl?: string;
 }
 
 export interface LoginResponseData {

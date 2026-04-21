@@ -17,7 +17,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -88,6 +87,9 @@ public class Pip {
     @Column(name = "reopen_reason", columnDefinition = "text")
     private String reopenReason;
 
+    @Column(name = "review_reason", columnDefinition = "text")
+    private String reviewReason;
+
     @Column(name = "updated_date")
     private Instant updatedDate;
 
@@ -97,12 +99,12 @@ public class Pip {
     @OneToMany(mappedBy = "pip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FollowUpMeeting> followUpMeetings = new ArrayList<>();
 
-    @Transient
+    @Column(name = "total_hours")
     private Integer totalHours;
 
-    @Transient
+    @Column(name = "completed_hours")
     private Integer completedHours;
 
-    @Transient
+    @Column(name = "final_outcome", length = 50)
     private String finalOutcome;
 }

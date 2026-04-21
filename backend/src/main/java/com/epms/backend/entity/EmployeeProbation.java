@@ -24,7 +24,7 @@ public class EmployeeProbation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "probation_date")
+    @Column(name = "probation_end_date")
     private LocalDate probationEndDate;
 
     @Column(name = "probation_month")

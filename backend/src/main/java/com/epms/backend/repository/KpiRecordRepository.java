@@ -13,13 +13,14 @@ import com.epms.backend.dto.pip.EligibleEmployeeDTO;
 @Repository
 public interface KpiRecordRepository extends JpaRepository<KpiRecord, Long> {
     List<KpiRecord> findByEmployeeIdAndPeriodId(Long employeeId, Long periodId);
+    List<KpiRecord> findByEmployeeIdAndPeriodIdAndKpi(Long employeeId, Long periodId, String kpi);
 
     List<KpiRecord> findByEmployeeManagerEmployeeId(Long managerId);
 
-    @Query("SELECT new com.epms.backend.dto.pip.EligibleEmployeeDTO(r.employee.employeeId, r.employee.employeeName, r.employee.department.name, SUM(r.weightedScore)) " +
+    @Query("SELECT new com.epms.backend.dto.pip.EligibleEmployeeDTO(r.employee.id, r.employee.employeeId, r.employee.employeeName, r.employee.department.name, SUM(r.weightedScore)) " +
            "FROM KpiRecord r " +
            "WHERE r.employee.manager.employeeId = :managerId AND LOWER(r.period.status) = 'active' " +
-           "GROUP BY r.employee.employeeId, r.employee.employeeName, r.employee.department.name " +
+           "GROUP BY r.employee.id, r.employee.employeeId, r.employee.employeeName, r.employee.department.name " +
            "HAVING SUM(r.weightedScore) < 70")
     List<EligibleEmployeeDTO> findLowPerformersByManager(@Param("managerId") Long managerId);
 }

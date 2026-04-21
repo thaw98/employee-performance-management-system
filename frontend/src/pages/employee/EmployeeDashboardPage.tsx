@@ -5,6 +5,7 @@ import {
   MessageSquare,
   Calendar,
   ChevronRight,
+  Zap
 } from 'lucide-react';
 
 interface KPI {
@@ -25,6 +26,16 @@ export function EmployeeDashboardPage() {
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">My Dashboard</h1>
           <p className="text-slate-500 font-medium text-xs">Track your performance, assessments, and feedback</p>
+        </div>
+        <div className="flex gap-3">
+          <a href="/employee/assessment" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-700 hover:shadow-md transition-all">
+            <FileText size={14} className="text-blue-600" />
+            Self Assessment
+          </a>
+          <a href="/employee/pip" className="flex items-center gap-2 px-4 py-2 bg-slate-900 rounded-xl text-xs font-black text-white hover:shadow-lg transition-all">
+            <Zap size={14} className="text-amber-400" />
+            My PIP Section
+          </a>
         </div>
       </div>
 

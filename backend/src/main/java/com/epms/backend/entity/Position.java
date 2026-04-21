@@ -20,6 +20,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+
 public class Position {
 
     @Id
@@ -33,8 +34,9 @@ public class Position {
     @Column(name = "position_name", length = 100)
     private String name;
 
-    @Column(name = "level_code", length = 10)
-    private String levelCode;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "level_code_id")
+    private LevelCode levelCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id")

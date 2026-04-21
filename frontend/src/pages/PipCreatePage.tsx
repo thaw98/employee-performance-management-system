@@ -5,16 +5,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { z } from 'zod'
-import { useCreatePipMutation, useGetEligibleEmployeesQuery } from '../features/pip/pipApi'
+import { useCreatePipMutation, useGetEligibleEmployeesQuery, useGetPipsQuery } from '../features/pip/pipApi'
 import { getRoleGroup } from '../utils/dashboardRedirect'
 import type { RootState } from '../app/store'
 
 const pipCreateSchema = z
   .object({
-    employeeId: z
-      .string()
-      .min(1, 'Employee record ID is required')
-      .regex(/^[0-9]+$/, 'Must be the numeric employee record ID'),
+    employeeId: z.coerce.number().int().min(1, 'Employee record ID is required'),
     totalHours: z.coerce.number().int().min(1, 'Total hours must be at least 1'),
     startDate: z.string().min(1, 'Start date is required'),
     endDate: z.string().min(1, 'End date is required'),
@@ -37,6 +34,7 @@ export default function PipCreatePage() {
   const navigate = useNavigate()
   const { user } = useSelector((state: RootState) => state.auth)
   const { data: eligibleEmployees, isLoading: isLoadingEmployees } = useGetEligibleEmployeesQuery()
+  const { data: existingPips } = useGetPipsQuery()
   const [createPip, { isLoading: isCreating }] = useCreatePipMutation()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const routeBase = user ? (getRoleGroup(user as never) === 'HR' ? '/hr/pip-monitoring' : '/manager/pip') : '/manager/pip'
@@ -61,17 +59,51 @@ export default function PipCreatePage() {
 
   const onSubmit = async (values: PipCreateFormValues) => {
     setSubmitError(null)
+    console.log('[PIP Create] Submitting payload:', {
+      employeeId: Number(values.employeeId),
+      startDate: values.startDate,
+      endDate: values.endDate,
+      totalHours: values.totalHours,
+      objectives: values.objectives.map((item) => item.value.trim()).filter(Boolean),
+    })
     try {
       await createPip({
-        employeeId: Number(values.employeeId.trim()),
+        employeeId: Number(values.employeeId),
         startDate: values.startDate,
         endDate: values.endDate,
         totalHours: values.totalHours,
         objectives: values.objectives.map((item) => item.value.trim()).filter(Boolean),
       }).unwrap()
       navigate(routeBase)
-    } catch {
-      setSubmitError('Failed to create PIP. Please check the employee record ID and try again.')
+    } catch (error: any) {
+      console.error('[PIP Create] Request failed:', error)
+      const message =
+        error?.data?.message ||
+        error?.data?.data?.message ||
+        error?.data?.error ||
+        (typeof error?.data === 'string' ? error.data : null) ||
+        error?.error ||
+        'Failed to create PIP. Please check the employee record ID and try again.'
+
+      if (message === 'An active PIP already exists for this employee') {
+        const employeeId = Number(values.employeeId)
+        const existingPip = existingPips?.find((pip) => {
+          const pipEmployeeId = pip.employee?.employee?.id
+          return pipEmployeeId === employeeId && ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN'].includes(pip.status)
+        })
+
+        if (existingPip) {
+          navigate(`${routeBase}/${existingPip.id}`, {
+            replace: true,
+            state: {
+              pipRedirectMessage: 'This employee already has an active PIP. Opening the existing record.',
+            },
+          })
+          return
+        }
+      }
+
+      setSubmitError(message)
     }
   }
 
@@ -108,7 +140,7 @@ export default function PipCreatePage() {
                   return (
                     <li key={key} {...rest}>
                       <Box>
-                        <Typography variant="body1">{option.employeeName} ({option.employeeId})</Typography>
+                        <Typography variant="body1">{option.employeeName}{option.employeeId ? ` (${option.employeeId})` : ''}</Typography>
                         <Typography variant="caption" color="text.secondary">
                           Dept: {option.departmentName} | Staff ID: {option.staffId || 'N/A'} | KPI Score: {option.totalScore?.toFixed(2) ?? 'N/A'}%
                         </Typography>

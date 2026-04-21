@@ -56,6 +56,7 @@ public class EmployeeProbationSchemaMigrationInitializer implements BeanPostProc
 	private void runMigration(DataSource dataSource) throws Exception {
 		JdbcTemplate jdbc = new JdbcTemplate(dataSource);
 		ensureEmployeeProbationTable(jdbc, dataSource);
+		removeLegacyProbationDateColumnIfPresent(jdbc, dataSource);
 		migrateOldEmployeeIdColumnOffProbation(jdbc, dataSource);
 		ensureEmployeeProbationFkOnEmployees(jdbc, dataSource);
 		copyDenormalizedProbationColumnsIntoEmployeeProbation(jdbc, dataSource);
@@ -75,6 +76,37 @@ public class EmployeeProbationSchemaMigrationInitializer implements BeanPostProc
 				)
 				""");
 		log.info("Created table employee_probation");
+	}
+
+	/**
+	 * Removes legacy {@code probation_date} from {@code employee_probation}. If
+	 * {@code probation_end_date} exists, copy values first for rows where end date is null.
+	 */
+	private void removeLegacyProbationDateColumnIfPresent(JdbcTemplate jdbc, DataSource dataSource) throws Exception {
+		if (!tableExists(dataSource, "employee_probation")) {
+			return;
+		}
+		if (!columnExists(dataSource, "employee_probation", "probation_date")) {
+			return;
+		}
+		if (!columnExists(dataSource, "employee_probation", "probation_end_date")) {
+			jdbc.execute("""
+					ALTER TABLE employee_probation
+					ADD COLUMN probation_end_date DATE NULL
+					""");
+			log.info("Added employee_probation.probation_end_date");
+		}
+		int copied = jdbc.update("""
+				UPDATE employee_probation
+				SET probation_end_date = probation_date
+				WHERE probation_end_date IS NULL
+				  AND probation_date IS NOT NULL
+				""");
+		if (copied > 0) {
+			log.info("Copied {} probation end date value(s) from probation_date", copied);
+		}
+		jdbc.execute("ALTER TABLE employee_probation DROP COLUMN probation_date");
+		log.info("Dropped legacy column employee_probation.probation_date");
 	}
 
 	/**

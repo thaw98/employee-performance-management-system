@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import { logout } from '../../features/auth/authSlice'
 import { useGetProfileQuery } from '../../features/user/userApi'
+import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
 
 const PRIMARY = '#0855BF'
 
@@ -12,6 +13,7 @@ export function AppNavbar() {
   const { data: profileResponse } = useGetProfileQuery()
   
   const user = profileResponse?.data || tokenUser
+  const navAvatarSrc = resolveProfilePictureSrc(user?.profilePictureUrl)
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -54,8 +56,8 @@ export function AppNavbar() {
               <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{user?.role || 'Admin'}</span>
             </div>
             <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border border-blue-200 shadow-sm overflow-hidden">
-               {profileResponse?.data?.profilePictureBase64 ? (
-                 <img src={profileResponse.data.profilePictureBase64} alt="Profile" className="h-full w-full object-cover pointer-events-none" />
+               {navAvatarSrc ? (
+                 <img src={navAvatarSrc} alt="Profile" className="h-full w-full object-cover pointer-events-none" />
                ) : (
                  user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'
                )}

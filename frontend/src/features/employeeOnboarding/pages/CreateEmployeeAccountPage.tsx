@@ -8,7 +8,7 @@ import {
   type Resolver,
   type UseFormSetError,
 } from 'react-hook-form'
-import { useRef, useState, type FocusEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FocusEvent, type ReactNode } from 'react'
 
 import {
   employeeEmploymentSchema,
@@ -185,9 +185,8 @@ function TextField({
   inputRef?: React.Ref<HTMLInputElement>
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> &
   React.SelectHTMLAttributes<HTMLSelectElement>) {
-  const inputBase = `w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${
-    error ? 'border-red-400 focus:border-red-500' : 'border-slate-300 focus:border-blue-500'
-  }`
+  const inputBase = `w-full rounded-lg border px-3 py-2 text-sm outline-none transition ${error ? 'border-red-400 focus:border-red-500' : 'border-slate-300 focus:border-blue-500'
+    }`
   return (
     <div className={fullWidth ? 'w-full' : ''}>
       {label ? <label className="mb-1 block text-sm font-medium text-slate-700">{label}</label> : null}
@@ -264,7 +263,16 @@ export function CreateEmployeeAccountPage() {
   const [finalSubmitLoading, setFinalSubmitLoading] = useState(false)
   const [formMessage, setFormMessage] = useState('')
   const [formMessageSeverity, setFormMessageSeverity] = useState<'success' | 'error' | 'info'>('info')
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(null)
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
+  const profilePhotoPreviewUrl = useMemo(
+    () => (profilePhotoFile ? URL.createObjectURL(profilePhotoFile) : null),
+    [profilePhotoFile],
+  )
+  useEffect(() => {
+    return () => {
+      if (profilePhotoPreviewUrl) URL.revokeObjectURL(profilePhotoPreviewUrl)
+    }
+  }, [profilePhotoPreviewUrl])
   const [photoError, setPhotoError] = useState('')
   const photoInputRef = useRef<HTMLInputElement>(null)
 
@@ -385,7 +393,7 @@ export function CreateEmployeeAccountPage() {
       return
     }
     setLoginEmailError('')
-    setSavedValues(values as EmployeeInfoFormValues)
+    setSavedValues(fullParsed.data)
     setStep(3)
   }
 
@@ -401,11 +409,7 @@ export function CreateEmployeeAccountPage() {
       setPhotoError('Photo must be less than 5 MB.')
       return
     }
-    const reader = new FileReader()
-    reader.onload = () => {
-      setProfilePhoto(reader.result as string)
-    }
-    reader.readAsDataURL(file)
+    setProfilePhotoFile(file)
   }
 
   function handlePhotoDrop(e: React.DragEvent) {
@@ -421,11 +425,7 @@ export function CreateEmployeeAccountPage() {
       setPhotoError('Photo must be less than 5 MB.')
       return
     }
-    const reader = new FileReader()
-    reader.onload = () => {
-      setProfilePhoto(reader.result as string)
-    }
-    reader.readAsDataURL(file)
+    setProfilePhotoFile(file)
   }
 
   function apiErrorMessage(err: unknown): string {
@@ -464,12 +464,21 @@ export function CreateEmployeeAccountPage() {
       return
     }
     const v = fullParsed.data
+    let profilePictureUrl: string | undefined
+    if (profilePhotoFile) {
+      const up = await uploadProfilePicture(profilePhotoFile).unwrap()
+      if (!up.success || !up.data?.profilePictureUrl) {
+        setAccountError(up.message || 'Could not upload profile photo')
+        return
+      }
+      profilePictureUrl = up.data.profilePictureUrl
+    }
     const createPayload = buildEmployeeCreatePayload(v)
     setFinalSubmitLoading(true)
     let employeeCreatedInRequest = false
     try {
       const empRes = await createEmployee(
-        profilePhoto ? { ...createPayload, profilePictureBase64: profilePhoto } : createPayload,
+        profilePictureUrl ? { ...createPayload, profilePictureUrl } : createPayload,
       ).unwrap()
       if (!empRes.success || !empRes.data) {
         setFormMessage(empRes.message || 'Unable to save employee information')
@@ -479,14 +488,14 @@ export function CreateEmployeeAccountPage() {
       const newPk = empRes.data.id
       employeeCreatedInRequest = true
       setEmployeePkId(newPk)
-      setSavedValues(values as EmployeeInfoFormValues)
+      setSavedValues(v)
 
-      const payload: { employeePkId: number; email: string; profilePictureBase64?: string } = {
+      const payload: { employeePkId: number; email: string; profilePictureUrl?: string } = {
         employeePkId: newPk,
         email,
       }
-      if (profilePhoto) {
-        payload.profilePictureBase64 = profilePhoto
+      if (profilePictureUrl) {
+        payload.profilePictureUrl = profilePictureUrl
       }
       const res = await createAccount(payload).unwrap()
       if (res.success && res.data) {
@@ -544,176 +553,176 @@ export function CreateEmployeeAccountPage() {
           {/* Personal Information */}
           <FormSection icon="bi-person-badge" title="Personal Information">
             <div className="space-y-4">
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handlePhotoChange}
-            />
-            <div className="w-full space-y-4">
-              <div className="w-full">
-                <span className="mb-2 block text-center text-sm font-medium text-slate-700">Employee Photo</span>
-                {profilePhoto ? (
-                  <div className="flex w-full flex-col items-center justify-center gap-3 sm:flex-row sm:items-start sm:justify-center">
-                    <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl border-2 border-blue-200 shadow-sm">
-                      <img
-                        src={profilePhoto}
-                        alt="Employee photo preview"
-                        className="h-full w-full object-cover"
-                      />
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoChange}
+              />
+              <div className="w-full space-y-4">
+                <div className="w-full">
+                  <span className="mb-2 block text-center text-sm font-medium text-slate-700">Employee Photo</span>
+                  {profilePhotoPreviewUrl ? (
+                    <div className="flex w-full flex-col items-center justify-center gap-3 sm:flex-row sm:items-start sm:justify-center">
+                      <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl border-2 border-blue-200 shadow-sm">
+                        <img
+                          src={profilePhotoPreviewUrl}
+                          alt="Employee photo preview"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="flex flex-row gap-2 sm:flex-col">
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                          onClick={() => photoInputRef.current?.click()}
+                        >
+                          <i className="bi bi-arrow-repeat text-sm" />
+                          Change
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                          onClick={() => {
+                            setProfilePhotoFile(null)
+                            setPhotoError('')
+                            if (photoInputRef.current) photoInputRef.current.value = ''
+                          }}
+                        >
+                          <i className="bi bi-trash3 text-sm" />
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-row gap-2 sm:flex-col">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                        onClick={() => photoInputRef.current?.click()}
-                      >
-                        <i className="bi bi-arrow-repeat text-sm" />
-                        Change
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                        onClick={() => {
-                          setProfilePhoto(null)
-                          setPhotoError('')
-                          if (photoInputRef.current) photoInputRef.current.value = ''
-                        }}
-                      >
-                        <i className="bi bi-trash3 text-sm" />
-                        Remove
-                      </button>
+                  ) : (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="flex w-full cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-blue-400 hover:bg-blue-50/50"
+                      onClick={() => photoInputRef.current?.click()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') photoInputRef.current?.click()
+                      }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handlePhotoDrop}
+                    >
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                        <i className="bi bi-camera text-xl text-blue-500" />
+                      </div>
+                      <p className="text-sm font-medium text-slate-600">Click or drag & drop</p>
+                      <p className="text-xs text-slate-400">JPG, PNG — max 5 MB</p>
                     </div>
-                  </div>
-                ) : (
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    className="flex w-full cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-blue-400 hover:bg-blue-50/50"
-                    onClick={() => photoInputRef.current?.click()}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') photoInputRef.current?.click()
-                    }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={handlePhotoDrop}
-                  >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-                      <i className="bi bi-camera text-xl text-blue-500" />
-                    </div>
-                    <p className="text-sm font-medium text-slate-600">Click or drag & drop</p>
-                    <p className="text-xs text-slate-400">JPG, PNG — max 5 MB</p>
-                  </div>
-                )}
-                {photoError ? <p className="mt-2 text-center text-xs text-red-600">{photoError}</p> : null}
-              </div>
-              <div className="w-full">
-                <TextField
-                  fullWidth
-                  label="Employee ID *"
-                  autoComplete="off"
-                  {...register('employeeId')}
-                  error={Boolean(errors.employeeId)}
-                  helperText={
-                    errors.employeeId?.message ??
-                    'Your business employee number (letters, digits, hyphens, etc.). Must be unique — not the database id.'
-                  }
-                />
-              </div>
-              <div className="w-full">
-                <TextField
-                  fullWidth
-                  label="Employee Name *"
-                  slotProps={{ htmlInput: { maxLength: EMPLOYEE_NAME_MAX_LENGTH } }}
-                  {...register('employeeName')}
-                  error={Boolean(errors.employeeName)}
-                  helperText={
-                    <span className="flex w-full items-start justify-between gap-2">
-                      <span className={errors.employeeName ? 'text-red-600' : ''}>{errors.employeeName?.message}</span>
-                      <span className="shrink-0 text-slate-400">
-                        {employeeNameLength}/{EMPLOYEE_NAME_MAX_LENGTH}
+                  )}
+                  {photoError ? <p className="mt-2 text-center text-xs text-red-600">{photoError}</p> : null}
+                </div>
+                <div className="w-full">
+                  <TextField
+                    fullWidth
+                    label="Employee ID *"
+                    autoComplete="off"
+                    {...register('employeeId')}
+                    error={Boolean(errors.employeeId)}
+                    helperText={
+                      errors.employeeId?.message ??
+                      'Your business employee number (letters, digits, hyphens, etc.). Must be unique — not the database id.'
+                    }
+                  />
+                </div>
+                <div className="w-full">
+                  <TextField
+                    fullWidth
+                    label="Employee Name *"
+                    slotProps={{ htmlInput: { maxLength: EMPLOYEE_NAME_MAX_LENGTH } }}
+                    {...register('employeeName')}
+                    error={Boolean(errors.employeeName)}
+                    helperText={
+                      <span className="flex w-full items-start justify-between gap-2">
+                        <span className={errors.employeeName ? 'text-red-600' : ''}>{errors.employeeName?.message}</span>
+                        <span className="shrink-0 text-slate-400">
+                          {employeeNameLength}/{EMPLOYEE_NAME_MAX_LENGTH}
+                        </span>
                       </span>
-                    </span>
-                  }
+                    }
+                  />
+                </div>
+              </div>
+              <NrcFields
+                control={control}
+                errors={errors}
+                setValue={setValue}
+                label="Staff NRC No."
+                required
+              />
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Controller
+                  control={control}
+                  name="gender"
+                  render={({ field }) => (
+                    <TextField
+                      select
+                      fullWidth
+                      label="Gender *"
+                      {...field}
+                      error={Boolean(errors.gender)}
+                      helperText={errors.gender?.message}
+                    >
+                      <MenuItem value="">Select</MenuItem>
+                      <MenuItem value="Male">Male</MenuItem>
+                      <MenuItem value="Female">Female</MenuItem>
+                    </TextField>
+                  )}
+                />
+                <TextField
+                  fullWidth
+                  label="Race *"
+                  {...register('race')}
+                  error={Boolean(errors.race)}
+                  helperText={errors.race?.message}
+                />
+                <Controller
+                  control={control}
+                  name="religionId"
+                  render={({ field }) => (
+                    <TextField
+                      select
+                      fullWidth
+                      label="Religion *"
+                      value={field.value ?? ''}
+                      onChange={(event) => field.onChange(event.target.value ? Number(event.target.value) : undefined)}
+                      onBlur={field.onBlur}
+                      error={Boolean(errors.religionId)}
+                      helperText={errors.religionId?.message}
+                      disabled={religions.isFetching}
+                    >
+                      <MenuItem value="">Select</MenuItem>
+                      {religionsOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </TextField>
+                  )}
+                />
+                <TextField
+                  fullWidth
+                  label="Date of Birth *"
+                  type="date"
+                  slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: today() } }}
+                  {...register('dateOfBirth')}
+                  error={Boolean(errors.dateOfBirth)}
+                  helperText={errors.dateOfBirth?.message}
+                />
+                <TextField
+                  fullWidth
+                  label="Nationality *"
+                  slotProps={{ htmlInput: { maxLength: 100 } }}
+                  {...register('nationality')}
+                  error={Boolean(errors.nationality)}
+                  helperText={errors.nationality?.message}
                 />
               </div>
             </div>
-            <NrcFields
-              control={control}
-              errors={errors}
-              setValue={setValue}
-              label="Staff NRC No."
-              required
-            />
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Controller
-                control={control}
-                name="gender"
-                render={({ field }) => (
-                  <TextField
-                    select
-                    fullWidth
-                    label="Gender *"
-                    {...field}
-                    error={Boolean(errors.gender)}
-                    helperText={errors.gender?.message}
-                  >
-                    <MenuItem value="">Select</MenuItem>
-                    <MenuItem value="Male">Male</MenuItem>
-                    <MenuItem value="Female">Female</MenuItem>
-                  </TextField>
-                )}
-              />
-              <TextField
-                fullWidth
-                label="Race *"
-                {...register('race')}
-                error={Boolean(errors.race)}
-                helperText={errors.race?.message}
-              />
-              <Controller
-                control={control}
-                name="religionId"
-                render={({ field }) => (
-                  <TextField
-                    select
-                    fullWidth
-                    label="Religion *"
-                    value={field.value ?? ''}
-                    onChange={(event) => field.onChange(event.target.value ? Number(event.target.value) : undefined)}
-                    onBlur={field.onBlur}
-                    error={Boolean(errors.religionId)}
-                    helperText={errors.religionId?.message}
-                    disabled={religions.isFetching}
-                  >
-                    <MenuItem value="">Select</MenuItem>
-                    {religionsOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.name}
-                      </option>
-                    ))}
-                  </TextField>
-                )}
-              />
-              <TextField
-                fullWidth
-                label="Date of Birth *"
-                type="date"
-                slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: today() } }}
-                {...register('dateOfBirth')}
-                error={Boolean(errors.dateOfBirth)}
-                helperText={errors.dateOfBirth?.message}
-              />
-              <TextField
-                fullWidth
-                label="Nationality *"
-                slotProps={{ htmlInput: { maxLength: 100 } }}
-                {...register('nationality')}
-                error={Boolean(errors.nationality)}
-                helperText={errors.nationality?.message}
-              />
-            </div>
-          </div>
           </FormSection>
 
           {/* Contact Information */}
@@ -771,8 +780,13 @@ export function CreateEmployeeAccountPage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <TextField
                   fullWidth
-                  label="Father Name"
-                  {...register('fatherName')}
+                  label="Father Name *"
+                  {...register('fatherName', {
+                    onBlur: (e) => {
+                      const n = toTitleCasePersonName(e.target.value)
+                      if (n !== e.target.value) setValue('fatherName', n, { shouldValidate: true })
+                    },
+                  })}
                   error={Boolean(errors.fatherName)}
                   helperText={errors.fatherName?.message}
                 />
@@ -1037,7 +1051,11 @@ export function CreateEmployeeAccountPage() {
                   value: savedValues?.employeeId?.trim() ? savedValues.employeeId : '—',
                   icon: 'bi-person-vcard',
                 },
-                { label: 'Employee Name', value: savedValues?.employeeName ?? '—', icon: 'bi-person' },
+                {
+                  label: 'Employee Name',
+                  value: toTitleCasePersonName(savedValues?.employeeName ?? '') || '—',
+                  icon: 'bi-person',
+                },
                 { label: 'Department', value: departmentName, icon: 'bi-building' },
                 { label: 'Position', value: positionName, icon: 'bi-briefcase' },
               ].map(({ label, value, icon }) => (

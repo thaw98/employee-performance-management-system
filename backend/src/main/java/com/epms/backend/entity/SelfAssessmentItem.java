@@ -21,6 +21,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+
 public class SelfAssessmentItem {
 
     @Id
@@ -28,11 +29,12 @@ public class SelfAssessmentItem {
     @Column(name = "answer_id")
     private Long id;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assessment_id", nullable = false)
     private SelfAssessment selfAssessment;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "question_id", nullable = false)
     private SelfAssessmentSubject subject;
 

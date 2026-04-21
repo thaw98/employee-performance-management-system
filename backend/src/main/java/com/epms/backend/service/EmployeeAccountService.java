@@ -17,6 +17,7 @@ import com.epms.backend.entity.User;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.RoleRepository;
 import com.epms.backend.repository.UserRepository;
+import com.epms.backend.validation.ProfilePictureUrlValidator;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,7 +25,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EmployeeAccountService {
 	private static final Logger log = LoggerFactory.getLogger(EmployeeAccountService.class);
-	private static final String ALLOWED = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#$";
+	/** Exactly 8 characters for temporary passwords (alphanumeric). */
+	private static final String ALLOWED = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
 	private static final SecureRandom RANDOM = new SecureRandom();
 
 	private final EmployeeRepository employeeRepository;
@@ -58,9 +60,8 @@ public class EmployeeAccountService {
 		user.setRole(employeeRole);
 		user.setActive(true);
 		user.setMustChangePassword(true);
-		if (request.getProfilePictureBase64() != null && !request.getProfilePictureBase64().isBlank()) {
-			String pic = request.getProfilePictureBase64();
-			employee.setProfilePictureBase64(pic);
+		if (request.getProfilePictureUrl() != null && !request.getProfilePictureUrl().isBlank()) {
+			employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
 			employeeRepository.save(employee);
 		}
 

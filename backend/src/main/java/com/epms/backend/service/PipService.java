@@ -20,6 +20,8 @@ import java.util.Locale;
 public class PipService {
 
     private static final String STATUS_ACTIVE = "ACTIVE";
+    private static final String STATUS_PENDING_CLOSE = "PENDING_CLOSE";
+    private static final String STATUS_PENDING_REOPEN = "PENDING_REOPEN";
     private static final String STATUS_CLOSED = "CLOSED";
     private static final String STATUS_SCHEDULED = "SCHEDULED";
 
@@ -29,13 +31,15 @@ public class PipService {
     private final FollowUpMeetingRepository meetingRepository;
     private final TrainingRecordRepository trainingRepository;
     private final EmployeeRepository employeeRepository;
+    private final NotificationService notificationService;
 
     public List<EligibleEmployeeDTO> getLowPerformers(User manager) {
         if (manager.getEmployee() == null) {
             return new ArrayList<>();
         }
         return employeeRepository.findAll().stream()
-                .filter(employee -> employee.getManager() != null && employee.getManager().getId().equals(manager.getEmployee().getId()))
+                .filter(employee -> employee.getManager() != null
+                        && employee.getManager().getId().equals(manager.getEmployee().getId()))
                 .map(employee -> new EligibleEmployeeDTO(
                         employee.getId(),
                         employee.getEmployeeId(),
@@ -48,6 +52,18 @@ public class PipService {
     @Transactional
     public Pip createPip(PipCreateRequest request, User manager) {
         Employee managerEmployee = requireManagerEmployee(manager);
+        if (request.getEmployeeId() == null) {
+            throw new RuntimeException("Employee record ID is required");
+        }
+        if (request.getStartDate() == null || request.getEndDate() == null) {
+            throw new RuntimeException("Start date and end date are required");
+        }
+        if (request.getEndDate().isBefore(request.getStartDate())) {
+            throw new RuntimeException("End date must be on or after start date");
+        }
+        if (request.getObjectives() == null || request.getObjectives().isEmpty()) {
+            throw new RuntimeException("At least one objective is required");
+        }
         Employee employee = employeeRepository.findById(request.getEmployeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
@@ -70,6 +86,8 @@ public class PipService {
         pip.setEndDate(request.getEndDate());
         pip.setStatus(STATUS_ACTIVE);
         pip.setOverallProgressPercentage(BigDecimal.ZERO);
+        pip.setTotalHours(request.getTotalHours());
+        pip.setCompletedHours(0);
         pip.setCreatedDate(Instant.now());
         pip.setUpdatedDate(Instant.now());
 
@@ -150,6 +168,7 @@ public class PipService {
         meeting.setPip(pip);
         meeting.setMeetingTime(request.getMeetingTime());
         meeting.setStatus(STATUS_SCHEDULED);
+        meeting.setReminderSent(false);
         meeting.getMeeting().setManager(pip.getManager());
         meeting.getMeeting().setEmployee(pip.getEmployee());
         meeting.getMeeting().setCreatedBy(actor.getEmployee());
@@ -158,21 +177,47 @@ public class PipService {
         meeting.setUpdatedDate(Instant.now());
         pip.setUpdatedDate(Instant.now());
 
-        return meetingRepository.save(meeting);
+        FollowUpMeeting savedMeeting = meetingRepository.save(meeting);
+
+        // Send notifications
+        String title = "New PIP Follow-up Meeting Scheduled";
+        String message = String.format("A follow-up meeting has been scheduled for %s at %s",
+                request.getMeetingTime().toLocalDate(),
+                request.getMeetingTime().toLocalTime());
+
+        try {
+            if (pip.getEmployee() != null && pip.getEmployee().getUserAccount() != null) {
+                notificationService.send(pip.getEmployee().getUserAccount(), title, message);
+            }
+            if (pip.getManager() != null && pip.getManager().getUserAccount() != null) {
+                notificationService.send(pip.getManager().getUserAccount(), title, message);
+            }
+        } catch (Exception ignored) {
+            // Keep meeting creation successful even if notification delivery fails.
+        }
+
+        return savedMeeting;
     }
 
     @Transactional
     public Pip closePip(Long pipId, PipCloseRequest request, User actor) {
         Pip pip = getPipById(pipId, actor);
-        if (!isHr(actor) && !isDirectManager(pip, actor)) {
-            throw new RuntimeException("You are not allowed to close this PIP");
+        if (!isDirectManager(pip, actor)) {
+            throw new RuntimeException("Only the assigned manager can submit a close request");
         }
-        pip.setStatus(STATUS_CLOSED);
-        pip.setActualEndDate(LocalDate.now());
-        pip.setClosingRemarks(request.getClosingRemarks());
-        pip.setFinalOutcome(request.getFinalOutcome());
-        pip.setClosedBy(actor.getEmployee());
-        pip.setClosedDate(Instant.now());
+        if (request.getFinalOutcome() == null || request.getFinalOutcome().trim().isEmpty()) {
+            throw new RuntimeException("Final outcome is required");
+        }
+        if (request.getClosingRemarks() == null || request.getClosingRemarks().trim().isEmpty()) {
+            throw new RuntimeException("Closing remarks are required");
+        }
+        pip.setStatus(STATUS_PENDING_CLOSE);
+        pip.setActualEndDate(null);
+        pip.setClosingRemarks(request.getClosingRemarks().trim());
+        pip.setFinalOutcome(request.getFinalOutcome().trim());
+        pip.setReviewReason(null);
+        pip.setClosedBy(null);
+        pip.setClosedDate(null);
         pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
     }
@@ -180,13 +225,20 @@ public class PipService {
     @Transactional
     public Pip reopenPip(Long pipId, PipReopenRequest request, User actor) {
         Pip pip = getPipById(pipId, actor);
-        if (!isHr(actor)) {
-            throw new RuntimeException("Only HR can reopen a PIP");
+        if (!isDirectManager(pip, actor)) {
+            throw new RuntimeException("Only the assigned manager can submit a reopen request");
         }
-        pip.setStatus(STATUS_ACTIVE);
-        pip.setReopenReason(request.getReason());
-        pip.setReopenedBy(actor.getEmployee());
-        pip.setReopenedDate(Instant.now());
+        if (!STATUS_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Only closed PIPs can be reopened");
+        }
+        if (request.getReason() == null || request.getReason().trim().isEmpty()) {
+            throw new RuntimeException("Reopen reason is required");
+        }
+        pip.setStatus(STATUS_PENDING_REOPEN);
+        pip.setReopenReason(request.getReason().trim());
+        pip.setReviewReason(null);
+        pip.setReopenedBy(null);
+        pip.setReopenedDate(null);
         pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
     }
@@ -194,10 +246,40 @@ public class PipService {
     @Transactional
     public Pip reviewPip(Long pipId, PipReviewRequest request, User actor) {
         Pip pip = getPipById(pipId, actor);
-        if ("CONFIRMED".equals(request.getAction())) {
-            pip.setStatus(STATUS_ACTIVE);
-        } else if ("DENIED".equals(request.getAction())) {
+        String normalizedStatus = normalizeStatus(pip.getStatus());
+        String action = request.getAction() == null ? "" : request.getAction().trim().toUpperCase(Locale.ROOT);
+        String reason = request.getReason() == null ? null : request.getReason().trim();
+
+        if ("DENIED".equals(action) && (reason == null || reason.isEmpty())) {
+            throw new RuntimeException("Deny reason is required");
+        }
+
+        if ("CONFIRMED".equals(action) && STATUS_PENDING_CLOSE.equals(normalizedStatus)) {
             pip.setStatus(STATUS_CLOSED);
+            pip.setActualEndDate(LocalDate.now());
+            pip.setClosedBy(actor.getEmployee());
+            pip.setClosedDate(Instant.now());
+            pip.setReviewReason(null);
+        } else if ("DENIED".equals(action) && STATUS_PENDING_CLOSE.equals(normalizedStatus)) {
+            pip.setStatus(STATUS_ACTIVE);
+            pip.setActualEndDate(null);
+            pip.setClosedBy(null);
+            pip.setClosedDate(null);
+            pip.setReviewReason(reason);
+        } else if ("CONFIRMED".equals(action) && STATUS_PENDING_REOPEN.equals(normalizedStatus)) {
+            pip.setStatus(STATUS_ACTIVE);
+            pip.setReopenedBy(actor.getEmployee());
+            pip.setReopenedDate(Instant.now());
+            pip.setReviewReason(null);
+        } else if ("DENIED".equals(action) && STATUS_PENDING_REOPEN.equals(normalizedStatus)) {
+            pip.setStatus(STATUS_CLOSED);
+            pip.setReviewReason(reason);
+        } else if ("CONFIRMED".equals(action)) {
+            pip.setStatus(STATUS_ACTIVE);
+            pip.setReviewReason(null);
+        } else if ("DENIED".equals(action)) {
+            pip.setStatus(STATUS_CLOSED);
+            pip.setReviewReason(reason);
         }
         pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
@@ -265,7 +347,7 @@ public class PipService {
     }
 
     private boolean isHr(User actor) {
-        return actor.getRole() != null && "HR".equalsIgnoreCase(actor.getRole().getRoleName());
+        return actor.getRole() != null && "HR".equalsIgnoreCase(actor.getRole().getName());
     }
 
     private String normalizeStatus(String status) {

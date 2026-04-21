@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Drops {@code users.profile_picture_base64}; portrait is stored on {@code employees.profile_picture_base64} only.
+ * Drops {@code users.profile_picture_base64}; portrait is stored on {@code employee.profile_picture_base64} only.
  */
 @Component
 @Slf4j
@@ -41,10 +41,10 @@ public class UserProfilePictureColumnDropInitializer implements BeanPostProcesso
 		if (!tableExists(jdbc, "users") || !columnExists(jdbc, "users", "profile_picture_base64")) {
 			return;
 		}
-		if (tableExists(jdbc, "employees") && columnExists(jdbc, "employees", "profile_picture_base64")) {
+		if (tableExists(jdbc, "employee") && columnExists(jdbc, "employee", "profile_picture_base64")) {
 			int copied = jdbc.update("""
-					UPDATE employees e
-					INNER JOIN users u ON u.employee_id = e.id
+					UPDATE employee e
+					INNER JOIN users u ON u.employee_id = e.employee_id
 					SET e.profile_picture_base64 = u.profile_picture_base64
 					WHERE u.profile_picture_base64 IS NOT NULL AND TRIM(u.profile_picture_base64) <> ''
 					AND (e.profile_picture_base64 IS NULL OR TRIM(e.profile_picture_base64) = '')
@@ -53,7 +53,7 @@ public class UserProfilePictureColumnDropInitializer implements BeanPostProcesso
 				log.info("Copied {} profile picture(s) from users to employees before dropping users column", copied);
 			}
 		}
-		log.info("Dropping users.profile_picture_base64 (use employees.profile_picture_base64)");
+		log.info("Dropping users.profile_picture_base64 (use employee.profile_picture_base64)");
 		jdbc.execute("ALTER TABLE users DROP COLUMN profile_picture_base64");
 	}
 

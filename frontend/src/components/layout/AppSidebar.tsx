@@ -22,8 +22,9 @@ type NavSection = { label: string; items: NavItem[] }
 
 export function AppSidebar() {
   const role = useAppSelector((s) => s.auth.user?.role)
-  const isHr = role === 'HR'
-  const isManager = role === 'DEPARTMENT_HEAD' || role === 'TEAM_HEAD'
+  const roleId = useAppSelector((s) => s.auth.user?.roleId)
+  const isHr = roleId === 1 || role === 'HR'
+  const isManager = roleId === 2 || roleId === 3 || role === 'DEPARTMENT_HEAD' || role === 'TEAM_HEAD'
   const location = useLocation()
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
@@ -40,11 +41,11 @@ export function AppSidebar() {
         ...(isHr
           ? [
               {
-                name: 'Employee',
+                name: 'Employees',
                 path: '/hr/employee-account',
                 icon: 'bi-person-badge',
                 end: false,
-                subItems: [{ name: 'Create Employee Account', path: '/hr/employee-account/create' }],
+                subItems: [{ name: 'Create Employee Account', path: '/hr/employees/create-account' }],
               },
             ]
           : []),
@@ -55,14 +56,22 @@ export function AppSidebar() {
     {
       label: 'Management',
       items: [
-        { name: 'Performance Appraisals', path: '/hr/appraisals', icon: 'bi-clipboard-check', end: false },
+        { 
+          name: 'Appraisals', 
+          path: '/hr/appraisals-group', 
+          icon: 'bi-clipboard-check', 
+          end: false,
+          subItems: [
+            { name: 'Management', path: '/hr/appraisals' }
+          ]
+        },
         {
           name: '360° Feedback',
           path: '/hr/360-feedback',
           icon: 'bi-chat-dots',
           end: false,
           subItems: [
-            { name: 'Criteria', path: '/hr/360-feedback/criteria' },
+            ...(isHr ? [{ name: 'Criteria', path: '/hr/360-feedback/criteria' }] : []),
             { name: 'Give Feedback', path: '/hr/360-feedback/give' },
             { name: 'Get Feedback', path: '/hr/360-feedback/get' },
             { name: 'History', path: '/hr/360-feedback/history' }

@@ -17,6 +17,7 @@ export interface FollowUpMeeting {
 export interface User {
   id: number
   email: string
+  employeeId?: string
   employee?: {
     id: number
     employeeName: string
@@ -30,13 +31,15 @@ export interface Pip {
   id: number
   employee: User
   manager: User
-  status: 'PENDING_CREATION' | 'PENDING_REOPEN' | 'ACTIVE' | 'COMPLETED' | 'CLOSED' | 'DENIED'
+  status: 'PENDING_CREATION' | 'PENDING_REOPEN' | 'PENDING_CLOSE' | 'ACTIVE' | 'COMPLETED' | 'CLOSED' | 'DENIED'
   startDate: string
   endDate: string
   reopenReason?: string
+  reviewReason?: string
   closingRemarks?: string
   finalOutcome?: string
   objectives: PipObjective[]
+  overallProgressPercentage: number
   totalHours: number
   completedHours: number
   followUpMeetings: FollowUpMeeting[]
@@ -69,10 +72,27 @@ export interface EligibleEmployee {
   totalScore: number
 }
 
+const normalizePerson = (person: any): User => ({
+  id: Number(person?.id ?? 0),
+  email: person?.email ?? '',
+  employeeId: person?.employeeId ?? undefined,
+  employee: person
+    ? {
+        id: Number(person?.id ?? 0),
+        employeeName: person?.employeeName ?? '',
+        department: person?.department
+          ? {
+              departmentName: person.department.departmentName ?? person.department.name ?? '',
+            }
+          : undefined,
+      }
+    : undefined,
+})
+
 const normalizeStatus = (status?: string): Pip['status'] => {
   const normalized = (status ?? '').trim().toUpperCase().replace(/\s+/g, '_')
   if (normalized === 'REOPENED') return 'ACTIVE'
-  if (normalized === 'ACTIVE' || normalized === 'CLOSED' || normalized === 'COMPLETED' || normalized === 'DENIED' || normalized === 'PENDING_CREATION' || normalized === 'PENDING_REOPEN') {
+  if (normalized === 'ACTIVE' || normalized === 'CLOSED' || normalized === 'COMPLETED' || normalized === 'DENIED' || normalized === 'PENDING_CREATION' || normalized === 'PENDING_REOPEN' || normalized === 'PENDING_CLOSE') {
     return normalized
   }
   return 'ACTIVE'
@@ -80,7 +100,16 @@ const normalizeStatus = (status?: string): Pip['status'] => {
 
 const normalizePip = (pip: any): Pip => ({
   ...pip,
+  employee: normalizePerson(pip?.employee),
+  manager: normalizePerson(pip?.manager),
   status: normalizeStatus(pip?.status),
+  overallProgressPercentage: Number(pip?.overallProgressPercentage ?? 0),
+  totalHours: Number(pip?.totalHours ?? 0),
+  completedHours: Number(pip?.completedHours ?? 0),
+  objectives: Array.isArray(pip?.objectives) ? pip.objectives : [],
+  followUpMeetings: Array.isArray(pip?.followUpMeetings) ? pip.followUpMeetings : [],
+  createdAt: pip?.createdAt ?? pip?.createdDate ?? '',
+  updatedAt: pip?.updatedAt ?? pip?.updatedDate ?? '',
 })
 
 export const pipApi = baseApi.injectEndpoints({
@@ -138,7 +167,7 @@ export const pipApi = baseApi.injectEndpoints({
       invalidatesTags: () => ['PIP'],
       transformResponse: (response: any) => normalizePip(response.data),
     }),
-    reviewPip: builder.mutation<Pip, { pipId: number; action: 'CONFIRMED' | 'DENIED' }>({
+    reviewPip: builder.mutation<Pip, { pipId: number; action: 'CONFIRMED' | 'DENIED'; reason?: string }>({
       query: ({ pipId, ...body }) => ({
         url: `/pips/${pipId}/review`,
         method: 'PUT',
