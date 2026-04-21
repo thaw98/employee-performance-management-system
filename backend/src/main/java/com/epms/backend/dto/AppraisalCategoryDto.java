@@ -8,4 +8,5 @@ public class AppraisalCategoryDto {
     private String name;
     private String description;
     private Boolean status;
+    private Integer sortOrder;
 }

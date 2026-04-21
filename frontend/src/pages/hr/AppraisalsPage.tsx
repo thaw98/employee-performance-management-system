@@ -1,15 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, Hash, Type, HelpCircle } from 'lucide-react';
+import {
+    DndContext,
+    PointerSensor,
+    KeyboardSensor,
+    closestCenter,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    useSortable,
+    arrayMove,
+    verticalListSortingStrategy,
+    sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, Hash, Type, HelpCircle, GripVertical } from 'lucide-react';
 
 const PRIMARY = '#0855BF';
 
 interface Category {
-    id: number;
+    id?: number;
     name: string;
     description: string;
     status: boolean;
+    sortOrder: number;
 }
 
 interface Question {
@@ -20,6 +38,87 @@ interface Question {
     isRequired: boolean;
     sortOrder: number;
     status: boolean;
+}
+
+interface SortableCategoryRowProps {
+    category: Category;
+    index: number;
+    onEdit: (c: Category) => void;
+    onDelete: (id: number) => void;
+}
+
+function SortableCategoryRow({ category, index, onEdit, onDelete }: SortableCategoryRowProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category.id! });
+    const style = { transform: CSS.Translate.toString(transform), transition, zIndex: isDragging ? 20 : 0, opacity: isDragging ? 0.3 : 1 };
+
+    return (
+        <tr ref={setNodeRef} style={style} className={`bg-white hover:bg-slate-50 border-b border-slate-50 group ${isDragging ? 'shadow-2xl relative z-20' : ''}`}>
+            <td className="p-6 text-center">
+                <div className="flex items-center justify-center gap-3">
+                    <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-2 text-slate-300 hover:text-blue-400 transition-colors">
+                        <GripVertical size={20} />
+                    </button>
+                    <span className="font-black text-slate-300 text-lg group-hover:text-blue-200">#{index + 1}</span>
+                </div>
+            </td>
+            <td className="p-6">
+                <div className="font-black text-slate-700 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{category.name}</div>
+                <div className="text-xs text-slate-400 mt-1 font-medium">{category.description}</div>
+            </td>
+            <td className="p-6 text-center">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm border ${category.status ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${category.status ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    {category.status ? 'Active' : 'Inactive'}
+                </span>
+            </td>
+            <td className="p-6 text-center">
+                <div className="flex items-center justify-center gap-2">
+                    <button onClick={() => onEdit(category)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"><Pencil size={18} /></button>
+                    <button onClick={() => onDelete(category.id!)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"><Trash2 size={18} /></button>
+                </div>
+            </td>
+        </tr>
+    );
+}
+
+interface SortableQuestionRowProps {
+    question: Question;
+    index: number;
+    onEdit: (q: Question) => void;
+    onDelete: (id: number) => void;
+}
+
+function SortableQuestionRow({ question, index, onEdit, onDelete }: SortableQuestionRowProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: question.id! });
+    const style = { transform: CSS.Translate.toString(transform), transition, zIndex: isDragging ? 20 : 0, opacity: isDragging ? 0.3 : 1 };
+
+    return (
+        <tr ref={setNodeRef} style={style} className={`bg-white hover:bg-slate-50 border-b border-slate-50 group ${isDragging ? 'shadow-2xl relative z-20' : ''}`}>
+            <td className="p-6 text-center">
+                <div className="flex items-center justify-center gap-3">
+                    <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-2 text-slate-300 hover:text-blue-400 transition-colors">
+                        <GripVertical size={20} />
+                    </button>
+                    <span className="font-black text-slate-300 text-lg group-hover:text-blue-200">#{index + 1}</span>
+                </div>
+            </td>
+            <td className="p-6">
+                <div className="font-bold text-slate-700 leading-relaxed">{question.questionText}</div>
+            </td>
+            <td className="p-6 text-center">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm border ${question.status ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${question.status ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    {question.status ? 'Active' : 'Inactive'}
+                </span>
+            </td>
+            <td className="p-6 text-center">
+                <div className="flex items-center justify-center gap-2">
+                    <button onClick={() => onEdit(question)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"><Pencil size={18} /></button>
+                    <button onClick={() => onDelete(question.id!)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"><Trash2 size={18} /></button>
+                </div>
+            </td>
+        </tr>
+    );
 }
 
 export function AppraisalsPage() {
@@ -46,6 +145,13 @@ export function AppraisalsPage() {
     });
 
     const [isLoading, setIsLoading] = useState(false);
+    const [isReorderingCat, setIsReorderingCat] = useState(false);
+    const [isReorderingQue, setIsReorderingQue] = useState(false);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
 
     useEffect(() => {
         fetchCategories();
@@ -62,18 +168,72 @@ export function AppraisalsPage() {
     const fetchCategories = async () => {
         try {
             const resp = await axios.get('/appraisal-categories');
-            setCategories(resp.data.data || []);
+            const data = resp.data.data || [];
+            setCategories([...data].sort((a, b) => a.sortOrder - b.sortOrder));
         } catch (err) {
-            toast.error('Failed to fetch categories');
+            toast.error('Failed to load categories');
         }
     };
 
     const fetchQuestions = async (catId: number) => {
         try {
             const resp = await axios.get(`/appraisal-questions/category/${catId}`);
-            setQuestions(resp.data.data || []);
+            const data = resp.data.data || [];
+            setQuestions([...data].sort((a, b) => a.sortOrder - b.sortOrder));
         } catch (err) {
-            toast.error('Failed to fetch questions');
+            toast.error('Failed to load questions');
+        }
+    };
+
+    const handleDragEndCategory = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = categories.findIndex(c => c.id === active.id);
+        const newIndex = categories.findIndex(c => c.id === over.id);
+
+        const newList = arrayMove(categories, oldIndex, newIndex).map((item, idx) => ({
+            ...item,
+            sortOrder: idx + 1
+        }));
+
+        setCategories(newList);
+        setIsReorderingCat(true);
+
+        try {
+            await Promise.all(newList.map(item => axios.put(`/appraisal-categories/${item.id}`, item)));
+            toast.success('Category order updated');
+        } catch (err) {
+            toast.error('Failed to update category order');
+            fetchCategories();
+        } finally {
+            setIsReorderingCat(false);
+        }
+    };
+
+    const handleDragEndQuestion = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const oldIndex = questions.findIndex(q => q.id === active.id);
+        const newIndex = questions.findIndex(q => q.id === over.id);
+
+        const newList = arrayMove(questions, oldIndex, newIndex).map((item, idx) => ({
+            ...item,
+            sortOrder: idx + 1
+        }));
+
+        setQuestions(newList);
+        setIsReorderingQue(true);
+
+        try {
+            await Promise.all(newList.map(item => axios.put(`/appraisal-questions/${item.id}`, item)));
+            toast.success('Question order updated');
+        } catch (err) {
+            toast.error('Failed to update question order');
+            if (selectedCategoryId) fetchQuestions(Number(selectedCategoryId));
+        } finally {
+            setIsReorderingQue(false);
         }
     };
 
@@ -85,11 +245,15 @@ export function AppraisalsPage() {
         }
         setIsLoading(true);
         try {
+            const data = { 
+                ...catForm, 
+                sortOrder: editingCategory ? editingCategory.sortOrder : categories.length + 1 
+            };
             if (editingCategory) {
-                await axios.put(`/appraisal-categories/${editingCategory.id}`, catForm);
+                await axios.put(`/appraisal-categories/${editingCategory.id}`, data);
                 toast.success('Category updated');
             } else {
-                await axios.post('/appraisal-categories', catForm);
+                await axios.post('/appraisal-categories', data);
                 toast.success('Category created');
             }
             setShowCatModal(false);
@@ -121,7 +285,11 @@ export function AppraisalsPage() {
         }
         setIsLoading(true);
         try {
-            const payload = { ...queForm, categoryId: Number(selectedCategoryId) };
+            const payload = { 
+                ...queForm, 
+                categoryId: Number(selectedCategoryId),
+                sortOrder: editingQuestion ? editingQuestion.sortOrder : questions.length + 1
+            };
             if (editingQuestion) {
                 await axios.put(`/appraisal-questions/${editingQuestion.id}`, payload);
                 toast.success('Question updated');
@@ -185,40 +353,38 @@ export function AppraisalsPage() {
                     </div>
 
                     <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
-                                    <th className="p-6 w-20 text-center">#</th>
-                                    <th className="p-6">Category Name</th>
-                                    <th className="p-6">Description</th>
-                                    <th className="p-6 text-center">Status</th>
-                                    <th className="p-6 text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {categories.map((cat, index) => (
-                                    <tr key={cat.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="p-6 text-center font-black text-slate-300">#{index + 1}</td>
-                                        <td className="p-6 font-bold text-slate-700">{cat.name}</td>
-                                        <td className="p-6 text-xs text-slate-500">{cat.description}</td>
-                                        <td className="p-6 text-center">
-                                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm border ${
-                                                cat.status 
-                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                                                : 'bg-slate-50 text-slate-400 border-slate-100'
-                                            }`}>
-                                                <div className={`w-1.5 h-1.5 rounded-full ${cat.status ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                                                {cat.status ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td className="p-6 flex justify-center gap-2">
-                                            <button onClick={() => { setEditingCategory(cat); setCatForm({ ...cat }); setShowCatModal(true); }} className="p-2 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-colors"><Pencil size={16}/></button>
-                                            <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={16}/></button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        {isReorderingCat && (
+                            <div className="px-6 py-3 bg-blue-50 border-b border-blue-100 text-[10px] font-bold text-blue-600 uppercase tracking-widest animate-pulse">
+                                Reordering categories...
+                            </div>
+                        )}
+                        <div className="overflow-x-auto">
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndCategory}>
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                                            <th className="p-6 w-32 text-center">#</th>
+                                            <th className="p-6">Category Details</th>
+                                            <th className="p-6 text-center w-32">Status</th>
+                                            <th className="p-6 text-center w-40">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        <SortableContext items={categories.map(c => c.id!)} strategy={verticalListSortingStrategy}>
+                                            {categories.map((cat, index) => (
+                                                <SortableCategoryRow
+                                                    key={cat.id}
+                                                    category={cat}
+                                                    index={index}
+                                                    onEdit={(cat) => { setEditingCategory(cat); setCatForm({ name: cat.name, description: cat.description, status: cat.status }); setShowCatModal(true); }}
+                                                    onDelete={handleDeleteCategory}
+                                                />
+                                            ))}
+                                        </SortableContext>
+                                    </tbody>
+                                </table>
+                            </DndContext>
+                        </div>
                     </div>
                 </div>
             ) : (
@@ -258,42 +424,42 @@ export function AppraisalsPage() {
                         </div>
                     ) : (
                         <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
-                                        <th className="p-6 w-16 text-center">#</th>
-                                        <th className="p-6">Question Text</th>
-                                        <th className="p-6 text-center">Status</th>
-                                        <th className="p-6 text-center">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {questions.length === 0 ? (
-                                        <tr><td colSpan={4} className="p-12 text-center text-slate-400 font-bold italic">No questions found for this category.</td></tr>
-                                    ) : (
-                                        questions.map((q, index) => (
-                                            <tr key={q.id} className="hover:bg-slate-50/50 transition-colors">
-                                                <td className="p-6 text-center font-black text-slate-300">#{index + 1}</td>
-                                                <td className="p-6 font-bold text-slate-700">{q.questionText}</td>
-                                                <td className="p-6 text-center">
-                                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm border ${
-                                                        q.status 
-                                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                                                        : 'bg-slate-50 text-slate-400 border-slate-100'
-                                                    }`}>
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${q.status ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                                                        {q.status ? 'Active' : 'Inactive'}
-                                                    </span>
-                                                </td>
-                                                <td className="p-6 flex justify-center gap-2">
-                                                    <button onClick={() => { setEditingQuestion(q); setQueForm({ ...q }); setShowQueModal(true); }} className="p-2 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-colors"><Pencil size={16}/></button>
-                                                    <button onClick={() => handleDeleteQuestion(q.id!)} className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-lg transition-colors"><Trash2 size={16}/></button>
-                                                </td>
+                            {isReorderingQue && (
+                                <div className="px-6 py-3 bg-blue-50 border-b border-blue-100 text-[10px] font-bold text-blue-600 uppercase tracking-widest animate-pulse">
+                                    Syncing question sequence...
+                                </div>
+                            )}
+                            <div className="overflow-x-auto">
+                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndQuestion}>
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                                                <th className="p-6 w-32 text-center">#</th>
+                                                <th className="p-6">Question Text</th>
+                                                <th className="p-6 text-center w-32">Status</th>
+                                                <th className="p-6 text-center w-40">Actions</th>
                                             </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {questions.length === 0 ? (
+                                                <tr><td colSpan={4} className="p-20 text-center text-slate-400 font-bold italic">No questions found for this category.</td></tr>
+                                            ) : (
+                                                <SortableContext items={questions.map(q => q.id!)} strategy={verticalListSortingStrategy}>
+                                                    {questions.map((q, index) => (
+                                                        <SortableQuestionRow
+                                                            key={q.id}
+                                                            question={q}
+                                                            index={index}
+                                                            onEdit={(q) => { setEditingQuestion(q); setQueForm(q); setShowQueModal(true); }}
+                                                            onDelete={handleDeleteQuestion}
+                                                        />
+                                                    ))}
+                                                </SortableContext>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </DndContext>
+                            </div>
                         </div>
                     )}
                 </div>
