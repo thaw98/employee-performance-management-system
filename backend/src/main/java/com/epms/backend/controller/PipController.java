@@ -7,6 +7,7 @@ import com.epms.backend.entity.*;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.PipService;
 import com.epms.backend.repository.UserRepository;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -58,12 +59,13 @@ public class PipController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Pip>> getPipById(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok("PIP retrieved successfully", pipService.getPipById(id)));
+    public ResponseEntity<ApiResponse<Pip>> getPipById(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long id) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        return ResponseEntity.ok(ApiResponse.ok("PIP retrieved successfully", pipService.getPipById(id, user)));
     }
 
     @PutMapping("/objectives/{objectiveId}/progress")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD')")
     public ResponseEntity<ApiResponse<PipObjective>> updateProgress(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long objectiveId,
@@ -74,7 +76,7 @@ public class PipController {
     }
 
     @PostMapping("/{id}/meetings")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD')")
     public ResponseEntity<ApiResponse<FollowUpMeeting>> scheduleMeeting(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
@@ -85,29 +87,35 @@ public class PipController {
     }
 
     @PutMapping("/{id}/close")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD')")
     public ResponseEntity<ApiResponse<Pip>> closePip(
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
-            @RequestBody PipCloseRequest request) {
-        Pip pip = pipService.closePip(id, request);
+            @Valid @RequestBody PipCloseRequest request) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pip pip = pipService.closePip(id, request, user);
         return ResponseEntity.ok(ApiResponse.ok("PIP closed successfully", pip));
     }
 
     @PutMapping("/{id}/reopen")
-    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD')") // Manager can reopen
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD')")
     public ResponseEntity<ApiResponse<Pip>> reopenPip(
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
             @RequestBody PipReopenRequest request) {
-        Pip pip = pipService.reopenPip(id, request);
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pip pip = pipService.reopenPip(id, request, user);
         return ResponseEntity.ok(ApiResponse.ok("PIP reopened successfully", pip));
     }
 
     @PutMapping("/{id}/review")
     @PreAuthorize("hasRole('HR')")
     public ResponseEntity<ApiResponse<Pip>> reviewPip(
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
             @RequestBody PipReviewRequest request) {
-        Pip pip = pipService.reviewPip(id, request);
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pip pip = pipService.reviewPip(id, request, user);
         return ResponseEntity.ok(ApiResponse.ok("PIP reviewed successfully", pip));
     }
 

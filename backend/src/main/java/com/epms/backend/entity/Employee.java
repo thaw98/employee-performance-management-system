@@ -3,6 +3,8 @@ package com.epms.backend.entity;
 import java.time.Instant;
 import java.time.LocalDate;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -26,6 +28,18 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@JsonIgnoreProperties({
+    "manager",
+    "parentDepartment",
+    "position",
+    "staffType",
+    "father",
+    "probation",
+    "emergencyContact",
+    "createdBy",
+    "updatedBy",
+    "userAccount"
+})
 
 public class Employee {
 

@@ -1,6 +1,7 @@
 package com.epms.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,6 +40,7 @@ public class FollowUpMeeting {
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "meeting_id", nullable = false)
+    @JsonIgnoreProperties({ "manager", "employee", "createdBy" })
     private OneOnOneMeeting meeting;
 
     @Column(name = "scheduled_date", nullable = false)
@@ -49,6 +51,9 @@ public class FollowUpMeeting {
 
     @Column(name = "notes", columnDefinition = "text")
     private String notes;
+
+    @Column(name = "reminder_sent", nullable = false)
+    private Boolean reminderSent = false;
 
     @Column(name = "created_date")
     private Instant createdDate;

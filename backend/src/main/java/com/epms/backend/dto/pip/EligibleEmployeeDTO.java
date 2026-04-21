@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class EligibleEmployeeDTO {
-    private Long employeeRecordId;
-    private String employeeId;
+    private Long employeeId;
+    private String staffId;
     private String employeeName;
     private String departmentName;
     private BigDecimal totalScore;

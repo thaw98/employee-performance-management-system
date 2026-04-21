@@ -23,4 +23,18 @@ public class GlobalExceptionHandler {
 		}
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.fail(message));
 	}
+
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.fail(ex.getMessage()));
+	}
+
+	@ExceptionHandler(RuntimeException.class)
+	public ResponseEntity<ApiResponse<Void>> handleRuntime(RuntimeException ex) {
+		String message = ex.getMessage();
+		if (message == null || message.isBlank()) {
+			message = "Request failed";
+		}
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.fail(message));
+	}
 }

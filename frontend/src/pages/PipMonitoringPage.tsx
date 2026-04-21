@@ -8,6 +8,7 @@ import type { RootState } from '../app/store'
 const STATUS_COLORS: Record<string, string> = {
   PENDING_CREATION: 'bg-yellow-100 text-yellow-700',
   PENDING_REOPEN: 'bg-orange-100 text-orange-700',
+  PENDING_CLOSE: 'bg-amber-100 text-amber-700',
   ACTIVE: 'bg-blue-100 text-blue-700',
   COMPLETED: 'bg-green-100 text-green-700',
   CLOSED: 'bg-slate-100 text-slate-700',
@@ -15,7 +16,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function PipMonitoringPage() {
-  const { data: pips, isLoading } = useGetPipsQuery()
+  const { data: pips, isLoading, isError, error } = useGetPipsQuery()
   const location = useLocation()
   const { user } = useSelector((state: RootState) => state.auth)
   const [filterTab, setFilterTab] = useState<'ALL' | 'ACTIVE' | 'CLOSED'>('ALL')
@@ -39,15 +40,15 @@ export default function PipMonitoringPage() {
     }
 
     if (filterTab === 'ACTIVE') {
-      result = result.filter(p => ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN'].includes(p.status))
+      result = result.filter(p => ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN', 'PENDING_CLOSE'].includes(p.status))
     } else if (filterTab === 'CLOSED') {
       result = result.filter(p => ['CLOSED', 'DENIED', 'COMPLETED'].includes(p.status))
     }
 
     // Sort Active to top, Closed to bottom
     return result.slice().sort((a, b) => {
-      const isAActive = ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN'].includes(a.status)
-      const isBActive = ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN'].includes(b.status)
+      const isAActive = ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN', 'PENDING_CLOSE'].includes(a.status)
+      const isBActive = ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN', 'PENDING_CLOSE'].includes(b.status)
       if (isAActive && !isBActive) return -1
       if (!isAActive && isBActive) return 1
       return 0
@@ -55,6 +56,22 @@ export default function PipMonitoringPage() {
   }, [pips, filterTab, searchQuery])
 
   if (isLoading) return <div className="p-8">Loading PIPs...</div>
+
+  if (isError) {
+    const errorMessage =
+      (error as any)?.data?.message ||
+      (error as any)?.error ||
+      'Failed to load PIP records.'
+
+    return (
+      <div className="p-8">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
+          <h2 className="text-lg font-bold">Unable to load PIP Monitoring</h2>
+          <p className="mt-2 text-sm">{errorMessage}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-8">
@@ -161,7 +178,7 @@ export default function PipMonitoringPage() {
             })}
             {filteredPips.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
                   No PIP records found.
                 </td>
               </tr>
