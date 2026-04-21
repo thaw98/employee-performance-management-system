@@ -8,6 +8,7 @@ import {
   AlertCircle,
   ClipboardList
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -46,14 +47,14 @@ export function HRDashboardPage() {
           <p className="text-slate-500 font-medium text-xs">Overview of organizational performance and activities</p>
         </div>
         <div className="flex gap-3">
-          <a href="/hr/assessments" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-700 hover:shadow-md transition-all">
+          <Link to="/hr/assessments" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-700 hover:shadow-md transition-all">
             <ClipboardList size={14} className="text-emerald-600" />
             Compliance Review
-          </a>
-          <a href="/hr/pip" className="flex items-center gap-2 px-4 py-2 bg-[#115e59] rounded-xl text-xs font-black text-white hover:shadow-lg transition-all">
+          </Link>
+          <Link to="/hr/pip-monitoring" className="flex items-center gap-2 px-4 py-2 bg-[#115e59] rounded-xl text-xs font-black text-white hover:shadow-lg transition-all">
             <Zap size={14} />
             PIP Monitoring
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -85,18 +86,18 @@ export function HRDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex items-center justify-between">
+        <Link to="/hr/pip-monitoring" className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-all group">
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Active PIPs</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 group-hover:text-red-600 transition-colors">Active PIPs</p>
             <h3 className="text-3xl font-black text-slate-900">1</h3>
             <p className="text-[10px] font-bold text-red-600 uppercase mt-1 flex items-center gap-1">
               <AlertCircle size={10} /> In progress
             </p>
           </div>
-          <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 shadow-sm">
+          <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 shadow-sm group-hover:scale-110 transition-transform">
             <Zap size={24} />
           </div>
-        </div>
+        </Link>
 
         <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex items-center justify-between">
           <div>

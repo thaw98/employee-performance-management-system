@@ -61,8 +61,8 @@ function App() {
               <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
               <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
               <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
-              <Route path="pip" element={<PipMonitoringPage />} />
-              <Route path="pip/:id" element={<PipDetailPage />} />
+              <Route path="pip-monitoring" element={<PipMonitoringPage />} />
+              <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
               <Route path="360-feedback/criteria" element={<CriteriaPage />} />
               <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
               <Route path="360-feedback/received" element={<GetFeedbackPage />} />

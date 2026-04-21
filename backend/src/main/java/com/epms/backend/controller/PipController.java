@@ -2,7 +2,6 @@ package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.pip.*;
-import com.epms.backend.dto.pip.EligibleEmployeeDTO;
 import com.epms.backend.entity.*;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.PipService;
@@ -59,7 +58,8 @@ public class PipController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Pip>> getPipById(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Pip>> getPipById(@AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         return ResponseEntity.ok(ApiResponse.ok("PIP retrieved successfully", pipService.getPipById(id, user)));
     }
