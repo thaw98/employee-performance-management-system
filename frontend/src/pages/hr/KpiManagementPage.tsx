@@ -1,33 +1,48 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAppSelector } from '../../app/hooks';
 import { toast } from 'react-hot-toast';
-import { Plus, Trash2, Save, X, AlertCircle, ShieldCheck, Search, Layout, UserCheck, ArrowRight, Target, Lock, Unlock, Eye } from 'lucide-react';
+import { 
+  Plus, Trash2, Save, X, AlertCircle, Search, 
+  ArrowRight, Target, Layout, Sparkles,
+  ChevronRight, ListFilter, CheckCircle2, Info,
+  TrendingUp, TrendingDown, ChevronDown, User,
+  Lock, Unlock, Eye, History, FileCheck, Menu,
+  ChevronLeft
+} from 'lucide-react';
 import { kpiManagementApi } from '../../services/kpiManagementApi';
 import type { PositionKpi, Position, KpiCategory, Employee } from '../../types/kpiManagement';
+import { clsx } from 'clsx';
 
 const PRIORITY_CONFIG = {
-  critical: { label: '🔴 Critical', minWeight: 20, maxWeight: 35, color: 'bg-red-100 text-red-700' },
-  high: { label: '🟠 High', minWeight: 10, maxWeight: 15, color: 'bg-orange-100 text-orange-700' },
-  medium: { label: '🟡 Medium', minWeight: 10, maxWeight: 10, color: 'bg-yellow-100 text-yellow-700' },
-  low: { label: '🟢 Lower', minWeight: 5, maxWeight: 5, color: 'bg-green-100 text-green-700' }
+  critical: { label: 'Critical', minWeight: 20, maxWeight: 35, color: 'text-rose-600 bg-rose-50 border-rose-100' },
+  high: { label: 'High', minWeight: 10, maxWeight: 15, color: 'text-amber-600 bg-amber-50 border-amber-100' },
+  medium: { label: 'Medium', minWeight: 10, maxWeight: 10, color: 'text-sky-600 bg-sky-50 border-sky-100' },
+  low: { label: 'Low', minWeight: 5, maxWeight: 5, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' }
 };
 
 const DEFAULT_CATEGORIES = [
-  'Delivery Performance', 'Quality Assurance', 'Financial Management',
-  'Stakeholder Satisfaction', 'Team Performance', 'Compliance Management',
-  'Innovation', 'Customer Service', 'Sales Performance', 'Operational Efficiency',
-  'Code Quality', 'System Design', 'Leadership', 'Reporting', 'Accuracy',
-  'Talent Acquisition', 'HR Operations', 'Asset Management'
+  'Operations', 'Asset Management', 'Compliance Management', 'Delivery Performance', 
+  'Quality Assurance', 'Financial Management', 'Stakeholder Satisfaction', 
+  'Team Performance', 'Innovation', 'Customer Service', 'Sales Performance', 
+  'Operational Efficiency', 'Code Quality', 'System Design', 'Leadership', 
+  'Reporting', 'Accuracy', 'Talent Acquisition', 'HR Operations'
 ];
+
+type ManagementMode = 'position' | 'employee';
 
 export const KpiManagementPage: React.FC = () => {
   const user = useAppSelector((state) => state.auth.user);
-
-  const [selectedPositionId, setSelectedPositionId] = useState<number | null>(null);
+  const location = useLocation();
+  
+  const [mode, setMode] = useState<ManagementMode>('position');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
   const [positions, setPositions] = useState<Position[]>([]);
-  const [kpis, setKpis] = useState<PositionKpi[]>([
-    { positionId: 0, kpiName: '', category: '', target: '', unit: '', weight: 0, priorityLevel: 'medium', logicDirection: 'higher' }
-  ]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [kpis, setKpis] = useState<PositionKpi[]>([]);
+  
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [isLoading, setIsLoading] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -35,45 +50,61 @@ export const KpiManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    fetchPositions();
-    fetchCategories();
+    fetchInitialData();
   }, []);
 
   useEffect(() => {
-    if (selectedPositionId) {
-      fetchPositionKpis();
+    const params = new URLSearchParams(location.search);
+    const empId = params.get('employeeId');
+    if (empId) {
+      setMode('employee');
+      handleSelect(parseInt(empId));
     }
-  }, [selectedPositionId]);
+  }, [location, employees]);
 
-  const fetchPositions = async () => {
-    try {
-      const res = await kpiManagementApi.getPositions();
-      setPositions(res.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch positions', error);
+  useEffect(() => {
+    if (selectedId) {
+      if (mode === 'position') fetchPositionKpis();
+      else fetchEmployeeKpis();
+    } else {
+      setKpis([]);
     }
+  }, [selectedId, mode]);
+
+  const handleSelect = (id: number) => {
+    setSelectedId(id);
+    setIsSidebarOpen(false); // Auto hide sidebar on selection
   };
 
-  const fetchCategories = async () => {
+  const fetchInitialData = async () => {
+    setIsLoading(true);
     try {
-      const res = await kpiManagementApi.getCategories();
-      if (res.data.data && res.data.data.length > 0) {
-        setCategories(res.data.data.map((c: KpiCategory) => c.name));
+      const [posRes, empRes, catRes] = await Promise.all([
+        kpiManagementApi.getPositions(),
+        kpiManagementApi.getEmployees(),
+        kpiManagementApi.getCategories()
+      ]);
+      setPositions(posRes.data.data || []);
+      setEmployees(empRes.data.data || []);
+      if (catRes.data.data && catRes.data.data.length > 0) {
+        setCategories(catRes.data.data.map((c: KpiCategory) => c.name));
       }
     } catch (error) {
-      console.error('Failed to fetch categories', error);
+      toast.error('Failed to load initial data');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const fetchPositionKpis = async () => {
-    if (!selectedPositionId) return;
+    if (!selectedId) return;
     setIsLoading(true);
     try {
-      const res = await kpiManagementApi.getPositionKpis(selectedPositionId);
+      const res = await kpiManagementApi.getPositionKpis(selectedId);
       if (res.data.data && res.data.data.length > 0) {
         setKpis(res.data.data);
       } else {
-        setKpis([{ positionId: selectedPositionId, kpiName: '', category: '', target: '', unit: '', weight: 0, priorityLevel: 'medium', logicDirection: 'higher' }]);
+        setKpis([{ positionId: selectedId, kpiName: '', category: '', target: '', unit: '', weight: 0, priorityLevel: 'medium', logicDirection: 'higher' }]);
       }
     } catch (error) {
       console.error('Failed to fetch position KPIs', error);
@@ -82,402 +113,414 @@ export const KpiManagementPage: React.FC = () => {
     }
   };
 
-  const addKpiRow = () => {
-    if (!selectedPositionId) {
-      toast.error('Please select a position first');
-      return;
-    }
-    setKpis([
-      ...kpis,
-      { positionId: selectedPositionId, kpiName: '', category: '', target: '', unit: '', weight: 0, priorityLevel: 'medium', logicDirection: 'higher' }
-    ]);
-  };
-
-  const removeKpiRow = (index: number) => {
-    if (kpis.length > 1) {
-      const newKpis = [...kpis];
-      const removed = newKpis.splice(index, 1)[0];
-      setKpis(newKpis);
-      if (removed.id) {
-        kpiManagementApi.deletePositionKpi(removed.id).catch(console.error);
-      }
-    } else {
-      toast.error('At least one KPI is required');
-    }
-  };
-
-  const updateKpi = (index: number, field: keyof PositionKpi, value: any) => {
-    const newKpis = [...kpis];
-    newKpis[index] = { ...newKpis[index], [field]: value, positionId: selectedPositionId! };
-
-    if (field === 'weight') {
-      const weight = value;
-      if (weight >= 20 && weight <= 35) newKpis[index].priorityLevel = 'critical';
-      else if (weight >= 10 && weight <= 15) newKpis[index].priorityLevel = 'high';
-      else if (weight === 10) newKpis[index].priorityLevel = 'medium';
-      else if (weight === 5) newKpis[index].priorityLevel = 'low';
-    }
-
-    if (field === 'target' && value && !value.includes('%') && !isNaN(parseFloat(value))) {
-      newKpis[index].target = value + '%';
-    }
-
-    setKpis(newKpis);
-  };
-
-  const getTotalWeight = () => {
-    return kpis.reduce((sum, kpi) => sum + (kpi.weight || 0), 0);
-  };
-
-  const validateKpis = () => {
-    for (let i = 0; i < kpis.length; i++) {
-      const kpi = kpis[i];
-      if (!kpi.kpiName.trim()) {
-        toast.error(`Row ${i + 1}: KPI name is required`);
-        return false;
-      }
-      if (!kpi.category) {
-        toast.error(`Row ${i + 1}: Category is required`);
-        return false;
-      }
-      if (!kpi.target) {
-        toast.error(`Row ${i + 1}: Target value is required`);
-        return false;
-      }
-      if (kpi.weight <= 0 || kpi.weight > 100) {
-        toast.error(`Row ${i + 1}: Weight must be between 1 and 100`);
-        return false;
-      }
-
-      const config = PRIORITY_CONFIG[kpi.priorityLevel];
-      if (config && (kpi.weight < config.minWeight || kpi.weight > config.maxWeight)) {
-        toast.error(`${kpi.kpiName}: ${config.label} weight should be between ${config.minWeight}% and ${config.maxWeight}%`);
-        return false;
-      }
-    }
-
-    const totalWeight = getTotalWeight();
-    if (totalWeight !== 100) {
-      toast.error(`Total weight must equal 100%. Current total: ${totalWeight}%`);
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSave = async (isFinal: boolean) => {
-    if (!selectedPositionId) {
-      toast.error('Please select a position');
-      return;
-    }
-
-    if (isFinal && !validateKpis()) return;
-
+  const fetchEmployeeKpis = async () => {
+    if (!selectedId) return;
     setIsLoading(true);
     try {
-      await kpiManagementApi.savePositionKpis({
-        positionId: selectedPositionId,
-        kpis,
-        isFinal
-      });
-      toast.success(isFinal ? 'KPIs submitted successfully!' : 'KPIs saved as draft');
-      fetchPositionKpis();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to save KPIs');
+      const res = await kpiManagementApi.getEmployeeKpis(selectedId);
+      setKpis(res.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch employee KPIs', error);
+      toast.error('Failed to load employee KPIs');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddCategory = async () => {
-    if (!newCategory.trim()) {
-      toast.error('Category name is required');
+  const addKpiRow = () => {
+    if (!selectedId) {
+      toast.error(`Please select a ${mode} first`);
       return;
     }
-    try {
-      await kpiManagementApi.createCategory(newCategory);
-      setCategories([...categories, newCategory]);
-      setNewCategory('');
-      setShowCategoryModal(false);
-      toast.success('Category added successfully');
-    } catch (error) {
-      toast.error('Failed to add category');
+    setKpis([
+      ...kpis,
+      { 
+        positionId: mode === 'position' ? selectedId : (selectedItem as Employee)?.position?.id || 0, 
+        kpiName: '', 
+        category: '', 
+        target: '', 
+        unit: '', 
+        weight: 0, 
+        priorityLevel: 'medium', 
+        logicDirection: 'higher' 
+      }
+    ]);
+  };
+
+  const removeKpiRow = (index: number) => {
+    const newKpis = [...kpis];
+    const removed = newKpis.splice(index, 1)[0];
+    setKpis(newKpis);
+    if (removed.id && mode === 'position') {
+      kpiManagementApi.deletePositionKpi(removed.id).catch(console.error);
     }
   };
 
-  const totalWeight = getTotalWeight();
-  const isValidWeight = totalWeight === 100;
-  const selectedPosition = positions.find(p => p.id === selectedPositionId);
+  const updateKpi = (index: number, field: keyof PositionKpi, value: any) => {
+    const newKpis = [...kpis];
+    newKpis[index] = { ...newKpis[index], [field]: value };
+    
+    if (mode === 'position') {
+      newKpis[index].positionId = selectedId!;
+      if (field === 'weight') {
+        const weight = value;
+        if (weight >= 20 && weight <= 35) newKpis[index].priorityLevel = 'critical';
+        else if (weight >= 10 && weight <= 15) newKpis[index].priorityLevel = 'high';
+        else if (weight === 10) newKpis[index].priorityLevel = 'medium';
+        else if (weight === 5) newKpis[index].priorityLevel = 'low';
+      }
+    }
+
+    setKpis(newKpis);
+  };
+
+  const getTotalWeight = () => kpis.reduce((sum, kpi) => sum + (kpi.weight || 0), 0);
+  const getTotalScore = () => kpis.reduce((sum, kpi) => sum + (kpi.weightedScore || 0), 0);
+
+  const handleSave = async (isFinal: boolean) => {
+    if (!selectedId) return;
+    setIsLoading(true);
+    try {
+      if (mode === 'position') {
+        await kpiManagementApi.savePositionKpis({ positionId: selectedId, kpis, isFinal });
+        toast.success('Position roadmap updated successfully');
+        fetchPositionKpis();
+      } else {
+        await kpiManagementApi.updateActualValues(selectedId, kpis);
+        toast.success('Appraisal scores updated');
+        fetchEmployeeKpis();
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to save');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLock = async () => {
+    if (!selectedId) return;
+    setIsLoading(true);
+    try {
+      await kpiManagementApi.lockEmployeeKpis(selectedId);
+      toast.success('Performance record locked');
+      fetchEmployeeKpis();
+    } catch (error) {
+      toast.error('Locking failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const selectedItem = mode === 'position' 
+    ? positions.find(p => p.id === selectedId)
+    : employees.find(e => e.id === selectedId);
   
   const filteredPositions = positions.filter(p => 
-    p.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.department?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">KPI Management</h1>
-          <p className="text-slate-500 mt-1">Define Key Performance Indicators for each position</p>
-        </div>
+  const filteredEmployees = employees.filter(e => 
+    e.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.employeeId?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-        {/* Position Selection */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6 shadow-sm">
-          <label className="block text-sm font-bold text-slate-700 mb-2">
-            Select Position
-          </label>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search positions..."
-              className="w-full border border-slate-300 rounded-lg px-4 py-2.5 pr-10 focus:border-[#115e59] focus:ring-1 focus:ring-[#115e59] outline-none transition-shadow hover:shadow-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          </div>
-          
-          <div className="mt-4 max-h-48 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100">
-            {filteredPositions.map((position) => (
-              <div
-                key={position.id}
-                onClick={() => setSelectedPositionId(position.id)}
-                className={`p-3 cursor-pointer hover:bg-slate-50 transition-all flex items-center justify-between group ${
-                  selectedPositionId === position.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-slate-800 text-sm">{position.name}</div>
-                  <div className="text-[10px] text-slate-400">{position.department?.name || 'No Department'}</div>
+  const isKpiLocked = kpis.some(k => k.isLocked);
+
+  return (
+    <div className="h-[calc(100vh-4rem)] bg-[#f8fafc] text-slate-800 font-sans flex overflow-hidden">
+      
+      {/* Main Workspace Area (Now on Left) */}
+      <div className="flex-1 flex flex-col min-w-0 bg-white">
+        
+        {/* Workspace Header */}
+        <div className="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-20">
+          <div className="flex items-center gap-6">
+            {selectedId ? (
+              <div className="animate-fade-in-up">
+                <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none">
+                  {mode === 'position' ? (selectedItem as Position)?.name : (selectedItem as Employee)?.employeeName}
+                </h1>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                   <div className={clsx("w-2 h-2 rounded-full", mode === 'position' ? "bg-teal-500" : "bg-indigo-500")}></div>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                     Performance Architecture {mode === 'employee' && isKpiLocked && '— (Locked Entry)'}
+                   </span>
                 </div>
-                <ArrowRight className={`w-4 h-4 text-slate-200 group-hover:text-blue-500 transition-colors ${selectedPositionId === position.id ? 'text-blue-500' : ''}`} />
               </div>
-            ))}
-            {filteredPositions.length === 0 && (
-              <div className="p-4 text-center text-slate-400 text-sm italic">No positions found</div>
+            ) : (
+              <h1 className="text-xl font-black text-slate-300 uppercase tracking-widest">Global Framework Modeler</h1>
             )}
           </div>
+
+          <div className="flex items-center gap-3">
+            {selectedId && mode === 'employee' && !isKpiLocked && (
+               <button onClick={handleLock} className="px-5 py-2.5 text-xs font-black bg-amber-50 text-amber-600 rounded-2xl hover:bg-amber-100 transition-all uppercase tracking-widest">
+                 Lock Record
+               </button>
+            )}
+            
+            {selectedId && (
+              <button 
+                onClick={() => handleSave(true)}
+                disabled={isLoading || (mode === 'employee' && isKpiLocked)}
+                className="px-8 py-2.5 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-teal-600 transition-all shadow-xl disabled:opacity-30 flex items-center gap-2"
+              >
+                <Save size={16} />
+                Persist Changes
+              </button>
+            )}
+
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className={clsx(
+                "p-3 bg-slate-50 text-slate-900 rounded-2xl transition-all shadow-sm active:scale-95",
+                isSidebarOpen ? "bg-slate-200" : "hover:bg-slate-100"
+              )}
+              title="Toggle Registry Sidebar"
+            >
+              <Menu size={20} />
+            </button>
+          </div>
         </div>
 
-        {/* KPI Workspace */}
-        {selectedPositionId && (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center flex-wrap gap-3">
-              <div>
-                <h2 className="font-bold text-slate-800">
-                  KPIs for {selectedPosition?.name}
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Total weight must equal 100% before submission
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={addKpiRow}
-                  className="px-4 py-2 text-sm font-bold text-[#115e59] border border-[#115e59]/20 rounded-lg hover:bg-slate-100 transition-colors"
-                >
-                  <Plus size={16} className="inline mr-1" /> Add KPI
-                </button>
-                <button
-                  onClick={() => handleSave(false)}
-                  disabled={isLoading}
-                  className="px-4 py-2 text-sm font-bold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-                >
-                  <Save size={16} className="inline mr-1" /> Draft
-                </button>
-                <button
-                  onClick={() => handleSave(true)}
-                  disabled={isLoading || !isValidWeight}
-                  className={`px-6 py-2 text-sm font-black text-white rounded-lg transition-all shadow-md disabled:opacity-50 ${
-                    isValidWeight ? 'bg-[#115e59] hover:bg-[#0d4a46] hover:shadow-lg' : 'bg-slate-400 cursor-not-allowed'
-                  }`}
-                >
-                  Submit ({totalWeight}%)
-                </button>
-              </div>
-            </div>
-
-            {isLoading ? (
-              <div className="p-12 text-center">Loading...</div>
-            ) : (
-              <>
+        {/* Content Section */}
+        <div className="flex-1 overflow-auto p-10 bg-[#fcfcfd]">
+          {selectedId ? (
+            <div className="max-w-[1600px] mx-auto space-y-10">
+              
+              {/* Spreadsheet Style Table */}
+              <div className="bg-white border-2 border-slate-200 rounded-none overflow-hidden shadow-2xl">
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">KPI Name</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Category</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Target</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Unit</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Weight (%)</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Priority</th>
-                        <th className="px-4 py-3 text-center text-xs font-bold text-slate-500 uppercase w-12"></th>
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 divide-x divide-slate-200 border-b-2 border-slate-200">
+                        <th className="px-4 py-4 font-black uppercase text-[11px] tracking-widest text-slate-900 text-center w-64">KPI</th>
+                        <th className="px-4 py-4 font-black uppercase text-[11px] tracking-widest text-slate-900 text-center w-48">Category</th>
+                        <th className="px-4 py-4 font-black uppercase text-[11px] tracking-widest text-slate-900 text-center w-32">Target</th>
+                        <th className="px-4 py-4 font-black uppercase text-[11px] tracking-widest text-slate-900 text-center w-48">Unit</th>
+                        <th className="px-4 py-4 font-black uppercase text-[11px] tracking-widest text-slate-900 text-center w-32 bg-amber-50/30">Actual</th>
+                        <th className="px-4 py-4 font-black uppercase text-[11px] tracking-widest text-slate-900 text-center w-32">Weight (%)</th>
+                        <th className="px-4 py-4 font-black uppercase text-[11px] tracking-widest text-slate-900 text-center w-32">Score (%)</th>
+                        <th className="px-4 py-4 font-black uppercase text-[11px] tracking-widest text-slate-900 text-center w-40">Weighted Score</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {kpis.map((kpi, index) => (
-                        <tr key={index} className="hover:bg-slate-50">
-                          <td className="px-4 py-3">
-                            <input
-                              type="text"
-                              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none"
-                              placeholder="Enter KPI name"
+                    <tbody className="divide-y divide-slate-200">
+                      {kpis.map((kpi, idx) => (
+                        <tr key={idx} className="divide-x divide-slate-200 hover:bg-slate-50 transition-colors">
+                          <td className="p-0">
+                            <textarea 
+                              className="w-full p-4 bg-transparent outline-none resize-none font-bold text-slate-700 min-h-[60px] block"
                               value={kpi.kpiName}
-                              onChange={(e) => updateKpi(index, 'kpiName', e.target.value)}
+                              disabled={isKpiLocked}
+                              onChange={(e) => updateKpi(idx, 'kpiName', e.target.value)}
+                              placeholder="Metric definition..."
                             />
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex gap-1">
-                              <select
-                                className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none"
-                                value={kpi.category}
-                                onChange={(e) => updateKpi(index, 'category', e.target.value)}
-                              >
-                                <option value="">Select Category</option>
-                                {categories.map(cat => (
-                                  <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                              </select>
-                              <button
-                                onClick={() => setShowCategoryModal(true)}
-                                className="px-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50"
-                                title="Add new category"
-                              >
-                                <Plus size={16} />
-                              </button>
-                            </div>
+                          <td className="p-0">
+                            <input 
+                              list="category-list"
+                              className="w-full h-[60px] p-4 bg-transparent outline-none font-semibold text-slate-600"
+                              value={kpi.category}
+                              disabled={isKpiLocked}
+                              onChange={(e) => updateKpi(idx, 'category', e.target.value)}
+                              placeholder="Classification..."
+                            />
+                            <datalist id="category-list">
+                              {categories.map(c => <option key={c} value={c} />)}
+                            </datalist>
                           </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="text"
-                              className="w-28 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none"
-                              placeholder="e.g., 90%"
+                          <td className="p-0">
+                            <input 
+                              className="w-full h-[60px] px-4 py-2 text-center bg-transparent outline-none font-bold text-slate-800"
                               value={kpi.target}
-                              onChange={(e) => updateKpi(index, 'target', e.target.value)}
+                              disabled={isKpiLocked}
+                              onChange={(e) => updateKpi(idx, 'target', e.target.value)}
+                              placeholder="90%"
                             />
                           </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="text"
-                              className="w-28 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none"
-                              placeholder="Unit"
+                          <td className="p-0">
+                             <input 
+                              className="w-full h-[60px] px-4 py-2 text-center bg-transparent outline-none font-semibold text-slate-400 italic"
                               value={kpi.unit}
-                              onChange={(e) => updateKpi(index, 'unit', e.target.value)}
+                              disabled={isKpiLocked}
+                              onChange={(e) => updateKpi(idx, 'unit', e.target.value)}
+                              placeholder="% requests"
                             />
                           </td>
-                          <td className="px-4 py-3">
-                            <input
+                          <td className="p-0 bg-amber-50/10">
+                            <input 
+                              className="w-full h-[60px] px-4 py-2 text-center bg-transparent outline-none font-black text-indigo-600"
                               type="number"
-                              className="w-20 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 outline-none"
-                              placeholder="Weight"
-                              min="0"
-                              max="100"
-                              value={kpi.weight || ''}
-                              onChange={(e) => updateKpi(index, 'weight', parseFloat(e.target.value) || 0)}
+                              value={kpi.actualValue || ''}
+                              disabled={isKpiLocked}
+                              onChange={(e) => updateKpi(idx, 'actualValue', parseFloat(e.target.value) || 0)}
+                              placeholder="Entry"
                             />
                           </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${PRIORITY_CONFIG[kpi.priorityLevel]?.color || 'bg-slate-100 text-slate-600'}`}>
-                              {PRIORITY_CONFIG[kpi.priorityLevel]?.label || 'Medium'}
-                            </span>
+                          <td className="p-0">
+                            <input 
+                              className="w-full h-[60px] px-4 py-2 text-center bg-transparent outline-none font-black text-teal-600"
+                              type="number"
+                              value={kpi.weight || ''}
+                              disabled={isKpiLocked}
+                              onChange={(e) => updateKpi(idx, 'weight', parseFloat(e.target.value) || 0)}
+                            />
                           </td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => removeKpiRow(index)}
-                              className="text-red-400 hover:text-red-600 transition-colors"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                          <td className="px-4 py-2 text-center font-black text-slate-900 bg-slate-50/50">
+                             {(kpi.score || 0).toFixed(2)}
+                          </td>
+                          <td className="px-4 py-2 text-center font-black text-indigo-600 bg-indigo-50/30">
+                             {(kpi.weightedScore || 0).toFixed(2)}
                           </td>
                         </tr>
                       ))}
-                    </tbody>
-                    <tfoot className="bg-slate-50 border-t border-slate-200">
-                      <tr>
-                        <td colSpan={4} className="px-4 py-4 text-right font-bold text-slate-700">Total:</td>
-                        <td className={`px-4 py-4 font-bold ${totalWeight === 100 ? 'text-green-600' : 'text-red-600'}`}>
-                          {totalWeight}%
+                      
+                      {/* Control Row */}
+                      <tr className="bg-white divide-x divide-slate-100">
+                        <td colSpan={5} className="p-4">
+                           <button onClick={addKpiRow} disabled={isKpiLocked} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-teal-500 hover:text-teal-700 transition-colors">
+                             <Plus size={14} /> Append New Row
+                           </button>
                         </td>
-                        <td colSpan={2}></td>
+                        <td className="px-4 py-4 text-center bg-slate-50 border-l-2 border-slate-200">
+                           <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mb-1">Total Weight</div>
+                           <div className={clsx("text-lg font-black", getTotalWeight() === 100 ? "text-teal-600" : "text-amber-500")}>
+                             {getTotalWeight()}%
+                           </div>
+                        </td>
+                        <td className="px-4 py-4 text-center font-black text-slate-400 bg-white uppercase text-[10px] tracking-widest">
+                           Total Score
+                        </td>
+                        <td className="px-4 py-4 text-center bg-slate-900 text-teal-400">
+                           <div className="text-[9px] font-black uppercase opacity-50 mb-1">Aggregated Value</div>
+                           <div className="text-xl font-black">{getTotalScore().toFixed(2)}</div>
+                        </td>
                       </tr>
-                    </tfoot>
+                    </tbody>
                   </table>
                 </div>
+              </div>
 
-                {!isValidWeight && totalWeight > 0 && (
-                  <div className="m-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <AlertCircle className="text-amber-500" size={20} />
-                      <div>
-                        <p className="font-medium text-amber-800">Weight Distribution Invalid</p>
-                        <p className="text-sm text-amber-700">
-                          Total weight must equal 100%. Current total: <strong>{totalWeight}%</strong>.
-                          {totalWeight < 100 ? ` Need ${100 - totalWeight}% more.` : ` Remove ${totalWeight - 100}% to reach 100%.`}
-                        </p>
-                      </div>
+              {/* Logic Configuration */}
+              <div className="flex flex-wrap gap-10 pb-12">
+                 <div className="flex-1 space-y-4">
+                    <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400 border-l-4 border-teal-500 pl-4">Optimization Logic</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       {kpis.map((kpi, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl shadow-sm group">
+                             <span className="text-xs font-bold text-slate-500 truncate max-w-[200px]">
+                               {kpi.kpiName || `Metric ${idx + 1}`}
+                             </span>
+                             <div className="flex bg-slate-50 p-1 rounded-xl">
+                               <button 
+                                 onClick={() => updateKpi(idx, 'logicDirection', 'higher')}
+                                 className={clsx("px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all", kpi.logicDirection === 'higher' ? "bg-white text-teal-500 shadow-sm" : "opacity-30")}
+                               >Higher</button>
+                               <button 
+                                 onClick={() => updateKpi(idx, 'logicDirection', 'lower')}
+                                 className={clsx("px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all", kpi.logicDirection === 'lower' ? "bg-white text-rose-500 shadow-sm" : "opacity-30")}
+                               >Lower</button>
+                             </div>
+                          </div>
+                       ))}
                     </div>
-                  </div>
-                )}
+                 </div>
+              </div>
 
-                {/* Priority Legend */}
-                <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
-                  <p className="text-xs font-bold text-slate-500 mb-2">Priority Weight Guidelines:</p>
-                  <div className="flex flex-wrap gap-4 text-xs">
-                    <span className="text-red-600">🔴 Critical: 20-35%</span>
-                    <span className="text-orange-600">🟠 High: 10-15%</span>
-                    <span className="text-yellow-600">🟡 Medium: 10%</span>
-                    <span className="text-green-600">🟢 Lower: 5%</span>
-                    <span className="text-slate-400 ml-auto">Total must equal 100%</span>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!selectedPositionId && (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-sm">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-50 rounded-full mb-4 border border-slate-100">
-              <Search size={40} className="text-slate-300" />
             </div>
-            <h3 className="text-lg font-bold text-slate-700">Select a Position</h3>
-            <p className="text-slate-400 text-sm mt-1 max-w-sm mx-auto">
-              Search and select a **Position** to define KPI templates and weights.
-            </p>
-          </div>
-        )}
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center space-y-10 text-center animate-fade-in-up">
+              <div className="p-10 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
+                <Target size={80} className="text-slate-200 animate-pulse mx-auto" />
+              </div>
+              <div>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tighter">Selection Required</h3>
+                <p className="text-slate-400 font-medium max-w-sm mx-auto mt-2 leading-relaxed uppercase text-[10px] tracking-widest">
+                  Initialize the workspace by selecting an entity from the registry.
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="px-10 py-4 bg-slate-900 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-2xl hover:scale-105 transition-all active:scale-95"
+              >
+                Access Registry
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Add Category Modal */}
-      {showCategoryModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Add New Category</h3>
-              <button onClick={() => setShowCategoryModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={20} />
-              </button>
-            </div>
+      {/* Collapsible Sidebar (Now on Right) */}
+      <div className={clsx(
+        "bg-white border-l border-slate-200 transition-all duration-500 ease-in-out flex flex-col z-30 shadow-[-10px_0_30px_rgba(0,0,0,0.05)]",
+        isSidebarOpen ? "w-85 translate-x-0" : "w-0 translate-x-full"
+      )}>
+        <div className="p-6 border-b border-slate-100 min-w-[320px]">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-black text-xl tracking-tighter text-slate-900">Registry</h2>
+            <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl">
+               <ChevronRight size={20} />
+            </button>
+          </div>
+
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-6">
+            <button 
+              onClick={() => { setMode('position'); setSelectedId(null); }}
+              className={clsx(
+                "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+                mode === 'position' ? "bg-white text-teal-600 shadow-lg" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              Positions
+            </button>
+            <button 
+              onClick={() => { setMode('employee'); setSelectedId(null); }}
+              className={clsx(
+                "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all",
+                mode === 'employee' ? "bg-white text-indigo-600 shadow-lg" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              Employees
+            </button>
+          </div>
+
+          <div className="relative">
             <input
               type="text"
-              className="w-full border border-slate-300 rounded-lg px-4 py-2 mb-4 focus:border-blue-500 outline-none"
-              placeholder="Category name"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
+              placeholder={`Find ${mode}...`}
+              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowCategoryModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">
-                Cancel
-              </button>
-              <button onClick={handleAddCategory} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Add Category
-              </button>
-            </div>
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
           </div>
         </div>
-      )}
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 min-w-[320px]">
+          {(mode === 'position' ? filteredPositions : filteredEmployees).map((item: any) => (
+            <button
+              key={item.id}
+              onClick={() => handleSelect(item.id)}
+              className={clsx(
+                "w-full text-left p-4 rounded-2xl transition-all duration-300 group relative",
+                selectedId === item.id 
+                  ? "bg-slate-900 text-white shadow-2xl scale-[1.02] z-10" 
+                  : "hover:bg-slate-50 text-slate-600"
+              )}
+            >
+              <div className="font-bold text-sm truncate">{mode === 'position' ? item.name : item.employeeName}</div>
+              <div className={clsx(
+                "text-[10px] font-black uppercase tracking-widest mt-1 opacity-50",
+                selectedId === item.id ? "text-teal-400" : "text-slate-400"
+              )}>
+                {mode === 'position' ? (item.department?.name || 'General') : (item.position?.name || 'Unassigned')}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 };

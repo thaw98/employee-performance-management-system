@@ -54,7 +54,15 @@ const HrLayout: React.FC = () => {
         ]
       }
       : { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
-    { icon: <Target size={20} />, label: 'KPI Management', path: '/hr/kpi-management' },
+    { 
+      icon: <Target size={20} />, 
+      label: 'Performance', 
+      path: '/hr/kpi-group',
+      subItems: [
+        { label: 'KPI Modeler', path: '/hr/kpi-management' },
+        { label: 'Assigned List', path: '/hr/kpi-assigned' }
+      ]
+    },
 
     {
       icon: <ClipboardList size={20} />,
