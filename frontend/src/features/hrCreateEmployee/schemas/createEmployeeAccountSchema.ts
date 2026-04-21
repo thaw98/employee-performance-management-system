@@ -83,7 +83,6 @@ function fatherNrcPartsRefine(
     String(val.fatherNrcNumber ?? '').trim(),
   ]
   const filled = parts.filter((p) => p.length > 0).length
-  if (filled === 0) return
   if (filled < 4) {
     if (!parts[0]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['fatherNrcStateCode'] })
     if (!parts[1]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['fatherNrcTownshipCode'] })

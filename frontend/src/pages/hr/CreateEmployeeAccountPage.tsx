@@ -116,7 +116,7 @@ export function CreateEmployeeAccountPage() {
   const [emailDup, setEmailDup] = useState<Dup>('idle')
   const [staffDup, setStaffDup] = useState<Dup>('idle')
   const [successOpen, setSuccessOpen] = useState(false)
-  const [created, setCreated] = useState<{ employeeId: number; name: string; email: string } | null>(null)
+  const [created, setCreated] = useState<{ employeeId: number; staffNo: string; name: string; email: string } | null>(null)
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
   const profilePhotoPreviewUrl = useMemo(
     () => (profilePhotoFile ? URL.createObjectURL(profilePhotoFile) : null),
@@ -371,6 +371,7 @@ export function CreateEmployeeAccountPage() {
         }
         setCreated({
           employeeId: res.data.employeeId,
+          staffNo: res.data.staffNo,
           name: res.data.employeeName,
           email: res.data.email,
         })
@@ -628,14 +629,14 @@ export function CreateEmployeeAccountPage() {
       {created ? (
         <CreateEmployeeSuccessModal
           open={successOpen}
-          onClose={() => setSuccessOpen(false)}
+          onClose={() => navigate('/hr/employees')}
           employeeName={created.name}
           email={created.email}
-          employeeId={created.employeeId}
+          staffNo={created.staffNo}
           resendLoading={resendLoading}
           onResend={() => void handleResend()}
           onCreateAnother={() => resetFlow()}
-          onGoDashboard={() => navigate(user ? getDashboardPath(user) : '/hr/dashboard')}
+          onViewEmployeeList={() => navigate('/hr/employees')}
         />
       ) : null}
     </FormProvider>

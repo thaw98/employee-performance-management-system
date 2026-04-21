@@ -56,8 +56,6 @@ public class EmployeeInfoRequestDto {
 	@NotNull
 	private Long staffTypeId;
 
-	private String status;
-
 	private Integer probationMonth;
 	private LocalDate probationEndDate;
 

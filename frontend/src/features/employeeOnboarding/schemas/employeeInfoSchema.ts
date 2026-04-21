@@ -30,7 +30,7 @@ function staffNrcSuperRefine(val: Record<string, unknown>, ctx: z.RefinementCtx)
   }
 }
 
-/** Empty father NRC is allowed; if any part is set, all parts must be valid and consistent. */
+/** Father NRC is required; all parts must be provided and consistent. */
 function fatherNrcSuperRefine(val: Record<string, unknown>, ctx: z.RefinementCtx) {
   const stateCode = String(val.fatherNrcStateCode ?? '').trim()
   const townshipCode = String(val.fatherNrcTownshipCode ?? '').trim()
@@ -38,9 +38,6 @@ function fatherNrcSuperRefine(val: Record<string, unknown>, ctx: z.RefinementCtx
   const number = String(val.fatherNrcNumber ?? '').trim()
   const parts = [stateCode, townshipCode, type, number]
   const filledCount = parts.filter((p) => p.length > 0).length
-  if (filledCount === 0) {
-    return
-  }
   if (filledCount < 4) {
     if (!stateCode) ctx.addIssue({ code: 'custom', message: g, path: ['fatherNrcStateCode'] })
     if (!townshipCode) ctx.addIssue({ code: 'custom', message: g, path: ['fatherNrcTownshipCode'] })

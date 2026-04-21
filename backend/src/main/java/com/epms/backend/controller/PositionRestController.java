@@ -26,10 +26,15 @@ public class PositionRestController {
 	private final PositionRepository positionRepository;
 
 	@GetMapping
-	public ResponseEntity<ApiResponse<List<PositionOptionDto>>> byDepartment(@RequestParam Long departmentId) {
-		List<PositionOptionDto> rows = positionRepository.findByDepartmentIdOrderByNameAsc(departmentId).stream()
+	public ResponseEntity<ApiResponse<List<PositionOptionDto>>> byDepartment(@RequestParam(required = false) Long departmentId) {
+		List<Position> positions = departmentId == null
+				? positionRepository.findAll()
+				: positionRepository.findByDepartmentIdOrderByNameAsc(departmentId);
+
+		List<PositionOptionDto> rows = positions.stream()
 				.filter(this::isActive)
-				.filter(p -> p.getDepartment() != null && departmentId.equals(p.getDepartment().getId()))
+				.filter(p -> departmentId == null
+						|| (p.getDepartment() != null && departmentId.equals(p.getDepartment().getId())))
 				.map(p -> new PositionOptionDto(p.getId(), p.getName()))
 				.sorted(Comparator.comparing(PositionOptionDto::getPositionName, String.CASE_INSENSITIVE_ORDER))
 				.toList();

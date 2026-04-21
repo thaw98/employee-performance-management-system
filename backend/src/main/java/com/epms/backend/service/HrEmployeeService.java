@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.JpaSort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -64,8 +65,14 @@ public class HrEmployeeService {
 
     @Transactional(readOnly = true)
     public EmployeeListResponseDto getEmployees(int page, int size, String search, Long departmentId, Long positionId, String employmentStatus, String sortBy, String sortDir) {
-        String sortField = sortBy.equals("staffNo") ? "employeeId" : sortBy;
-        Sort sort = Sort.by(sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC, sortField);
+        Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort;
+        if (sortBy.equals("staffNo")) {
+            // Natural sort for numeric staff numbers stored as text (1,2,3...10).
+            sort = JpaSort.unsafe(direction, "LENGTH(employeeId)").and(Sort.by(direction, "employeeId"));
+        } else {
+            sort = Sort.by(direction, sortBy);
+        }
         Pageable pageable = PageRequest.of(page, size, sort);
 
         Specification<Employee> spec = (root, query, cb) -> {
@@ -156,7 +163,6 @@ public class HrEmployeeService {
         employee.setGender(request.getGender());
         employee.setReligion(request.getReligion());
         employee.setDateOfJoining(request.getDateOfJoining());
-        employee.setStatus(request.getStatus());
         employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
 
         if (request.getDepartmentId() != null) {
@@ -301,6 +307,7 @@ public class HrEmployeeService {
             EmployeeProbation probation = employee.getProbation();
             if (probation == null) {
                 probation = new EmployeeProbation();
+                probation.setEmployee(employee);
                 employee.setProbation(probation);
             }
             probation.setProbationEndDate(request.getProbationEndDate());
@@ -399,7 +406,6 @@ public class HrEmployeeService {
                 .staffTypeId(employee.getStaffType() != null ? employee.getStaffType().getId() : null)
                 .staffTypeName(employee.getStaffType() != null ? employee.getStaffType().getName() : null)
                 .dateOfJoining(employee.getDateOfJoining())
-                .status(employee.getStatus())
                 .profilePictureUrl(employee.getProfilePictureUrl())
                 .build();
     }

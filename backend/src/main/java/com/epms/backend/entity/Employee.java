@@ -77,9 +77,6 @@ public class Employee {
     @Column(name = "hire_date")
     private LocalDate dateOfJoining;
 
-    @Column(name = "status", length = 20)
-    private String status;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "employment_status", length = 20)
     private EmployeeStatus employmentStatus = EmployeeStatus.ACTIVE;
@@ -105,8 +102,7 @@ public class Employee {
     @JoinColumn(name = "father_id")
     private EmployeeFather father;
 
-    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "employee_probation")
+    @Transient
     private EmployeeProbation probation;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)

@@ -65,7 +65,6 @@ public class AdminDataInitializer implements CommandLineRunner {
         Employee employee = new Employee();
         employee.setEmployeeName(name);
         employee.setEmployeeId(generateEmployeeId(email));
-        employee.setStatus("Active");
         employee.setEmail(email);
         employee = employeeRepository.save(employee);
 

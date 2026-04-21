@@ -1,5 +1,5 @@
 import { Dialog, Transition } from '@headlessui/react'
-import { Fragment, useState } from 'react'
+import { Fragment, useState, useMemo, memo } from 'react'
 
 interface ChangeStatusModalProps {
   isOpen: boolean
@@ -9,7 +9,7 @@ interface ChangeStatusModalProps {
   isLoading?: boolean
 }
 
-export default function ChangeStatusModal({
+function ChangeStatusModal({
   isOpen,
   currentStatus,
   onClose,
@@ -19,8 +19,8 @@ export default function ChangeStatusModal({
   const [probationEndDate, setProbationEndDate] = useState('')
   const [selectedTarget, setSelectedTarget] = useState<string>('')
 
-  // Determine available target statuses based on current status
-  const getTargetOptions = () => {
+  // Determine available target statuses based on current status - memoized
+  const targetOptions = useMemo(() => {
     if (currentStatus === 'Probation') {
       return [
         { value: 'Permanent', label: 'Permanent', icon: 'bi-check-circle', color: 'text-green-700' },
@@ -35,12 +35,13 @@ export default function ChangeStatusModal({
       ]
     }
     return []
-  }
+  }, [currentStatus])
 
-  const targetOptions = getTargetOptions()
-
-  // Auto-select if there's only one option
-  const effectiveTarget = targetOptions.length === 1 ? targetOptions[0].value : selectedTarget
+  // Auto-select if there's only one option - memoized
+  const effectiveTarget = useMemo(
+    () => targetOptions.length === 1 ? targetOptions[0].value : selectedTarget,
+    [targetOptions, selectedTarget]
+  )
 
   const handleConfirm = () => {
     if (!effectiveTarget) return
@@ -57,14 +58,18 @@ export default function ChangeStatusModal({
     onClose()
   }
 
-  const today = new Date().toISOString().split('T')[0]
-  const isValid = (() => {
+  const today = useMemo(() => new Date().toISOString().split('T')[0], [])
+
+  const isValid = useMemo(() => {
     if (!effectiveTarget) return false
     if (effectiveTarget === 'Probation') return probationEndDate > today
     return true
-  })()
+  }, [effectiveTarget, probationEndDate, today])
 
-  const isDangerAction = effectiveTarget === 'Resigned' || effectiveTarget === 'Terminated'
+  const isDangerAction = useMemo(
+    () => effectiveTarget === 'Resigned' || effectiveTarget === 'Terminated',
+    [effectiveTarget]
+  )
 
   return (
     <Transition show={isOpen} as={Fragment}>
@@ -240,3 +245,5 @@ export default function ChangeStatusModal({
     </Transition>
   )
 }
+
+export default memo(ChangeStatusModal)

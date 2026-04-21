@@ -1,14 +1,14 @@
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
-import { CheckCircle, Mail, UserPlus, LayoutDashboard, X } from 'lucide-react'
+import { CheckCircle, Mail, UserPlus, List, X } from 'lucide-react'
 
 interface CreateEmployeeSuccessModalProps {
   open: boolean
   onClose: () => void
   employeeName: string
   email: string
-  employeeId: number
+  staffNo: string
   onCreateAnother: () => void
-  onGoDashboard: () => void
+  onViewEmployeeList: () => void
   onResend: () => void
   resendLoading: boolean
 }
@@ -18,9 +18,9 @@ export function CreateEmployeeSuccessModal({
   onClose,
   employeeName,
   email,
-  employeeId,
+  staffNo,
   onCreateAnother,
-  onGoDashboard,
+  onViewEmployeeList,
   onResend,
   resendLoading,
 }: CreateEmployeeSuccessModalProps) {
@@ -28,7 +28,7 @@ export function CreateEmployeeSuccessModal({
     <Dialog open={open} onClose={onClose} className="relative z-50">
       <DialogBackdrop className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" />
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
-        <DialogPanel className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <DialogPanel className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
           {/* Accent strip */}
           <div className="h-1.5 bg-gradient-to-r from-teal-400 via-emerald-500 to-green-400" />
 
@@ -64,8 +64,8 @@ export function CreateEmployeeSuccessModal({
                   <span className="font-semibold text-slate-800">{email}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-slate-500">Employee ID</span>
-                  <span className="font-mono font-bold text-teal-700">{employeeId}</span>
+                  <span className="font-medium text-slate-500">Staff ID</span>
+                  <span className="font-mono font-bold text-teal-700">{staffNo}</span>
                 </div>
               </div>
             </div>
@@ -81,7 +81,7 @@ export function CreateEmployeeSuccessModal({
 
           {/* Action buttons */}
           <div className="border-t border-slate-100 bg-slate-50/50 px-8 py-5">
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-center">
               <button
                 type="button"
                 onClick={onResend}
@@ -95,22 +95,24 @@ export function CreateEmployeeSuccessModal({
                 )}
                 Resend Password
               </button>
-              <button
-                type="button"
-                onClick={onCreateAnother}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/25 transition hover:shadow-lg active:scale-[0.98]"
-              >
-                <UserPlus size={15} />
-                Create Another
-              </button>
-              <button
-                type="button"
-                onClick={onGoDashboard}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-              >
-                <LayoutDashboard size={15} />
-                Dashboard
-              </button>
+              <div className="flex flex-col gap-2.5 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={onCreateAnother}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/25 transition hover:shadow-lg active:scale-[0.98]"
+                >
+                  <UserPlus size={15} />
+                  Create Another
+                </button>
+                <button
+                  type="button"
+                  onClick={onViewEmployeeList}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  <List size={15} />
+                  View Employee List
+                </button>
+              </div>
             </div>
           </div>
         </DialogPanel>

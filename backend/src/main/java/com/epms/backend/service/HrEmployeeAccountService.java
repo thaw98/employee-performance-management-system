@@ -155,8 +155,10 @@ public class HrEmployeeAccountService {
 		employee.setPosition(position);
 		employee.setStaffType(staffTypeEntity);
 		employee.setProbation(probationEntity);
+		if (probationEntity != null) {
+			probationEntity.setEmployee(employee);
+		}
 		employee.setDateOfJoining(request.getHireDate());
-		employee.setStatus("Active");
 		employee.setCreatedBy(principal.getId());
 		employee.setUpdatedBy(principal.getId());
 		employee.setCreatedDate(Instant.now());

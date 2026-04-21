@@ -7,7 +7,7 @@ import {
   type ColumnDef,
   type OnChangeFn,
 } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
 import EmployeeProfileCell from './EmployeeProfileCell'
 import type { EmployeeListItem } from '../hrEmployeeApi'
 
@@ -22,7 +22,7 @@ interface EmployeeTableProps {
   setSorting: OnChangeFn<SortingState>
 }
 
-export default function EmployeeTable({
+function EmployeeTable({
   data,
   isLoading,
   onEdit,
@@ -114,7 +114,7 @@ export default function EmployeeTable({
               >
                 <i className="bi bi-pencil-square text-lg"></i>
               </button>
-              
+
               {row.hasUserAccount && row.mustChangePassword && (
                 <button
                   onClick={() => onResendPassword(row.employeeId)}
@@ -212,3 +212,5 @@ export default function EmployeeTable({
     </div>
   )
 }
+
+export default memo(EmployeeTable)
