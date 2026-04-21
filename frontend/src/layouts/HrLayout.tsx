@@ -145,12 +145,24 @@ const HrLayout: React.FC = () => {
                       : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                       }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <Link
+                      to={item.path || '#'}
+                      className="flex-1 flex items-center gap-3 px-4 py-3"
+                    >
                       <span className={isActive ? 'text-emerald-700' : 'text-slate-400'}>{item.icon}</span>
                       {item.label}
-                    </div>
-                    <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''} ${isActive ? 'text-emerald-700' : 'text-slate-400'}`} />
-                  </button>
+                    </Link>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleExpand(item.label);
+                      }}
+                      className="p-3 text-slate-400 hover:text-emerald-600 transition-colors"
+                    >
+                      <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
                   {isExpanded && (
                     <div className="pl-11 pr-4 space-y-1 mt-1">
                       {item.subItems.map((subItem) => {

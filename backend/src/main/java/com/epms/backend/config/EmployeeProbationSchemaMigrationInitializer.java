@@ -56,7 +56,7 @@ public class EmployeeProbationSchemaMigrationInitializer implements BeanPostProc
 	private void runMigration(DataSource dataSource) throws Exception {
 		JdbcTemplate jdbc = new JdbcTemplate(dataSource);
 		ensureEmployeeProbationTable(jdbc, dataSource);
-		renameLegacyProbationDateColumnIfPresent(jdbc, dataSource);
+		removeLegacyProbationDateColumnIfPresent(jdbc, dataSource);
 		migrateOldEmployeeIdColumnOffProbation(jdbc, dataSource);
 		ensureEmployeeProbationFkOnEmployees(jdbc, dataSource);
 		copyDenormalizedProbationColumnsIntoEmployeeProbation(jdbc, dataSource);
@@ -79,24 +79,34 @@ public class EmployeeProbationSchemaMigrationInitializer implements BeanPostProc
 	}
 
 	/**
-	 * Older Hibernate mappings used {@code probation_date} for the probation end; align to {@code probation_end_date}.
+	 * Removes legacy {@code probation_date} from {@code employee_probation}. If
+	 * {@code probation_end_date} exists, copy values first for rows where end date is null.
 	 */
-	private void renameLegacyProbationDateColumnIfPresent(JdbcTemplate jdbc, DataSource dataSource) throws Exception {
+	private void removeLegacyProbationDateColumnIfPresent(JdbcTemplate jdbc, DataSource dataSource) throws Exception {
 		if (!tableExists(dataSource, "employee_probation")) {
 			return;
 		}
 		if (!columnExists(dataSource, "employee_probation", "probation_date")) {
 			return;
 		}
-		if (columnExists(dataSource, "employee_probation", "probation_end_date")) {
-			log.warn("employee_probation has both probation_date and probation_end_date; leaving columns unchanged");
-			return;
+		if (!columnExists(dataSource, "employee_probation", "probation_end_date")) {
+			jdbc.execute("""
+					ALTER TABLE employee_probation
+					ADD COLUMN probation_end_date DATE NULL
+					""");
+			log.info("Added employee_probation.probation_end_date");
 		}
-		jdbc.execute("""
-				ALTER TABLE employee_probation
-				CHANGE COLUMN probation_date probation_end_date DATE NULL
+		int copied = jdbc.update("""
+				UPDATE employee_probation
+				SET probation_end_date = probation_date
+				WHERE probation_end_date IS NULL
+				  AND probation_date IS NOT NULL
 				""");
-		log.info("Renamed employee_probation.probation_date to probation_end_date");
+		if (copied > 0) {
+			log.info("Copied {} probation end date value(s) from probation_date", copied);
+		}
+		jdbc.execute("ALTER TABLE employee_probation DROP COLUMN probation_date");
+		log.info("Dropped legacy column employee_probation.probation_date");
 	}
 
 	/**

@@ -6,9 +6,11 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
 import com.epms.backend.entity.Employee;
 
-public interface EmployeeRepository extends JpaRepository<Employee, Long> {
+public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSpecificationExecutor<Employee> {
 
 	/**
 	 * Highest numeric {@code staff_no} (MySQL: only rows where staff_no is all digits).
