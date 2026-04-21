@@ -12,7 +12,8 @@ import {
   ChevronDown,
   ShieldCheck,
   Search,
-  Zap
+  Zap,
+  Inbox
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -48,7 +49,9 @@ const ManagerLayout: React.FC = () => {
     { icon: <ShieldCheck size={20} />, label: 'My Self Assessments', path: '/manager/my-assessment' },
     { icon: <Zap size={20} />, label: 'Team PIPs', path: '/manager/pip' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/manager/appraisals' },
-    { icon: <MessageSquare size={20} />, label: 'Feedback', path: '/manager/feedback' },
+    { icon: <MessageSquare size={20} />, label: 'Give Feedback', path: '/manager/feedback/give' },
+    { icon: <Inbox size={20} />, label: 'Get Feedback', path: '/manager/feedback/received' },
+    { icon: <FileText size={20} />, label: 'Feedback History', path: '/manager/feedback/history' },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/manager/meetings' },
     { icon: <BarChart size={20} />, label: 'Reports', path: '/manager/reports' },
   ];

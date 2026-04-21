@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
-    FileText, 
-    Printer, 
+    Search, 
+    Download, 
     Eye, 
-    Search,
-    ChevronLeft,
+    ChevronLeft, 
     ChevronRight,
-    Download
+    Star,
+    Calendar,
+    User,
+    Printer,
+    Inbox
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -20,12 +23,10 @@ import {
     TransitionChild 
 } from '@headlessui/react';
 
-interface HistoryItem {
+interface FeedbackItem {
     id: number;
     date: string;
-    evaluateeName: string;
-    evaluateeStaffNo: string;
-    position: string;
+    evaluatorName: string; // We'll assume the backend provides this or we show "Anonymous"
     role: string;
     score: number;
     remark: string;
@@ -37,36 +38,37 @@ interface FeedbackDetail {
     comment: string;
 }
 
-export function FeedbackHistoryPage() {
-    const [history, setHistory] = useState<HistoryItem[]>([]);
+export function GetFeedbackPage() {
+    const [received, setReceived] = useState<FeedbackItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Modal state
-    const [selectedFeedback, setSelectedFeedback] = useState<HistoryItem | null>(null);
+    const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
     const [details, setDetails] = useState<FeedbackDetail[]>([]);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
-        fetchHistory();
+        fetchReceived();
     }, [page]);
 
-    const fetchHistory = async () => {
+    const fetchReceived = async () => {
         try {
             setLoading(true);
-            const resp = await axios.get(`/feedback/history?page=${page}&size=10`);
-            setHistory(resp.data.data.content);
+            const resp = await axios.get(`/feedback/received?page=${page}&size=10`);
+            setReceived(resp.data.data.content);
             setTotalPages(resp.data.data.totalPages);
         } catch (err) {
-            toast.error('Failed to load history');
+            toast.error('Failed to load received feedback');
         } finally {
             setLoading(false);
         }
     };
 
-    const openDetails = async (item: HistoryItem) => {
+    const openDetails = async (item: FeedbackItem) => {
         setSelectedFeedback(item);
         setIsModalOpen(true);
         setLoadingDetails(true);
@@ -80,6 +82,29 @@ export function FeedbackHistoryPage() {
         }
     };
 
+    const generatePDF = (item: FeedbackItem) => {
+        const doc = new jsPDF();
+        
+        doc.setFontSize(20);
+        doc.text('360-Degree Feedback Assessment Report', 105, 20, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.text(`Date: ${item.date}`, 14, 35);
+        doc.text(`Role of Evaluator: ${item.role}`, 14, 42);
+        doc.text(`Overall Score: ${item.score.toFixed(1)}%`, 14, 49);
+        doc.text(`Performance Remark: ${item.remark}`, 14, 56);
+        
+        autoTable(doc, {
+            startY: 65,
+            head: [['Criteria', 'Rating', 'Comments']],
+            body: details.map(d => [d.criteriaName, d.rating, d.comment || 'N/A']),
+            theme: 'striped',
+            headStyles: { fillColor: [8, 85, 191] }
+        });
+        
+        doc.save(`Feedback_Report_${item.date}.pdf`);
+    };
+
     const getRemarkColor = (remark: string) => {
         switch (remark) {
             case 'Outstanding': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
@@ -87,167 +112,99 @@ export function FeedbackHistoryPage() {
             case 'Meet Requirement': return 'bg-amber-50 text-amber-600 border-amber-100';
             case 'Need Improvement': return 'bg-orange-50 text-orange-600 border-orange-100';
             case 'Unsatisfactory': return 'bg-red-50 text-red-600 border-red-100';
-            default: return 'bg-slate-50 text-slate-600 border-slate-100';
+            default: return 'bg-slate-50 text-slate-400 border-slate-100';
         }
     };
 
-    const generatePDF = async (id: number) => {
-        try {
-            const item = history.find(h => h.id === id);
-            if (!item) return;
-
-            // Fetch full details
-            const resp = await axios.get(`/feedback/${id}/details`);
-            const details = resp.data.data;
-
-            const doc = new jsPDF();
-            
-            // Header
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(24);
-            doc.setTextColor(8, 85, 191);
-            doc.text('PERFORMANCE FEEDBACK REPORT', 105, 20, { align: 'center' });
-            
-            doc.setFontSize(10);
-            doc.setTextColor(150);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`Reference ID: FB-2026-${id} | Generated: ${new Date().toLocaleString()}`, 105, 28, { align: 'center' });
-
-            // Summary Box
-            doc.setFillColor(248, 250, 252);
-            doc.roundedRect(20, 35, 170, 45, 3, 3, 'F');
-            
-            doc.setFontSize(12);
-            doc.setTextColor(50);
-            doc.setFont('helvetica', 'bold');
-            doc.text('BASIC INFORMATION', 25, 45);
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.text(`Evaluatee: ${item.evaluateeName}`, 25, 55);
-            doc.text(`Staff No: ${item.evaluateeStaffNo}`, 25, 60);
-            doc.text(`Position: ${item.position}`, 25, 65);
-            
-            doc.text(`Feedback Role: ${item.role}`, 110, 55);
-            doc.text(`Score: ${item.score.toFixed(2)}%`, 110, 60);
-            doc.text(`Category: ${item.remark}`, 110, 65);
-
-            // Detailed Ratings
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(8, 85, 191);
-            doc.text('DETAILED ASSESSMENT CRITERIA', 20, 95);
-
-            autoTable(doc, {
-                startY: 100,
-                head: [['#', 'Assessment Criteria', 'Rating', 'Comments / Observations']],
-                body: details.map((d: any, idx: number) => [
-                    idx + 1,
-                    d.criteriaName,
-                    d.rating,
-                    d.comment || 'No comment provided'
-                ]),
-                styles: { fontSize: 9, cellPadding: 5 },
-                headStyles: { fillColor: [8, 85, 191], textColor: 255 },
-                columnStyles: {
-                    0: { cellWidth: 10 },
-                    2: { cellWidth: 20, halign: 'center' },
-                    3: { cellWidth: 70 }
-                },
-                alternateRowStyles: { fillColor: [249, 250, 251] }
-            });
-
-            const finalY = (doc as any).lastAutoTable.finalY + 15;
-            doc.setFontSize(10);
-            doc.setTextColor(150);
-            doc.text('This is a system-generated report for the 360-degree feedback system.', 105, finalY, { align: 'center' });
-
-            doc.save(`Feedback_Report_${item.evaluateeStaffNo}.pdf`);
-            toast.success('Report generated successfully');
-        } catch (err) {
-            console.error(err);
-            toast.error('Failed to generate PDF Report');
-        }
-    };
+    const filteredItems = received.filter(item => 
+        item.remark.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.role.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight">FEEDBACK HISTORY</h2>
+        <div className="max-w-7xl mx-auto p-4 space-y-8 animate-in fade-in duration-500">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Received Feedback</h1>
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <Inbox size={16} className="text-blue-500 line-through decoration-blue-500/30" /> Feedback responses from your colleagues
+                    </p>
+                </div>
+
                 <div className="flex items-center gap-4">
-                    <div className="bg-white border-2 border-slate-100 rounded-2xl px-4 py-2 flex items-center gap-2 shadow-sm">
-                        <Search size={18} className="text-slate-400" />
-                        <input placeholder="Quick search..." className="text-sm font-bold text-slate-700 outline-none w-48" />
+                    <div className="relative group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Search by remark or role..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="bg-white border-2 border-slate-100 rounded-2xl pl-12 pr-6 py-3 text-sm font-bold w-full md:w-80 outline-none focus:border-blue-500 transition-all shadow-sm"
+                        />
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            {/* Table Section */}
+            <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
-                            <th className="p-6">Date</th>
-                            <th className="p-6">Evaluatee</th>
-                            <th className="p-6">Position</th>
-                            <th className="p-6">Role</th>
-                            <th className="p-6 text-center">Score</th>
-                            <th className="p-6 text-center">Remark</th>
-                            <th className="p-6 text-right">Actions</th>
+                        <tr className="bg-slate-50/50 border-b border-slate-100">
+                            <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400">Date Received</th>
+                            <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400">Evaluator Role</th>
+                            <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400 text-center">Score</th>
+                            <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400">Performance Remark</th>
+                            <th className="p-6 text-right text-[11px] font-black uppercase tracking-widest text-slate-400">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                         {loading ? (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <tr key={i} className="animate-pulse">
+                                    <td colSpan={5} className="p-6 h-20 bg-slate-50/20" />
+                                </tr>
+                            ))
+                        ) : filteredItems.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="p-20 text-center">
-                                    <div className="flex flex-col items-center gap-4">
-                                        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Loading history...</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : history.length === 0 ? (
-                            <tr>
-                                <td colSpan={7} className="p-20 text-center">
-                                    <div className="flex flex-col items-center gap-4 text-slate-300">
-                                        <FileText size={48} />
-                                        <p className="text-lg font-black uppercase">No feedback history found</p>
+                                <td colSpan={5} className="p-20 text-center">
+                                    <div className="flex flex-col items-center gap-4 text-slate-400">
+                                        <Inbox size={48} className="opacity-20" />
+                                        <p className="font-bold underline decoration-slate-200 decoration-2 underline-offset-4 decoration-wavy">No feedback received yet.</p>
                                     </div>
                                 </td>
                             </tr>
                         ) : (
-                            history.map((item) => (
-                                <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
+                            filteredItems.map((item) => (
+                                <tr key={item.id} className="group hover:bg-blue-50/30 transition-colors">
                                     <td className="p-6">
-                                        <div className="text-sm font-bold text-slate-700">{new Date(item.date).toLocaleDateString()}</div>
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase">{new Date(item.date).toLocaleTimeString()}</div>
-                                    </td>
-                                    <td className="p-6">
-                                        <div className="font-black text-slate-800">{item.evaluateeName}</div>
-                                        <div className="text-[11px] font-bold text-slate-500 uppercase tracking-tight">{item.evaluateeStaffNo}</div>
-                                    </td>
-                                    <td className="p-6">
-                                        <div className="text-sm font-bold text-slate-600">{item.position}</div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                                                <Calendar size={18} />
+                                            </div>
+                                            <span className="font-bold text-slate-700">{item.date}</span>
+                                        </div>
                                     </td>
                                     <td className="p-6">
-                                        <span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">{item.role}</span>
+                                        <span className="px-3 py-1 rounded-lg bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tight">
+                                            {item.role}
+                                        </span>
                                     </td>
-                                    <td className="p-6 text-center">
-                                        <div className="text-base font-black text-blue-600">{item.score.toFixed(1)}%</div>
+                                    <td className="p-6">
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-lg font-black text-slate-800">{item.score.toFixed(1)}%</span>
+                                            <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-blue-500" style={{ width: `${item.score}%` }} />
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td className="p-6 text-center">
-                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight shadow-sm border ${getRemarkColor(item.remark)}`}>
+                                    <td className="p-6">
+                                        <span className={`px-4 py-2 rounded-xl border-2 text-xs font-black uppercase tracking-tight ${getRemarkColor(item.remark)}`}>
                                             {item.remark}
                                         </span>
                                     </td>
                                     <td className="p-6 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                            <button 
-                                                onClick={() => generatePDF(item.id)}
-                                                className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center shadow-sm"
-                                                title="Download PDF Report"
-                                            >
-                                                <Download size={18} />
-                                            </button>
+                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all text-gray-500">
                                             <button 
                                                 onClick={() => openDetails(item)}
                                                 className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-white hover:text-slate-900 transition-all flex items-center justify-center border border-transparent hover:border-slate-200"
@@ -293,10 +250,10 @@ export function FeedbackHistoryPage() {
                                     <div className="flex items-center justify-between mb-8">
                                         <div className="space-y-1">
                                             <DialogTitle className="text-2xl font-black text-slate-800 uppercase tracking-tight">
-                                                Feedback Details
+                                                Received Feedback Details
                                             </DialogTitle>
                                             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                                                Evaluating: <span className="text-blue-600">{selectedFeedback?.evaluateeName}</span>
+                                                Role of Evaluator: <span className="text-blue-600">{selectedFeedback?.role}</span>
                                             </p>
                                         </div>
                                         <div className={`px-5 py-2 rounded-2xl border-2 font-black uppercase text-xs tracking-widest ${getRemarkColor(selectedFeedback?.remark || '')}`}>
@@ -321,7 +278,7 @@ export function FeedbackHistoryPage() {
                                                     </div>
                                                     <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed">
                                                         {d.comment || (
-                                                            <span className="text-slate-300 italic">No comments provided for this criteria.</span>
+                                                            <span className="text-slate-300 italic">No comments provided.</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -337,7 +294,7 @@ export function FeedbackHistoryPage() {
                                             CLOSE
                                         </button>
                                         <button
-                                            onClick={() => selectedFeedback && generatePDF(selectedFeedback.id)}
+                                            onClick={() => selectedFeedback && generatePDF(selectedFeedback)}
                                             className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
                                         >
                                             <Printer size={16} /> PRINT REPORT
@@ -354,19 +311,19 @@ export function FeedbackHistoryPage() {
             {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-6 pt-4">
                     <button 
+                        onClick={() => setPage(prev => Math.max(0, prev - 1))}
                         disabled={page === 0}
-                        onClick={() => setPage(p => p - 1)}
-                        className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 disabled:opacity-30 transition-all shadow-sm"
+                        className="bg-white p-3 rounded-xl border border-slate-100 text-slate-400 hover:text-blue-600 hover:border-blue-100 disabled:opacity-0 transition-all"
                     >
                         <ChevronLeft size={20} />
                     </button>
-                    <div className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                        Page <span className="text-slate-900">{page + 1}</span> of {totalPages}
-                    </div>
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                        Page {page + 1} of {totalPages}
+                    </span>
                     <button 
-                        disabled={page >= totalPages - 1}
-                        onClick={() => setPage(p => p + 1)}
-                        className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 disabled:opacity-30 transition-all shadow-sm"
+                        onClick={() => setPage(prev => Math.min(totalPages - 1, prev + 1))}
+                        disabled={page === totalPages - 1}
+                        className="bg-white p-3 rounded-xl border border-slate-100 text-slate-400 hover:text-blue-600 hover:border-blue-100 disabled:opacity-0 transition-all"
                     >
                         <ChevronRight size={20} />
                     </button>

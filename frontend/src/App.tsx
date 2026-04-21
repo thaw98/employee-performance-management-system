@@ -32,6 +32,9 @@ import PipCreatePage from './pages/PipCreatePage';
 import PipDetailPage from './pages/PipDetailPage';
 import { CriteriaPage } from './pages/hr/CriteriaPage';
 import { AppraisalsPage } from './pages/hr/AppraisalsPage';
+import { GiveFeedbackPage } from './pages/GiveFeedbackPage';
+import { FeedbackHistoryPage } from './pages/FeedbackHistoryPage';
+import { GetFeedbackPage } from './pages/GetFeedbackPage';
 
 function App() {
   return (
@@ -59,6 +62,9 @@ function App() {
               <Route path="pip" element={<PipMonitoringPage />} />
               <Route path="pip/:id" element={<PipDetailPage />} />
               <Route path="360-feedback/criteria" element={<CriteriaPage />} />
+              <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
+              <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+              <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
               <Route path="appraisals" element={<AppraisalsPage />} />
               <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
             </Route>
@@ -73,6 +79,9 @@ function App() {
               <Route path="pip" element={<PipMonitoringPage />} />
               <Route path="pip/create" element={<PipCreatePage />} />
               <Route path="pip/:id" element={<PipDetailPage />} />
+              <Route path="feedback/give" element={<GiveFeedbackPage />} />
+              <Route path="feedback/received" element={<GetFeedbackPage />} />
+              <Route path="feedback/history" element={<FeedbackHistoryPage />} />
               <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
             </Route>
           </Route>
@@ -84,6 +93,9 @@ function App() {
               <Route path="assessment" element={<SelfAssessmentPage />} />
               <Route path="pip" element={<PipMonitoringPage />} />
               <Route path="pip/:id" element={<PipDetailPage />} />
+              <Route path="feedback/give" element={<GiveFeedbackPage />} />
+              <Route path="feedback/received" element={<GetFeedbackPage />} />
+              <Route path="feedback/history" element={<FeedbackHistoryPage />} />
               <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
             </Route>
           </Route>

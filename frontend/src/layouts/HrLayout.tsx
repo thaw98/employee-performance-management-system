@@ -79,7 +79,8 @@ const HrLayout: React.FC = () => {
       subItems: [
         { label: 'Criteria', path: '/hr/360-feedback/criteria' },
         { label: 'Give Feedback', path: '/hr/360-feedback/give' },
-        { label: 'Get Feedback', path: '/hr/360-feedback/get' }
+        { label: 'Get Feedback', path: '/hr/360-feedback/received' },
+        { label: 'History', path: '/hr/360-feedback/history' }
       ]
     },
     { icon: <Zap size={20} />, label: 'PIP Management', path: '/hr/pip' },

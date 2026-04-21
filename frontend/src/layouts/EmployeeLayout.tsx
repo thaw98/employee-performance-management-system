@@ -9,7 +9,8 @@ import {
   ShieldCheck,
   Search,
   RefreshCcw,
-  BellRing
+  BellRing,
+  Inbox
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -41,8 +42,9 @@ const EmployeeLayout: React.FC = () => {
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/employee/dashboard' },
     { icon: <Target size={20} />, label: 'My KPIs', path: '/employee/kpis' },
     { icon: <FileText size={20} />, label: 'Self Assessment', path: '/employee/assessment' },
-    { icon: <MessageSquare size={20} />, label: 'My Feedback', path: '/employee/feedback' },
-    { icon: <RefreshCcw size={20} />, label: '360° Feedback', path: '/employee/360-feedback' },
+    { icon: <MessageSquare size={20} />, label: 'Give Feedback', path: '/employee/feedback/give' },
+    { icon: <Inbox size={20} />, label: 'Get Feedback', path: '/employee/feedback/received' },
+    { icon: <RefreshCcw size={20} />, label: 'Feedback History', path: '/employee/feedback/history' },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/employee/meetings' },
     { icon: <BellRing size={20} />, label: 'Notifications', path: '/employee/notifications' },
   ];
@@ -136,13 +138,13 @@ const EmployeeLayout: React.FC = () => {
               </button>
               
               <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
-                 <div className="text-right">
-                    <p className="text-xs font-bold text-slate-900 truncate uppercase mt-1">{user?.firstName} {user?.lastName}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">SE</p>
-                 </div>
-                 <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
-                    {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
-                 </div>
+                  <div className="text-right">
+                     <p className="text-xs font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</p>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">SE</p>
+                  </div>
+                  <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
+                     {user?.name?.charAt(0)}
+                  </div>
                  <ChevronDown size={16} className="text-slate-400" />
               </div>
            </div>
