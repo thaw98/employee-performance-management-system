@@ -19,6 +19,7 @@
     "@mui/icons-material": "^9.0.0",
     "@mui/material": "^9.0.0",
     "@reduxjs/toolkit": "^2.11.2",
+    "@tanstack/react-table": "^8.21.3",
     "@types/react-signature-canvas": "^1.0.7",
     "axios": "^1.15.0",
     "bootstrap-icons": "^1.13.1",
