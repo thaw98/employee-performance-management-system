@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useDispatch } from 'react-redux';
@@ -152,6 +152,12 @@ export function LoginForm() {
           />
           <span className="text-sm font-medium text-slate-600">Remember me</span>
         </label>
+        <Link
+          to="/forgot-password"
+          className="text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+        >
+          Forgot Password?
+        </Link>
       </div>
 
       {/* Submit Button */}

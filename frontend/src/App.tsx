@@ -9,6 +9,8 @@ import { ProtectedRoute } from './routes/ProtectedRoute';
 import { LoginPage } from './pages/auth/LoginPage';
 import { FirstLoginPasswordPage } from './pages/auth/FirstLoginPasswordPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { VerifyOtpPage } from './pages/auth/VerifyOtpPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 
 // Layouts
 import HrLayout from './layouts/HrLayout';
@@ -49,6 +51,8 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/verify-otp" element={<VerifyOtpPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/first-login/set-password" element={<FirstLoginPasswordPage />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
 
