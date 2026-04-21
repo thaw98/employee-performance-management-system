@@ -66,6 +66,10 @@ public class Employee {
     @Column(name = "status", length = 20)
     private String status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "employment_status", length = 20)
+    private EmployeeStatus employmentStatus = EmployeeStatus.ACTIVE;
+
     @Column(name = "staff_nrc_no", length = 100)
     private String staffNrcNo;
 
@@ -148,6 +152,9 @@ public class Employee {
 
     @Column(name = "updated_by")
     private Long updatedBy;
+
+    @OneToOne(mappedBy = "employee", fetch = FetchType.LAZY)
+    private User userAccount;
 
     @Transient
     private EmployeeSpouse spouse;

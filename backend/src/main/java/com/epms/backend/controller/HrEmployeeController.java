@@ -1,0 +1,148 @@
+package com.epms.backend.controller;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.epms.backend.common.ApiResponse;
+import com.epms.backend.dto.hr.EmployeeDetailResponseDto;
+import com.epms.backend.dto.hr.EmployeeListResponseDto;
+import com.epms.backend.dto.hr.EmployeeUpdateRequestDto;
+import com.epms.backend.dto.hr.HrCreateEmployeeAccountRequestDto;
+import com.epms.backend.dto.hr.UpdateEmploymentStatusRequestDto;
+import com.epms.backend.dto.hr.HrCreateEmployeeAccountResponseDto;
+import com.epms.backend.dto.hr.NextStaffNoResponseDto;
+import com.epms.backend.dto.hr.PasswordActionResponseDto;
+import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.service.HrEmployeeAccountService;
+import com.epms.backend.service.HrEmployeeService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequestMapping("/api/hr/employees")
+@RequiredArgsConstructor
+@PreAuthorize("hasRole('HR')")
+public class HrEmployeeController {
+
+    private final HrEmployeeService hrEmployeeService;
+    private final HrEmployeeAccountService hrEmployeeAccountService;
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<EmployeeListResponseDto>> getEmployees(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) String employmentStatus,
+            @RequestParam(defaultValue = "employeeId") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir) {
+        try {
+            EmployeeListResponseDto result = hrEmployeeService.getEmployees(page, size, search, departmentId, positionId, employmentStatus, sortBy, sortDir);
+            return ResponseEntity.ok(ApiResponse.ok("Employee list retrieved", result));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/{employeeId}")
+    public ResponseEntity<ApiResponse<EmployeeDetailResponseDto>> getEmployee(@PathVariable Long employeeId) {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok("Employee detail retrieved", hrEmployeeService.getEmployeeById(employeeId)));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/{employeeId}")
+    public ResponseEntity<ApiResponse<Void>> updateEmployee(
+            @PathVariable Long employeeId,
+            @Valid @RequestBody EmployeeUpdateRequestDto request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            hrEmployeeService.updateEmployee(employeeId, request, principal);
+            return ResponseEntity.ok(ApiResponse.ok("Employee updated successfully", null));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PatchMapping("/{employeeId}/employment-status")
+    public ResponseEntity<ApiResponse<Void>> updateEmploymentStatus(
+            @PathVariable Long employeeId,
+            @Valid @RequestBody UpdateEmploymentStatusRequestDto request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            hrEmployeeService.updateEmploymentStatus(employeeId, request, principal);
+            return ResponseEntity.ok(ApiResponse.ok("Employment status updated", null));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{employeeId}/resend-password")
+    public ResponseEntity<ApiResponse<PasswordActionResponseDto>> resendPassword(
+            @PathVariable Long employeeId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok("Temporary password sent successfully", hrEmployeeService.resendTemporaryPassword(employeeId, principal)));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{employeeId}/resend-temporary-password")
+    public ResponseEntity<ApiResponse<PasswordActionResponseDto>> resendTemporaryPassword(
+            @PathVariable Long employeeId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return resendPassword(employeeId, principal);
+    }
+
+    @PostMapping("/{employeeId}/send-new-password")
+    public ResponseEntity<ApiResponse<PasswordActionResponseDto>> sendNewPassword(
+            @PathVariable Long employeeId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok("New temporary password sent successfully", hrEmployeeService.sendNewTemporaryPassword(employeeId, principal)));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    // Consolidated from HrEmployeeAccountController
+    @GetMapping("/next-staff-no")
+    public ResponseEntity<ApiResponse<NextStaffNoResponseDto>> nextStaffNo(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok(
+                    "Next staff number",
+                    hrEmployeeAccountService.suggestNextStaffNo(principal)));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/create-account")
+    public ResponseEntity<ApiResponse<HrCreateEmployeeAccountResponseDto>> createAccount(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody HrCreateEmployeeAccountRequestDto request) {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok(
+                    "Employee account created",
+                    hrEmployeeAccountService.createAccount(request, principal)));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+}

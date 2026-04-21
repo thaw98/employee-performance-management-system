@@ -20,6 +20,8 @@ import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
+import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
+import EditEmployeePage from './pages/hr/employees/EditEmployeePage';
 
 // Performance Modules
 import { SelfAssessmentPage } from './pages/SelfAssessmentPage';
@@ -49,6 +51,8 @@ function App() {
           <Route element={<ProtectedRoute allowedRoleGroups={['HR']} />}>
             <Route path="/hr" element={<HrLayout />}>
               <Route path="dashboard" element={<HRDashboardPage />} />
+              <Route path="employees" element={<EmployeeListPage />} />
+              <Route path="employees/:employeeId/edit" element={<EditEmployeePage />} />
               <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
               <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
               <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
