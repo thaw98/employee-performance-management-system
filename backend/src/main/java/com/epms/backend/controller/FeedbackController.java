@@ -1,23 +1,23 @@
 package com.epms.backend.controller;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
 import com.epms.backend.common.ApiResponse;
-import com.epms.backend.dto.FeedbackSessionDto;
-import com.epms.backend.dto.FeedbackSubmissionDto;
 import com.epms.backend.dto.FeedbackHistoryDto;
-import com.epms.backend.dto.FeedbackTargetDto;
-import com.epms.backend.dto.DepartmentPositionDto;
+import com.epms.backend.dto.FeedbackSubmissionRequest;
+import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.User;
+import com.epms.backend.repository.UserRepository;
 import com.epms.backend.service.FeedbackService;
-import java.util.List;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/feedback")
@@ -25,35 +25,102 @@ import lombok.RequiredArgsConstructor;
 public class FeedbackController {
 
     private final FeedbackService feedbackService;
+    private final UserRepository userRepository;
 
-    @GetMapping("/targets")
-    public ResponseEntity<ApiResponse<FeedbackSessionDto>> getTargets(Authentication authentication) {
-        return ResponseEntity.ok(ApiResponse.ok("Targets fetched successfully", feedbackService.getTargets(authentication.getName())));
-    }
-
-    @PostMapping("/submit")
-    public ResponseEntity<ApiResponse<Void>> submitFeedback(Authentication authentication, @RequestBody FeedbackSubmissionDto dto) {
-        feedbackService.submitFeedback(authentication.getName(), dto);
-        return ResponseEntity.ok(ApiResponse.ok("Feedback submitted successfully", null));
+    @PostMapping
+    public ResponseEntity<ApiResponse<Void>> submitFeedback(@RequestBody FeedbackSubmissionRequest request) {
+        try {
+            User user = getCurrentUser();
+            feedbackService.submitFeedback(user.getEmployee().getId(), request);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Feedback submitted successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Submit Error: " + e.getMessage(), null));
+        }
     }
 
     @GetMapping("/history")
-    public ResponseEntity<ApiResponse<List<FeedbackHistoryDto>>> getHistory(Authentication authentication) {
-        return ResponseEntity.ok(ApiResponse.ok("History fetched successfully", feedbackService.getHistory(authentication.getName())));
+    public ResponseEntity<ApiResponse<Page<FeedbackHistoryDto>>> getHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            User user = getCurrentUser();
+            Page<FeedbackHistoryDto> history = feedbackService.getFeedbackHistory(user.getEmployee().getId(), PageRequest.of(page, size));
+            return ResponseEntity.ok(new ApiResponse<>(true, "History fetched", history));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "History Error: " + e.getMessage(), null));
+        }
     }
 
-    @GetMapping("/me")
-    public ResponseEntity<ApiResponse<FeedbackTargetDto>> getMe(Authentication authentication) {
-        return ResponseEntity.ok(ApiResponse.ok("Evaluator info fetched", feedbackService.mapToTargetDtoById(authentication.getName())));
+    @GetMapping("/received")
+    public ResponseEntity<ApiResponse<Page<FeedbackHistoryDto>>> getReceived(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            User user = getCurrentUser();
+            Page<FeedbackHistoryDto> received = feedbackService.getReceivedFeedback(user.getEmployee().getId(), PageRequest.of(page, size));
+            return ResponseEntity.ok(new ApiResponse<>(true, "Received feedback fetched", received));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Received Error: " + e.getMessage(), null));
+        }
     }
 
-    @GetMapping("/roles")
-    public ResponseEntity<ApiResponse<List<DepartmentPositionDto>>> getRoles(Authentication authentication) {
-        return ResponseEntity.ok(ApiResponse.ok("Roles fetched successfully", feedbackService.getRolesForUser(authentication.getName())));
+    @GetMapping("/eligible-evaluatees")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getEligible(@RequestParam String role) {
+        try {
+            User user = getCurrentUser();
+            List<Employee> eligible = feedbackService.getEligibleEvaluatees(user.getEmployee().getId(), role);
+            
+            List<Map<String, Object>> result = eligible.stream().map(e -> {
+                Map<String, Object> m = new java.util.HashMap<>();
+                m.put("id", e.getId());
+                m.put("name", e.getEmployeeName());
+                m.put("staffNo", e.getEmployeeId());
+                m.put("position", e.getPosition() != null ? e.getPosition().getName() : "N/A");
+                m.put("department", e.getDepartment() != null ? e.getDepartment().getName() : "N/A");
+                return m;
+            }).collect(Collectors.toList());
+
+            return ResponseEntity.ok(new ApiResponse<>(true, "Eligible evaluatees fetched", result));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Eligible Load Error: " + e.getMessage(), null));
+        }
     }
 
-    @GetMapping("/my-department")
-    public ResponseEntity<ApiResponse<String>> getMyDepartment(Authentication authentication) {
-        return ResponseEntity.ok(ApiResponse.ok("Department fetched", feedbackService.getUserDepartmentName(authentication.getName())));
+    @GetMapping("/evaluator-info")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getEvaluatorInfo() {
+        try {
+            User user = getCurrentUser();
+            Employee e = user.getEmployee();
+            if (e == null) throw new RuntimeException("Evaluator employee record missing");
+            
+            Map<String, Object> info = new java.util.HashMap<>();
+            info.put("name", e.getEmployeeName());
+            info.put("position", e.getPosition() != null ? e.getPosition().getName() : "N/A");
+            info.put("department", e.getDepartment() != null ? e.getDepartment().getName() : "N/A");
+            info.put("date", LocalDate.now().toString());
+            return ResponseEntity.ok(new ApiResponse<>(true, "Evaluator info fetched", info));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Evaluator Info Error: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/{id}/details")
+    public ResponseEntity<ApiResponse<List<com.epms.backend.dto.FeedbackDetailDto>>> getDetails(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(new ApiResponse<>(true, "Details fetched", feedbackService.getFeedbackDetails(id)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Details Error: " + e.getMessage(), null));
+        }
+    }
+
+    private User getCurrentUser() {
+        String userIdStr = SecurityContextHolder.getContext().getAuthentication().getName();
+        try {
+            Long userId = Long.parseLong(userIdStr);
+            return userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Invalid user ID in security context: " + userIdStr);
+        }
     }
 }
