@@ -13,6 +13,7 @@ import com.epms.backend.dto.pip.EligibleEmployeeDTO;
 @Repository
 public interface KpiRecordRepository extends JpaRepository<KpiRecord, Long> {
     List<KpiRecord> findByEmployeeIdAndPeriodId(Long employeeId, Long periodId);
+    List<KpiRecord> findByEmployeeIdAndPeriodIdAndKpi(Long employeeId, Long periodId, String kpi);
 
     List<KpiRecord> findByEmployeeManagerEmployeeId(Long managerId);
 
