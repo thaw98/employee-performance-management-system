@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.epms.backend.audit.AuditActionType;
 import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.hr.EmployeeDetailResponseDto;
+import com.epms.backend.dto.hr.EmployeeViewResponseDto;
 import com.epms.backend.dto.hr.EmployeeListItemResponseDto;
 import com.epms.backend.dto.hr.EmployeeListResponseDto;
 import com.epms.backend.dto.hr.EmployeeUpdateRequestDto;
@@ -407,6 +408,86 @@ public class HrEmployeeService {
                 .staffTypeName(employee.getStaffType() != null ? employee.getStaffType().getName() : null)
                 .dateOfJoining(employee.getDateOfJoining())
                 .profilePictureUrl(employee.getProfilePictureUrl())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public EmployeeViewResponseDto getEmployeeViewById(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+        return toViewDto(employee);
+    }
+
+    private EmployeeViewResponseDto toViewDto(Employee employee) {
+        EmployeeViewResponseDto.DepartmentInfo deptInfo = null;
+        Department dept = employee.getParentDepartment() != null ? employee.getParentDepartment() : employee.getDepartment();
+        if (dept != null) {
+            deptInfo = EmployeeViewResponseDto.DepartmentInfo.builder()
+                    .departmentId(dept.getId())
+                    .departmentName(dept.getName())
+                    .build();
+        }
+
+        EmployeeViewResponseDto.PositionInfo posInfo = null;
+        if (employee.getPosition() != null) {
+            posInfo = EmployeeViewResponseDto.PositionInfo.builder()
+                    .positionId(employee.getPosition().getId())
+                    .positionName(employee.getPosition().getName())
+                    .build();
+        }
+
+        EmployeeViewResponseDto.StaffTypeInfo staffTypeInfo = null;
+        if (employee.getStaffType() != null) {
+            staffTypeInfo = EmployeeViewResponseDto.StaffTypeInfo.builder()
+                    .staffTypeId(employee.getStaffType().getId())
+                    .staffTypeName(employee.getStaffType().getName())
+                    .build();
+        }
+
+        EmployeeViewResponseDto.EmergencyContactInfo emergencyInfo = null;
+        if (employee.getEmergencyContact() != null) {
+            emergencyInfo = EmployeeViewResponseDto.EmergencyContactInfo.builder()
+                    .employeePhone(employee.getEmergencyContact().getEmergencyPhone())
+                    .relation(employee.getEmergencyContact().getRelation())
+                    .build();
+        }
+
+        EmployeeViewResponseDto.FatherInfo fatherInfo = null;
+        if (employee.getFather() != null) {
+            fatherInfo = EmployeeViewResponseDto.FatherInfo.builder()
+                    .fatherName(employee.getFather().getFatherName())
+                    .fatherNrcNo(employee.getFather().getFatherNrcNo())
+                    .fatherOccupation(employee.getFather().getFatherOccupation())
+                    .build();
+        }
+
+        EmployeeStatus activeStatus = employee.getEmploymentStatus() != null
+                ? employee.getEmploymentStatus()
+                : EmployeeStatus.ACTIVE;
+        String statusDisplay = activeStatus == EmployeeStatus.ACTIVE ? "Active"
+                : activeStatus == EmployeeStatus.RESIGNED ? "Resigned"
+                : "Terminated";
+
+        return EmployeeViewResponseDto.builder()
+                .employeeId(employee.getId())
+                .staffNo(employee.getEmployeeId())
+                .fullName(employee.getEmployeeName())
+                .email(employee.getEmail())
+                .phoneNumber(employee.getPhoneNo())
+                .gender(employee.getGender() != null ? employee.getGender().name() : null)
+                .dateOfBirth(employee.getDateOfBirth())
+                .hireDate(employee.getDateOfJoining())
+                .status(statusDisplay)
+                .profilePictureUrl(employee.getProfilePictureUrl())
+                .staffNrcNumber(employee.getStaffNrcNo())
+                .address(employee.getAddress())
+                .nationality(employee.getNationality())
+                .employmentStatus(determineEmploymentStatus(employee))
+                .department(deptInfo)
+                .position(posInfo)
+                .staffType(staffTypeInfo)
+                .emergencyContact(emergencyInfo)
+                .father(fatherInfo)
                 .build();
     }
 }

@@ -34,6 +34,10 @@ interface EmployeeInformationStepProps {
   profilePhotoPreviewUrl: string | null
   onProfilePhotoFileChange: (file: File | null) => void
   photoError: string
+  /** When true the "Next Auto Staff Number" banner is hidden (e.g. in the edit modal) */
+  hideStaffBanner?: boolean
+  /** When true the Staff Number field is rendered as a non-editable display (e.g. in the edit modal) */
+  readOnlyStaffNo?: boolean
 }
 
 function SectionHeader({ icon: Icon, title }: { icon: React.ComponentType<{ size?: number; className?: string }>; title: string }) {
@@ -91,9 +95,12 @@ export function EmployeeInformationStep({
   profilePhotoPreviewUrl,
   onProfilePhotoFileChange,
   photoError,
+  hideStaffBanner = false,
+  readOnlyStaffNo = false,
 }: EmployeeInformationStepProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
   const employeeNameLen = String(useWatch({ control, name: 'employeeName' }) ?? '').length
+  const currentStaffNo = String(useWatch({ control, name: 'staffNo' }) ?? '')
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -192,29 +199,31 @@ export function EmployeeInformationStep({
       </div>
 
       {/* ── Staff Number Banner ── */}
-      <div className="rounded-xl border border-teal-200/50 bg-gradient-to-r from-teal-50 to-emerald-50 p-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-teal-600 shadow-sm">
-            <Hash size={18} />
+      {!hideStaffBanner && (
+        <div className="rounded-xl border border-teal-200/50 bg-gradient-to-r from-teal-50 to-emerald-50 p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-teal-600 shadow-sm">
+              <Hash size={18} />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-teal-700">Next Auto Staff Number</p>
+              {nextStaffLoading ? (
+                <div className="mt-1.5 flex items-center gap-2 text-sm text-slate-600">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-teal-200 border-t-teal-600" />
+                  Loading…
+                </div>
+              ) : (
+                <p className="mt-1 font-mono text-3xl font-black tracking-tight text-teal-900 tabular-nums">
+                  {autoStaffDisplay || '—'}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-xs font-bold uppercase tracking-wider text-teal-700">Next Auto Staff Number</p>
-            {nextStaffLoading ? (
-              <div className="mt-1.5 flex items-center gap-2 text-sm text-slate-600">
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-teal-200 border-t-teal-600" />
-                Loading…
-              </div>
-            ) : (
-              <p className="mt-1 font-mono text-3xl font-black tracking-tight text-teal-900 tabular-nums">
-                {autoStaffDisplay || '—'}
-              </p>
-            )}
-          </div>
+          <p className="mt-3 text-xs leading-relaxed text-teal-700/70">
+            Auto-assigned from the next available number. You can override it below if your policy allows.
+          </p>
         </div>
-        <p className="mt-3 text-xs leading-relaxed text-teal-700/70">
-          Auto-assigned from the next available number. You can override it below if your policy allows.
-        </p>
-      </div>
+      )}
 
       {/* ── Account Details Section ── */}
       <div className="grid gap-5 md:grid-cols-2">
@@ -222,20 +231,32 @@ export function EmployeeInformationStep({
 
         <div>
           <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="staffNo">
-            Staff Number <span className="text-red-400">*</span>
+            Staff Number
           </label>
-          <input
-            id="staffNo"
-            inputMode="numeric"
-            autoComplete="off"
-            className={errors.staffNo ? inputError : inputNormal}
-            placeholder="e.g. 1001"
-            {...register('staffNo')}
-          />
-          {errors.staffNo?.message ? (
-            <p className="mt-1 text-xs text-red-600">{String(errors.staffNo.message)}</p>
-          ) : null}
-          <DupBadge status={staffDup} entityName="staff number" />
+          {readOnlyStaffNo ? (
+            <div
+              id="staffNo"
+              className="flex items-center gap-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500 cursor-not-allowed select-none"
+            >
+              <i className="bi bi-lock-fill text-slate-400 text-xs" />
+              {currentStaffNo}
+            </div>
+          ) : (
+            <>
+              <input
+                id="staffNo"
+                inputMode="numeric"
+                autoComplete="off"
+                className={errors.staffNo ? inputError : inputNormal}
+                placeholder="e.g. 1001"
+                {...register('staffNo')}
+              />
+              {errors.staffNo?.message ? (
+                <p className="mt-1 text-xs text-red-600">{String(errors.staffNo.message)}</p>
+              ) : null}
+              <DupBadge status={staffDup} entityName="staff number" />
+            </>
+          )}
         </div>
 
         <div>

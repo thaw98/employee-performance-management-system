@@ -11,17 +11,11 @@ import { useAppDispatch } from '../../app/hooks';
 import { setCredentials } from '../../features/auth/authSlice';
 import { getDashboardPath } from '../../utils/dashboardRedirect';
 
-const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-
 const resetSchema = z
   .object({
     newPassword: z
       .string()
-      .min(1, 'New password is required.')
-      .regex(
-        passwordRegex,
-        'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.'
-      ),
+      .min(1, 'New password is required.'),
     confirmPassword: z.string().min(1, 'Confirm password is required.'),
   })
   .refine((v) => v.newPassword === v.confirmPassword, {
@@ -36,6 +30,7 @@ export function ResetPasswordPage() {
   const dispatch = useAppDispatch();
   const email = sessionStorage.getItem('fpEmail');
   const otpSessionId = sessionStorage.getItem('fpOtpSessionId');
+  const [hasResetSucceeded, setHasResetSucceeded] = useState(false);
 
   const [resetPassword, { isLoading }] = useResetForgotPasswordMutation();
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -66,27 +61,26 @@ export function ResetPasswordPage() {
         return;
       }
 
-      // Clean up sessionStorage
-      sessionStorage.removeItem('fpEmail');
-      sessionStorage.removeItem('fpOtpSessionId');
-
       // Auto-login: use the exact same flow as LoginForm
       const { token, user } = res.data;
       dispatch(setCredentials({ token, user, rememberMe: false }));
 
-      toast.success('Password reset successful! Redirecting...');
+      setHasResetSucceeded(true);
+      toast.success('Password reset successful!');
 
       const dashboardPath = getDashboardPath(user);
-      setTimeout(() => {
-        navigate(dashboardPath, { replace: true });
-      }, 1200);
+      navigate(dashboardPath, { replace: true });
+
+      // Clean up reset flow data after successful login redirect.
+      sessionStorage.removeItem('fpEmail');
+      sessionStorage.removeItem('fpOtpSessionId');
     } catch (err: any) {
       toast.error(err?.data?.message || 'Password reset failed. Please try again.');
     }
   };
 
   // Guard: if missing session data, redirect
-  if (!email || !otpSessionId) {
+  if ((!email || !otpSessionId) && !hasResetSucceeded) {
     return <Navigate to="/forgot-password" replace />;
   }
 

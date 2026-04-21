@@ -14,6 +14,7 @@ import type { EmployeeListItem } from '../hrEmployeeApi'
 interface EmployeeTableProps {
   data: EmployeeListItem[]
   isLoading: boolean
+  onView: (id: number) => void
   onEdit: (id: number) => void
   onResendPassword: (id: number) => void
   onSendNewPassword: (id: number) => void
@@ -25,6 +26,7 @@ interface EmployeeTableProps {
 function EmployeeTable({
   data,
   isLoading,
+  onView,
   onEdit,
   onResendPassword,
   onSendNewPassword,
@@ -108,6 +110,14 @@ function EmployeeTable({
           return (
             <div className="flex items-center gap-2">
               <button
+                onClick={() => onView(row.employeeId)}
+                className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                title="View Employee"
+              >
+                <i className="bi bi-eye text-lg"></i>
+              </button>
+
+              <button
                 onClick={() => onEdit(row.employeeId)}
                 className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                 title="Edit Employee"
@@ -139,7 +149,7 @@ function EmployeeTable({
         },
       },
     ],
-    [onEdit, onResendPassword, onSendNewPassword, onChangeStatus]
+    [onView, onEdit, onResendPassword, onSendNewPassword, onChangeStatus]
   )
 
   const table = useReactTable({

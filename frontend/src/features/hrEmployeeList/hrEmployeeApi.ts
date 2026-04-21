@@ -90,6 +90,54 @@ export interface GetEmployeesParams {
   sortDir?: string
 }
 
+export interface EmployeeViewDepartment {
+  departmentId: number
+  departmentName: string
+}
+
+export interface EmployeeViewPosition {
+  positionId: number
+  positionName: string
+}
+
+export interface EmployeeViewStaffType {
+  staffTypeId: number
+  staffTypeName: string
+}
+
+export interface EmployeeViewEmergencyContact {
+  employeePhone: string
+  relation: string
+}
+
+export interface EmployeeViewFather {
+  fatherName: string
+  fatherNrcNo: string
+  fatherOccupation: string
+}
+
+export interface EmployeeViewDetail {
+  employeeId: number
+  staffNo: string
+  fullName: string
+  email: string
+  phoneNumber: string
+  gender: string
+  dateOfBirth: string
+  hireDate: string
+  status: string
+  profilePictureUrl: string
+  staffNrcNumber: string
+  address: string
+  nationality: string
+  employmentStatus: string
+  department: EmployeeViewDepartment | null
+  position: EmployeeViewPosition | null
+  staffType: EmployeeViewStaffType | null
+  emergencyContact: EmployeeViewEmergencyContact | null
+  father: EmployeeViewFather | null
+}
+
 export const hrEmployeeApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getEmployees: builder.query<ApiResponse<EmployeeListResponse>, GetEmployeesParams>({
@@ -133,6 +181,9 @@ export const hrEmployeeApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Employee'],
     }),
+    getEmployeeViewById: builder.query<ApiResponse<EmployeeViewDetail>, number>({
+      query: (id) => `/hr/employees/${id}/view`,
+    }),
   }),
 })
 
@@ -143,4 +194,5 @@ export const {
   useResendPasswordMutation,
   useSendNewPasswordMutation,
   useUpdateEmploymentStatusMutation,
+  useLazyGetEmployeeViewByIdQuery,
 } = hrEmployeeApi

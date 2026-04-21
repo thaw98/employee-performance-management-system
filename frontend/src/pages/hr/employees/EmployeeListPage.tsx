@@ -1,16 +1,19 @@
 import { useState, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+
 import type { SortingState } from '@tanstack/react-table'
 import toast from 'react-hot-toast'
 
 import EmployeeTable from '../../../features/hrEmployeeList/components/EmployeeTable'
 import EmployeeFilters from '../../../features/hrEmployeeList/components/EmployeeFilters'
 import ConfirmActionModal from '../../../features/hrEmployeeList/components/ConfirmActionModal'
+import EmployeeViewModal from '../../../features/hrEmployeeList/components/EmployeeViewModal'
+import EditEmployeeModal from '../../../features/hrEmployeeList/components/EditEmployeeModal'
 import {
   useGetEmployeesQuery,
   useResendPasswordMutation,
   useSendNewPasswordMutation,
   useUpdateEmploymentStatusMutation,
+  useLazyGetEmployeeViewByIdQuery,
 } from '../../../features/hrEmployeeList/hrEmployeeApi'
 import ChangeStatusModal from '../../../features/hrEmployeeList/components/ChangeStatusModal'
 import { 
@@ -19,7 +22,6 @@ import {
 } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
 
 export default function EmployeeListPage() {
-  const navigate = useNavigate()
 
   // State for filters and pagination
   const [page, setPage] = useState(0)
@@ -47,6 +49,12 @@ export default function EmployeeListPage() {
     currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated' | null
   }>({ isOpen: false, employeeId: null, currentStatus: null })
 
+  // Edit modal state
+  const [editEmployeeId, setEditEmployeeId] = useState<number | null>(null)
+
+  // View modal state
+  const [selectedViewEmployeeId, setSelectedViewEmployeeId] = useState<number | null>(null)
+
   // Queries
   const { data: deptData } = useGetDepartmentsQuery()
   const { data: posData } = useGetPositionsQuery(departmentId)
@@ -73,6 +81,10 @@ export default function EmployeeListPage() {
   const [resendPassword, { isLoading: isResending }] = useResendPasswordMutation()
   const [sendNewPassword, { isLoading: isSendingNew }] = useSendNewPasswordMutation()
   const [updateEmploymentStatus, { isLoading: isUpdatingStatus }] = useUpdateEmploymentStatusMutation()
+  const [
+    triggerGetEmployeeView,
+    { data: viewData, isLoading: isViewLoading, isError: isViewError },
+  ] = useLazyGetEmployeeViewByIdQuery()
 
   // Handlers
   const handleSearchChange = useCallback((val: string) => {
@@ -106,8 +118,27 @@ export default function EmployeeListPage() {
   }, [])
 
   const handleEdit = useCallback((id: number) => {
-    navigate(`/hr/employees/${id}/edit`)
-  }, [navigate])
+    setEditEmployeeId(id)
+  }, [])
+
+  const handleCloseEditModal = useCallback(() => {
+    setEditEmployeeId(null)
+  }, [])
+
+  const handleView = useCallback((id: number) => {
+    setSelectedViewEmployeeId(id)
+    triggerGetEmployeeView(id, true) // `true` forces refetch
+  }, [triggerGetEmployeeView])
+
+  const handleCloseViewModal = useCallback(() => {
+    setSelectedViewEmployeeId(null)
+  }, [])
+
+  const handleRetryView = useCallback(() => {
+    if (selectedViewEmployeeId !== null) {
+      triggerGetEmployeeView(selectedViewEmployeeId, true)
+    }
+  }, [selectedViewEmployeeId, triggerGetEmployeeView])
 
   const handleChangeStatus = useCallback((id: number, currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated') => {
     setStatusModal({ isOpen: true, employeeId: id, currentStatus })
@@ -207,6 +238,7 @@ export default function EmployeeListPage() {
       <EmployeeTable
         data={employeeRows}
         isLoading={isLoading || isFetching}
+        onView={handleView}
         onEdit={handleEdit}
         onResendPassword={(id) => openConfirmModal(id, 'RESEND')}
         onSendNewPassword={(id) => openConfirmModal(id, 'NEW_PASSWORD')}
@@ -306,6 +338,23 @@ export default function EmployeeListPage() {
         confirmText="Send New Password"
         variant="danger"
         isLoading={isSendingNew}
+      />
+
+      {/* Edit Employee Modal */}
+      <EditEmployeeModal
+        isOpen={editEmployeeId !== null}
+        employeeId={editEmployeeId}
+        onClose={handleCloseEditModal}
+      />
+
+      {/* Employee View Modal */}
+      <EmployeeViewModal
+        isOpen={selectedViewEmployeeId !== null}
+        onClose={handleCloseViewModal}
+        data={viewData?.data ?? null}
+        isLoading={isViewLoading}
+        isError={isViewError}
+        onRetry={handleRetryView}
       />
     </div>
   )
