@@ -24,6 +24,7 @@ public class PipService {
     private final FollowUpMeetingRepository meetingRepository;
     private final TrainingRecordRepository trainingRepository;
     private final EmployeeRepository employeeRepository;
+    private final NotificationService notificationService;
 
     public List<EligibleEmployeeDTO> getLowPerformers(User manager) {
         if (manager.getEmployee() == null) {
@@ -110,6 +111,9 @@ public class PipService {
         update.setUpdateDate(LocalDate.now());
 
         objective.setProgressPercentage(request.getProgressPercentage());
+        if (request.getCompletedHours() != null) {
+            objective.getPip().setCompletedHours(request.getCompletedHours());
+        }
         updatePipProgress(objective.getPip());
 
         progressUpdateRepository.save(update);
@@ -130,7 +134,22 @@ public class PipService {
         meeting.getMeeting().setCreatedBy(actor.getEmployee());
         meeting.getMeeting().setStatus("Scheduled");
 
-        return meetingRepository.save(meeting);
+        FollowUpMeeting savedMeeting = meetingRepository.save(meeting);
+
+        // Send notifications
+        String title = "New PIP Follow-up Meeting Scheduled";
+        String message = String.format("A follow-up meeting has been scheduled for %s at %s", 
+            request.getMeetingTime().toLocalDate(), 
+            request.getMeetingTime().toLocalTime());
+        
+        if (pip.getEmployee().getUser() != null) {
+            notificationService.send(pip.getEmployee().getUser(), title, message);
+        }
+        if (pip.getManager().getUser() != null) {
+            notificationService.send(pip.getManager().getUser(), title, message);
+        }
+
+        return savedMeeting;
     }
 
     @Transactional
