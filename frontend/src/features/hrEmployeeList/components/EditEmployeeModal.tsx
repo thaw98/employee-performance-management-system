@@ -299,6 +299,7 @@ export default function EditEmployeeModal({
                           positions={positions}
                           departmentLoading={deptLoading}
                           positionLoading={posLoading}
+                          disableProbationOption={watch('staffType') === 'PERMANENT'}
                         />
                       </div>
                     )}

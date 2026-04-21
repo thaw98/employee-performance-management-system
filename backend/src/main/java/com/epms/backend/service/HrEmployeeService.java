@@ -29,6 +29,7 @@ import com.epms.backend.dto.hr.UpdateEmploymentStatusRequestDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeProbation;
+import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.StaffType;
@@ -110,20 +111,12 @@ public class HrEmployeeService {
                         cb.equal(root.get("employmentStatus"), EmployeeStatus.ACTIVE)
                     ));
 
-                    LocalDate today = LocalDate.now();
                     Join<Employee, EmployeeProbation> probationJoin = root.join("probation", JoinType.LEFT);
                     
                     if (employmentStatus.equalsIgnoreCase("Probation")) {
-                        predicates.add(cb.and(
-                            cb.isNotNull(root.get("probation")),
-                            cb.greaterThanOrEqualTo(probationJoin.get("probationEndDate"), today)
-                        ));
+                        predicates.add(cb.isNotNull(probationJoin.get("id")));
                     } else if (employmentStatus.equalsIgnoreCase("Permanent")) {
-                        predicates.add(cb.or(
-                            cb.isNull(root.get("probation")),
-                            cb.isNull(probationJoin.get("probationEndDate")),
-                            cb.lessThan(probationJoin.get("probationEndDate"), today)
-                        ));
+                        predicates.add(cb.isNull(probationJoin.get("id")));
                     }
                 }
             }
@@ -162,7 +155,7 @@ public class HrEmployeeService {
         employee.setEmail(request.getEmail().toLowerCase().trim());
         employee.setStaffNrcNo(request.getStaffNrcNo());
         employee.setGender(request.getGender());
-        employee.setReligion(request.getReligion());
+        employee.setReligion(parseReligion(request.getReligion()));
         employee.setDateOfJoining(request.getDateOfJoining());
         employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
 
@@ -344,6 +337,13 @@ public class HrEmployeeService {
         return sb.toString();
     }
 
+    private EmployeeReligion parseReligion(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return EmployeeReligion.fromValue(value);
+    }
+
     private EmployeeListItemResponseDto toListItemDto(Employee employee) {
         User user = employee.getUserAccount();
         String employmentStatus = determineEmploymentStatus(employee);
@@ -377,12 +377,7 @@ public class HrEmployeeService {
         }
 
         EmployeeProbation probation = employee.getProbation();
-        if (probation == null || probation.getProbationEndDate() == null) {
-            return "Permanent";
-        }
-
-        LocalDate today = LocalDate.now();
-        if (!probation.getProbationEndDate().isBefore(today)) {
+        if (probation != null) {
             return "Probation";
         }
 
@@ -397,7 +392,7 @@ public class HrEmployeeService {
                 .email(employee.getEmail())
                 .staffNrcNo(employee.getStaffNrcNo())
                 .gender(employee.getGender())
-                .religion(employee.getReligion())
+                .religion(employee.getReligion() == null ? null : employee.getReligion().toApiLabel())
                 .departmentId(employee.getDepartment() != null ? employee.getDepartment().getId() : null)
                 .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
                 .positionId(employee.getPosition() != null ? employee.getPosition().getId() : null)

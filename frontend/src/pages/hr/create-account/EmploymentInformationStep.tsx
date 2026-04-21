@@ -17,6 +17,7 @@ interface EmploymentInformationStepProps {
   positions: PositionOptionDto[]
   departmentLoading: boolean
   positionLoading: boolean
+  disableProbationOption?: boolean
 }
 
 function SectionHeader({ icon: Icon, title }: { icon: React.ComponentType<{ size?: number; className?: string }>; title: string }) {
@@ -45,6 +46,7 @@ export function EmploymentInformationStep({
   positions,
   departmentLoading,
   positionLoading,
+  disableProbationOption,
 }: EmploymentInformationStepProps) {
   const staffType = useWatch({ control, name: 'staffType' })
   const probationStart = useWatch({ control, name: 'probationStartDate' })
@@ -114,16 +116,28 @@ export function EmploymentInformationStep({
             </label>
 
             <label
-              className={`group relative flex cursor-pointer items-center gap-4 rounded-xl border-2 p-5 transition-all ${
-                staffType === 'PROBATION'
+              className={`group relative flex ${
+                disableProbationOption ? 'cursor-not-allowed opacity-60 bg-slate-50 border-slate-200' : 'cursor-pointer'
+              } items-center gap-4 rounded-xl border-2 p-5 transition-all ${
+                disableProbationOption
+                  ? ''
+                  : staffType === 'PROBATION'
                   ? 'border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md shadow-amber-500/10'
                   : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
               }`}
             >
-              <input type="radio" value="PROBATION" className="sr-only" {...register('staffType')} />
+              <input 
+                type="radio" 
+                value="PROBATION" 
+                className="sr-only" 
+                disabled={disableProbationOption}
+                {...register('staffType')} 
+              />
               <div
                 className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${
-                  staffType === 'PROBATION'
+                  disableProbationOption
+                    ? 'bg-slate-200 text-slate-400'
+                    : staffType === 'PROBATION'
                     ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
                     : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
                 }`}
@@ -133,7 +147,11 @@ export function EmploymentInformationStep({
               <div>
                 <p
                   className={`text-sm font-bold ${
-                    staffType === 'PROBATION' ? 'text-amber-900' : 'text-slate-700'
+                    disableProbationOption
+                      ? 'text-slate-500'
+                      : staffType === 'PROBATION' 
+                      ? 'text-amber-900' 
+                      : 'text-slate-700'
                   }`}
                 >
                   Probation

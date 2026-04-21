@@ -28,6 +28,7 @@ import { EmploymentInformationStep } from './create-account/EmploymentInformatio
 import { FamilyEmergencyStep } from './create-account/FamilyEmergencyStep'
 import { ReviewConfirmStep } from './create-account/ReviewConfirmStep'
 import { useUploadProfilePictureMutation } from '../../features/user/userApi'
+import EmployeeImportModal from '../../features/hrEmployeeList/components/EmployeeImportModal'
 
 const STEPS = [
   { label: 'Personal Details', icon: User },
@@ -73,7 +74,9 @@ function emailDupBlocks(emailDup: Dup): boolean {
 export function CreateEmployeeAccountPage() {
   const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
+  const token = useAppSelector((s) => s.auth.token)
   const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  const [importModalOpen, setImportModalOpen] = useState(false)
 
   const form = useForm<CreateEmployeeAccountFormValues>({
     resolver: zodResolver(createEmployeeAccountSchema) as never,
@@ -462,15 +465,27 @@ export function CreateEmployeeAccountPage() {
       <div className="mx-auto max-w-4xl">
         {/* ── Page Header ── */}
         <div className="mb-8">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/25">
-              <UserPlus size={24} />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/25">
+                <UserPlus size={24} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Create Employee Account</h1>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  Register employee details and create a login account. Review carefully before submitting.
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Create Employee Account</h1>
-              <p className="mt-0.5 text-sm text-slate-500">
-                Register employee details and create a login account. Review carefully before submitting.
-              </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setImportModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition shadow-sm"
+              >
+                <i className="bi bi-file-earmark-arrow-up"></i>
+                Import Employees
+              </button>
             </div>
           </div>
         </div>
@@ -639,6 +654,14 @@ export function CreateEmployeeAccountPage() {
           onViewEmployeeList={() => navigate('/hr/employees')}
         />
       ) : null}
+
+      {/* Employee Import Modal */}
+      <EmployeeImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImportSuccess={() => { /* navigate to list or refresh */ }}
+        token={token}
+      />
     </FormProvider>
   )
 }

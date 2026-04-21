@@ -15,4 +15,5 @@ public final class AuditActionType {
 	public static final String FORGOT_PASSWORD_OTP_VERIFIED = "FORGOT_PASSWORD_OTP_VERIFIED";
 	public static final String FORGOT_PASSWORD_RESET_SUCCESS = "FORGOT_PASSWORD_RESET_SUCCESS";
 	public static final String FORGOT_PASSWORD_RESET_FAILED = "FORGOT_PASSWORD_RESET_FAILED";
+	public static final String EMPLOYEE_BULK_IMPORT = "EMPLOYEE_BULK_IMPORT";
 }

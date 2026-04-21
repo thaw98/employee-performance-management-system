@@ -22,6 +22,7 @@ import com.epms.backend.entity.EmergencyContact;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeFather;
 import com.epms.backend.entity.EmployeeProbation;
+import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.Gender;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.Role;
@@ -147,7 +148,7 @@ public class HrEmployeeAccountService {
 		employee.setDateOfBirth(request.getDateOfBirth());
 		employee.setPhoneNo(request.getPhoneNo().trim());
 		employee.setAddress(address);
-		employee.setReligion(religion);
+		employee.setReligion(EmployeeReligion.fromValue(religion));
 		employee.setNationality(request.getNationality().trim());
 		employee.setStaffNrcNo(trimToNull(request.getNrc()));
 		employee.setDepartment(department);

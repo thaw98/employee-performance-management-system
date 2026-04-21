@@ -8,6 +8,7 @@ import EmployeeFilters from '../../../features/hrEmployeeList/components/Employe
 import ConfirmActionModal from '../../../features/hrEmployeeList/components/ConfirmActionModal'
 import EmployeeViewModal from '../../../features/hrEmployeeList/components/EmployeeViewModal'
 import EditEmployeeModal from '../../../features/hrEmployeeList/components/EditEmployeeModal'
+import EmployeeImportModal from '../../../features/hrEmployeeList/components/EmployeeImportModal'
 import {
   useGetEmployeesQuery,
   useResendPasswordMutation,
@@ -20,8 +21,16 @@ import {
   useGetDepartmentsQuery, 
   useGetPositionsQuery 
 } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
+import { useAppSelector } from '../../../app/hooks'
+
+const API_BASE =
+  (import.meta.env.VITE_API_BASE_URL as string)?.replace(/\/$/, '') ||
+  'http://localhost:8080'
 
 export default function EmployeeListPage() {
+  const user = useAppSelector((s) => s.auth.user)
+  const token = useAppSelector((s) => s.auth.token)
+  const isHR = user?.roleId === 1
 
   // State for filters and pagination
   const [page, setPage] = useState(0)
@@ -54,6 +63,10 @@ export default function EmployeeListPage() {
 
   // View modal state
   const [selectedViewEmployeeId, setSelectedViewEmployeeId] = useState<number | null>(null)
+
+  // Import modal state
+  const [importModalOpen, setImportModalOpen] = useState(false)
+  const [templateDownloading, setTemplateDownloading] = useState(false)
 
   // Queries
   const { data: deptData } = useGetDepartmentsQuery()
@@ -212,6 +225,31 @@ export default function EmployeeListPage() {
     setPage(pageIndex)
   }, [])
 
+  const handleDownloadTemplate = useCallback(async () => {
+    setTemplateDownloading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/employees/import/template`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) throw new Error('Download failed')
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = 'employee_import_template.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    } catch {
+      toast.error('Failed to download template')
+    } finally {
+      setTemplateDownloading(false)
+    }
+  }, [token])
+
+  const handleImportSuccess = useCallback(() => {
+    // RTK Query invalidation via commitEmployeeImport handles the refetch automatically
+  }, [])
+
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
@@ -219,6 +257,29 @@ export default function EmployeeListPage() {
           <h1 className="text-2xl font-bold text-gray-900">Employee List</h1>
           <p className="text-gray-500 mt-1">Manage employee information and access.</p>
         </div>
+        {isHR && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadTemplate}
+              disabled={templateDownloading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-indigo-200 bg-white text-indigo-700 text-sm font-semibold hover:bg-indigo-50 disabled:opacity-60 transition shadow-sm"
+            >
+              {templateDownloading ? (
+                <span className="inline-block w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <i className="bi bi-download"></i>
+              )}
+              Download Template
+            </button>
+            <button
+              onClick={() => setImportModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition shadow-sm"
+            >
+              <i className="bi bi-file-earmark-arrow-up"></i>
+              Import Employees
+            </button>
+          </div>
+        )}
       </div>
 
       <EmployeeFilters
@@ -355,6 +416,14 @@ export default function EmployeeListPage() {
         isLoading={isViewLoading}
         isError={isViewError}
         onRetry={handleRetryView}
+      />
+
+      {/* Employee Import Modal */}
+      <EmployeeImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImportSuccess={handleImportSuccess}
+        token={token}
       />
     </div>
   )

@@ -95,14 +95,18 @@ public class Employee {
     @Column(name = "gender")
     private Gender gender;
 
-    @Column(name = "religion", length = 20)
-    private String religion;
+    @Enumerated(EnumType.STRING)
+    @Column(
+        name = "religion",
+        columnDefinition = "ENUM('Buddhist', 'Christian', 'Muslim', 'Hindu')"
+    )
+    private EmployeeReligion religion;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "father_id")
     private EmployeeFather father;
 
-    @Transient
+    @OneToOne(mappedBy = "employee", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private EmployeeProbation probation;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)

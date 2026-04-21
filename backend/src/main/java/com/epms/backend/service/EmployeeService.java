@@ -19,6 +19,7 @@ import com.epms.backend.entity.EmergencyContact;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeFather;
 import com.epms.backend.entity.EmployeeProbation;
+import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.repository.DepartmentRepository;
@@ -348,16 +349,12 @@ public class EmployeeService {
 		}
 	}
 
-	private String normalizeReligion(String religion) {
+	private EmployeeReligion normalizeReligion(String religion) {
 		String value = trimToNull(religion);
 		if (value == null) {
 			return null;
 		}
-		List<String> allowed = List.of("Buddhist", "Christian", "Hindu", "Muslim");
-		return allowed.stream()
-				.filter(option -> option.equalsIgnoreCase(value))
-				.findFirst()
-				.orElseThrow(() -> new IllegalArgumentException("Religion must be Buddhist, Christian, Hindu, or Muslim"));
+		return EmployeeReligion.fromValue(value);
 	}
 
 	private static String trimToNull(String value) {
@@ -392,7 +389,7 @@ public class EmployeeService {
 				.email(employee.getEmail())
 				.staffNrcNo(employee.getStaffNrcNo())
 				.gender(employee.getGender())
-				.religion(employee.getReligion())
+				.religion(employee.getReligion() == null ? null : employee.getReligion().toApiLabel())
 				.departmentId(employee.getDepartment() == null ? null : employee.getDepartment().getId())
 				.departmentName(employee.getDepartment() == null ? null : employee.getDepartment().getName())
 				.positionId(employee.getPosition() == null ? null : employee.getPosition().getId())
