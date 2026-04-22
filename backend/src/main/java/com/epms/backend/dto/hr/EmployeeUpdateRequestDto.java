@@ -43,6 +43,5 @@ public class EmployeeUpdateRequestDto {
     @NotNull
     private Long staffTypeId;
     
-    private String status;
     private String profilePictureUrl;
 }

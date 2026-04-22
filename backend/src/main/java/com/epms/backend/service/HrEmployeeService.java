@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.JpaSort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.epms.backend.audit.AuditActionType;
 import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.hr.EmployeeDetailResponseDto;
+import com.epms.backend.dto.hr.EmployeeViewResponseDto;
 import com.epms.backend.dto.hr.EmployeeListItemResponseDto;
 import com.epms.backend.dto.hr.EmployeeListResponseDto;
 import com.epms.backend.dto.hr.EmployeeUpdateRequestDto;
@@ -27,6 +29,7 @@ import com.epms.backend.dto.hr.UpdateEmploymentStatusRequestDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeProbation;
+import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.StaffType;
@@ -64,8 +67,14 @@ public class HrEmployeeService {
 
     @Transactional(readOnly = true)
     public EmployeeListResponseDto getEmployees(int page, int size, String search, Long departmentId, Long positionId, String employmentStatus, String sortBy, String sortDir) {
-        String sortField = sortBy.equals("staffNo") ? "employeeId" : sortBy;
-        Sort sort = Sort.by(sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC, sortField);
+        Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort;
+        if (sortBy.equals("staffNo")) {
+            // Natural sort for numeric staff numbers stored as text (1,2,3...10).
+            sort = JpaSort.unsafe(direction, "LENGTH(employeeId)").and(Sort.by(direction, "employeeId"));
+        } else {
+            sort = Sort.by(direction, sortBy);
+        }
         Pageable pageable = PageRequest.of(page, size, sort);
 
         Specification<Employee> spec = (root, query, cb) -> {
@@ -102,20 +111,12 @@ public class HrEmployeeService {
                         cb.equal(root.get("employmentStatus"), EmployeeStatus.ACTIVE)
                     ));
 
-                    LocalDate today = LocalDate.now();
                     Join<Employee, EmployeeProbation> probationJoin = root.join("probation", JoinType.LEFT);
                     
                     if (employmentStatus.equalsIgnoreCase("Probation")) {
-                        predicates.add(cb.and(
-                            cb.isNotNull(root.get("probation")),
-                            cb.greaterThanOrEqualTo(probationJoin.get("probationEndDate"), today)
-                        ));
+                        predicates.add(cb.isNotNull(probationJoin.get("id")));
                     } else if (employmentStatus.equalsIgnoreCase("Permanent")) {
-                        predicates.add(cb.or(
-                            cb.isNull(root.get("probation")),
-                            cb.isNull(probationJoin.get("probationEndDate")),
-                            cb.lessThan(probationJoin.get("probationEndDate"), today)
-                        ));
+                        predicates.add(cb.isNull(probationJoin.get("id")));
                     }
                 }
             }
@@ -154,9 +155,8 @@ public class HrEmployeeService {
         employee.setEmail(request.getEmail().toLowerCase().trim());
         employee.setStaffNrcNo(request.getStaffNrcNo());
         employee.setGender(request.getGender());
-        employee.setReligion(request.getReligion());
+        employee.setReligion(parseReligion(request.getReligion()));
         employee.setDateOfJoining(request.getDateOfJoining());
-        employee.setStatus(request.getStatus());
         employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
 
         if (request.getDepartmentId() != null) {
@@ -301,6 +301,7 @@ public class HrEmployeeService {
             EmployeeProbation probation = employee.getProbation();
             if (probation == null) {
                 probation = new EmployeeProbation();
+                probation.setEmployee(employee);
                 employee.setProbation(probation);
             }
             probation.setProbationEndDate(request.getProbationEndDate());
@@ -336,6 +337,13 @@ public class HrEmployeeService {
         return sb.toString();
     }
 
+    private EmployeeReligion parseReligion(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return EmployeeReligion.fromValue(value);
+    }
+
     private EmployeeListItemResponseDto toListItemDto(Employee employee) {
         User user = employee.getUserAccount();
         String employmentStatus = determineEmploymentStatus(employee);
@@ -369,12 +377,7 @@ public class HrEmployeeService {
         }
 
         EmployeeProbation probation = employee.getProbation();
-        if (probation == null || probation.getProbationEndDate() == null) {
-            return "Permanent";
-        }
-
-        LocalDate today = LocalDate.now();
-        if (!probation.getProbationEndDate().isBefore(today)) {
+        if (probation != null) {
             return "Probation";
         }
 
@@ -389,7 +392,7 @@ public class HrEmployeeService {
                 .email(employee.getEmail())
                 .staffNrcNo(employee.getStaffNrcNo())
                 .gender(employee.getGender())
-                .religion(employee.getReligion())
+                .religion(employee.getReligion() == null ? null : employee.getReligion().toApiLabel())
                 .departmentId(employee.getDepartment() != null ? employee.getDepartment().getId() : null)
                 .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
                 .positionId(employee.getPosition() != null ? employee.getPosition().getId() : null)
@@ -399,8 +402,87 @@ public class HrEmployeeService {
                 .staffTypeId(employee.getStaffType() != null ? employee.getStaffType().getId() : null)
                 .staffTypeName(employee.getStaffType() != null ? employee.getStaffType().getName() : null)
                 .dateOfJoining(employee.getDateOfJoining())
-                .status(employee.getStatus())
                 .profilePictureUrl(employee.getProfilePictureUrl())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public EmployeeViewResponseDto getEmployeeViewById(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+        return toViewDto(employee);
+    }
+
+    private EmployeeViewResponseDto toViewDto(Employee employee) {
+        EmployeeViewResponseDto.DepartmentInfo deptInfo = null;
+        Department dept = employee.getParentDepartment() != null ? employee.getParentDepartment() : employee.getDepartment();
+        if (dept != null) {
+            deptInfo = EmployeeViewResponseDto.DepartmentInfo.builder()
+                    .departmentId(dept.getId())
+                    .departmentName(dept.getName())
+                    .build();
+        }
+
+        EmployeeViewResponseDto.PositionInfo posInfo = null;
+        if (employee.getPosition() != null) {
+            posInfo = EmployeeViewResponseDto.PositionInfo.builder()
+                    .positionId(employee.getPosition().getId())
+                    .positionName(employee.getPosition().getName())
+                    .build();
+        }
+
+        EmployeeViewResponseDto.StaffTypeInfo staffTypeInfo = null;
+        if (employee.getStaffType() != null) {
+            staffTypeInfo = EmployeeViewResponseDto.StaffTypeInfo.builder()
+                    .staffTypeId(employee.getStaffType().getId())
+                    .staffTypeName(employee.getStaffType().getName())
+                    .build();
+        }
+
+        EmployeeViewResponseDto.EmergencyContactInfo emergencyInfo = null;
+        if (employee.getEmergencyContact() != null) {
+            emergencyInfo = EmployeeViewResponseDto.EmergencyContactInfo.builder()
+                    .employeePhone(employee.getEmergencyContact().getEmergencyPhone())
+                    .relation(employee.getEmergencyContact().getRelation())
+                    .build();
+        }
+
+        EmployeeViewResponseDto.FatherInfo fatherInfo = null;
+        if (employee.getFather() != null) {
+            fatherInfo = EmployeeViewResponseDto.FatherInfo.builder()
+                    .fatherName(employee.getFather().getFatherName())
+                    .fatherNrcNo(employee.getFather().getFatherNrcNo())
+                    .fatherOccupation(employee.getFather().getFatherOccupation())
+                    .build();
+        }
+
+        EmployeeStatus activeStatus = employee.getEmploymentStatus() != null
+                ? employee.getEmploymentStatus()
+                : EmployeeStatus.ACTIVE;
+        String statusDisplay = activeStatus == EmployeeStatus.ACTIVE ? "Active"
+                : activeStatus == EmployeeStatus.RESIGNED ? "Resigned"
+                : "Terminated";
+
+        return EmployeeViewResponseDto.builder()
+                .employeeId(employee.getId())
+                .staffNo(employee.getEmployeeId())
+                .fullName(employee.getEmployeeName())
+                .email(employee.getEmail())
+                .phoneNumber(employee.getPhoneNo())
+                .gender(employee.getGender() != null ? employee.getGender().name() : null)
+                .dateOfBirth(employee.getDateOfBirth())
+                .hireDate(employee.getDateOfJoining())
+                .status(statusDisplay)
+                .profilePictureUrl(employee.getProfilePictureUrl())
+                .staffNrcNumber(employee.getStaffNrcNo())
+                .address(employee.getAddress())
+                .nationality(employee.getNationality())
+                .employmentStatus(determineEmploymentStatus(employee))
+                .department(deptInfo)
+                .position(posInfo)
+                .staffType(staffTypeInfo)
+                .emergencyContact(emergencyInfo)
+                .father(fatherInfo)
                 .build();
     }
 }

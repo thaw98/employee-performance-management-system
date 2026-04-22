@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.hr.EmployeeDetailResponseDto;
+import com.epms.backend.dto.hr.EmployeeViewResponseDto;
 import com.epms.backend.dto.hr.EmployeeListResponseDto;
 import com.epms.backend.dto.hr.EmployeeUpdateRequestDto;
 import com.epms.backend.dto.hr.HrCreateEmployeeAccountRequestDto;
@@ -60,6 +61,15 @@ public class HrEmployeeController {
     public ResponseEntity<ApiResponse<EmployeeDetailResponseDto>> getEmployee(@PathVariable Long employeeId) {
         try {
             return ResponseEntity.ok(ApiResponse.ok("Employee detail retrieved", hrEmployeeService.getEmployeeById(employeeId)));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/{employeeId}/view")
+    public ResponseEntity<ApiResponse<EmployeeViewResponseDto>> viewEmployee(@PathVariable Long employeeId) {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok("Employee view detail retrieved", hrEmployeeService.getEmployeeViewById(employeeId)));
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }

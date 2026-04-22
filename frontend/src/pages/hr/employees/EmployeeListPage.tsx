@@ -1,25 +1,36 @@
-import { useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useCallback, useMemo } from 'react'
+
 import type { SortingState } from '@tanstack/react-table'
 import toast from 'react-hot-toast'
 
 import EmployeeTable from '../../../features/hrEmployeeList/components/EmployeeTable'
 import EmployeeFilters from '../../../features/hrEmployeeList/components/EmployeeFilters'
 import ConfirmActionModal from '../../../features/hrEmployeeList/components/ConfirmActionModal'
+import EmployeeViewModal from '../../../features/hrEmployeeList/components/EmployeeViewModal'
+import EditEmployeeModal from '../../../features/hrEmployeeList/components/EditEmployeeModal'
+import EmployeeImportModal from '../../../features/hrEmployeeList/components/EmployeeImportModal'
 import {
   useGetEmployeesQuery,
   useResendPasswordMutation,
   useSendNewPasswordMutation,
   useUpdateEmploymentStatusMutation,
+  useLazyGetEmployeeViewByIdQuery,
 } from '../../../features/hrEmployeeList/hrEmployeeApi'
 import ChangeStatusModal from '../../../features/hrEmployeeList/components/ChangeStatusModal'
 import { 
   useGetDepartmentsQuery, 
   useGetPositionsQuery 
 } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
+import { useAppSelector } from '../../../app/hooks'
+
+const API_BASE =
+  (import.meta.env.VITE_API_BASE_URL as string)?.replace(/\/$/, '') ||
+  'http://localhost:8080'
 
 export default function EmployeeListPage() {
-  const navigate = useNavigate()
+  const user = useAppSelector((s) => s.auth.user)
+  const token = useAppSelector((s) => s.auth.token)
+  const isHR = user?.roleId === 1
 
   // State for filters and pagination
   const [page, setPage] = useState(0)
@@ -47,10 +58,20 @@ export default function EmployeeListPage() {
     currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated' | null
   }>({ isOpen: false, employeeId: null, currentStatus: null })
 
+  // Edit modal state
+  const [editEmployeeId, setEditEmployeeId] = useState<number | null>(null)
+
+  // View modal state
+  const [selectedViewEmployeeId, setSelectedViewEmployeeId] = useState<number | null>(null)
+
+  // Import modal state
+  const [importModalOpen, setImportModalOpen] = useState(false)
+  const [templateDownloading, setTemplateDownloading] = useState(false)
+
   // Queries
   const { data: deptData } = useGetDepartmentsQuery()
-  const { data: posData } = useGetPositionsQuery(departmentId as number, { skip: !departmentId })
-  
+  const { data: posData } = useGetPositionsQuery(departmentId)
+
   const { data: empData, isLoading, isFetching } = useGetEmployeesQuery({
     page,
     size,
@@ -62,10 +83,21 @@ export default function EmployeeListPage() {
     sortDir: sorting[0]?.desc ? 'desc' : 'asc'
   })
 
+  // Memoize filter options to prevent unnecessary recreations
+  const departments = useMemo(() => deptData?.data || [], [deptData?.data])
+  const positions = useMemo(() => posData?.data || [], [posData?.data])
+
+  // Memoize employee data to stabilize prop passed to table
+  const employeeRows = useMemo(() => empData?.data?.content || [], [empData?.data?.content])
+
   // Mutations
   const [resendPassword, { isLoading: isResending }] = useResendPasswordMutation()
   const [sendNewPassword, { isLoading: isSendingNew }] = useSendNewPasswordMutation()
   const [updateEmploymentStatus, { isLoading: isUpdatingStatus }] = useUpdateEmploymentStatusMutation()
+  const [
+    triggerGetEmployeeView,
+    { data: viewData, isLoading: isViewLoading, isError: isViewError },
+  ] = useLazyGetEmployeeViewByIdQuery()
 
   // Handlers
   const handleSearchChange = useCallback((val: string) => {
@@ -79,6 +111,16 @@ export default function EmployeeListPage() {
     setPage(0)
   }, [])
 
+  const handlePositionChange = useCallback((val?: number) => {
+    setPositionId(val)
+    setPage(0)
+  }, [])
+
+  const handleStatusChange = useCallback((val?: string) => {
+    setEmploymentStatus(val)
+    setPage(0)
+  }, [])
+
   const handleReset = useCallback(() => {
     setSearch('')
     setDepartmentId(undefined)
@@ -88,15 +130,34 @@ export default function EmployeeListPage() {
     setPage(0)
   }, [])
 
-  const handleEdit = (id: number) => {
-    navigate(`/hr/employees/${id}/edit`)
-  }
+  const handleEdit = useCallback((id: number) => {
+    setEditEmployeeId(id)
+  }, [])
 
-  const handleChangeStatus = (id: number, currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated') => {
+  const handleCloseEditModal = useCallback(() => {
+    setEditEmployeeId(null)
+  }, [])
+
+  const handleView = useCallback((id: number) => {
+    setSelectedViewEmployeeId(id)
+    triggerGetEmployeeView(id, true) // `true` forces refetch
+  }, [triggerGetEmployeeView])
+
+  const handleCloseViewModal = useCallback(() => {
+    setSelectedViewEmployeeId(null)
+  }, [])
+
+  const handleRetryView = useCallback(() => {
+    if (selectedViewEmployeeId !== null) {
+      triggerGetEmployeeView(selectedViewEmployeeId, true)
+    }
+  }, [selectedViewEmployeeId, triggerGetEmployeeView])
+
+  const handleChangeStatus = useCallback((id: number, currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated') => {
     setStatusModal({ isOpen: true, employeeId: id, currentStatus })
-  }
+  }, [])
 
-  const handleConfirmStatusChange = async (targetStatus: string, probationEndDate?: string) => {
+  const handleConfirmStatusChange = useCallback(async (targetStatus: string, probationEndDate?: string) => {
     if (!statusModal.employeeId) return
     try {
       await updateEmploymentStatus({
@@ -106,20 +167,23 @@ export default function EmployeeListPage() {
       }).unwrap()
       toast.success(`Employment status changed to ${targetStatus}`)
       setStatusModal({ isOpen: false, employeeId: null, currentStatus: null })
-    } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to update employment status')
+    } catch (error: unknown) {
+      const errorMessage = error && typeof error === 'object' && 'data' in error
+        ? (error as { data?: { message?: string } }).data?.message || 'Failed to update employment status'
+        : 'Failed to update employment status'
+      toast.error(errorMessage)
     }
-  }
+  }, [statusModal.employeeId, updateEmploymentStatus])
 
-  const openConfirmModal = (id: number, type: 'RESEND' | 'NEW_PASSWORD') => {
+  const openConfirmModal = useCallback((id: number, type: 'RESEND' | 'NEW_PASSWORD') => {
     setConfirmModal({
       isOpen: true,
       type,
       employeeId: id
     })
-  }
+  }, [])
 
-  const handleConfirmAction = async () => {
+  const handleConfirmAction = useCallback(async () => {
     if (!confirmModal.employeeId || !confirmModal.type) return
 
     try {
@@ -131,10 +195,60 @@ export default function EmployeeListPage() {
         toast.success(res.data?.message || 'New temporary password sent successfully')
       }
       setConfirmModal({ isOpen: false, type: null, employeeId: null })
-    } catch (error: any) {
-      toast.error(error?.data?.message || 'Action failed')
+    } catch (error: unknown) {
+      const errorMessage = error && typeof error === 'object' && 'data' in error
+        ? (error as { data?: { message?: string } }).data?.message || 'Action failed'
+        : 'Action failed'
+      toast.error(errorMessage)
     }
-  }
+  }, [confirmModal.employeeId, confirmModal.type, resendPassword, sendNewPassword])
+
+  // Modal close handlers
+  const handleCloseStatusModal = useCallback(() => {
+    setStatusModal({ isOpen: false, employeeId: null, currentStatus: null })
+  }, [])
+
+  const handleCloseResendModal = useCallback(() => {
+    setConfirmModal({ isOpen: false, type: null, employeeId: null })
+  }, [])
+
+  // Pagination handlers
+  const handlePrevPage = useCallback(() => {
+    setPage(p => Math.max(0, p - 1))
+  }, [])
+
+  const handleNextPage = useCallback(() => {
+    setPage(p => Math.min((empData?.data?.totalPages || 1) - 1, p + 1))
+  }, [empData?.data?.totalPages])
+
+  const handlePageSelect = useCallback((pageIndex: number) => {
+    setPage(pageIndex)
+  }, [])
+
+  const handleDownloadTemplate = useCallback(async () => {
+    setTemplateDownloading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/employees/import/template`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) throw new Error('Download failed')
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = 'employee_import_template.xlsx'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    } catch {
+      toast.error('Failed to download template')
+    } finally {
+      setTemplateDownloading(false)
+    }
+  }, [token])
+
+  const handleImportSuccess = useCallback(() => {
+    // RTK Query invalidation via commitEmployeeImport handles the refetch automatically
+  }, [])
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto">
@@ -143,6 +257,29 @@ export default function EmployeeListPage() {
           <h1 className="text-2xl font-bold text-gray-900">Employee List</h1>
           <p className="text-gray-500 mt-1">Manage employee information and access.</p>
         </div>
+        {isHR && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadTemplate}
+              disabled={templateDownloading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-indigo-200 bg-white text-indigo-700 text-sm font-semibold hover:bg-indigo-50 disabled:opacity-60 transition shadow-sm"
+            >
+              {templateDownloading ? (
+                <span className="inline-block w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <i className="bi bi-download"></i>
+              )}
+              Download Template
+            </button>
+            <button
+              onClick={() => setImportModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition shadow-sm"
+            >
+              <i className="bi bi-file-earmark-arrow-up"></i>
+              Import Employees
+            </button>
+          </div>
+        )}
       </div>
 
       <EmployeeFilters
@@ -151,20 +288,18 @@ export default function EmployeeListPage() {
         departmentId={departmentId}
         onDepartmentChange={handleDepartmentChange}
         positionId={positionId}
-        onPositionChange={setPositionId}
+        onPositionChange={handlePositionChange}
         employmentStatus={employmentStatus}
-        onStatusChange={(val) => {
-          setEmploymentStatus(val)
-          setPage(0)
-        }}
-        departments={deptData?.data || []}
-        positions={posData?.data || []}
+        onStatusChange={handleStatusChange}
+        departments={departments}
+        positions={positions}
         onReset={handleReset}
       />
 
       <EmployeeTable
-        data={empData?.data?.content || []}
+        data={employeeRows}
         isLoading={isLoading || isFetching}
+        onView={handleView}
         onEdit={handleEdit}
         onResendPassword={(id) => openConfirmModal(id, 'RESEND')}
         onSendNewPassword={(id) => openConfirmModal(id, 'NEW_PASSWORD')}
@@ -178,14 +313,14 @@ export default function EmployeeListPage() {
         <div className="mt-6 flex items-center justify-between bg-white px-4 py-3 rounded-xl border border-gray-100 shadow-sm">
             <div className="flex flex-1 justify-between sm:hidden">
                 <button
-                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                    onClick={handlePrevPage}
                     disabled={page === 0}
                     className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
                     Previous
                 </button>
                 <button
-                    onClick={() => setPage(p => Math.min(empData.data!.totalPages - 1, p + 1))}
+                    onClick={handleNextPage}
                     disabled={page === empData.data!.totalPages - 1}
                     className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
@@ -202,7 +337,7 @@ export default function EmployeeListPage() {
                 <div>
                     <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
                         <button
-                            onClick={() => setPage(p => Math.max(0, p - 1))}
+                            onClick={handlePrevPage}
                             disabled={page === 0}
                             className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
                         >
@@ -212,10 +347,10 @@ export default function EmployeeListPage() {
                         {[...Array(empData?.data?.totalPages || 0)].map((_, i) => (
                             <button
                                 key={i}
-                                onClick={() => setPage(i)}
+                                onClick={() => handlePageSelect(i)}
                                 className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold focus:z-20 ${
-                                    page === i 
-                                        ? 'z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600' 
+                                    page === i
+                                        ? 'z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
                                         : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-offset-0'
                                 }`}
                             >
@@ -223,7 +358,7 @@ export default function EmployeeListPage() {
                             </button>
                         ))}
                         <button
-                            onClick={() => setPage(p => Math.min((empData?.data?.totalPages || 1) - 1, p + 1))}
+                            onClick={handleNextPage}
                             disabled={page === (empData?.data?.totalPages || 1) - 1}
                             className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
                         >
@@ -239,7 +374,7 @@ export default function EmployeeListPage() {
       <ChangeStatusModal
         isOpen={statusModal.isOpen}
         currentStatus={statusModal.currentStatus ?? 'Permanent'}
-        onClose={() => setStatusModal({ isOpen: false, employeeId: null, currentStatus: null })}
+        onClose={handleCloseStatusModal}
         onConfirm={handleConfirmStatusChange}
         isLoading={isUpdatingStatus}
       />
@@ -247,7 +382,7 @@ export default function EmployeeListPage() {
       {/* Confirmation Modals */}
       <ConfirmActionModal
         isOpen={confirmModal.isOpen && confirmModal.type === 'RESEND'}
-        onClose={() => setConfirmModal({ isOpen: false, type: null, employeeId: null })}
+        onClose={handleCloseResendModal}
         onConfirm={handleConfirmAction}
         title="Confirm Resend Password"
         message="Are you sure you want to generate and send a fresh temporary password to this employee?"
@@ -257,13 +392,38 @@ export default function EmployeeListPage() {
 
       <ConfirmActionModal
         isOpen={confirmModal.isOpen && confirmModal.type === 'NEW_PASSWORD'}
-        onClose={() => setConfirmModal({ isOpen: false, type: null, employeeId: null })}
+        onClose={handleCloseResendModal}
         onConfirm={handleConfirmAction}
         title="Confirm Send New Password"
         message="This will generate a new temporary password, replace the current password, and require the employee to change it after login. Continue?"
         confirmText="Send New Password"
         variant="danger"
         isLoading={isSendingNew}
+      />
+
+      {/* Edit Employee Modal */}
+      <EditEmployeeModal
+        isOpen={editEmployeeId !== null}
+        employeeId={editEmployeeId}
+        onClose={handleCloseEditModal}
+      />
+
+      {/* Employee View Modal */}
+      <EmployeeViewModal
+        isOpen={selectedViewEmployeeId !== null}
+        onClose={handleCloseViewModal}
+        data={viewData?.data ?? null}
+        isLoading={isViewLoading}
+        isError={isViewError}
+        onRetry={handleRetryView}
+      />
+
+      {/* Employee Import Modal */}
+      <EmployeeImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImportSuccess={handleImportSuccess}
+        token={token}
       />
     </div>
   )

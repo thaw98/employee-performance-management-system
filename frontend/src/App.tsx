@@ -9,6 +9,8 @@ import { ProtectedRoute } from './routes/ProtectedRoute';
 import { LoginPage } from './pages/auth/LoginPage';
 import { FirstLoginPasswordPage } from './pages/auth/FirstLoginPasswordPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { VerifyOtpPage } from './pages/auth/VerifyOtpPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 
 // Layouts
 import HrLayout from './layouts/HrLayout';
@@ -21,7 +23,6 @@ import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
-import EditEmployeePage from './pages/hr/employees/EditEmployeePage';
 
 // Performance Modules
 import { SelfAssessmentPage } from './pages/SelfAssessmentPage';
@@ -49,6 +50,8 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/verify-otp" element={<VerifyOtpPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/first-login/set-password" element={<FirstLoginPasswordPage />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
 
@@ -57,7 +60,6 @@ function App() {
             <Route path="/hr" element={<HrLayout />}>
               <Route path="dashboard" element={<HRDashboardPage />} />
               <Route path="employees" element={<EmployeeListPage />} />
-              <Route path="employees/:employeeId/edit" element={<EditEmployeePage />} />
               <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
               <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
               <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />

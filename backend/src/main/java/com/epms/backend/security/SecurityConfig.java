@@ -61,6 +61,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/login").permitAll()
+                .requestMatchers("/api/auth/forgot-password/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public/profile-pictures/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated())

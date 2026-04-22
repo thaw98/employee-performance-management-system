@@ -60,8 +60,11 @@ export const hrEmployeeAccountApi = baseApi.injectEndpoints({
     getDepartments: builder.query<ApiResponse<DepartmentOptionDto[]>, void>({
       query: () => ({ url: '/departments' }),
     }),
-    getPositions: builder.query<ApiResponse<PositionOptionDto[]>, number>({
-      query: (departmentId) => ({ url: '/positions', params: { departmentId } }),
+    getPositions: builder.query<ApiResponse<PositionOptionDto[]>, number | void>({
+      query: (departmentId) => ({
+        url: '/positions',
+        params: departmentId ? { departmentId } : undefined,
+      }),
     }),
     getNextStaffNo: builder.query<ApiResponse<NextStaffNoDto>, void>({
       query: () => ({ url: '/hr/employees/next-staff-no' }),

@@ -134,7 +134,7 @@ export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Numb
                 <option value="">_</option>
                 {allTypes.map((type) => (
                   <option key={type.id} value={type.name.en}>
-                    {type.name.en}
+                    {type.name.mm ?? type.name.en} ({type.name.en})
                   </option>
                 ))}
               </select>

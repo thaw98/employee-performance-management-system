@@ -19,6 +19,7 @@ import com.epms.backend.entity.EmergencyContact;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeFather;
 import com.epms.backend.entity.EmployeeProbation;
+import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.repository.DepartmentRepository;
@@ -106,7 +107,6 @@ public class EmployeeService {
 			employee.setEmployeeName(draftName.isEmpty() ? "Draft Employee" : draftName);
 			employee.setEmail(defaultIfBlank(trimToNull(request.getEmail()), generateDraftEmail()));
 			employee.setDateOfJoining(request.getDateOfJoining() != null ? request.getDateOfJoining() : LocalDate.now());
-			employee.setStatus(normalizeStatus(request.getStatus(), "Inactive"));
 		}
 
 		if (request.getEmployeeId() != null) {
@@ -123,9 +123,6 @@ public class EmployeeService {
 		}
 		if (request.getDateOfJoining() != null) {
 			employee.setDateOfJoining(request.getDateOfJoining());
-		}
-		if (request.getStatus() != null) {
-			employee.setStatus(normalizeStatus(request.getStatus(), employee.getStatus()));
 		}
 		if (request.getGender() != null) {
 			employee.setGender(request.getGender());
@@ -153,7 +150,6 @@ public class EmployeeService {
 		employee.setGender(request.getGender());
 		employee.setReligion(normalizeReligion(request.getReligion()));
 		employee.setDateOfJoining(request.getDateOfJoining());
-		employee.setStatus(normalizeStatus(request.getStatus(), "Active"));
 
 		if (request.getProfilePictureUrl() != null) {
 			employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
@@ -227,6 +223,9 @@ public class EmployeeService {
 	private void applyProbation(Employee employee, Integer probationMonth, LocalDate probationEndDate) {
 		boolean onProbation = employee.getStaffType() != null && employee.getStaffType().getId() == StaffTypes.PROBATION;
 		if (!onProbation) {
+			if (employee.getProbation() != null) {
+				employee.getProbation().setEmployee(null);
+			}
 			employee.setProbation(null);
 			return;
 		}
@@ -244,6 +243,7 @@ public class EmployeeService {
 		EmployeeProbation probation = employee.getProbation();
 		if (probation == null) {
 			probation = new EmployeeProbation();
+			probation.setEmployee(employee);
 			employee.setProbation(probation);
 		}
 
@@ -349,30 +349,12 @@ public class EmployeeService {
 		}
 	}
 
-	private String normalizeReligion(String religion) {
+	private EmployeeReligion normalizeReligion(String religion) {
 		String value = trimToNull(religion);
 		if (value == null) {
 			return null;
 		}
-		List<String> allowed = List.of("Buddhist", "Christian", "Hindu", "Muslim");
-		return allowed.stream()
-				.filter(option -> option.equalsIgnoreCase(value))
-				.findFirst()
-				.orElseThrow(() -> new IllegalArgumentException("Religion must be Buddhist, Christian, Hindu, or Muslim"));
-	}
-
-	private String normalizeStatus(String status, String fallback) {
-		String value = trimToNull(status);
-		if (value == null) {
-			return fallback;
-		}
-		if ("active".equalsIgnoreCase(value)) {
-			return "Active";
-		}
-		if ("inactive".equalsIgnoreCase(value)) {
-			return "Inactive";
-		}
-		throw new IllegalArgumentException("Status must be Active or Inactive");
+		return EmployeeReligion.fromValue(value);
 	}
 
 	private static String trimToNull(String value) {
@@ -407,7 +389,7 @@ public class EmployeeService {
 				.email(employee.getEmail())
 				.staffNrcNo(employee.getStaffNrcNo())
 				.gender(employee.getGender())
-				.religion(employee.getReligion())
+				.religion(employee.getReligion() == null ? null : employee.getReligion().toApiLabel())
 				.departmentId(employee.getDepartment() == null ? null : employee.getDepartment().getId())
 				.departmentName(employee.getDepartment() == null ? null : employee.getDepartment().getName())
 				.positionId(employee.getPosition() == null ? null : employee.getPosition().getId())
@@ -417,7 +399,6 @@ public class EmployeeService {
 				.staffTypeId(employee.getStaffType() == null ? null : employee.getStaffType().getId())
 				.staffTypeName(employee.getStaffType() == null ? null : employee.getStaffType().getName())
 				.dateOfJoining(employee.getDateOfJoining())
-				.status(employee.getStatus())
 				.probationMonth(employee.getProbation() == null ? null : employee.getProbation().getProbationMonth())
 				.probationEndDate(employee.getProbation() == null ? null : employee.getProbation().getProbationEndDate())
 				.fatherName(employee.getFather() == null ? null : employee.getFather().getFatherName())

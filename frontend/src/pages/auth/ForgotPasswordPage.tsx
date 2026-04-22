@@ -1,20 +1,24 @@
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Link } from 'react-router-dom';
-import { Mail, ArrowLeft, Send } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, ArrowLeft, Send, BarChart3 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { useSendForgotPasswordOtpMutation } from '../../features/auth/forgotPasswordApi';
+
 const forgotSchema = z.object({
-  email: z.string().email('Please enter a valid work email'),
+  email: z
+    .string()
+    .min(1, 'Email is required.')
+    .email('Please enter a valid email address.'),
 });
 
 type ForgotFormValues = z.infer<typeof forgotSchema>;
 
 export function ForgotPasswordPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSent, setIsSent] = useState(false);
+  const navigate = useNavigate();
+  const [sendOtp, { isLoading }] = useSendForgotPasswordOtpMutation();
 
   const {
     register,
@@ -22,77 +26,111 @@ export function ForgotPasswordPage() {
     formState: { errors },
   } = useForm<ForgotFormValues>({
     resolver: zodResolver(forgotSchema),
+    defaultValues: { email: '' },
   });
 
-  const onSubmit = async (_data: ForgotFormValues) => {
-    setIsLoading(true);
+  const onSubmit = async (values: ForgotFormValues) => {
+    const email = values.email.trim().toLowerCase();
+
     try {
-      // API call would go here
-      toast.success('Reset link sent to your email');
-      setIsSent(true);
-    } catch (error) {
-      toast.error('Failed to send reset link');
-    } finally {
-      setIsLoading(false);
+      const res = await sendOtp({ email }).unwrap();
+
+      if (!res.success) {
+        toast.error(res.message || 'Failed to send OTP.');
+        return;
+      }
+
+      toast.success(res.message || 'OTP sent successfully!');
+      sessionStorage.setItem('fpEmail', email);
+      navigate('/verify-otp');
+    } catch (err: any) {
+      const msg = err?.data?.message || 'Failed to send OTP. Please try again.';
+      toast.error(msg);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 space-y-8">
-        <Link to="/login" className="inline-flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors font-bold text-sm">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+      <div className="w-full max-w-[440px] rounded-3xl bg-white p-8 shadow-xl">
+        {/* Logo */}
+        <div className="mb-6 flex flex-col items-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg">
+            <BarChart3 className="h-7 w-7 text-white" />
+          </div>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">EPMS</h1>
+          <p className="mt-1 text-center text-sm text-slate-500">
+            Employee Performance Management System
+          </p>
+        </div>
+
+        {/* Back link */}
+        <Link
+          to="/login"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition-colors hover:text-blue-600"
+        >
           <ArrowLeft size={16} />
           Back to Login
         </Link>
 
-        <div className="space-y-2">
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Forgot Password?</h1>
-          <p className="text-slate-500 text-sm">
-            Enter your work email and we'll send you instructions to reset your password.
+        {/* Heading */}
+        <div className="mb-6 space-y-2">
+          <h2 className="text-xl font-black tracking-tight text-slate-900">Forgot Password?</h2>
+          <p className="text-sm text-slate-500">
+            Enter your work email and we'll send a 6-digit OTP to verify your identity.
           </p>
         </div>
 
-        {!isSent ? (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Work Email</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  {...register('email')}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                  placeholder="you@company.com"
-                />
-              </div>
-              {errors.email && <p className="text-red-500 text-xs mt-1 font-medium">{errors.email.message}</p>}
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
+          <div>
+            <label
+              className="mb-1.5 block text-sm font-bold text-slate-700"
+              htmlFor="fp-email"
             >
-              {isLoading ? 'Sending...' : 'Send Reset Link'}
-              {!isLoading && <Send size={20} />}
-            </button>
-          </form>
-        ) : (
-          <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl text-center space-y-3">
-             <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white mx-auto mb-2">
-                <Send size={20} />
-             </div>
-             <h3 className="text-blue-900 font-bold">Check your email</h3>
-             <p className="text-blue-700 text-sm">
-               We have sent a password reset link to your email address.
-             </p>
-             <button 
-               onClick={() => setIsSent(false)}
-               className="text-blue-600 font-bold text-xs hover:underline mt-4"
-              >
-               Didn't receive it? Click to retry
-             </button>
+              Work Email <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <input
+                id="fp-email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@company.com"
+                className={`w-full rounded-xl border bg-white py-3.5 pl-12 pr-4 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
+                  errors.email
+                    ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
+                    : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'
+                }`}
+                {...register('email')}
+              />
+            </div>
+            {errors.email && (
+              <p className="mt-1.5 text-xs text-red-500">{errors.email.message}</p>
+            )}
           </div>
-        )}
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 font-bold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-700 disabled:opacity-50"
+          >
+            {isLoading ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : (
+              <>
+                Send OTP
+                <Send size={18} />
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-xs text-slate-400">
+            © {new Date().getFullYear()} ACE Data Systems. All rights reserved.
+          </p>
+        </div>
       </div>
     </div>
   );

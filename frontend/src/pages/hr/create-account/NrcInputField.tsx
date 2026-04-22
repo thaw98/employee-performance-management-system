@@ -113,7 +113,7 @@ export function NrcInputField({ control, errors, setValue }: NrcInputFieldProps)
                 <option value="">—</option>
                 {allTypes.map((type) => (
                   <option key={type.id} value={type.name.en}>
-                    {type.name.en}
+                    {type.name.mm ?? type.name.en} ({type.name.en})
                   </option>
                 ))}
               </select>

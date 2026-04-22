@@ -83,7 +83,6 @@ function fatherNrcPartsRefine(
     String(val.fatherNrcNumber ?? '').trim(),
   ]
   const filled = parts.filter((p) => p.length > 0).length
-  if (filled === 0) return
   if (filled < 4) {
     if (!parts[0]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['fatherNrcStateCode'] })
     if (!parts[1]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['fatherNrcTownshipCode'] })
@@ -112,10 +111,7 @@ export const employeeInformationSchema = z
       .max(50, 'Max 50 characters')
       .refine((s) => s.length > 0 && !/^\s+$/.test(s), 'Name is required')
       .transform(toTitleCasePersonName),
-    gender: z.enum(['Male', 'Female'], {
-      required_error: 'Gender is required',
-      invalid_type_error: 'Gender is required',
-    }),
+    gender: z.enum(['Male', 'Female'], { message: 'Gender is required' }),
     dateOfBirth: z.string().min(1, 'Date of birth is required'),
     phoneNo: z.string().trim().min(1, 'Phone is required').regex(phoneRe, 'Invalid phone format'),
     address: z
@@ -213,3 +209,107 @@ export const createEmployeeAccountSchema = employeeInformationSchema
   .and(employmentInformationSchema)
 
 export type CreateEmployeeAccountFormValues = z.infer<typeof createEmployeeAccountSchema>
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Edit Employee Schema  (used in EditEmployeeModal — relaxed validation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const editEmployeeSchema = z
+  .object({
+    // ── locked / auto fields ────────────────────────────────────────────────
+    staffNo:    z.string().optional(),
+    employeeId: z.string().optional(),
+
+    // ── personal — core required ────────────────────────────────────────────
+    employeeName: z
+      .string()
+      .trim()
+      .min(1, 'Name is required')
+      .max(50, 'Max 50 characters')
+      .transform(toTitleCasePersonName),
+    email: z.string().trim().min(1, 'Email is required').email('Enter a valid email'),
+    gender: z.enum(['Male', 'Female'], { message: 'Gender is required' }),
+
+    // ── personal — optional ─────────────────────────────────────────────────
+    dateOfBirth: z.string().optional(),
+    phoneNo:     z.string().trim().optional(),
+    address:     z.string().trim().max(2000).optional(),
+    nationality: z.string().trim().max(100).optional(),
+    religion:    z.string().optional(),
+
+    // ── NRC — all optional (validated together below) ───────────────────────
+    nrcStateCode:    z.string().optional(),
+    nrcTownshipCode: z.string().optional(),
+    nrcType:         z.string().optional(),
+    nrcNumber:       z.string().optional(),
+
+    // ── family — all optional ───────────────────────────────────────────────
+    fatherName:           z.string().trim().max(100).optional(),
+    fatherNrcStateCode:   z.string().optional(),
+    fatherNrcTownshipCode: z.string().optional(),
+    fatherNrcType:        z.string().optional(),
+    fatherNrcNumber:      z.string().optional(),
+    fatherOccupation:     z.string().trim().max(100).optional(),
+    emergencyPhone:       z.string().trim().optional(),
+    emergencyRelation:    z.string().trim().max(50).optional(),
+
+    // ── employment — required ───────────────────────────────────────────────
+    staffType:  z.enum(['PERMANENT', 'PROBATION']),
+    hireDate:   z.string().min(1, 'Hire date is required'),
+    departmentId: z.number().nullable(),
+    positionId:   z.number().nullable(),
+
+    // ── probation — optional ────────────────────────────────────────────────
+    probationStartDate: z.string().optional(),
+    probationEndDate:   z.string().optional(),
+  })
+  .superRefine((val, ctx) => {
+    // NRC parts: if any part is filled, all must be filled + 6-digit number
+    const nrcParts = [
+      String(val.nrcStateCode    ?? '').trim(),
+      String(val.nrcTownshipCode ?? '').trim(),
+      String(val.nrcType         ?? '').trim(),
+      String(val.nrcNumber       ?? '').trim(),
+    ]
+    const nrcFilled = nrcParts.filter((p) => p.length > 0).length
+    if (nrcFilled > 0 && nrcFilled < 4) {
+      if (!nrcParts[0]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['nrcStateCode'] })
+      if (!nrcParts[1]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['nrcTownshipCode'] })
+      if (!nrcParts[2]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['nrcType'] })
+      if (!nrcParts[3]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['nrcNumber'] })
+    }
+    if (nrcFilled === 4 && !/^[0-9]{6}$/.test(nrcParts[3])) {
+      ctx.addIssue({ code: 'custom', message: 'NRC number must be 6 digits', path: ['nrcNumber'] })
+    }
+    nrcTownshipRefine(val, ctx)
+
+    // Father NRC: same partial-fill check
+    const fNrcParts = [
+      String(val.fatherNrcStateCode    ?? '').trim(),
+      String(val.fatherNrcTownshipCode ?? '').trim(),
+      String(val.fatherNrcType         ?? '').trim(),
+      String(val.fatherNrcNumber       ?? '').trim(),
+    ]
+    const fNrcFilled = fNrcParts.filter((p) => p.length > 0).length
+    if (fNrcFilled > 0 && fNrcFilled < 4) {
+      if (!fNrcParts[0]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['fatherNrcStateCode'] })
+      if (!fNrcParts[1]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['fatherNrcTownshipCode'] })
+      if (!fNrcParts[2]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['fatherNrcType'] })
+      if (!fNrcParts[3]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['fatherNrcNumber'] })
+    }
+    if (fNrcFilled === 4 && !/^[0-9]{6}$/.test(fNrcParts[3])) {
+      ctx.addIssue({ code: 'custom', message: 'NRC number must be 6 digits', path: ['fatherNrcNumber'] })
+    }
+    fatherNrcTownshipRefine(val, ctx)
+
+    // Department & position still required
+    if (val.departmentId == null) {
+      ctx.addIssue({ code: 'custom', message: 'Department is required', path: ['departmentId'] })
+    }
+    if (val.positionId == null) {
+      ctx.addIssue({ code: 'custom', message: 'Position is required', path: ['positionId'] })
+    }
+  })
+
+export type EditEmployeeFormValues = z.infer<typeof editEmployeeSchema>
+

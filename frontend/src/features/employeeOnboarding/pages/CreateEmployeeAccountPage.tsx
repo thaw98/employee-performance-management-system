@@ -798,7 +798,7 @@ export function CreateEmployeeAccountPage() {
                 setValue={setValue}
                 prefix="father"
                 label="Father NRC"
-                required={false}
+                required
               />
             </div>
           </FormSection>

@@ -3,7 +3,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
-import { Lock, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import { setCredentials } from '../../features/auth/authSlice'
@@ -64,7 +65,7 @@ export function SetNewPasswordForm({ variant }: SetNewPasswordFormProps) {
         newPassword: values.newPassword,
         confirmPassword: values.confirmPassword,
       }).unwrap()
-      setMessage({ type: 'success', text: 'Password changed successfully! Redirecting...' })
+      toast.success('Password changed successfully! Redirecting...')
       reset()
       const nextUser = token && user ? { ...user, mustChangePassword: false } : null
       if (nextUser) {
@@ -73,7 +74,6 @@ export function SetNewPasswordForm({ variant }: SetNewPasswordFormProps) {
       }
       if (variant === 'loginPanel') {
         setTimeout(() => {
-          setMessage(null)
           navigate(nextUser ? getDashboardPath(nextUser) : '/hr/dashboard', { replace: true })
         }, 1200)
       } else {
@@ -102,9 +102,7 @@ export function SetNewPasswordForm({ variant }: SetNewPasswordFormProps) {
             }`}
             role={message.type === 'error' ? 'alert' : 'status'}
           >
-            {message.type === 'success' ? (
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
-            ) : (
+            {message.type !== 'success' && (
               <i className="bi bi-exclamation-triangle-fill shrink-0" />
             )}
             {message.text}

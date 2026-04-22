@@ -77,9 +77,6 @@ public class Employee {
     @Column(name = "hire_date")
     private LocalDate dateOfJoining;
 
-    @Column(name = "status", length = 20)
-    private String status;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "employment_status", length = 20)
     private EmployeeStatus employmentStatus = EmployeeStatus.ACTIVE;
@@ -98,15 +95,18 @@ public class Employee {
     @Column(name = "gender")
     private Gender gender;
 
-    @Column(name = "religion", length = 20)
-    private String religion;
+    @Enumerated(EnumType.STRING)
+    @Column(
+        name = "religion",
+        columnDefinition = "ENUM('Buddhist', 'Christian', 'Muslim', 'Hindu')"
+    )
+    private EmployeeReligion religion;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "father_id")
     private EmployeeFather father;
 
-    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "employee_probation")
+    @OneToOne(mappedBy = "employee", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private EmployeeProbation probation;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)

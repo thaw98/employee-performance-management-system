@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 interface EmployeeFiltersProps {
   search: string
   onSearchChange: (value: string) => void
@@ -12,7 +14,7 @@ interface EmployeeFiltersProps {
   onReset: () => void
 }
 
-export default function EmployeeFilters({
+function EmployeeFilters({
   search,
   onSearchChange,
   departmentId,
@@ -61,7 +63,6 @@ export default function EmployeeFilters({
           className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           value={positionId || ''}
           onChange={(e) => onPositionChange(e.target.value ? Number(e.target.value) : undefined)}
-          disabled={!departmentId}
         >
           <option value="">All Positions</option>
           {positions.map((p) => (
@@ -97,3 +98,5 @@ export default function EmployeeFilters({
     </div>
   )
 }
+
+export default memo(EmployeeFilters)

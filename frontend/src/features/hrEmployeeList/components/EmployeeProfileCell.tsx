@@ -1,19 +1,23 @@
-import { useState } from 'react'
+import { useState, useMemo, memo } from 'react'
 
 interface EmployeeProfileCellProps {
   url?: string
   name: string
 }
 
-export default function EmployeeProfileCell({ url, name }: EmployeeProfileCellProps) {
+function EmployeeProfileCell({ url, name }: EmployeeProfileCellProps) {
   const [imgError, setImgError] = useState(false)
-  
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2)
-    .toUpperCase()
+
+  const initials = useMemo(
+    () =>
+      name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase(),
+    [name]
+  )
 
   return (
     <div className="flex items-center gap-3">
@@ -33,3 +37,5 @@ export default function EmployeeProfileCell({ url, name }: EmployeeProfileCellPr
     </div>
   )
 }
+
+export default memo(EmployeeProfileCell)

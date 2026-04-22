@@ -1,5 +1,5 @@
 import { Dialog, Transition } from '@headlessui/react'
-import { Fragment } from 'react'
+import { Fragment, memo } from 'react'
 
 interface ConfirmActionModalProps {
   isOpen: boolean
@@ -13,7 +13,7 @@ interface ConfirmActionModalProps {
   variant?: 'danger' | 'primary'
 }
 
-export default function ConfirmActionModal({
+function ConfirmActionModal({
   isOpen,
   onClose,
   onConfirm,
@@ -79,8 +79,8 @@ export default function ConfirmActionModal({
                     type="button"
                     disabled={isLoading}
                     className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto ${
-                      variant === 'danger' 
-                        ? 'bg-red-600 hover:bg-red-500 disabled:bg-red-300' 
+                      variant === 'danger'
+                        ? 'bg-red-600 hover:bg-red-500 disabled:bg-red-300'
                         : 'bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-300'
                     }`}
                     onClick={onConfirm}
@@ -108,3 +108,5 @@ export default function ConfirmActionModal({
     </Transition>
   )
 }
+
+export default memo(ConfirmActionModal)
