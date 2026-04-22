@@ -23,6 +23,7 @@ import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
+import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
 
 // Performance Modules
 import { SelfAssessmentPage } from './pages/SelfAssessmentPage';
@@ -45,7 +46,7 @@ function App() {
     <Provider store={store}>
       <Router>
         <AuthBootstrap />
-        <Toaster position="top-right" />
+        <Toaster position="bottom-center" />
 
         <Routes>
           {/* Public Routes */}
@@ -62,6 +63,7 @@ function App() {
               <Route path="dashboard" element={<HRDashboardPage />} />
               <Route path="employees" element={<EmployeeListPage />} />
               <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
+              <Route path="departments" element={<DepartmentListPage />} />
               <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
               <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
               <Route path="pip-monitoring" element={<PipMonitoringPage />} />

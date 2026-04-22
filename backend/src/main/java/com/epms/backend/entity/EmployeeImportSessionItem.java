@@ -25,7 +25,7 @@ public class EmployeeImportSessionItem {
     @Column(name = "session_id", nullable = false)
     private Long sessionId;
 
-    @Column(name = "row_number", nullable = false)
+    @Column(name = "`row_number`", nullable = false)
     private Integer rowNumber;
 
     /** VALID, INVALID, IMPORTED, FAILED */

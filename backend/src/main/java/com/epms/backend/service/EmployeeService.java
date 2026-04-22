@@ -27,6 +27,7 @@ import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.util.NrcNormalizer;
 import com.epms.backend.util.PersonNameNormalizer;
 import com.epms.backend.validation.ProfilePictureUrlValidator;
 
@@ -53,7 +54,7 @@ public class EmployeeService {
 
 	@Transactional
 	public EmployeeInfoResponseDto saveCompleted(EmployeeInfoRequestDto request, UserPrincipal principal) {
-		validateRequiredBusinessRules(request, true);
+		validateRequiredBusinessRules(request, true, null);
 		Employee employee = new Employee();
 		applyCompleted(employee, request, principal, true);
 		return toDto(employeeRepository.save(employee));
@@ -69,7 +70,7 @@ public class EmployeeService {
 
 	@Transactional
 	public EmployeeInfoResponseDto updateCompleted(Long id, EmployeeInfoRequestDto request, UserPrincipal principal) {
-		validateRequiredBusinessRules(request, false);
+		validateRequiredBusinessRules(request, false, id);
 		Employee employee = employeeRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 		applyCompleted(employee, request, principal, false);
 		return toDto(employeeRepository.save(employee));
@@ -84,6 +85,20 @@ public class EmployeeService {
 	@Transactional(readOnly = true)
 	public Employee getEmployeeById(Long id) {
 		return employeeRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+	}
+
+	@Transactional(readOnly = true)
+	public boolean existsByStaffNrcNo(String staffNrcNo, Long excludeId) {
+		String normalized = NrcNormalizer.normalize(staffNrcNo);
+		if (normalized == null) {
+			return false;
+		}
+		
+		if (excludeId == null) {
+			return employeeRepository.existsByStaffNrcNo(normalized);
+		} else {
+			return employeeRepository.existsByStaffNrcNoAndIdNot(normalized, excludeId);
+		}
 	}
 
 	@Transactional(readOnly = true)
@@ -131,13 +146,13 @@ public class EmployeeService {
 			employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
 		}
 
-		employee.setStaffNrcNo(firstNonNull(trimToNull(request.getStaffNrcNo()), employee.getStaffNrcNo()));
+		employee.setStaffNrcNo(firstNonNull(NrcNormalizer.normalize(request.getStaffNrcNo()), employee.getStaffNrcNo()));
 		employee.setReligion(firstNonNull(normalizeReligion(request.getReligion()), employee.getReligion()));
 
 		applyDepartmentAndPosition(employee, request.getDepartmentId(), request.getPositionId(), false);
 		applyManager(employee, request.getManagerId(), false);
 		applyStaffType(employee, request.getStaffTypeId(), false);
-		applyProbation(employee, request.getProbationMonth(), request.getProbationEndDate());
+		applyProbation(employee, request.getProbationDays(), request.getProbationEndDate());
 		applyFather(employee, request.getFatherName(), request.getFatherNrcNo(), request.getFatherOccupation());
 		applyEmergencyContact(employee, request.getEmergencyPhone(), request.getEmergencyRelation());
 	}
@@ -146,7 +161,7 @@ public class EmployeeService {
 		employee.setEmployeeId(trimToNull(request.getEmployeeId()));
 		employee.setEmployeeName(PersonNameNormalizer.normalize(request.getEmployeeName()));
 		employee.setEmail(request.getEmail().trim().toLowerCase(Locale.ROOT));
-		employee.setStaffNrcNo(trimToNull(request.getStaffNrcNo()));
+		employee.setStaffNrcNo(NrcNormalizer.normalize(request.getStaffNrcNo()));
 		employee.setGender(request.getGender());
 		employee.setReligion(normalizeReligion(request.getReligion()));
 		employee.setDateOfJoining(request.getDateOfJoining());
@@ -158,7 +173,7 @@ public class EmployeeService {
 		applyDepartmentAndPosition(employee, request.getDepartmentId(), request.getPositionId(), true);
 		applyManager(employee, request.getManagerId(), true);
 		applyStaffType(employee, request.getStaffTypeId(), true);
-		applyProbation(employee, request.getProbationMonth(), request.getProbationEndDate());
+		applyProbation(employee, request.getProbationDays(), request.getProbationEndDate());
 		applyFather(employee, request.getFatherName(), request.getFatherNrcNo(), request.getFatherOccupation());
 		applyEmergencyContact(employee, request.getEmergencyPhone(), request.getEmergencyRelation());
 	}
@@ -220,7 +235,7 @@ public class EmployeeService {
 		employee.setStaffType(staffType);
 	}
 
-	private void applyProbation(Employee employee, Integer probationMonth, LocalDate probationEndDate) {
+	private void applyProbation(Employee employee, Integer probationDays, LocalDate probationEndDate) {
 		boolean onProbation = employee.getStaffType() != null && employee.getStaffType().getId() == StaffTypes.PROBATION;
 		if (!onProbation) {
 			if (employee.getProbation() != null) {
@@ -235,9 +250,9 @@ public class EmployeeService {
 			throw new IllegalArgumentException("Date of joining is required for probation staff");
 		}
 
-		boolean fixed = probationMonth != null && (probationMonth == 1 || probationMonth == 3 || probationMonth == 6);
-		if (probationMonth != null && !fixed) {
-			throw new IllegalArgumentException("Probation duration must be 1, 3, or 6 months");
+		boolean fixed = probationDays != null && (probationDays == 30 || probationDays == 90 || probationDays == 180);
+		if (probationDays != null && !fixed) {
+			throw new IllegalArgumentException("Probation duration must be 30, 90, or 180 days");
 		}
 
 		EmployeeProbation probation = employee.getProbation();
@@ -249,8 +264,8 @@ public class EmployeeService {
 
 		probation.setProbationStartDate(startDate);
 		if (fixed) {
-			probation.setProbationMonth(probationMonth);
-			probation.setProbationEndDate(startDate.plusMonths(probationMonth));
+			probation.setProbationDays(probationDays);
+			probation.setProbationEndDate(startDate.plusDays(probationDays));
 			return;
 		}
 
@@ -260,7 +275,7 @@ public class EmployeeService {
 		if (probationEndDate.isBefore(startDate)) {
 			throw new IllegalArgumentException("Probation end date must be on or after joining date");
 		}
-		probation.setProbationMonth(null);
+		probation.setProbationDays(null);
 		probation.setProbationEndDate(probationEndDate);
 	}
 
@@ -308,7 +323,7 @@ public class EmployeeService {
 		}
 	}
 
-	private void validateRequiredBusinessRules(EmployeeInfoRequestDto request, boolean isCreate) {
+	private void validateRequiredBusinessRules(EmployeeInfoRequestDto request, boolean isCreate, Long excludeId) {
 		String trimmedEmpId = trimToNull(request.getEmployeeId());
 		if (isCreate) {
 			if (trimmedEmpId == null) {
@@ -321,9 +336,15 @@ public class EmployeeService {
 
 		validateJoiningDate(request.getDateOfJoining());
 
-		if (request.getStaffTypeId() == StaffTypes.PROBATION && request.getProbationMonth() == null
+		if (request.getStaffTypeId() == StaffTypes.PROBATION && request.getProbationDays() == null
 				&& request.getProbationEndDate() == null) {
-			throw new IllegalArgumentException("Probation month or probation end date is required for probation staff");
+			throw new IllegalArgumentException("Probation days or probation end date is required for probation staff");
+		}
+
+		if (isCreate) {
+			validateStaffNrcNoUniqueness(request.getStaffNrcNo(), null);
+		} else {
+			validateStaffNrcNoUniqueness(request.getStaffNrcNo(), excludeId);
 		}
 	}
 
@@ -331,6 +352,24 @@ public class EmployeeService {
 		String value = trimToNull(raw);
 		if (value != null) {
 			validateBusinessEmployeeIdFormat(value);
+		}
+	}
+
+	private void validateStaffNrcNoUniqueness(String staffNrcNo, Long excludeId) {
+		String normalized = NrcNormalizer.normalize(staffNrcNo);
+		if (normalized == null) {
+			return;
+		}
+		
+		boolean exists;
+		if (excludeId == null) {
+			exists = employeeRepository.existsByStaffNrcNo(normalized);
+		} else {
+			exists = employeeRepository.existsByStaffNrcNoAndIdNot(normalized, excludeId);
+		}
+		
+		if (exists) {
+			throw new IllegalArgumentException("This NRC number already exists.");
 		}
 	}
 
@@ -399,7 +438,7 @@ public class EmployeeService {
 				.staffTypeId(employee.getStaffType() == null ? null : employee.getStaffType().getId())
 				.staffTypeName(employee.getStaffType() == null ? null : employee.getStaffType().getName())
 				.dateOfJoining(employee.getDateOfJoining())
-				.probationMonth(employee.getProbation() == null ? null : employee.getProbation().getProbationMonth())
+				.probationDays(employee.getProbation() == null ? null : employee.getProbation().getProbationDays())
 				.probationEndDate(employee.getProbation() == null ? null : employee.getProbation().getProbationEndDate())
 				.fatherName(employee.getFather() == null ? null : employee.getFather().getFatherName())
 				.fatherNrcNo(employee.getFather() == null ? null : employee.getFather().getFatherNrcNo())

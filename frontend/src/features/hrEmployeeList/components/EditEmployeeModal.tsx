@@ -118,7 +118,7 @@ export default function EditEmployeeModal({
         emergencyPhone: d.emergencyPhone || '',
         emergencyRelation: d.emergencyRelation || '',
         staffType: d.staffTypeName === 'Probation' ? 'PROBATION' : 'PERMANENT',
-        probationStartDate: '',
+        probationStartDate: d.probationStartDate || '',
         probationEndDate: d.probationEndDate || '',
         hireDate: d.dateOfJoining,
         departmentId: d.departmentId,

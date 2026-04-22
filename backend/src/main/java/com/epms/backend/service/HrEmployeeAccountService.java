@@ -3,6 +3,7 @@ package com.epms.backend.service;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -55,6 +56,7 @@ public class HrEmployeeAccountService {
 	private static final long EMPLOYEE_ROLE_ID = 4L;
 	private static final long STAFF_TYPE_PERMANENT_ID = 1L;
 	private static final long STAFF_TYPE_PROBATION_ID = 2L;
+	private static final int DEFAULT_PROBATION_DAYS = 90;
 	private static final Set<String> RELIGIONS = Set.of("Buddhist", "Christian", "Muslim", "Hindu");
 
 	private final EmployeeRepository employeeRepository;
@@ -125,14 +127,14 @@ public class HrEmployeeAccountService {
 				throw new IllegalArgumentException("Probation start date is required for probationary staff");
 			}
 			LocalDate start = request.getProbationStartDate();
-			LocalDate expectedEnd = start.plusMonths(3);
+			LocalDate expectedEnd = start.plusDays(DEFAULT_PROBATION_DAYS);
 			if (request.getProbationEndDate() == null || !request.getProbationEndDate().equals(expectedEnd)) {
-				throw new IllegalArgumentException("Probation end date must be exactly 3 months after start date");
+				throw new IllegalArgumentException("Probation end date must be exactly 90 days after start date");
 			}
 			probationEntity = new EmployeeProbation();
 			probationEntity.setProbationStartDate(start);
 			probationEntity.setProbationEndDate(expectedEnd);
-			probationEntity.setProbationMonth(3);
+			probationEntity.setProbationDays(DEFAULT_PROBATION_DAYS);
 		} else if (request.getProbationStartDate() != null || request.getProbationEndDate() != null) {
 			throw new IllegalArgumentException("Probation dates must be empty for permanent staff");
 		}
@@ -158,6 +160,8 @@ public class HrEmployeeAccountService {
 		employee.setProbation(probationEntity);
 		if (probationEntity != null) {
 			probationEntity.setEmployee(employee);
+			probationEntity.setCreatedOn(LocalDateTime.now());
+			probationEntity.setCreatedBy(principal.getId());
 		}
 		employee.setDateOfJoining(request.getHireDate());
 		employee.setCreatedBy(principal.getId());

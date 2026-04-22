@@ -50,28 +50,27 @@ public class EmployeeImportTemplateService {
      *  5  position
      *  6  phone_number              ← Text format
      *  7  gender
-     *  8  date_of_birth
-     *  9  hire_date
+     *  8  date_of_birth             ← Text format
+     *  9  hire_date                 ← Text format
      * 10  staff_type
-     * 11  probation_month           (required if staff_type=Probation)
-     * 12  probation_start_date      (required if staff_type=Probation)
-     * 13  probation_end_date        (required if staff_type=Probation)
-     * 14  address
-     * 15  nationality
-     * 16  employment_status
-     * 17  religion
-     * 18  emergency_contact_name
-     * 19  emergency_contact_relationship
-     * 20  emergency_contact_phone   ← Text format
-     * 21  emergency_contact_address
-     * 22  father_name
-     * 23  father_nrc_no
-     * 24  father_occupation
+     * 11  probation_start_date      (required if staff_type=Probation)  ← Text format
+     * 12  probation_end_date        (required if staff_type=Probation)  ← Text format
+     * 13  address
+     * 14  nationality
+     * 15  employment_status
+     * 16  religion
+     * 17  emergency_contact_name
+     * 18  emergency_contact_relationship
+     * 19  emergency_contact_phone   ← Text format
+     * 20  emergency_contact_address
+     * 21  father_name
+     * 22  father_nrc_no
+     * 23  father_occupation
      */
     private static final String[] HEADERS = {
             "staff_no", "full_name", "staff_nrc_no", "email", "department", "position",
             "phone_number", "gender", "date_of_birth", "hire_date", "staff_type",
-            "probation_month", "probation_start_date", "probation_end_date",
+            "probation_start_date", "probation_end_date",
             "address", "nationality", "employment_status", "religion",
             "emergency_contact_name", "emergency_contact_relationship",
             "emergency_contact_phone", "emergency_contact_address",
@@ -83,8 +82,8 @@ public class EmployeeImportTemplateService {
     private static final String[] RELIGIONS = java.util.Arrays.stream(EmployeeReligion.values())
             .map(EmployeeReligion::toApiLabel).toArray(String[]::new);
 
-    /** Columns that must be Text format (phone numbers) */
-    private static final int[] TEXT_FORMAT_COLS = { 6, 20 };
+    /** Columns that must be Text format: phone numbers + date columns (to preserve dd-mm-yyyy strings) */
+    private static final int[] TEXT_FORMAT_COLS = { 6, 8, 9, 11, 12, 19 };
 
     @Transactional(readOnly = true)
     public byte[] generateTemplate() {
@@ -136,7 +135,6 @@ public class EmployeeImportTemplateService {
                     "15-06-1995",                     // date_of_birth
                     "01-01-2024",                     // hire_date
                     "Probation",                      // staff_type
-                    "3",                              // probation_month
                     "01-01-2024",                     // probation_start_date
                     "31-03-2024",                     // probation_end_date
                     "No.123, Main Street, Yangon",   // address
@@ -165,7 +163,6 @@ public class EmployeeImportTemplateService {
                     "20-03-1990",                     // date_of_birth
                     "15-06-2023",                     // hire_date
                     "Permanent",                      // staff_type
-                    "",                               // probation_month    (blank)
                     "",                               // probation_start_date (blank)
                     "",                               // probation_end_date   (blank)
                     "No.789, 3rd Street, Mandalay",  // address
@@ -290,8 +287,8 @@ public class EmployeeImportTemplateService {
             addDropdown(empSheet, "PosList",       1, 1000, 5,  5);   // position
             addDropdown(empSheet, "GenderList",    1, 1000, 7,  7);   // gender
             addDropdown(empSheet, "StaffTypeList", 1, 1000, 10, 10);  // staff_type
-            addDropdown(empSheet, "StatusList",    1, 1000, 16, 16);  // employment_status
-            addDropdown(empSheet, "ReligionList",  1, 1000, 17, 17);  // religion
+            addDropdown(empSheet, "StatusList",    1, 1000, 15, 15);  // employment_status
+            addDropdown(empSheet, "ReligionList",  1, 1000, 16, 16);  // religion
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             wb.write(baos);
@@ -354,42 +351,42 @@ public class EmployeeImportTemplateService {
             { "STEP 2 — COLUMN GUIDE", "bold" },
             { "  Col A  staff_no               Optional. Leave blank to auto-generate.", "normal" },
             { "  Col B  full_name              Required. Max 50 characters.", "normal" },
-            { "  Col C  staff_nrc_no           Optional. Employee NRC number (e.g. 12/TAMANA(N)123456).", "normal" },
+            { "  Col C  staff_nrc_no           Required. Employee NRC number (e.g. 12/TAMANA(N)123456). Must be unique.", "normal" },
             { "  Col D  email                  Required. Must be a valid and unique email address.", "normal" },
             { "  Col E  department             Required. Select from dropdown.", "normal" },
             { "  Col F  position               Required. Select from dropdown.", "normal" },
             { "  Col G  phone_number           Required. Format: 09XXXXXXXXX or +95XXXXXXXXX.", "normal" },
             { "  Col H  gender                 Required. Select from dropdown: Male | Female.", "normal" },
-            { "  Col I  date_of_birth          Required. Format: dd-mm-yyyy  e.g. 25-12-1990.", "normal" },
-            { "  Col J  hire_date              Required. Format: dd-mm-yyyy  e.g. 01-01-2024.", "normal" },
+            { "  Col I  date_of_birth          Required. Format: dd-mm-yyyy  e.g. 25-12-1990. Pre-formatted as Text.", "normal" },
+            { "  Col J  hire_date              Required. Format: dd-mm-yyyy  e.g. 01-01-2024. Pre-formatted as Text.", "normal" },
             { "  Col K  staff_type             Required. Select from dropdown.", "normal" },
-            { "  Col L  probation_month        Required if staff_type=Probation. Number of months.", "normal" },
-            { "  Col M  probation_start_date   Required if staff_type=Probation. Format: dd-mm-yyyy.", "normal" },
-            { "  Col N  probation_end_date     Required if staff_type=Probation. Format: dd-mm-yyyy.", "normal" },
-            { "  Col O  address                Required. Current residential address.", "normal" },
-            { "  Col P  nationality            Required. e.g. Myanmar.", "normal" },
-            { "  Col Q  employment_status      Required. Select from dropdown (ACTIVE).", "normal" },
-            { "  Col R  religion               Optional. Select from dropdown.", "normal" },
-            { "  Col S  emergency_contact_name Required.", "normal" },
-            { "  Col T  emergency_contact_relationship  Required. e.g. Sister, Mother.", "normal" },
-            { "  Col U  emergency_contact_phone  Required. Format: 09XXXXXXXXX or +95XXXXXXXXX.", "normal" },
-            { "  Col V  emergency_contact_address  Required.", "normal" },
-            { "  Col W  father_name            Required.", "normal" },
-            { "  Col X  father_nrc_no          Optional. Father NRC number.", "normal" },
-            { "  Col Y  father_occupation      Optional. Father occupation (e.g. Farmer, Teacher).", "normal" },
+            { "  Col L  probation_start_date   Required if staff_type=Probation. Format: dd-mm-yyyy. Pre-formatted as Text.", "normal" },
+            { "  Col M  probation_end_date     Required if staff_type=Probation. Format: dd-mm-yyyy. Pre-formatted as Text.", "normal" },
+            { "  Col N  address                Required. Current residential address.", "normal" },
+            { "  Col O  nationality            Required. e.g. Myanmar.", "normal" },
+            { "  Col P  employment_status      Required. Select from dropdown (ACTIVE).", "normal" },
+            { "  Col Q  religion               Required. Select from dropdown.", "normal" },
+            { "  Col R  emergency_contact_name Required.", "normal" },
+            { "  Col S  emergency_contact_relationship  Required. e.g. Sister, Mother.", "normal" },
+            { "  Col T  emergency_contact_phone  Required. Format: 09XXXXXXXXX or +95XXXXXXXXX.", "normal" },
+            { "  Col U  emergency_contact_address  Required.", "normal" },
+            { "  Col V  father_name            Required.", "normal" },
+            { "  Col W  father_nrc_no          Required. Father NRC number.", "normal" },
+            { "  Col X  father_occupation      Required. Father occupation (e.g. Farmer, Teacher).", "normal" },
             { "", "normal" },
             { "STEP 3 — PROBATION FIELDS", "bold" },
-            { "  If staff_type is 'Probation', you MUST fill cols L, M, N.", "normal" },
-            { "  If staff_type is 'Permanent', leave cols L, M, N blank (they will be ignored).", "normal" },
+            { "  If staff_type is 'Probation', you MUST fill cols L, M (start/end dates).", "normal" },
+            { "  If staff_type is 'Permanent', leave cols L, M blank (they will be ignored).", "normal" },
             { "", "normal" },
             { "STEP 4 — DROPDOWN COLUMNS", "bold" },
-            { "  Use the dropdown arrows in columns E, F, H, K, Q, R to pick valid values.", "normal" },
+            { "  Use the dropdown arrows in columns E, F, H, K, P, Q to pick valid values.", "normal" },
             { "  Typing a value not in the list will cause that row to fail validation.", "normal" },
             { "", "normal" },
             { "STEP 5 — DATE FORMAT", "bold" },
             { "  All dates must use the format:  dd-mm-yyyy", "normal" },
             { "  Example:  15-06-1995  (15 June 1995)", "normal" },
-            { "  Tip: Format the column as Text first, then type the date manually.", "normal" },
+            { "  Columns I, J, M, N are pre-formatted as Text so Excel will NOT convert your dates.", "normal" },
+            { "  Type the date directly as text (e.g. 15-06-1995). Do NOT use Excel date picker.", "normal" },
             { "", "normal" },
             { "STEP 6 — PHONE NUMBER FORMAT", "bold" },
             { "  Columns G, U are pre-formatted as Text so leading zeros are preserved.", "normal" },
@@ -404,7 +401,7 @@ public class EmployeeImportTemplateService {
             { "  6. Fix the errors in the original file and re-upload if needed.", "normal" },
             { "", "normal" },
             { "NOTES", "bold" },
-            { "  • Duplicate staff_no or email (within the file or already in the system) will fail.", "normal" },
+            { "  • Duplicate staff_no, staff_nrc_no, or email (within the file or already in the system) will fail.", "normal" },
             { "  • A temporary password is auto-generated and emailed to each imported employee.", "normal" },
             { "  • Employees must change their password on first login.", "normal" },
         };

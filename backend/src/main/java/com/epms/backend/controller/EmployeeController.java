@@ -90,4 +90,16 @@ public class EmployeeController {
 	public ResponseEntity<ApiResponse<List<EmployeeInfoResponseDto>>> autocomplete(@RequestParam(defaultValue = "") String keyword) {
 		return ResponseEntity.ok(ApiResponse.ok("Employees", employeeService.autocomplete(keyword)));
 	}
+
+	@GetMapping("/check-staff-nrc")
+	public ResponseEntity<ApiResponse<Boolean>> checkStaffNrc(
+			@RequestParam String staffNrcNo,
+			@RequestParam(required = false) Long excludeId) {
+		try {
+			boolean exists = employeeService.existsByStaffNrcNo(staffNrcNo, excludeId);
+			return ResponseEntity.ok(ApiResponse.ok("NRC check completed", exists));
+		} catch (RuntimeException ex) {
+			return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+		}
+	}
 }

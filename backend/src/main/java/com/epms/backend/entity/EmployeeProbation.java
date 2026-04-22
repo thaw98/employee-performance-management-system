@@ -1,6 +1,7 @@
 package com.epms.backend.entity;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,11 +30,23 @@ public class EmployeeProbation {
     @Column(name = "probation_end_date")
     private LocalDate probationEndDate;
 
-    @Column(name = "probation_month")
-    private Integer probationMonth;
+    @Column(name = "probation_days")
+    private Integer probationDays;
 
     @Column(name = "probation_start_date")
     private LocalDate probationStartDate;
+
+    @Column(name = "created_on")
+    private LocalDateTime createdOn;
+
+    @Column(name = "created_by")
+    private Long createdBy;
+
+    @Column(name = "updated_on")
+    private LocalDateTime updatedOn;
+
+    @Column(name = "updated_by")
+    private Long updatedBy;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false, unique = true)

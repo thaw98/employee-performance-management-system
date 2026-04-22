@@ -33,7 +33,7 @@ public class EmployeeImportErrorFileService {
     private static final String[] HEADERS = {
             "Row#", "staff_no", "full_name", "staff_nrc_no", "email", "department", "position",
             "phone_number", "gender", "date_of_birth", "hire_date", "staff_type",
-            "probation_month", "probation_start_date", "probation_end_date",
+            "probation_start_date", "probation_end_date",
             "address", "nationality", "employment_status", "religion",
             "emergency_contact_name", "emergency_contact_relationship",
             "emergency_contact_phone", "emergency_contact_address",
@@ -82,23 +82,22 @@ public class EmployeeImportErrorFileService {
                 row.createCell(9).setCellValue(strOrEmpty(rd, "dateOfBirth"));
                 row.createCell(10).setCellValue(strOrEmpty(rd, "hireDate"));
                 row.createCell(11).setCellValue(strOrEmpty(rd, "staffType"));
-                row.createCell(12).setCellValue(strOrEmpty(rd, "probationMonth"));
-                row.createCell(13).setCellValue(strOrEmpty(rd, "probationStartDate"));
-                row.createCell(14).setCellValue(strOrEmpty(rd, "probationEndDate"));
-                row.createCell(15).setCellValue(strOrEmpty(rd, "address"));
-                row.createCell(16).setCellValue(strOrEmpty(rd, "nationality"));
-                row.createCell(17).setCellValue(strOrEmpty(rd, "employmentStatus"));
-                row.createCell(18).setCellValue(strOrEmpty(rd, "religion"));
-                row.createCell(19).setCellValue(strOrEmpty(rd, "emergencyContactName"));
-                row.createCell(20).setCellValue(strOrEmpty(rd, "emergencyContactRelationship"));
-                row.createCell(21).setCellValue(strOrEmpty(rd, "emergencyContactPhone"));
-                row.createCell(22).setCellValue(strOrEmpty(rd, "emergencyContactAddress"));
-                row.createCell(23).setCellValue(strOrEmpty(rd, "fatherName"));
-                row.createCell(24).setCellValue(strOrEmpty(rd, "fatherNrcNo"));
-                row.createCell(25).setCellValue(strOrEmpty(rd, "fatherOccupation"));
+                row.createCell(12).setCellValue(strOrEmpty(rd, "probationStartDate"));
+                row.createCell(13).setCellValue(strOrEmpty(rd, "probationEndDate"));
+                row.createCell(14).setCellValue(strOrEmpty(rd, "address"));
+                row.createCell(15).setCellValue(strOrEmpty(rd, "nationality"));
+                row.createCell(16).setCellValue(strOrEmpty(rd, "employmentStatus"));
+                row.createCell(17).setCellValue(strOrEmpty(rd, "religion"));
+                row.createCell(18).setCellValue(strOrEmpty(rd, "emergencyContactName"));
+                row.createCell(19).setCellValue(strOrEmpty(rd, "emergencyContactRelationship"));
+                row.createCell(20).setCellValue(strOrEmpty(rd, "emergencyContactPhone"));
+                row.createCell(21).setCellValue(strOrEmpty(rd, "emergencyContactAddress"));
+                row.createCell(22).setCellValue(strOrEmpty(rd, "fatherName"));
+                row.createCell(23).setCellValue(strOrEmpty(rd, "fatherNrcNo"));
+                row.createCell(24).setCellValue(strOrEmpty(rd, "fatherOccupation"));
 
                 String errors = inv.getErrors() != null ? String.join("; ", inv.getErrors()) : "";
-                Cell errCell = row.createCell(26);
+                Cell errCell = row.createCell(25);
                 errCell.setCellValue(errors);
                 errCell.setCellStyle(errorCellStyle);
             }

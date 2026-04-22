@@ -57,11 +57,11 @@ export function buildEmployeeDraftPayload(values: Partial<EmployeeInfoFormValues
     dateOfJoining: trimStr(values.dateOfJoining),
     staffTypeId: positiveId(values.staffTypeId),
     probationStartDate: trimStr(values.probationStartDate),
-    probationMonth:
+    probationDays:
       values.staffTypeId === STAFF_TYPE_PROBATION &&
       values.probationDuration &&
       values.probationDuration !== 'custom'
-        ? Number(values.probationDuration)
+        ? Number(values.probationDuration) * 30
         : undefined,
     probationEndDate:
       values.staffTypeId === STAFF_TYPE_PROBATION && values.probationDuration === 'custom'
@@ -105,16 +105,16 @@ export function buildEmployeeCreatePayload(v: EmployeeInfoFormValues): EmployeeI
 
   if (staffTypeId !== STAFF_TYPE_PROBATION) {
     payload.probationStartDate = undefined
-    payload.probationMonth = undefined
+    payload.probationDays = undefined
     payload.probationEndDate = undefined
     return payload
   }
   payload.probationStartDate = probationStartDate?.trim() ? probationStartDate : v.dateOfJoining
   if (probationDuration === 'custom') {
-    payload.probationMonth = null
+    payload.probationDays = null
     payload.probationEndDate = probationEndDate ?? null
   } else {
-    payload.probationMonth = probationDuration ? Number(probationDuration) : undefined
+    payload.probationDays = probationDuration ? Number(probationDuration) * 30 : undefined
     payload.probationEndDate = undefined
   }
   return payload

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
+import type { UpdateEmploymentStatusRequest, ProbationInfo } from '../../../features/hrEmployeeList/hrEmployeeApi'
 
 import type { SortingState } from '@tanstack/react-table'
 import toast from 'react-hot-toast'
@@ -56,7 +57,8 @@ export default function EmployeeListPage() {
     isOpen: boolean
     employeeId: number | null
     currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated' | null
-  }>({ isOpen: false, employeeId: null, currentStatus: null })
+    probationInfo: ProbationInfo | null
+  }>({ isOpen: false, employeeId: null, currentStatus: null, probationInfo: null })
 
   // Edit modal state
   const [editEmployeeId, setEditEmployeeId] = useState<number | null>(null)
@@ -153,20 +155,30 @@ export default function EmployeeListPage() {
     }
   }, [selectedViewEmployeeId, triggerGetEmployeeView])
 
-  const handleChangeStatus = useCallback((id: number, currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated') => {
-    setStatusModal({ isOpen: true, employeeId: id, currentStatus })
-  }, [])
+  const handleChangeStatus = useCallback(async (id: number, currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated') => {
+    // Fetch probation info before opening modal
+    let probInfo: ProbationInfo | null = null
+    if (currentStatus === 'Probation') {
+      try {
+        const viewResult = await triggerGetEmployeeView(id, true).unwrap()
+        probInfo = viewResult?.data?.probationInfo ?? null
+      } catch {
+        // If fetch fails, open modal without probation info
+      }
+    }
+    setStatusModal({ isOpen: true, employeeId: id, currentStatus, probationInfo: probInfo })
+  }, [triggerGetEmployeeView])
 
-  const handleConfirmStatusChange = useCallback(async (targetStatus: string, probationEndDate?: string) => {
+  const handleConfirmStatusChange = useCallback(async (request: UpdateEmploymentStatusRequest) => {
     if (!statusModal.employeeId) return
     try {
       await updateEmploymentStatus({
         id: statusModal.employeeId,
-        status: targetStatus,
-        probationEndDate,
+        body: request,
       }).unwrap()
-      toast.success(`Employment status changed to ${targetStatus}`)
-      setStatusModal({ isOpen: false, employeeId: null, currentStatus: null })
+      const labels: Record<string, string> = { PERMANENT: 'Permanent', RESIGNED: 'Resigned', TERMINATED: 'Terminated' }
+      toast.success(`Employment status changed to ${labels[request.targetStatus] || request.targetStatus}`)
+      setStatusModal({ isOpen: false, employeeId: null, currentStatus: null, probationInfo: null })
     } catch (error: unknown) {
       const errorMessage = error && typeof error === 'object' && 'data' in error
         ? (error as { data?: { message?: string } }).data?.message || 'Failed to update employment status'
@@ -205,7 +217,7 @@ export default function EmployeeListPage() {
 
   // Modal close handlers
   const handleCloseStatusModal = useCallback(() => {
-    setStatusModal({ isOpen: false, employeeId: null, currentStatus: null })
+    setStatusModal({ isOpen: false, employeeId: null, currentStatus: null, probationInfo: null })
   }, [])
 
   const handleCloseResendModal = useCallback(() => {
@@ -374,6 +386,7 @@ export default function EmployeeListPage() {
       <ChangeStatusModal
         isOpen={statusModal.isOpen}
         currentStatus={statusModal.currentStatus ?? 'Permanent'}
+        probationInfo={statusModal.probationInfo}
         onClose={handleCloseStatusModal}
         onConfirm={handleConfirmStatusChange}
         isLoading={isUpdatingStatus}

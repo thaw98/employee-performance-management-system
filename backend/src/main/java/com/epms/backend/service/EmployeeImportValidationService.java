@@ -92,9 +92,10 @@ public class EmployeeImportValidationService {
                 java.util.Arrays.stream(EmployeeReligion.values())
                         .map(r -> r.toApiLabel().toLowerCase()).toList());
 
-        // Collect seen emails/staffNos within file to catch intra-file duplicates
+        // Collect seen emails/staffNos/staffNrcNos within file to catch intra-file duplicates
         java.util.Set<String> seenEmails = new java.util.HashSet<>();
         java.util.Set<String> seenStaffNos = new java.util.HashSet<>();
+        java.util.Set<String> seenStaffNrcNos = new java.util.HashSet<>();
 
         int lastRow = sheet.getLastRowNum();
         List<Map<String, Object>> validItems = new ArrayList<>();
@@ -107,13 +108,15 @@ public class EmployeeImportValidationService {
 
             totalProcessed++;
             Map<String, Object> rowData = parseRow(row);
-            List<String> errors = validateRow(rowData, validDepts, validPositions, validStaffTypes, validReligions, seenEmails, seenStaffNos);
+            List<String> errors = validateRow(rowData, validDepts, validPositions, validStaffTypes, validReligions, seenEmails, seenStaffNos, seenStaffNrcNos);
 
             String staffNo = trimOrEmpty(rowData, "staffNo");
             String email = trimOrEmpty(rowData, "email").toLowerCase();
+            String staffNrcNo = trimOrEmpty(rowData, "staffNrcNo");
 
             if (!staffNo.isEmpty()) seenStaffNos.add(staffNo.toLowerCase());
             if (!email.isEmpty()) seenEmails.add(email);
+            if (!staffNrcNo.isEmpty()) seenStaffNrcNos.add(staffNrcNo.toLowerCase());
 
             if (errors.isEmpty()) {
                 Map<String, Object> item = new LinkedHashMap<>();
@@ -212,22 +215,21 @@ public class EmployeeImportValidationService {
         LocalDate hd = ExcelCellReaderUtil.readDate(row.getCell(9));
         data.put("hireDate",     hd  != null ? hd.toString()  : "");
         data.put("staffType",                  ExcelCellReaderUtil.readString(row.getCell(10)));
-        data.put("probationMonth",             ExcelCellReaderUtil.readString(row.getCell(11)));
-        LocalDate psd = ExcelCellReaderUtil.readDate(row.getCell(12));
+        LocalDate psd = ExcelCellReaderUtil.readDate(row.getCell(11));
         data.put("probationStartDate", psd != null ? psd.toString() : "");
-        LocalDate ped = ExcelCellReaderUtil.readDate(row.getCell(13));
+        LocalDate ped = ExcelCellReaderUtil.readDate(row.getCell(12));
         data.put("probationEndDate",   ped != null ? ped.toString() : "");
-        data.put("address",                    ExcelCellReaderUtil.readString(row.getCell(14)));
-        data.put("nationality",                ExcelCellReaderUtil.readString(row.getCell(15)));
-        data.put("employmentStatus",           ExcelCellReaderUtil.readString(row.getCell(16)));
-        data.put("religion",                   ExcelCellReaderUtil.readString(row.getCell(17)));
-        data.put("emergencyContactName",       ExcelCellReaderUtil.readString(row.getCell(18)));
-        data.put("emergencyContactRelationship", ExcelCellReaderUtil.readString(row.getCell(19)));
-        data.put("emergencyContactPhone",      ExcelCellReaderUtil.readString(row.getCell(20)));
-        data.put("emergencyContactAddress",    ExcelCellReaderUtil.readString(row.getCell(21)));
-        data.put("fatherName",                 ExcelCellReaderUtil.readString(row.getCell(22)));
-        data.put("fatherNrcNo",                ExcelCellReaderUtil.readString(row.getCell(23)));
-        data.put("fatherOccupation",           ExcelCellReaderUtil.readString(row.getCell(24)));
+        data.put("address",                    ExcelCellReaderUtil.readString(row.getCell(13)));
+        data.put("nationality",                ExcelCellReaderUtil.readString(row.getCell(14)));
+        data.put("employmentStatus",           ExcelCellReaderUtil.readString(row.getCell(15)));
+        data.put("religion",                   ExcelCellReaderUtil.readString(row.getCell(16)));
+        data.put("emergencyContactName",       ExcelCellReaderUtil.readString(row.getCell(17)));
+        data.put("emergencyContactRelationship", ExcelCellReaderUtil.readString(row.getCell(18)));
+        data.put("emergencyContactPhone",      ExcelCellReaderUtil.readString(row.getCell(19)));
+        data.put("emergencyContactAddress",    ExcelCellReaderUtil.readString(row.getCell(20)));
+        data.put("fatherName",                 ExcelCellReaderUtil.readString(row.getCell(21)));
+        data.put("fatherNrcNo",                ExcelCellReaderUtil.readString(row.getCell(22)));
+        data.put("fatherOccupation",           ExcelCellReaderUtil.readString(row.getCell(23)));
         return data;
     }
 
@@ -237,7 +239,8 @@ public class EmployeeImportValidationService {
             java.util.Set<String> validStaffTypes,
             java.util.Set<String> validReligions,
             java.util.Set<String> seenEmails,
-            java.util.Set<String> seenStaffNos) {
+            java.util.Set<String> seenStaffNos,
+            java.util.Set<String> seenStaffNrcNos) {
         List<String> errors = new ArrayList<>();
 
         String staffNo = trimOrEmpty(row, "staffNo");
@@ -247,6 +250,18 @@ public class EmployeeImportValidationService {
             }
             if (seenStaffNos.contains(staffNo.toLowerCase())) {
                 errors.add("staff_no '" + staffNo + "' is duplicated within the file");
+            }
+        }
+
+        String staffNrcNo = trimOrEmpty(row, "staffNrcNo");
+        if (staffNrcNo.isEmpty()) {
+            errors.add("staff_nrc_no is required");
+        } else {
+            if (employeeRepository.existsByStaffNrcNo(staffNrcNo)) {
+                errors.add("staff_nrc_no '" + staffNrcNo + "' already exists in database");
+            }
+            if (seenStaffNrcNos.contains(staffNrcNo.toLowerCase())) {
+                errors.add("staff_nrc_no '" + staffNrcNo + "' is duplicated within the file");
             }
         }
 
@@ -315,17 +330,6 @@ public class EmployeeImportValidationService {
         // Probation fields — required only when staff_type is Probation
         boolean isProbation = staffType.equalsIgnoreCase("Probation");
         if (isProbation) {
-            String pm = trimOrEmpty(row, "probationMonth");
-            if (pm.isEmpty()) {
-                errors.add("probation_month is required when staff_type is Probation");
-            } else {
-                try {
-                    int months = Integer.parseInt(pm);
-                    if (months <= 0) errors.add("probation_month must be a positive number");
-                } catch (NumberFormatException e) {
-                    errors.add("probation_month must be a valid number");
-                }
-            }
             if (trimOrEmpty(row, "probationStartDate").isEmpty()) {
                 errors.add("probation_start_date is required when staff_type is Probation");
             }
@@ -339,7 +343,9 @@ public class EmployeeImportValidationService {
         requireField(errors, row, "employmentStatus", "employment_status is required");
 
         String religion = trimOrEmpty(row, "religion");
-        if (!religion.isEmpty() && !validReligions.contains(religion.toLowerCase())) {
+        if (religion.isEmpty()) {
+            errors.add("religion is required");
+        } else if (!validReligions.contains(religion.toLowerCase())) {
             errors.add("religion '" + religion + "' is not a valid religion");
         }
 
@@ -355,13 +361,15 @@ public class EmployeeImportValidationService {
 
         requireField(errors, row, "emergencyContactAddress", "emergency_contact_address is required");
         requireField(errors, row, "fatherName", "father_name is required");
+        requireField(errors, row, "fatherNrcNo", "father_nrc_no is required");
+        requireField(errors, row, "fatherOccupation", "father_occupation is required");
 
         return errors;
     }
 
     private boolean isRowFullyEmpty(Row row) {
         if (row == null) return true;
-        for (int c = 0; c < 25; c++) {
+        for (int c = 0; c < 24; c++) {
             if (!ExcelCellReaderUtil.isCellBlank(row.getCell(c))) return false;
         }
         return true;
