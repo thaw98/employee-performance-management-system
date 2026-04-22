@@ -1,0 +1,481 @@
+import { useState, useMemo } from 'react'
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  getSortedRowModel,
+  getPaginationRowModel,
+  getFilteredRowModel,
+  type SortingState,
+  type ColumnDef,
+} from '@tanstack/react-table'
+import toast from 'react-hot-toast'
+import {
+  Plus, Search, Edit2, Trash2,
+  ArrowUpDown, ArrowUp, ArrowDown,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+  Building2, CheckCircle2, XCircle, LayoutGrid, AlertTriangle,
+} from 'lucide-react'
+
+import {
+  useGetDepartmentsQuery,
+  useDisbandDepartmentMutation,
+} from '../../../features/department/api/departmentApi'
+import type { DepartmentDto } from '../../../features/department/types'
+import AddDepartmentModal from '../../../features/department/components/AddDepartmentModal'
+import EditDepartmentModal from '../../../features/department/components/EditDepartmentModal'
+import ConfirmActionModal from '../../../features/hrEmployeeList/components/ConfirmActionModal'
+
+export default function DepartmentListPage() {
+  const { data: deptRes, isLoading, isError } = useGetDepartmentsQuery()
+  const [disbandDepartment, { isLoading: isDisbanding }] = useDisbandDepartmentMutation()
+
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [globalFilter, setGlobalFilter] = useState('')
+
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [selectedDept, setSelectedDept] = useState<DepartmentDto | null>(null)
+
+  const departments = useMemo(() => deptRes?.data || [], [deptRes])
+  const activeCount = useMemo(() => departments.filter(d => d.status === 'Active').length, [departments])
+  const inactiveCount = useMemo(() => departments.filter(d => d.status === 'Inactive').length, [departments])
+
+  const columns = useMemo<ColumnDef<DepartmentDto>[]>(
+    () => [
+      {
+        id: 'rowNumber',
+        enableSorting: false,
+        header: '#',
+        cell: (info) => (
+          <span className="text-slate-400 font-medium text-xs tabular-nums">
+            {info.row.index + 1}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'departmentCode',
+        header: 'Code',
+        cell: (info) => (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 font-mono font-semibold text-blue-700 text-xs tracking-wide">
+            {info.getValue() as string}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'departmentName',
+        header: 'Department Name',
+        cell: (info) => (
+          <div className="flex items-center gap-2.5">
+            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-sm">
+              <Building2 size={14} className="text-white" />
+            </div>
+            <span className="font-semibold text-slate-800 text-sm">{info.getValue() as string}</span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: (info) => {
+          const status = info.getValue() as string
+          if (status === 'Active') {
+            return (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <CheckCircle2 size={13} />
+                Active
+              </span>
+            )
+          }
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+              <XCircle size={13} />
+              Inactive
+            </span>
+          )
+        },
+      },
+      {
+        id: 'actions',
+        enableSorting: false,
+        header: 'Actions',
+        cell: (info) => {
+          const row = info.row.original
+          return (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  setSelectedDept(row)
+                  setIsEditOpen(true)
+                }}
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white border border-blue-100 hover:border-blue-600 transition-all duration-200"
+                title="Edit Department"
+              >
+                <Edit2 size={13} />
+                Edit
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedDept(row)
+                  setIsDeleteOpen(true)
+                }}
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-100 hover:border-rose-600 transition-all duration-200"
+                title="Disband Department"
+              >
+                <Trash2 size={13} />
+                Disband
+              </button>
+            </div>
+          )
+        },
+      },
+    ],
+    []
+  )
+
+  const table = useReactTable({
+    data: departments,
+    columns,
+    state: { sorting, globalFilter },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  })
+
+  const getSortIcon = (isSorted: false | 'asc' | 'desc') => {
+    if (isSorted === 'asc') return <ArrowUp size={13} className="text-blue-500" />
+    if (isSorted === 'desc') return <ArrowDown size={13} className="text-blue-500" />
+    return <ArrowUpDown size={13} className="text-slate-300 group-hover:text-slate-400 transition-colors" />
+  }
+
+  const handleDelete = async () => {
+    if (!selectedDept) return
+    try {
+      await disbandDepartment(selectedDept.departmentId).unwrap()
+      toast.success('Department disbanded successfully.')
+      setIsDeleteOpen(false)
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to disband department.')
+    }
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[500px] gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-rose-50 flex items-center justify-center">
+          <AlertTriangle className="text-rose-500" size={32} />
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-bold text-slate-800">Failed to load departments</p>
+          <p className="text-sm text-slate-500 mt-1">Something went wrong. Please try again.</p>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+        >
+          Try Again
+        </button>
+      </div>
+    )
+  }
+
+  const filteredCount = table.getFilteredRowModel().rows.length
+
+  return (
+    <div className="min-h-screen bg-slate-50/50">
+      {/* ── Hero Header Banner ── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 px-6 pt-8 pb-16 mx-0">
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 w-64 h-64 bg-white/5 rounded-full pointer-events-none" />
+        <div className="absolute top-8 right-20 w-32 h-32 bg-white/5 rounded-full pointer-events-none" />
+        <div className="absolute -bottom-16 -left-8 w-48 h-48 bg-white/5 rounded-full pointer-events-none" />
+
+        <div className="relative max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20 shadow-lg">
+              <Building2 size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-extrabold text-white tracking-tight">Department Management</h1>
+              <p className="text-blue-100 text-sm mt-0.5">Manage and organize your company departments</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsAddOpen(true)}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-blue-700 rounded-xl font-bold text-sm shadow-xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto"
+          >
+            <Plus size={18} />
+            Add New Department
+          </button>
+        </div>
+      </div>
+
+      {/* ── Stat Cards ── */}
+      <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Total */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+              <LayoutGrid size={20} className="text-indigo-600" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total</p>
+              {isLoading
+                ? <div className="h-7 w-12 bg-slate-100 rounded animate-pulse mt-0.5" />
+                : <p className="text-2xl font-extrabold text-slate-800 leading-tight">{departments.length}</p>
+              }
+            </div>
+          </div>
+          {/* Active */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 size={20} className="text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active</p>
+              {isLoading
+                ? <div className="h-7 w-12 bg-slate-100 rounded animate-pulse mt-0.5" />
+                : <p className="text-2xl font-extrabold text-emerald-700 leading-tight">{activeCount}</p>
+              }
+            </div>
+          </div>
+          {/* Inactive */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+              <XCircle size={20} className="text-amber-600" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Inactive</p>
+              {isLoading
+                ? <div className="h-7 w-12 bg-slate-100 rounded animate-pulse mt-0.5" />
+                : <p className="text-2xl font-extrabold text-amber-700 leading-tight">{inactiveCount}</p>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main Table Card ── */}
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-4">
+
+        {/* Search & filter bar */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3 flex flex-col sm:flex-row items-center gap-3 justify-between">
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              value={globalFilter ?? ''}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              placeholder="Search departments..."
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/15 focus:border-blue-400 outline-none transition-all placeholder:text-slate-400"
+            />
+          </div>
+          <p className="text-xs font-medium text-slate-500 flex-shrink-0">
+            {globalFilter
+              ? <><span className="font-bold text-slate-700">{filteredCount}</span> result{filteredCount !== 1 ? 's' : ''} found</>
+              : <><span className="font-bold text-slate-700">{departments.length}</span> departments total</>
+            }
+          </p>
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id} className="bg-slate-50 border-b border-slate-100">
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        className={`px-5 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-widest transition-colors group ${
+                          header.column.getCanSort() ? 'cursor-pointer select-none hover:bg-slate-100/70' : ''
+                        }`}
+                        onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {header.column.getCanSort() && getSortIcon(header.column.getIsSorted())}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {isLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      {columns.map((_, j) => (
+                        <td key={j} className="px-5 py-4">
+                          <div className={`h-4 bg-slate-100 rounded-lg ${j === 2 ? 'w-40' : 'w-20'}`} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : table.getRowModel().rows.length > 0 ? (
+                  table.getRowModel().rows.map((row, idx) => (
+                    <tr
+                      key={row.id}
+                      className={`transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-5 py-3.5 whitespace-nowrap">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={columns.length} className="px-6 py-20 text-center">
+                      <div className="flex flex-col items-center gap-3 text-slate-400">
+                        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
+                          <Building2 size={32} className="text-slate-300" />
+                        </div>
+                        <div>
+                          <p className="text-base font-bold text-slate-600">No departments found</p>
+                          <p className="text-sm text-slate-400 mt-0.5">
+                            {globalFilter ? 'Try a different search term.' : 'Add your first department to get started.'}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {table.getPageCount() > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-slate-100 bg-slate-50/50">
+              {/* Left: info + rows */}
+              <div className="flex items-center gap-4 text-xs text-slate-500">
+                <span>
+                  Showing{' '}
+                  <span className="font-bold text-slate-700">
+                    {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}
+                  </span>
+                  {' – '}
+                  <span className="font-bold text-slate-700">
+                    {Math.min(
+                      (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                      filteredCount
+                    )}
+                  </span>
+                  {' of '}
+                  <span className="font-bold text-slate-700">{filteredCount}</span>
+                  {' entries'}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400">Rows:</span>
+                  <select
+                    value={table.getState().pagination.pageSize}
+                    onChange={(e) => table.setPageSize(Number(e.target.value))}
+                    className="py-1 pl-2 pr-6 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer appearance-none"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 6px center',
+                    }}
+                  >
+                    {[5, 10, 20, 50].map((size) => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Right: page buttons */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => table.setPageIndex(0)}
+                  disabled={!table.getCanPreviousPage()}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  title="First page"
+                >
+                  <ChevronsLeft size={15} />
+                </button>
+                <button
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  title="Previous page"
+                >
+                  <ChevronLeft size={15} />
+                </button>
+
+                {(() => {
+                  const current = table.getState().pagination.pageIndex
+                  const total = table.getPageCount()
+                  const delta = 1
+                  const pages: (number | '...')[] = []
+                  for (let i = 0; i < total; i++) {
+                    if (i === 0 || i === total - 1 || (i >= current - delta && i <= current + delta)) {
+                      pages.push(i)
+                    } else if (pages[pages.length - 1] !== '...') {
+                      pages.push('...')
+                    }
+                  }
+                  return pages.map((page, idx) =>
+                    page === '...' ? (
+                      <span key={`el-${idx}`} className="px-1.5 text-slate-400 text-xs select-none">…</span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => table.setPageIndex(page as number)}
+                        className={`min-w-[32px] h-8 text-xs font-bold rounded-lg border transition-all ${
+                          page === current
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                        }`}
+                      >
+                        {(page as number) + 1}
+                      </button>
+                    )
+                  )
+                })()}
+
+                <button
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  title="Next page"
+                >
+                  <ChevronRight size={15} />
+                </button>
+                <button
+                  onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                  disabled={!table.getCanNextPage()}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  title="Last page"
+                >
+                  <ChevronsRight size={15} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+      <AddDepartmentModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
+      <EditDepartmentModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} department={selectedDept} />
+      <ConfirmActionModal
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={handleDelete}
+        title="Disband Department"
+        message={`Are you sure you want to disband "${selectedDept?.departmentName}"? This action cannot be undone.`}
+        confirmText="Disband"
+        variant="danger"
+        isLoading={isDisbanding}
+      />
+    </div>
+  )
+}

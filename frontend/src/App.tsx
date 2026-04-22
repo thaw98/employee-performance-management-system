@@ -39,6 +39,7 @@ import { GetFeedbackPage } from './pages/GetFeedbackPage';
 import { KpiManagementPage } from './pages/hr/KpiManagementPage';
 import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
+import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
 
 function App() {
   return (
@@ -62,6 +63,8 @@ function App() {
               <Route path="dashboard" element={<HRDashboardPage />} />
               <Route path="employees" element={<EmployeeListPage />} />
               <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
+              <Route path="departments" element={<DepartmentListPage />} />
+
               <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
               <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
               <Route path="pip-monitoring" element={<PipMonitoringPage />} />
