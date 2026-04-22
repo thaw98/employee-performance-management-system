@@ -12,8 +12,7 @@ import {
   Search,
   RefreshCcw,
   Zap,
-  ClipboardList,
-  Building2
+  ClipboardList
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -54,9 +53,6 @@ const HrLayout: React.FC = () => {
         ]
       }
       : { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
-    isHrAdmin
-      ? { icon: <Building2 size={20} />, label: 'Departments', path: '/hr/departments' }
-      : null,
     {
       icon: <Target size={20} />,
       label: 'Performance',
@@ -137,7 +133,6 @@ const HrLayout: React.FC = () => {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
           {menuItems.map((item) => {
-            if (!item) return null;
             const isActive =
               location.pathname === item.path ||
               (item.subItems && item.subItems.some((sub) => location.pathname.startsWith(sub.path)));
