@@ -74,6 +74,7 @@ function App() {
               <Route path="appraisals/submissions" element={<AppraisalSubmissionsPage />} />
               <Route path="kpi-management" element={<KpiManagementPage />} />
               <Route path="kpi-assigned" element={<KpiAssignedPage />} />
+              <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
               <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
             </Route>
           </Route>
