@@ -56,7 +56,7 @@ const HrLayout: React.FC = () => {
     {
       icon: <Target size={20} />,
       label: 'Performance',
-      path: '/hr/kpi-group',
+      path: '/hr/kpi-management',
       subItems: [
         { label: 'KPI Modeler', path: '/hr/kpi-management' },
         { label: 'Assigned List', path: '/hr/kpi-assigned' }
@@ -65,7 +65,7 @@ const HrLayout: React.FC = () => {
     {
       icon: <ClipboardList size={20} />,
       label: 'Self Assessments',
-      path: '/hr/assessments-group',
+      path: '/hr/assessments',
       subItems: [
         { label: 'Compliance Review', path: '/hr/assessments' }
       ]
@@ -73,16 +73,14 @@ const HrLayout: React.FC = () => {
     {
       icon: <Award size={20} />,
       label: 'Appraisals',
-      path: '/hr/appraisals-group',
-      subItems: [
-        { label: 'Management', path: '/hr/appraisals' },
-        { label: "Review Submissions", path: '/hr/AppraisalSubmissionsPage' }
-      ]
+      path: '/hr/appraisals',
+      subItems: [{ label: 'Management', path: '/hr/appraisals' },
+      { label: "Review Submissions", path: '/hr/AppraisalSubmissionsPage' }]
     },
     {
       icon: <RefreshCcw size={20} />,
       label: '360° Feedback',
-      path: '/hr/360-feedback',
+      path: '/hr/360-feedback/criteria',
       subItems: [
         { label: 'Criteria', path: '/hr/360-feedback/criteria' },
         { label: 'Give Feedback', path: '/hr/360-feedback/give' },
