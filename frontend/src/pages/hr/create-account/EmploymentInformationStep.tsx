@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { addMonths, format, parseISO } from 'date-fns'
 import { Controller, type Control, type FieldErrors, type UseFormRegister, type UseFormSetValue, useWatch } from 'react-hook-form'
 import { Shield, Clock, CalendarDays, Building2 } from 'lucide-react'
@@ -18,6 +18,7 @@ interface EmploymentInformationStepProps {
   departmentLoading: boolean
   positionLoading: boolean
   disableProbationOption?: boolean
+  beforeHireDate?: ReactNode
 }
 
 function SectionHeader({ icon: Icon, title }: { icon: React.ComponentType<{ size?: number; className?: string }>; title: string }) {
@@ -47,6 +48,7 @@ export function EmploymentInformationStep({
   departmentLoading,
   positionLoading,
   disableProbationOption,
+  beforeHireDate,
 }: EmploymentInformationStepProps) {
   const staffType = useWatch({ control, name: 'staffType' })
   const probationStart = useWatch({ control, name: 'probationStartDate' })
@@ -212,6 +214,8 @@ export function EmploymentInformationStep({
           </div>
         </div>
       ) : null}
+
+      {beforeHireDate}
 
       {/* ── Hire Date ── */}
       <div className="grid gap-5 md:grid-cols-2">
