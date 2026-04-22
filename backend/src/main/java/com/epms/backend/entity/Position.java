@@ -42,6 +42,10 @@ public class Position {
     @JoinColumn(name = "department_id")
     private Department department;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id")
+    private Role role;
+
     @Column(name = "status", length = 20)
     private String status;
 
@@ -50,4 +54,5 @@ public class Position {
 
     @Column(name = "updated_date")
     private Instant updatedDate;
+    
 }
