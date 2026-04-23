@@ -33,12 +33,9 @@ import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.EmployeeStatus;
-import com.epms.backend.entity.Position;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
-import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeRepository;
-import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.UserPrincipal;
@@ -56,8 +53,6 @@ public class HrEmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
-    private final DepartmentRepository departmentRepository;
-    private final PositionRepository positionRepository;
     private final StaffTypeRepository staffTypeRepository;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
@@ -161,17 +156,18 @@ public class HrEmployeeService {
         employee.setDateOfJoining(request.getDateOfJoining());
         employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
 
-        if (request.getDepartmentId() != null) {
-            Department dept = departmentRepository.findById(request.getDepartmentId())
-                    .orElseThrow(() -> new IllegalArgumentException("Department not found"));
-            employee.setDepartment(dept);
-            employee.setParentDepartment(dept);
+        // Department and position must only change via movement APIs — block direct edit
+        if (request.getDepartmentId() != null && employee.getDepartment() != null
+                && !request.getDepartmentId().equals(employee.getDepartment().getId())) {
+            throw new IllegalArgumentException(
+                "Department changes must be done through movement actions (Temporary Transfer, " +
+                "Permanent Transfer, or Return), not through the normal employee edit.");
         }
-
-        if (request.getPositionId() != null) {
-            Position pos = positionRepository.findById(request.getPositionId())
-                    .orElseThrow(() -> new IllegalArgumentException("Position not found"));
-            employee.setPosition(pos);
+        if (request.getPositionId() != null && employee.getPosition() != null
+                && !request.getPositionId().equals(employee.getPosition().getId())) {
+            throw new IllegalArgumentException(
+                "Position changes must be done through movement actions (Temporary Transfer, " +
+                "Permanent Transfer, or Return), not through the normal employee edit.");
         }
 
         if (request.getStaffTypeId() != null) {
@@ -461,7 +457,7 @@ public class HrEmployeeService {
 
     private EmployeeViewResponseDto toViewDto(Employee employee) {
         EmployeeViewResponseDto.DepartmentInfo deptInfo = null;
-        Department dept = employee.getParentDepartment() != null ? employee.getParentDepartment() : employee.getDepartment();
+        Department dept = employee.getDepartment();
         if (dept != null) {
             deptInfo = EmployeeViewResponseDto.DepartmentInfo.builder()
                     .departmentId(dept.getId())

@@ -644,7 +644,12 @@ export function CreateEmployeeAccountPage() {
                 />
               ) : null}
               {step === 4 ? (
-                <ReviewConfirmStep values={allValues} nrcPreview={nrcPreview} fatherNrcPreview={fatherNrcPreview} />
+                <ReviewConfirmStep
+                  values={allValues}
+                  nrcPreview={nrcPreview}
+                  fatherNrcPreview={fatherNrcPreview}
+                  linkedRoleName={positions.find((p) => p.positionId === allValues.positionId)?.roleName}
+                />
               ) : null}
             </div>
           </div>

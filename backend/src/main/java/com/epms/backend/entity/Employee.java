@@ -60,11 +60,6 @@ public class Employee {
     @JoinColumn(name = "department_id")
     private Department department;
 
-    /** Mirrors the selected department for compatibility with legacy schemas. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_department_id")
-    private Department parentDepartment;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_id")
     private Position position;

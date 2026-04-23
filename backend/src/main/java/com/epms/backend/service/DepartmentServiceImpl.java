@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -84,13 +85,17 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     @Transactional
-    public void disbandDepartment(Long id) {
+    public void deleteDepartment(Long id) {
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Department not found."));
-        
-        department.setStatus(STATUS_INACTIVE);
-        department.setUpdatedDate(Instant.now());
-        departmentRepository.save(department);
+
+        try {
+            departmentRepository.delete(department);
+            departmentRepository.flush();
+        } catch (DataIntegrityViolationException ex) {
+            throw new IllegalArgumentException(
+                    "Department cannot be deleted because it is still referenced by other records.");
+        }
     }
 
     private String normalizeStatus(String status) {

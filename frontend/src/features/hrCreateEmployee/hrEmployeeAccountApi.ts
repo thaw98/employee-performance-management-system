@@ -9,6 +9,9 @@ export interface DepartmentOptionDto {
 export interface PositionOptionDto {
   positionId: number
   positionName: string
+  /** From position.role_id; read-only display. */
+  roleId?: number | null
+  roleName?: string | null
 }
 
 export interface ExistsDto {

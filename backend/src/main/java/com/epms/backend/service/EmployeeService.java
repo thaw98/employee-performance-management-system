@@ -21,11 +21,13 @@ import com.epms.backend.entity.EmployeeFather;
 import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.Position;
+import com.epms.backend.entity.Role;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.StaffTypeRepository;
+import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.util.NrcNormalizer;
 import com.epms.backend.util.PersonNameNormalizer;
@@ -43,6 +45,8 @@ public class EmployeeService {
 	private final DepartmentRepository departmentRepository;
 	private final PositionRepository positionRepository;
 	private final StaffTypeRepository staffTypeRepository;
+	private final UserRepository userRepository;
+	private final PositionRoleResolutionService positionRoleResolutionService;
 
 	@Transactional
 	public EmployeeInfoResponseDto saveDraft(EmployeeDraftRequestDto request, UserPrincipal principal) {
@@ -57,7 +61,9 @@ public class EmployeeService {
 		validateRequiredBusinessRules(request, true, null);
 		Employee employee = new Employee();
 		applyCompleted(employee, request, principal, true);
-		return toDto(employeeRepository.save(employee));
+		Employee saved = employeeRepository.save(employee);
+		syncUserAccountRoleIfPresent(saved);
+		return toDto(saved);
 	}
 
 	@Transactional
@@ -73,7 +79,9 @@ public class EmployeeService {
 		validateRequiredBusinessRules(request, false, id);
 		Employee employee = employeeRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 		applyCompleted(employee, request, principal, false);
-		return toDto(employeeRepository.save(employee));
+		Employee saved = employeeRepository.save(employee);
+		syncUserAccountRoleIfPresent(saved);
+		return toDto(saved);
 	}
 
 	@Transactional(readOnly = true)
@@ -184,21 +192,20 @@ public class EmployeeService {
 			department = departmentRepository.findById(departmentId)
 					.orElseThrow(() -> new IllegalArgumentException("Invalid department"));
 			employee.setDepartment(department);
-			employee.setParentDepartment(department);
 		} else if (required) {
 			throw new IllegalArgumentException("Department is required");
 		} else {
 			employee.setDepartment(null);
-			employee.setParentDepartment(null);
 		}
 
 		if (positionId != null) {
-			Position position = positionRepository.findById(positionId)
-					.orElseThrow(() -> new IllegalArgumentException("Invalid position"));
+			Position position = positionRepository.findByIdWithRoleAndDepartment(positionId)
+					.orElseThrow(() -> new IllegalArgumentException("Selected position does not exist."));
 			if (department == null) {
 				throw new IllegalArgumentException("Position requires a department");
 			}
 			assertPositionBelongsToDepartment(position, department);
+			positionRoleResolutionService.resolveRoleFromLoadedPosition(position);
 			employee.setPosition(position);
 		} else if (required) {
 			throw new IllegalArgumentException("Position is required");
@@ -314,6 +321,22 @@ public class EmployeeService {
 		}
 		contact.setEmergencyPhone(normalizedPhone);
 		contact.setRelation(normalizedRelation);
+	}
+
+	private void syncUserAccountRoleIfPresent(Employee employee) {
+		if (employee.getId() == null) {
+			return;
+		}
+		userRepository.findByEmployee_Id(employee.getId()).ifPresent(user -> {
+			if (employee.getPosition() == null) {
+				return;
+			}
+			Role derived = positionRoleResolutionService.resolveRoleFromLoadedPosition(employee.getPosition());
+			if (user.getRole() == null || !derived.getId().equals(user.getRole().getId())) {
+				user.setRole(derived);
+				userRepository.save(user);
+			}
+		});
 	}
 
 	private static void assertPositionBelongsToDepartment(Position position, Department department) {

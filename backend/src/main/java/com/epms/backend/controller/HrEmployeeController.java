@@ -19,13 +19,15 @@ import com.epms.backend.dto.hr.EmployeeViewResponseDto;
 import com.epms.backend.dto.hr.EmployeeListResponseDto;
 import com.epms.backend.dto.hr.EmployeeUpdateRequestDto;
 import com.epms.backend.dto.hr.HrCreateEmployeeAccountRequestDto;
-import com.epms.backend.dto.hr.UpdateEmploymentStatusRequestDto;
 import com.epms.backend.dto.hr.HrCreateEmployeeAccountResponseDto;
 import com.epms.backend.dto.hr.NextStaffNoResponseDto;
 import com.epms.backend.dto.hr.PasswordActionResponseDto;
+import com.epms.backend.dto.hr.UpdateEmploymentStatusRequestDto;
+import com.epms.backend.dto.hr.UserAccountRoleSyncResultDto;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.HrEmployeeAccountService;
 import com.epms.backend.service.HrEmployeeService;
+import com.epms.backend.service.UserAccountPositionRoleSyncService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class HrEmployeeController {
 
     private final HrEmployeeService hrEmployeeService;
     private final HrEmployeeAccountService hrEmployeeAccountService;
+    private final UserAccountPositionRoleSyncService userAccountPositionRoleSyncService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<EmployeeListResponseDto>> getEmployees(
@@ -138,6 +141,20 @@ public class HrEmployeeController {
             return ResponseEntity.ok(ApiResponse.ok(
                     "Next staff number",
                     hrEmployeeAccountService.suggestNextStaffNo(principal)));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    /**
+     * One-off maintenance: align user_account.role_id with employee's current position role.
+     * Not invoked on startup; call explicitly when needed.
+     */
+    @PostMapping("/maintenance/sync-user-roles-from-positions")
+    public ResponseEntity<ApiResponse<UserAccountRoleSyncResultDto>> syncUserRolesFromPositions() {
+        try {
+            UserAccountRoleSyncResultDto result = userAccountPositionRoleSyncService.syncAll();
+            return ResponseEntity.ok(ApiResponse.ok(result.getSummaryMessage(), result));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }

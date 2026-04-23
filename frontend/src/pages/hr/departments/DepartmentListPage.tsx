@@ -19,7 +19,7 @@ import {
 
 import {
   useGetDepartmentsQuery,
-  useDisbandDepartmentMutation,
+  useDeleteDepartmentMutation,
 } from '../../../features/department/api/departmentApi'
 import type { DepartmentDto } from '../../../features/department/types'
 import AddDepartmentModal from '../../../features/department/components/AddDepartmentModal'
@@ -28,7 +28,7 @@ import ConfirmActionModal from '../../../features/hrEmployeeList/components/Conf
 
 export default function DepartmentListPage() {
   const { data: deptRes, isLoading, isError } = useGetDepartmentsQuery()
-  const [disbandDepartment, { isLoading: isDisbanding }] = useDisbandDepartmentMutation()
+  const [deleteDepartment, { isLoading: isDeleting }] = useDeleteDepartmentMutation()
 
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -121,10 +121,10 @@ export default function DepartmentListPage() {
                   setIsDeleteOpen(true)
                 }}
                 className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-100 hover:border-rose-600 transition-all duration-200"
-                title="Disband Department"
+                title="Delete Department"
               >
                 <Trash2 size={13} />
-                Disband
+                Delete
               </button>
             </div>
           )
@@ -155,11 +155,11 @@ export default function DepartmentListPage() {
   const handleDelete = async () => {
     if (!selectedDept) return
     try {
-      await disbandDepartment(selectedDept.departmentId).unwrap()
-      toast.success('Department disbanded successfully.')
+      await deleteDepartment(selectedDept.departmentId).unwrap()
+      toast.success('Department deleted successfully.')
       setIsDeleteOpen(false)
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to disband department.')
+      toast.error(error?.data?.message || 'Failed to delete department.')
     }
   }
 
@@ -470,11 +470,11 @@ export default function DepartmentListPage() {
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDelete}
-        title="Disband Department"
-        message={`Are you sure you want to disband "${selectedDept?.departmentName}"? This action cannot be undone.`}
-        confirmText="Disband"
+        title="Delete Department"
+        message={`Are you sure you want to delete "${selectedDept?.departmentName}"? This action cannot be undone.`}
+        confirmText="Delete"
         variant="danger"
-        isLoading={isDisbanding}
+        isLoading={isDeleting}
       />
     </div>
   )

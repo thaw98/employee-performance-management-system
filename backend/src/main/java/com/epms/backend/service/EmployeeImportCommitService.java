@@ -34,7 +34,6 @@ import com.epms.backend.repository.EmployeeImportSessionItemRepository;
 import com.epms.backend.repository.EmployeeImportSessionRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.PositionRepository;
-import com.epms.backend.repository.RoleRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.UserPrincipal;
@@ -51,7 +50,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class EmployeeImportCommitService {
 
-    private static final long EMPLOYEE_ROLE_ID = 4L;
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String TEMP_PW_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
     private static final int TEMP_PW_LENGTH = 12;
@@ -63,7 +61,7 @@ public class EmployeeImportCommitService {
     private final DepartmentRepository departmentRepository;
     private final PositionRepository positionRepository;
     private final StaffTypeRepository staffTypeRepository;
-    private final RoleRepository roleRepository;
+    private final PositionRoleResolutionService positionRoleResolutionService;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final AuditService auditService;
@@ -94,9 +92,6 @@ public class EmployeeImportCommitService {
         List<EmployeeImportSessionItem> validItems = itemRepository
                 .findBySessionIdAndStatusOrderByRowNumber(session.getId(), "VALID");
 
-        Role employeeRole = roleRepository.findById(EMPLOYEE_ROLE_ID)
-                .orElseThrow(() -> new IllegalStateException("Employee role not found"));
-
         int importedCount = 0;
         int failedCount = 0;
 
@@ -115,7 +110,7 @@ public class EmployeeImportCommitService {
                 Map<String, Object> rowData = objectMapper.readValue(item.getRowDataJson(),
                         new TypeReference<Map<String, Object>>() {});
 
-                importSingleRow(rowData, deptMap, posMap, stMap, employeeRole, principal);
+                importSingleRow(rowData, deptMap, posMap, stMap, principal);
 
                 item.setStatus("IMPORTED");
                 itemRepository.save(item);
@@ -157,7 +152,6 @@ public class EmployeeImportCommitService {
             Map<String, Department> deptMap,
             Map<String, Position> posMap,
             Map<String, StaffType> stMap,
-            Role employeeRole,
             UserPrincipal principal) {
 
         String staffNo = strOrEmpty(row, "staffNo");
@@ -219,7 +213,6 @@ public class EmployeeImportCommitService {
         employee.setNationality(nationality);
         if (!religion.isEmpty()) employee.setReligion(EmployeeReligion.fromValue(religion));
         employee.setDepartment(dept);
-        employee.setParentDepartment(dept);
         employee.setPosition(pos);
         employee.setStaffType(staffType);
         employee.setDateOfJoining(hireDate);
@@ -269,11 +262,12 @@ public class EmployeeImportCommitService {
             employeeRepository.save(savedEmployee);
         }
 
-        // Create user account
+        // Create user account (role from position only)
+        Role accountRole = positionRoleResolutionService.resolveRoleFromPositionId(pos.getId());
         String tempPassword = generateTemporaryPassword();
         User user = new User();
         user.setEmployee(savedEmployee);
-        user.setRole(employeeRole);
+        user.setRole(accountRole);
         user.setPassword(passwordEncoder.encode(tempPassword));
         user.setActive(true);
         user.setMustChangePassword(true);

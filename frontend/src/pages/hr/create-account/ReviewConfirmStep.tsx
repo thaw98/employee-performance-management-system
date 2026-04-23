@@ -6,6 +6,8 @@ interface ReviewConfirmStepProps {
   values: CreateEmployeeAccountFormValues
   nrcPreview: string
   fatherNrcPreview: string
+  /** Role name from selected position (API); account role is always derived on the server from position. */
+  linkedRoleName?: string | null
 }
 
 function formatLongDate(dateValue?: string): string {
@@ -30,8 +32,9 @@ function ReviewRow({ label, value, mono }: { label: string; value: string; mono?
   )
 }
 
-export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview }: ReviewConfirmStepProps) {
+export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview, linkedRoleName }: ReviewConfirmStepProps) {
   const perm = values.staffType === 'PERMANENT'
+  const roleLabel = linkedRoleName?.trim() || 'the role linked to the selected position'
   return (
     <div className="space-y-6">
       {/* ── Employee Information ── */}
@@ -122,7 +125,8 @@ export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview }: Revi
             <h3 className="text-base font-bold text-teal-900">Account Summary</h3>
             <p className="mt-1.5 text-sm leading-relaxed text-teal-800/80">
               A new login will be created for <strong className="text-teal-900">{values.email}</strong> with
-              role <strong className="text-teal-900">Employee</strong>.
+              the access role for this position: <strong className="text-teal-900">{roleLabel}</strong> (set from the
+              position; not editable here).
             </p>
             <p className="mt-1 text-sm leading-relaxed text-teal-800/80">
               A temporary password will be generated and emailed — it is not shown on this screen.

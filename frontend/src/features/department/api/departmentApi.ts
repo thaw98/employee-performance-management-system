@@ -24,10 +24,10 @@ export const departmentApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Department'],
     }),
-    disbandDepartment: builder.mutation<ApiResponse<void>, number>({
+    deleteDepartment: builder.mutation<ApiResponse<void>, number>({
       query: (id) => ({
-        url: `/departments/${id}/disband`,
-        method: 'PATCH',
+        url: `/departments/${id}`,
+        method: 'DELETE',
       }),
       invalidatesTags: ['Department'],
     }),
@@ -38,5 +38,5 @@ export const {
   useGetDepartmentsQuery,
   useCreateDepartmentMutation,
   useUpdateDepartmentMutation,
-  useDisbandDepartmentMutation,
+  useDeleteDepartmentMutation,
 } = departmentApi

@@ -15,7 +15,6 @@ import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.Role;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.EmployeeRepository;
-import com.epms.backend.repository.RoleRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.validation.ProfilePictureUrlValidator;
 
@@ -31,7 +30,7 @@ public class EmployeeAccountService {
 
 	private final EmployeeRepository employeeRepository;
 	private final UserRepository userRepository;
-	private final RoleRepository roleRepository;
+	private final PositionRoleResolutionService positionRoleResolutionService;
 	private final PasswordEncoder passwordEncoder;
 	private final MailService mailService;
 
@@ -49,8 +48,10 @@ public class EmployeeAccountService {
 		}
 		employee.setEmail(email);
 
-		Role employeeRole = roleRepository.findById(4L)
-				.orElseThrow(() -> new IllegalStateException("Role id 4 (Employee) is missing"));
+		if (employee.getPosition() == null) {
+			throw new IllegalArgumentException("Employee has no assigned position; account role cannot be derived from a position.");
+		}
+		Role employeeRole = positionRoleResolutionService.resolveRoleFromPositionId(employee.getPosition().getId());
 		String temporaryPassword = generateTemporaryPassword(8);
 
 		User user = new User();
