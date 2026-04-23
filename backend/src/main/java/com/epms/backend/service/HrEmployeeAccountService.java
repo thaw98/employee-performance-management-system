@@ -32,7 +32,6 @@ import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.PositionRepository;
-import com.epms.backend.repository.RoleRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.UserPrincipal;
@@ -53,7 +52,6 @@ public class HrEmployeeAccountService {
 	private static final long HR_ROLE_ID = 1L;
 	/** When no numeric staff numbers exist, start at 0001. */
 	private static final long STAFF_NO_SEQUENCE_START = 0L;
-	private static final long EMPLOYEE_ROLE_ID = 4L;
 	private static final long STAFF_TYPE_PERMANENT_ID = 1L;
 	private static final long STAFF_TYPE_PROBATION_ID = 2L;
 	private static final int DEFAULT_PROBATION_DAYS = 90;
@@ -64,7 +62,7 @@ public class HrEmployeeAccountService {
 	private final DepartmentRepository departmentRepository;
 	private final PositionRepository positionRepository;
 	private final StaffTypeRepository staffTypeRepository;
-	private final RoleRepository roleRepository;
+	private final PositionRoleResolutionService positionRoleResolutionService;
 	private final PasswordEncoder passwordEncoder;
 	private final MailService mailService;
 	private final AuditService auditService;
@@ -108,15 +106,13 @@ public class HrEmployeeAccountService {
 			throw new IllegalArgumentException("Department is not active");
 		}
 
-		Position position = positionRepository.findById(request.getPositionId())
-				.orElseThrow(() -> new IllegalArgumentException("Position not found"));
-		if (!isActiveEntity(position.getStatus())) {
-			throw new IllegalArgumentException("Position is not active");
-		}
+		Position position = positionRepository.findByIdWithRoleAndDepartment(request.getPositionId())
+				.orElseThrow(() -> new IllegalArgumentException("Selected position does not exist."));
 		if (position.getDepartment() == null || position.getDepartment().getId() == null
 				|| !position.getDepartment().getId().equals(department.getId())) {
 			throw new IllegalArgumentException("Position does not belong to the selected department");
 		}
+		Role accountRole = positionRoleResolutionService.resolveRoleFromLoadedPosition(position);
 
 		boolean probation = "PROBATION".equals(request.getStaffType());
 		StaffType staffTypeEntity = staffTypeRepository.findById(probation ? STAFF_TYPE_PROBATION_ID : STAFF_TYPE_PERMANENT_ID)
@@ -138,9 +134,6 @@ public class HrEmployeeAccountService {
 		} else if (request.getProbationStartDate() != null || request.getProbationEndDate() != null) {
 			throw new IllegalArgumentException("Probation dates must be empty for permanent staff");
 		}
-
-		Role employeeRole = roleRepository.findById(EMPLOYEE_ROLE_ID)
-				.orElseThrow(() -> new IllegalStateException("Employee role (id 4) is not configured"));
 
 		Employee employee = new Employee();
 		employee.setEmployeeId(staffNo);
@@ -194,14 +187,14 @@ public class HrEmployeeAccountService {
 		User user = new User();
 		user.setEmployee(savedEmployee);
 		user.setPassword(passwordEncoder.encode(temporaryPassword));
-		user.setRole(employeeRole);
+		user.setRole(accountRole);
 		user.setActive(true);
 		user.setMustChangePassword(true);
 		user.setCreatedDate(Instant.now());
 		User savedUser = userRepository.save(user);
 
 		String description = "HR user %d created employee account for employee_id %d with role_id %d"
-				.formatted(principal.getId(), savedEmployee.getId(), EMPLOYEE_ROLE_ID);
+				.formatted(principal.getId(), savedEmployee.getId(), accountRole.getId());
 		String metadata = "{\"userAccountId\":%d,\"employeeId\":%d}"
 				.formatted(savedUser.getId(), savedEmployee.getId());
 		auditService.record(
@@ -221,7 +214,7 @@ public class HrEmployeeAccountService {
 				savedUser.getId(),
 				employeeName,
 				email,
-				EMPLOYEE_ROLE_ID,
+				accountRole.getId(),
 				true,
 				"Employee account created successfully.");
 	}

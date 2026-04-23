@@ -34,6 +34,7 @@ import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.Position;
+import com.epms.backend.entity.Role;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentRepository;
@@ -59,6 +60,7 @@ public class HrEmployeeService {
     private final DepartmentRepository departmentRepository;
     private final PositionRepository positionRepository;
     private final StaffTypeRepository staffTypeRepository;
+    private final PositionRoleResolutionService positionRoleResolutionService;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final AuditService auditService;
@@ -168,9 +170,18 @@ public class HrEmployeeService {
             employee.setParentDepartment(dept);
         }
 
+        Role newPositionRole = null;
         if (request.getPositionId() != null) {
-            Position pos = positionRepository.findById(request.getPositionId())
-                    .orElseThrow(() -> new IllegalArgumentException("Position not found"));
+            Position pos = positionRepository.findByIdWithRoleAndDepartment(request.getPositionId())
+                    .orElseThrow(() -> new IllegalArgumentException("Selected position does not exist."));
+            if (employee.getDepartment() == null) {
+                throw new IllegalArgumentException("Department is required when assigning a position");
+            }
+            if (pos.getDepartment() == null || pos.getDepartment().getId() == null
+                    || !pos.getDepartment().getId().equals(employee.getDepartment().getId())) {
+                throw new IllegalArgumentException("Position does not belong to the selected department");
+            }
+            newPositionRole = positionRoleResolutionService.resolveRoleFromLoadedPosition(pos);
             employee.setPosition(pos);
         }
 
@@ -192,6 +203,16 @@ public class HrEmployeeService {
         employee.setUpdatedDate(Instant.now());
 
         employeeRepository.save(employee);
+
+        if (newPositionRole != null) {
+            final Role roleForUser = newPositionRole;
+            userRepository.findByEmployee_Id(employee.getId()).ifPresent(user -> {
+                if (user.getRole() == null || !roleForUser.getId().equals(user.getRole().getId())) {
+                    user.setRole(roleForUser);
+                    userRepository.save(user);
+                }
+            });
+        }
 
         auditService.record(
             AuditActionType.EMPLOYEE_INFO_UPDATED,

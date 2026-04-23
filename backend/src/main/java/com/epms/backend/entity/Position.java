@@ -42,6 +42,14 @@ public class Position {
     @JoinColumn(name = "department_id")
     private Department department;
 
+    /**
+     * Application role granted to users whose account is tied to this position.
+     * Not derived from {@link #levelCode}.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id")
+    private Role role;
+
     @Column(name = "status", length = 20)
     private String status;
 

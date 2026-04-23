@@ -60,12 +60,6 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        Department eng = seedDepartmentAndPositions("Engineering",
-                Arrays.asList("Software Engineer", "QA Engineer", "DevOps Engineer"));
-        Department mkt = seedDepartmentAndPositions("Marketing",
-                Arrays.asList("Content Writer", "SEO Specialist", "Social Media Manager"));
-        Department hr = seedDepartmentAndPositions("HR", Arrays.asList("Recruiter", "HR Manager"));
-
         Role hrRole = roleRepository.findByNameIgnoreCase("HR").orElseGet(() -> {
             Role r = new Role();
             r.setId(1L);
@@ -84,6 +78,13 @@ public class DataSeeder implements CommandLineRunner {
                 return roleRepository.save(r);
             });
         }
+
+        Role employeePositionRole = roleRepository.findByNameIgnoreCase("Employee").orElse(null);
+        Department eng = seedDepartmentAndPositions("Engineering",
+                Arrays.asList("Software Engineer", "QA Engineer", "DevOps Engineer"), employeePositionRole, hrRole);
+        Department mkt = seedDepartmentAndPositions("Marketing",
+                Arrays.asList("Content Writer", "SEO Specialist", "Social Media Manager"), employeePositionRole, hrRole);
+        Department hr = seedDepartmentAndPositions("HR", Arrays.asList("Recruiter", "HR Manager"), employeePositionRole, hrRole);
 
         // Ensure test user 'hr@gmail.com' exists
         User hrUser = userRepository.findByEmployee_EmailIgnoreCase("hr@gmail.com").orElseGet(() -> {
@@ -209,7 +210,8 @@ public class DataSeeder implements CommandLineRunner {
         criteriaRepository.save(c);
     }
 
-    private Department seedDepartmentAndPositions(String deptName, List<String> posNames) {
+    private Department seedDepartmentAndPositions(String deptName, List<String> posNames, Role defaultPositionRole,
+            Role hrManagerPositionRole) {
         Department dept = departmentRepository.findAll().stream()
                 .filter(d -> d.getName().equalsIgnoreCase(deptName))
                 .findFirst()
@@ -220,18 +222,45 @@ public class DataSeeder implements CommandLineRunner {
                 });
 
         for (String posName : posNames) {
+            final String pName = posName;
             Position pos = positionRepository.findAll().stream()
-                    .filter(p -> p.getName().equalsIgnoreCase(posName))
+                    .filter(p -> p.getName().equalsIgnoreCase(pName))
                     .findFirst()
                     .orElseGet(() -> {
                         Position p = new Position();
-                        p.setName(posName);
+                        p.setName(pName);
+                        p.setStatus("active");
+                        Role forPos = "HR Manager".equalsIgnoreCase(pName) && hrManagerPositionRole != null
+                                ? hrManagerPositionRole
+                                : defaultPositionRole;
+                        if (forPos != null) {
+                            p.setRole(forPos);
+                        }
                         return p;
                     });
 
             if (pos.getDepartment() == null) {
                 pos.setDepartment(dept);
+                if (pos.getStatus() == null || pos.getStatus().isBlank()) {
+                    pos.setStatus("active");
+                }
+                if (pos.getRole() == null) {
+                    Role forPos = "HR Manager".equalsIgnoreCase(pos.getName()) && hrManagerPositionRole != null
+                            ? hrManagerPositionRole
+                            : defaultPositionRole;
+                    if (forPos != null) {
+                        pos.setRole(forPos);
+                    }
+                }
                 positionRepository.save(pos);
+            } else if (pos.getRole() == null) {
+                Role forPos = "HR Manager".equalsIgnoreCase(pos.getName()) && hrManagerPositionRole != null
+                        ? hrManagerPositionRole
+                        : defaultPositionRole;
+                if (forPos != null) {
+                    pos.setRole(forPos);
+                    positionRepository.save(pos);
+                }
             }
         }
         return dept;

@@ -10,5 +10,5 @@ public interface DepartmentService {
     List<DepartmentDto> getAllDepartments();
     DepartmentDto createDepartment(CreateDepartmentRequest request);
     DepartmentDto updateDepartment(Long id, UpdateDepartmentRequest request);
-    void disbandDepartment(Long id);
+    void deleteDepartment(Long id);
 }
