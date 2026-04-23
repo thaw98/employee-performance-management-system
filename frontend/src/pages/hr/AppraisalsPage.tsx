@@ -18,7 +18,7 @@ import {
     sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, Hash, Type, HelpCircle, GripVertical } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, HelpCircle, GripVertical, Download } from 'lucide-react';
 
 const PRIMARY = '#0855BF';
 
@@ -43,11 +43,13 @@ interface Question {
 interface SortableCategoryRowProps {
     category: Category;
     index: number;
+    isConfirmed: boolean;
+    onConfirm: (id: number) => void;
     onEdit: (c: Category) => void;
     onDelete: (id: number) => void;
 }
 
-function SortableCategoryRow({ category, index, onEdit, onDelete }: SortableCategoryRowProps) {
+function SortableCategoryRow({ category, index, isConfirmed, onConfirm, onEdit, onDelete }: SortableCategoryRowProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category.id! });
     const style = { transform: CSS.Translate.toString(transform), transition, zIndex: isDragging ? 20 : 0, opacity: isDragging ? 0.3 : 1 };
 
@@ -73,11 +75,53 @@ function SortableCategoryRow({ category, index, onEdit, onDelete }: SortableCate
             </td>
             <td className="p-6 text-center">
                 <div className="flex items-center justify-center gap-2">
+                    <button 
+                        onClick={() => onConfirm(category.id!)} 
+                        className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${isConfirmed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-50 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                        title={isConfirmed ? "Confirmed" : "Add to Appraisal"}
+                    >
+                        <CheckCircle2 size={18} />
+                    </button>
                     <button onClick={() => onEdit(category)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"><Pencil size={18} /></button>
                     <button onClick={() => onDelete(category.id!)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"><Trash2 size={18} /></button>
                 </div>
             </td>
         </tr>
+    );
+}
+
+interface ConfirmedPreviewRowProps {
+    category: Category;
+    categoryQuestions: Question[];
+    startIndex: number;
+}
+
+function ConfirmedPreviewRows({ category, categoryQuestions, startIndex }: ConfirmedPreviewRowProps) {
+    if (categoryQuestions.length === 0) return null;
+
+    return (
+        <>
+            {categoryQuestions.map((q, idx) => (
+                <tr key={q.id} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
+                    {idx === 0 && (
+                        <td 
+                            rowSpan={categoryQuestions.length} 
+                            className="p-4 border-r border-slate-200 bg-slate-50/30 text-center font-black text-slate-700 w-48 align-middle"
+                        >
+                            <div className="rotate-[-90deg] whitespace-nowrap uppercase tracking-widest text-[10px] leading-none">
+                                {category.name}
+                            </div>
+                        </td>
+                    )}
+                    <td className="p-4 text-center border-r border-slate-200 font-bold text-slate-400 w-16">
+                        {startIndex + idx}
+                    </td>
+                    <td className="p-4 text-sm font-medium text-slate-600 leading-relaxed">
+                        {q.questionText}
+                    </td>
+                </tr>
+            ))}
+        </>
     );
 }
 
@@ -121,11 +165,209 @@ function SortableQuestionRow({ question, index, onEdit, onDelete }: SortableQues
     );
 }
 
+interface ConfirmedAppraisalViewProps {
+    categories: Category[]; // Selected categories
+    allAvailableCategories: Category[]; // All categories in system
+    onAdd: (id: number) => void;
+    onRemove: (id: number) => void;
+    onConfirm: () => void;
+    isFinalizedView?: boolean;
+}
+
+function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onRemove, onConfirm, isFinalizedView = false }: ConfirmedAppraisalViewProps) {
+    const [allQuestions, setAllQuestions] = useState<Record<number, Question[]>>({});
+    const [showPicker, setShowPicker] = useState(false);
+
+    // Filter out already selected categories
+    const availableToPick = allAvailableCategories.filter(ac => !categories.find(c => c.id === ac.id));
+
+    useEffect(() => {
+        // Fetch questions for each category
+        categories.forEach(async (cat) => {
+            if (!allQuestions[cat.id!]) {
+                try {
+                    const resp = await axios.get(`/appraisal-questions/category/${cat.id}`);
+                    setAllQuestions(prev => ({
+                        ...prev,
+                        [cat.id!]: resp.data.data || []
+                    }));
+                } catch (err) {
+                    console.error("Failed to fetch questions for category", cat.id, err);
+                }
+            }
+        });
+    }, [categories]);
+
+    let globalIndex = 1;
+
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* Action Bar */}
+            <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-3xl border border-slate-100 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                        <CheckCircle2 size={24} />
+                    </div>
+                    <div>
+                        <h3 className="font-black text-slate-800 uppercase tracking-tight">Review Appraisal</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                            {categories.length} Categories Selected • {Object.values(allQuestions).flat().length} Questions Total
+                        </p>
+                    </div>
+                </div>
+                
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    {!isFinalizedView && (
+                        <div className="relative flex-1 md:w-64">
+                            <button 
+                                onClick={() => setShowPicker(!showPicker)}
+                                className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-[10px] text-slate-500 uppercase tracking-widest hover:border-blue-400 transition-all"
+                            >
+                                <span>Pick a Category...</span>
+                                <Plus size={16} />
+                            </button>
+                            
+                            {showPicker && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                                    {availableToPick.length === 0 ? (
+                                        <p className="p-4 text-[10px] font-black text-slate-300 uppercase text-center">All categories picked</p>
+                                    ) : (
+                                        availableToPick.map(ac => (
+                                            <button 
+                                                key={ac.id}
+                                                onClick={() => { onAdd(ac.id!); setShowPicker(false); }}
+                                                className="w-full text-left p-4 hover:bg-slate-50 text-xs font-black text-slate-600 uppercase border-b border-slate-50 last:border-0"
+                                            >
+                                                {ac.name}
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {!isFinalizedView ? (
+                        <button 
+                            onClick={onConfirm}
+                            disabled={categories.length === 0}
+                            className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white rounded-2xl font-black text-xs hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 disabled:opacity-50 disabled:grayscale"
+                        >
+                            <CheckCircle2 size={16} strokeWidth={3} /> CONFIRM & FINALIZE
+                        </button>
+                    ) : (
+                        <button 
+                            onClick={() => window.print()}
+                            className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 whitespace-nowrap"
+                        >
+                            <Download size={16} /> EXPORT PDF
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Excel Style Table */}
+            <div className="bg-white rounded-[40px] border-4 border-slate-100 overflow-hidden shadow-2xl print:border-0">
+                <table className="w-full border-collapse">
+                    <thead>
+                        <tr className="bg-slate-900 text-white border-b-2 border-slate-800">
+                            <th className="p-5 text-xs font-black uppercase tracking-widest text-center w-32 border-r border-slate-800">Category</th>
+                            <th className="p-5 text-xs font-black uppercase tracking-widest text-center w-16 border-r border-slate-800">No.</th>
+                            <th className="p-5 text-xs font-black uppercase tracking-widest text-left">Evaluation Criteria & Performance Indicators</th>
+                            {!isFinalizedView && <th className="p-5 text-xs font-black uppercase tracking-widest text-center w-24">Control</th>}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {categories.length === 0 ? (
+                            <tr>
+                                <td colSpan={4} className="p-20 text-center text-slate-300 font-black italic uppercase tracking-widest">
+                                    No categories selected. Go to CATEGORY tab to select.
+                                </td>
+                            </tr>
+                        ) : (
+                            categories.map((cat) => {
+                                const qList = allQuestions[cat.id!] || [];
+                                const rows = (
+                                    <React.Fragment key={cat.id}>
+                                        {qList.length > 0 ? (
+                                            qList.map((q, idx) => {
+                                                const currentIndex = globalIndex++;
+                                                return (
+                                                    <tr key={q.id} className="hover:bg-slate-50/50 transition-colors group">
+                                                        {idx === 0 && (
+                                                            <td 
+                                                                rowSpan={qList.length} 
+                                                                className="p-6 border-r border-slate-200 bg-slate-50/50 text-center align-middle w-32 relative overflow-hidden"
+                                                            >
+                                                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-90deg] whitespace-nowrap">
+                                                                    <span className="font-black text-slate-800 text-[11px] uppercase tracking-[0.2em]">
+                                                                        {cat.name}
+                                                                    </span>
+                                                                </div>
+                                                                {/* Decorative grid lines inside rowSpan cell to mimic Excel */}
+                                                                <div className="absolute inset-x-0 top-0 h-px bg-slate-100" />
+                                                                <div className="absolute inset-x-0 bottom-0 h-px bg-slate-100" />
+                                                            </td>
+                                                        )}
+                                                        <td className="p-6 text-center border-r border-slate-200 font-black text-slate-400 bg-white group-hover:text-blue-600 transition-colors">
+                                                            {currentIndex}
+                                                        </td>
+                                                        <td className="p-6 text-sm font-bold text-slate-700 leading-relaxed bg-white">
+                                                            {q.questionText}
+                                                        </td>
+                                                        {!isFinalizedView && (
+                                                            <td className="p-6 text-center bg-white border-l border-slate-50">
+                                                                <button 
+                                                                    onClick={() => onRemove(cat.id!)}
+                                                                    className="w-8 h-8 rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center mx-auto opacity-0 group-hover:opacity-100"
+                                                                    title="Remove Category"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                );
+                                            })
+                                        ) : (
+                                            <tr key={`empty-${cat.id}`}>
+                                                <td className="p-6 border-r border-slate-200 bg-slate-50/50 text-center font-black text-slate-400 text-[10px] uppercase truncate">
+                                                    {cat.name}
+                                                </td>
+                                                <td colSpan={3} className="p-6 text-center text-slate-300 italic text-xs font-bold">
+                                                    (No questions added to this category)
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
+                                );
+                                return rows;
+                            })
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Footer Signatures Area (Excel Style) */}
+            <div className="mt-12 grid grid-cols-2 gap-20 p-12 bg-white rounded-[40px] border-4 border-dashed border-slate-100 opacity-50">
+                <div className="border-t-2 border-slate-200 pt-4 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Department Head Signature</p>
+                </div>
+                <div className="border-t-2 border-slate-200 pt-4 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">HR Manager Signature</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function AppraisalsPage() {
-    const [activeTab, setActiveTab] = useState<'category' | 'questions'>('category');
+    const [activeTab, setActiveTab] = useState<'category' | 'questions' | 'confirmed' | 'finalized'>('category');
     
     // Category State
     const [categories, setCategories] = useState<Category[]>([]);
+    const [confirmedCategories, setConfirmedCategories] = useState<number[]>([]); // Current selection (Draft)
+    const [finalizedCategories, setFinalizedCategories] = useState<number[]>([]); // Locked selection
     const [showCatModal, setShowCatModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [catForm, setCatForm] = useState({ name: '', description: '', status: true });
@@ -338,10 +580,43 @@ export function AppraisalsPage() {
                     >
                         QUESTIONS
                     </button>
+                    <button 
+                        onClick={() => setActiveTab('confirmed')}
+                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'confirmed' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        REVIEW APPRAISAL
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('finalized')}
+                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'finalized' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        CONFIRMED APPRAISAL
+                    </button>
                 </div>
             </div>
 
-            {activeTab === 'category' ? (
+            {activeTab === 'finalized' ? (
+                <ConfirmedAppraisalView 
+                    categories={categories.filter(c => finalizedCategories.includes(c.id!))}
+                    allAvailableCategories={categories}
+                    onAdd={() => {}}
+                    onRemove={() => {}}
+                    onConfirm={() => {}}
+                    isFinalizedView={true}
+                />
+            ) : activeTab === 'confirmed' ? (
+                <ConfirmedAppraisalView 
+                    categories={categories.filter(c => confirmedCategories.includes(c.id!))}
+                    allAvailableCategories={categories}
+                    onAdd={(id) => setConfirmedCategories(prev => [...prev, id])}
+                    onRemove={(id) => setConfirmedCategories(prev => prev.filter(cid => cid !== id))}
+                    onConfirm={() => {
+                        setFinalizedCategories([...confirmedCategories]);
+                        setActiveTab('finalized');
+                        toast.success('Appraisal Confirmed Successfully!');
+                    }}
+                />
+            ) : activeTab === 'category' ? (
                 <div className="space-y-6">
                     <div className="flex justify-end">
                         <button 
@@ -376,6 +651,12 @@ export function AppraisalsPage() {
                                                     key={cat.id}
                                                     category={cat}
                                                     index={index}
+                                                    isConfirmed={confirmedCategories.includes(cat.id!)}
+                                                    onConfirm={(id) => {
+                                                        setConfirmedCategories(prev => 
+                                                            prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]
+                                                        );
+                                                    }}
                                                     onEdit={(cat) => { setEditingCategory(cat); setCatForm({ name: cat.name, description: cat.description, status: cat.status }); setShowCatModal(true); }}
                                                     onDelete={handleDeleteCategory}
                                                 />
