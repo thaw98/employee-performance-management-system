@@ -42,6 +42,7 @@ export function AppraisalSubmissionsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedAsmt, setSelectedAsmt] = useState<Submission | null>(null);
+    const [history, setHistory] = useState<any[]>([]);
 
     // Review Modal States
     const [comments, setComments] = useState('');
@@ -54,6 +55,12 @@ export function AppraisalSubmissionsPage() {
         fetchSubmissions();
     }, []);
 
+    useEffect(() => {
+        if (selectedAsmt) {
+            fetchHistory(selectedAsmt.id);
+        }
+    }, [selectedAsmt]);
+
     const fetchSubmissions = async () => {
         setIsLoading(true);
         try {
@@ -64,6 +71,15 @@ export function AppraisalSubmissionsPage() {
             console.error('Fetch error:', err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchHistory = async (asmtId: number) => {
+        try {
+            const resp = await axios.get(`/audit-logs/target/AppraisalAssignment/${asmtId}`);
+            setHistory(resp.data.data || []);
+        } catch (err) {
+            console.error('History fetch error:', err);
         }
     };
 
@@ -372,6 +388,27 @@ export function AppraisalSubmissionsPage() {
                                     )}
                                 </div>
                             </div>
+
+                            {/* History Section */}
+                            {history.length > 0 && (
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                        <div className="w-1.5 h-6 bg-slate-400 rounded-full" />
+                                        Action History
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {history.map((log, idx) => (
+                                            <div key={log.id || idx} className="flex gap-4 items-start ml-2 border-l-2 border-slate-100 pl-6 pb-2">
+                                                <div className="w-2 h-2 rounded-full bg-slate-200 mt-1.5 -ml-7 flex-shrink-0" />
+                                                <div>
+                                                    <p className="text-xs font-bold text-slate-700">{log.actionType} by {log.performedByUserId === 1 ? 'HR' : 'User'}</p>
+                                                    <p className="text-[10px] text-slate-400">{formatDate(log.createdAt)} • {log.description}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* HR Actions Section */}
                             <div className="pt-6 border-t border-slate-200 space-y-6">
