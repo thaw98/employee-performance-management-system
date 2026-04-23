@@ -25,7 +25,7 @@ public class AppraisalAssignment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "period_id")
-    private KpiPeriod period;
+    private AppraisalCycle period;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
