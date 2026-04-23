@@ -18,7 +18,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class KpiPeriod {
+public class AppraisalCycle {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

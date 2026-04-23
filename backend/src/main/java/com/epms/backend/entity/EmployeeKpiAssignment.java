@@ -1,3 +1,4 @@
+// EmployeeKpiAssignment.java - Verify these relationships exist
 package com.epms.backend.entity;
 
 import jakarta.persistence.*;
@@ -23,7 +24,7 @@ public class EmployeeKpiAssignment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "period_id", nullable = false)
-    private KpiPeriod period;
+    private AppraisalCycle period;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_kpi_id", nullable = false)
