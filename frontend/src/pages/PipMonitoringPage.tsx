@@ -111,7 +111,7 @@ export default function PipMonitoringPage() {
               disabled={!isHr}
               className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
             >
-              {!isManager && <option value="">All Departments</option>}
+              {(isHr || !isManager) && <option value="">All Departments</option>}
               {departments.map((d) => (
                 <option key={d.departmentId} value={d.departmentId}>{d.departmentName}</option>
               ))}
@@ -189,7 +189,7 @@ export default function PipMonitoringPage() {
         <div className="mt-4 flex justify-end">
           <button
             onClick={() => {
-              setFilterDept(isManager && !isHr ? departments[0]?.departmentId : undefined)
+              setFilterDept(isHr ? undefined : (isManager ? departments[0]?.departmentId : undefined))
               setFilterPos(undefined)
               setFilterStatus('')
               setSearchName('')
