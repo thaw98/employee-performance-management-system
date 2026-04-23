@@ -1,6 +1,5 @@
 package com.epms.backend.dto;
 
-//MNA
 import lombok.Getter;
 import lombok.Setter;
 
@@ -8,6 +7,7 @@ import lombok.Setter;
 @Setter
 public class KpiUpdateDTO {
     private String actual;
+    private String remarks;
     private Double score;
     private Double weightedScore;
 }

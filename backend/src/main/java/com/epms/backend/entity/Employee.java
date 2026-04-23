@@ -30,7 +30,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @JsonIgnoreProperties({
     "manager",
-    "position",
+    "parentDepartment",
     "staffType",
     "father",
     "probation",

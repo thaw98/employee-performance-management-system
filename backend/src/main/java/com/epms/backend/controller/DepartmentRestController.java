@@ -25,6 +25,10 @@ import com.epms.backend.service.DepartmentService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.repository.UserRepository;
+import com.epms.backend.entity.User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
 @RequestMapping("/api/departments")
@@ -39,6 +43,7 @@ public class DepartmentRestController {
 	public ResponseEntity<ApiResponse<List<DepartmentOptionDto>>> listOptions() {
 		List<DepartmentOptionDto> rows = departmentRepository.findAll().stream()
 				.filter(this::isActive)
+				.filter(d -> isHr || (user.getEmployee() != null && user.getEmployee().getDepartment() != null && d.getId().equals(user.getEmployee().getDepartment().getId())))
 				.map(d -> new DepartmentOptionDto(d.getId(), d.getName()))
 				.sorted(Comparator.comparing(DepartmentOptionDto::getDepartmentName, String.CASE_INSENSITIVE_ORDER))
 				.toList();

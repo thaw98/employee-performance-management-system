@@ -2,7 +2,7 @@ package com.epms.backend.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.epms.backend.entity.KpiPeriod;
+import com.epms.backend.entity.AppraisalCycle;
 import com.epms.backend.repository.KpiPeriodRepository;
 import java.util.List;
 
@@ -18,7 +18,7 @@ public class KpiPeriodController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createPeriod(@RequestBody KpiPeriod period) {
+    public ResponseEntity<?> createPeriod(@RequestBody AppraisalCycle period) {
         // Validation: end < start
         if (period.getEndDate() != null && period.getStartDate() != null) {
             if (period.getEndDate().isBefore(period.getStartDate())) {
@@ -35,7 +35,7 @@ public class KpiPeriodController {
     }
 
     @GetMapping
-    public ResponseEntity<List<KpiPeriod>> getAllPeriods() {
+    public ResponseEntity<List<AppraisalCycle>> getAllPeriods() {
         return ResponseEntity.ok(kpiPeriodRepository.findAll());
     }
 

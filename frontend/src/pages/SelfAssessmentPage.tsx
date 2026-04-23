@@ -21,7 +21,7 @@ interface Response {
 
 export function SelfAssessmentPage() {
   const user = useAppSelector((state) => state.auth.user);
-  const [, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [responses, setResponses] = useState<Response[]>([]);
   const [remarks, setRemarks] = useState('');
   const [signature, setSignature] = useState('');
