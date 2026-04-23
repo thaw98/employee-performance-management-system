@@ -31,7 +31,7 @@ public class Department {
     @Column(name = "department_name", length = 100)
     private String name;
 
-    @Column(name = "status", length = 20)
+    @Column(name = "status", nullable = false, columnDefinition = "ENUM('Active','Inactive')")
     private String status;
 
     @Column(name = "created_date")

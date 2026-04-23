@@ -33,6 +33,7 @@ public class EmployeeViewResponseDto {
     private StaffTypeInfo staffType;
     private EmergencyContactInfo emergencyContact;
     private FatherInfo father;
+    private ProbationInfo probationInfo;
 
     @Getter
     @Setter
@@ -83,5 +84,16 @@ public class EmployeeViewResponseDto {
         private String fatherName;
         private String fatherNrcNo;
         private String fatherOccupation;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ProbationInfo {
+        private boolean hasProbationRecord;
+        private LocalDate probationStartDate;
+        private LocalDate probationEndDate;
     }
 }

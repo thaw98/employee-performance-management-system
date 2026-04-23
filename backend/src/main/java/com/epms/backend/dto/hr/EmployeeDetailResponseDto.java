@@ -30,7 +30,8 @@ public class EmployeeDetailResponseDto {
     private Long staffTypeId;
     private String staffTypeName;
     private LocalDate dateOfJoining;
-    private Integer probationMonth;
+    private LocalDate probationStartDate;
+    private Integer probationDays;
     private LocalDate probationEndDate;
     private String fatherName;
     private String fatherNrcNo;

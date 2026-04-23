@@ -14,12 +14,12 @@ import lombok.Setter;
 @NoArgsConstructor
 public class UpdateEmploymentStatusRequestDto {
 
-    @NotBlank(message = "Status is required")
-    private String status; // "Probation", "Permanent", "Resigned", or "Terminated"
+    @NotBlank(message = "Target status is required")
+    private String targetStatus; // "PERMANENT", "RESIGNED", or "TERMINATED"
 
     @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate probationEndDate;
+    private LocalDate effectiveDate;
 
-    // Optional: set to "RESIGNED" or "TERMINATED" to change the employee's active status
-    private String employeeStatus;
+    // Required for PERMANENT transition: "NOW" or "CUSTOM".
+    private String transitionMode;
 }

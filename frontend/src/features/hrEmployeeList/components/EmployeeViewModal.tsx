@@ -243,6 +243,32 @@ function EmployeeViewModal({
                                 value={displayValue(data.staffType?.staffTypeName)}
                               />
                             </dl>
+
+                            {/* Probation dates section */}
+                            {data.probationInfo?.hasProbationRecord && (
+                              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <i className="bi bi-calendar-event text-amber-600"></i>
+                                  <span className="text-sm font-medium text-amber-800">
+                                    {data.employmentStatus === 'Probation'
+                                      ? 'Probation Period'
+                                      : 'Probation History'}
+                                  </span>
+                                </div>
+                                <dl className="space-y-0">
+                                  <InfoRow
+                                    label="Probation Start"
+                                    value={formatDate(data.probationInfo.probationStartDate)}
+                                  />
+                                  <InfoRow
+                                    label="Probation End"
+                                    value={data.probationInfo.probationEndDate
+                                      ? formatDate(data.probationInfo.probationEndDate)
+                                      : 'Not set'}
+                                  />
+                                </dl>
+                              </div>
+                            )}
                           </Tab.Panel>
 
                           {/* 3. Emergency Contact */}

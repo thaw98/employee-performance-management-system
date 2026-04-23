@@ -40,6 +40,8 @@ export interface EmployeeDetail {
   staffTypeId: number
   staffTypeName: string
   dateOfJoining: string
+  probationStartDate?: string
+  probationEndDate?: string
   status: string
   profilePictureUrl: string
   fatherName?: string
@@ -47,8 +49,7 @@ export interface EmployeeDetail {
   fatherOccupation?: string
   emergencyPhone?: string
   emergencyRelation?: string
-  probationMonth?: number
-  probationEndDate?: string
+  probationDays?: number
 }
 
 export interface EmployeeUpdateRequest {
@@ -116,6 +117,12 @@ export interface EmployeeViewFather {
   fatherOccupation: string
 }
 
+export interface ProbationInfo {
+  hasProbationRecord: boolean
+  probationStartDate: string | null
+  probationEndDate: string | null
+}
+
 export interface EmployeeViewDetail {
   employeeId: number
   staffNo: string
@@ -136,6 +143,13 @@ export interface EmployeeViewDetail {
   staffType: EmployeeViewStaffType | null
   emergencyContact: EmployeeViewEmergencyContact | null
   father: EmployeeViewFather | null
+  probationInfo: ProbationInfo | null
+}
+
+export interface UpdateEmploymentStatusRequest {
+  targetStatus: string
+  transitionMode?: string
+  effectiveDate?: string
 }
 
 export const hrEmployeeApi = baseApi.injectEndpoints({
@@ -173,16 +187,17 @@ export const hrEmployeeApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, id) => [{ type: 'Employee', id }],
     }),
-    updateEmploymentStatus: builder.mutation<ApiResponse<void>, { id: number; status: string; probationEndDate?: string }>({
-      query: ({ id, status, probationEndDate }) => ({
+    updateEmploymentStatus: builder.mutation<ApiResponse<void>, { id: number; body: UpdateEmploymentStatusRequest }>({
+      query: ({ id, body }) => ({
         url: `/hr/employees/${id}/employment-status`,
         method: 'PATCH',
-        body: { status, probationEndDate },
+        body,
       }),
       invalidatesTags: ['Employee'],
     }),
     getEmployeeViewById: builder.query<ApiResponse<EmployeeViewDetail>, number>({
       query: (id) => `/hr/employees/${id}/view`,
+      providesTags: (_result, _error, id) => [{ type: 'Employee', id }],
     }),
   }),
 })

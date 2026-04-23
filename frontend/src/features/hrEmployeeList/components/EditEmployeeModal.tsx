@@ -7,7 +7,9 @@ import { X, Pencil, Save } from 'lucide-react'
 import {
   useGetEmployeeByIdQuery,
   useUpdateEmployeeMutation,
+  useUpdateEmploymentStatusMutation,
   type EmployeeUpdateRequest,
+  type UpdateEmploymentStatusRequest,
 } from '../hrEmployeeApi'
 import {
   useGetDepartmentsQuery,
@@ -21,6 +23,18 @@ import { EmployeeInformationStep } from '../../../pages/hr/create-account/Employ
 import { EmploymentInformationStep } from '../../../pages/hr/create-account/EmploymentInformationStep'
 import { FamilyEmergencyStep } from '../../../pages/hr/create-account/FamilyEmergencyStep'
 import { useUploadProfilePictureMutation } from '../../user/userApi'
+
+function formatDateDisplay(dateStr?: string | null): string {
+  if (!dateStr) return '-'
+  try {
+    const date = new Date(`${dateStr}T00:00:00`)
+    if (Number.isNaN(date.getTime())) return '-'
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
+  } catch {
+    return '-'
+  }
+}
 
 interface EditEmployeeModalProps {
   isOpen: boolean
@@ -41,6 +55,7 @@ export default function EditEmployeeModal({
     skip: !isOpen || !employeeId,
   })
   const [updateEmployee, { isLoading: isUpdating }] = useUpdateEmployeeMutation()
+  const [updateEmploymentStatus, { isLoading: isStatusUpdating }] = useUpdateEmploymentStatusMutation()
   const [uploadProfilePhoto] = useUploadProfilePictureMutation()
 
   const { data: deptRes, isLoading: deptLoading } = useGetDepartmentsQuery(undefined, {
@@ -51,6 +66,8 @@ export default function EditEmployeeModal({
   const [activeTab, setActiveTab] = useState<'personal' | 'family' | 'employment'>('personal')
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
   const [photoError] = useState('')
+  const [transitionMode, setTransitionMode] = useState<'NOW' | 'CUSTOM' | ''>('')
+  const [transitionDate, setTransitionDate] = useState('')
 
   const form = useForm<EditEmployeeFormValues>({
     resolver: zodResolver(editEmployeeSchema) as never,
@@ -70,6 +87,8 @@ export default function EditEmployeeModal({
     if (!isOpen) {
       setActiveTab('personal')
       setProfilePhotoFile(null)
+      setTransitionMode('')
+      setTransitionDate('')
     }
   }, [isOpen])
 
@@ -118,7 +137,7 @@ export default function EditEmployeeModal({
         emergencyPhone: d.emergencyPhone || '',
         emergencyRelation: d.emergencyRelation || '',
         staffType: d.staffTypeName === 'Probation' ? 'PROBATION' : 'PERMANENT',
-        probationStartDate: '',
+        probationStartDate: d.probationStartDate || '',
         probationEndDate: d.probationEndDate || '',
         hireDate: d.dateOfJoining,
         departmentId: d.departmentId,
@@ -127,6 +146,24 @@ export default function EditEmployeeModal({
     }
   }, [empRes, reset])
 
+  const currentStatus = empRes?.data?.staffTypeName === 'Probation' ? 'PROBATION' : 'PERMANENT'
+  const selectedStaffType = watch('staffType')
+  const isProbationToPermanent = currentStatus === 'PROBATION' && selectedStaffType === 'PERMANENT'
+  const probationStartDate = empRes?.data?.probationStartDate || ''
+  const minTransitionDate = (() => {
+    if (!probationStartDate) return new Date().toISOString().split('T')[0]
+    const d = new Date(`${probationStartDate}T00:00:00`)
+    d.setDate(d.getDate() + 1)
+    return d.toISOString().split('T')[0]
+  })()
+
+  useEffect(() => {
+    if (!isProbationToPermanent) {
+      setTransitionMode('')
+      setTransitionDate('')
+    }
+  }, [isProbationToPermanent])
+
   const onSubmit = async (v: EditEmployeeFormValues) => {
     try {
       let profilePictureUrl = empRes?.data?.profilePictureUrl
@@ -134,6 +171,23 @@ export default function EditEmployeeModal({
         const up = await uploadProfilePhoto(profilePhotoFile).unwrap()
         if (up.success && up.data?.profilePictureUrl) {
           profilePictureUrl = up.data.profilePictureUrl
+        }
+      }
+
+      if (isProbationToPermanent) {
+        if (!transitionMode) {
+          toast.error('Please choose when to make permanent')
+          return
+        }
+        if (transitionMode === 'CUSTOM') {
+          if (!transitionDate) {
+            toast.error('Please choose probation end date')
+            return
+          }
+          if (probationStartDate && transitionDate <= probationStartDate) {
+            toast.error(`Date must be after probation start date (${formatDateDisplay(probationStartDate)})`)
+            return
+          }
         }
       }
 
@@ -154,12 +208,23 @@ export default function EditEmployeeModal({
         departmentId: v.departmentId!,
         positionId: v.positionId!,
         dateOfJoining: v.hireDate,
-        staffTypeId: v.staffType === 'PROBATION' ? 2 : 1,
+        // Keep existing type here when converting Probation->Permanent; transition endpoint will update it.
+        staffTypeId: isProbationToPermanent ? 2 : v.staffType === 'PROBATION' ? 2 : 1,
         status: empRes?.data?.status || 'Active',
         profilePictureUrl,
       }
 
       await updateEmployee({ id, body }).unwrap()
+
+      if (isProbationToPermanent) {
+        const statusBody: UpdateEmploymentStatusRequest = {
+          targetStatus: 'PERMANENT',
+          transitionMode,
+          ...(transitionMode === 'CUSTOM' ? { effectiveDate: transitionDate } : {}),
+        }
+        await updateEmploymentStatus({ id, body: statusBody }).unwrap()
+      }
+
       toast.success('Employee updated successfully')
       onSuccess?.()
       onClose()
@@ -190,7 +255,7 @@ export default function EditEmployeeModal({
         <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
 
           {/* ── Header ── */}
-          <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 shrink-0">
             <div className="flex items-center gap-4">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
                 <Pencil size={20} />
@@ -219,7 +284,7 @@ export default function EditEmployeeModal({
           </div>
 
           {/* ── Tabs ── */}
-          <div className="flex border-b border-gray-100 flex-shrink-0 bg-white">
+          <div className="flex border-b border-gray-100 shrink-0 bg-white">
             {(['personal', 'family', 'employment'] as const).map((tab) => {
               const labels: Record<typeof tab, string> = {
                 personal: 'Personal Details',
@@ -299,7 +364,80 @@ export default function EditEmployeeModal({
                           positions={positions}
                           departmentLoading={deptLoading}
                           positionLoading={posLoading}
-                          disableProbationOption={watch('staffType') === 'PERMANENT'}
+                          beforeHireDate={
+                            isProbationToPermanent ? (
+                              <div className="rounded-xl border border-gray-200 bg-white p-5">
+                                <label className="mb-3 block text-sm font-semibold text-gray-700">
+                                  When to make permanent <span className="text-red-500">*</span>
+                                </label>
+                                <div className="space-y-3">
+                                  <label
+                                    className={`flex items-center gap-3 rounded-lg border p-3 transition-colors cursor-pointer ${
+                                      transitionMode === 'NOW'
+                                        ? 'border-green-300 bg-green-50'
+                                        : 'border-gray-200 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="transitionMode"
+                                      value="NOW"
+                                      checked={transitionMode === 'NOW'}
+                                      onChange={() => {
+                                        setTransitionMode('NOW')
+                                        setTransitionDate('')
+                                      }}
+                                      className="h-4 w-4 border-gray-300 text-green-600 focus:ring-green-500"
+                                    />
+                                    <i className="bi bi-lightning-charge text-green-600" />
+                                    <div>
+                                      <p className="text-sm font-semibold text-green-700">Now</p>
+                                      <p className="text-xs text-gray-500">Probation ends today, status changes immediately</p>
+                                    </div>
+                                  </label>
+                                  <label
+                                    className={`flex items-center gap-3 rounded-lg border p-3 transition-colors cursor-pointer ${
+                                      transitionMode === 'CUSTOM'
+                                        ? 'border-green-300 bg-green-50'
+                                        : 'border-gray-200 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <input
+                                      type="radio"
+                                      name="transitionMode"
+                                      value="CUSTOM"
+                                      checked={transitionMode === 'CUSTOM'}
+                                      onChange={() => setTransitionMode('CUSTOM')}
+                                      className="h-4 w-4 border-gray-300 text-green-600 focus:ring-green-500"
+                                    />
+                                    <i className="bi bi-calendar-check text-green-600" />
+                                    <div>
+                                      <p className="text-sm font-semibold text-green-700">Custom Date</p>
+                                      <p className="text-xs text-gray-500">Choose a specific probation end date</p>
+                                    </div>
+                                  </label>
+                                </div>
+
+                                {transitionMode === 'CUSTOM' ? (
+                                  <div className="mt-3">
+                                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                                      Probation End Date <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                      type="date"
+                                      min={minTransitionDate}
+                                      value={transitionDate}
+                                      onChange={(e) => setTransitionDate(e.target.value)}
+                                      className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                      Must be after probation start date ({formatDateDisplay(probationStartDate)}).
+                                    </p>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : null
+                          }
                         />
                       </div>
                     )}
@@ -310,7 +448,7 @@ export default function EditEmployeeModal({
           </div>
 
           {/* ── Footer ── */}
-          <div className="flex items-center justify-end gap-3 px-8 py-5 border-t border-gray-100 bg-gray-50/60 flex-shrink-0">
+          <div className="flex items-center justify-end gap-3 px-8 py-5 border-t border-gray-100 bg-gray-50/60 shrink-0">
             <button
               type="button"
               onClick={onClose}
@@ -321,10 +459,10 @@ export default function EditEmployeeModal({
             <button
               type="submit"
               form="edit-employee-form"
-              disabled={isUpdating || isEmpLoading}
+              disabled={isUpdating || isStatusUpdating || isEmpLoading}
               className="flex items-center gap-2 px-7 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold shadow-md hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
             >
-              {isUpdating ? (
+              {isUpdating || isStatusUpdating ? (
                 <div className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
               ) : (
                 <Save size={16} />
