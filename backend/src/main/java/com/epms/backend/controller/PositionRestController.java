@@ -52,7 +52,11 @@ public class PositionRestController {
 
 		List<PositionOptionDto> rows = positions.stream()
 				.filter(this::isActive)
-				.map(p -> new PositionOptionDto(p.getId(), p.getName()))
+				.map(p -> new PositionOptionDto(
+						p.getId(),
+						p.getName(),
+						p.getRole() != null ? p.getRole().getId() : null,
+						p.getRole() != null ? p.getRole().getName() : null))
 				.sorted(Comparator.comparing(PositionOptionDto::getPositionName,
 						Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
 				.toList();

@@ -82,9 +82,11 @@ public class DataSeeder implements CommandLineRunner {
         Role employeePositionRole = roleRepository.findByNameIgnoreCase("Employee").orElse(null);
         Department eng = seedDepartmentAndPositions("Engineering",
                 Arrays.asList("Software Engineer", "QA Engineer", "DevOps Engineer"), employeePositionRole, hrRole);
-        Department mkt = seedDepartmentAndPositions("Marketing",
-                Arrays.asList("Content Writer", "SEO Specialist", "Social Media Manager"), employeePositionRole, hrRole);
-        Department hr = seedDepartmentAndPositions("HR", Arrays.asList("Recruiter", "HR Manager"), employeePositionRole, hrRole);
+        seedDepartmentAndPositions("Marketing",
+                Arrays.asList("Content Writer", "SEO Specialist", "Social Media Manager"), employeePositionRole,
+                hrRole);
+        Department hr = seedDepartmentAndPositions("HR", Arrays.asList("Recruiter", "HR Manager"), employeePositionRole,
+                hrRole);
 
         // Ensure test user 'hr@gmail.com' exists
         User hrUser = userRepository.findByEmployee_EmailIgnoreCase("hr@gmail.com").orElseGet(() -> {
@@ -107,7 +109,6 @@ public class DataSeeder implements CommandLineRunner {
                     .orElse(null);
             emp.setPosition(hrPos);
             staffTypeRepository.findById(StaffTypes.PERMANENT).ifPresent(emp::setStaffType);
-
 
             emp = employeeRepository.save(emp);
             hrUser.setEmployee(emp);
@@ -137,16 +138,16 @@ public class DataSeeder implements CommandLineRunner {
         // --- Seed Subjects ---
         if (subjectRepository.count() == 0) {
             String[] defaultSubjects = {
-                "I completed my assigned tasks on time",
-                "My work quality met expected standards",
-                "I communicated clearly with my team",
-                "I collaborated well with others",
-                "I followed company rules and processes",
-                "I tried to learn or improve my skills",
-                "I met my goals this period",
-                "I am satisfied with my performance",
-                "I managed my time effectively",
-                "I delivered work with minimal errors"
+                    "I completed my assigned tasks on time",
+                    "My work quality met expected standards",
+                    "I communicated clearly with my team",
+                    "I collaborated well with others",
+                    "I followed company rules and processes",
+                    "I tried to learn or improve my skills",
+                    "I met my goals this period",
+                    "I am satisfied with my performance",
+                    "I managed my time effectively",
+                    "I delivered work with minimal errors"
             };
             for (int i = 0; i < defaultSubjects.length; i++) {
                 SelfAssessmentSubject s = new SelfAssessmentSubject();
