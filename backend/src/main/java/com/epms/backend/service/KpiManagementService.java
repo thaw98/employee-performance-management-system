@@ -354,7 +354,6 @@ public class KpiManagementService {
             assignment.setIsLocked(true);
             assignment.setUpdatedDate(Instant.now());
             employeeKpiAssignmentRepository.save(assignment);
-
             // Sync to KpiRecord as Locked
             syncToKpiRecord(assignment, null, period);
         }
@@ -408,7 +407,6 @@ public class KpiManagementService {
         record.setLogicDirection(assignment.getPositionKpi().getLogicDirection());
         record.setStatus(assignment.getIsLocked() ? KpiStatus.LOCKED : KpiStatus.DRAFT);
         record.setRemarks(assignment.getRemarks());
-
         if (updater != null) {
             record.setUpdatedBy(updater);
             record.setUpdatedDate(Instant.now());

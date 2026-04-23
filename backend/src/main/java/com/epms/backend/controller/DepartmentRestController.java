@@ -23,7 +23,6 @@ import com.epms.backend.entity.Department;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.service.DepartmentService;
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.repository.UserRepository;
@@ -51,7 +50,8 @@ public class DepartmentRestController {
 				.filter(d -> isHr || (user.getEmployee() != null && user.getEmployee().getDepartment() != null
 						&& d.getId().equals(user.getEmployee().getDepartment().getId())))
 				.map(d -> new DepartmentOptionDto(d.getId(), d.getName()))
-				.sorted(Comparator.comparing(DepartmentOptionDto::getDepartmentName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+				.sorted(Comparator.comparing(DepartmentOptionDto::getDepartmentName,
+						Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
 				.toList();
 		return ResponseEntity.ok(ApiResponse.ok("Departments", rows));
 	}
