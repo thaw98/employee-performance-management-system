@@ -102,8 +102,9 @@ public class KpiManagementService {
 
     public List<PositionKpiDto> getPositionKpisWithPositionName(Long positionId) {
         Position position = positionRepository.findById(positionId).orElse(null);
-        List<PositionKpiDefinition> definitions = positionKpiDefinitionRepository.findByPositionIdOrderByDisplayOrderAsc(positionId);
-        
+        List<PositionKpiDefinition> definitions = positionKpiDefinitionRepository
+                .findByPositionIdOrderByDisplayOrderAsc(positionId);
+
         return definitions.stream().map(def -> PositionKpiDto.builder()
                 .id(def.getId())
                 .positionId(positionId)
@@ -144,13 +145,13 @@ public class KpiManagementService {
             return new ArrayList<>();
         }
 
-        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository.findByEmployeeIdAndPeriodId(employeeId, period.getId());
-        
-        // If no assignments exist, auto-create them from the employee's position templates
+        // If no assignments exist, auto-create them from the employee's position
+        // templates
         if (assignments.isEmpty()) {
             Employee employee = employeeRepository.findById(employeeId).orElse(null);
             if (employee != null && employee.getPosition() != null) {
-                List<PositionKpiDefinition> positionKpis = positionKpiDefinitionRepository.findByPositionIdOrderByDisplayOrderAsc(employee.getPosition().getId());
+                List<PositionKpiDefinition> positionKpis = positionKpiDefinitionRepository
+                        .findByPositionIdOrderByDisplayOrderAsc(employee.getPosition().getId());
                 for (PositionKpiDefinition def : positionKpis) {
                     EmployeeKpiAssignment assignment = new EmployeeKpiAssignment();
                     assignment.setEmployee(employee);
@@ -218,7 +219,7 @@ public class KpiManagementService {
 
         for (PositionKpiDto update : updates) {
             EmployeeKpiAssignment assignment;
-            
+
             if (update.getAssignmentId() == null) {
                 // Create a new custom KPI for this employee
                 PositionKpiDefinition def = new PositionKpiDefinition();
