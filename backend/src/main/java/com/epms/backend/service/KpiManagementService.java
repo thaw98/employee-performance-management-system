@@ -34,7 +34,7 @@ public class KpiManagementService {
     private final KpiRecordRepository kpiRecordRepository;
 
     // ==================== Categories ====================
-    
+
     public List<KpiCategory> getAllCategories() {
         return kpiCategoryRepository.findByIsActiveTrueOrderByDisplayOrderAsc();
     }
@@ -48,7 +48,7 @@ public class KpiManagementService {
     }
 
     // ==================== Position KPI Definitions ====================
-    
+
     public List<PositionKpiDefinition> getPositionKpis(Long positionId) {
         return positionKpiDefinitionRepository.findByPositionIdOrderByDisplayOrderAsc(positionId);
     }
@@ -75,7 +75,7 @@ public class KpiManagementService {
             if (dto.getKpiName() == null || dto.getKpiName().trim().isEmpty()) {
                 continue; // Skip empty rows
             }
-            
+
             PositionKpiDefinition def = new PositionKpiDefinition();
             def.setPosition(positionRepository.findById(request.getPositionId())
                     .orElseThrow(() -> new RuntimeException("Position not found")));
@@ -122,7 +122,7 @@ public class KpiManagementService {
     }
 
     // ==================== Positions & Employees ====================
-    
+
     public List<Position> getAllPositions() {
         return positionRepository.findAll();
     }
@@ -132,7 +132,7 @@ public class KpiManagementService {
     }
 
     // ==================== Employee KPI Management ====================
-    
+
     public List<PositionKpiDto> getEmployeeKpisWithActuals(Long employeeId) {
         // Get active period
         AppraisalCycle period = kpiPeriodRepository.findAll().stream()
@@ -144,6 +144,9 @@ public class KpiManagementService {
             log.warn("No active KPI period found for employee ID: {}", employeeId);
             return new ArrayList<>();
         }
+
+        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository
+                .findByEmployeeIdAndPeriodId(employeeId, period.getId());
 
         // If no assignments exist, auto-create them from the employee's position
         // templates
@@ -202,12 +205,13 @@ public class KpiManagementService {
         Employee targetEmployee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        // Authorization: Manager/HR can only update for employees in the same department
+        // Authorization: Manager/HR can only update for employees in the same
+        // department
         boolean isHR = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_HR"));
-        
-        if (!isHR && (currentUser.getEmployee().getDepartment() == null || 
-            !currentUser.getEmployee().getDepartment().getId().equals(targetEmployee.getDepartment().getId()))) {
+
+        if (!isHR && (currentUser.getEmployee().getDepartment() == null ||
+                !currentUser.getEmployee().getDepartment().getId().equals(targetEmployee.getDepartment().getId()))) {
             throw new RuntimeException("Access denied: You can only update KPIs for employees in your department");
         }
 
@@ -253,13 +257,20 @@ public class KpiManagementService {
             // Update details if HR and assignment exists
             if (isHR && update.getAssignmentId() != null) {
                 PositionKpiDefinition def = assignment.getPositionKpi();
-                if (update.getKpiName() != null) def.setKpiName(update.getKpiName());
-                if (update.getTarget() != null) def.setTarget(update.getTarget());
-                if (update.getWeight() != null) def.setWeight(update.getWeight());
-                if (update.getCategory() != null) def.setCategory(update.getCategory());
-                if (update.getUnit() != null) def.setUnit(update.getUnit());
-                if (update.getPriorityLevel() != null) def.setPriorityLevel(update.getPriorityLevel());
-                if (update.getLogicDirection() != null) def.setLogicDirection(update.getLogicDirection());
+                if (update.getKpiName() != null)
+                    def.setKpiName(update.getKpiName());
+                if (update.getTarget() != null)
+                    def.setTarget(update.getTarget());
+                if (update.getWeight() != null)
+                    def.setWeight(update.getWeight());
+                if (update.getCategory() != null)
+                    def.setCategory(update.getCategory());
+                if (update.getUnit() != null)
+                    def.setUnit(update.getUnit());
+                if (update.getPriorityLevel() != null)
+                    def.setPriorityLevel(update.getPriorityLevel());
+                if (update.getLogicDirection() != null)
+                    def.setLogicDirection(update.getLogicDirection());
                 positionKpiDefinitionRepository.save(def);
             }
 
@@ -273,12 +284,13 @@ public class KpiManagementService {
             calculateAssignmentScore(assignment);
 
             employeeKpiAssignmentRepository.save(assignment);
-            
+
             // Sync to KpiRecord
             syncToKpiRecord(assignment, currentUser.getEmployee(), period);
         }
-        
-        log.info("Updated KPI actual values for employee ID: {} by user: {}", employeeId, currentUser.getEmployee().getEmployeeName());
+
+        log.info("Updated KPI actual values for employee ID: {} by user: {}", employeeId,
+                currentUser.getEmployee().getEmployeeName());
     }
 
     private void calculateAssignmentScore(EmployeeKpiAssignment assignment) {
@@ -287,12 +299,12 @@ public class KpiManagementService {
             if (targetStr == null || targetStr.trim().isEmpty()) {
                 return;
             }
-            
+
             String numericTarget = targetStr.replaceAll("[^\\d.-]", "");
             if (numericTarget.isEmpty()) {
                 return;
             }
-            
+
             BigDecimal targetVal = new BigDecimal(numericTarget);
             BigDecimal weightVal = assignment.getPositionKpi().getWeight();
             BigDecimal actualVal = assignment.getActualValue();
@@ -309,13 +321,15 @@ public class KpiManagementService {
                     baseScore = new BigDecimal("150");
                 }
                 assignment.setScore(baseScore);
-                assignment.setWeightedScore(baseScore.multiply(weightVal).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
+                assignment.setWeightedScore(
+                        baseScore.multiply(weightVal).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
             } else {
                 assignment.setScore(BigDecimal.ZERO);
                 assignment.setWeightedScore(BigDecimal.ZERO);
             }
         } catch (Exception e) {
-            log.warn("Could not calculate score for KPI {}: {}", assignment.getPositionKpi().getKpiName(), e.getMessage());
+            log.warn("Could not calculate score for KPI {}: {}", assignment.getPositionKpi().getKpiName(),
+                    e.getMessage());
             assignment.setScore(BigDecimal.ZERO);
             assignment.setWeightedScore(BigDecimal.ZERO);
         }
@@ -329,21 +343,21 @@ public class KpiManagementService {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No active KPI period found"));
 
-        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository.findByEmployeeIdAndPeriodId(employeeId, period.getId());
-        
+        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository
+                .findByEmployeeIdAndPeriodId(employeeId, period.getId());
+
         if (assignments.isEmpty()) {
             throw new RuntimeException("No KPI assignments found for employee ID: " + employeeId);
         }
-        
+
         for (EmployeeKpiAssignment assignment : assignments) {
             assignment.setIsLocked(true);
             assignment.setUpdatedDate(Instant.now());
             employeeKpiAssignmentRepository.save(assignment);
-            
             // Sync to KpiRecord as Locked
             syncToKpiRecord(assignment, null, period);
         }
-        
+
         log.info("Locked {} KPI assignments for employee ID: {}", assignments.size(), employeeId);
     }
 
@@ -354,28 +368,28 @@ public class KpiManagementService {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No active KPI period found"));
 
-        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository.findByEmployeeIdAndPeriodId(employeeId, period.getId());
-        
+        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository
+                .findByEmployeeIdAndPeriodId(employeeId, period.getId());
+
         for (EmployeeKpiAssignment assignment : assignments) {
             assignment.setIsLocked(false);
             assignment.setUpdatedDate(Instant.now());
             employeeKpiAssignmentRepository.save(assignment);
-            
+
             // Sync to KpiRecord
             syncToKpiRecord(assignment, null, period);
         }
-        
+
         log.info("Unlocked {} KPI assignments for employee ID: {}", assignments.size(), employeeId);
     }
 
     private void syncToKpiRecord(EmployeeKpiAssignment assignment, Employee updater, AppraisalCycle period) {
         // Find existing record or create new one
         List<KpiRecord> existingRecords = kpiRecordRepository.findByEmployeeIdAndPeriodIdAndKpi(
-                assignment.getEmployee().getId(), 
-                period != null ? period.getId() : assignment.getPeriod().getId(), 
-                assignment.getPositionKpi().getKpiName()
-        );
-        
+                assignment.getEmployee().getId(),
+                period != null ? period.getId() : assignment.getPeriod().getId(),
+                assignment.getPositionKpi().getKpiName());
+
         KpiRecord record = existingRecords.stream().findFirst().orElse(new KpiRecord());
 
         record.setEmployee(assignment.getEmployee());
@@ -393,7 +407,6 @@ public class KpiManagementService {
         record.setLogicDirection(assignment.getPositionKpi().getLogicDirection());
         record.setStatus(assignment.getIsLocked() ? KpiStatus.LOCKED : KpiStatus.DRAFT);
         record.setRemarks(assignment.getRemarks());
-        
         if (updater != null) {
             record.setUpdatedBy(updater);
             record.setUpdatedDate(Instant.now());
@@ -413,27 +426,27 @@ public class KpiManagementService {
     }
 
     // ==================== Bulk Operations ====================
-    
- // In KpiManagementService.java - Updated assignKpisToEmployee method
+
+    // In KpiManagementService.java - Updated assignKpisToEmployee method
 
     @Transactional
     public List<EmployeeKpiAssignment> assignKpisToEmployee(Long employeeId, Long periodId, List<Long> positionKpiIds) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
-        
+
         AppraisalCycle period = kpiPeriodRepository.findById(periodId)
                 .orElseThrow(() -> new RuntimeException("Period not found"));
-        
+
         List<EmployeeKpiAssignment> assignments = new ArrayList<>();
-        
+
         for (Long kpiId : positionKpiIds) {
             PositionKpiDefinition kpiDef = positionKpiDefinitionRepository.findById(kpiId)
                     .orElseThrow(() -> new RuntimeException("KPI definition not found: " + kpiId));
-            
+
             // Check if already assigned - using the repository method
             Optional<EmployeeKpiAssignment> existing = employeeKpiAssignmentRepository
                     .findByEmployeeIdAndPeriodIdAndPositionKpiId(employeeId, periodId, kpiId);
-            
+
             if (existing.isEmpty()) {
                 EmployeeKpiAssignment assignment = new EmployeeKpiAssignment();
                 assignment.setEmployee(employee);
@@ -448,13 +461,14 @@ public class KpiManagementService {
                 log.info("KPI {} already assigned to employee {} for period {}", kpiId, employeeId, periodId);
             }
         }
-        
+
         log.info("Assigned {} new KPIs to employee ID: {} for period ID: {}", assignments.size(), employeeId, periodId);
         return assignments;
     }
 
     public BigDecimal getEmployeeTotalWeight(Long employeeId, Long periodId) {
-        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository.findByEmployeeIdAndPeriodId(employeeId, periodId);
+        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository
+                .findByEmployeeIdAndPeriodId(employeeId, periodId);
         return assignments.stream()
                 .map(a -> a.getPositionKpi().getWeight())
                 .filter(w -> w != null)
@@ -462,7 +476,8 @@ public class KpiManagementService {
     }
 
     public BigDecimal getEmployeeTotalScore(Long employeeId, Long periodId) {
-        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository.findByEmployeeIdAndPeriodId(employeeId, periodId);
+        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository
+                .findByEmployeeIdAndPeriodId(employeeId, periodId);
         return assignments.stream()
                 .map(EmployeeKpiAssignment::getWeightedScore)
                 .filter(s -> s != null)

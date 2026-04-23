@@ -35,7 +35,7 @@ public class PositionRestController {
 			@RequestParam(required = false) Long departmentId) {
 		User user = userRepository.findById(principal.getId()).orElseThrow();
 		boolean isHr = user.getRole() != null && "HR".equalsIgnoreCase(user.getRole().getName());
-		
+
 		Long effectiveDeptId = departmentId;
 		if (!isHr) {
 			if (user.getEmployee() != null && user.getEmployee().getDepartment() != null) {
@@ -53,7 +53,8 @@ public class PositionRestController {
 		List<PositionOptionDto> rows = positions.stream()
 				.filter(this::isActive)
 				.map(p -> new PositionOptionDto(p.getId(), p.getName()))
-				.sorted(Comparator.comparing(PositionOptionDto::getPositionName, String.CASE_INSENSITIVE_ORDER))
+				.sorted(Comparator.comparing(PositionOptionDto::getPositionName,
+						Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
 				.toList();
 		return ResponseEntity.ok(ApiResponse.ok("Positions", rows));
 	}

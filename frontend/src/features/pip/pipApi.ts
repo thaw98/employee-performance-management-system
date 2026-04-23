@@ -75,27 +75,33 @@ export interface EligibleEmployee {
   totalScore: number
 }
 
-const normalizePerson = (person: any): User => ({
-  id: Number(person?.id ?? 0),
-  email: person?.email ?? '',
-  employeeId: person?.employeeId ?? undefined,
-  employee: person
+const normalizePerson = (person: any): User => {
+  const department = person?.department
     ? {
-      id: Number(person?.id ?? 0),
-      employeeName: person?.employeeName ?? '',
-      department: person?.department
-        ? {
-          departmentName: person.department.departmentName ?? person.department.name ?? '',
-        }
-        : undefined,
-      position: person?.position
-        ? {
-          positionName: person.position.positionName ?? person.position.name ?? '',
-        }
-        : undefined,
+      departmentName: person.department.departmentName || person.department.name || 'N/A',
     }
-    : undefined,
-})
+    : undefined
+
+  const position = person?.position
+    ? {
+      positionName: person.position.positionName || person.position.name || 'N/A',
+    }
+    : undefined
+
+  return {
+    id: Number(person?.id ?? 0),
+    email: person?.email ?? '',
+    employeeId: person?.employeeId ?? person?.staffNo ?? undefined,
+    employee: person
+      ? {
+        id: Number(person?.id ?? 0),
+        employeeName: person?.employeeName ?? person?.fullName ?? person?.name ?? 'N/A',
+        department,
+        position,
+      }
+      : undefined,
+  }
+}
 
 const normalizeStatus = (status?: string): Pip['status'] => {
   const normalized = (status ?? '').trim().toUpperCase().replace(/\s+/g, '_')

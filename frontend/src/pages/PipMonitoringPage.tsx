@@ -113,7 +113,9 @@ export default function PipMonitoringPage() {
             >
               {(isHr || !isManager) && <option value="">All Departments</option>}
               {departments.map((d) => (
-                <option key={d.departmentId} value={d.departmentId}>{d.departmentName}</option>
+                <option key={d.departmentId} value={d.departmentId}>
+                  {d.departmentName || 'Unnamed Department'}
+                </option>
               ))}
             </select>
           </div>
@@ -128,7 +130,9 @@ export default function PipMonitoringPage() {
             >
               <option value="">All Positions</option>
               {positions.map((p) => (
-                <option key={p.positionId} value={p.positionId}>{p.positionName}</option>
+                <option key={p.positionId} value={p.positionId}>
+                  {p.positionName || 'Unnamed Position'}
+                </option>
               ))}
             </select>
           </div>
@@ -231,7 +235,9 @@ export default function PipMonitoringPage() {
                   <td className="px-6 py-5">
                     <span className="text-sm text-slate-600 font-medium">{(emp as any)?.position?.positionName || (emp as any)?.position?.name || '—'}</span>
                   </td>
-                  <td className="px-6 py-5 text-sm text-slate-600">{emp?.department?.departmentName || '—'}</td>
+                  <td className="px-6 py-5 text-sm text-slate-600">
+                    {emp?.department?.departmentName || (emp as any)?.department?.name || '—'}
+                  </td>
                   <td className="px-6 py-5 text-center">
                     <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${STATUS_COLORS[pip.status]}`}>
                       {pip.status.replace('_', ' ')}

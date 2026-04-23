@@ -199,6 +199,7 @@ export default function PipDetailPage() {
             <h1 className="text-2xl font-bold text-slate-900">PIP Details: {pip.employee.employee?.employeeName}</h1>
             <p className="text-slate-500">
               Employee ID: {pip.employee.employee?.id ?? '—'} |
+              Dept: {pip.employee.employee?.department?.departmentName || '—'} |
               Position: {pip.employee.employee?.position?.positionName || '—'} |
               Duration: {formatDate(pip.startDate)} – {formatDate(pip.endDate)} |
               Status: <span className="font-semibold uppercase">{pip.status}</span>

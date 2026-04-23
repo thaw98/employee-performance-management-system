@@ -61,7 +61,7 @@ export interface HrCreateEmployeeAccountRequest {
 export const hrEmployeeAccountApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getDepartments: builder.query<ApiResponse<DepartmentOptionDto[]>, void>({
-      query: () => ({ url: '/departments' }),
+      query: () => ({ url: '/departments/options' }),
     }),
     getPositions: builder.query<ApiResponse<PositionOptionDto[]>, number | void>({
       query: (departmentId) => ({
