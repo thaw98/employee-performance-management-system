@@ -49,6 +49,7 @@ public class EmployeeProbationSchemaMigrationInitializer implements BeanPostProc
 		}
 
 		ensureEmployeeProbationTable(jdbc, dataSource);
+		ensureProbationDaysColumn(jdbc, dataSource);
 		ensureProbationEmployeeIdColumn(jdbc, dataSource);
 		backfillProbationEmployeeIdFromEmployeeColumn(jdbc, employeeTable, dataSource);
 		ensureProbationEmployeeForeignKey(jdbc, employeeTable);
@@ -62,11 +63,32 @@ public class EmployeeProbationSchemaMigrationInitializer implements BeanPostProc
 		jdbc.execute("""
 				CREATE TABLE employee_probation (
 				  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-				  probation_month INT NULL,
+				  probation_days INT NULL,
 				  probation_start_date DATE NULL,
 				  probation_end_date DATE NULL
 				)
 				""");
+	}
+
+	private static void ensureProbationDaysColumn(JdbcTemplate jdbc, DataSource dataSource) throws Exception {
+		boolean hasProbationDays = columnExists(dataSource, "employee_probation", "probation_days");
+		boolean hasProbationMonth = columnExists(dataSource, "employee_probation", "probation_month");
+
+		if (!hasProbationDays && hasProbationMonth) {
+			jdbc.execute("ALTER TABLE employee_probation CHANGE COLUMN probation_month probation_days INT NULL");
+			return;
+		}
+		if (!hasProbationDays) {
+			jdbc.execute("ALTER TABLE employee_probation ADD COLUMN probation_days INT NULL");
+		}
+		if (hasProbationMonth) {
+			jdbc.execute("""
+					UPDATE employee_probation
+					SET probation_days = probation_month * 30
+					WHERE probation_days IS NULL AND probation_month IS NOT NULL
+					""");
+			jdbc.execute("ALTER TABLE employee_probation DROP COLUMN probation_month");
+		}
 	}
 
 	private static void ensureProbationEmployeeIdColumn(JdbcTemplate jdbc, DataSource dataSource) throws Exception {

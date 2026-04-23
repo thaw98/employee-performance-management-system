@@ -29,7 +29,7 @@ public class EmployeeDraftRequestDto {
 	private Long managerId;
 	private LocalDate dateOfJoining;
 	private Long staffTypeId;
-	private Integer probationMonth;
+	private Integer probationDays;
 	private LocalDate probationEndDate;
 	private String profilePictureUrl;
 }

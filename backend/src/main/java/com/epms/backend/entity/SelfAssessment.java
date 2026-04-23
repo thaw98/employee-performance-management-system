@@ -42,7 +42,7 @@ public class SelfAssessment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cycle_id")
-    private KpiPeriod period;
+    private AppraisalCycle period;
 
     @Enumerated(EnumType.STRING)
     @Transient

@@ -36,5 +36,24 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 
 	boolean existsByEmailIgnoreCaseAndIdNot(String email, Long excludeId);
 
+	/**
+	 * Checks if an employee with the given normalized staff NRC number exists.
+	 * This checks for exact matches of the normalized NRC value.
+	 *
+	 * @param normalizedStaffNrcNo the normalized NRC number to check
+	 * @return true if an employee with the normalized NRC exists, false otherwise
+	 */
+	boolean existsByStaffNrcNo(String normalizedStaffNrcNo);
+
+	/**
+	 * Checks if an employee with the given normalized staff NRC number exists, excluding a specific employee ID.
+	 * Used during updates to prevent false positives when an employee is not changing their NRC.
+	 *
+	 * @param normalizedStaffNrcNo the normalized NRC number to check
+	 * @param excludeId the employee ID to exclude from the check
+	 * @return true if another employee with the normalized NRC exists, false otherwise
+	 */
+	boolean existsByStaffNrcNoAndIdNot(String normalizedStaffNrcNo, Long excludeId);
+
 	java.util.List<Employee> findByDepartmentId(Long departmentId);
 }

@@ -171,7 +171,6 @@ public class EmployeeImportCommitService {
         String dobStr = strOrEmpty(row, "dateOfBirth");
         String hireDateStr = strOrEmpty(row, "hireDate");
         String staffTypeName = strOrEmpty(row, "staffType").trim();
-        String probationMonthStr = strOrEmpty(row, "probationMonth").trim();
         String probationStartStr = strOrEmpty(row, "probationStartDate");
         String probationEndStr = strOrEmpty(row, "probationEndDate");
         String address = strOrEmpty(row, "address").trim();
@@ -248,17 +247,23 @@ public class EmployeeImportCommitService {
 
         // Probation (only when staff_type is Probation)
         if (staffTypeName.equalsIgnoreCase("Probation")
-                && !probationMonthStr.isEmpty()) {
+                && (!probationStartStr.isEmpty() || !probationEndStr.isEmpty())) {
             EmployeeProbation probation = new EmployeeProbation();
             probation.setEmployee(savedEmployee);
-            try {
-                probation.setProbationMonth(Integer.parseInt(probationMonthStr));
-            } catch (NumberFormatException ignored) { }
+            LocalDate probStart = null;
+            LocalDate probEnd = null;
             if (!probationStartStr.isEmpty()) {
-                probation.setProbationStartDate(LocalDate.parse(probationStartStr));
+                probStart = LocalDate.parse(probationStartStr);
+                probation.setProbationStartDate(probStart);
             }
             if (!probationEndStr.isEmpty()) {
-                probation.setProbationEndDate(LocalDate.parse(probationEndStr));
+                probEnd = LocalDate.parse(probationEndStr);
+                probation.setProbationEndDate(probEnd);
+            }
+            // Auto-calculate probation days (inclusive) when both dates are present
+            if (probStart != null && probEnd != null && !probEnd.isBefore(probStart)) {
+                int days = (int) java.time.temporal.ChronoUnit.DAYS.between(probStart, probEnd);
+                probation.setProbationDays(days);
             }
             savedEmployee.setProbation(probation);
             employeeRepository.save(savedEmployee);

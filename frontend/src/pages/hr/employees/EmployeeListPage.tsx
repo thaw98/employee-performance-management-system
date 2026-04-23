@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
+import type { UpdateEmploymentStatusRequest, ProbationInfo } from '../../../features/hrEmployeeList/hrEmployeeApi'
 
 import type { SortingState } from '@tanstack/react-table'
 import toast from 'react-hot-toast'
@@ -34,7 +35,7 @@ export default function EmployeeListPage() {
 
   // State for filters and pagination
   const [page, setPage] = useState(0)
-  const [size] = useState(10)
+  const [size, setSize] = useState(10)
   const [search, setSearch] = useState('')
   const [departmentId, setDepartmentId] = useState<number | undefined>()
   const [positionId, setPositionId] = useState<number | undefined>()
@@ -56,7 +57,8 @@ export default function EmployeeListPage() {
     isOpen: boolean
     employeeId: number | null
     currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated' | null
-  }>({ isOpen: false, employeeId: null, currentStatus: null })
+    probationInfo: ProbationInfo | null
+  }>({ isOpen: false, employeeId: null, currentStatus: null, probationInfo: null })
 
   // Edit modal state
   const [editEmployeeId, setEditEmployeeId] = useState<number | null>(null)
@@ -153,20 +155,30 @@ export default function EmployeeListPage() {
     }
   }, [selectedViewEmployeeId, triggerGetEmployeeView])
 
-  const handleChangeStatus = useCallback((id: number, currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated') => {
-    setStatusModal({ isOpen: true, employeeId: id, currentStatus })
-  }, [])
+  const handleChangeStatus = useCallback(async (id: number, currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated') => {
+    // Fetch probation info before opening modal
+    let probInfo: ProbationInfo | null = null
+    if (currentStatus === 'Probation') {
+      try {
+        const viewResult = await triggerGetEmployeeView(id, true).unwrap()
+        probInfo = viewResult?.data?.probationInfo ?? null
+      } catch {
+        // If fetch fails, open modal without probation info
+      }
+    }
+    setStatusModal({ isOpen: true, employeeId: id, currentStatus, probationInfo: probInfo })
+  }, [triggerGetEmployeeView])
 
-  const handleConfirmStatusChange = useCallback(async (targetStatus: string, probationEndDate?: string) => {
+  const handleConfirmStatusChange = useCallback(async (request: UpdateEmploymentStatusRequest) => {
     if (!statusModal.employeeId) return
     try {
       await updateEmploymentStatus({
         id: statusModal.employeeId,
-        status: targetStatus,
-        probationEndDate,
+        body: request,
       }).unwrap()
-      toast.success(`Employment status changed to ${targetStatus}`)
-      setStatusModal({ isOpen: false, employeeId: null, currentStatus: null })
+      const labels: Record<string, string> = { PERMANENT: 'Permanent', RESIGNED: 'Resigned', TERMINATED: 'Terminated' }
+      toast.success(`Employment status changed to ${labels[request.targetStatus] || request.targetStatus}`)
+      setStatusModal({ isOpen: false, employeeId: null, currentStatus: null, probationInfo: null })
     } catch (error: unknown) {
       const errorMessage = error && typeof error === 'object' && 'data' in error
         ? (error as { data?: { message?: string } }).data?.message || 'Failed to update employment status'
@@ -205,7 +217,7 @@ export default function EmployeeListPage() {
 
   // Modal close handlers
   const handleCloseStatusModal = useCallback(() => {
-    setStatusModal({ isOpen: false, employeeId: null, currentStatus: null })
+    setStatusModal({ isOpen: false, employeeId: null, currentStatus: null, probationInfo: null })
   }, [])
 
   const handleCloseResendModal = useCallback(() => {
@@ -223,6 +235,11 @@ export default function EmployeeListPage() {
 
   const handlePageSelect = useCallback((pageIndex: number) => {
     setPage(pageIndex)
+  }, [])
+
+  const handleSizeChange = useCallback((newSize: number) => {
+    setSize(newSize)
+    setPage(0)
   }, [])
 
   const handleDownloadTemplate = useCallback(async () => {
@@ -309,71 +326,103 @@ export default function EmployeeListPage() {
       />
 
       {/* Pagination */}
-      {empData?.data && empData.data.totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-between bg-white px-4 py-3 rounded-xl border border-gray-100 shadow-sm">
-            <div className="flex flex-1 justify-between sm:hidden">
-                <button
-                    onClick={handlePrevPage}
-                    disabled={page === 0}
-                    className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                    Previous
-                </button>
-                <button
-                    onClick={handleNextPage}
-                    disabled={page === empData.data!.totalPages - 1}
-                    className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                    Next
-                </button>
+      {empData?.data && empData.data.totalPages >= 1 && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white px-5 py-3.5 rounded-xl border border-gray-100 shadow-sm">
+          {/* Left: Results summary + Rows per page */}
+          <div className="flex items-center gap-4 order-2 sm:order-1">
+            <p className="text-sm text-gray-500">
+              Showing{' '}
+              <span className="font-semibold text-gray-700">{page * size + 1}</span>
+              {' – '}
+              <span className="font-semibold text-gray-700">
+                {Math.min((page + 1) * size, empData.data.totalElements)}
+              </span>{' '}
+              of{' '}
+              <span className="font-semibold text-gray-700">{empData.data.totalElements}</span>{' '}
+              employees
+            </p>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm text-gray-400">Rows:</span>
+              <select
+                value={size}
+                onChange={(e) => handleSizeChange(Number(e.target.value))}
+                className="text-sm font-medium text-gray-700 border border-gray-200 rounded-lg px-2 py-1 bg-white hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all cursor-pointer"
+              >
+                {[10, 25, 50].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
             </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                <div>
-                    <p className="text-sm text-gray-700">
-                        Showing <span className="font-medium">{page * size + 1}</span> to <span className="font-medium">{Math.min((page + 1) * size, empData?.data?.totalElements || 0)}</span> of{' '}
-                        <span className="font-medium">{empData?.data?.totalElements || 0}</span> results
-                    </p>
-                </div>
-                <div>
-                    <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                        <button
-                            onClick={handlePrevPage}
-                            disabled={page === 0}
-                            className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
-                        >
-                            <span className="sr-only">Previous</span>
-                            <i className="bi bi-chevron-left"></i>
-                        </button>
-                        {[...Array(empData?.data?.totalPages || 0)].map((_, i) => (
-                            <button
-                                key={i}
-                                onClick={() => handlePageSelect(i)}
-                                className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold focus:z-20 ${
-                                    page === i
-                                        ? 'z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
-                                        : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-offset-0'
-                                }`}
-                            >
-                                {i + 1}
-                            </button>
-                        ))}
-                        <button
-                            onClick={handleNextPage}
-                            disabled={page === (empData?.data?.totalPages || 1) - 1}
-                            className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
-                        >
-                            <span className="sr-only">Next</span>
-                            <i className="bi bi-chevron-right"></i>
-                        </button>
-                    </nav>
-                </div>
-            </div>
+          </div>
+
+          {/* Right: Page buttons */}
+          <div className="flex items-center gap-1 order-1 sm:order-2">
+            {/* Prev */}
+            <button
+              onClick={handlePrevPage}
+              disabled={page === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              <i className="bi bi-chevron-left text-xs"></i>
+              <span>Prev</span>
+            </button>
+
+            {/* Page numbers with windowing */}
+            {(() => {
+              const total = empData.data.totalPages
+              const delta = 2
+              const pages: (number | 'ellipsis')[] = []
+
+              if (total <= 7) {
+                for (let i = 0; i < total; i++) pages.push(i)
+              } else {
+                pages.push(0)
+                const left = Math.max(1, page - delta)
+                const right = Math.min(total - 2, page + delta)
+                if (left > 1) pages.push('ellipsis')
+                for (let i = left; i <= right; i++) pages.push(i)
+                if (right < total - 2) pages.push('ellipsis')
+                pages.push(total - 1)
+              }
+
+              return pages.map((p, idx) =>
+                p === 'ellipsis' ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-gray-400 text-sm select-none">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => handlePageSelect(p)}
+                    className={`min-w-[36px] h-9 rounded-lg text-sm font-semibold transition-all border ${
+                      page === p
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-100'
+                        : 'text-gray-600 border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700'
+                    }`}
+                  >
+                    {p + 1}
+                  </button>
+                )
+              )
+            })()}
+
+            {/* Next */}
+            <button
+              onClick={handleNextPage}
+              disabled={page === empData.data.totalPages - 1}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              <span>Next</span>
+              <i className="bi bi-chevron-right text-xs"></i>
+            </button>
+          </div>
         </div>
       )}
 
       <ChangeStatusModal
         isOpen={statusModal.isOpen}
         currentStatus={statusModal.currentStatus ?? 'Permanent'}
+        probationInfo={statusModal.probationInfo}
         onClose={handleCloseStatusModal}
         onConfirm={handleConfirmStatusChange}
         isLoading={isUpdatingStatus}

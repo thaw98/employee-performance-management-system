@@ -75,6 +75,9 @@ export const hrEmployeeAccountApi = baseApi.injectEndpoints({
     checkStaffNo: builder.query<ApiResponse<ExistsDto>, string>({
       query: (staffNo) => ({ url: '/employees/check-staff-no', params: { staffNo } }),
     }),
+    checkStaffNrc: builder.query<ApiResponse<boolean>, string>({
+      query: (staffNrcNo) => ({ url: '/employees/check-staff-nrc', params: { staffNrcNo } }),
+    }),
     createEmployeeAccount: builder.mutation<ApiResponse<HrCreateEmployeeAccountResponse>, HrCreateEmployeeAccountRequest>({
       query: (body) => ({ url: '/hr/employees/create-account', method: 'POST', body }),
     }),
@@ -93,6 +96,7 @@ export const {
   useGetNextStaffNoQuery,
   useLazyCheckEmailQuery,
   useLazyCheckStaffNoQuery,
+  useLazyCheckStaffNrcQuery,
   useCreateEmployeeAccountMutation,
   useResendTemporaryPasswordMutation,
 } = hrEmployeeAccountApi
