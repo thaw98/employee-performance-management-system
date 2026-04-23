@@ -93,8 +93,16 @@ public class KpiManagementService {
         List<EmployeeKpiAssignment> assignments = new ArrayList<>();
         for (Long kpiId : positionKpiIds) {
             EmployeeKpiAssignment assignment = new EmployeeKpiAssignment();
-            assignment.setEmployee(new Employee() {{ setId(employeeId); }});
-            assignment.setPeriod(new KpiPeriod() {{ setId(periodId); }});
+            assignment.setEmployee(new Employee() {
+                {
+                    setId(employeeId);
+                }
+            });
+            assignment.setPeriod(new KpiPeriod() {
+                {
+                    setId(periodId);
+                }
+            });
             assignment.setPositionKpi(positionKpiDefinitionRepository.findById(kpiId).orElse(null));
             assignment.setStatus("ASSIGNED");
             assignments.add(employeeKpiAssignmentRepository.save(assignment));
@@ -104,8 +112,9 @@ public class KpiManagementService {
 
     public List<PositionKpiDto> getPositionKpisWithPositionName(Long positionId) {
         Position position = positionRepository.findById(positionId).orElse(null);
-        List<PositionKpiDefinition> definitions = positionKpiDefinitionRepository.findByPositionIdOrderByDisplayOrderAsc(positionId);
-        
+        List<PositionKpiDefinition> definitions = positionKpiDefinitionRepository
+                .findByPositionIdOrderByDisplayOrderAsc(positionId);
+
         return definitions.stream().map(def -> PositionKpiDto.builder()
                 .id(def.getId())
                 .positionId(positionId)
@@ -137,15 +146,19 @@ public class KpiManagementService {
                 .findFirst()
                 .orElse(null);
 
-        if (period == null) return new ArrayList<>();
+        if (period == null)
+            return new ArrayList<>();
 
-        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository.findByEmployeeIdAndPeriodId(employeeId, period.getId());
-        
-        // If no assignments exist, auto-create them from the employee's position templates
+        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository
+                .findByEmployeeIdAndPeriodId(employeeId, period.getId());
+
+        // If no assignments exist, auto-create them from the employee's position
+        // templates
         if (assignments.isEmpty()) {
             Employee employee = employeeRepository.findById(employeeId).orElse(null);
             if (employee != null && employee.getPosition() != null) {
-                List<PositionKpiDefinition> positionKpis = positionKpiDefinitionRepository.findByPositionIdOrderByDisplayOrderAsc(employee.getPosition().getId());
+                List<PositionKpiDefinition> positionKpis = positionKpiDefinitionRepository
+                        .findByPositionIdOrderByDisplayOrderAsc(employee.getPosition().getId());
                 for (PositionKpiDefinition def : positionKpis) {
                     EmployeeKpiAssignment assignment = new EmployeeKpiAssignment();
                     assignment.setEmployee(employee);
@@ -196,14 +209,15 @@ public class KpiManagementService {
         // Rule: Manager/HR can only update for employees in the same department
         boolean isHR = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_HR"));
-        
-        if (!isHR && !currentUser.getEmployee().getDepartment().getId().equals(targetEmployee.getDepartment().getId())) {
+
+        if (!isHR
+                && !currentUser.getEmployee().getDepartment().getId().equals(targetEmployee.getDepartment().getId())) {
             throw new RuntimeException("Access denied: You can only update KPIs for employees in your department");
         }
 
         for (PositionKpiDto update : updates) {
             EmployeeKpiAssignment assignment;
-            
+
             if (update.getAssignmentId() == null) {
                 // Create a new custom KPI for this employee
                 PositionKpiDefinition def = new PositionKpiDefinition();
@@ -261,12 +275,15 @@ public class KpiManagementService {
                     if (targetVal.compareTo(BigDecimal.ZERO) > 0 && actualVal != null) {
                         BigDecimal baseScore;
                         if ("higher".equalsIgnoreCase(assignment.getPositionKpi().getLogicDirection())) {
-                            baseScore = actualVal.divide(targetVal, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100"));
+                            baseScore = actualVal.divide(targetVal, 4, BigDecimal.ROUND_HALF_UP)
+                                    .multiply(new BigDecimal("100"));
                         } else {
-                            baseScore = targetVal.divide(actualVal, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal("100"));
+                            baseScore = targetVal.divide(actualVal, 4, BigDecimal.ROUND_HALF_UP)
+                                    .multiply(new BigDecimal("100"));
                         }
                         assignment.setScore(baseScore);
-                        assignment.setWeightedScore(baseScore.multiply(weightVal).divide(new BigDecimal("100"), 2, BigDecimal.ROUND_HALF_UP));
+                        assignment.setWeightedScore(baseScore.multiply(weightVal).divide(new BigDecimal("100"), 2,
+                                BigDecimal.ROUND_HALF_UP));
                     }
                 }
             } catch (Exception e) {
@@ -280,17 +297,19 @@ public class KpiManagementService {
 
     @Transactional
     public void lockEmployeeKpis(Long employeeId) {
-        // Only HR can lock (Controller check protects this, but service should be robust)
+        // Only HR can lock (Controller check protects this, but service should be
+        // robust)
         KpiPeriod period = kpiPeriodRepository.findAll().stream()
                 .filter(p -> "Active".equalsIgnoreCase(p.getStatus()))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No active KPI period found"));
 
-        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository.findByEmployeeIdAndPeriodId(employeeId, period.getId());
+        List<EmployeeKpiAssignment> assignments = employeeKpiAssignmentRepository
+                .findByEmployeeIdAndPeriodId(employeeId, period.getId());
         for (EmployeeKpiAssignment assignment : assignments) {
             assignment.setIsLocked(true);
             employeeKpiAssignmentRepository.save(assignment);
-            
+
             // Also sync to KpiRecord as Locked
             syncToKpiRecord(assignment, null); // Updater not needed if just locking status
         }
@@ -298,10 +317,9 @@ public class KpiManagementService {
 
     private void syncToKpiRecord(EmployeeKpiAssignment assignment, Employee updater) {
         KpiRecord record = kpiRecordRepository.findByEmployeeIdAndPeriodIdAndKpi(
-                assignment.getEmployee().getId(), 
-                assignment.getPeriod().getId(), 
-                assignment.getPositionKpi().getKpiName()
-        ).stream().findFirst().orElse(new KpiRecord());
+                assignment.getEmployee().getId(),
+                assignment.getPeriod().getId(),
+                assignment.getPositionKpi().getKpiName()).stream().findFirst().orElse(new KpiRecord());
 
         record.setEmployee(assignment.getEmployee());
         record.setPeriod(assignment.getPeriod());
@@ -314,7 +332,7 @@ public class KpiManagementService {
         record.setActualValue(assignment.getActualValue());
         record.setWeightedScore(assignment.getWeightedScore());
         record.setStatus(assignment.getIsLocked() ? KpiStatus.LOCKED : KpiStatus.DRAFT);
-        
+
         if (updater != null) {
             record.setUpdatedBy(updater);
             record.setUpdatedDate(Instant.now());
@@ -323,7 +341,7 @@ public class KpiManagementService {
                 record.setCreatedDate(Instant.now());
             }
         } else if (assignment.getIsLocked()) {
-             record.setLockedDate(Instant.now());
+            record.setLockedDate(Instant.now());
         }
 
         kpiRecordRepository.save(record);

@@ -24,6 +24,9 @@ export interface User {
     department?: {
       departmentName: string
     }
+    position?: {
+      positionName: string
+    }
   }
 }
 
@@ -78,14 +81,19 @@ const normalizePerson = (person: any): User => ({
   employeeId: person?.employeeId ?? undefined,
   employee: person
     ? {
-        id: Number(person?.id ?? 0),
-        employeeName: person?.employeeName ?? '',
-        department: person?.department
-          ? {
-              departmentName: person.department.departmentName ?? person.department.name ?? '',
-            }
-          : undefined,
-      }
+      id: Number(person?.id ?? 0),
+      employeeName: person?.employeeName ?? '',
+      department: person?.department
+        ? {
+          departmentName: person.department.departmentName ?? person.department.name ?? '',
+        }
+        : undefined,
+      position: person?.position
+        ? {
+          positionName: person.position.positionName ?? person.position.name ?? '',
+        }
+        : undefined,
+    }
     : undefined,
 })
 
@@ -114,8 +122,11 @@ const normalizePip = (pip: any): Pip => ({
 
 export const pipApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getPips: builder.query<Pip[], void>({
-      query: () => '/pips',
+    getPips: builder.query<Pip[], { departmentId?: number; positionId?: number; employeeName?: string; status?: string; startDate?: string; endDate?: string } | void>({
+      query: (params) => ({
+        url: '/pips',
+        params: params || undefined,
+      }),
       providesTags: ['PIP'],
       transformResponse: (response: any) => (response.data ?? []).map(normalizePip),
     }),

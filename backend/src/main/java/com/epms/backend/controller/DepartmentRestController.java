@@ -13,21 +13,29 @@ import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.hr.DepartmentOptionDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.repository.DepartmentRepository;
-
 import lombok.RequiredArgsConstructor;
+import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.repository.UserRepository;
+import com.epms.backend.entity.User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
 @RequestMapping("/api/departments")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('HR')")
+@PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
 public class DepartmentRestController {
 
 	private final DepartmentRepository departmentRepository;
+	private final UserRepository userRepository;
 
 	@GetMapping
-	public ResponseEntity<ApiResponse<List<DepartmentOptionDto>>> listActive() {
+	public ResponseEntity<ApiResponse<List<DepartmentOptionDto>>> listActive(@AuthenticationPrincipal UserPrincipal principal) {
+		User user = userRepository.findById(principal.getId()).orElseThrow();
+		boolean isHr = user.getRole() != null && "HR".equalsIgnoreCase(user.getRole().getName());
+		
 		List<DepartmentOptionDto> rows = departmentRepository.findAll().stream()
 				.filter(this::isActive)
+				.filter(d -> isHr || (user.getEmployee() != null && user.getEmployee().getDepartment() != null && d.getId().equals(user.getEmployee().getDepartment().getId())))
 				.map(d -> new DepartmentOptionDto(d.getId(), d.getName()))
 				.sorted(Comparator.comparing(DepartmentOptionDto::getDepartmentName, String.CASE_INSENSITIVE_ORDER))
 				.toList();
