@@ -1,7 +1,5 @@
 package com.epms.backend.config;
 
-import java.util.List;
-
 import javax.sql.DataSource;
 
 import org.springframework.beans.BeansException;
@@ -13,12 +11,11 @@ import org.springframework.stereotype.Component;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Drops employee.parent_department_id — home department is now derived from
- * employee_department_history instead of being stored redundantly.
+ * Adds before_data and after_data JSON columns to audit_log for movement audit trails.
  */
 @Component
 @Slf4j
-public class EmployeeParentDepartmentColumnMigrationInitializer implements BeanPostProcessor {
+public class AuditLogBeforeAfterColumnsMigrationInitializer implements BeanPostProcessor {
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
@@ -28,35 +25,24 @@ public class EmployeeParentDepartmentColumnMigrationInitializer implements BeanP
         try {
             migrate(dataSource);
         } catch (Exception e) {
-            throw new BeanCreationException("employee.parent_department_id drop migration failed", e);
+            throw new BeanCreationException("audit_log before/after columns migration failed", e);
         }
         return bean;
     }
 
     private void migrate(DataSource dataSource) {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-        if (!tableExists(jdbc, "employee")) {
+        if (!tableExists(jdbc, "audit_log")) {
             return;
         }
-        if (!columnExists(jdbc, "employee", "parent_department_id")) {
-            return;
+        if (!columnExists(jdbc, "audit_log", "before_data")) {
+            jdbc.execute("ALTER TABLE audit_log ADD COLUMN before_data LONGTEXT NULL AFTER metadata_json");
+            log.info("Added audit_log.before_data column");
         }
-        // Drop FK constraint referencing this column before dropping the column
-        List<String> fkNames = jdbc.queryForList(
-            """
-            SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'employee'
-              AND COLUMN_NAME = 'parent_department_id'
-              AND REFERENCED_TABLE_NAME IS NOT NULL
-            """,
-            String.class);
-        for (String fk : fkNames) {
-            jdbc.execute("ALTER TABLE employee DROP FOREIGN KEY `" + fk + "`");
-            log.info("Dropped FK {} on employee.parent_department_id", fk);
+        if (!columnExists(jdbc, "audit_log", "after_data")) {
+            jdbc.execute("ALTER TABLE audit_log ADD COLUMN after_data LONGTEXT NULL AFTER before_data");
+            log.info("Added audit_log.after_data column");
         }
-        jdbc.execute("ALTER TABLE employee DROP COLUMN parent_department_id");
-        log.info("Dropped employee.parent_department_id column — home department is now derived from movement history");
     }
 
     private static boolean tableExists(JdbcTemplate jdbc, String tableName) {

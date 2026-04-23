@@ -30,7 +30,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @JsonIgnoreProperties({
     "manager",
-    "parentDepartment",
     "position",
     "staffType",
     "father",
@@ -60,11 +59,6 @@ public class Employee {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id")
     private Department department;
-
-    /** Mirrors the selected department for compatibility with legacy schemas. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_department_id")
-    private Department parentDepartment;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_id")

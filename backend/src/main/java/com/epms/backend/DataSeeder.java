@@ -100,7 +100,6 @@ public class DataSeeder implements CommandLineRunner {
             Employee emp = new Employee();
             emp.setEmployeeName("HR Manager Admin");
             emp.setDepartment(hr);
-            emp.setParentDepartment(hr);
 
             Position hrPos = positionRepository.findAll().stream()
                     .filter(p -> p.getName().equalsIgnoreCase("HR Manager"))
@@ -166,7 +165,6 @@ public class DataSeeder implements CommandLineRunner {
             e.setEmployeeId(empId);
             e.setEmployeeName(name);
             e.setDepartment(dept);
-            e.setParentDepartment(dept);
             Position p = positionRepository.findAll().stream().filter(pos -> pos.getName().equalsIgnoreCase(posName))
                     .findFirst().orElse(null);
             e.setPosition(p);

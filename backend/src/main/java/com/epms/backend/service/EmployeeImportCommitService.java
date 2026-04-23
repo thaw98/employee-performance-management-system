@@ -213,7 +213,6 @@ public class EmployeeImportCommitService {
         employee.setNationality(nationality);
         if (!religion.isEmpty()) employee.setReligion(EmployeeReligion.fromValue(religion));
         employee.setDepartment(dept);
-        employee.setParentDepartment(dept);
         employee.setPosition(pos);
         employee.setStaffType(staffType);
         employee.setDateOfJoining(hireDate);

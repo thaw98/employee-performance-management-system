@@ -21,15 +21,18 @@ import com.epms.backend.dto.hr.NextStaffNoResponseDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.EmergencyContact;
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.EmployeeDepartmentHistory;
 import com.epms.backend.entity.EmployeeFather;
 import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.Gender;
+import com.epms.backend.entity.MovementType;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.Role;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentRepository;
+import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.StaffTypeRepository;
@@ -62,6 +65,7 @@ public class HrEmployeeAccountService {
 	private final DepartmentRepository departmentRepository;
 	private final PositionRepository positionRepository;
 	private final StaffTypeRepository staffTypeRepository;
+	private final EmployeeDepartmentHistoryRepository departmentHistoryRepository;
 	private final PositionRoleResolutionService positionRoleResolutionService;
 	private final PasswordEncoder passwordEncoder;
 	private final MailService mailService;
@@ -147,7 +151,6 @@ public class HrEmployeeAccountService {
 		employee.setNationality(request.getNationality().trim());
 		employee.setStaffNrcNo(trimToNull(request.getNrc()));
 		employee.setDepartment(department);
-		employee.setParentDepartment(department);
 		employee.setPosition(position);
 		employee.setStaffType(staffTypeEntity);
 		employee.setProbation(probationEntity);
@@ -182,6 +185,28 @@ public class HrEmployeeAccountService {
 		employee.setEmergencyContact(emergencyContact);
 
 		Employee savedEmployee = employeeRepository.save(employee);
+
+		// Auto-create INITIAL department/position history row
+		EmployeeDepartmentHistory initialHistory = new EmployeeDepartmentHistory();
+		initialHistory.setEmployee(savedEmployee);
+		initialHistory.setToDepartment(department);
+		initialHistory.setToPosition(position);
+		initialHistory.setMovementType(MovementType.INITIAL);
+		initialHistory.setEffectiveStartDate(request.getHireDate());
+		initialHistory.setCurrent(true);
+		initialHistory.setCreatedBy(principal.getId());
+		initialHistory.setCreatedOn(java.time.LocalDateTime.now());
+		EmployeeDepartmentHistory savedHistory = departmentHistoryRepository.save(initialHistory);
+
+		auditService.record(
+				AuditActionType.EMPLOYEE_INITIAL_MOVEMENT,
+				AuditTargetType.EMPLOYEE,
+				savedEmployee.getId(),
+				principal.getId(),
+				principal.getRoleId(),
+				"Initial movement history created for employee_id " + savedEmployee.getId(),
+				("{\"movementHistoryId\":%d,\"toDepartmentId\":%d,\"toPositionId\":%d}")
+						.formatted(savedHistory.getId(), department.getId(), position.getId()));
 
 		String temporaryPassword = generateTemporaryPassword();
 		User user = new User();

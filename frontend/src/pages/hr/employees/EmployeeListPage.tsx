@@ -461,6 +461,7 @@ export default function EmployeeListPage() {
       <EmployeeViewModal
         isOpen={selectedViewEmployeeId !== null}
         onClose={handleCloseViewModal}
+        employeeId={selectedViewEmployeeId}
         data={viewData?.data ?? null}
         isLoading={isViewLoading}
         isError={isViewError}

@@ -192,12 +192,10 @@ public class EmployeeService {
 			department = departmentRepository.findById(departmentId)
 					.orElseThrow(() -> new IllegalArgumentException("Invalid department"));
 			employee.setDepartment(department);
-			employee.setParentDepartment(department);
 		} else if (required) {
 			throw new IllegalArgumentException("Department is required");
 		} else {
 			employee.setDepartment(null);
-			employee.setParentDepartment(null);
 		}
 
 		if (positionId != null) {

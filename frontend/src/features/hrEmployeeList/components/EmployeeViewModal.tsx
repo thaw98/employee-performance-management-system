@@ -1,10 +1,13 @@
 import { Dialog, Transition, Tab } from '@headlessui/react'
 import { Fragment, useState, useMemo, memo, useEffect, useCallback } from 'react'
 import type { EmployeeViewDetail } from '../hrEmployeeApi'
+import { useGetMovementHistoryQuery } from '../employeeMovementApi'
+import { MovementHistoryTable } from './MovementHistoryTable'
 
 interface EmployeeViewModalProps {
   isOpen: boolean
   onClose: () => void
+  employeeId?: number | null
   data: EmployeeViewDetail | null
   isLoading: boolean
   isError: boolean
@@ -40,12 +43,17 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 function EmployeeViewModal({
   isOpen,
   onClose,
+  employeeId,
   data,
   isLoading,
   isError,
   onRetry,
 }: EmployeeViewModalProps) {
   const [imgError, setImgError] = useState(false)
+
+  const { data: movementRes, isLoading: movementLoading } = useGetMovementHistoryQuery(employeeId ?? 0, {
+    skip: !isOpen || !employeeId,
+  })
 
   // Reset image error state when data changes
   useEffect(() => {
@@ -203,6 +211,7 @@ function EmployeeViewModal({
                           <Tab className={tabClasses}>Employment</Tab>
                           <Tab className={tabClasses}>Emergency</Tab>
                           <Tab className={tabClasses}>Father</Tab>
+                          <Tab className={tabClasses}>Movement</Tab>
                         </Tab.List>
 
                         <Tab.Panels>
@@ -311,6 +320,14 @@ function EmployeeViewModal({
                                 No father information available.
                               </p>
                             )}
+                          </Tab.Panel>
+
+                          {/* 5. Movement History */}
+                          <Tab.Panel>
+                            <MovementHistoryTable
+                              history={movementRes?.data ?? []}
+                              isLoading={movementLoading}
+                            />
                           </Tab.Panel>
                         </Tab.Panels>
                       </Tab.Group>
