@@ -29,14 +29,14 @@ import com.epms.backend.dto.hr.EmployeeUpdateRequestDto;
 import com.epms.backend.dto.hr.PasswordActionResponseDto;
 import com.epms.backend.dto.hr.UpdateEmploymentStatusRequestDto;
 import com.epms.backend.entity.Department;
-import com.epms.backend.entity.DepartmentHasPosition;
+import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
-import com.epms.backend.repository.DepartmentHasPositionRepository;
+import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
@@ -56,7 +56,7 @@ public class HrEmployeeService {
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final StaffTypeRepository staffTypeRepository;
-    private final DepartmentHasPositionRepository departmentPositionRepository;
+    private final DepartmentPositionRepository departmentPositionRepository;
     private final PositionRoleResolutionService positionRoleResolutionService;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
@@ -167,7 +167,7 @@ public class HrEmployeeService {
                 "Department changes must be done through movement actions (Temporary Transfer, " +
                 "Permanent Transfer, or Return), not through the normal employee edit.");
         }
-        DepartmentHasPosition selectedMapping = departmentPositionRepository.findById(request.getDepartmentPositionId())
+        DepartmentPosition selectedMapping = departmentPositionRepository.findById(request.getDepartmentPositionId())
                 .orElseThrow(() -> new IllegalArgumentException("Department-position mapping not found"));
         if (!isActiveEntity(selectedMapping.getStatus())) {
             throw new IllegalArgumentException("Selected department-position mapping is not active");

@@ -19,9 +19,9 @@ import com.epms.backend.dto.mapping.DepartmentPositionMappingDto;
 import com.epms.backend.dto.mapping.DepartmentPositionMappingListResponse;
 import com.epms.backend.dto.mapping.UpdateDepartmentPositionMappingRequest;
 import com.epms.backend.entity.Department;
-import com.epms.backend.entity.DepartmentHasPosition;
+import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.Position;
-import com.epms.backend.repository.DepartmentHasPositionRepository;
+import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.security.UserPrincipal;
@@ -32,7 +32,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class DepartmentPositionMappingServiceImpl implements DepartmentPositionMappingService {
 
-	private final DepartmentHasPositionRepository mappingRepository;
+	private final DepartmentPositionRepository mappingRepository;
 	private final DepartmentRepository departmentRepository;
 	private final PositionRepository positionRepository;
 
@@ -47,9 +47,9 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 		Sort sort = Sort.by(direction, mapSortField(sortBy));
 		Pageable pageable = PageRequest.of(page, size, sort);
 
-		Specification<DepartmentHasPosition> spec = buildSpecification(search);
+		Specification<DepartmentPosition> spec = buildSpecification(search);
 
-		Page<DepartmentHasPosition> mappingPage = mappingRepository.findAll(spec, pageable);
+		Page<DepartmentPosition> mappingPage = mappingRepository.findAll(spec, pageable);
 		List<DepartmentPositionMappingDto> content = mappingPage.getContent().stream()
 				.map(this::mapToDto)
 				.toList();
@@ -66,7 +66,7 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 	@Override
 	@Transactional(readOnly = true)
 	public DepartmentPositionMappingDto getMappingById(Long id) {
-		DepartmentHasPosition mapping = mappingRepository.findById(id)
+		DepartmentPosition mapping = mappingRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Mapping not found."));
 		return mapToDto(mapping);
 	}
@@ -93,7 +93,7 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 		}
 
 		// Check if inactive mapping exists - reactivate it
-		DepartmentHasPosition mapping = mappingRepository
+		DepartmentPosition mapping = mappingRepository
 				.findByDepartmentIdAndPositionId(request.getDepartmentId(), request.getPositionId())
 				.orElse(null);
 		if (mapping != null) {
@@ -103,7 +103,7 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 			return mapToDto(mappingRepository.save(mapping));
 		}
 
-		DepartmentHasPosition newMapping = new DepartmentHasPosition();
+		DepartmentPosition newMapping = new DepartmentPosition();
 		newMapping.setDepartment(department);
 		newMapping.setPosition(position);
 		newMapping.setStatus(normalizeStatus(request.getStatus()));
@@ -117,7 +117,7 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 	@Override
 	@Transactional
 	public DepartmentPositionMappingDto updateMapping(Long id, UpdateDepartmentPositionMappingRequest request) {
-		DepartmentHasPosition mapping = mappingRepository.findById(id)
+		DepartmentPosition mapping = mappingRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Mapping not found."));
 
 		// Only allow status change for update (safer approach)
@@ -125,14 +125,14 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 		mapping.setUpdatedBy(getCurrentUserId());
 		mapping.setUpdatedOn(Instant.now());
 
-		DepartmentHasPosition saved = mappingRepository.save(mapping);
+		DepartmentPosition saved = mappingRepository.save(mapping);
 		return mapToDto(saved);
 	}
 
 	@Override
 	@Transactional
 	public DepartmentPositionMappingDto toggleStatus(Long id) {
-		DepartmentHasPosition mapping = mappingRepository.findById(id)
+		DepartmentPosition mapping = mappingRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Mapping not found."));
 
 		String currentStatus = mapping.getStatus();
@@ -144,11 +144,11 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 		mapping.setUpdatedBy(getCurrentUserId());
 		mapping.setUpdatedOn(Instant.now());
 
-		DepartmentHasPosition saved = mappingRepository.save(mapping);
+		DepartmentPosition saved = mappingRepository.save(mapping);
 		return mapToDto(saved);
 	}
 
-	private Specification<DepartmentHasPosition> buildSpecification(String search) {
+	private Specification<DepartmentPosition> buildSpecification(String search) {
 		return (root, query, cb) -> {
 			List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
 
@@ -188,7 +188,7 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 		throw new IllegalArgumentException("Status must be ACTIVE or INACTIVE.");
 	}
 
-	private DepartmentPositionMappingDto mapToDto(DepartmentHasPosition mapping) {
+	private DepartmentPositionMappingDto mapToDto(DepartmentPosition mapping) {
 		return DepartmentPositionMappingDto.builder()
 				.id(mapping.getId())
 				.departmentId(mapping.getDepartment().getId())

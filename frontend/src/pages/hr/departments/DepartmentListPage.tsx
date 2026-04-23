@@ -15,6 +15,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Building2, CheckCircle2, XCircle, LayoutGrid, AlertTriangle,
+  Loader2,
 } from 'lucide-react'
 
 import {
@@ -413,15 +414,14 @@ export default function DepartmentListPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {isLoading ? (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      {columns.map((_, j) => (
-                        <td key={j} className="px-5 py-4">
-                          <div className={`h-4 bg-slate-100 rounded-lg ${j === 2 ? 'w-40' : 'w-20'}`} />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
+                  <tr>
+                    <td colSpan={columns.length}>
+                      <div className="flex flex-col items-center justify-center py-24 gap-3 text-slate-400">
+                        <Loader2 size={36} className="animate-spin text-blue-500" />
+                        <p className="text-sm font-semibold text-slate-500">Loading departments…</p>
+                      </div>
+                    </td>
+                  </tr>
                 ) : table.getRowModel().rows.length > 0 ? (
                   table.getRowModel().rows.map((row, idx) => (
                     <tr
@@ -569,8 +569,17 @@ export default function DepartmentListPage() {
       </div>
 
       {/* Modals */}
-      <AddDepartmentModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
-      <EditDepartmentModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} department={selectedDept} />
+      <AddDepartmentModal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onSuccess={loadDepartments}
+      />
+      <EditDepartmentModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        department={selectedDept}
+        onSuccess={loadDepartments}
+      />
       <ConfirmActionModal
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}

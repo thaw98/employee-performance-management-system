@@ -10,7 +10,7 @@ export interface DepartmentOptionDto {
 }
 
 export interface PositionOptionDto {
-  /** department_has_position.id */
+  /** department_position.id */
   id: number
   positionId: number
   positionName: string

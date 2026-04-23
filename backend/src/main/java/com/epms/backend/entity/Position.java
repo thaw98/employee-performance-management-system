@@ -59,5 +59,5 @@ public class Position {
     private Instant updatedDate;
 
     @OneToMany(mappedBy = "position", fetch = FetchType.LAZY)
-    private List<DepartmentHasPosition> departmentPositions = new ArrayList<>();
+    private List<DepartmentPosition> departmentPositions = new ArrayList<>();
 }

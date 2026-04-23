@@ -16,11 +16,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "department_has_position")
+@Table(name = "department_position")
 @Getter
 @Setter
 @NoArgsConstructor
-public class DepartmentHasPosition {
+public class DepartmentPosition {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

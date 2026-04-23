@@ -19,7 +19,7 @@ import com.epms.backend.dto.hr.HrCreateEmployeeAccountResponseDto;
 import com.epms.backend.dto.hr.MessageResponseDto;
 import com.epms.backend.dto.hr.NextStaffNoResponseDto;
 import com.epms.backend.entity.Department;
-import com.epms.backend.entity.DepartmentHasPosition;
+import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.EmergencyContact;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeDepartmentHistory;
@@ -32,7 +32,7 @@ import com.epms.backend.entity.Position;
 import com.epms.backend.entity.Role;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
-import com.epms.backend.repository.DepartmentHasPositionRepository;
+import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
 import com.epms.backend.repository.EmployeeRepository;
@@ -68,7 +68,7 @@ public class HrEmployeeAccountService {
 	private final PositionRepository positionRepository;
 	private final StaffTypeRepository staffTypeRepository;
 	private final EmployeeDepartmentHistoryRepository departmentHistoryRepository;
-	private final DepartmentHasPositionRepository departmentPositionRepository;
+	private final DepartmentPositionRepository departmentPositionRepository;
 	private final PositionRoleResolutionService positionRoleResolutionService;
 	private final PasswordEncoder passwordEncoder;
 	private final MailService mailService;
@@ -114,7 +114,7 @@ public class HrEmployeeAccountService {
 		}
 
 		// Use department_position_id mapping instead of direct position_id
-		DepartmentHasPosition deptPosition = departmentPositionRepository.findById(request.getDepartmentPositionId())
+		DepartmentPosition deptPosition = departmentPositionRepository.findById(request.getDepartmentPositionId())
 				.orElseThrow(() -> new IllegalArgumentException("Department-position mapping not found"));
 
 		// Validate the mapping belongs to the selected department

@@ -19,13 +19,13 @@ import com.epms.backend.dto.movement.ReportingHistoryResponseDto;
 import com.epms.backend.dto.movement.ReturnRequestDto;
 import com.epms.backend.dto.movement.TemporaryTransferRequestDto;
 import com.epms.backend.entity.Department;
-import com.epms.backend.entity.DepartmentHasPosition;
+import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeDepartmentHistory;
 import com.epms.backend.entity.EmployeeReportingHistory;
 import com.epms.backend.entity.MovementType;
 import com.epms.backend.entity.Position;
-import com.epms.backend.repository.DepartmentHasPositionRepository;
+import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
 import com.epms.backend.repository.EmployeeRepository;
@@ -47,7 +47,7 @@ public class EmployeeMovementService {
 
     private final EmployeeRepository employeeRepository;
     private final DepartmentRepository departmentRepository;
-    private final DepartmentHasPositionRepository departmentHasPositionRepository;
+    private final DepartmentPositionRepository departmentPositionRepository;
     private final PositionRepository positionRepository;
     private final EmployeeDepartmentHistoryRepository historyRepository;
     private final EmployeeReportingHistoryRepository reportingHistoryRepository;
@@ -307,7 +307,7 @@ public class EmployeeMovementService {
     private Position requirePositionInDepartment(Long posId, Long deptId) {
         Position pos = positionRepository.findByIdWithLevelCodeAndRole(posId)
             .orElseThrow(() -> new IllegalArgumentException("Position not found: " + posId));
-        DepartmentHasPosition mapping = departmentHasPositionRepository
+        DepartmentPosition mapping = departmentPositionRepository
             .findByDepartmentIdAndPositionId(deptId, posId)
             .orElseThrow(() -> new IllegalArgumentException("Position does not belong to the selected department"));
         if (!"active".equalsIgnoreCase(mapping.getStatus())) {

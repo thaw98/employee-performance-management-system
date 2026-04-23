@@ -6,14 +6,17 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.core.Ordered;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Creates {@code department_has_position} join table and removes {@code department_id} from
+ * Creates {@code department_position} join table and removes {@code department_id} from
  * {@code position} table. Also adds {@code department_position_id} to {@code employee} table.
+ * If {@code employee.department_position_id} has a foreign key pointing at the wrong table, it is
+ * dropped and replaced with a FK to {@code department_position}.
  */
 @Component
 @Slf4j
@@ -32,26 +35,27 @@ public class DepartmentPositionSchemaMigrationInitializer implements BeanPostPro
 		try {
 			migrate(dataSource);
 		} catch (Exception e) {
-			throw new BeanCreationException("department_has_position migration failed", e);
+			throw new BeanCreationException("department_position migration failed", e);
 		}
 		return bean;
 	}
 
 	private void migrate(DataSource dataSource) {
 		JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-		createDepartmentHasPositionTable(jdbc);
+		createDepartmentPositionTable(jdbc);
 		dropPositionDepartmentIdColumn(jdbc);
 		addEmployeeDepartmentPositionIdColumn(jdbc);
+		ensureEmployeeDepartmentPositionForeignKey(jdbc);
 	}
 
-	private void createDepartmentHasPositionTable(JdbcTemplate jdbc) {
-		if (tableExists(jdbc, "department_has_position")) {
-			log.info("department_has_position table already exists");
+	private void createDepartmentPositionTable(JdbcTemplate jdbc) {
+		if (tableExists(jdbc, "department_position")) {
+			log.info("department_position table already exists");
 			return;
 		}
 
 		jdbc.execute("""
-				CREATE TABLE department_has_position (
+				CREATE TABLE department_position (
 					id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 					department_id BIGINT NOT NULL,
 					position_id BIGINT NOT NULL,
@@ -67,7 +71,7 @@ public class DepartmentPositionSchemaMigrationInitializer implements BeanPostPro
 					CONSTRAINT fk_dept_pos_join_position FOREIGN KEY (position_id) REFERENCES `position`(`position_id`)
 				) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 				""");
-		log.info("Created department_has_position table");
+		log.info("Created department_position table");
 	}
 
 	private void dropPositionDepartmentIdColumn(JdbcTemplate jdbc) {
@@ -97,9 +101,74 @@ public class DepartmentPositionSchemaMigrationInitializer implements BeanPostPro
 		jdbc.execute("""
 				ALTER TABLE `employee`
 				ADD CONSTRAINT fk_employee_department_position
-				FOREIGN KEY (department_position_id) REFERENCES department_has_position(id)
+				FOREIGN KEY (department_position_id) REFERENCES department_position(id)
 				""");
 		log.info("Added employee.department_position_id column with FK");
+	}
+
+	/**
+	 * Replaces a mistaken {@code employee.department_position_id} FK with
+	 * {@code fk_employee_department_position} to {@code department_position(id)}.
+	 */
+	private void ensureEmployeeDepartmentPositionForeignKey(JdbcTemplate jdbc) {
+		if (!tableExists(jdbc, "employee")
+				|| !tableExists(jdbc, "department_position")
+				|| !columnExists(jdbc, "employee", "department_position_id")) {
+			return;
+		}
+
+		jdbc.query(
+				"""
+						SELECT DISTINCT CONSTRAINT_NAME, REFERENCED_TABLE_NAME
+						FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+						WHERE TABLE_SCHEMA = DATABASE()
+						  AND TABLE_NAME = 'employee'
+						  AND COLUMN_NAME = 'department_position_id'
+						  AND REFERENCED_TABLE_NAME IS NOT NULL
+						""",
+				rs -> {
+					String cname = rs.getString("CONSTRAINT_NAME");
+					String ref = rs.getString("REFERENCED_TABLE_NAME");
+					if (ref == null) {
+						return;
+					}
+					if ("department_position".equalsIgnoreCase(ref)) {
+						return;
+					}
+					dropForeignKeyIfExists(jdbc, "employee", cname);
+					log.info(
+							"Removed wrong FK {} on employee.department_position_id (was referencing {})",
+							cname,
+							ref);
+				});
+
+		boolean hasTargetFk = Boolean.TRUE.equals(jdbc.queryForObject(
+				"""
+						SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+						WHERE TABLE_SCHEMA = DATABASE()
+						  AND TABLE_NAME = 'employee'
+						  AND COLUMN_NAME = 'department_position_id'
+						  AND LOWER(REFERENCED_TABLE_NAME) = 'department_position'
+						""",
+				Boolean.class));
+		if (hasTargetFk) {
+			log.info("employee.department_position_id already has FK to department_position");
+			return;
+		}
+
+		try {
+			jdbc.execute("""
+					ALTER TABLE `employee`
+					ADD CONSTRAINT fk_employee_department_position
+					FOREIGN KEY (department_position_id) REFERENCES department_position(id)
+					""");
+			log.info("Added fk_employee_department_position to department_position");
+		} catch (DataAccessException e) {
+			log.error(
+					"Could not add fk_employee_department_position. Fix invalid department_position_id values or conflicts, then restart.",
+					e);
+			throw e;
+		}
 	}
 
 	private void dropForeignKeyIfExists(JdbcTemplate jdbc, String tableName, String constraintName) {

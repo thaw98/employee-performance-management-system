@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.mapping.DepartmentPositionMappingOptionDto;
-import com.epms.backend.entity.DepartmentHasPosition;
+import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.LevelCode;
 import com.epms.backend.entity.Role;
-import com.epms.backend.repository.DepartmentHasPositionRepository;
+import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.LevelCodeRepository;
 import com.epms.backend.repository.PositionRepository;
@@ -31,7 +31,7 @@ public class LookupController {
 	private final LevelCodeRepository levelCodeRepository;
 	private final RoleRepository roleRepository;
 	private final DepartmentRepository departmentRepository;
-	private final DepartmentHasPositionRepository departmentPositionRepository;
+	private final DepartmentPositionRepository departmentPositionRepository;
 	private final PositionRepository positionRepository;
 
 	@GetMapping("/level-codes/active")
@@ -68,7 +68,7 @@ public class LookupController {
 	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE')")
 	public ResponseEntity<ApiResponse<List<DepartmentPositionMappingOptionDto>>> getPositionsByDepartment(
 			@PathVariable Long departmentId) {
-		List<DepartmentHasPosition> activeMappings = departmentPositionRepository
+		List<DepartmentPosition> activeMappings = departmentPositionRepository
 				.findActiveByDepartmentIdWithPosition(departmentId);
 		List<DepartmentPositionMappingOptionDto> options = activeMappings.stream()
 				.map(m -> DepartmentPositionMappingOptionDto.builder()

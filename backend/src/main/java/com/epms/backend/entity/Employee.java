@@ -66,7 +66,7 @@ public class Employee {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_position_id")
-    private DepartmentHasPosition departmentPosition;
+    private DepartmentPosition departmentPosition;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id")

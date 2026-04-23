@@ -29,7 +29,7 @@ public interface PositionRepository extends JpaRepository<Position, Long>, JpaSp
 	@Query("SELECT p FROM Position p WHERE LOWER(COALESCE(p.status, 'ACTIVE')) = 'active' AND LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.name ASC")
 	List<Position> findActiveByNameContaining(@Param("keyword") String keyword, Pageable pageable);
 
-	// Backward compatibility methods - using department_has_position mapping instead
+	// Backward compatibility methods - using department_position mapping instead
 	List<Position> findTop20ByNameContainingIgnoreCaseOrderByNameAsc(String keyword);
 
 	@Query("SELECT p FROM Position p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.name ASC")
