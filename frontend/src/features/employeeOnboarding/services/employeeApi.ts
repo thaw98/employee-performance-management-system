@@ -53,6 +53,16 @@ export const employeeApi = baseApi.injectEndpoints({
     checkUserEmail: builder.query<ApiResponse<boolean>, string>({
       query: (email) => `/users/check-email?email=${encodeURIComponent(email)}`,
     }),
+    checkStaffNrc: builder.query<ApiResponse<boolean>, { staffNrcNo: string; excludeId?: number }>({
+      query: ({ staffNrcNo, excludeId }) => {
+        const params = new URLSearchParams()
+        params.set('staffNrcNo', staffNrcNo)
+        if (excludeId != undefined) {
+          params.set('excludeId', String(excludeId))
+        }
+        return `/employees/check-staff-nrc?${params.toString()}`
+      },
+    }),
   }),
 })
 
@@ -65,4 +75,5 @@ export const {
   useGetPositionsQuery,
   useCreateEmployeeAccountMutation,
   useLazyCheckUserEmailQuery,
+  useLazyCheckStaffNrcQuery,
 } = employeeApi

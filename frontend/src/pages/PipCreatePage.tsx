@@ -134,7 +134,7 @@ export default function PipCreatePage() {
                 options={eligibleEmployees || []}
                 value={eligibleEmployees?.find((e) => e.employeeId === field.value) || null}
                 isOptionEqualToValue={(option, value) => option.employeeId === (typeof value === 'number' ? value : value?.employeeId)}
-                getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}${option.staffId ? ` / ${option.staffId}` : ''}) - ${option.departmentName}`}
+                getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}${option.staffId ? ` / ${option.staffId}` : ''}) - ${option.departmentName || 'No Department'}`}
                 onChange={(_, data) => field.onChange(data?.employeeId ?? 0)}
                 renderInput={(params) => (
                   <TextField

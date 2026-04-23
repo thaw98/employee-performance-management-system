@@ -27,6 +27,7 @@ public class EmployeeInfoRequestDto {
 	private String email;
 
 	@Size(max = 100)
+	@NotBlank(message = "NRC number is required")
 	private String staffNrcNo;
 
 	@NotNull
@@ -40,6 +41,8 @@ public class EmployeeInfoRequestDto {
 	private String fatherNrcNo;
 	private String fatherOccupation;
 	private String emergencyPhone;
+	@NotBlank(message = "Relationship to employee is required")
+	@Size(max = 100)
 	private String emergencyRelation;
 
 	@NotNull
@@ -56,7 +59,7 @@ public class EmployeeInfoRequestDto {
 	@NotNull
 	private Long staffTypeId;
 
-	private Integer probationMonth;
+	private Integer probationDays;
 	private LocalDate probationEndDate;
 
 	private String profilePictureUrl;

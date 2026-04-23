@@ -12,6 +12,7 @@ import {
   useGetNextStaffNoQuery,
   useGetPositionsQuery,
   useLazyCheckEmailQuery,
+  useLazyCheckStaffNrcQuery,
   useLazyCheckStaffNoQuery,
   useResendTemporaryPasswordMutation,
 } from '../../features/hrCreateEmployee/hrEmployeeAccountApi'
@@ -67,6 +68,10 @@ function staffDupBlocks(staffDup: Dup): boolean {
   return staffDup !== 'available'
 }
 
+function nrcDupBlocks(nrcDup: Dup): boolean {
+  return nrcDup !== 'available'
+}
+
 function emailDupBlocks(emailDup: Dup): boolean {
   return emailDup !== 'available'
 }
@@ -112,12 +117,13 @@ export function CreateEmployeeAccountPage() {
     mode: 'onBlur',
   })
 
-  const { register, control, handleSubmit, formState, setValue, getValues, trigger, watch, reset } = form
+  const { register, control, handleSubmit, formState, setValue, getValues, trigger, watch, reset, setError, clearErrors } = form
   const { errors, isSubmitting } = formState
 
   const [step, setStep] = useState(1)
   const [emailDup, setEmailDup] = useState<Dup>('idle')
   const [staffDup, setStaffDup] = useState<Dup>('idle')
+  const [nrcDup, setNrcDup] = useState<Dup>('idle')
   const [successOpen, setSuccessOpen] = useState(false)
   const [created, setCreated] = useState<{ employeeId: number; staffNo: string; name: string; email: string } | null>(null)
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
@@ -136,6 +142,7 @@ export function CreateEmployeeAccountPage() {
 
   const [checkEmail] = useLazyCheckEmailQuery()
   const [checkStaff] = useLazyCheckStaffNoQuery()
+  const [checkStaffNrc] = useLazyCheckStaffNrcQuery()
   const [createAccount, { isLoading: createLoading }] = useCreateEmployeeAccountMutation()
   const [uploadProfilePicture] = useUploadProfilePictureMutation()
   const [resendPw, { isLoading: resendLoading }] = useResendTemporaryPasswordMutation()
@@ -217,6 +224,34 @@ export function CreateEmployeeAccountPage() {
     return ''
   }, [nrcStateCode, nrcTownshipCode, nrcType, nrcNumber])
 
+  useEffect(() => {
+    if (!nrcPreview || String(nrcNumber ?? '').trim().length !== 6) {
+      setNrcDup('idle')
+      clearErrors('nrcNumber')
+      return
+    }
+    setNrcDup('checking')
+    const t = window.setTimeout(() => {
+      checkStaffNrc(nrcPreview)
+        .unwrap()
+        .then((res) => {
+          if (!res.success || typeof res.data !== 'boolean') {
+            setNrcDup('idle')
+            return
+          }
+          if (res.data) {
+            setNrcDup('exists')
+            setError('nrcNumber', { type: 'manual', message: 'This NRC number already exists.' })
+            return
+          }
+          setNrcDup('available')
+          clearErrors('nrcNumber')
+        })
+        .catch(() => setNrcDup('idle'))
+    }, DEBOUNCE_MS)
+    return () => window.clearTimeout(t)
+  }, [checkStaffNrc, clearErrors, nrcNumber, nrcPreview, setError])
+
   const fatherNrcStateCode = watch('fatherNrcStateCode')
   const fatherNrcTownshipCode = watch('fatherNrcTownshipCode')
   const fatherNrcType = watch('fatherNrcType')
@@ -259,6 +294,17 @@ export function CreateEmployeeAccountPage() {
         if (staffDup === 'exists') toast.error('This staff number is already in use. Enter a unique staff number.')
         else if (staffDup === 'checking') toast.error('Wait for the staff number check to finish.')
         else toast.error('Staff number must show as available before continuing.')
+        return
+      }
+      if (nrcDupBlocks(nrcDup)) {
+        if (nrcDup === 'exists') {
+          setError('nrcNumber', { type: 'manual', message: 'This NRC number already exists.' })
+          toast.error('This NRC number already exists.')
+        } else if (nrcDup === 'checking') {
+          toast.error('Wait for the NRC availability check to finish.')
+        } else {
+          toast.error('Complete NRC and wait until it shows as available.')
+        }
         return
       }
       setStep(2)
@@ -306,12 +352,17 @@ export function CreateEmployeeAccountPage() {
 
   const onFinal = useCallback(
     async (v: CreateEmployeeAccountFormValues) => {
-      if (emailDupBlocks(emailDup) || staffDupBlocks(staffDup)) {
-        toast.error('Email and staff number must be verified as available before submitting.')
+      if (emailDupBlocks(emailDup) || staffDupBlocks(staffDup) || nrcDupBlocks(nrcDup)) {
+        toast.error('Email, staff number, and NRC must be verified as available before submitting.')
         return
       }
       const emailNorm = v.email.trim().toLowerCase()
       const staffNorm = v.staffNo.trim()
+      const nrc = buildNrc(v)
+      if (!nrc) {
+        toast.error('NRC number is required')
+        return
+      }
       try {
         const emailRecheck = await checkEmail(emailNorm).unwrap()
         if (emailRecheck.success && emailRecheck.data?.exists) {
@@ -323,13 +374,14 @@ export function CreateEmployeeAccountPage() {
           toast.error('This staff number is already in use.')
           return
         }
+        const nrcRecheck = await checkStaffNrc(nrc).unwrap()
+        if (nrcRecheck.success && nrcRecheck.data) {
+          setError('nrcNumber', { type: 'manual', message: 'This NRC number already exists.' })
+          toast.error('This NRC number already exists.')
+          return
+        }
       } catch {
-        toast.error('Could not verify email or staff number. Try again.')
-        return
-      }
-      const nrc = buildNrc(v)
-      if (!nrc) {
-        toast.error('NRC number is required')
+        toast.error('Could not verify email, staff number, or NRC. Try again.')
         return
       }
       try {
@@ -385,7 +437,7 @@ export function CreateEmployeeAccountPage() {
         toast.error(err.data?.message || 'Could not create account')
       }
     },
-    [createAccount, emailDup, staffDup, checkEmail, checkStaff, profilePhotoFile, uploadProfilePicture],
+    [createAccount, emailDup, staffDup, nrcDup, checkEmail, checkStaff, checkStaffNrc, profilePhotoFile, setError, uploadProfilePicture],
   )
 
   const resetFlow = async () => {
@@ -422,6 +474,7 @@ export function CreateEmployeeAccountPage() {
     setStep(1)
     setEmailDup('idle')
     setStaffDup('idle')
+    setNrcDup('idle')
     setCreated(null)
     setSuccessOpen(false)
     setProfilePhotoFile(null)

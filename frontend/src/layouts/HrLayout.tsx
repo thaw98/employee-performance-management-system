@@ -12,7 +12,8 @@ import {
   Search,
   RefreshCcw,
   Zap,
-  ClipboardList
+  ClipboardList,
+  Building2
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -51,8 +52,10 @@ const HrLayout: React.FC = () => {
           { label: 'Employee List', path: '/hr/employees' },
           { label: 'Create Employee Account', path: '/hr/employees/create-account' }
         ]
+
       }
       : { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
+    { icon: <Building2 size={20} />, label: 'Department', path: '/hr/departments' },
     {
       icon: <Target size={20} />,
       label: 'Performance',
@@ -67,7 +70,8 @@ const HrLayout: React.FC = () => {
       label: 'Self Assessments',
       path: '/hr/assessments',
       subItems: [
-        { label: 'Compliance Review', path: '/hr/assessments' }
+        { label: 'Compliance Review', path: '/hr/assessments' },
+        { label: 'Question', path: '/hr/assessment-subitems' }
       ]
     },
     {

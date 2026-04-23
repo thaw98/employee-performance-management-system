@@ -3,6 +3,7 @@ package com.epms.backend.service;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -17,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.epms.backend.StaffTypes;
 import com.epms.backend.audit.AuditActionType;
 import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.hr.EmployeeDetailResponseDto;
@@ -285,33 +287,75 @@ public class HrEmployeeService {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 
-        String status = request.getStatus();
+        String currentStatus = determineEmploymentStatus(employee);
+        String targetStatus = request.getTargetStatus();
 
-        if ("Permanent".equalsIgnoreCase(status)) {
-            if (employee.getProbation() != null) {
-                employee.getProbation().setProbationEndDate(LocalDate.now().minusDays(1));
+        if ("PERMANENT".equalsIgnoreCase(targetStatus)) {
+            if (!"Probation".equals(currentStatus)) {
+                throw new IllegalArgumentException("Only Probation employees can be changed to Permanent");
             }
-        } else if ("Probation".equalsIgnoreCase(status)) {
-            if (request.getProbationEndDate() == null) {
-                throw new IllegalArgumentException("Probation end date is required when setting status to Probation");
+
+            String mode = request.getTransitionMode();
+            if (mode == null || mode.isBlank()) {
+                throw new IllegalArgumentException("Transition mode is required when changing to Permanent (NOW or CUSTOM)");
             }
-            if (!request.getProbationEndDate().isAfter(LocalDate.now())) {
-                throw new IllegalArgumentException("Probation end date must be in the future");
-            }
+
             EmployeeProbation probation = employee.getProbation();
             if (probation == null) {
-                probation = new EmployeeProbation();
-                probation.setEmployee(employee);
-                employee.setProbation(probation);
+                throw new IllegalArgumentException("No probation record found for this employee");
             }
-            probation.setProbationEndDate(request.getProbationEndDate());
-            probation.setProbationStartDate(LocalDate.now());
-        } else if ("Resigned".equalsIgnoreCase(status)) {
-            employee.setEmploymentStatus(EmployeeStatus.RESIGNED);
-        } else if ("Terminated".equalsIgnoreCase(status)) {
-            employee.setEmploymentStatus(EmployeeStatus.TERMINATED);
+
+            if ("NOW".equalsIgnoreCase(mode)) {
+                probation.setProbationEndDate(LocalDate.now());
+            } else if ("CUSTOM".equalsIgnoreCase(mode)) {
+                if (request.getEffectiveDate() == null) {
+                    throw new IllegalArgumentException("Effective date is required for Custom transition");
+                }
+                if (!request.getEffectiveDate().isAfter(probation.getProbationStartDate())) {
+                    throw new IllegalArgumentException("Effective date must be after probation start date (" + probation.getProbationStartDate() + ")");
+                }
+                probation.setProbationEndDate(request.getEffectiveDate());
+            } else {
+                throw new IllegalArgumentException("Transition mode must be NOW or CUSTOM");
+            }
+
+            // Update staff type to Permanent
+            StaffType permanentType = staffTypeRepository.findById(StaffTypes.PERMANENT)
+                    .orElseThrow(() -> new IllegalStateException("Permanent staff type not found"));
+            employee.setStaffType(permanentType);
+
+            // Update probation audit fields
+            probation.setUpdatedOn(LocalDateTime.now());
+            probation.setUpdatedBy(principal.getId());
+
+        } else if ("RESIGNED".equalsIgnoreCase(targetStatus) || "TERMINATED".equalsIgnoreCase(targetStatus)) {
+
+            // If current status is Probation, update probation_end_date
+            if ("Probation".equals(currentStatus)) {
+                if (request.getEffectiveDate() == null) {
+                    throw new IllegalArgumentException("Effective date is required when changing from Probation to " + targetStatus);
+                }
+
+                EmployeeProbation probation = employee.getProbation();
+                if (probation != null) {
+                    if (!request.getEffectiveDate().isAfter(probation.getProbationStartDate())) {
+                        throw new IllegalArgumentException("Effective date must be after probation start date (" + probation.getProbationStartDate() + ")");
+                    }
+                    probation.setProbationEndDate(request.getEffectiveDate());
+                    probation.setUpdatedOn(LocalDateTime.now());
+                    probation.setUpdatedBy(principal.getId());
+                }
+            }
+
+            // Set employment status
+            if ("RESIGNED".equalsIgnoreCase(targetStatus)) {
+                employee.setEmploymentStatus(EmployeeStatus.RESIGNED);
+            } else {
+                employee.setEmploymentStatus(EmployeeStatus.TERMINATED);
+            }
+
         } else {
-            throw new IllegalArgumentException("Invalid status: " + status);
+            throw new IllegalArgumentException("Invalid target status: " + targetStatus + ". Must be PERMANENT, RESIGNED, or TERMINATED");
         }
 
         employee.setUpdatedBy(principal.getId());
@@ -324,7 +368,7 @@ public class HrEmployeeService {
             employee.getId(),
             principal.getId(),
             principal.getRoleId(),
-            "HR updated employment status to " + status + " for employee_id " + employee.getId(),
+            "HR updated employment status to " + targetStatus + " for employee_id " + employee.getId(),
             null
         );
     }
@@ -376,8 +420,8 @@ public class HrEmployeeService {
             return "Terminated";
         }
 
-        EmployeeProbation probation = employee.getProbation();
-        if (probation != null) {
+        // Determine from staff_type_id
+        if (employee.getStaffType() != null && employee.getStaffType().getId() == StaffTypes.PROBATION) {
             return "Probation";
         }
 
@@ -402,6 +446,8 @@ public class HrEmployeeService {
                 .staffTypeId(employee.getStaffType() != null ? employee.getStaffType().getId() : null)
                 .staffTypeName(employee.getStaffType() != null ? employee.getStaffType().getName() : null)
                 .dateOfJoining(employee.getDateOfJoining())
+                .probationStartDate(employee.getProbation() != null ? employee.getProbation().getProbationStartDate() : null)
+                .probationEndDate(employee.getProbation() != null ? employee.getProbation().getProbationEndDate() : null)
                 .profilePictureUrl(employee.getProfilePictureUrl())
                 .build();
     }
@@ -456,6 +502,16 @@ public class HrEmployeeService {
                     .build();
         }
 
+        // Build probation info
+        EmployeeViewResponseDto.ProbationInfo probationInfo = null;
+        EmployeeProbation probation = employee.getProbation();
+        if (probation != null) {
+            probationInfo = new EmployeeViewResponseDto.ProbationInfo(
+                    true,
+                    probation.getProbationStartDate(),
+                    probation.getProbationEndDate());
+        }
+
         EmployeeStatus activeStatus = employee.getEmploymentStatus() != null
                 ? employee.getEmploymentStatus()
                 : EmployeeStatus.ACTIVE;
@@ -483,6 +539,7 @@ public class HrEmployeeService {
                 .staffType(staffTypeInfo)
                 .emergencyContact(emergencyInfo)
                 .father(fatherInfo)
+                .probationInfo(probationInfo)
                 .build();
     }
 }
