@@ -67,6 +67,7 @@ public class HrCreateEmployeeAccountRequestDto {
 	@Size(max = 100)
 	private String fatherNrc;
 
+	@NotBlank(message = "Father occupation is required")
 	@Size(max = 100)
 	private String fatherOccupation;
 

@@ -11,6 +11,8 @@ import java.util.List;
 @Repository
 public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
     Page<Feedback> findByEvaluatorId(Long evaluatorId, Pageable pageable);
+
     Page<Feedback> findByEvaluateeId(Long evaluateeId, Pageable pageable);
+
     Page<Feedback> findByEvaluatorIdOrderByCreatedDateDesc(Long evaluatorId, Pageable pageable);
 }

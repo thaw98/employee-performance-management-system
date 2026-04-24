@@ -14,15 +14,19 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Predicate;
 
 @Service
 @RequiredArgsConstructor
 public class PipService {
 
     private static final String STATUS_ACTIVE = "ACTIVE";
+    private static final String STATUS_PENDING_CREATION = "PENDING_CREATION";
     private static final String STATUS_PENDING_CLOSE = "PENDING_CLOSE";
     private static final String STATUS_PENDING_REOPEN = "PENDING_REOPEN";
     private static final String STATUS_CLOSED = "CLOSED";
+    private static final String STATUS_DENIED = "DENIED";
     private static final String STATUS_SCHEDULED = "SCHEDULED";
 
     private final PipRepository pipRepository;
@@ -71,9 +75,11 @@ public class PipService {
             throw new RuntimeException("You can only create PIPs for employees under your supervision");
         }
 
-        boolean hasOpenPip = pipRepository.findByEmployeeAndStatusIn(employee, List.of(STATUS_ACTIVE, "REOPENED"))
+        boolean hasOpenPip = pipRepository.findByEmployeeAndStatusIn(employee,
+                List.of(STATUS_ACTIVE, STATUS_PENDING_CREATION, STATUS_PENDING_REOPEN))
                 .stream()
-                .anyMatch(pip -> !STATUS_CLOSED.equalsIgnoreCase(normalizeStatus(pip.getStatus())));
+                .anyMatch(pip -> !STATUS_CLOSED.equalsIgnoreCase(pip.getStatus())
+                        && !STATUS_DENIED.equalsIgnoreCase(pip.getStatus()));
         if (hasOpenPip) {
             throw new RuntimeException("An active PIP already exists for this employee");
         }
@@ -84,7 +90,7 @@ public class PipService {
         pip.setCreatedBy(managerEmployee);
         pip.setStartDate(request.getStartDate());
         pip.setEndDate(request.getEndDate());
-        pip.setStatus(STATUS_ACTIVE);
+        pip.setStatus(STATUS_PENDING_CREATION);
         pip.setOverallProgressPercentage(BigDecimal.ZERO);
         pip.setTotalHours(request.getTotalHours());
         pip.setCompletedHours(0);
@@ -114,6 +120,81 @@ public class PipService {
 
     public List<Pip> getAllPips() {
         return pipRepository.findAll();
+    }
+
+    public List<Pip> searchPips(
+            Long departmentId,
+            Long positionId,
+            String employeeName,
+            String status,
+            LocalDate startDate,
+            LocalDate endDate,
+            User actor) {
+        Specification<Pip> spec = (root, query, cb) -> {
+            // Eagerly fetch nested entities to avoid LazyInitializationException and ensure
+            // data is present in JSON
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                jakarta.persistence.criteria.Fetch<Pip, Employee> employeeFetch = root.fetch("employee",
+                        jakarta.persistence.criteria.JoinType.LEFT);
+                employeeFetch.fetch("department", jakarta.persistence.criteria.JoinType.LEFT);
+                employeeFetch.fetch("position", jakarta.persistence.criteria.JoinType.LEFT);
+
+                jakarta.persistence.criteria.Fetch<Pip, Employee> managerFetch = root.fetch("manager",
+                        jakarta.persistence.criteria.JoinType.LEFT);
+                managerFetch.fetch("department", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+
+            List<Predicate> predicates = new ArrayList<>();
+
+            // Role-based visibility
+            if (isHr(actor)) {
+                if (departmentId != null) {
+                    predicates.add(cb.equal(root.get("employee").get("department").get("id"), departmentId));
+                }
+            } else if (actor.getEmployee() != null && actor.getEmployee().getDepartment() != null) {
+                // Manager or Employee - restricted to their own department for managers,
+                // but the controller logic usually handles Manager vs Employee differently.
+                // For "Monitoring", we assume Manager view of department.
+                predicates.add(cb.equal(root.get("employee").get("department").get("id"),
+                        actor.getEmployee().getDepartment().getId()));
+            } else {
+                // No department, return nothing or just their own if they are an employee
+                if (actor.getEmployee() != null) {
+                    predicates.add(cb.equal(root.get("employee").get("id"), actor.getEmployee().getId()));
+                } else {
+                    return cb.disjunction();
+                }
+            }
+
+            if (positionId != null) {
+                predicates.add(cb.equal(root.get("employee").get("position").get("id"), positionId));
+            }
+
+            if (employeeName != null && !employeeName.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("employee").get("employeeName")),
+                        "%" + employeeName.toLowerCase() + "%"));
+            }
+
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+
+            // Date Range Filter: Show PIPs that overlap with the selected range
+            if (startDate != null && endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("startDate"), endDate));
+                predicates.add(cb.greaterThanOrEqualTo(root.get("endDate"), startDate));
+            } else if (startDate != null) {
+                // Show PIPs that are active on or after the start date
+                predicates.add(cb.greaterThanOrEqualTo(root.get("endDate"), startDate));
+            } else if (endDate != null) {
+                // Show PIPs that are active on or before the end date
+                predicates.add(cb.lessThanOrEqualTo(root.get("startDate"), endDate));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return pipRepository.findAll(spec);
     }
 
     public Pip getPipById(Long id, User actor) {
@@ -274,11 +355,17 @@ public class PipService {
         } else if ("DENIED".equals(action) && STATUS_PENDING_REOPEN.equals(normalizedStatus)) {
             pip.setStatus(STATUS_CLOSED);
             pip.setReviewReason(reason);
+        } else if ("CONFIRMED".equals(action) && STATUS_PENDING_CREATION.equals(normalizedStatus)) {
+            pip.setStatus(STATUS_ACTIVE);
+            pip.setReviewReason(null);
+        } else if ("DENIED".equals(action) && STATUS_PENDING_CREATION.equals(normalizedStatus)) {
+            pip.setStatus(STATUS_DENIED);
+            pip.setReviewReason(reason);
         } else if ("CONFIRMED".equals(action)) {
             pip.setStatus(STATUS_ACTIVE);
             pip.setReviewReason(null);
         } else if ("DENIED".equals(action)) {
-            pip.setStatus(STATUS_CLOSED);
+            pip.setStatus(STATUS_DENIED);
             pip.setReviewReason(reason);
         }
         pip.setUpdatedDate(Instant.now());
@@ -324,13 +411,30 @@ public class PipService {
         if (actor.getEmployee() == null) {
             throw new RuntimeException("The current account is not linked to an employee record");
         }
+
         Long actorEmployeeId = actor.getEmployee().getId();
+
+        // Allowed if it's their own PIP
         if (pip.getEmployee() != null && pip.getEmployee().getId().equals(actorEmployeeId)) {
             return;
         }
+
+        // Allowed if they are the assigned manager
         if (pip.getManager() != null && pip.getManager().getId().equals(actorEmployeeId)) {
             return;
         }
+
+        // Allowed if they are a department/team head and the employee is in their
+        // department
+        String role = actor.getRole() != null ? actor.getRole().getName() : "";
+        if (("DEPARTMENT_HEAD".equalsIgnoreCase(role) || "TEAM_HEAD".equalsIgnoreCase(role))
+                && actor.getEmployee().getDepartment() != null
+                && pip.getEmployee() != null
+                && pip.getEmployee().getDepartment() != null
+                && pip.getEmployee().getDepartment().getId().equals(actor.getEmployee().getDepartment().getId())) {
+            return;
+        }
+
         throw new RuntimeException("You are not allowed to access this PIP");
     }
 

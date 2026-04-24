@@ -13,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/appraisal-assignments")
 @RequiredArgsConstructor
+@org.springframework.security.access.prepost.PreAuthorize("hasRole('HR')")
 public class AppraisalAssignmentController {
 
     private final AppraisalAssignmentService appraisalAssignmentService;

@@ -1,3 +1,4 @@
+// src/types/kpiManagement.ts
 export interface PositionKpi {
   id?: number;
   positionId: number;
@@ -20,12 +21,19 @@ export interface PositionKpi {
   remarks?: string;
 }
 
+export interface PositionKpiRequest {
+  positionId: number;
+  kpis: PositionKpi[];
+  isFinal: boolean;
+}
+
 export interface Employee {
   id: number;
   employeeName: string;
   employeeId: string;
   department?: { id: number; name: string };
   position?: { id: number; name: string };
+  email?: string;
 }
 
 export interface Position {
@@ -40,4 +48,22 @@ export interface KpiCategory {
   name: string;
   isActive: boolean;
   displayOrder: number;
+}
+
+export interface KpiRecord {
+  id: number;
+  employeeId: number;
+  employeeName: string;
+  periodId: number;
+  periodName: string;
+  kpiName: string;
+  category: string;
+  target: string;
+  actual: string;
+  unit: string;
+  weight: number;
+  score: number;
+  weightedScore: number;
+  status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'LOCKED';
+  remarks?: string;
 }

@@ -72,7 +72,9 @@ const HrLayout: React.FC = () => {
       label: 'Self Assessments',
       path: '/hr/assessments',
       subItems: [
-        { label: 'Compliance Review', path: '/hr/assessments' }
+        { label: 'My Assessment', path: '/hr/my-assessment' },
+        { label: 'Compliance Review', path: '/hr/assessments' },
+        { label: 'Question', path: '/hr/assessment-subitems' }
       ]
     },
     {

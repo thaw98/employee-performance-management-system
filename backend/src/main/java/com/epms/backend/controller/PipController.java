@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -43,17 +44,17 @@ public class PipController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Pip>>> getPips(@AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<ApiResponse<List<Pip>>> getPips(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) String employeeName,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate
+    ) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
-        List<Pip> pips;
-        if (principal.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_HR"))) {
-            pips = pipService.getAllPips();
-        } else if (principal.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().matches("ROLE_(DEPARTMENT|TEAM)_HEAD"))) {
-            pips = pipService.getManagerPips(user);
-        } else {
-            pips = pipService.getEmployeePips(user);
-        }
+        List<Pip> pips = pipService.searchPips(departmentId, positionId, employeeName, status, startDate, endDate, user);
         return ResponseEntity.ok(ApiResponse.ok("PIPs retrieved successfully", pips));
     }
 
