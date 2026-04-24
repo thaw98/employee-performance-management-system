@@ -11,7 +11,6 @@ const positionSchema = z.object({
   positionName: z.string().min(1, 'Position name is required'),
   levelCodeId: z.number().min(1, 'Level code is required'),
   roleId: z.number().min(1, 'Role is required'),
-  status: z.enum(['ACTIVE', 'INACTIVE'], { message: 'Status must be ACTIVE or INACTIVE' }),
 })
 
 type PositionFormValues = z.infer<typeof positionSchema>
@@ -32,7 +31,6 @@ const getFormValues = (position?: PositionDto | null): PositionFormValues => ({
   positionName: position?.positionName ?? '',
   levelCodeId: position?.levelCodeId ?? 0,
   roleId: position?.roleId ?? 0,
-  status: (position?.status as 'ACTIVE' | 'INACTIVE') ?? 'ACTIVE',
 })
 
 function PositionModal({
@@ -50,8 +48,7 @@ function PositionModal({
     defaultValues: getFormValues(position),
   })
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting }, watch } = methods
-  const statusValue = watch('status')
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = methods
 
   useEffect(() => {
     if (!isOpen) return
@@ -132,12 +129,11 @@ function PositionModal({
                             <input
                               {...register('positionCode')}
                               type="text"
-                              disabled={isEdit}
                               className={`w-full pl-11 pr-4 py-3 border rounded-xl transition-all duration-200 focus:ring-2 focus:outline-none ${
                                 errors.positionCode 
                                   ? 'border-red-300 focus:ring-red-200 focus:border-red-500' 
                                   : 'border-gray-200 focus:ring-indigo-100 focus:border-indigo-500 hover:border-gray-300'
-                              } ${isEdit ? 'bg-gray-50 cursor-not-allowed' : 'bg-white'}`}
+                              } bg-white`}
                               placeholder="e.g. SE001"
                             />
                             <i className="bi bi-code-slash absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
@@ -147,12 +143,6 @@ function PositionModal({
                               <i className="bi bi-exclamation-circle mt-0.5 flex-shrink-0"></i>
                               <span>{errors.positionCode.message}</span>
                             </div>
-                          )}
-                          {isEdit && (
-                            <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                              <i className="bi bi-lock-fill"></i>
-                              Position code cannot be modified
-                            </p>
                           )}
                         </div>
 
@@ -252,65 +242,6 @@ function PositionModal({
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
-                          <i className="bi bi-flag text-gray-400 text-sm"></i>
-                          Status
-                          <span className="text-red-500">*</span>
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                          <button
-                            type="button"
-                            onClick={() => methods.setValue('status', 'ACTIVE')}
-                            className={`relative px-4 py-3 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2.5 ${
-                              statusValue === 'ACTIVE'
-                                ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-green-50'
-                                : 'border-gray-200 hover:border-gray-300 bg-white'
-                            }`}
-                          >
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
-                              statusValue === 'ACTIVE' ? 'bg-emerald-500' : 'bg-gray-200'
-                            }`}>
-                              {statusValue === 'ACTIVE' && (
-                                <i className="bi bi-check text-white text-xs"></i>
-                              )}
-                            </div>
-                            <span className={`font-medium ${statusValue === 'ACTIVE' ? 'text-emerald-700' : 'text-gray-600'}`}>
-                              Active
-                            </span>
-                            <i className={`bi bi-circle-fill text-xs ${statusValue === 'ACTIVE' ? 'text-emerald-500' : 'text-gray-300'}`}></i>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => methods.setValue('status', 'INACTIVE')}
-                            className={`relative px-4 py-3 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2.5 ${
-                              statusValue === 'INACTIVE'
-                                ? 'border-gray-400 bg-gradient-to-br from-gray-50 to-slate-50'
-                                : 'border-gray-200 hover:border-gray-300 bg-white'
-                            }`}
-                          >
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
-                              statusValue === 'INACTIVE' ? 'bg-gray-500' : 'bg-gray-200'
-                            }`}>
-                              {statusValue === 'INACTIVE' && (
-                                <i className="bi bi-check text-white text-xs"></i>
-                              )}
-                            </div>
-                            <span className={`font-medium ${statusValue === 'INACTIVE' ? 'text-gray-700' : 'text-gray-600'}`}>
-                              Inactive
-                            </span>
-                            <i className={`bi bi-circle-fill text-xs ${statusValue === 'INACTIVE' ? 'text-gray-500' : 'text-gray-300'}`}></i>
-                          </button>
-                        </div>
-                        <input {...register('status')} type="hidden" />
-                        {errors.status && (
-                          <div className="flex items-start gap-1.5 text-sm text-red-500 mt-1">
-                            <i className="bi bi-exclamation-circle mt-0.5 flex-shrink-0"></i>
-                            <span>{errors.status.message}</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
 
                     <div className="px-6 py-4 sm:px-8 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100/50">

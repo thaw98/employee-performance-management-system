@@ -1,7 +1,7 @@
-import { Fragment, useMemo, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import toast from 'react-hot-toast'
-import { AlertCircle, BriefcaseBusiness, CheckCircle2, Save, Search, X } from 'lucide-react'
+import { BriefcaseBusiness, ChevronRight, Save, Search, X } from 'lucide-react'
 import {
   useAddPositionToDepartmentMutation,
 } from '../api/departmentPositionsApi'
@@ -18,8 +18,6 @@ interface AddPositionToDepartmentModalProps {
   onSuccess?: () => void | Promise<void>
 }
 
-const isActive = (status: unknown) => String(status ?? '').trim().toLowerCase() === 'active'
-
 export default function AddPositionToDepartmentModal({
   isOpen,
   onClose,
@@ -29,7 +27,9 @@ export default function AddPositionToDepartmentModal({
 }: AddPositionToDepartmentModalProps) {
   const [query, setQuery] = useState('')
   const [positionId, setPositionId] = useState<number | ''>('')
-  const [status, setStatus] = useState<'Active' | 'Inactive'>('Active')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const [addPosition, { isLoading: isSaving }] = useAddPositionToDepartmentMutation()
   const { data: positionsResponse, isFetching } = useGetPositionsQuery({ page: 0, size: 500, sortBy: 'positionName', sortDir: 'asc' }, { skip: !isOpen })
 
@@ -44,12 +44,34 @@ export default function AddPositionToDepartmentModal({
         return `${position.positionCode} ${position.positionName}`.toLowerCase().includes(q)
       })
   }, [existingIds, positions, query])
+  const selectedPosition = useMemo(() => positions.find((p: PositionDto) => p.positionId === positionId), [positions, positionId])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) && searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleClose = () => {
     setQuery('')
     setPositionId('')
-    setStatus('Active')
+    setShowDropdown(false)
     onClose()
+  }
+
+  const handleSelectPosition = (position: PositionDto) => {
+    setPositionId(position.positionId)
+    setQuery(`${position.positionCode} - ${position.positionName}`)
+    setShowDropdown(false)
+  }
+
+  const handleSearchChange = (value: string) => {
+    setQuery(value)
+    setShowDropdown(true)
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -60,7 +82,7 @@ export default function AddPositionToDepartmentModal({
     }
 
     try {
-      await addPosition({ departmentId, positionId, status }).unwrap()
+      await addPosition({ departmentId, positionId, status: 'Active' }).unwrap()
       toast.success('Position added to department.')
       await onSuccess?.()
       handleClose()
@@ -122,62 +144,74 @@ export default function AddPositionToDepartmentModal({
                 </div>
 
                 <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-                  <div>
+                  <div className="relative">
                     <label htmlFor="position-search" className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
                       <Search size={11} className="text-slate-400" />
-                      Search Position
+                      Search Position <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      id="position-search"
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                      placeholder="Search by code or name"
-                      autoComplete="off"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 transition-all outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:font-normal placeholder:text-slate-400"
-                    />
-                  </div>
+                    <div className="relative">
+                      <input
+                        ref={searchInputRef}
+                        id="position-search"
+                        value={query}
+                        onChange={(event) => handleSearchChange(event.target.value)}
+                        onFocus={() => setShowDropdown(true)}
+                        placeholder="Type to search positions..."
+                        autoComplete="off"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 transition-all outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:font-normal placeholder:text-slate-400"
+                      />
+                      {positionId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuery('')
+                            setPositionId('')
+                            setShowDropdown(false)
+                          }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
 
-                  <div>
-                    <label htmlFor="position-picker" className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                      <BriefcaseBusiness size={11} className="text-slate-400" />
-                      Position <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      id="position-picker"
-                      value={positionId}
-                      onChange={(event) => setPositionId(event.target.value ? Number(event.target.value) : '')}
-                      disabled={isFetching || availablePositions.length === 0}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 focus:ring-offset-0 outline-none transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed appearance-none"
-                    >
-                      <option value="">{isFetching ? 'Loading positions...' : 'Select a position'}</option>
-                      {availablePositions.map((position) => (
-                        <option key={position.positionId} value={position.positionId}>
-                          {position.positionCode} - {position.positionName}{isActive(position.status) ? '' : ' (Inactive)'}
-                        </option>
-                      ))}
-                    </select>
-                    {!isFetching && availablePositions.length === 0 && (
-                      <p className="mt-2 text-xs text-amber-600 font-medium flex items-center gap-1.5">
-                        <AlertCircle size={12} />
-                        No available positions match your search.
-                      </p>
+                    {showDropdown && !positionId && (
+                      <div
+                        ref={dropdownRef}
+                        className="absolute z-10 mt-1 w-full max-h-64 overflow-y-auto bg-white rounded-xl border border-slate-200 shadow-lg shadow-slate-200/50"
+                      >
+                        {isFetching ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="h-5 w-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                          </div>
+                        ) : availablePositions.length > 0 ? (
+                          availablePositions.map((position) => (
+                            <button
+                              key={position.positionId}
+                              type="button"
+                              onClick={() => handleSelectPosition(position)}
+                              className="w-full px-4 py-3 flex items-center justify-between hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-b-0"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
+                                  <BriefcaseBusiness size={14} className="text-white" />
+                                </div>
+                                <div className="flex flex-col items-start">
+                                  <span className="font-semibold text-slate-800 text-sm">{position.positionName}</span>
+                                  <span className="font-mono font-semibold text-blue-700 text-xs">{position.positionCode}</span>
+                                </div>
+                              </div>
+                              <ChevronRight size={16} className="text-slate-300" />
+                            </button>
+                          ))
+                        ) : (
+                          <div className="py-8 text-center">
+                            <p className="text-sm font-semibold text-slate-500">No positions found</p>
+                            <p className="text-xs text-slate-400 mt-1">Try a different search term</p>
+                          </div>
+                        )}
+                      </div>
                     )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="mapping-status" className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                      <CheckCircle2 size={11} className="text-slate-400" />
-                      Status
-                    </label>
-                    <select
-                      id="mapping-status"
-                      value={status}
-                      onChange={(event) => setStatus(event.target.value as 'Active' | 'Inactive')}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 focus:ring-offset-0 outline-none transition-all cursor-pointer appearance-none"
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
                   </div>
 
                   <div className="border-t border-slate-100 pt-1" />

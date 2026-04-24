@@ -24,7 +24,6 @@ export const baseApi = createApi({
     'Department',
     'EmployeeMovement',
     'Position',
-    'Mapping',
     'DepartmentPositions',
     'Lookup',
   ],

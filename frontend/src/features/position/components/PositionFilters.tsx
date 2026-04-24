@@ -6,8 +6,6 @@ interface PositionFiltersProps {
   onSearchChange: (value: string) => void
   selectedRoleId: number | null
   onRoleChange: (roleId: number | null) => void
-  selectedStatus: string | null
-  onStatusChange: (status: string | null) => void
   roles: RoleOption[]
 }
 
@@ -16,8 +14,6 @@ function PositionFilters({
   onSearchChange,
   selectedRoleId,
   onRoleChange,
-  selectedStatus,
-  onStatusChange,
   roles,
 }: PositionFiltersProps) {
   return (
@@ -56,21 +52,6 @@ function PositionFilters({
             </div>
           </div>
 
-          <div className="w-48">
-            <div className="relative">
-              <i className="bi bi-flag absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-              <select
-                value={selectedStatus ?? ''}
-                onChange={(e) => onStatusChange(e.target.value ? e.target.value : null)}
-                className="w-full pl-10 pr-8 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow appearance-none bg-white text-sm cursor-pointer"
-              >
-                <option value="">All Status</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-              </select>
-              <i className="bi bi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
-            </div>
-          </div>
         </div>
       </div>
     </div>

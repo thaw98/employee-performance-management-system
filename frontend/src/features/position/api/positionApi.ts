@@ -102,6 +102,10 @@ export const positionApi = baseApi.injectEndpoints({
 			query: ({ id, body }) => ({ url: `/positions/${id}`, method: 'PUT', body }),
 			invalidatesTags: ['Position'],
 		}),
+		deletePosition: builder.mutation<ApiResponse<void>, number>({
+			query: (id) => ({ url: `/positions/${id}`, method: 'DELETE' }),
+			invalidatesTags: ['Position'],
+		}),
 		togglePositionStatus: builder.mutation<ApiResponse<PositionDto>, number>({
 			query: (id) => ({ url: `/positions/${id}/status`, method: 'PATCH' }),
 			invalidatesTags: ['Position'],
@@ -122,6 +126,7 @@ export const {
 	useGetPositionByIdQuery,
 	useCreatePositionMutation,
 	useUpdatePositionMutation,
+	useDeletePositionMutation,
 	useTogglePositionStatusMutation,
 	useGetActiveLevelCodesQuery,
 	useGetActiveRolesQuery,

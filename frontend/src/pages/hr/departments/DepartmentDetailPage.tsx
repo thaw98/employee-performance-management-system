@@ -35,7 +35,6 @@ import { useGetDepartmentByIdQuery } from '../../../features/department/api/depa
 import {
   useGetPositionsByDepartmentQuery,
   useRemoveDepartmentPositionMutation,
-  useToggleDepartmentPositionStatusMutation,
   type DepartmentPositionMappingDto,
 } from '../../../features/departmentPositions/api/departmentPositionsApi'
 import AddPositionToDepartmentModal from '../../../features/departmentPositions/components/AddPositionToDepartmentModal'
@@ -66,24 +65,12 @@ export default function DepartmentDetailPage() {
     isError: isPositionsError,
     refetch: refetchPositions,
   } = useGetPositionsByDepartmentQuery(departmentId, { skip: !isValidDepartmentId })
-  const [toggleStatus, { isLoading: isToggling }] = useToggleDepartmentPositionStatusMutation()
   const [removePosition, { isLoading: isRemoving }] = useRemoveDepartmentPositionMutation()
 
   const department = departmentResponse?.data
   const isLoading = isDepartmentLoading || isPositionsLoading
   const isError = isDepartmentError || isPositionsError
-  const activeCount = useMemo(() => positions.filter((position) => isActive(position.status)).length, [positions])
-  const inactiveCount = positions.length - activeCount
   const existingPositionIds = useMemo(() => positions.map((position) => position.positionId), [positions])
-
-  const handleToggleStatus = async (mapping: DepartmentPositionMappingDto) => {
-    try {
-      await toggleStatus({ id: mapping.id, departmentId }).unwrap()
-      toast.success('Position status updated.')
-    } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to update status.')
-    }
-  }
 
   const handleRemove = async () => {
     if (!selectedMapping) return
@@ -131,30 +118,6 @@ export default function DepartmentDetailPage() {
         ),
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
-        cell: (info) => {
-          const row = info.row.original
-          const active = isActive(row.status)
-          return (
-            <button
-              type="button"
-              onClick={() => handleToggleStatus(row)}
-              disabled={isToggling}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition-all disabled:opacity-60 ${
-                active
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                  : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-              }`}
-              title="Toggle status"
-            >
-              {active ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
-              {active ? 'Active' : 'Inactive'}
-            </button>
-          )
-        },
-      },
-      {
         id: 'actions',
         enableSorting: false,
         header: 'Actions',
@@ -174,7 +137,7 @@ export default function DepartmentDetailPage() {
         ),
       },
     ],
-    [departmentId, isToggling]
+    []
   )
 
   const table = useReactTable({
@@ -273,7 +236,7 @@ export default function DepartmentDetailPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-10">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
               <LayoutGrid size={20} className="text-indigo-600" />
@@ -281,24 +244,6 @@ export default function DepartmentDetailPage() {
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total</p>
               {isLoading ? <div className="h-7 w-12 bg-slate-100 rounded animate-pulse mt-0.5" /> : <p className="text-2xl font-extrabold text-slate-800 leading-tight">{positions.length}</p>}
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
-              <CheckCircle2 size={20} className="text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active</p>
-              {isLoading ? <div className="h-7 w-12 bg-slate-100 rounded animate-pulse mt-0.5" /> : <p className="text-2xl font-extrabold text-emerald-700 leading-tight">{activeCount}</p>}
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-              <XCircle size={20} className="text-amber-600" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Inactive</p>
-              {isLoading ? <div className="h-7 w-12 bg-slate-100 rounded animate-pulse mt-0.5" /> : <p className="text-2xl font-extrabold text-amber-700 leading-tight">{inactiveCount}</p>}
             </div>
           </div>
         </div>
