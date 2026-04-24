@@ -69,6 +69,7 @@ function App() {
               <Route path="positions" element={<PositionListPage />} />
               <Route path="department-position-mappings" element={<MappingListPage />} />
 
+              <Route path="my-assessment" element={<SelfAssessmentPage />} />
               <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
               <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
               <Route path="pip-monitoring" element={<PipMonitoringPage />} />
@@ -81,7 +82,7 @@ function App() {
               <Route path="appraisals/submissions" element={<AppraisalSubmissionsPage />} />
               <Route path="kpi-management" element={<KpiManagementPage />} />
               <Route path="kpi-assigned" element={<KpiAssignedPage />} />
-              <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
+
               <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
             </Route>
           </Route>
@@ -106,7 +107,7 @@ function App() {
           <Route element={<ProtectedRoute allowedRoleGroups={['EMPLOYEE']} />}>
             <Route path="/employee" element={<EmployeeLayout />}>
               <Route path="dashboard" element={<EmployeeDashboardPage />} />
-              <Route path="assessment" element={<SelfAssessmentPage />} />
+              <Route path="my-assessment" element={<SelfAssessmentPage />} />
               <Route path="pip" element={<PipMonitoringPage />} />
               <Route path="pip/:id" element={<PipDetailPage />} />
               <Route path="feedback/give" element={<GiveFeedbackPage />} />

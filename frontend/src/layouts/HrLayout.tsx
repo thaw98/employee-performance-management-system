@@ -82,7 +82,7 @@ const HrLayout: React.FC = () => {
       label: 'Appraisals',
       path: '/hr/appraisals',
       subItems: [{ label: 'Management', path: '/hr/appraisals' },
-      { label: "Review Submissions", path: '/hr/AppraisalSubmissionsPage' }]
+      { label: "Review Submissions", path: '/hr/appraisals/submissions' }]
     },
     {
       icon: <RefreshCcw size={20} />,

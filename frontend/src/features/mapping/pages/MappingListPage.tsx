@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
+import { useGetDepartmentOptionsQuery } from '../../hrCreateEmployee/hrEmployeeAccountApi'
 import { useGetMappingsQuery, useCreateMappingMutation, useUpdateMappingMutation, useToggleMappingStatusMutation, useGetActiveDepartmentsQuery, useGetActivePositionsQuery, type DepartmentPositionMappingDto } from '../api/mappingApi'
 import MappingTable from '../components/MappingTable'
 import MappingModal from '../components/MappingModal'
@@ -21,13 +22,14 @@ function MappingListPage() {
     search: debouncedSearch,
   })
 
-  const { data: departmentsData } = useGetActiveDepartmentsQuery()
+  const { data: activeDepartmentsData } = useGetActiveDepartmentsQuery()
+  const { data: departmentOptionsData } = useGetDepartmentOptionsQuery()
   const { data: positionsData } = useGetActivePositionsQuery()
   const [createMapping] = useCreateMappingMutation()
   const [updateMapping] = useUpdateMappingMutation()
   const [toggleMappingStatus] = useToggleMappingStatusMutation()
 
-  const departments = departmentsData?.data || []
+  const departments = departmentOptionsData?.data || activeDepartmentsData?.data || []
   const positions = positionsData?.data || []
 
   const handleSearchChange = useCallback((value: string) => {

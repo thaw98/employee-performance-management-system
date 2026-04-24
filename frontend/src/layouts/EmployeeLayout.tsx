@@ -41,7 +41,7 @@ const EmployeeLayout: React.FC = () => {
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/employee/dashboard' },
     { icon: <Target size={20} />, label: 'My KPIs', path: '/employee/kpis' },
-    { icon: <FileText size={20} />, label: 'Self Assessment', path: '/employee/assessment' },
+    { icon: <FileText size={20} />, label: 'Self Assessment', path: '/employee/my-assessment' },
     { icon: <MessageSquare size={20} />, label: 'Give Feedback', path: '/employee/feedback/give' },
     { icon: <Inbox size={20} />, label: 'Get Feedback', path: '/employee/feedback/received' },
     { icon: <RefreshCcw size={20} />, label: 'Feedback History', path: '/employee/feedback/history' },
