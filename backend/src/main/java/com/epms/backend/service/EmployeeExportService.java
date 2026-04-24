@@ -60,6 +60,9 @@ public class EmployeeExportService {
             Row headerRow = getOrCreateRow(sheet, 0);
             CellStyle headerStyle = resolveHeaderStyle(workbook, headerRow);
             appendExportHeaders(sheet, headerRow, headerStyle);
+            removeSheetIfPresent(workbook, "Instructions");
+            removeSheetIfPresent(workbook, "Sample Data");
+            workbook.setActiveSheet(workbook.getSheetIndex(sheet));
 
             CellStyle textStyle = workbook.createCellStyle();
             textStyle.setDataFormat(workbook.createDataFormat().getFormat("@"));
@@ -176,5 +179,12 @@ public class EmployeeExportService {
         CellStyle headerStyle = workbook.createCellStyle();
         headerStyle.cloneStyleFrom(firstHeaderCell.getCellStyle());
         return headerStyle;
+    }
+
+    private void removeSheetIfPresent(Workbook workbook, String sheetName) {
+        int sheetIndex = workbook.getSheetIndex(sheetName);
+        if (sheetIndex >= 0) {
+            workbook.removeSheetAt(sheetIndex);
+        }
     }
 }
