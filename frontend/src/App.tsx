@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 
 import { store } from './app/store';
 import { AuthBootstrap } from './components/auth/AuthBootstrap';
+import { ThemeBootstrap } from './components/layout/ThemeBootstrap';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { LoginPage } from './pages/auth/LoginPage';
 import { FirstLoginPasswordPage } from './pages/auth/FirstLoginPasswordPage';
@@ -23,6 +24,8 @@ import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
+import { ProfileSettingsPage } from './pages/ProfileSettingsPage';
+import { SystemSettingsPage } from './pages/SystemSettingsPage';
 
 // Performance Modules
 import { SelfAssessmentPage } from './pages/SelfAssessmentPage';
@@ -48,6 +51,7 @@ function App() {
     <Provider store={store}>
       <Router>
         <AuthBootstrap />
+        <ThemeBootstrap />
         <Toaster position="bottom-center" />
 
         <Routes>
@@ -82,6 +86,8 @@ function App() {
               <Route path="kpi-management" element={<KpiManagementPage />} />
               <Route path="kpi-assigned" element={<KpiAssignedPage />} />
               <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
+              <Route path="settings/profile" element={<ProfileSettingsPage />} />
+              <Route path="settings/system" element={<SystemSettingsPage />} />
               <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
             </Route>
           </Route>
@@ -95,9 +101,11 @@ function App() {
               <Route path="pip" element={<PipMonitoringPage />} />
               <Route path="pip/create" element={<PipCreatePage />} />
               <Route path="pip/:id" element={<PipDetailPage />} />
-              <Route path="feedback/give" element={<GiveFeedbackPage />} />
-              <Route path="feedback/received" element={<GetFeedbackPage />} />
-              <Route path="feedback/history" element={<FeedbackHistoryPage />} />
+              <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
+              <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+              <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
+              <Route path="settings/profile" element={<ProfileSettingsPage />} />
+              <Route path="settings/system" element={<SystemSettingsPage />} />
               <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
             </Route>
           </Route>
@@ -109,9 +117,11 @@ function App() {
               <Route path="assessment" element={<SelfAssessmentPage />} />
               <Route path="pip" element={<PipMonitoringPage />} />
               <Route path="pip/:id" element={<PipDetailPage />} />
-              <Route path="feedback/give" element={<GiveFeedbackPage />} />
-              <Route path="feedback/received" element={<GetFeedbackPage />} />
-              <Route path="feedback/history" element={<FeedbackHistoryPage />} />
+              <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
+              <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+              <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
+              <Route path="settings/profile" element={<ProfileSettingsPage />} />
+              <Route path="settings/system" element={<SystemSettingsPage />} />
               <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
             </Route>
           </Route>

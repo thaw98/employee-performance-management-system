@@ -58,6 +58,9 @@ public class User {
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword = true;
 
+    @Column(name = "theme", length = 20)
+    private String theme = "light";
+
     public String getEmail() {
         return employee != null ? employee.getEmail() : null;
     }
