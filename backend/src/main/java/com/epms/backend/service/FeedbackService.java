@@ -2,7 +2,6 @@ package com.epms.backend.service;
 
 import com.epms.backend.dto.FeedbackHistoryDto;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
-import com.epms.backend.dto.FeedbackDetailDto;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +48,7 @@ public class FeedbackService {
         for (FeedbackSubmissionRequest.FeedbackDetailRequest reqDetail : request.getDetails()) {
             Criteria criteria = criteriaRepository.findById(reqDetail.getCriteriaId())
                     .orElseThrow(() -> new RuntimeException("Criteria not found"));
-            
+
             FeedbackDetail detail = new FeedbackDetail();
             detail.setFeedback(feedback);
             detail.setCriteria(criteria);
@@ -77,17 +76,21 @@ public class FeedbackService {
         Page<Feedback> feedbackPage = feedbackRepository.findByEvaluateeId(evaluateeId, pageable);
         return feedbackPage.map(f -> {
             FeedbackHistoryDto dto = mapToHistoryDto(f);
-            // Overwrite evaluator info to indicate who gave it if needed, 
+            // Overwrite evaluator info to indicate who gave it if needed,
             // but usually 360 can be anonymous. For now, let's keep it as is.
             return dto;
         });
     }
 
     private String calculateRemark(double score) {
-        if (score >= 86) return "Outstanding";
-        if (score >= 71) return "Good";
-        if (score >= 60) return "Meet Requirement";
-        if (score >= 40) return "Need Improvement";
+        if (score >= 86)
+            return "Outstanding";
+        if (score >= 71)
+            return "Good";
+        if (score >= 60)
+            return "Meet Requirement";
+        if (score >= 40)
+            return "Need Improvement";
         return "Unsatisfactory";
     }
 
@@ -107,7 +110,7 @@ public class FeedbackService {
     public List<com.epms.backend.dto.FeedbackDetailDto> getFeedbackDetails(Long feedbackId) {
         Feedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new RuntimeException("Feedback not found"));
-        
+
         return feedback.getDetails().stream().map(d -> {
             com.epms.backend.dto.FeedbackDetailDto dto = new com.epms.backend.dto.FeedbackDetailDto();
             dto.setCriteriaName(d.getCriteria().getName());
@@ -120,8 +123,9 @@ public class FeedbackService {
     public List<Employee> getEligibleEvaluatees(Long evaluatorId, String role) {
         Employee evaluator = employeeRepository.findById(evaluatorId)
                 .orElseThrow(() -> new RuntimeException("Evaluator not found"));
-        
-        if (evaluator.getDepartment() == null || evaluator.getPosition() == null || evaluator.getPosition().getLevelCode() == null) {
+
+        if (evaluator.getDepartment() == null || evaluator.getPosition() == null
+                || evaluator.getPosition().getLevelCode() == null) {
             return new ArrayList<>();
         }
 
@@ -129,7 +133,7 @@ public class FeedbackService {
         Long levelId = evaluator.getPosition().getLevelCode().getId();
 
         List<Employee> colleagues = employeeRepository.findByDepartmentId(deptId);
-        
+
         return colleagues.stream()
                 .filter(e -> !e.getId().equals(evaluatorId)) // Exclude self
                 .filter(e -> e.getPosition() != null && e.getPosition().getLevelCode() != null)
