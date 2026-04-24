@@ -3,7 +3,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useState, useMemo, useEffect } from 'react'
 import type { RootState } from '../app/store'
-import { useGetDepartmentsQuery, useGetPositionsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
+import { useGetDepartmentsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
+import { useGetPositionsQuery } from '../features/position/api/positionApi'
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING_CREATION: 'bg-yellow-100 text-yellow-700',

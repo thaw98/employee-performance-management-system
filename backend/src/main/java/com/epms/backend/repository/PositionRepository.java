@@ -35,4 +35,10 @@ public interface PositionRepository extends JpaRepository<Position, Long>, JpaSp
 	@Query("SELECT p FROM Position p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.name ASC")
 	List<Position> findForAutocompleteByKeyword(@Param("keyword") String keyword, Pageable pageable);
 
+	@Query("SELECT p FROM Position p JOIN p.departmentPositions dp WHERE dp.department.id = :departmentId ORDER BY p.name ASC")
+	List<Position> findByDepartmentIdOrderByNameAsc(@Param("departmentId") Long departmentId);
+
+	@Query("SELECT p FROM Position p WHERE p.id IN (SELECT dp.position.id FROM DepartmentPosition dp WHERE dp.department.id = :departmentId) AND LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.name ASC")
+	List<Position> findForAutocompleteByDepartmentOrUnassigned(@Param("departmentId") Long departmentId, @Param("keyword") String keyword, Pageable pageable);
+
 }

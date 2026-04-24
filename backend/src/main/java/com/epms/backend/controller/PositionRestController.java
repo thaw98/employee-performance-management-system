@@ -29,7 +29,7 @@ public class PositionRestController {
 	private final PositionRepository positionRepository;
 	private final UserRepository userRepository;
 
-	@GetMapping
+	@GetMapping("/by-department")
 	public ResponseEntity<ApiResponse<List<PositionOptionDto>>> byDepartment(
 			@AuthenticationPrincipal UserPrincipal principal,
 			@RequestParam(required = false) Long departmentId) {
