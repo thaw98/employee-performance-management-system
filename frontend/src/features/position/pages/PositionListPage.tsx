@@ -17,6 +17,7 @@ function PositionListPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null)
+  const [selectedLevelCodeId, setSelectedLevelCodeId] = useState<number | null>(null)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'positionCode', desc: false }])
 
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -40,6 +41,7 @@ function PositionListPage() {
     size,
     search: debouncedSearch,
     roleId: selectedRoleId || undefined,
+    levelCodeId: selectedLevelCodeId || undefined,
     sortBy: sortParams.sortBy,
     sortDir: sortParams.sortDir,
   })
@@ -149,7 +151,6 @@ function PositionListPage() {
 
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false)
-    setEditingPosition(null)
   }, [])
 
   const handleOpenCreate = useCallback(() => {
@@ -301,12 +302,13 @@ function PositionListPage() {
                   <Filter className="w-5 h-5 text-slate-400" />
                   <h2 className="text-lg font-semibold text-slate-900">Filters</h2>
                 </div>
-                {(search || selectedRoleId) && (
+                {(search || selectedRoleId || selectedLevelCodeId) && (
                   <button
                     onClick={() => {
                       setSearch('')
                       setDebouncedSearch('')
                       setSelectedRoleId(null)
+                      setSelectedLevelCodeId(null)
                     }}
                     className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition-colors"
                   >
@@ -320,6 +322,9 @@ function PositionListPage() {
                 selectedRoleId={selectedRoleId}
                 onRoleChange={setSelectedRoleId}
                 roles={roles}
+                selectedLevelCodeId={selectedLevelCodeId}
+                onLevelCodeChange={setSelectedLevelCodeId}
+                levelCodes={levelCodes}
               />
             </div>
 

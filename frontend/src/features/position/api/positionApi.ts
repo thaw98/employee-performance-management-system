@@ -44,6 +44,7 @@ export interface GetPositionsParams {
 	search?: string
 	positionName?: string
 	roleId?: number
+	levelCodeId?: number
 	status?: string
 	sortBy?: string
 	sortDir?: string

@@ -1,6 +1,6 @@
 import { memo } from 'react'
-import { Search, Shield, ChevronDown } from 'lucide-react'
-import type { RoleOption } from '../api/positionApi'
+import { Search, Shield, ChevronDown, Layers } from 'lucide-react'
+import type { RoleOption, LevelCodeOption } from '../api/positionApi'
 
 interface PositionFiltersProps {
   search: string
@@ -8,6 +8,9 @@ interface PositionFiltersProps {
   selectedRoleId: number | null
   onRoleChange: (roleId: number | null) => void
   roles: RoleOption[]
+  selectedLevelCodeId: number | null
+  onLevelCodeChange: (levelCodeId: number | null) => void
+  levelCodes: LevelCodeOption[]
 }
 
 function PositionFilters({
@@ -16,6 +19,9 @@ function PositionFilters({
   selectedRoleId,
   onRoleChange,
   roles,
+  selectedLevelCodeId,
+  onLevelCodeChange,
+  levelCodes,
 }: PositionFiltersProps) {
   return (
     <div className="flex flex-col lg:flex-row gap-4">
@@ -33,6 +39,24 @@ function PositionFilters({
       </div>
 
       <div className="flex gap-3">
+        <div className="w-72">
+          <div className="relative group">
+            <Layers className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+            <select
+              value={selectedLevelCodeId ?? ''}
+              onChange={(e) => onLevelCodeChange(e.target.value ? Number(e.target.value) : null)}
+              className="w-full pl-11 pr-10 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition-all appearance-none bg-white text-sm text-slate-700 cursor-pointer hover:border-slate-300 group-focus-within:shadow-lg group-focus-within:shadow-indigo-100"
+            >
+              <option value="">All Levels</option>
+              {levelCodes.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.code}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none group-focus-within:text-indigo-500 transition-colors" />
+          </div>
+        </div>
         <div className="w-72">
           <div className="relative group">
             <Shield className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
