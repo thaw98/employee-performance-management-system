@@ -71,6 +71,7 @@ export default function AddPositionToDepartmentDrawer({
 
   const handleSearchChange = (value: string) => {
     setQuery(value)
+    setPositionId('')
     setShowDropdown(true)
   }
 
@@ -144,7 +145,7 @@ export default function AddPositionToDepartmentDrawer({
                     </div>
                   </div>
 
-                  <form onSubmit={handleSubmit} className="flex-1 px-6 py-5 space-y-4">
+                  <form id="add-position-form" onSubmit={handleSubmit} className="flex-1 px-6 py-5 space-y-4">
                     <div className="relative">
                       <label htmlFor="position-search" className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
                         <Search size={11} className="text-slate-400" />
@@ -228,6 +229,7 @@ export default function AddPositionToDepartmentDrawer({
                     </button>
                     <button
                       type="submit"
+                      form="add-position-form"
                       disabled={isSaving || !positionId}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold shadow-lg shadow-blue-600/25 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     >

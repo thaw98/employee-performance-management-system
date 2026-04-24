@@ -15,7 +15,7 @@ import {
   Plus, Search, Edit2, Trash2,
   ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Building2, CheckCircle2, XCircle, LayoutGrid, AlertTriangle,
+  Building2, CheckCircle2, XCircle, LayoutGrid, AlertTriangle, BriefcaseBusiness,
   Loader2,
 } from 'lucide-react'
 
@@ -237,6 +237,14 @@ export default function DepartmentListPage() {
                 <Trash2 size={13} />
                 Delete
               </button>
+              <Link
+                to={`/hr/departments/${row.departmentId}`}
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-600 hover:text-white border border-violet-100 hover:border-violet-600 transition-all duration-200"
+                title="View Positions"
+              >
+                <BriefcaseBusiness size={13} />
+                Positions
+              </Link>
             </div>
           )
         },
