@@ -1,5 +1,8 @@
 package com.epms.backend.service;
 
+import java.util.List;
+
+import com.epms.backend.dto.position.AssignedDepartmentDto;
 import com.epms.backend.dto.position.CreatePositionRequest;
 import com.epms.backend.dto.position.PositionDto;
 import com.epms.backend.dto.position.PositionListResponse;
@@ -17,4 +20,6 @@ public interface PositionService {
 	PositionDto updatePosition(Long id, UpdatePositionRequest request);
 
 	PositionDto toggleStatus(Long id);
+
+	List<AssignedDepartmentDto> getDepartmentsByPositionId(Long positionId);
 }

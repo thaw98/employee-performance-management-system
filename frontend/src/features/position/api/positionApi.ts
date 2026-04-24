@@ -62,6 +62,12 @@ export interface RoleOption {
 	description: string | null
 }
 
+export interface AssignedDepartmentDto {
+	departmentId: number
+	departmentCode: string
+	departmentName: string
+}
+
 type RawPositionListPayload =
 	| ApiResponse<PositionListResponse>
 	| (PositionListResponse & { number?: number })
@@ -95,6 +101,12 @@ export const positionApi = baseApi.injectEndpoints({
 			query: (id) => `/positions/${id}`,
 			providesTags: (_result, _error, id) => [{ type: 'Position', id }],
 		}),
+		getDepartmentsByPositionId: builder.query<AssignedDepartmentDto[], number>({
+			query: (positionId) => `/positions/${positionId}/departments`,
+			providesTags: (_result, _error, positionId) => [
+				{ type: 'PositionDepartments', id: positionId },
+			],
+		}),
 		createPosition: builder.mutation<ApiResponse<PositionDto>, CreatePositionRequest>({
 			query: (body) => ({ url: '/positions', method: 'POST', body }),
 			invalidatesTags: ['Position'],
@@ -125,6 +137,7 @@ export const positionApi = baseApi.injectEndpoints({
 export const {
 	useGetPositionsQuery,
 	useGetPositionByIdQuery,
+	useGetDepartmentsByPositionIdQuery,
 	useCreatePositionMutation,
 	useUpdatePositionMutation,
 	useDeletePositionMutation,

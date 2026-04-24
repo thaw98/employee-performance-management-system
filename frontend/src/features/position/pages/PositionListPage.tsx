@@ -6,9 +6,11 @@ import {
   Plus, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
 } from 'lucide-react'
 import { useGetPositionsQuery, useCreatePositionMutation, useUpdatePositionMutation, useDeletePositionMutation, useGetActiveLevelCodesQuery, useGetActiveRolesQuery, type PositionDto } from '../api/positionApi'
+import { useAppSelector } from '../../../app/hooks'
 import PositionTable from '../components/PositionTable'
 import PositionModal from '../components/PositionModal'
 import PositionFilters from '../components/PositionFilters'
+import AssignedDepartmentsDrawer from '../components/AssignedDepartmentsDrawer'
 import ConfirmActionModal from '../../hrEmployeeList/components/ConfirmActionModal'
 
 function PositionListPage() {
@@ -24,7 +26,10 @@ function PositionListPage() {
   const [editingPosition, setEditingPosition] = useState<PositionDto | null>(null)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [removingPosition, setRemovingPosition] = useState<PositionDto | null>(null)
+  const [assignedDepartmentsPosition, setAssignedDepartmentsPosition] = useState<PositionDto | null>(null)
   const searchDebounceRef = useRef<number | null>(null)
+  const user = useAppSelector((state) => state.auth.user)
+  const canViewAssignedDepartments = user?.roleId === 1
 
   const sortParams = useMemo(() => {
     if (sorting.length > 0) {
@@ -54,7 +59,7 @@ function PositionListPage() {
 
   const levelCodes = levelCodesData?.data || []
   const roles = rolesData?.data || []
-  const positions = positionsData?.data?.content || []
+  const positions = useMemo(() => positionsData?.data?.content ?? [], [positionsData?.data?.content])
   const totalElements = positionsData?.data?.totalElements || 0
   const totalPages = positionsData?.data?.totalPages || 0
 
@@ -80,6 +85,14 @@ function PositionListPage() {
   const handleOpenRemove = useCallback((position: PositionDto) => {
     setRemovingPosition(position)
     setIsDeleteOpen(true)
+  }, [])
+
+  const handleShowAssignedDepartments = useCallback((position: PositionDto) => {
+    setAssignedDepartmentsPosition(position)
+  }, [])
+
+  const handleCloseAssignedDepartments = useCallback(() => {
+    setAssignedDepartmentsPosition(null)
   }, [])
 
   const handleRemovePosition = useCallback(async () => {
@@ -334,6 +347,7 @@ function PositionListPage() {
                 isLoading={isLoading}
                 onEdit={handleEdit}
                 onRemove={handleOpenRemove}
+                onShowAssignedDepartments={canViewAssignedDepartments ? handleShowAssignedDepartments : undefined}
                 sorting={sorting}
                 setSorting={setSorting}
               />
@@ -439,6 +453,15 @@ function PositionListPage() {
           confirmText="Remove"
           variant="danger"
           isLoading={isDeleting}
+        />
+
+        <AssignedDepartmentsDrawer
+          isOpen={!!assignedDepartmentsPosition}
+          onClose={handleCloseAssignedDepartments}
+          position={assignedDepartmentsPosition ? {
+            id: assignedDepartmentsPosition.positionId,
+            name: assignedDepartmentsPosition.positionName,
+          } : null}
         />
       </div>
     </div>

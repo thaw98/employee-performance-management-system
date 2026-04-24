@@ -21,6 +21,7 @@ interface PositionTableProps {
   isLoading: boolean
   onEdit: (id: number) => void
   onRemove: (position: PositionDto) => void
+  onShowAssignedDepartments?: (position: PositionDto) => void
   sorting: SortingState
   setSorting: OnChangeFn<SortingState>
 }
@@ -30,6 +31,7 @@ function PositionTable({
   isLoading,
   onEdit,
   onRemove,
+  onShowAssignedDepartments,
   sorting,
   setSorting,
 }: PositionTableProps) {
@@ -92,6 +94,16 @@ function PositionTable({
           const row = info.row.original
           return (
             <div className="flex items-center gap-1">
+              {onShowAssignedDepartments && (
+                <button
+                  onClick={() => onShowAssignedDepartments(row)}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-blue-700 transition-all duration-200 hover:bg-blue-50 active:scale-95"
+                  title="Assigned Departments"
+                >
+                  <i className="bi bi-diagram-3 text-sm" aria-hidden />
+                  <span>Assigned Departments</span>
+                </button>
+              )}
               <button
                 onClick={() => onEdit(row.positionId)}
                 className="p-2.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
@@ -111,7 +123,7 @@ function PositionTable({
         },
       },
     ],
-    [onEdit, onRemove]
+    [onEdit, onRemove, onShowAssignedDepartments]
   )
 
   const table = useReactTable({
