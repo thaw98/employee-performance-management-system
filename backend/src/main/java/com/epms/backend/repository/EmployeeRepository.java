@@ -56,4 +56,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 	boolean existsByStaffNrcNoAndIdNot(String normalizedStaffNrcNo, Long excludeId);
 
 	java.util.List<Employee> findByDepartmentId(Long departmentId);
+
+	boolean existsByDepartment_IdAndPosition_Id(Long departmentId, Long positionId);
 }

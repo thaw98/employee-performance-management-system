@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import {
   flexRender,
   getCoreRowModel,
@@ -176,7 +177,12 @@ export default function DepartmentListPage() {
             <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-sm">
               <Building2 size={14} className="text-white" />
             </div>
-            <span className="font-semibold text-slate-800 text-sm">{info.getValue() as string}</span>
+            <Link
+              to={`/hr/departments/${info.row.original.departmentId}`}
+              className="font-semibold text-slate-800 text-sm hover:underline hover:text-blue-700 transition-colors"
+            >
+              {info.getValue() as string}
+            </Link>
           </div>
         ),
       },

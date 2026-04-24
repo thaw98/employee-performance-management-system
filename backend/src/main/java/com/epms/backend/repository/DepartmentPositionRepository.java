@@ -19,6 +19,15 @@ public interface DepartmentPositionRepository extends JpaRepository<DepartmentPo
 
 	@Query("SELECT dp FROM DepartmentPosition dp " +
 			"JOIN FETCH dp.department " +
+			"JOIN FETCH dp.position " +
+			"WHERE dp.department.id = :departmentId " +
+			"ORDER BY dp.id ASC")
+	List<DepartmentPosition> findAllByDepartment_IdOrderByIdAsc(@Param("departmentId") Long departmentId);
+
+	boolean existsByDepartment_IdAndPosition_Id(Long departmentId, Long positionId);
+
+	@Query("SELECT dp FROM DepartmentPosition dp " +
+			"JOIN FETCH dp.department " +
 			"JOIN FETCH dp.position p " +
 			"JOIN FETCH p.levelCode " +
 			"JOIN FETCH p.role " +

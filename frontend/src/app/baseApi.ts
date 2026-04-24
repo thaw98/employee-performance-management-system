@@ -25,6 +25,7 @@ export const baseApi = createApi({
     'EmployeeMovement',
     'Position',
     'Mapping',
+    'DepartmentPositions',
     'Lookup',
   ],
   endpoints: () => ({}),

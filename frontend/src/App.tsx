@@ -39,6 +39,7 @@ import { GetFeedbackPage } from './pages/GetFeedbackPage';
 import { KpiManagementPage } from './pages/hr/KpiManagementPage';
 import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
+import DepartmentDetailPage from './pages/hr/departments/DepartmentDetailPage';
 import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
 import PositionListPage from './features/position/pages/PositionListPage';
 import MappingListPage from './features/mapping/pages/MappingListPage';
@@ -66,6 +67,7 @@ function App() {
               <Route path="employees" element={<EmployeeListPage />} />
               <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
               <Route path="departments" element={<DepartmentListPage />} />
+              <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
               <Route path="positions" element={<PositionListPage />} />
               <Route path="department-position-mappings" element={<MappingListPage />} />
 
