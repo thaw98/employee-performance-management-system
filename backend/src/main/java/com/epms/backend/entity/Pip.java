@@ -43,7 +43,7 @@ public class Pip {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cycle_id")
-    private KpiPeriod period;
+    private AppraisalCycle period;
 
     @Column(name = "status", length = 20)
     private String status;

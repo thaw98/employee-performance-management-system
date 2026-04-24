@@ -24,6 +24,9 @@ export interface User {
     department?: {
       departmentName: string
     }
+    position?: {
+      positionName: string
+    }
   }
 }
 
@@ -72,22 +75,33 @@ export interface EligibleEmployee {
   totalScore: number
 }
 
-const normalizePerson = (person: any): User => ({
-  id: Number(person?.id ?? 0),
-  email: person?.email ?? '',
-  employeeId: person?.employeeId ?? undefined,
-  employee: person
+const normalizePerson = (person: any): User => {
+  const department = person?.department
     ? {
+      departmentName: person.department.departmentName || person.department.name || 'N/A',
+    }
+    : undefined
+
+  const position = person?.position
+    ? {
+      positionName: person.position.positionName || person.position.name || 'N/A',
+    }
+    : undefined
+
+  return {
+    id: Number(person?.id ?? 0),
+    email: person?.email ?? '',
+    employeeId: person?.employeeId ?? person?.staffNo ?? undefined,
+    employee: person
+      ? {
         id: Number(person?.id ?? 0),
-        employeeName: person?.employeeName ?? '',
-        department: person?.department
-          ? {
-              departmentName: person.department.departmentName ?? person.department.name ?? '',
-            }
-          : undefined,
+        employeeName: person?.employeeName ?? person?.fullName ?? person?.name ?? 'N/A',
+        department,
+        position,
       }
-    : undefined,
-})
+      : undefined,
+  }
+}
 
 const normalizeStatus = (status?: string): Pip['status'] => {
   const normalized = (status ?? '').trim().toUpperCase().replace(/\s+/g, '_')
@@ -114,8 +128,11 @@ const normalizePip = (pip: any): Pip => ({
 
 export const pipApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getPips: builder.query<Pip[], void>({
-      query: () => '/pips',
+    getPips: builder.query<Pip[], { departmentId?: number; positionId?: number; employeeName?: string; status?: string; startDate?: string; endDate?: string } | void>({
+      query: (params) => ({
+        url: '/pips',
+        params: params || undefined,
+      }),
       providesTags: ['PIP'],
       transformResponse: (response: any) => (response.data ?? []).map(normalizePip),
     }),

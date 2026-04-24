@@ -42,12 +42,9 @@ public class MasterDataService {
 	@Transactional(readOnly = true)
 	public List<MasterOptionDto> autocompletePositions(String keyword, Long departmentId) {
 		String kw = keyword == null ? "" : keyword.trim();
-		List<Position> positions;
-		if (departmentId == null) {
-			positions = positionRepository.findTop20ByNameContainingIgnoreCaseOrderByNameAsc(kw);
-		} else {
-			positions = positionRepository.findForAutocompleteByKeyword(kw, PageRequest.of(0, 20));
-		}
+		List<Position> positions = departmentId == null
+				? positionRepository.findTop20ByNameContainingIgnoreCaseOrderByNameAsc(kw)
+				: positionRepository.findForAutocompleteByDepartmentOrUnassigned(departmentId, kw, PageRequest.of(0, 20));
 		return positions.stream()
 				.filter(this::isActivePosition)
 				.filter(p -> EXCLUDED_POSITION_NAMES.stream().noneMatch(excluded -> excluded.equalsIgnoreCase(p.getName())))

@@ -12,7 +12,6 @@ import {
 import { useSelector } from 'react-redux'
 import type { RootState } from '../app/store'
 import { formatDate, formatDateTime } from '../utils/dateUtils'
-import { getRoleGroup } from '../utils/dashboardRedirect'
 
 export default function PipDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -57,19 +56,19 @@ export default function PipDetailPage() {
   const [reviewCustomReason, setReviewCustomReason] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
 
-  const roleGroup = user ? getRoleGroup(user as never) : 'EMPLOYEE'
-  const isManager = roleGroup === 'MANAGER'
-  const isAdmin = roleGroup === 'HR'
+  const userRole = user?.role?.toUpperCase().replace(/\s+/g, '_') || ''
+  const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
+  const isAdmin = userRole === 'HR'
   const isDirectManager = Boolean(
     isManager &&
-      pip &&
-      (
-        (user?.id != null && user.id === pip.manager?.id) ||
-        (user?.email && pip.manager?.email && user.email.toLowerCase() === pip.manager.email.toLowerCase()) ||
-        (user?.employeeId && pip.manager?.employeeId && user.employeeId === pip.manager.employeeId)
-      )
+    pip &&
+    (
+      (user?.id != null && user.id === pip.manager?.id) ||
+      (user?.email && pip.manager?.email && user.email.toLowerCase() === pip.manager.email.toLowerCase()) ||
+      (user?.employeeId && pip.manager?.employeeId && user.employeeId === pip.manager.employeeId)
+    )
   )
-  const routeBase = roleGroup === 'HR' ? '/hr/pip-monitoring' : '/manager/pip'
+  const routeBase = isAdmin ? '/hr/pip-monitoring' : '/manager/pip'
 
   if (isLoading || !pip) return <div className="p-8">Loading PIP details...</div>
 
@@ -102,7 +101,7 @@ export default function PipDetailPage() {
     let hour = parseInt(meetingHour)
     if (meetingPeriod === 'PM' && hour < 12) hour += 12
     if (meetingPeriod === 'AM' && hour === 12) hour = 0
-    
+
     const timeStr = `${hour.toString().padStart(2, '0')}:${meetingMinute}:00`
     const isoTime = `${meetingDate}T${timeStr}`
 
@@ -197,8 +196,14 @@ export default function PipDetailPage() {
             <i className="bi bi-chevron-left" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">PIP Details: {pip.employee.email}</h1>
-            <p className="text-slate-500">Employee record ID: {pip.employee.employee?.id ?? '—'} | Status: <span className="font-semibold uppercase">{pip.status}</span></p>
+            <h1 className="text-2xl font-bold text-slate-900">PIP Details: {pip.employee.employee?.employeeName}</h1>
+            <p className="text-slate-500">
+              Employee ID: {pip.employee.employee?.id ?? '—'} |
+              Dept: {pip.employee.employee?.department?.departmentName || '—'} |
+              Position: {pip.employee.employee?.position?.positionName || '—'} |
+              Duration: {formatDate(pip.startDate)} – {formatDate(pip.endDate)} |
+              Status: <span className="font-semibold uppercase">{pip.status}</span>
+            </p>
           </div>
         </div>
 
@@ -222,6 +227,11 @@ export default function PipDetailPage() {
           {isDirectManager && pip.status === 'PENDING_CLOSE' && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
               Close request pending HR review
+            </div>
+          )}
+          {isDirectManager && pip.status === 'PENDING_CREATION' && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
+              New PIP pending HR confirmation
             </div>
           )}
           {isDirectManager && pip.status === 'CLOSED' && (
@@ -354,7 +364,13 @@ export default function PipDetailPage() {
             <div className="space-y-4">
               <div>
                 <p className="text-xs text-slate-500">Assigned Manager</p>
-                <p className="font-medium text-slate-800">{pip.manager.email}</p>
+                <p className="font-medium text-slate-800">{pip.manager.employee?.employeeName}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">PIP Duration</p>
+                <p className="font-medium text-slate-800">
+                  {formatDate(pip.startDate)} — {formatDate(pip.endDate)}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Created On</p>
@@ -467,8 +483,8 @@ export default function PipDetailPage() {
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Hour</label>
-                  <select 
-                    value={meetingHour} 
+                  <select
+                    value={meetingHour}
                     onChange={e => setMeetingHour(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
                   >
@@ -479,8 +495,8 @@ export default function PipDetailPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Minute</label>
-                  <select 
-                    value={meetingMinute} 
+                  <select
+                    value={meetingMinute}
                     onChange={e => setMeetingMinute(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
                   >
@@ -491,8 +507,8 @@ export default function PipDetailPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1">AM/PM</label>
-                  <select 
-                    value={meetingPeriod} 
+                  <select
+                    value={meetingPeriod}
                     onChange={e => setMeetingPeriod(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
                   >

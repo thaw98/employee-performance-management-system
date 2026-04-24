@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { z } from 'zod'
 import { useCreatePipMutation, useGetEligibleEmployeesQuery, useGetPipsQuery } from '../features/pip/pipApi'
-import { getRoleGroup } from '../utils/dashboardRedirect'
 import type { RootState } from '../app/store'
 
 const pipCreateSchema = z
@@ -37,7 +36,16 @@ export default function PipCreatePage() {
   const { data: existingPips } = useGetPipsQuery()
   const [createPip, { isLoading: isCreating }] = useCreatePipMutation()
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const routeBase = user ? (getRoleGroup(user as never) === 'HR' ? '/hr/pip-monitoring' : '/manager/pip') : '/manager/pip'
+  const userRole = user?.role?.toUpperCase().replace(/\s+/g, '_') || ''
+  const isHr = userRole === 'HR'
+  const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
+  const routeBase = isHr ? '/hr/pip-monitoring' : '/manager/pip'
+
+  useState(() => {
+    if (isHr && !isManager) {
+      navigate(routeBase, { replace: true })
+    }
+  })
 
   const {
     control,
@@ -45,9 +53,9 @@ export default function PipCreatePage() {
     handleSubmit,
     formState: { errors },
   } = useForm<PipCreateFormValues>({
-    resolver: zodResolver(pipCreateSchema) as never,
+    resolver: zodResolver(pipCreateSchema) as any,
     defaultValues: {
-      employeeId: '',
+      employeeId: 0,
       startDate: '',
       endDate: '',
       totalHours: 1,
@@ -60,7 +68,7 @@ export default function PipCreatePage() {
   const onSubmit = async (values: PipCreateFormValues) => {
     setSubmitError(null)
     console.log('[PIP Create] Submitting payload:', {
-      employeeId: Number(values.employeeId),
+      employeeId: values.employeeId,
       startDate: values.startDate,
       endDate: values.endDate,
       totalHours: values.totalHours,
@@ -68,7 +76,7 @@ export default function PipCreatePage() {
     })
     try {
       await createPip({
-        employeeId: Number(values.employeeId),
+        employeeId: values.employeeId,
         startDate: values.startDate,
         endDate: values.endDate,
         totalHours: values.totalHours,
@@ -86,7 +94,7 @@ export default function PipCreatePage() {
         'Failed to create PIP. Please check the employee record ID and try again.'
 
       if (message === 'An active PIP already exists for this employee') {
-        const employeeId = Number(values.employeeId)
+        const employeeId = values.employeeId
         const existingPip = existingPips?.find((pip) => {
           const pipEmployeeId = pip.employee?.employee?.id
           return pipEmployeeId === employeeId && ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN'].includes(pip.status)
@@ -124,8 +132,10 @@ export default function PipCreatePage() {
               <Autocomplete
                 loading={isLoadingEmployees}
                 options={eligibleEmployees || []}
-                getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}${option.staffId ? ` / ${option.staffId}` : ''}) - ${option.departmentName}`}
-                onChange={(_, data) => field.onChange(data?.employeeId != null ? String(data.employeeId) : '')}
+                value={eligibleEmployees?.find((e) => e.employeeId === field.value) || null}
+                isOptionEqualToValue={(option, value) => option.employeeId === (typeof value === 'number' ? value : value?.employeeId)}
+                getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}${option.staffId ? ` / ${option.staffId}` : ''}) - ${option.departmentName || 'No Department'}`}
+                onChange={(_, data) => field.onChange(data?.employeeId ?? 0)}
                 renderInput={(params) => (
                   <TextField
                     {...params}
