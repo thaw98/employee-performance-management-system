@@ -175,6 +175,7 @@ public class EmployeeImportCommitService {
         String fatherName = strOrEmpty(row, "fatherName").trim();
         String fatherNrcNo = strOrEmpty(row, "fatherNrcNo").trim();
         String fatherOccupation = strOrEmpty(row, "fatherOccupation").trim();
+        String profilePictureUrl = strOrEmpty(row, "profilePictureUrl").trim();
 
         // Resolve master data
         Department dept = deptMap.get(deptName.toLowerCase());
@@ -215,6 +216,7 @@ public class EmployeeImportCommitService {
         employee.setPosition(pos);
         employee.setStaffType(staffType);
         employee.setDateOfJoining(hireDate);
+        if (!profilePictureUrl.isEmpty()) employee.setProfilePictureUrl(profilePictureUrl);
         employee.setCreatedBy(principal.getId());
         employee.setUpdatedBy(principal.getId());
         employee.setCreatedDate(Instant.now());

@@ -37,6 +37,7 @@ public class EmployeeImportErrorFileService {
             "address", "nationality", "employment_status", "religion",
             "emergency_contact_relationship", "emergency_contact_phone",
             "father_name", "father_nrc_no", "father_occupation",
+            "profile_picture_url",
             "Errors"
     };
 
@@ -92,9 +93,10 @@ public class EmployeeImportErrorFileService {
                 row.createCell(20).setCellValue(strOrEmpty(rd, "fatherName"));
                 row.createCell(21).setCellValue(strOrEmpty(rd, "fatherNrcNo"));
                 row.createCell(22).setCellValue(strOrEmpty(rd, "fatherOccupation"));
+                row.createCell(23).setCellValue(strOrEmpty(rd, "profilePictureUrl"));
 
                 String errors = inv.getErrors() != null ? String.join("; ", inv.getErrors()) : "";
-                Cell errCell = row.createCell(23);
+                Cell errCell = row.createCell(24);
                 errCell.setCellValue(errors);
                 errCell.setCellStyle(errorCellStyle);
             }

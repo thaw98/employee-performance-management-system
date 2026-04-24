@@ -64,6 +64,7 @@ public class EmployeeImportTemplateService {
      * 19  father_name
      * 20  father_nrc_no
      * 21  father_occupation
+     * 22  profile_picture_url       (optional)
      */
     private static final String[] HEADERS = {
             "staff_no", "full_name", "staff_nrc_no", "email", "department", "position",
@@ -71,7 +72,8 @@ public class EmployeeImportTemplateService {
             "probation_start_date", "probation_end_date",
             "address", "nationality", "employment_status", "religion",
             "emergency_contact_relationship", "emergency_contact_phone",
-            "father_name", "father_nrc_no", "father_occupation"
+            "father_name", "father_nrc_no", "father_occupation",
+            "profile_picture_url"
     };
 
     private static final String[] GENDERS = { "Male", "Female" };
@@ -142,7 +144,8 @@ public class EmployeeImportTemplateService {
                     "09987654321",                    // emergency_contact_phone
                     "U Maung Maung",                  // father_name
                     "12/TAMANA(N)654321",             // father_nrc_no
-                    "Farmer"                          // father_occupation
+                    "Farmer",                         // father_occupation
+                    ""                                // profile_picture_url
             };
 
             // Row 2 — Permanent example (probation fields left blank)
@@ -168,7 +171,8 @@ public class EmployeeImportTemplateService {
                     "09444555666",                    // emergency_contact_phone
                     "U Min Min",                      // father_name
                     "12/KAMAYA(N)345678",             // father_nrc_no
-                    "Teacher"                         // father_occupation
+                    "Teacher",                        // father_occupation
+                    ""                                // profile_picture_url
             };
 
             CellStyle sampleStyle = wb.createCellStyle();
@@ -301,6 +305,7 @@ public class EmployeeImportTemplateService {
             cell.setCellStyle(headerStyle);
             // wider for address/address-like columns
             int width = (i == 0 || i == 1 || i == 2 || i == 3) ? 4200
+                    : i == 22 ? 9000
                     : (i == 14 || i == 20) ? 8000
                     : 5500;
             sheet.setColumnWidth(i, width);
@@ -364,6 +369,7 @@ public class EmployeeImportTemplateService {
             { "  Col T  father_name            Required.", "normal" },
             { "  Col U  father_nrc_no          Required. Father NRC number.", "normal" },
             { "  Col V  father_occupation      Required. Father occupation (e.g. Farmer, Teacher).", "normal" },
+            { "  Col W  profile_picture_url     Optional. Public or system profile picture URL.", "normal" },
             { "", "normal" },
             { "STEP 3 — PROBATION FIELDS", "bold" },
             { "  If staff_type is 'Probation', you MUST fill cols L, M (start/end dates).", "normal" },

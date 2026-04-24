@@ -33,13 +33,12 @@ public class EmployeeExportService {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     private static final String[] EXPORT_ONLY_HEADERS = {
-            "profile_picture_url",
             "staff_nrc_number",
             "emergency_contact_relation",
             "created_on",
             "updated_on"
     };
-    private static final int IMPORT_TEMPLATE_HEADER_COUNT = 22;
+    private static final int IMPORT_TEMPLATE_HEADER_COUNT = 23;
     private static final int[] TEXT_COLUMNS = { 6, 8, 9, 11, 12, 18, 25, 26 };
 
     private final EmployeeRepository employeeRepository;
