@@ -61,6 +61,7 @@ function App() {
           <Route element={<ProtectedRoute allowedRoleGroups={['HR']} />}>
             <Route path="/hr" element={<HrLayout />}>
               <Route path="dashboard" element={<HRDashboardPage />} />
+              <Route path="my-assessment" element={<SelfAssessmentPage />} />
               <Route path="employees" element={<EmployeeListPage />} />
               <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
               <Route path="departments" element={<DepartmentListPage />} />
