@@ -1,10 +1,16 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   body {
-    @apply antialiased bg-slate-50;
+    @apply antialiased bg-slate-50 transition-colors duration-300;
     color: theme('colors.slate.900');
     font-family: inherit;
+  }
+
+  .dark body {
+    @apply bg-slate-950;
+    color: theme('colors.slate.50');
   }
 }
 
@@ -14,7 +20,11 @@
   }
 
   .card {
-    @apply bg-white rounded-2xl border border-slate-100 shadow-sm p-6;
+    @apply bg-white rounded-2xl border border-slate-100 shadow-sm p-6 transition-all;
+  }
+
+  .dark .card {
+    @apply bg-slate-900 border-slate-800 shadow-none;
   }
 }
 
