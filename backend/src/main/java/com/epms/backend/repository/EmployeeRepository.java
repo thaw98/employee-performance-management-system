@@ -58,4 +58,17 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 	java.util.List<Employee> findByDepartmentId(Long departmentId);
 
 	boolean existsByDepartment_IdAndPosition_Id(Long departmentId, Long positionId);
+
+	@Query("""
+			select e
+			from Employee e
+			left join fetch e.department
+			left join fetch e.position
+			left join fetch e.staffType
+			left join fetch e.probation
+			left join fetch e.emergencyContact
+			left join fetch e.father
+			order by e.id asc
+			""")
+	List<Employee> findAllForExport();
 }
