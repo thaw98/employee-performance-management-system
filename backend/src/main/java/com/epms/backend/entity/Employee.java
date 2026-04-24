@@ -30,7 +30,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @JsonIgnoreProperties({
     "manager",
-    "parentDepartment",
+    "position",
     "staffType",
     "father",
     "probation",
@@ -63,6 +63,10 @@ public class Employee {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_id")
     private Position position;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_position_id")
+    private DepartmentPosition departmentPosition;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id")

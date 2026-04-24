@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -15,10 +15,10 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Building2, CheckCircle2, XCircle, LayoutGrid, AlertTriangle,
+  Loader2,
 } from 'lucide-react'
 
 import {
-  useGetDepartmentsQuery,
   useDeleteDepartmentMutation,
 } from '../../../features/department/api/departmentApi'
 import type { DepartmentDto } from '../../../features/department/types'
@@ -26,9 +26,79 @@ import AddDepartmentModal from '../../../features/department/components/AddDepar
 import EditDepartmentModal from '../../../features/department/components/EditDepartmentModal'
 import ConfirmActionModal from '../../../features/hrEmployeeList/components/ConfirmActionModal'
 
+const isDepartmentActive = (status: unknown): boolean => {
+  return String(status ?? '').trim().toLowerCase() === 'active'
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+const getAliasValue = (raw: Record<string, unknown>, aliases: string[]): unknown => {
+  for (const alias of aliases) {
+    const value = raw[alias]
+    if (value !== undefined && value !== null && value !== '') {
+      return value
+    }
+  }
+
+  const normalizedAliases = new Set(aliases.map((alias) => alias.toLowerCase().replace(/[^a-z0-9]/g, '')))
+  for (const [key, value] of Object.entries(raw)) {
+    const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '')
+    if (normalizedAliases.has(normalizedKey) && value !== undefined && value !== null && value !== '') {
+      return value
+    }
+  }
+
+  for (const value of Object.values(raw)) {
+    if (!isRecord(value)) continue
+    const nestedValue = getAliasValue(value, aliases)
+    if (nestedValue !== undefined) {
+      return nestedValue
+    }
+  }
+
+  return undefined
+}
+
+const normalizeDepartmentRow = (row: unknown): DepartmentDto | null => {
+  if (!isRecord(row)) {
+    return null
+  }
+
+  const departmentId = Number(getAliasValue(row, ['departmentId', 'department_id', 'departmentid', 'id']) ?? 0)
+  const departmentCode = String(getAliasValue(row, ['departmentCode', 'department_code', 'departmentcode', 'deptCode', 'code']) ?? '').trim()
+  const departmentName = String(getAliasValue(row, ['departmentName', 'department_name', 'departmentname', 'deptName', 'name']) ?? '').trim()
+  const rawStatus = getAliasValue(row, ['status', 'departmentStatus', 'isActive', 'active', 'enabled'])
+
+  const normalizedStatus =
+    String(rawStatus ?? '').trim().toLowerCase() === 'inactive' ||
+    String(rawStatus ?? '').trim().toLowerCase() === 'false' ||
+    String(rawStatus ?? '').trim() === '0'
+      ? 'Inactive'
+      : 'Active'
+
+  return {
+    departmentId: Number.isFinite(departmentId) ? departmentId : 0,
+    departmentCode,
+    departmentName,
+    status: normalizedStatus,
+    createdDate: String(getAliasValue(row, ['createdDate', 'created_date']) ?? ''),
+    updatedDate: String(getAliasValue(row, ['updatedDate', 'updated_date']) ?? ''),
+  }
+}
+
+const getDepartmentCodeForDisplay = (row: DepartmentDto): string => {
+  const raw = row as unknown as Record<string, unknown>
+  const code = getAliasValue(raw, ['departmentCode', 'department_code', 'departmentcode', 'deptCode', 'code'])
+  return String(code ?? '').trim()
+}
+
 export default function DepartmentListPage() {
-  const { data: deptRes, isLoading, isError } = useGetDepartmentsQuery()
   const [deleteDepartment, { isLoading: isDeleting }] = useDeleteDepartmentMutation()
+  const [departments, setDepartments] = useState<DepartmentDto[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isError, setIsError] = useState(false)
 
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -38,9 +108,41 @@ export default function DepartmentListPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [selectedDept, setSelectedDept] = useState<DepartmentDto | null>(null)
 
-  const departments = useMemo(() => deptRes?.data || [], [deptRes])
-  const activeCount = useMemo(() => departments.filter(d => d.status === 'Active').length, [departments])
-  const inactiveCount = useMemo(() => departments.filter(d => d.status === 'Inactive').length, [departments])
+  const activeCount = useMemo(() => departments.filter((d) => isDepartmentActive(d.status)).length, [departments])
+  const inactiveCount = useMemo(() => departments.length - activeCount, [departments, activeCount])
+
+  const loadDepartments = useCallback(async () => {
+    setIsLoading(true)
+    setIsError(false)
+
+    try {
+      const token = localStorage.getItem('epms_token') || sessionStorage.getItem('epms_token')
+      const response = await fetch('/api/departments', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch departments: ${response.status}`)
+      }
+
+      const payload = await response.json()
+      const rows = Array.isArray(payload?.data) ? payload.data : []
+      setDepartments(
+        rows
+          .map((row: unknown) => normalizeDepartmentRow(row))
+          .filter((row: DepartmentDto | null): row is DepartmentDto => row !== null)
+      )
+    } catch (error) {
+      console.error('Failed to load departments', error)
+      setIsError(true)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadDepartments()
+  }, [loadDepartments])
 
   const columns = useMemo<ColumnDef<DepartmentDto>[]>(
     () => [
@@ -57,11 +159,14 @@ export default function DepartmentListPage() {
       {
         accessorKey: 'departmentCode',
         header: 'Code',
-        cell: (info) => (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 font-mono font-semibold text-blue-700 text-xs tracking-wide">
-            {info.getValue() as string}
-          </span>
-        ),
+        cell: (info) => {
+          const code = String((info.getValue() as string) ?? '').trim() || getDepartmentCodeForDisplay(info.row.original)
+          return (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 font-mono font-semibold text-blue-700 text-xs tracking-wide">
+              {code || '-'}
+            </span>
+          )
+        },
       },
       {
         accessorKey: 'departmentName',
@@ -80,7 +185,7 @@ export default function DepartmentListPage() {
         header: 'Status',
         cell: (info) => {
           const status = info.getValue() as string
-          if (status === 'Active') {
+          if (isDepartmentActive(status)) {
             return (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <CheckCircle2 size={13} />
@@ -156,6 +261,7 @@ export default function DepartmentListPage() {
     if (!selectedDept) return
     try {
       await deleteDepartment(selectedDept.departmentId).unwrap()
+      await loadDepartments()
       toast.success('Department deleted successfully.')
       setIsDeleteOpen(false)
     } catch (error: any) {
@@ -308,15 +414,14 @@ export default function DepartmentListPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {isLoading ? (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      {columns.map((_, j) => (
-                        <td key={j} className="px-5 py-4">
-                          <div className={`h-4 bg-slate-100 rounded-lg ${j === 2 ? 'w-40' : 'w-20'}`} />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
+                  <tr>
+                    <td colSpan={columns.length}>
+                      <div className="flex flex-col items-center justify-center py-24 gap-3 text-slate-400">
+                        <Loader2 size={36} className="animate-spin text-blue-500" />
+                        <p className="text-sm font-semibold text-slate-500">Loading departments…</p>
+                      </div>
+                    </td>
+                  </tr>
                 ) : table.getRowModel().rows.length > 0 ? (
                   table.getRowModel().rows.map((row, idx) => (
                     <tr
@@ -464,8 +569,17 @@ export default function DepartmentListPage() {
       </div>
 
       {/* Modals */}
-      <AddDepartmentModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
-      <EditDepartmentModal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} department={selectedDept} />
+      <AddDepartmentModal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onSuccess={loadDepartments}
+      />
+      <EditDepartmentModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        department={selectedDept}
+        onSuccess={loadDepartments}
+      />
       <ConfirmActionModal
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}

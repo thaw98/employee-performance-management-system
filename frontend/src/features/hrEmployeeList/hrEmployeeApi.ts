@@ -31,8 +31,13 @@ export interface EmployeeDetail {
   staffNrcNo: string
   gender: string
   religion: string
+  dateOfBirth?: string
+  phoneNo?: string
+  address?: string
+  nationality?: string
   departmentId: number
   departmentName: string
+  departmentPositionId?: number
   positionId: number
   positionName: string
   managerId: number | null
@@ -65,7 +70,7 @@ export interface EmployeeUpdateRequest {
   emergencyPhone?: string
   emergencyRelation?: string
   departmentId: number
-  positionId: number
+  departmentPositionId: number
   managerId?: number | null
   dateOfJoining: string
   staffTypeId: number

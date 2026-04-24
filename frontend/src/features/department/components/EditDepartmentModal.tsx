@@ -20,10 +20,16 @@ interface EditDepartmentModalProps {
   isOpen: boolean
   onClose: () => void
   department: DepartmentDto | null
+  /** Called after a department is updated successfully (e.g. refetch the list). */
+  onSuccess?: () => void | Promise<void>
 }
 
-export default function EditDepartmentModal({ isOpen, onClose, department }: EditDepartmentModalProps) {
+export default function EditDepartmentModal({ isOpen, onClose, department, onSuccess }: EditDepartmentModalProps) {
   const [updateDepartment, { isLoading }] = useUpdateDepartmentMutation()
+
+  const normalizeFormStatus = (value: unknown): DepartmentFormValues['status'] => {
+    return String(value ?? '').trim().toLowerCase() === 'inactive' ? 'Inactive' : 'Active'
+  }
 
   const {
     register,
@@ -39,7 +45,7 @@ export default function EditDepartmentModal({ isOpen, onClose, department }: Edi
       reset({
         departmentCode: department.departmentCode,
         departmentName: department.departmentName,
-        status: department.status,
+        status: normalizeFormStatus(department.status),
       })
     }
   }, [department, reset])
@@ -49,6 +55,7 @@ export default function EditDepartmentModal({ isOpen, onClose, department }: Edi
     try {
       await updateDepartment({ id: department.departmentId, body: data }).unwrap()
       toast.success('Department updated successfully.')
+      await onSuccess?.()
       onClose()
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to update department.')

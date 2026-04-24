@@ -29,12 +29,14 @@ import com.epms.backend.dto.hr.EmployeeUpdateRequestDto;
 import com.epms.backend.dto.hr.PasswordActionResponseDto;
 import com.epms.backend.dto.hr.UpdateEmploymentStatusRequestDto;
 import com.epms.backend.entity.Department;
+import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
+import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
@@ -54,6 +56,8 @@ public class HrEmployeeService {
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final StaffTypeRepository staffTypeRepository;
+    private final DepartmentPositionRepository departmentPositionRepository;
+    private final PositionRoleResolutionService positionRoleResolutionService;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final AuditService auditService;
@@ -163,12 +167,24 @@ public class HrEmployeeService {
                 "Department changes must be done through movement actions (Temporary Transfer, " +
                 "Permanent Transfer, or Return), not through the normal employee edit.");
         }
-        if (request.getPositionId() != null && employee.getPosition() != null
-                && !request.getPositionId().equals(employee.getPosition().getId())) {
+        DepartmentPosition selectedMapping = departmentPositionRepository.findById(request.getDepartmentPositionId())
+                .orElseThrow(() -> new IllegalArgumentException("Department-position mapping not found"));
+        if (!isActiveEntity(selectedMapping.getStatus())) {
+            throw new IllegalArgumentException("Selected department-position mapping is not active");
+        }
+        if (selectedMapping.getDepartment() == null || !selectedMapping.getDepartment().getId().equals(request.getDepartmentId())) {
+            throw new IllegalArgumentException("Selected mapping does not belong to selected department");
+        }
+        if (selectedMapping.getPosition() == null || !isActiveEntity(selectedMapping.getPosition().getStatus())) {
+            throw new IllegalArgumentException("Selected mapping references an inactive position");
+        }
+        if (employee.getPosition() != null && !selectedMapping.getPosition().getId().equals(employee.getPosition().getId())) {
             throw new IllegalArgumentException(
                 "Position changes must be done through movement actions (Temporary Transfer, " +
                 "Permanent Transfer, or Return), not through the normal employee edit.");
         }
+        employee.setDepartmentPosition(selectedMapping);
+        employee.setPosition(selectedMapping.getPosition());
 
         if (request.getStaffTypeId() != null) {
             StaffType st = staffTypeRepository.findById(request.getStaffTypeId())
@@ -188,6 +204,10 @@ public class HrEmployeeService {
         employee.setUpdatedDate(Instant.now());
 
         employeeRepository.save(employee);
+        userRepository.findByEmployee_Id(employee.getId()).ifPresent(user -> {
+            user.setRole(positionRoleResolutionService.resolveRoleFromLoadedPosition(selectedMapping.getPosition()));
+            userRepository.save(user);
+        });
 
         auditService.record(
             AuditActionType.EMPLOYEE_INFO_UPDATED,
@@ -433,8 +453,14 @@ public class HrEmployeeService {
                 .staffNrcNo(employee.getStaffNrcNo())
                 .gender(employee.getGender())
                 .religion(employee.getReligion() == null ? null : employee.getReligion().toApiLabel())
+                .dateOfBirth(employee.getDateOfBirth())
+                .phoneNo(employee.getPhoneNo())
+                .address(employee.getAddress())
+                .nationality(employee.getNationality())
+                .status(employee.getEmploymentStatus() == null ? "ACTIVE" : employee.getEmploymentStatus().name())
                 .departmentId(employee.getDepartment() != null ? employee.getDepartment().getId() : null)
                 .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
+                .departmentPositionId(employee.getDepartmentPosition() != null ? employee.getDepartmentPosition().getId() : null)
                 .positionId(employee.getPosition() != null ? employee.getPosition().getId() : null)
                 .positionName(employee.getPosition() != null ? employee.getPosition().getName() : null)
                 .managerId(employee.getManager() != null ? employee.getManager().getId() : null)
@@ -446,6 +472,10 @@ public class HrEmployeeService {
                 .probationEndDate(employee.getProbation() != null ? employee.getProbation().getProbationEndDate() : null)
                 .profilePictureUrl(employee.getProfilePictureUrl())
                 .build();
+    }
+
+    private boolean isActiveEntity(String status) {
+        return status == null || "active".equalsIgnoreCase(status.trim());
     }
 
     @Transactional(readOnly = true)

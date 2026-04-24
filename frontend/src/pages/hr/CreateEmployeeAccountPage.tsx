@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { skipToken } from '@reduxjs/toolkit/query'
 import { FormProvider, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format } from 'date-fns'
@@ -10,7 +11,7 @@ import {
   useCreateEmployeeAccountMutation,
   useGetDepartmentsQuery,
   useGetNextStaffNoQuery,
-  useGetPositionsQuery,
+  useGetDepartmentPositionsQuery,
   useLazyCheckEmailQuery,
   useLazyCheckStaffNrcQuery,
   useLazyCheckStaffNoQuery,
@@ -21,7 +22,6 @@ import {
   type CreateEmployeeAccountFormValues,
 } from '../../features/hrCreateEmployee/schemas/createEmployeeAccountSchema'
 import { useAppSelector } from '../../app/hooks'
-import { getDashboardPath } from '../../utils/dashboardRedirect'
 import { toTitleCasePersonName } from '../../utils/personName'
 import { CreateEmployeeSuccessModal } from './create-account/CreateEmployeeSuccessModal'
 import { EmployeeInformationStep } from './create-account/EmployeeInformationStep'
@@ -112,7 +112,7 @@ export function CreateEmployeeAccountPage() {
       probationEndDate: '',
       hireDate: today,
       departmentId: null,
-      positionId: null,
+      departmentPositionId: null,
     },
     mode: 'onBlur',
   })
@@ -154,9 +154,9 @@ export function CreateEmployeeAccountPage() {
   const nextStaffNoFromApi = nextStaffPayload?.data?.nextStaffNo
 
   const departmentId = useWatch({ control, name: 'departmentId' })
-  const { data: posRes, isLoading: posLoading } = useGetPositionsQuery(departmentId as number, {
-    skip: departmentId == null,
-  })
+  const { data: posRes, isLoading: posLoading } = useGetDepartmentPositionsQuery(
+    typeof departmentId === 'number' ? departmentId : skipToken,
+  )
   const positions = posRes?.data ?? []
 
   const emailVal = watch('email')
@@ -335,7 +335,7 @@ export function CreateEmployeeAccountPage() {
         'probationEndDate',
         'hireDate',
         'departmentId',
-        'positionId',
+        'departmentPositionId',
       ])
       if (!ok) return
       setStep(4)
@@ -417,7 +417,7 @@ export function CreateEmployeeAccountPage() {
           probationEndDate: v.staffType === 'PROBATION' ? v.probationEndDate : undefined,
           hireDate: v.hireDate,
           departmentId: v.departmentId!,
-          positionId: v.positionId!,
+          departmentPositionId: v.departmentPositionId!,
           profilePictureUrl,
         }).unwrap()
         if (!res.success || !res.data) {
@@ -469,7 +469,7 @@ export function CreateEmployeeAccountPage() {
       probationEndDate: '',
       hireDate: today,
       departmentId: null,
-      positionId: null,
+      departmentPositionId: null,
     })
     setStep(1)
     setEmailDup('idle')
@@ -648,7 +648,7 @@ export function CreateEmployeeAccountPage() {
                   values={allValues}
                   nrcPreview={nrcPreview}
                   fatherNrcPreview={fatherNrcPreview}
-                  linkedRoleName={positions.find((p) => p.positionId === allValues.positionId)?.roleName}
+                  linkedRoleName={undefined}
                 />
               ) : null}
             </div>

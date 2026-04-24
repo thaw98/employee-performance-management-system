@@ -2,16 +2,22 @@ import { baseApi } from '../../app/baseApi'
 import type { ApiResponse } from '../../types/auth'
 
 export interface DepartmentOptionDto {
+  /** Legacy compatibility fields used in some modals. */
+  id: number
+  name: string
   departmentId: number
   departmentName: string
 }
 
 export interface PositionOptionDto {
+  /** department_position.id */
+  id: number
   positionId: number
   positionName: string
-  /** From position.role_id; read-only display. */
-  roleId?: number | null
-  roleName?: string | null
+  /** Legacy compatibility label fields used by transfer modals. */
+  name: string
+  positionCode: string
+  levelCodeName?: string | null
 }
 
 export interface ExistsDto {
@@ -54,19 +60,38 @@ export interface HrCreateEmployeeAccountRequest {
   probationEndDate?: string
   hireDate: string
   departmentId: number
-  positionId: number
+  departmentPositionId: number
   profilePictureUrl?: string
 }
 
 export const hrEmployeeAccountApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getDepartments: builder.query<ApiResponse<DepartmentOptionDto[]>, void>({
-      query: () => ({ url: '/departments/options' }),
+      query: () => ({ url: '/lookups/departments/active' }),
+      transformResponse: (response: ApiResponse<{ id: number; name: string }[]>) => ({
+        ...response,
+        data: (response.data ?? []).map((d) => ({
+          id: d.id,
+          name: d.name,
+          departmentId: d.id,
+          departmentName: d.name,
+        })),
+      }),
     }),
-    getPositions: builder.query<ApiResponse<PositionOptionDto[]>, number | void>({
-      query: (departmentId) => ({
-        url: '/positions',
-        params: departmentId ? { departmentId } : undefined,
+    getDepartmentPositions: builder.query<ApiResponse<PositionOptionDto[]>, number>({
+      query: (departmentId) => {
+        if (typeof departmentId !== 'number') {
+          console.error('Invalid departmentId type:', typeof departmentId, departmentId)
+          throw new Error('departmentId must be a number')
+        }
+        return { url: `/lookups/departments/${departmentId}/positions` }
+      },
+      transformResponse: (response: ApiResponse<PositionOptionDto[]>) => ({
+        ...response,
+        data: (response.data ?? []).map((p) => ({
+          ...p,
+          name: p.positionName,
+        })),
       }),
     }),
     getNextStaffNo: builder.query<ApiResponse<NextStaffNoDto>, void>({
@@ -95,7 +120,7 @@ export const hrEmployeeAccountApi = baseApi.injectEndpoints({
 
 export const {
   useGetDepartmentsQuery,
-  useGetPositionsQuery,
+  useGetDepartmentPositionsQuery,
   useGetNextStaffNoQuery,
   useLazyCheckEmailQuery,
   useLazyCheckStaffNoQuery,

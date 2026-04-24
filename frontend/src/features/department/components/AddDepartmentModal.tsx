@@ -18,9 +18,11 @@ type DepartmentFormValues = z.infer<typeof departmentSchema>
 interface AddDepartmentModalProps {
   isOpen: boolean
   onClose: () => void
+  /** Called after a department is created successfully (e.g. refetch the list). */
+  onSuccess?: () => void | Promise<void>
 }
 
-export default function AddDepartmentModal({ isOpen, onClose }: AddDepartmentModalProps) {
+export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDepartmentModalProps) {
   const [createDepartment, { isLoading }] = useCreateDepartmentMutation()
 
   const {
@@ -42,6 +44,7 @@ export default function AddDepartmentModal({ isOpen, onClose }: AddDepartmentMod
     try {
       await createDepartment(data).unwrap()
       toast.success('Department created successfully.')
+      await onSuccess?.()
       reset()
       onClose()
     } catch (error: any) {

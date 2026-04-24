@@ -21,7 +21,7 @@ import {
   useCreateEmployeeAccountMutation,
   useCreateEmployeeMutation,
   useGetDepartmentsQuery,
-  useGetPositionsQuery,
+  useGetAutocompletePositionsQuery,
   useGetReligionsQuery,
   useLazyCheckUserEmailQuery,
   useLazyCheckStaffNrcQuery,
@@ -323,7 +323,7 @@ export function CreateEmployeeAccountPage() {
   const { field: staffTypeField } = useController({ control, name: 'staffTypeId' })
 
   const departmentIdWatch = watch('departmentId')
-  const positions = useGetPositionsQuery(
+  const positions = useGetAutocompletePositionsQuery(
     { keyword: '', departmentId: departmentIdWatch },
     { skip: !departmentIdWatch, refetchOnMountOrArgChange: true },
   )

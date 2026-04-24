@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
-import { addMonths, format, parseISO } from 'date-fns'
+import { addDays, format, parseISO } from 'date-fns'
 import { Controller, type Control, type FieldErrors, type UseFormRegister, type UseFormSetValue, useWatch } from 'react-hook-form'
 import { Shield, Clock, CalendarDays, Building2 } from 'lucide-react'
 
@@ -63,7 +63,7 @@ export function EmploymentInformationStep({
     if (!probationStart) return
     try {
       const d = parseISO(probationStart)
-      const end = addMonths(d, 3)
+      const end = addDays(d, 90)
       setValue('probationEndDate', format(end, 'yyyy-MM-dd'), { shouldValidate: true })
     } catch {
       /* ignore */
@@ -254,7 +254,7 @@ export function EmploymentInformationStep({
                 value={field.value}
                 onChange={(id) => {
                   field.onChange(id)
-                  setValue('positionId', null, { shouldValidate: true })
+                  setValue('departmentPositionId', null, { shouldValidate: true })
                 }}
                 disabled={departmentLoading}
                 error={errors.departmentId?.message ? String(errors.departmentId.message) : undefined}
@@ -269,20 +269,20 @@ export function EmploymentInformationStep({
           </label>
           <Controller
             control={control}
-            name="positionId"
+            name="departmentPositionId"
             render={({ field }) => (
               <PositionAutocomplete
                 positions={positions}
                 value={field.value}
                 onChange={(id) =>
-                  setValue('positionId', id, {
+                  setValue('departmentPositionId', id, {
                     shouldDirty: true,
                     shouldTouch: true,
                     shouldValidate: true,
                   })
                 }
                 disabled={!departmentId || positionLoading}
-                error={errors.positionId?.message ? String(errors.positionId.message) : undefined}
+                error={errors.departmentPositionId?.message ? String(errors.departmentPositionId.message) : undefined}
                 placeholder={!departmentId ? 'Select a department first' : 'Search position…'}
               />
             )}

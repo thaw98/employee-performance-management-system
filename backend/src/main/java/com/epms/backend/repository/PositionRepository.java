@@ -1,31 +1,44 @@
 package com.epms.backend.repository;
 
 import java.util.List;
-
-import org.springframework.data.domain.Pageable;
 import java.util.Optional;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.epms.backend.entity.Position;
 
-public interface PositionRepository extends JpaRepository<Position, Long> {
+public interface PositionRepository extends JpaRepository<Position, Long>, JpaSpecificationExecutor<Position> {
+
+	Optional<Position> findByCodeIgnoreCase(String code);
+
+	Optional<Position> findByNameIgnoreCase(String name);
+
+	boolean existsByCodeIgnoreCaseAndIdNot(String code, Long id);
+
+	boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
+
+	@Query("SELECT DISTINCT p FROM Position p LEFT JOIN FETCH p.levelCode LEFT JOIN FETCH p.role WHERE p.id = :id")
+	Optional<Position> findByIdWithLevelCodeAndRole(@Param("id") Long id);
+
+	List<Position> findByStatusIgnoreCase(String status);
+
+	@Query("SELECT p FROM Position p WHERE LOWER(COALESCE(p.status, 'ACTIVE')) = 'active' AND LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.name ASC")
+	List<Position> findActiveByNameContaining(@Param("keyword") String keyword, Pageable pageable);
+
+	// Backward compatibility methods - using department_position mapping instead
 	List<Position> findTop20ByNameContainingIgnoreCaseOrderByNameAsc(String keyword);
 
-	List<Position> findTop20ByDepartmentIdAndNameContainingIgnoreCaseOrderByNameAsc(Long departmentId, String name);
+	@Query("SELECT p FROM Position p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.name ASC")
+	List<Position> findForAutocompleteByKeyword(@Param("keyword") String keyword, Pageable pageable);
 
-	List<Position> findByDepartmentIdOrderByNameAsc(Long departmentId);
+	@Query("SELECT p FROM Position p JOIN p.departmentPositions dp WHERE dp.department.id = :departmentId ORDER BY p.name ASC")
+	List<Position> findByDepartmentIdOrderByNameAsc(@Param("departmentId") Long departmentId);
 
-	@Query("SELECT DISTINCT p FROM Position p LEFT JOIN FETCH p.role LEFT JOIN FETCH p.department WHERE p.id = :id")
-	Optional<Position> findByIdWithRoleAndDepartment(@Param("id") Long id);
+	@Query("SELECT p FROM Position p WHERE p.id IN (SELECT dp.position.id FROM DepartmentPosition dp WHERE dp.department.id = :departmentId) AND LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.name ASC")
+	List<Position> findForAutocompleteByDepartmentOrUnassigned(@Param("departmentId") Long departmentId, @Param("keyword") String keyword, Pageable pageable);
 
-	/**
-	 * Positions scoped to a department, plus positions not yet linked to any department (shared / legacy rows).
-	 */
-	@Query("SELECT p FROM Position p WHERE (p.department IS NULL OR p.department.id = :departmentId) "
-			+ "AND LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.name ASC")
-	List<Position> findForAutocompleteByDepartmentOrUnassigned(@Param("departmentId") Long departmentId,
-			@Param("keyword") String keyword, Pageable pageable);
 }

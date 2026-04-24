@@ -59,21 +59,18 @@ public class EmployeeImportTemplateService {
      * 14  nationality
      * 15  employment_status
      * 16  religion
-     * 17  emergency_contact_name
-     * 18  emergency_contact_relationship
-     * 19  emergency_contact_phone   ← Text format
-     * 20  emergency_contact_address
-     * 21  father_name
-     * 22  father_nrc_no
-     * 23  father_occupation
+     * 17  emergency_contact_relationship
+     * 18  emergency_contact_phone   ← Text format
+     * 19  father_name
+     * 20  father_nrc_no
+     * 21  father_occupation
      */
     private static final String[] HEADERS = {
             "staff_no", "full_name", "staff_nrc_no", "email", "department", "position",
             "phone_number", "gender", "date_of_birth", "hire_date", "staff_type",
             "probation_start_date", "probation_end_date",
             "address", "nationality", "employment_status", "religion",
-            "emergency_contact_name", "emergency_contact_relationship",
-            "emergency_contact_phone", "emergency_contact_address",
+            "emergency_contact_relationship", "emergency_contact_phone",
             "father_name", "father_nrc_no", "father_occupation"
     };
 
@@ -83,7 +80,7 @@ public class EmployeeImportTemplateService {
             .map(EmployeeReligion::toApiLabel).toArray(String[]::new);
 
     /** Columns that must be Text format: phone numbers + date columns (to preserve dd-mm-yyyy strings) */
-    private static final int[] TEXT_FORMAT_COLS = { 6, 8, 9, 11, 12, 19 };
+    private static final int[] TEXT_FORMAT_COLS = { 6, 8, 9, 11, 12, 18 };
 
     @Transactional(readOnly = true)
     public byte[] generateTemplate() {
@@ -141,10 +138,8 @@ public class EmployeeImportTemplateService {
                     "Myanmar",                        // nationality
                     "ACTIVE",                         // employment_status
                     relSample,                        // religion
-                    "Ma Hla Hla",                     // emergency_contact_name
                     "Sister",                         // emergency_contact_relationship
                     "09987654321",                    // emergency_contact_phone
-                    "No.456, 2nd Street, Yangon",    // emergency_contact_address
                     "U Maung Maung",                  // father_name
                     "12/TAMANA(N)654321",             // father_nrc_no
                     "Farmer"                          // father_occupation
@@ -169,10 +164,8 @@ public class EmployeeImportTemplateService {
                     "Myanmar",                        // nationality
                     "ACTIVE",                         // employment_status
                     relSample,                        // religion
-                    "U Kyaw Kyaw",                    // emergency_contact_name
                     "Brother",                        // emergency_contact_relationship
                     "09444555666",                    // emergency_contact_phone
-                    "No.101, 4th Street, Mandalay",  // emergency_contact_address
                     "U Min Min",                      // father_name
                     "12/KAMAYA(N)345678",             // father_nrc_no
                     "Teacher"                         // father_occupation
@@ -308,7 +301,7 @@ public class EmployeeImportTemplateService {
             cell.setCellStyle(headerStyle);
             // wider for address/address-like columns
             int width = (i == 0 || i == 1 || i == 2 || i == 3) ? 4200
-                    : (i == 14 || i == 21) ? 8000
+                    : (i == 14 || i == 20) ? 8000
                     : 5500;
             sheet.setColumnWidth(i, width);
         }
@@ -366,13 +359,11 @@ public class EmployeeImportTemplateService {
             { "  Col O  nationality            Required. e.g. Myanmar.", "normal" },
             { "  Col P  employment_status      Required. Select from dropdown (ACTIVE).", "normal" },
             { "  Col Q  religion               Required. Select from dropdown.", "normal" },
-            { "  Col R  emergency_contact_name Required.", "normal" },
-            { "  Col S  emergency_contact_relationship  Required. e.g. Sister, Mother.", "normal" },
-            { "  Col T  emergency_contact_phone  Required. Format: 09XXXXXXXXX or +95XXXXXXXXX.", "normal" },
-            { "  Col U  emergency_contact_address  Required.", "normal" },
-            { "  Col V  father_name            Required.", "normal" },
-            { "  Col W  father_nrc_no          Required. Father NRC number.", "normal" },
-            { "  Col X  father_occupation      Required. Father occupation (e.g. Farmer, Teacher).", "normal" },
+            { "  Col R  emergency_contact_relationship  Required. e.g. Sister, Mother.", "normal" },
+            { "  Col S  emergency_contact_phone  Required. Format: 09XXXXXXXXX or +95XXXXXXXXX.", "normal" },
+            { "  Col T  father_name            Required.", "normal" },
+            { "  Col U  father_nrc_no          Required. Father NRC number.", "normal" },
+            { "  Col V  father_occupation      Required. Father occupation (e.g. Farmer, Teacher).", "normal" },
             { "", "normal" },
             { "STEP 3 — PROBATION FIELDS", "bold" },
             { "  If staff_type is 'Probation', you MUST fill cols L, M (start/end dates).", "normal" },
@@ -385,11 +376,11 @@ public class EmployeeImportTemplateService {
             { "STEP 5 — DATE FORMAT", "bold" },
             { "  All dates must use the format:  dd-mm-yyyy", "normal" },
             { "  Example:  15-06-1995  (15 June 1995)", "normal" },
-            { "  Columns I, J, M, N are pre-formatted as Text so Excel will NOT convert your dates.", "normal" },
+            { "  Columns I, J, L, M are pre-formatted as Text so Excel will NOT convert your dates.", "normal" },
             { "  Type the date directly as text (e.g. 15-06-1995). Do NOT use Excel date picker.", "normal" },
             { "", "normal" },
             { "STEP 6 — PHONE NUMBER FORMAT", "bold" },
-            { "  Columns G, U are pre-formatted as Text so leading zeros are preserved.", "normal" },
+            { "  Columns G, S are pre-formatted as Text so leading zeros are preserved.", "normal" },
             { "  Valid formats:  09123456789  or  +9512345678", "normal" },
             { "", "normal" },
             { "STEP 7 — VALIDATION & IMPORT FLOW", "bold" },

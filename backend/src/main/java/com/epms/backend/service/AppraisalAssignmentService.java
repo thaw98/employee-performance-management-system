@@ -28,7 +28,7 @@ public class AppraisalAssignmentService {
     @Transactional
     public AppraisalAssignment approve(Long id, String comments, String signature, Long userId, Long roleId) {
         AppraisalAssignment assignment = getById(id);
-        
+
         if (assignment.getStatus() != AppraisalStatus.SUBMITTED && assignment.getStatus() != AppraisalStatus.RETURNED) {
             throw new RuntimeException("Only submitted or returned appraisals can be approved.");
         }
@@ -39,7 +39,7 @@ public class AppraisalAssignmentService {
                     .mapToDouble(a -> a.getRating() != null ? a.getRating() : 0.0)
                     .sum();
             assignment.setTotalScore(sum / assignment.getAnswers().size() * 20); // Normalize to 100% assuming 5-point scale
-            
+
             // Basic Rating Category Logic
             if (assignment.getTotalScore() >= 90) assignment.setRatingCategory("EXCEPTIONAL");
             else if (assignment.getTotalScore() >= 75) assignment.setRatingCategory("GOOD");
@@ -64,7 +64,7 @@ public class AppraisalAssignmentService {
     @Transactional
     public AppraisalAssignment reject(Long id, String comments, Long userId, Long roleId) {
         AppraisalAssignment assignment = getById(id);
-        
+
         if (assignment.getStatus() == AppraisalStatus.LOCKED) {
             throw new RuntimeException("Cannot reject a locked appraisal.");
         }
@@ -84,7 +84,7 @@ public class AppraisalAssignmentService {
     @Transactional
     public AppraisalAssignment returnForRevision(Long id, String comments, Long userId, Long roleId) {
         AppraisalAssignment assignment = getById(id);
-        
+
         if (assignment.getStatus() == AppraisalStatus.LOCKED || assignment.getStatus() == AppraisalStatus.HR_APPROVED) {
             throw new RuntimeException("Cannot return an already approved or locked appraisal.");
         }

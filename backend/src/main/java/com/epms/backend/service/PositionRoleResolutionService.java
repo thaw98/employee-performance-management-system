@@ -25,7 +25,7 @@ public class PositionRoleResolutionService {
 	 */
 	@Transactional(readOnly = true)
 	public Role resolveRoleFromPositionId(Long positionId) {
-		Position position = positionRepository.findByIdWithRoleAndDepartment(positionId)
+		Position position = positionRepository.findByIdWithLevelCodeAndRole(positionId)
 				.orElseThrow(() -> new IllegalArgumentException("Selected position does not exist."));
 		return resolveRoleFromLoadedPosition(position);
 	}

@@ -223,13 +223,11 @@ public class EmployeeImportValidationService {
         data.put("nationality",                ExcelCellReaderUtil.readString(row.getCell(14)));
         data.put("employmentStatus",           ExcelCellReaderUtil.readString(row.getCell(15)));
         data.put("religion",                   ExcelCellReaderUtil.readString(row.getCell(16)));
-        data.put("emergencyContactName",       ExcelCellReaderUtil.readString(row.getCell(17)));
-        data.put("emergencyContactRelationship", ExcelCellReaderUtil.readString(row.getCell(18)));
-        data.put("emergencyContactPhone",      ExcelCellReaderUtil.readString(row.getCell(19)));
-        data.put("emergencyContactAddress",    ExcelCellReaderUtil.readString(row.getCell(20)));
-        data.put("fatherName",                 ExcelCellReaderUtil.readString(row.getCell(21)));
-        data.put("fatherNrcNo",                ExcelCellReaderUtil.readString(row.getCell(22)));
-        data.put("fatherOccupation",           ExcelCellReaderUtil.readString(row.getCell(23)));
+        data.put("emergencyContactRelationship", ExcelCellReaderUtil.readString(row.getCell(17)));
+        data.put("emergencyContactPhone",      ExcelCellReaderUtil.readString(row.getCell(18)));
+        data.put("fatherName",                 ExcelCellReaderUtil.readString(row.getCell(19)));
+        data.put("fatherNrcNo",                ExcelCellReaderUtil.readString(row.getCell(20)));
+        data.put("fatherOccupation",           ExcelCellReaderUtil.readString(row.getCell(21)));
         return data;
     }
 
@@ -349,7 +347,6 @@ public class EmployeeImportValidationService {
             errors.add("religion '" + religion + "' is not a valid religion");
         }
 
-        requireField(errors, row, "emergencyContactName", "emergency_contact_name is required");
         requireField(errors, row, "emergencyContactRelationship", "emergency_contact_relationship is required");
 
         String ecPhone = trimOrEmpty(row, "emergencyContactPhone");
@@ -359,7 +356,6 @@ public class EmployeeImportValidationService {
             errors.add("emergency_contact_phone format is invalid (must start with +95 or 09)");
         }
 
-        requireField(errors, row, "emergencyContactAddress", "emergency_contact_address is required");
         requireField(errors, row, "fatherName", "father_name is required");
         requireField(errors, row, "fatherNrcNo", "father_nrc_no is required");
         requireField(errors, row, "fatherOccupation", "father_occupation is required");
@@ -369,7 +365,7 @@ public class EmployeeImportValidationService {
 
     private boolean isRowFullyEmpty(Row row) {
         if (row == null) return true;
-        for (int c = 0; c < 24; c++) {
+        for (int c = 0; c < 22; c++) {
             if (!ExcelCellReaderUtil.isCellBlank(row.getCell(c))) return false;
         }
         return true;

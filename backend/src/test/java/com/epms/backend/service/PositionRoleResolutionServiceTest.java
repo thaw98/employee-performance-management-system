@@ -32,7 +32,7 @@ class PositionRoleResolutionServiceTest {
 
 	@Test
 	void resolveFromPositionId_throwsWhenMissing() {
-		when(positionRepository.findByIdWithRoleAndDepartment(eq(99L))).thenReturn(Optional.empty());
+		when(positionRepository.findByIdWithLevelCodeAndRole(eq(99L))).thenReturn(Optional.empty());
 		assertThrows(IllegalArgumentException.class, () -> service.resolveRoleFromPositionId(99L));
 	}
 
@@ -42,7 +42,7 @@ class PositionRoleResolutionServiceTest {
 		p.setId(1L);
 		p.setStatus("inactive");
 		p.setRole(newRole(4L, "Employee"));
-		when(positionRepository.findByIdWithRoleAndDepartment(eq(1L))).thenReturn(Optional.of(p));
+		when(positionRepository.findByIdWithLevelCodeAndRole(eq(1L))).thenReturn(Optional.of(p));
 		IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
 				() -> service.resolveRoleFromPositionId(1L));
 		assertEquals("Selected position is inactive and cannot be assigned.", ex.getMessage());
@@ -53,7 +53,7 @@ class PositionRoleResolutionServiceTest {
 		Position p = new Position();
 		p.setId(1L);
 		p.setStatus("active");
-		when(positionRepository.findByIdWithRoleAndDepartment(eq(1L))).thenReturn(Optional.of(p));
+		when(positionRepository.findByIdWithLevelCodeAndRole(eq(1L))).thenReturn(Optional.of(p));
 		IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
 				() -> service.resolveRoleFromPositionId(1L));
 		assertEquals("Selected position has no linked role.", ex.getMessage());
@@ -66,7 +66,7 @@ class PositionRoleResolutionServiceTest {
 		p.setId(1L);
 		p.setStatus("active");
 		p.setRole(r);
-		when(positionRepository.findByIdWithRoleAndDepartment(eq(1L))).thenReturn(Optional.of(p));
+		when(positionRepository.findByIdWithLevelCodeAndRole(eq(1L))).thenReturn(Optional.of(p));
 		assertEquals(2L, service.resolveRoleFromPositionId(1L).getId().longValue());
 	}
 

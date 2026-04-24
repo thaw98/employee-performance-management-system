@@ -13,7 +13,8 @@ import {
   RefreshCcw,
   Zap,
   ClipboardList,
-  Building2
+  Building2,
+  Briefcase
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -56,6 +57,7 @@ const HrLayout: React.FC = () => {
       }
       : { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
     { icon: <Building2 size={20} />, label: 'Department', path: '/hr/departments' },
+    { icon: <Briefcase size={20} />, label: 'Positions', path: '/hr/positions' },
     {
       icon: <Target size={20} />,
       label: 'Performance',

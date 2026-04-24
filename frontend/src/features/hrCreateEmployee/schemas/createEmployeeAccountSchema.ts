@@ -1,4 +1,4 @@
-import { isBefore, parseISO, startOfDay } from 'date-fns'
+import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
 import { z } from 'zod'
 
 import { getNrcTownships } from '../../employeeOnboarding/utils/nrcData'
@@ -6,7 +6,8 @@ import { toTitleCasePersonName } from '../../../utils/personName'
 
 const townships = getNrcTownships()
 
-const phoneRe = /^\+?[0-9]{8,15}$/
+/** Must match backend HrCreateEmployeeAccountRequestDto phone / emergency phone pattern. */
+const phoneRe = /^(?:\+95[0-9]{5,12}|09[0-9]{6,13})$/
 
 function startOfTodayLocal() {
   return startOfDay(new Date())
@@ -173,7 +174,8 @@ export const employmentInformationSchema = z
     probationEndDate: z.string().optional(),
     hireDate: z.string().min(1, 'Hire date is required'),
     departmentId: z.number().nullable(),
-    positionId: z.number().nullable(),
+    departmentPositionId: z.number().nullable(),
+    positionId: z.number().nullable().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.staffType === 'PROBATION') {
@@ -182,16 +184,11 @@ export const employmentInformationSchema = z
         return
       }
       const start = parseISO(data.probationStartDate)
-      const expectedEnd = new Date(start)
-      expectedEnd.setMonth(expectedEnd.getMonth() + 3)
-      const y = expectedEnd.getFullYear()
-      const m = String(expectedEnd.getMonth() + 1).padStart(2, '0')
-      const d = String(expectedEnd.getDate()).padStart(2, '0')
-      const expectedStr = `${y}-${m}-${d}`
+      const expectedStr = format(addDays(start, 90), 'yyyy-MM-dd')
       if (data.probationEndDate !== expectedStr) {
         ctx.addIssue({
           code: 'custom',
-          message: 'Probation end must be exactly 3 months after start',
+          message: 'Probation end must be exactly 90 days after start',
           path: ['probationEndDate'],
         })
       }
@@ -199,8 +196,8 @@ export const employmentInformationSchema = z
     if (data.departmentId == null) {
       ctx.addIssue({ code: 'custom', message: 'Department is required', path: ['departmentId'] })
     }
-    if (data.positionId == null) {
-      ctx.addIssue({ code: 'custom', message: 'Position is required', path: ['positionId'] })
+    if (data.departmentPositionId == null && data.positionId == null) {
+      ctx.addIssue({ code: 'custom', message: 'Position is required', path: ['departmentPositionId'] })
     }
   })
 
@@ -257,7 +254,8 @@ export const editEmployeeSchema = z
     staffType:  z.enum(['PERMANENT', 'PROBATION']),
     hireDate:   z.string().min(1, 'Hire date is required'),
     departmentId: z.number().nullable(),
-    positionId:   z.number().nullable(),
+    departmentPositionId: z.number().nullable(),
+    positionId: z.number().nullable().optional(),
 
     // ── probation — optional ────────────────────────────────────────────────
     probationStartDate: z.string().optional(),
@@ -302,12 +300,12 @@ export const editEmployeeSchema = z
     }
     fatherNrcTownshipRefine(val, ctx)
 
-    // Department & position still required
+    // Department & position mapping still required
     if (val.departmentId == null) {
       ctx.addIssue({ code: 'custom', message: 'Department is required', path: ['departmentId'] })
     }
-    if (val.positionId == null) {
-      ctx.addIssue({ code: 'custom', message: 'Position is required', path: ['positionId'] })
+    if (val.departmentPositionId == null && val.positionId == null) {
+      ctx.addIssue({ code: 'custom', message: 'Position is required', path: ['departmentPositionId'] })
     }
   })
 

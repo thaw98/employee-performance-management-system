@@ -98,7 +98,7 @@ public class HrCreateEmployeeAccountRequestDto {
 	private Long departmentId;
 
 	@NotNull
-	private Long positionId;
+	private Long departmentPositionId;
 
 	private String profilePictureUrl;
 }

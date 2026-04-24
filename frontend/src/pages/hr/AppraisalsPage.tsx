@@ -75,8 +75,8 @@ function SortableCategoryRow({ category, index, isConfirmed, onConfirm, onEdit, 
             </td>
             <td className="p-6 text-center">
                 <div className="flex items-center justify-center gap-2">
-                    <button 
-                        onClick={() => onConfirm(category.id!)} 
+                    <button
+                        onClick={() => onConfirm(category.id!)}
                         className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${isConfirmed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-50 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
                         title={isConfirmed ? "Confirmed" : "Add to Appraisal"}
                     >
@@ -104,8 +104,8 @@ function ConfirmedPreviewRows({ category, categoryQuestions, startIndex }: Confi
             {categoryQuestions.map((q, idx) => (
                 <tr key={q.id} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
                     {idx === 0 && (
-                        <td 
-                            rowSpan={categoryQuestions.length} 
+                        <td
+                            rowSpan={categoryQuestions.length}
                             className="p-4 border-r border-slate-200 bg-slate-50/30 text-center font-black text-slate-700 w-48 align-middle"
                         >
                             <div className="rotate-[-90deg] whitespace-nowrap uppercase tracking-widest text-[10px] leading-none">
@@ -215,25 +215,25 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                         </p>
                     </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3 w-full md:w-auto">
                     {!isFinalizedView && (
                         <div className="relative flex-1 md:w-64">
-                            <button 
+                            <button
                                 onClick={() => setShowPicker(!showPicker)}
                                 className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-[10px] text-slate-500 uppercase tracking-widest hover:border-blue-400 transition-all"
                             >
                                 <span>Pick a Category...</span>
                                 <Plus size={16} />
                             </button>
-                            
+
                             {showPicker && (
                                 <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2">
                                     {availableToPick.length === 0 ? (
                                         <p className="p-4 text-[10px] font-black text-slate-300 uppercase text-center">All categories picked</p>
                                     ) : (
                                         availableToPick.map(ac => (
-                                            <button 
+                                            <button
                                                 key={ac.id}
                                                 onClick={() => { onAdd(ac.id!); setShowPicker(false); }}
                                                 className="w-full text-left p-4 hover:bg-slate-50 text-xs font-black text-slate-600 uppercase border-b border-slate-50 last:border-0"
@@ -248,7 +248,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                     )}
 
                     {!isFinalizedView ? (
-                        <button 
+                        <button
                             onClick={onConfirm}
                             disabled={categories.length === 0}
                             className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white rounded-2xl font-black text-xs hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 disabled:opacity-50 disabled:grayscale"
@@ -256,7 +256,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                             <CheckCircle2 size={16} strokeWidth={3} /> CONFIRM & FINALIZE
                         </button>
                     ) : (
-                        <button 
+                        <button
                             onClick={() => window.print()}
                             className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 whitespace-nowrap"
                         >
@@ -295,8 +295,8 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                                 return (
                                                     <tr key={q.id} className="hover:bg-slate-50/50 transition-colors group">
                                                         {idx === 0 && (
-                                                            <td 
-                                                                rowSpan={qList.length} 
+                                                            <td
+                                                                rowSpan={qList.length}
                                                                 className="p-6 border-r border-slate-200 bg-slate-50/50 text-center align-middle w-32 relative overflow-hidden"
                                                             >
                                                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-90deg] whitespace-nowrap">
@@ -317,7 +317,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                                         </td>
                                                         {!isFinalizedView && (
                                                             <td className="p-6 text-center bg-white border-l border-slate-50">
-                                                                <button 
+                                                                <button
                                                                     onClick={() => onRemove(cat.id!)}
                                                                     className="w-8 h-8 rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center mx-auto opacity-0 group-hover:opacity-100"
                                                                     title="Remove Category"
@@ -363,7 +363,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
 
 export function AppraisalsPage() {
     const [activeTab, setActiveTab] = useState<'category' | 'questions' | 'confirmed' | 'finalized'>('category');
-    
+
     // Category State
     const [categories, setCategories] = useState<Category[]>([]);
     const [confirmedCategories, setConfirmedCategories] = useState<number[]>([]); // Current selection (Draft)
@@ -580,13 +580,13 @@ export function AppraisalsPage() {
                     >
                         QUESTIONS
                     </button>
-                    <button 
+                    <button
                         onClick={() => setActiveTab('confirmed')}
                         className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'confirmed' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         REVIEW APPRAISAL
                     </button>
-                    <button 
+                    <button
                         onClick={() => setActiveTab('finalized')}
                         className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'finalized' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
@@ -596,7 +596,7 @@ export function AppraisalsPage() {
             </div>
 
             {activeTab === 'finalized' ? (
-                <ConfirmedAppraisalView 
+                <ConfirmedAppraisalView
                     categories={categories.filter(c => finalizedCategories.includes(c.id!))}
                     allAvailableCategories={categories}
                     onAdd={() => {}}
@@ -605,7 +605,7 @@ export function AppraisalsPage() {
                     isFinalizedView={true}
                 />
             ) : activeTab === 'confirmed' ? (
-                <ConfirmedAppraisalView 
+                <ConfirmedAppraisalView
                     categories={categories.filter(c => confirmedCategories.includes(c.id!))}
                     allAvailableCategories={categories}
                     onAdd={(id) => setConfirmedCategories(prev => [...prev, id])}
@@ -653,7 +653,7 @@ export function AppraisalsPage() {
                                                     index={index}
                                                     isConfirmed={confirmedCategories.includes(cat.id!)}
                                                     onConfirm={(id) => {
-                                                        setConfirmedCategories(prev => 
+                                                        setConfirmedCategories(prev =>
                                                             prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]
                                                         );
                                                     }}

@@ -23,10 +23,8 @@ public class EmployeeImportRowDto {
     private String address;
     private String nationality;
     private String employmentStatus;
-    private String emergencyContactName;
     private String emergencyContactRelationship;
     private String emergencyContactPhone;
-    private String emergencyContactAddress;
     private String fatherName;
     private String fatherPhone;
     private String fatherAddress;

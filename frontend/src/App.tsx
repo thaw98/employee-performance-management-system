@@ -40,6 +40,8 @@ import { KpiManagementPage } from './pages/hr/KpiManagementPage';
 import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
 import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
+import PositionListPage from './features/position/pages/PositionListPage';
+import MappingListPage from './features/mapping/pages/MappingListPage';
 
 function App() {
   return (
@@ -61,10 +63,11 @@ function App() {
           <Route element={<ProtectedRoute allowedRoleGroups={['HR']} />}>
             <Route path="/hr" element={<HrLayout />}>
               <Route path="dashboard" element={<HRDashboardPage />} />
-              <Route path="my-assessment" element={<SelfAssessmentPage />} />
               <Route path="employees" element={<EmployeeListPage />} />
               <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
               <Route path="departments" element={<DepartmentListPage />} />
+              <Route path="positions" element={<PositionListPage />} />
+              <Route path="department-position-mappings" element={<MappingListPage />} />
 
               <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
               <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />

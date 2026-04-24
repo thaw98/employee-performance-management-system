@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { skipToken } from '@reduxjs/toolkit/query'
 import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import toast from 'react-hot-toast'
@@ -13,7 +14,7 @@ import {
 } from '../hrEmployeeApi'
 import {
   useGetDepartmentsQuery,
-  useGetPositionsQuery,
+  useGetDepartmentPositionsQuery,
 } from '../../hrCreateEmployee/hrEmployeeAccountApi'
 import {
   editEmployeeSchema,
@@ -89,9 +90,9 @@ export default function EditEmployeeModal({
   const { reset, handleSubmit, watch, setValue, formState: { errors } } = form
   const deptId = watch('departmentId')
 
-  const { data: posRes, isLoading: posLoading } = useGetPositionsQuery(deptId as number, {
-    skip: deptId == null || !isOpen,
-  })
+  const { data: posRes, isLoading: posLoading } = useGetDepartmentPositionsQuery(
+    typeof deptId === 'number' && isOpen ? deptId : skipToken,
+  )
   const positions = posRes?.data ?? []
 
   // Reset tab and photo when modal opens/closes
@@ -156,6 +157,7 @@ export default function EditEmployeeModal({
         probationEndDate: d.probationEndDate || '',
         hireDate: d.dateOfJoining,
         departmentId: d.departmentId,
+        departmentPositionId: d.departmentPositionId ?? null,
         positionId: d.positionId,
       })
     }
@@ -207,7 +209,7 @@ export default function EditEmployeeModal({
       }
 
       const body: EmployeeUpdateRequest = {
-        employeeId: v.staffNo,
+        employeeId: v.staffNo ?? '',
         employeeName: v.employeeName,
         email: v.email,
         staffNrcNo: `${v.nrcStateCode}/${v.nrcTownshipCode}(${v.nrcType})${v.nrcNumber}`,
@@ -221,7 +223,7 @@ export default function EditEmployeeModal({
         emergencyPhone: v.emergencyPhone,
         emergencyRelation: v.emergencyRelation,
         departmentId: v.departmentId!,
-        positionId: v.positionId!,
+        departmentPositionId: v.departmentPositionId!,
         dateOfJoining: v.hireDate,
         // Keep existing type here when converting Probation->Permanent; transition endpoint will update it.
         staffTypeId: isProbationToPermanent ? 2 : v.staffType === 'PROBATION' ? 2 : 1,
@@ -337,13 +339,13 @@ export default function EditEmployeeModal({
                     {activeTab === 'personal' && (
                       <div className="animate-fade-in">
                         <EmployeeInformationStep
-                          register={form.register}
-                          control={form.control}
-                          errors={errors}
-                          setValue={setValue}
+                          register={form.register as never}
+                          control={form.control as never}
+                          errors={errors as never}
+                          setValue={setValue as never}
                           emailDup="idle"
                           staffDup="idle"
-                          autoStaffDisplay={watch('staffNo')}
+                          autoStaffDisplay={watch('staffNo') ?? ''}
                           nextStaffLoading={false}
                           hideStaffBanner={true}
                           readOnlyStaffNo={true}
@@ -361,10 +363,10 @@ export default function EditEmployeeModal({
                     {activeTab === 'family' && (
                       <div className="animate-fade-in">
                         <FamilyEmergencyStep
-                          register={form.register}
-                          control={form.control}
-                          errors={errors}
-                          setValue={setValue}
+                          register={form.register as never}
+                          control={form.control as never}
+                          errors={errors as never}
+                          setValue={setValue as never}
                         />
                       </div>
                     )}
@@ -404,10 +406,10 @@ export default function EditEmployeeModal({
                           </button>
                         </div>
                         <EmploymentInformationStep
-                          register={form.register}
-                          control={form.control}
-                          errors={errors}
-                          setValue={setValue}
+                          register={form.register as never}
+                          control={form.control as never}
+                          errors={errors as never}
+                          setValue={setValue as never}
                           departments={departments}
                           positions={positions}
                           departmentLoading={deptLoading}

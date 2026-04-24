@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
+import { skipToken } from '@reduxjs/toolkit/query'
 import type { UpdateEmploymentStatusRequest, ProbationInfo } from '../../../features/hrEmployeeList/hrEmployeeApi'
 
 import type { SortingState } from '@tanstack/react-table'
@@ -20,7 +21,7 @@ import {
 import ChangeStatusModal from '../../../features/hrEmployeeList/components/ChangeStatusModal'
 import { 
   useGetDepartmentsQuery, 
-  useGetPositionsQuery 
+  useGetDepartmentPositionsQuery 
 } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
 import { useAppSelector } from '../../../app/hooks'
 
@@ -72,7 +73,9 @@ export default function EmployeeListPage() {
 
   // Queries
   const { data: deptData } = useGetDepartmentsQuery()
-  const { data: posData } = useGetPositionsQuery(departmentId)
+  const { data: posData } = useGetDepartmentPositionsQuery(
+    typeof departmentId === 'number' ? departmentId : skipToken
+  )
 
   const { data: empData, isLoading, isFetching } = useGetEmployeesQuery({
     page,

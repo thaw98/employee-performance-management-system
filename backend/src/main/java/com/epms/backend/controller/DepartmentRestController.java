@@ -22,12 +22,9 @@ import com.epms.backend.dto.hr.DepartmentOptionDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.service.DepartmentService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import com.epms.backend.security.UserPrincipal;
-import com.epms.backend.repository.UserRepository;
-import com.epms.backend.entity.User;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
 @RequestMapping("/api/departments")
@@ -35,23 +32,15 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 public class DepartmentRestController {
 
 	private final DepartmentRepository departmentRepository;
-	private final UserRepository userRepository;
 	private final DepartmentService departmentService;
 
 	@GetMapping("/options")
-	@PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'EMPLOYEE')")
-	public ResponseEntity<ApiResponse<List<DepartmentOptionDto>>> listOptions(
-			@AuthenticationPrincipal UserPrincipal principal) {
-		User user = userRepository.findById(principal.getId()).orElseThrow();
-		boolean isHr = user.getRole() != null && "HR".equalsIgnoreCase(user.getRole().getName());
-
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE')")
+	public ResponseEntity<ApiResponse<List<DepartmentOptionDto>>> listOptions() {
 		List<DepartmentOptionDto> rows = departmentRepository.findAll().stream()
 				.filter(this::isActive)
-				.filter(d -> isHr || (user.getEmployee() != null && user.getEmployee().getDepartment() != null
-						&& d.getId().equals(user.getEmployee().getDepartment().getId())))
 				.map(d -> new DepartmentOptionDto(d.getId(), d.getName()))
-				.sorted(Comparator.comparing(DepartmentOptionDto::getDepartmentName,
-						Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+				.sorted(Comparator.comparing(DepartmentOptionDto::getDepartmentName, String.CASE_INSENSITIVE_ORDER))
 				.toList();
 		return ResponseEntity.ok(ApiResponse.ok("Departments", rows));
 	}
@@ -59,23 +48,19 @@ public class DepartmentRestController {
 	@GetMapping
 	@PreAuthorize("hasRole('HR')")
 	public ResponseEntity<ApiResponse<List<DepartmentDto>>> getAll() {
-		return ResponseEntity
-				.ok(ApiResponse.ok("Departments fetched successfully.", departmentService.getAllDepartments()));
+		return ResponseEntity.ok(ApiResponse.ok("Departments fetched successfully.", departmentService.getAllDepartments()));
 	}
 
 	@PostMapping
 	@PreAuthorize("hasRole('HR')")
 	public ResponseEntity<ApiResponse<DepartmentDto>> create(@Valid @RequestBody CreateDepartmentRequest request) {
-		return ResponseEntity
-				.ok(ApiResponse.ok("Department created successfully.", departmentService.createDepartment(request)));
+		return ResponseEntity.ok(ApiResponse.ok("Department created successfully.", departmentService.createDepartment(request)));
 	}
 
 	@PutMapping("/{id}")
 	@PreAuthorize("hasRole('HR')")
-	public ResponseEntity<ApiResponse<DepartmentDto>> update(@PathVariable Long id,
-			@Valid @RequestBody UpdateDepartmentRequest request) {
-		return ResponseEntity.ok(
-				ApiResponse.ok("Department updated successfully.", departmentService.updateDepartment(id, request)));
+	public ResponseEntity<ApiResponse<DepartmentDto>> update(@PathVariable Long id, @Valid @RequestBody UpdateDepartmentRequest request) {
+		return ResponseEntity.ok(ApiResponse.ok("Department updated successfully.", departmentService.updateDepartment(id, request)));
 	}
 
 	@DeleteMapping("/{id}")
@@ -93,3 +78,4 @@ public class DepartmentRestController {
 		return "active".equalsIgnoreCase(s.trim());
 	}
 }
+

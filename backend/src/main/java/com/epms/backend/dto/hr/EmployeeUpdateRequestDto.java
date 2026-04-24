@@ -33,7 +33,7 @@ public class EmployeeUpdateRequestDto {
     private Long departmentId;
     
     @NotNull
-    private Long positionId;
+    private Long departmentPositionId;
     
     private Long managerId;
     

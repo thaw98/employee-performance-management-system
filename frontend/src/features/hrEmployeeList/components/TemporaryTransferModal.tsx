@@ -1,10 +1,11 @@
 import { useState } from 'react'
+import { skipToken } from '@reduxjs/toolkit/query'
 import toast from 'react-hot-toast'
 import { ArrowLeftRight, X } from 'lucide-react'
 
 import {
   useGetDepartmentsQuery,
-  useGetPositionsQuery,
+  useGetDepartmentPositionsQuery,
   type DepartmentOptionDto,
   type PositionOptionDto,
 } from '../../hrCreateEmployee/hrEmployeeAccountApi'
@@ -30,9 +31,9 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
   const { data: deptRes, isLoading: deptLoading } = useGetDepartmentsQuery(undefined, { skip: !isOpen })
   const departments: DepartmentOptionDto[] = deptRes?.data ?? []
 
-  const { data: posRes, isLoading: posLoading } = useGetPositionsQuery(toDepartmentId as number, {
-    skip: !isOpen || !toDepartmentId,
-  })
+  const { data: posRes, isLoading: posLoading } = useGetDepartmentPositionsQuery(
+    isOpen && !!toDepartmentId ? Number(toDepartmentId) : skipToken,
+  )
   const positions: PositionOptionDto[] = posRes?.data ?? []
 
   const [temporaryTransfer, { isLoading }] = useTemporaryTransferMutation()
@@ -128,7 +129,7 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
               >
                 <option value="">{!toDepartmentId ? 'Select a department first' : 'Select position…'}</option>
                 {positions.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.id} value={p.positionId}>{p.positionName} ({p.positionCode})</option>
                 ))}
               </select>
             </div>

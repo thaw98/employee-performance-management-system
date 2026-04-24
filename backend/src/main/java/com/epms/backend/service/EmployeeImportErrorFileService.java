@@ -35,8 +35,7 @@ public class EmployeeImportErrorFileService {
             "phone_number", "gender", "date_of_birth", "hire_date", "staff_type",
             "probation_start_date", "probation_end_date",
             "address", "nationality", "employment_status", "religion",
-            "emergency_contact_name", "emergency_contact_relationship",
-            "emergency_contact_phone", "emergency_contact_address",
+            "emergency_contact_relationship", "emergency_contact_phone",
             "father_name", "father_nrc_no", "father_occupation",
             "Errors"
     };
@@ -88,16 +87,14 @@ public class EmployeeImportErrorFileService {
                 row.createCell(15).setCellValue(strOrEmpty(rd, "nationality"));
                 row.createCell(16).setCellValue(strOrEmpty(rd, "employmentStatus"));
                 row.createCell(17).setCellValue(strOrEmpty(rd, "religion"));
-                row.createCell(18).setCellValue(strOrEmpty(rd, "emergencyContactName"));
-                row.createCell(19).setCellValue(strOrEmpty(rd, "emergencyContactRelationship"));
-                row.createCell(20).setCellValue(strOrEmpty(rd, "emergencyContactPhone"));
-                row.createCell(21).setCellValue(strOrEmpty(rd, "emergencyContactAddress"));
-                row.createCell(22).setCellValue(strOrEmpty(rd, "fatherName"));
-                row.createCell(23).setCellValue(strOrEmpty(rd, "fatherNrcNo"));
-                row.createCell(24).setCellValue(strOrEmpty(rd, "fatherOccupation"));
+                row.createCell(18).setCellValue(strOrEmpty(rd, "emergencyContactRelationship"));
+                row.createCell(19).setCellValue(strOrEmpty(rd, "emergencyContactPhone"));
+                row.createCell(20).setCellValue(strOrEmpty(rd, "fatherName"));
+                row.createCell(21).setCellValue(strOrEmpty(rd, "fatherNrcNo"));
+                row.createCell(22).setCellValue(strOrEmpty(rd, "fatherOccupation"));
 
                 String errors = inv.getErrors() != null ? String.join("; ", inv.getErrors()) : "";
-                Cell errCell = row.createCell(25);
+                Cell errCell = row.createCell(23);
                 errCell.setCellValue(errors);
                 errCell.setCellStyle(errorCellStyle);
             }

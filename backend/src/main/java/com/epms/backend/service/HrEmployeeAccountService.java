@@ -19,6 +19,7 @@ import com.epms.backend.dto.hr.HrCreateEmployeeAccountResponseDto;
 import com.epms.backend.dto.hr.MessageResponseDto;
 import com.epms.backend.dto.hr.NextStaffNoResponseDto;
 import com.epms.backend.entity.Department;
+import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.EmergencyContact;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeDepartmentHistory;
@@ -31,6 +32,7 @@ import com.epms.backend.entity.Position;
 import com.epms.backend.entity.Role;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
+import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
 import com.epms.backend.repository.EmployeeRepository;
@@ -66,6 +68,7 @@ public class HrEmployeeAccountService {
 	private final PositionRepository positionRepository;
 	private final StaffTypeRepository staffTypeRepository;
 	private final EmployeeDepartmentHistoryRepository departmentHistoryRepository;
+	private final DepartmentPositionRepository departmentPositionRepository;
 	private final PositionRoleResolutionService positionRoleResolutionService;
 	private final PasswordEncoder passwordEncoder;
 	private final MailService mailService;
@@ -110,12 +113,26 @@ public class HrEmployeeAccountService {
 			throw new IllegalArgumentException("Department is not active");
 		}
 
-		Position position = positionRepository.findByIdWithRoleAndDepartment(request.getPositionId())
-				.orElseThrow(() -> new IllegalArgumentException("Selected position does not exist."));
-		if (position.getDepartment() == null || position.getDepartment().getId() == null
-				|| !position.getDepartment().getId().equals(department.getId())) {
-			throw new IllegalArgumentException("Position does not belong to the selected department");
+		// Use department_position_id mapping instead of direct position_id
+		DepartmentPosition deptPosition = departmentPositionRepository.findById(request.getDepartmentPositionId())
+				.orElseThrow(() -> new IllegalArgumentException("Department-position mapping not found"));
+
+		// Validate the mapping belongs to the selected department
+		if (!deptPosition.getDepartment().getId().equals(department.getId())) {
+			throw new IllegalArgumentException("Selected position mapping does not belong to the selected department");
 		}
+
+		// Validate mapping is active
+		if (!"Active".equalsIgnoreCase(deptPosition.getStatus())) {
+			throw new IllegalArgumentException("Selected position mapping is not active");
+		}
+
+		Position position = deptPosition.getPosition();
+		// Validate position is active
+		if (!isActiveEntity(position.getStatus())) {
+			throw new IllegalArgumentException("Selected position is not active");
+		}
+
 		Role accountRole = positionRoleResolutionService.resolveRoleFromLoadedPosition(position);
 
 		boolean probation = "PROBATION".equals(request.getStaffType());
@@ -152,6 +169,7 @@ public class HrEmployeeAccountService {
 		employee.setStaffNrcNo(trimToNull(request.getNrc()));
 		employee.setDepartment(department);
 		employee.setPosition(position);
+		employee.setDepartmentPosition(deptPosition);
 		employee.setStaffType(staffTypeEntity);
 		employee.setProbation(probationEntity);
 		if (probationEntity != null) {

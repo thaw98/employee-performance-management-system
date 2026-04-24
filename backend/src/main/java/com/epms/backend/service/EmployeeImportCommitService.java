@@ -52,7 +52,7 @@ public class EmployeeImportCommitService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String TEMP_PW_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
-    private static final int TEMP_PW_LENGTH = 12;
+    private static final int TEMP_PW_LENGTH = 8;
 
     private final EmployeeImportSessionRepository sessionRepository;
     private final EmployeeImportSessionItemRepository itemRepository;
@@ -170,7 +170,6 @@ public class EmployeeImportCommitService {
         String address = strOrEmpty(row, "address").trim();
         String nationality = strOrEmpty(row, "nationality").trim();
         String religion = strOrEmpty(row, "religion").trim();
-        String emergencyName = strOrEmpty(row, "emergencyContactName").trim();
         String emergencyRel = strOrEmpty(row, "emergencyContactRelationship").trim();
         String emergencyPhone = strOrEmpty(row, "emergencyContactPhone").trim();
         String fatherName = strOrEmpty(row, "fatherName").trim();
@@ -232,7 +231,7 @@ public class EmployeeImportCommitService {
 
         // Emergency contact
         EmergencyContact ec = new EmergencyContact();
-        ec.setRelation(emergencyRel.isEmpty() ? emergencyName : emergencyRel);
+        ec.setRelation(emergencyRel);
         ec.setEmergencyPhone(emergencyPhone);
         employee.setEmergencyContact(ec);
 

@@ -18,7 +18,6 @@ export type EmployeeImportRowData = {
   emergencyContactName: string
   emergencyContactRelationship: string
   emergencyContactPhone: string
-  emergencyContactAddress: string
   fatherName: string
   fatherPhone: string
   fatherAddress: string

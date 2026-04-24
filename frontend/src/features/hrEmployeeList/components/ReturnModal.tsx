@@ -1,9 +1,10 @@
 import { useState } from 'react'
+import { skipToken } from '@reduxjs/toolkit/query'
 import toast from 'react-hot-toast'
 import { RotateCcw, X } from 'lucide-react'
 
 import {
-  useGetPositionsQuery,
+  useGetDepartmentPositionsQuery,
   type PositionOptionDto,
 } from '../../hrCreateEmployee/hrEmployeeAccountApi'
 import { useReturnFromTemporaryMutation, useGetHomeDepartmentQuery } from '../employeeMovementApi'
@@ -30,9 +31,9 @@ export function ReturnModal({ isOpen, employeeId, employeeName, onClose, onSucce
   })
   const homeDept = homeRes?.data
 
-  const { data: posRes, isLoading: posLoading } = useGetPositionsQuery(homeDept?.departmentId ?? 0, {
-    skip: !isOpen || !homeDept?.departmentId,
-  })
+  const { data: posRes, isLoading: posLoading } = useGetDepartmentPositionsQuery(
+    isOpen && !!homeDept?.departmentId ? homeDept.departmentId : skipToken,
+  )
   const positions: PositionOptionDto[] = posRes?.data ?? []
 
   const [returnFromTemporary, { isLoading }] = useReturnFromTemporaryMutation()
@@ -125,7 +126,7 @@ export function ReturnModal({ isOpen, employeeId, employeeName, onClose, onSucce
               >
                 <option value="">{!homeDept ? 'Loading home department…' : 'Select position…'}</option>
                 {positions.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.id} value={p.positionId}>{p.positionName} ({p.positionCode})</option>
                 ))}
               </select>
             </div>

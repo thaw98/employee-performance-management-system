@@ -50,7 +50,7 @@ public class UserAccountPositionRoleSyncService {
 					continue;
 				}
 				Long positionId = employee.getPosition().getId();
-				Position position = positionRepository.findByIdWithRoleAndDepartment(positionId)
+				Position position = positionRepository.findByIdWithLevelCodeAndRole(positionId)
 						.orElse(null);
 				if (position == null) {
 					skippedPositionNotFound++;

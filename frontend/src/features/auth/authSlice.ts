@@ -13,6 +13,7 @@ const USER_KEY = 'epms_user';
 
 // Load from storage
 const loadToken = (): string | null => {
+  // Keep a fallback to sessionStorage for users logged in before this fix.
   return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
 };
 
@@ -40,19 +41,17 @@ export const authSlice = createSlice({
       state,
       action: PayloadAction<{ token: string; user: User; rememberMe?: boolean }>
     ) => {
-      const { token, user, rememberMe = false } = action.payload;
+      const { token, user } = action.payload;
       state.token = token;
       state.user = user;
       state.isAuthenticated = true;
 
-      const storage = rememberMe ? localStorage : sessionStorage;
-      storage.setItem(TOKEN_KEY, token);
-      storage.setItem(USER_KEY, JSON.stringify(user));
-
-      // Clear from other storage
-      const otherStorage = rememberMe ? sessionStorage : localStorage;
-      otherStorage.removeItem(TOKEN_KEY);
-      otherStorage.removeItem(USER_KEY);
+      // Always persist auth in localStorage so sessions survive new tabs/reopen.
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      // Clean up legacy session copy to avoid split-session behavior.
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
     },
     updateUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {

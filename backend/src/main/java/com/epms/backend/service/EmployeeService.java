@@ -199,12 +199,11 @@ public class EmployeeService {
 		}
 
 		if (positionId != null) {
-			Position position = positionRepository.findByIdWithRoleAndDepartment(positionId)
+			Position position = positionRepository.findByIdWithLevelCodeAndRole(positionId)
 					.orElseThrow(() -> new IllegalArgumentException("Selected position does not exist."));
 			if (department == null) {
 				throw new IllegalArgumentException("Position requires a department");
 			}
-			assertPositionBelongsToDepartment(position, department);
 			positionRoleResolutionService.resolveRoleFromLoadedPosition(position);
 			employee.setPosition(position);
 		} else if (required) {
@@ -337,13 +336,6 @@ public class EmployeeService {
 				userRepository.save(user);
 			}
 		});
-	}
-
-	private static void assertPositionBelongsToDepartment(Position position, Department department) {
-		Department positionDepartment = position.getDepartment();
-		if (positionDepartment != null && !positionDepartment.getId().equals(department.getId())) {
-			throw new IllegalArgumentException("Position does not belong to the selected department");
-		}
 	}
 
 	private void validateRequiredBusinessRules(EmployeeInfoRequestDto request, boolean isCreate, Long excludeId) {

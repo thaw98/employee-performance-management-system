@@ -2,9 +2,9 @@ package com.epms.backend.service;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,15 +21,31 @@ import lombok.RequiredArgsConstructor;
 public class DepartmentServiceImpl implements DepartmentService {
 
     private final DepartmentRepository departmentRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     private static final String STATUS_ACTIVE = "Active";
     private static final String STATUS_INACTIVE = "Inactive";
 
     @Override
     public List<DepartmentDto> getAllDepartments() {
-        return departmentRepository.findAll().stream()
-                .map(this::mapToDto)
-                .collect(Collectors.toList());
+        return jdbcTemplate.query("""
+                SELECT
+                    department_id,
+                    department_code,
+                    department_name,
+                    status,
+                    created_date,
+                    updated_date
+                FROM department
+                ORDER BY department_id ASC
+                """, (rs, rowNum) -> DepartmentDto.builder()
+                .departmentId(rs.getLong("department_id"))
+                .departmentCode(rs.getString("department_code"))
+                .departmentName(rs.getString("department_name"))
+                .status(rs.getString("status"))
+                .createdDate(rs.getTimestamp("created_date") == null ? null : rs.getTimestamp("created_date").toInstant())
+                .updatedDate(rs.getTimestamp("updated_date") == null ? null : rs.getTimestamp("updated_date").toInstant())
+                .build());
     }
 
     @Override

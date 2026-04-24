@@ -42,10 +42,24 @@ export function AppSidebar() {
           ? [
               {
                 name: 'Employees',
-                path: '/hr/employee-account',
+                path: '/hr/employees',
                 icon: 'bi-person-badge',
                 end: false,
-                subItems: [{ name: 'Create Employee Account', path: '/hr/employees/create-account' }],
+                subItems: [
+                  { name: 'Create Employee Account', path: '/hr/employees/create-account' },
+                ],
+              },
+              {
+                name: 'Positions',
+                path: '/hr/positions',
+                icon: 'bi-diagram-3',
+                end: true,
+              },
+              {
+                name: 'Department-Position Mapping',
+                path: '/hr/department-position-mappings',
+                icon: 'bi-diagram-2',
+                end: true,
               },
             ]
           : []),

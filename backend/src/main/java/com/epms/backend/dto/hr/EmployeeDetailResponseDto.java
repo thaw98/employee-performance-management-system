@@ -21,8 +21,14 @@ public class EmployeeDetailResponseDto {
     private String staffNrcNo;
     private Gender gender;
     private String religion;
+    private LocalDate dateOfBirth;
+    private String phoneNo;
+    private String address;
+    private String nationality;
+    private String status;
     private Long departmentId;
     private String departmentName;
+    private Long departmentPositionId;
     private Long positionId;
     private String positionName;
     private Long managerId;
