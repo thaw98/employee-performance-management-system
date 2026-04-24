@@ -36,8 +36,8 @@ import { AppraisalsPage } from './pages/hr/AppraisalsPage';
 import { GiveFeedbackPage } from './pages/GiveFeedbackPage';
 import { FeedbackHistoryPage } from './pages/FeedbackHistoryPage';
 import { GetFeedbackPage } from './pages/GetFeedbackPage';
-import { KpiManagementPage } from './pages/hr/KpiManagementPage';
-import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
+//import { KpiManagementPage } from './pages/hr/KpiManagementPage';
+//import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
 import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
 import PositionListPage from './features/position/pages/PositionListPage';
@@ -79,8 +79,8 @@ function App() {
               <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
               <Route path="appraisals" element={<AppraisalsPage />} />
               <Route path="appraisals/submissions" element={<AppraisalSubmissionsPage />} />
-              <Route path="kpi-management" element={<KpiManagementPage />} />
-              <Route path="kpi-assigned" element={<KpiAssignedPage />} />
+              {/*<Route path="kpi-management" element={<KpiManagementPage />} />
+               <Route path="kpi-assigned" element={<KpiAssignedPage />} />*/}
               <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
               <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
             </Route>
