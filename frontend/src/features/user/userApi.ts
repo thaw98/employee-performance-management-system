@@ -9,6 +9,7 @@ export interface UserProfileDto {
   role: string
   /** Relative path (e.g. /api/public/profile-pictures/...) or absolute URL */
   profilePictureUrl?: string
+  theme?: string
 }
 
 export interface ProfilePictureUploadResponseDto {
@@ -51,6 +52,14 @@ export const userApi = baseApi.injectEndpoints({
         }
       },
     }),
+    updateProfile: builder.mutation<ApiResponse<UserProfileDto>, Partial<UserProfileDto>>({
+      query: (body) => ({
+        url: '/users/profile',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['UserProfile'],
+    }),
     changePassword: builder.mutation<ApiResponse<null>, ChangePasswordRequestDto>({
       query: (body) => ({
         url: '/auth/change-password',
@@ -65,5 +74,6 @@ export const {
   useGetProfileQuery,
   useUpdateProfilePictureMutation,
   useUploadProfilePictureMutation,
+  useUpdateProfileMutation,
   useChangePasswordMutation,
 } = userApi

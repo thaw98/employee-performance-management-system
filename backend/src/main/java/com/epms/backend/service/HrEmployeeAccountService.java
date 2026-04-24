@@ -36,7 +36,6 @@ import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
 import com.epms.backend.repository.EmployeeRepository;
-import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.UserPrincipal;
@@ -65,7 +64,6 @@ public class HrEmployeeAccountService {
 	private final EmployeeRepository employeeRepository;
 	private final UserRepository userRepository;
 	private final DepartmentRepository departmentRepository;
-	private final PositionRepository positionRepository;
 	private final StaffTypeRepository staffTypeRepository;
 	private final EmployeeDepartmentHistoryRepository departmentHistoryRepository;
 	private final DepartmentPositionRepository departmentPositionRepository;
@@ -75,7 +73,8 @@ public class HrEmployeeAccountService {
 	private final AuditService auditService;
 
 	@Transactional
-	public HrCreateEmployeeAccountResponseDto createAccount(HrCreateEmployeeAccountRequestDto request, UserPrincipal principal) {
+	public HrCreateEmployeeAccountResponseDto createAccount(HrCreateEmployeeAccountRequestDto request,
+			UserPrincipal principal) {
 		if (principal.getRoleId() == null || !principal.getRoleId().equals(HR_ROLE_ID)) {
 			throw new IllegalArgumentException("Only HR can create employee accounts");
 		}
@@ -136,7 +135,8 @@ public class HrEmployeeAccountService {
 		Role accountRole = positionRoleResolutionService.resolveRoleFromLoadedPosition(position);
 
 		boolean probation = "PROBATION".equals(request.getStaffType());
-		StaffType staffTypeEntity = staffTypeRepository.findById(probation ? STAFF_TYPE_PROBATION_ID : STAFF_TYPE_PERMANENT_ID)
+		StaffType staffTypeEntity = staffTypeRepository
+				.findById(probation ? STAFF_TYPE_PROBATION_ID : STAFF_TYPE_PERMANENT_ID)
 				.orElseThrow(() -> new IllegalStateException("Staff type master data is missing"));
 		EmployeeProbation probationEntity = null;
 		if (probation) {
