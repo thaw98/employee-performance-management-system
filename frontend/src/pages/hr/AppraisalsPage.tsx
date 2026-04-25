@@ -18,7 +18,7 @@ import {
     sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, HelpCircle, GripVertical, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, HelpCircle, GripVertical, Download, RotateCcw } from 'lucide-react';
 
 const PRIMARY = '#0855BF';
 
@@ -90,40 +90,6 @@ function SortableCategoryRow({ category, index, isConfirmed, onConfirm, onEdit, 
     );
 }
 
-interface ConfirmedPreviewRowProps {
-    category: Category;
-    categoryQuestions: Question[];
-    startIndex: number;
-}
-
-function ConfirmedPreviewRows({ category, categoryQuestions, startIndex }: ConfirmedPreviewRowProps) {
-    if (categoryQuestions.length === 0) return null;
-
-    return (
-        <>
-            {categoryQuestions.map((q, idx) => (
-                <tr key={q.id} className="border-b border-slate-200 hover:bg-slate-50/50 transition-colors">
-                    {idx === 0 && (
-                        <td
-                            rowSpan={categoryQuestions.length}
-                            className="p-4 border-r border-slate-200 bg-slate-50/30 text-center font-black text-slate-700 w-48 align-middle"
-                        >
-                            <div className="rotate-[-90deg] whitespace-nowrap uppercase tracking-widest text-[10px] leading-none">
-                                {category.name}
-                            </div>
-                        </td>
-                    )}
-                    <td className="p-4 text-center border-r border-slate-200 font-bold text-slate-400 w-16">
-                        {startIndex + idx}
-                    </td>
-                    <td className="p-4 text-sm font-medium text-slate-600 leading-relaxed">
-                        {q.questionText}
-                    </td>
-                </tr>
-            ))}
-        </>
-    );
-}
 
 interface SortableQuestionRowProps {
     question: Question;
@@ -172,9 +138,10 @@ interface ConfirmedAppraisalViewProps {
     onRemove: (id: number) => void;
     onConfirm: () => void;
     isFinalizedView?: boolean;
+    onReset?: () => void;
 }
 
-function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onRemove, onConfirm, isFinalizedView = false }: ConfirmedAppraisalViewProps) {
+function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onRemove, onConfirm, onReset, isFinalizedView = false }: ConfirmedAppraisalViewProps) {
     const [allQuestions, setAllQuestions] = useState<Record<number, Question[]>>({});
     const [showPicker, setShowPicker] = useState(false);
 
@@ -202,8 +169,13 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Action Bar */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-3xl border border-slate-100 shadow-sm gap-4">
+            {/* Print Title (Optional, just the name of the form) */}
+            <div className="hidden print:block mb-6 text-center">
+                <h1 className="text-xl font-black text-slate-900 uppercase">Performance Appraisal Form</h1>
+            </div>
+
+            {/* Action Bar - Hidden in Print */}
+            <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-3xl border border-slate-100 shadow-sm gap-4 print:hidden">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
                         <CheckCircle2 size={24} />
@@ -221,14 +193,14 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                         <div className="relative flex-1 md:w-64">
                             <button
                                 onClick={() => setShowPicker(!showPicker)}
-                                className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-[10px] text-slate-500 uppercase tracking-widest hover:border-blue-400 transition-all"
+                                className="w-full flex items-center justify-between px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-[10px] text-slate-400 uppercase tracking-widest hover:border-blue-400 hover:bg-white hover:text-blue-500 transition-all group"
                             >
                                 <span>Pick a Category...</span>
-                                <Plus size={16} />
+                                <Plus size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
                             </button>
 
                             {showPicker && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                                <div className="absolute top-full left-0 right-0 mt-3 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-[2rem] shadow-2xl z-50 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-2 p-2">
                                     {availableToPick.length === 0 ? (
                                         <p className="p-4 text-[10px] font-black text-slate-300 uppercase text-center">All categories picked</p>
                                     ) : (
@@ -236,7 +208,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                             <button
                                                 key={ac.id}
                                                 onClick={() => { onAdd(ac.id!); setShowPicker(false); }}
-                                                className="w-full text-left p-4 hover:bg-slate-50 text-xs font-black text-slate-600 uppercase border-b border-slate-50 last:border-0"
+                                                className="w-full text-left p-4 hover:bg-blue-600 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all mb-1 last:mb-0"
                                             >
                                                 {ac.name}
                                             </button>
@@ -251,79 +223,107 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                         <button
                             onClick={onConfirm}
                             disabled={categories.length === 0}
-                            className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white rounded-2xl font-black text-xs hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 disabled:opacity-50 disabled:grayscale"
+                            className="flex items-center gap-3 px-8 py-3.5 bg-gradient-to-r from-emerald-500 via-teal-600 to-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(16,185,129,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 disabled:opacity-50 disabled:grayscale group"
                         >
-                            <CheckCircle2 size={16} strokeWidth={3} /> CONFIRM & FINALIZE
+                            <CheckCircle2 size={18} strokeWidth={3} className="group-hover:rotate-12 transition-transform" /> 
+                            <span>Confirm & Finalize</span>
                         </button>
                     ) : (
-                        <button
-                            onClick={() => window.print()}
-                            className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 whitespace-nowrap"
-                        >
-                            <Download size={16} /> EXPORT PDF
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={onReset}
+                                className="flex items-center gap-3 px-8 py-3.5 bg-white border-2 border-slate-100 text-slate-400 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all shadow-sm"
+                            >
+                                <RotateCcw size={18} /> <span>Modify / Edit</span>
+                            </button>
+                            <button
+                                onClick={() => window.print()}
+                                className="flex items-center gap-3 px-8 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 hover:shadow-[0_20px_40px_rgba(15,23,42,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-slate-100 whitespace-nowrap"
+                            >
+                                <Download size={18} /> <span>Export PDF</span>
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
 
-            {/* Excel Style Table */}
-            <div className="bg-white rounded-[40px] border-4 border-slate-100 overflow-hidden shadow-2xl print:border-0">
-                <table className="w-full border-collapse">
+            {/* Premium Table Container */}
+            <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-[0_20px_50px_rgba(8,117,191,0.05)] print:border-slate-800 print:rounded-none print:shadow-none print:border-2">
+                <table className="w-full border-separate border-spacing-0">
                     <thead>
-                        <tr className="bg-slate-900 text-white border-b-2 border-slate-800">
-                            <th className="p-5 text-xs font-black uppercase tracking-widest text-center w-32 border-r border-slate-800">Category</th>
-                            <th className="p-5 text-xs font-black uppercase tracking-widest text-center w-16 border-r border-slate-800">No.</th>
-                            <th className="p-5 text-xs font-black uppercase tracking-widest text-left">Evaluation Criteria & Performance Indicators</th>
-                            {!isFinalizedView && <th className="p-5 text-xs font-black uppercase tracking-widest text-center w-24">Control</th>}
+                        <tr className="bg-gradient-to-r from-[#0855BF] to-[#0a66e6] print:from-white print:to-white print:text-black">
+                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-28 border-b border-blue-400/20 print:text-slate-900 print:border-slate-800 print:border-b-2">Category</th>
+                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-16 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">No.</th>
+                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-left border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">Evaluation Criteria & Performance Indicators</th>
+                            {!isFinalizedView && (
+                                <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-24 border-b border-blue-400/20 border-l border-blue-400/10">Action</th>
+                            )}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="">
                         {categories.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className="p-20 text-center text-slate-300 font-black italic uppercase tracking-widest">
-                                    No categories selected. Go to CATEGORY tab to select.
+                                <td colSpan={4} className="p-24 text-center">
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
+                                            <HelpCircle size={32} />
+                                        </div>
+                                        <p className="text-sm font-black text-slate-300 uppercase tracking-widest italic">
+                                            No categories selected. Go to CATEGORY tab to select.
+                                        </p>
+                                    </div>
                                 </td>
                             </tr>
                         ) : (
                             categories.map((cat) => {
                                 const qList = allQuestions[cat.id!] || [];
-                                const rows = (
+                                return (
                                     <React.Fragment key={cat.id}>
                                         {qList.length > 0 ? (
                                             qList.map((q, idx) => {
                                                 const currentIndex = globalIndex++;
                                                 return (
-                                                    <tr key={q.id} className="hover:bg-slate-50/50 transition-colors group">
+                                                    <tr key={q.id} className="group transition-all hover:bg-blue-50/30">
                                                         {idx === 0 && (
                                                             <td
                                                                 rowSpan={qList.length}
-                                                                className="p-6 border-r border-slate-200 bg-slate-50/50 text-center align-middle w-32 relative overflow-hidden"
+                                                                className="p-0 border-r border-slate-100 bg-slate-50/40 align-middle w-28 relative group-hover:bg-blue-50/50 transition-colors print:border-slate-800 print:border-r-2"
                                                             >
-                                                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-90deg] whitespace-nowrap">
-                                                                    <span className="font-black text-slate-800 text-[11px] uppercase tracking-[0.2em]">
-                                                                        {cat.name}
-                                                                    </span>
+                                                                <div className="flex items-center justify-center h-full min-h-[120px]">
+                                                                    <div className="rotate-[-90deg] whitespace-nowrap">
+                                                                        <span className="font-black text-[#0855BF] text-[10px] uppercase tracking-[0.3em] opacity-60 print:text-slate-900 print:opacity-100 italic">
+                                                                            {cat.name}
+                                                                        </span>
+                                                                    </div>
                                                                 </div>
-                                                                {/* Decorative grid lines inside rowSpan cell to mimic Excel */}
-                                                                <div className="absolute inset-x-0 top-0 h-px bg-slate-100" />
-                                                                <div className="absolute inset-x-0 bottom-0 h-px bg-slate-100" />
+                                                                {/* Accent Line for Category Section */}
+                                                                <div className="absolute left-0 top-4 bottom-4 w-1 bg-blue-500 rounded-r-full print:hidden" />
                                                             </td>
                                                         )}
-                                                        <td className="p-6 text-center border-r border-slate-200 font-black text-slate-400 bg-white group-hover:text-blue-600 transition-colors">
-                                                            {currentIndex}
+                                                        <td className="p-6 text-center border-r border-slate-100 border-b border-slate-50 font-black text-slate-400 group-hover:text-blue-500 transition-colors w-16 print:border-slate-800 print:border-r-2 print:border-b-2 print:text-slate-900">
+                                                            {currentIndex.toString().padStart(2, '0')}
                                                         </td>
-                                                        <td className="p-6 text-sm font-bold text-slate-700 leading-relaxed bg-white">
-                                                            {q.questionText}
+                                                        <td className="p-6 text-sm font-bold text-slate-700 leading-relaxed border-b border-slate-50 print:border-slate-800 print:border-b-2 print:text-black">
+                                                            <div className="flex items-start gap-4">
+                                                                <div className="min-w-[4px] h-4 mt-1 bg-slate-200 rounded-full group-hover:bg-blue-300 transition-colors print:hidden" />
+                                                                {q.questionText}
+                                                            </div>
                                                         </td>
-                                                        {!isFinalizedView && (
-                                                            <td className="p-6 text-center bg-white border-l border-slate-50">
+                                                        {!isFinalizedView && idx === 0 && (
+                                                            <td 
+                                                                rowSpan={qList.length} 
+                                                                className="p-6 text-center border-l border-slate-100 align-middle w-24 bg-slate-50/20 group-hover:bg-blue-50/40 transition-colors"
+                                                            >
                                                                 <button
                                                                     onClick={() => onRemove(cat.id!)}
-                                                                    className="w-8 h-8 rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center mx-auto opacity-0 group-hover:opacity-100"
-                                                                    title="Remove Category"
+                                                                    className="w-12 h-12 rounded-[1.25rem] bg-white border border-slate-200 text-slate-300 hover:bg-red-50 hover:text-red-500 hover:border-red-200 hover:scale-110 active:scale-95 transition-all flex items-center justify-center mx-auto shadow-sm group/btn"
+                                                                    title="Remove Entire Category"
                                                                 >
-                                                                    <Trash2 size={14} />
+                                                                    <Trash2 size={20} className="group-hover/btn:animate-pulse" />
                                                                 </button>
+                                                                <div className="mt-2 text-[8px] font-black text-slate-300 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    Remove
+                                                                </div>
                                                             </td>
                                                         )}
                                                     </tr>
@@ -331,32 +331,31 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                             })
                                         ) : (
                                             <tr key={`empty-${cat.id}`}>
-                                                <td className="p-6 border-r border-slate-200 bg-slate-50/50 text-center font-black text-slate-400 text-[10px] uppercase truncate">
-                                                    {cat.name}
+                                                <td className="p-6 border-r border-slate-100 bg-slate-50/40 text-center relative">
+                                                    <div className="rotate-[-90deg] whitespace-nowrap">
+                                                         <span className="font-black text-slate-300 text-[10px] uppercase tracking-[0.3em]">
+                                                            {cat.name}
+                                                        </span>
+                                                    </div>
+                                                    <div className="absolute left-0 top-4 bottom-4 w-1 bg-slate-200 rounded-r-full" />
                                                 </td>
-                                                <td colSpan={3} className="p-6 text-center text-slate-300 italic text-xs font-bold">
-                                                    (No questions added to this category)
+                                                <td colSpan={3} className="p-12 text-center border-b border-slate-50">
+                                                    <div className="flex flex-col items-center gap-2 opacity-30">
+                                                        <HelpCircle size={20} className="text-slate-400" />
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No questions added</p>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         )}
                                     </React.Fragment>
                                 );
-                                return rows;
                             })
                         )}
                     </tbody>
                 </table>
             </div>
 
-            {/* Footer Signatures Area (Excel Style) */}
-            <div className="mt-12 grid grid-cols-2 gap-20 p-12 bg-white rounded-[40px] border-4 border-dashed border-slate-100 opacity-50">
-                <div className="border-t-2 border-slate-200 pt-4 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Department Head Signature</p>
-                </div>
-                <div className="border-t-2 border-slate-200 pt-4 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">HR Manager Signature</p>
-                </div>
-            </div>
+
         </div>
     );
 }
@@ -561,8 +560,8 @@ export function AppraisalsPage() {
 
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50">
+            {/* Header - Hidden in Print */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50 print:hidden">
                 <div>
                     <h1 className="text-4xl font-black tracking-tight" style={{ color: PRIMARY }}>Appraisals Management</h1>
                     <p className="text-slate-500 mt-2 font-medium">Configure performance appraisal categories and their specific questions.</p>
@@ -602,6 +601,9 @@ export function AppraisalsPage() {
                     onAdd={() => {}}
                     onRemove={() => {}}
                     onConfirm={() => {}}
+                    onReset={() => {
+                        setActiveTab('confirmed');
+                    }}
                     isFinalizedView={true}
                 />
             ) : activeTab === 'confirmed' ? (
