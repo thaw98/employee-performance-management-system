@@ -15,4 +15,7 @@ public class UserProfileDto {
     private String role;
     private String profilePictureUrl;
     private String theme;
+    private String wallpaperUrl;
+    private String language;
+    private String timezone;
 }
