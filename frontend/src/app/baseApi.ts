@@ -26,6 +26,7 @@ export const baseApi = createApi({
     'Position',
     'Mapping',
     'Lookup',
+    'KPI',
   ],
   endpoints: () => ({}),
 });
