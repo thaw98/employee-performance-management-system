@@ -9,11 +9,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "kpis")
+@Table(name = "employeekpis")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Kpi {
+public class EmployeeKpi {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

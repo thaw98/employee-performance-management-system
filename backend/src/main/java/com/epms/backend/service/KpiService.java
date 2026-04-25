@@ -2,7 +2,7 @@ package com.epms.backend.service;
 
 import com.epms.backend.dto.KpiDto;
 import com.epms.backend.entity.Employee;
-import com.epms.backend.entity.Kpi;
+import com.epms.backend.entity.EmployeeKpi;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.KpiRepository;
 import org.springframework.stereotype.Service;
@@ -32,7 +32,8 @@ public class KpiService {
 
     @Transactional
     public List<KpiDto> saveKpis(List<KpiDto> kpiDtos) {
-        if (kpiDtos.isEmpty()) return List.of();
+        if (kpiDtos.isEmpty())
+            return List.of();
 
         BigDecimal totalWeight = kpiDtos.stream()
                 .map(KpiDto::getWeight)
@@ -46,14 +47,14 @@ public class KpiService {
         String period = kpiDtos.get(0).getPeriod();
 
         // Delete existing KPIs for this employee and period to replace them
-        List<Kpi> existing = kpiRepository.findByEmployee_IdAndPeriod(employeeId, period);
+        List<EmployeeKpi> existing = kpiRepository.findByEmployee_IdAndPeriod(employeeId, period);
         kpiRepository.deleteAll(existing);
 
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        List<Kpi> kpis = kpiDtos.stream().map(dto -> {
-            Kpi kpi = new Kpi();
+        List<EmployeeKpi> kpis = kpiDtos.stream().map(dto -> {
+            EmployeeKpi kpi = new EmployeeKpi();
             kpi.setEmployee(employee);
             kpi.setName(dto.getName());
             kpi.setCategory(dto.getCategory());
@@ -71,7 +72,7 @@ public class KpiService {
         return kpiRepository.saveAll(kpis).stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
-    private KpiDto convertToDto(Kpi kpi) {
+    private KpiDto convertToDto(EmployeeKpi kpi) {
         KpiDto dto = new KpiDto();
         dto.setId(kpi.getId());
         dto.setEmployeeId(kpi.getEmployee().getId());
