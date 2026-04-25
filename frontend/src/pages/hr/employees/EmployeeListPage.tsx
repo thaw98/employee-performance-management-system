@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { skipToken } from '@reduxjs/toolkit/query'
 import type { UpdateEmploymentStatusRequest, ProbationInfo } from '../../../features/hrEmployeeList/hrEmployeeApi'
 
@@ -35,6 +35,7 @@ export default function EmployeeListPage() {
   const user = useAppSelector((s) => s.auth.user)
   const token = useAppSelector((s) => s.auth.token)
   const isHR = user?.roleId === 1
+  const isDepartmentManager = user?.roleId === 2
 
   // State for filters and pagination
   const [page, setPage] = useState(0)
@@ -79,16 +80,18 @@ export default function EmployeeListPage() {
     typeof departmentId === 'number' ? departmentId : skipToken
   )
 
-  const { data: empData, isLoading, isFetching } = useGetEmployeesQuery({
+  const employeeQueryParams = useMemo(() => ({
     page,
     size,
     search,
-    departmentId,
-    positionId,
+    departmentId: isHR ? departmentId : undefined,
+    positionId: isHR ? positionId : undefined,
     employmentStatus,
     sortBy: sorting[0]?.id || 'staffNo',
     sortDir: sorting[0]?.desc ? 'desc' : 'asc'
-  })
+  }), [page, size, search, isHR, departmentId, positionId, employmentStatus, sorting])
+
+  const { data: empData, isLoading, isFetching, error: employeeListError } = useGetEmployeesQuery(employeeQueryParams)
 
   // Memoize filter options to prevent unnecessary recreations
   const departments = useMemo(() => deptData?.data || [], [deptData?.data])
@@ -106,6 +109,16 @@ export default function EmployeeListPage() {
     triggerGetEmployeeView,
     { data: viewData, isLoading: isViewLoading, isError: isViewError },
   ] = useLazyGetEmployeeViewByIdQuery()
+
+  useEffect(() => {
+    if (!employeeListError) return
+    const message = employeeListError && typeof employeeListError === 'object' && 'data' in employeeListError
+      ? (employeeListError as { data?: { message?: string } }).data?.message
+      : undefined
+    if (message === 'Your department information is not configured. Please contact HR.') {
+      toast.error(message)
+    }
+  }, [employeeListError])
 
   // Handlers
   const handleSearchChange = useCallback((val: string) => {
@@ -146,9 +159,19 @@ export default function EmployeeListPage() {
     setEditEmployeeId(null)
   }, [])
 
-  const handleView = useCallback((id: number) => {
+  const handleView = useCallback(async (id: number) => {
     setSelectedViewEmployeeId(id)
-    triggerGetEmployeeView(id, true) // `true` forces refetch
+    try {
+      await triggerGetEmployeeView(id, true).unwrap()
+    } catch (error: unknown) {
+      const status = error && typeof error === 'object' && 'status' in error
+        ? (error as { status?: number }).status
+        : undefined
+      if (status === 403) {
+        toast.error('You are not allowed to view this employee.')
+        setSelectedViewEmployeeId(null)
+      }
+    }
   }, [triggerGetEmployeeView])
 
   const handleCloseViewModal = useCallback(() => {
@@ -348,6 +371,7 @@ export default function EmployeeListPage() {
         departments={departments}
         positions={positions}
         onReset={handleReset}
+        showDepartmentPositionFilters={isHR}
       />
 
       <EmployeeTable
@@ -360,6 +384,7 @@ export default function EmployeeListPage() {
         onChangeStatus={handleChangeStatus}
         sorting={sorting}
         setSorting={setSorting}
+        isHR={isHR}
       />
 
       {/* Pagination */}
@@ -503,6 +528,7 @@ export default function EmployeeListPage() {
         isLoading={isViewLoading}
         isError={isViewError}
         onRetry={handleRetryView}
+        hideSensitiveFields={isDepartmentManager}
       />
 
       {/* Employee Import Modal */}

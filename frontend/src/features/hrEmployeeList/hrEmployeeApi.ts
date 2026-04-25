@@ -7,6 +7,8 @@ export interface EmployeeListItem {
   employeeName: string
   departmentName: string
   positionName: string
+  staffTypeName?: string
+  phoneNumber?: string
   profilePictureUrl: string
   email: string
   mustChangePassword: boolean | null

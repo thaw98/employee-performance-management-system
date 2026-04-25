@@ -32,13 +32,12 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('HR')")
+@PreAuthorize("principal.roleId == 1")
 public class EmployeeController {
 	private final EmployeeService employeeService;
 	private final EmployeeExportService employeeExportService;
 
 	@GetMapping("/export")
-	@PreAuthorize("hasRole('HR') and principal.roleId == 1")
 	public ResponseEntity<byte[]> exportEmployees() {
 		byte[] bytes = employeeExportService.exportEmployees();
 		String filename = "employees_export_" + LocalDate.now() + ".xlsx";
