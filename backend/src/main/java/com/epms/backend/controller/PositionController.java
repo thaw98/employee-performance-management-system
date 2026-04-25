@@ -1,5 +1,7 @@
 package com.epms.backend.controller;
 
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.epms.backend.common.ApiResponse;
+import com.epms.backend.dto.position.AssignedDepartmentDto;
 import com.epms.backend.dto.position.CreatePositionRequest;
 import com.epms.backend.dto.position.PositionDto;
 import com.epms.backend.dto.position.PositionListResponse;
@@ -47,6 +50,12 @@ public class PositionController {
 	@PreAuthorize("hasRole('HR')")
 	public ResponseEntity<ApiResponse<PositionDto>> getPositionById(@PathVariable Long id) {
 		return ResponseEntity.ok(ApiResponse.ok("Position fetched successfully.", positionService.getPositionById(id)));
+	}
+
+	@GetMapping("/{id}/departments")
+	@PreAuthorize("hasRole('HR') and principal.roleId == 1")
+	public ResponseEntity<List<AssignedDepartmentDto>> getDepartmentsByPositionId(@PathVariable Long id) {
+		return ResponseEntity.ok(positionService.getDepartmentsByPositionId(id));
 	}
 
 	@PostMapping

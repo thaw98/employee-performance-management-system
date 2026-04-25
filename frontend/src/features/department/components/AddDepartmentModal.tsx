@@ -10,7 +10,6 @@ import { useCreateDepartmentMutation } from '../api/departmentApi'
 const departmentSchema = z.object({
   departmentCode: z.string().trim().min(1, 'Department code is required.'),
   departmentName: z.string().trim().min(1, 'Department name is required.'),
-  status: z.enum(['Active', 'Inactive']),
 })
 
 type DepartmentFormValues = z.infer<typeof departmentSchema>
@@ -32,7 +31,6 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
     formState: { errors },
   } = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentSchema),
-    defaultValues: { status: 'Active' },
   })
 
   const handleClose = () => {
@@ -162,28 +160,6 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
                         {errors.departmentName.message}
                       </p>
                     )}
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <label htmlFor="add-dept-status" className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                      Status
-                    </label>
-                    <select
-                      id="add-dept-status"
-                      {...register('status')}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800
-                        focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-400 focus:ring-offset-0
-                        outline-none transition-all cursor-pointer appearance-none"
-                      style={{
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right 14px center',
-                      }}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
                   </div>
 
                   {/* Divider */}

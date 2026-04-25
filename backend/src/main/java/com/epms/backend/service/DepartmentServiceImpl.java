@@ -4,9 +4,11 @@ import java.time.Instant;
 import java.util.List;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.epms.backend.dto.department.CreateDepartmentRequest;
 import com.epms.backend.dto.department.DepartmentDto;
@@ -46,6 +48,14 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .createdDate(rs.getTimestamp("created_date") == null ? null : rs.getTimestamp("created_date").toInstant())
                 .updatedDate(rs.getTimestamp("updated_date") == null ? null : rs.getTimestamp("updated_date").toInstant())
                 .build());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DepartmentDto getDepartmentById(Long id) {
+        return departmentRepository.findById(id)
+                .map(this::mapToDto)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Department not found."));
     }
 
     @Override

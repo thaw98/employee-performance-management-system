@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import {
   flexRender,
   getCoreRowModel,
@@ -14,7 +15,7 @@ import {
   Plus, Search, Edit2, Trash2,
   ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Building2, CheckCircle2, XCircle, LayoutGrid, AlertTriangle,
+  Building2, CheckCircle2, XCircle, LayoutGrid, AlertTriangle, BriefcaseBusiness,
   Loader2,
 } from 'lucide-react'
 
@@ -176,7 +177,12 @@ export default function DepartmentListPage() {
             <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-sm">
               <Building2 size={14} className="text-white" />
             </div>
-            <span className="font-semibold text-slate-800 text-sm">{info.getValue() as string}</span>
+            <Link
+              to={`/hr/departments/${info.row.original.departmentId}`}
+              className="font-semibold text-slate-800 text-sm hover:underline hover:text-blue-700 transition-colors"
+            >
+              {info.getValue() as string}
+            </Link>
           </div>
         ),
       },
@@ -231,6 +237,14 @@ export default function DepartmentListPage() {
                 <Trash2 size={13} />
                 Delete
               </button>
+              <Link
+                to={`/hr/departments/${row.departmentId}`}
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-600 hover:text-white border border-violet-100 hover:border-violet-600 transition-all duration-200"
+                title="View Positions"
+              >
+                <BriefcaseBusiness size={13} />
+                Positions
+              </Link>
             </div>
           )
         },

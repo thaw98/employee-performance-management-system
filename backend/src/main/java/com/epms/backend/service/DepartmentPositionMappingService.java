@@ -1,5 +1,7 @@
 package com.epms.backend.service;
 
+import java.util.List;
+
 import com.epms.backend.dto.mapping.CreateDepartmentPositionMappingRequest;
 import com.epms.backend.dto.mapping.DepartmentPositionMappingDto;
 import com.epms.backend.dto.mapping.DepartmentPositionMappingListResponse;
@@ -12,9 +14,13 @@ public interface DepartmentPositionMappingService {
 
 	DepartmentPositionMappingDto getMappingById(Long id);
 
+	List<DepartmentPositionMappingDto> getMappingsByDepartment(Long departmentId);
+
 	DepartmentPositionMappingDto createMapping(CreateDepartmentPositionMappingRequest request);
 
 	DepartmentPositionMappingDto updateMapping(Long id, UpdateDepartmentPositionMappingRequest request);
 
 	DepartmentPositionMappingDto toggleStatus(Long id);
+
+	void deleteMapping(Long id);
 }

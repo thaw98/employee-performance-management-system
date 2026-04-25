@@ -9,10 +9,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.epms.backend.dto.mapping.CreateDepartmentPositionMappingRequest;
 import com.epms.backend.dto.mapping.DepartmentPositionMappingDto;
@@ -23,6 +25,8 @@ import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.Position;
 import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
+import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
+import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.security.UserPrincipal;
 
@@ -35,6 +39,8 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 	private final DepartmentPositionRepository mappingRepository;
 	private final DepartmentRepository departmentRepository;
 	private final PositionRepository positionRepository;
+	private final EmployeeRepository employeeRepository;
+	private final EmployeeDepartmentHistoryRepository employeeDepartmentHistoryRepository;
 
 	private static final String STATUS_ACTIVE = "ACTIVE";
 	private static final String STATUS_INACTIVE = "INACTIVE";
@@ -69,6 +75,18 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 		DepartmentPosition mapping = mappingRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Mapping not found."));
 		return mapToDto(mapping);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<DepartmentPositionMappingDto> getMappingsByDepartment(Long departmentId) {
+		if (!departmentRepository.existsById(departmentId)) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Department not found.");
+		}
+
+		return mappingRepository.findAllByDepartment_IdOrderByIdAsc(departmentId).stream()
+				.map(this::mapToDto)
+				.toList();
 	}
 
 	@Override
@@ -146,6 +164,26 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 
 		DepartmentPosition saved = mappingRepository.save(mapping);
 		return mapToDto(saved);
+	}
+
+	@Override
+	@Transactional
+	public void deleteMapping(Long id) {
+		DepartmentPosition mapping = mappingRepository.findById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mapping not found."));
+
+		Long departmentId = mapping.getDepartment().getId();
+		Long positionId = mapping.getPosition().getId();
+		boolean hasEmployee = employeeRepository.existsByDepartment_IdAndPosition_Id(departmentId, positionId);
+		boolean hasHistory = employeeDepartmentHistoryRepository
+				.existsByDepartmentAndPositionOnEitherSide(departmentId, positionId);
+
+		if (hasEmployee || hasHistory) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT,
+					"Cannot remove: this position has employee records (current or historical) under this department. Set it Inactive instead.");
+		}
+
+		mappingRepository.delete(mapping);
 	}
 
 	private Specification<DepartmentPosition> buildSpecification(String search) {

@@ -16,6 +16,7 @@ import {
   useResendPasswordMutation,
   useSendNewPasswordMutation,
   useUpdateEmploymentStatusMutation,
+  useExportEmployeesMutation,
   useLazyGetEmployeeViewByIdQuery,
 } from '../../../features/hrEmployeeList/hrEmployeeApi'
 import ChangeStatusModal from '../../../features/hrEmployeeList/components/ChangeStatusModal'
@@ -24,6 +25,7 @@ import {
   useGetDepartmentPositionsQuery 
 } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
 import { useAppSelector } from '../../../app/hooks'
+import { downloadBlobFile } from '../../../utils/downloadBlobFile'
 
 const API_BASE =
   (import.meta.env.VITE_API_BASE_URL as string)?.replace(/\/$/, '') ||
@@ -99,6 +101,7 @@ export default function EmployeeListPage() {
   const [resendPassword, { isLoading: isResending }] = useResendPasswordMutation()
   const [sendNewPassword, { isLoading: isSendingNew }] = useSendNewPasswordMutation()
   const [updateEmploymentStatus, { isLoading: isUpdatingStatus }] = useUpdateEmploymentStatusMutation()
+  const [exportEmployees, { isLoading: isExporting }] = useExportEmployeesMutation()
   const [
     triggerGetEmployeeView,
     { data: viewData, isLoading: isViewLoading, isError: isViewError },
@@ -266,6 +269,25 @@ export default function EmployeeListPage() {
     }
   }, [token])
 
+  const handleExportEmployees = useCallback(async () => {
+    try {
+      const data = await exportEmployees().unwrap()
+      const blob = new Blob([data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const now = new Date()
+      const today = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+      ].join('-')
+      downloadBlobFile(blob, `employees_export_${today}.xlsx`)
+      toast.success('Employees exported successfully.')
+    } catch {
+      toast.error('Failed to export employees.')
+    }
+  }, [exportEmployees])
+
   const handleImportSuccess = useCallback(() => {
     // RTK Query invalidation via commitEmployeeImport handles the refetch automatically
   }, [])
@@ -290,6 +312,18 @@ export default function EmployeeListPage() {
                 <i className="bi bi-download"></i>
               )}
               Download Template
+            </button>
+            <button
+              onClick={handleExportEmployees}
+              disabled={isExporting}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-700 text-sm font-semibold hover:bg-emerald-50 disabled:opacity-60 transition shadow-sm"
+            >
+              {isExporting ? (
+                <span className="inline-block w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <i className="bi bi-file-earmark-excel"></i>
+              )}
+              {isExporting ? 'Exporting...' : 'Export Employees'}
             </button>
             <button
               onClick={() => setImportModalOpen(true)}

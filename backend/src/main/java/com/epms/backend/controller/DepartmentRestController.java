@@ -51,6 +51,12 @@ public class DepartmentRestController {
 		return ResponseEntity.ok(ApiResponse.ok("Departments fetched successfully.", departmentService.getAllDepartments()));
 	}
 
+	@GetMapping("/{id}")
+	@PreAuthorize("hasRole('HR')")
+	public ResponseEntity<ApiResponse<DepartmentDto>> getById(@PathVariable Long id) {
+		return ResponseEntity.ok(ApiResponse.ok("Department fetched successfully.", departmentService.getDepartmentById(id)));
+	}
+
 	@PostMapping
 	@PreAuthorize("hasRole('HR')")
 	public ResponseEntity<ApiResponse<DepartmentDto>> create(@Valid @RequestBody CreateDepartmentRequest request) {

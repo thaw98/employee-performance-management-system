@@ -125,6 +125,14 @@ export const departmentApi = baseApi.injectEndpoints({
       },
       providesTags: ['Department'],
     }),
+    getDepartmentById: builder.query<ApiResponse<DepartmentDto>, number>({
+      query: (id) => `/departments/${id}`,
+      transformResponse: (response: ApiResponse<DepartmentApiRaw>) => ({
+        ...response,
+        data: response.data ? normalizeDepartment(response.data) : null,
+      }),
+      providesTags: (_result, _error, id) => [{ type: 'Department', id }],
+    }),
     createDepartment: builder.mutation<ApiResponse<DepartmentDto>, CreateDepartmentRequest>({
       query: (body) => ({
         url: '/departments',
@@ -161,6 +169,7 @@ export const departmentApi = baseApi.injectEndpoints({
 
 export const {
   useGetDepartmentsQuery,
+  useGetDepartmentByIdQuery,
   useCreateDepartmentMutation,
   useUpdateDepartmentMutation,
   useDeleteDepartmentMutation,
