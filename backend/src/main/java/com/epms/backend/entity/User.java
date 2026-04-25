@@ -74,4 +74,10 @@ public class User {
 
     @Column(name = "wallpaper_url", length = 255)
     private String wallpaperUrl;
+
+    @Column(name = "language", length = 50)
+    private String language = "English";
+
+    @Column(name = "timezone", length = 50)
+    private String timezone = "UTC+06:30 (Yangon)";
 }

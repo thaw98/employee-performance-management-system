@@ -152,6 +152,14 @@ public class UserService {
             user.setTheme(request.getTheme());
         }
 
+        if (request.getLanguage() != null && !request.getLanguage().isBlank()) {
+            user.setLanguage(request.getLanguage());
+        }
+
+        if (request.getTimezone() != null && !request.getTimezone().isBlank()) {
+            user.setTimezone(request.getTimezone());
+        }
+
         employeeRepository.save(employee);
         userRepository.save(user);
 
@@ -172,6 +180,8 @@ public class UserService {
                 user.getRole().getName(),
                 user.getEmployee().getProfilePictureUrl(),
                 user.getTheme(),
-                user.getWallpaperUrl());
+                user.getWallpaperUrl(),
+                user.getLanguage(),
+                user.getTimezone());
     }
 }

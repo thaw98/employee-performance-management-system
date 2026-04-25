@@ -17,4 +17,8 @@ public class UpdateProfileRequestDto {
     private String name;
     
     private String theme;
+    
+    private String language;
+    
+    private String timezone;
 }

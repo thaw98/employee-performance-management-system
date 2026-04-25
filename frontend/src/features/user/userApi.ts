@@ -11,6 +11,8 @@ export interface UserProfileDto {
   profilePictureUrl?: string
   theme?: string
   wallpaperUrl?: string
+  language?: string
+  timezone?: string
 }
 
 export interface ProfilePictureUploadResponseDto {
