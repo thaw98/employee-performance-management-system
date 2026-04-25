@@ -373,6 +373,7 @@ public class HrEmployeeService {
         String currentStatus = determineEmploymentStatus(employee);
         String targetStatus = request.getTargetStatus();
 
+        boolean shouldDeactivateUserAccount = false;
         if ("PERMANENT".equalsIgnoreCase(targetStatus)) {
             if (!"Probation".equals(currentStatus)) {
                 throw new IllegalArgumentException("Only Probation employees can be changed to Permanent");
@@ -436,6 +437,7 @@ public class HrEmployeeService {
             } else {
                 employee.setEmploymentStatus(EmployeeStatus.TERMINATED);
             }
+            shouldDeactivateUserAccount = true;
 
         } else {
             throw new IllegalArgumentException("Invalid target status: " + targetStatus + ". Must be PERMANENT, RESIGNED, or TERMINATED");
@@ -444,6 +446,12 @@ public class HrEmployeeService {
         employee.setUpdatedBy(principal.getId());
         employee.setUpdatedDate(Instant.now());
         employeeRepository.save(employee);
+        if (shouldDeactivateUserAccount) {
+            userRepository.findByEmployee_Id(employee.getId()).ifPresent(user -> {
+                user.setActive(false);
+                userRepository.save(user);
+            });
+        }
 
         auditService.record(
             AuditActionType.EMPLOYMENT_STATUS_UPDATED,
