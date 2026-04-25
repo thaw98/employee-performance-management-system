@@ -121,12 +121,12 @@ export function EmployeeDashboardPage() {
 
         <div className="bg-slate-900 rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden group">
            <div className="relative z-10 text-white flex flex-col h-full">
-              <h2 className="text-2xl font-black tracking-tight mb-4">Need 360° Feedback?</h2>
+              <h2 className="text-2xl font-black tracking-tight mb-4">Need 360 Feedback?</h2>
               <p className="text-slate-400 font-bold mb-8 flex-1">
                 Request feedback from your colleagues to maintain a balanced perspective on your professional growth.
               </p>
               <button 
-                onClick={() => navigate('/hr/360-feedback/give')}
+                onClick={() => navigate('/employee/360-feedback/give')}
                 className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black text-sm shadow-xl hover:bg-blue-50 transition-colors"
               >
                 Send Feedback Request

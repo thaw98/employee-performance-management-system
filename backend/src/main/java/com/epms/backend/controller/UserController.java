@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.user.dto.ChangePasswordRequestDto;
+import com.epms.backend.user.dto.UpdateProfileRequestDto;
 import com.epms.backend.user.dto.UserProfileDto;
 
 import jakarta.validation.Valid;
@@ -32,6 +33,18 @@ public class UserController {
     public ResponseEntity<ApiResponse<UserProfileDto>> getProfile(@AuthenticationPrincipal UserPrincipal principal) {
         UserProfileDto profile = userService.getProfile(principal.getId());
         return ResponseEntity.ok(ApiResponse.ok("Profile retrieved successfully", profile));
+    }
+
+    @PutMapping
+    public ResponseEntity<ApiResponse<UserProfileDto>> updateProfile(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody UpdateProfileRequestDto request) {
+        try {
+            UserProfileDto profile = userService.updateProfile(principal.getId(), request);
+            return ResponseEntity.ok(ApiResponse.ok("Profile updated successfully", profile));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
     }
 
     @PutMapping(value = "/picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

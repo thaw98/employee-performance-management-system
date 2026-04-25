@@ -11,7 +11,10 @@ import jakarta.validation.constraints.NotBlank;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdateProfileRequestDto {
-    @NotBlank(message = "Email cannot be blank")
     @Email(message = "Email must be valid")
     private String email;
+    
+    private String name;
+    
+    private String theme;
 }
