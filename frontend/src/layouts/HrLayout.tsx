@@ -18,8 +18,8 @@ import {
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import type { RootState } from '../store/store';
-import { logout } from '../store/authSlice';
+import type { RootState } from '../app/store';
+import { logout } from '../features/auth/authSlice';
 import { resolveProfilePictureSrc } from '../utils/mediaUrl';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { pipApi } from '../features/pip/pipApi';
@@ -45,22 +45,17 @@ const HrLayout: React.FC = () => {
     setExpandedMenus((prev) => ({ ...prev, [label]: !prev[label] }));
   };
 
-  const isHrAdmin = user?.roleId === 1;
-
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/hr/dashboard' },
-    isHrAdmin
-      ? {
-        icon: <Users size={20} />,
-        label: 'Employees',
-        path: '/hr/employees',
-        subItems: [
-          { label: 'Employee List', path: '/hr/employees' },
-          { label: 'Create Employee Account', path: '/hr/employees/create-account' }
-        ]
-
-      }
-      : { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
+    {
+      icon: <Users size={20} />,
+      label: 'Employees',
+      path: '/hr/employees',
+      subItems: [
+        { label: 'Employee List', path: '/hr/employees' },
+        { label: 'Create Employee Account', path: '/hr/employees/create-account' }
+      ]
+    },
     { icon: <Building2 size={20} />, label: 'Department', path: '/hr/departments' },
     { icon: <Briefcase size={20} />, label: 'Positions', path: '/hr/positions' },
     {

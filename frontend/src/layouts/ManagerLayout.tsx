@@ -16,8 +16,8 @@ import {
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import type { RootState } from '../store/store';
-import { logout } from '../store/authSlice';
+import type { RootState } from '../app/store';
+import { logout } from '../features/auth/authSlice';
 import { resolveProfilePictureSrc } from '../utils/mediaUrl';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { pipApi } from '../features/pip/pipApi';

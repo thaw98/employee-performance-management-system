@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../app/hooks'
-import { logout } from '../../store/authSlice'
+import { logout } from '../../features/auth/authSlice'
 import { useGetProfileQuery } from '../../features/user/userApi'
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
 import { ChevronDown, User, Settings, LogOut, Shield } from 'lucide-react'

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SelfAssessmentWarning } from '../components/SelfAssessmentWarning';
 import { useSelector } from 'react-redux';
-import type { RootState } from '../store/store';
+import type { RootState } from '../app/store';
 import { useGetKpisByEmployeeQuery } from '../features/kpi/kpiApi';
 
 export const EmployeeKpiViewPage: React.FC = () => {

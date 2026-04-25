@@ -1,9 +1,7 @@
 // src/App.tsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Provider } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 
-import { store } from './app/store';
 import { AuthBootstrap } from './components/auth/AuthBootstrap';
 import { ThemeBootstrap } from './components/layout/ThemeBootstrap';
 import { ProtectedRoute } from './routes/ProtectedRoute';
@@ -48,90 +46,88 @@ import PositionListPage from './features/position/pages/PositionListPage';
 
 function App() {
   return (
-    <Provider store={store}>
-      <Router>
-        <AuthBootstrap />
-        <ThemeBootstrap />
-        <Toaster position="bottom-center" />
+    <Router>
+      <AuthBootstrap />
+      <ThemeBootstrap />
+      <Toaster position="bottom-center" />
 
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/verify-otp" element={<VerifyOtpPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/first-login/set-password" element={<FirstLoginPasswordPage />} />
-          <Route path="/" element={<Navigate to="/login" replace />} />
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/verify-otp" element={<VerifyOtpPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/first-login/set-password" element={<FirstLoginPasswordPage />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
-          {/* HR Routes */}
-          <Route element={<ProtectedRoute allowedRoleGroups={['HR']} />}>
-            <Route path="/hr" element={<HrLayout />}>
-              <Route path="dashboard" element={<HRDashboardPage />} />
-              <Route path="employees" element={<EmployeeListPage />} />
-              <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
-              <Route path="departments" element={<DepartmentListPage />} />
-              <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
-              <Route path="positions" element={<PositionListPage />} />
+        {/* HR Routes */}
+        <Route element={<ProtectedRoute allowedRoleGroups={['HR']} />}>
+          <Route path="/hr" element={<HrLayout />}>
+            <Route path="dashboard" element={<HRDashboardPage />} />
+            <Route path="employees" element={<EmployeeListPage />} />
+            <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
+            <Route path="departments" element={<DepartmentListPage />} />
+            <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
+            <Route path="positions" element={<PositionListPage />} />
 
-              <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
-              <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
-              <Route path="pip-monitoring" element={<PipMonitoringPage />} />
-              <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
-              <Route path="360-feedback/criteria" element={<CriteriaPage />} />
-              <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
-              <Route path="360-feedback/received" element={<GetFeedbackPage />} />
-              <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
-              <Route path="appraisals" element={<AppraisalsPage />} />
-              <Route path="appraisals/submissions" element={<AppraisalSubmissionsPage />} />
-              <Route path="kpi-management" element={<KpiManagementPage />} />
-              <Route path="kpi-assigned" element={<KpiAssignedPage />} />
-              <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
-              <Route path="settings/profile" element={<ProfileSettingsPage />} />
-              <Route path="settings/system" element={<SystemSettingsPage />} />
-              <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
-            </Route>
+            <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
+            <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
+            <Route path="pip-monitoring" element={<PipMonitoringPage />} />
+            <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
+            <Route path="360-feedback/criteria" element={<CriteriaPage />} />
+            <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
+            <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
+            <Route path="appraisals" element={<AppraisalsPage />} />
+            <Route path="appraisals/submissions" element={<AppraisalSubmissionsPage />} />
+            <Route path="kpi-management" element={<KpiManagementPage />} />
+            <Route path="kpi-assigned" element={<KpiAssignedPage />} />
+            <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
+            <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
+        </Route>
 
-          {/* Manager Routes */}
-          <Route element={<ProtectedRoute allowedRoleGroups={['MANAGER']} />}>
-            <Route path="/manager" element={<ManagerLayout />}>
-              <Route path="dashboard" element={<ManagerDashboardPage />} />
-              <Route path="employees" element={<EmployeeListPage />} />
-              <Route path="my-assessment" element={<SelfAssessmentPage />} />
-              <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
-              <Route path="pip" element={<PipMonitoringPage />} />
-              <Route path="pip/create" element={<PipCreatePage />} />
-              <Route path="pip/:id" element={<PipDetailPage />} />
-              <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
-              <Route path="360-feedback/received" element={<GetFeedbackPage />} />
-              <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
-              <Route path="settings/profile" element={<ProfileSettingsPage />} />
-              <Route path="settings/system" element={<SystemSettingsPage />} />
-              <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
-            </Route>
+        {/* Manager Routes */}
+        <Route element={<ProtectedRoute allowedRoleGroups={['MANAGER']} />}>
+          <Route path="/manager" element={<ManagerLayout />}>
+            <Route path="dashboard" element={<ManagerDashboardPage />} />
+            <Route path="employees" element={<EmployeeListPage />} />
+            <Route path="my-assessment" element={<SelfAssessmentPage />} />
+            <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
+            <Route path="pip" element={<PipMonitoringPage />} />
+            <Route path="pip/create" element={<PipCreatePage />} />
+            <Route path="pip/:id" element={<PipDetailPage />} />
+            <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
+            <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
+            <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
+        </Route>
 
-          {/* Employee Routes */}
-          <Route element={<ProtectedRoute allowedRoleGroups={['EMPLOYEE']} />}>
-            <Route path="/employee" element={<EmployeeLayout />}>
-              <Route path="dashboard" element={<EmployeeDashboardPage />} />
-              <Route path="assessment" element={<SelfAssessmentPage />} />
-              <Route path="pip" element={<PipMonitoringPage />} />
-              <Route path="pip/:id" element={<PipDetailPage />} />
-              <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
-              <Route path="360-feedback/received" element={<GetFeedbackPage />} />
-              <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
-              <Route path="settings/profile" element={<ProfileSettingsPage />} />
-              <Route path="settings/system" element={<SystemSettingsPage />} />
-              <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
-            </Route>
+        {/* Employee Routes */}
+        <Route element={<ProtectedRoute allowedRoleGroups={['EMPLOYEE']} />}>
+          <Route path="/employee" element={<EmployeeLayout />}>
+            <Route path="dashboard" element={<EmployeeDashboardPage />} />
+            <Route path="assessment" element={<SelfAssessmentPage />} />
+            <Route path="pip" element={<PipMonitoringPage />} />
+            <Route path="pip/:id" element={<PipDetailPage />} />
+            <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
+            <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
+            <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
+        </Route>
 
-          {/* Catch all */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Router>
-    </Provider>
+        {/* Catch all */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
   );
 }
 
