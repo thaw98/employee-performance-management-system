@@ -43,7 +43,7 @@ export function AppSidebar() {
         ...(isHr
           ? [
               {
-                name: 'Employees',
+                name: 'Employee',
                 path: '/hr/employees',
                 icon: 'bi-person-badge',
                 end: false,

@@ -49,7 +49,7 @@ const HrLayout: React.FC = () => {
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/hr/dashboard' },
     {
       icon: <Users size={20} />,
-      label: 'Employees',
+      label: 'Employee',
       path: '/hr/employees',
       subItems: [
         { label: 'Employee List', path: '/hr/employees' },
