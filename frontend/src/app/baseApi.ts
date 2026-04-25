@@ -27,6 +27,7 @@ export const baseApi = createApi({
     'PositionDepartments',
     'DepartmentPositions',
     'Lookup',
+    'KPI',
   ],
   endpoints: () => ({}),
 });
