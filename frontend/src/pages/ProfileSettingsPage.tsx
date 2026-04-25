@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { useGetProfileQuery, useUpdateProfilePictureMutation, useUpdateProfileMutation } from '../features/user/userApi'
+import { useGetProfileQuery, useUpdateProfilePictureMutation, useUpdateProfileMutation, useDeleteProfilePictureMutation } from '../features/user/userApi'
 import { resolveProfilePictureSrc } from '../utils/mediaUrl'
 import { User, Mail, Shield, BadgeCheck, Hash, Camera, Lock, Loader2, Save, Trash2 } from 'lucide-react'
 
 export function ProfileSettingsPage() {
   const { data: profileResponse, isLoading } = useGetProfileQuery()
   const [updateProfilePicture, { isLoading: isUpdatingPic }] = useUpdateProfilePictureMutation()
+  const [deleteProfilePicture, { isLoading: isDeletingPic }] = useDeleteProfilePictureMutation()
   const [updateProfile, { isLoading: isSaving }] = useUpdateProfileMutation()
 
   const user = profileResponse?.data || null
@@ -21,6 +22,10 @@ export function ProfileSettingsPage() {
     email: ''
   })
 
+  const [pendingPicture, setPendingPicture] = useState<File | 'remove' | null>(null)
+  const displaySrc = pendingPicture === 'remove' ? null : (pendingPicture ? URL.createObjectURL(pendingPicture) : pictureSrc)
+  const isProcessActive = isUpdatingPic || isDeletingPic || isSaving
+
   useEffect(() => {
     if (user) {
       setFormData({
@@ -30,7 +35,7 @@ export function ProfileSettingsPage() {
     }
   }, [user])
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -39,14 +44,13 @@ export function ProfileSettingsPage() {
       return
     }
 
-    try {
-      setMessage(null)
-      await updateProfilePicture(file).unwrap()
-      setMessage({ type: 'success', text: 'Profile picture updated successfully!' })
-      setTimeout(() => setMessage(null), 3000)
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.data?.message || 'Failed to update profile picture' })
-    }
+    setPendingPicture(file)
+    setMessage(null)
+  }
+
+  const handleRemovePicture = () => {
+    setPendingPicture('remove')
+    setMessage(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,10 +58,18 @@ export function ProfileSettingsPage() {
     try {
       setMessage(null)
       await updateProfile({ name: formData.name }).unwrap()
+      
+      if (pendingPicture === 'remove') {
+         await deleteProfilePicture().unwrap()
+      } else if (pendingPicture) {
+         await updateProfilePicture(pendingPicture).unwrap()
+      }
+      
+      setPendingPicture(null)
       setMessage({ type: 'success', text: 'Profile updated successfully!' })
       setTimeout(() => setMessage(null), 3000)
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.data?.message || 'Failed to update profile' })
+      setMessage({ type: 'error', text: err.data?.message || 'Failed to save changes' })
     }
   }
 
@@ -112,17 +124,17 @@ export function ProfileSettingsPage() {
                 onChange={handleFileChange}
               />
               <div
-                onClick={() => !isUpdatingPic && fileInputRef.current?.click()}
+                onClick={() => !isProcessActive && fileInputRef.current?.click()}
                 className={`h-32 w-32 rounded-[2.5rem] bg-blue-100 text-blue-700 flex flex-shrink-0 items-center justify-center text-5xl font-black border-4 border-white shadow-xl overflow-hidden transition-all transform group-hover:scale-105 
-                  ${isUpdatingPic ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  ${isProcessActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
-                {pictureSrc ? (
-                  <img src={pictureSrc} alt="Profile" className="h-full w-full object-cover" />
+                {displaySrc ? (
+                  <img src={displaySrc} alt="Profile" className="h-full w-full object-cover" />
                 ) : (
                   user?.name?.charAt(0).toUpperCase() || 'U'
                 )}
               </div>
-              {!isUpdatingPic && (
+              {!isProcessActive && (
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   className="absolute inset-0 rounded-[2.5rem] bg-slate-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer backdrop-blur-[2px]"
@@ -130,7 +142,7 @@ export function ProfileSettingsPage() {
                   <Camera className="text-white" size={32} />
                 </div>
               )}
-              {isUpdatingPic && (
+              {isProcessActive && (
                 <div className="absolute inset-0 rounded-[2.5rem] bg-white/60 flex items-center justify-center backdrop-blur-sm">
                   <Loader2 className="animate-spin text-blue-700" size={32} />
                 </div>
@@ -150,13 +162,19 @@ export function ProfileSettingsPage() {
               </p>
               <div className="pt-2 flex flex-wrap justify-center md:justify-start gap-2">
                  <button
+                    type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isUpdatingPic}
+                    disabled={isProcessActive}
                     className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-black shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-blue-200 dark:hover:border-blue-600 transition-all disabled:opacity-50"
                  >
                     Update Photo
                  </button>
-                 <button className="px-4 py-2 bg-white dark:bg-slate-800 border border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 rounded-xl text-xs font-black shadow-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center gap-2">
+                 <button 
+                    type="button"
+                    onClick={handleRemovePicture}
+                    disabled={isProcessActive || !displaySrc}
+                    className="px-4 py-2 bg-white dark:bg-slate-800 border border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 rounded-xl text-xs font-black shadow-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center gap-2 disabled:opacity-50"
+                 >
                     <Trash2 size={14} />
                     Remove
                  </button>
@@ -229,11 +247,15 @@ export function ProfileSettingsPage() {
 
                <div className="pt-4 flex justify-end">
                   <button
-                    type="submit"
-                    disabled={isSaving || formData.name === user?.name}
-                    className="px-8 py-4 bg-blue-600 text-white rounded-[1.25rem] text-sm font-black shadow-[0_12px_24px_-4px_rgba(37,99,235,0.3)] hover:bg-blue-700 hover:shadow-blue-500/40 transition-all flex items-center gap-3 transform active:scale-95 disabled:opacity-50 disabled:shadow-none disabled:transform-none"
+                     type="submit"
+                     disabled={isProcessActive}
+                     className="px-8 py-3 bg-blue-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-600/30 hover:shadow-xl hover:shadow-blue-600/40 hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:opacity-50 disabled:hover:translate-y-0"
                   >
-                     {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                     {isProcessActive ? (
+                        <Loader2 size={18} className="animate-spin" />
+                     ) : (
+                        <Save size={18} />
+                     )}
                      Save Changes
                   </button>
                </div>

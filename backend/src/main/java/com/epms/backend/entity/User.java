@@ -71,4 +71,7 @@ public class User {
         }
         employee.setEmail(email);
     }
+
+    @Column(name = "wallpaper_url", length = 255)
+    private String wallpaperUrl;
 }

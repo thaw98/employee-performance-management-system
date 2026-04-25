@@ -54,6 +54,44 @@ public class UserService {
     }
 
     @Transactional
+    public UserProfileDto deleteProfilePicture(Long userId) {
+        User user = findUserById(userId);
+        Employee employee = user.getEmployee();
+        String currentUrl = employee.getProfilePictureUrl();
+        if (currentUrl != null) {
+            profilePictureStorageService.deleteIfStored(currentUrl);
+            employee.setProfilePictureUrl(null);
+            employeeRepository.save(employee);
+        }
+        return toUserProfileDto(user);
+    }
+
+    @Transactional
+    public UserProfileDto updateWallpaper(Long userId, MultipartFile file) {
+        User user = findUserById(userId);
+        String previous = user.getWallpaperUrl();
+        String url = profilePictureStorageService.store(file);
+        profilePictureStorageService.deleteIfStored(previous);
+        user.setWallpaperUrl(url);
+        user.setTheme("wallpaper");
+        userRepository.save(user);
+        return toUserProfileDto(user);
+    }
+
+    @Transactional
+    public UserProfileDto deleteWallpaper(Long userId) {
+        User user = findUserById(userId);
+        String currentUrl = user.getWallpaperUrl();
+        if (currentUrl != null) {
+            profilePictureStorageService.deleteIfStored(currentUrl);
+            user.setWallpaperUrl(null);
+            user.setTheme("light");
+            userRepository.save(user);
+        }
+        return toUserProfileDto(user);
+    }
+
+    @Transactional
     public void changePassword(Long userId, String currentPassword, String newPassword, String confirmPassword) {
         if (newPassword == null || confirmPassword == null) {
             throw new RuntimeException("Password fields are required");
@@ -133,6 +171,7 @@ public class UserService {
                 user.getEmail(),
                 user.getRole().getName(),
                 user.getEmployee().getProfilePictureUrl(),
-                user.getTheme());
+                user.getTheme(),
+                user.getWallpaperUrl());
     }
 }

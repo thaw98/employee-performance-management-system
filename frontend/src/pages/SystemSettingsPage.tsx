@@ -1,17 +1,21 @@
-import { useState, useEffect } from 'react'
-import { Monitor, Moon, Sun, Globe, Bell, Accessibility, Save, Loader2 } from 'lucide-react'
-import { useGetProfileQuery, useUpdateProfileMutation } from '../features/user/userApi'
+import { useState, useEffect, useRef } from 'react'
+import { Monitor, Moon, Sun, Globe, Bell, Accessibility, Save, Loader2, Image as ImageIcon, Trash2 } from 'lucide-react'
+import { useGetProfileQuery, useUpdateProfileMutation, useUpdateWallpaperMutation, useDeleteWallpaperMutation } from '../features/user/userApi'
 
 export function SystemSettingsPage() {
   const { data: profileResponse } = useGetProfileQuery()
   const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation()
+  const [updateWallpaper, { isLoading: isUploading }] = useUpdateWallpaperMutation()
+  const [deleteWallpaper, { isLoading: isDeleting }] = useDeleteWallpaperMutation()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('light')
+  const [theme, setTheme] = useState<'light' | 'dark' | 'wallpaper'>('light')
   const [language, setLanguage] = useState('English')
   const [notifications, setNotifications] = useState(true)
   const [compactMode, setCompactMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [pendingWallpaper, setPendingWallpaper] = useState<File | 'remove' | null>(null)
 
   useEffect(() => {
     if (profileResponse?.data?.theme) {
@@ -19,36 +23,48 @@ export function SystemSettingsPage() {
     }
   }, [profileResponse])
 
-  const handleThemeChange = async (newTheme: 'light' | 'dark' | 'system') => {
+  const handleThemeChange = (newTheme: 'light' | 'dark' | 'wallpaper') => {
     setTheme(newTheme)
-    
-    // Instant UI feedback
-    const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    if (newTheme === 'dark' || (newTheme === 'system' && isSystemDark)) {
-        document.documentElement.classList.add('dark')
-        document.body.classList.add('dark')
-    } else {
-        document.documentElement.classList.remove('dark')
-        document.body.classList.remove('dark')
-    }
-
-    try {
-       await updateProfile({ theme: newTheme }).unwrap()
-       setSaved(true)
-       setTimeout(() => setSaved(false), 2000)
-    } catch (err) {
-       console.error("Failed to update theme", err)
+    if (newTheme === 'wallpaper') {
+        if (!profileResponse?.data?.wallpaperUrl && pendingWallpaper !== 'remove' && !pendingWallpaper) {
+           fileInputRef.current?.click()
+        }
     }
   }
 
-  const handleSave = () => {
+  const handleWallpaperUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setPendingWallpaper(file)
+      setTheme('wallpaper')
+    }
+  }
+
+  const handleSave = async () => {
     setIsSaving(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false)
+    try {
+      if (pendingWallpaper === 'remove') {
+          await deleteWallpaper().unwrap()
+          if (theme === 'wallpaper') {
+             await updateProfile({ theme: 'light' }).unwrap()
+             setTheme('light')
+          } else {
+             await updateProfile({ theme }).unwrap()
+          }
+      } else if (pendingWallpaper && theme === 'wallpaper') {
+        await updateWallpaper(pendingWallpaper).unwrap()
+      } else {
+        await updateProfile({ theme }).unwrap()
+      }
+      setPendingWallpaper(null)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
-    }, 800)
+    } catch (err) {
+      console.error("Failed to save system settings", err)
+      alert("Failed to save settings.")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -75,51 +91,54 @@ export function SystemSettingsPage() {
               <div>
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-4 uppercase tracking-widest text-[10px]">Interface Theme</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Hidden file input for wallpaper */}
+                  <input type="file" ref={fileInputRef} onChange={handleWallpaperUpload} accept="image/*" className="hidden" />
+                  
                   {[
                     { id: 'light', name: 'Light Mode', icon: <Sun size={18} />, color: 'bg-white border-slate-200' },
                     { id: 'dark', name: 'Dark Mode', icon: <Moon size={18} />, color: 'bg-slate-900 border-slate-800 text-white' },
-                    { id: 'system', name: 'System Default', icon: <Monitor size={18} />, color: 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700' }
+                    { id: 'wallpaper', name: 'Custom Wallpaper', icon: <ImageIcon size={18} />, color: 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700' }
                   ].map((t) => (
                     <button
                       key={t.id}
                       onClick={() => handleThemeChange(t.id as any)}
-                      disabled={isUpdating}
+                      disabled={isUpdating || (isUploading && t.id === 'wallpaper')}
                       className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
                         theme === t.id 
                           ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-900/10 shadow-sm' 
                           : 'border-transparent bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
-                      <div className={`w-full aspect-video rounded-lg ${t.color} flex items-center justify-center mb-1 shadow-inner border transition-all`}>
-                         {(isUpdating && theme === t.id) ? <Loader2 className="animate-spin text-blue-600" /> : t.icon}
+                      <div className={`w-full aspect-video rounded-lg ${t.color} flex items-center justify-center mb-1 shadow-inner border transition-all ${(t.id === 'wallpaper' && pendingWallpaper !== 'remove' && (pendingWallpaper || profileResponse?.data?.wallpaperUrl)) ? 'bg-cover bg-center' : ''}`}
+                           style={t.id === 'wallpaper' && pendingWallpaper !== 'remove' && (pendingWallpaper || profileResponse?.data?.wallpaperUrl) ? { backgroundImage: `linear-gradient(rgba(248, 250, 252, 0.40), rgba(248, 250, 252, 0.40)), url("${pendingWallpaper && pendingWallpaper !== 'remove' ? URL.createObjectURL(pendingWallpaper) : profileResponse.data.wallpaperUrl}")` } : {}}
+                      >
+                         {(isUpdating || isUploading || isDeleting) && theme === t.id ? <Loader2 className="animate-spin text-blue-600" /> : t.icon}
                       </div>
                       <span className={`text-xs font-bold ${theme === t.id ? 'text-blue-700 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'}`}>{t.name}</span>
-                      {theme === t.id && !isUpdating && (
-                        <div className="absolute top-2 right-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-sm border-2 border-white">
-                           <Save size={10} />
-                        </div>
+                      
+                      {t.id === 'wallpaper' && (
+                         <>
+                           <div 
+                             className="absolute top-2 left-2 w-6 h-6 bg-white dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-500 shadow-sm border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors z-10"
+                             onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                             title="Upload new wallpaper"
+                           >
+                              <ImageIcon size={12} className="text-blue-600 dark:text-blue-400" />
+                           </div>
+                           {(pendingWallpaper !== 'remove' && (pendingWallpaper || profileResponse?.data?.wallpaperUrl)) && (
+                             <div 
+                               className="absolute top-2 right-2 w-6 h-6 bg-red-50 dark:bg-red-900/40 rounded-full flex items-center justify-center text-red-500 shadow-sm border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/60 transition-colors z-10"
+                               onClick={(e) => { e.stopPropagation(); setPendingWallpaper('remove'); }}
+                               title="Remove wallpaper"
+                             >
+                                <Trash2 size={12} className="text-red-600 dark:text-red-400" />
+                             </div>
+                           )}
+                         </>
                       )}
                     </button>
                   ))}
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                 <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-800 shadow-sm">
-                       <Accessibility size={20} />
-                    </div>
-                    <div>
-                       <p className="text-sm font-bold text-slate-900 dark:text-slate-200 leading-none mb-1">Compact Mode</p>
-                       <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight">Reduce whitespace across the UI</p>
-                    </div>
-                 </div>
-                 <button 
-                   onClick={() => setCompactMode(!compactMode)}
-                   className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${compactMode ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`}
-                 >
-                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${compactMode ? 'left-7' : 'left-1'}`} />
-                 </button>
               </div>
             </div>
           </div>
@@ -191,11 +210,11 @@ export function SystemSettingsPage() {
                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${n.enabled ? 'left-5.5' : 'left-0.5'}`} />
                     </button>
                  </div>
-               ))}
+                ))}
             </div>
           </div>
         </div>
-        
+
         {/* Action Bar */}
         <div className="pt-6 flex justify-end gap-3">
            {saved && (
@@ -207,10 +226,10 @@ export function SystemSettingsPage() {
            <button 
              onClick={handleSave}
              disabled={isSaving}
-             className="px-8 py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-2xl text-sm font-black shadow-lg hover:shadow-xl hover:bg-slate-800 dark:hover:bg-blue-700 transition-all flex items-center gap-2 transform active:scale-95 disabled:opacity-50"
+             className="px-8 py-3 bg-blue-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-600/30 hover:shadow-xl hover:shadow-blue-600/40 hover:-translate-y-0.5 transition-all flex items-center gap-2 transform active:scale-95 disabled:opacity-50 disabled:hover:translate-y-0"
            >
               {isSaving ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <Loader2 size={18} className="animate-spin" />
               ) : (
                 <Save size={18} />
               )}

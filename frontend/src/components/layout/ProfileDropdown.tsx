@@ -98,18 +98,7 @@ export function ProfileDropdown() {
               System Settings
             </Link>
             
-            {user?.role === 'HR' && (
-               <Link
-                 to="/hr/dashboard"
-                 className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-all group"
-                 onClick={() => setIsOpen(false)}
-               >
-                 <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                   <Shield size={18} />
-                 </div>
-                 HR Admin Access
-               </Link>
-            )}
+
           </div>
 
           <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 px-2">
