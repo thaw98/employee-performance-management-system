@@ -17,6 +17,8 @@ public class EmployeeListItemResponseDto {
     private String employeeName;
     private String departmentName;
     private String positionName;
+    private String staffTypeName;
+    private String phoneNumber;
     private String profilePictureUrl;
     private String email;
     private Boolean mustChangePassword;

@@ -1,7 +1,6 @@
 package com.epms.backend.controller;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -12,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.hr.EmployeeDetailResponseDto;
@@ -35,7 +35,6 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/hr/employees")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('HR')")
 public class HrEmployeeController {
 
     private final HrEmployeeService hrEmployeeService;
@@ -51,28 +50,39 @@ public class HrEmployeeController {
             @RequestParam(required = false) Long positionId,
             @RequestParam(required = false) String employmentStatus,
             @RequestParam(defaultValue = "employeeId") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir) {
+            @RequestParam(defaultValue = "asc") String sortDir,
+            @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            EmployeeListResponseDto result = hrEmployeeService.getEmployees(page, size, search, departmentId, positionId, employmentStatus, sortBy, sortDir);
+            EmployeeListResponseDto result = hrEmployeeService.getEmployeesForCurrentUser(page, size, search, departmentId, positionId, employmentStatus, sortBy, sortDir, principal);
             return ResponseEntity.ok(ApiResponse.ok("Employee list retrieved", result));
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
     }
 
     @GetMapping("/{employeeId}")
-    public ResponseEntity<ApiResponse<EmployeeDetailResponseDto>> getEmployee(@PathVariable Long employeeId) {
+    public ResponseEntity<ApiResponse<EmployeeDetailResponseDto>> getEmployee(
+            @PathVariable Long employeeId,
+            @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok("Employee detail retrieved", hrEmployeeService.getEmployeeById(employeeId)));
+            return ResponseEntity.ok(ApiResponse.ok("Employee detail retrieved", hrEmployeeService.getEmployeeByIdForCurrentUser(employeeId, principal)));
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
     }
 
     @GetMapping("/{employeeId}/view")
-    public ResponseEntity<ApiResponse<EmployeeViewResponseDto>> viewEmployee(@PathVariable Long employeeId) {
+    public ResponseEntity<ApiResponse<EmployeeViewResponseDto>> viewEmployee(
+            @PathVariable Long employeeId,
+            @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok("Employee view detail retrieved", hrEmployeeService.getEmployeeViewById(employeeId)));
+            return ResponseEntity.ok(ApiResponse.ok("Employee view detail retrieved", hrEmployeeService.getEmployeeViewByIdForCurrentUser(employeeId, principal)));
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
@@ -86,6 +96,8 @@ public class HrEmployeeController {
         try {
             hrEmployeeService.updateEmployee(employeeId, request, principal);
             return ResponseEntity.ok(ApiResponse.ok("Employee updated successfully", null));
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
@@ -99,6 +111,8 @@ public class HrEmployeeController {
         try {
             hrEmployeeService.updateEmploymentStatus(employeeId, request, principal);
             return ResponseEntity.ok(ApiResponse.ok("Employment status updated", null));
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
@@ -110,6 +124,8 @@ public class HrEmployeeController {
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
             return ResponseEntity.ok(ApiResponse.ok("Temporary password sent successfully", hrEmployeeService.resendTemporaryPassword(employeeId, principal)));
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
@@ -128,6 +144,8 @@ public class HrEmployeeController {
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
             return ResponseEntity.ok(ApiResponse.ok("New temporary password sent successfully", hrEmployeeService.sendNewTemporaryPassword(employeeId, principal)));
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
@@ -138,9 +156,12 @@ public class HrEmployeeController {
     public ResponseEntity<ApiResponse<NextStaffNoResponseDto>> nextStaffNo(
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
+            hrEmployeeService.validateHrOnlyAction(principal);
             return ResponseEntity.ok(ApiResponse.ok(
                     "Next staff number",
                     hrEmployeeAccountService.suggestNextStaffNo(principal)));
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
@@ -151,10 +172,14 @@ public class HrEmployeeController {
      * Not invoked on startup; call explicitly when needed.
      */
     @PostMapping("/maintenance/sync-user-roles-from-positions")
-    public ResponseEntity<ApiResponse<UserAccountRoleSyncResultDto>> syncUserRolesFromPositions() {
+    public ResponseEntity<ApiResponse<UserAccountRoleSyncResultDto>> syncUserRolesFromPositions(
+            @AuthenticationPrincipal UserPrincipal principal) {
         try {
+            hrEmployeeService.validateHrOnlyAction(principal);
             UserAccountRoleSyncResultDto result = userAccountPositionRoleSyncService.syncAll();
             return ResponseEntity.ok(ApiResponse.ok(result.getSummaryMessage(), result));
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
@@ -165,9 +190,12 @@ public class HrEmployeeController {
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody HrCreateEmployeeAccountRequestDto request) {
         try {
+            hrEmployeeService.validateHrOnlyAction(principal);
             return ResponseEntity.ok(ApiResponse.ok(
                     "Employee account created",
                     hrEmployeeAccountService.createAccount(request, principal)));
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }

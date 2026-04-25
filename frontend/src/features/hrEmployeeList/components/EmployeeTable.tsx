@@ -21,6 +21,7 @@ interface EmployeeTableProps {
   onChangeStatus: (id: number, currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated') => void
   sorting: SortingState
   setSorting: OnChangeFn<SortingState>
+  isHR?: boolean
 }
 
 function EmployeeTable({
@@ -33,9 +34,11 @@ function EmployeeTable({
   onChangeStatus,
   sorting,
   setSorting,
+  isHR = true,
 }: EmployeeTableProps) {
   const columns = useMemo<ColumnDef<EmployeeListItem>[]>(
-    () => [
+    () => {
+      const baseColumns: ColumnDef<EmployeeListItem>[] = [
       {
         accessorKey: 'staffNo',
         header: 'Staff No',
@@ -73,7 +76,7 @@ function EmployeeTable({
           }
 
           const bgColor = badgeStyles[status] || 'bg-gray-100 text-gray-600'
-          const isClickable = status === 'Probation' || status === 'Permanent'
+          const isClickable = isHR && (status === 'Probation' || status === 'Permanent')
 
           if (isClickable) {
             return (
@@ -97,11 +100,30 @@ function EmployeeTable({
           )
         },
       },
-      {
-        accessorKey: 'email',
-        header: 'Email',
-        cell: (info) => <span className="text-gray-600">{info.getValue() as string || '-'}</span>,
-      },
+      ]
+
+      if (isHR) {
+        baseColumns.push({
+          accessorKey: 'email',
+          header: 'Email',
+          cell: (info) => <span className="text-gray-600">{info.getValue() as string || '-'}</span>,
+        })
+      } else {
+        baseColumns.push(
+          {
+            accessorKey: 'staffTypeName',
+            header: 'Staff Type',
+            cell: (info) => <span className="text-gray-600">{info.getValue() as string || '-'}</span>,
+          },
+          {
+            accessorKey: 'phoneNumber',
+            header: 'Phone Number',
+            cell: (info) => <span className="text-gray-600">{info.getValue() as string || '-'}</span>,
+          }
+        )
+      }
+
+      baseColumns.push(
       {
         id: 'actions',
         header: 'Actions',
@@ -117,39 +139,46 @@ function EmployeeTable({
                 <i className="bi bi-eye text-lg"></i>
               </button>
 
-              <button
-                onClick={() => onEdit(row.employeeId)}
-                className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                title="Edit Employee"
-              >
-                <i className="bi bi-pencil-square text-lg"></i>
-              </button>
+              {isHR && (
+                <>
+                  <button
+                    onClick={() => onEdit(row.employeeId)}
+                    className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    title="Edit Employee"
+                  >
+                    <i className="bi bi-pencil-square text-lg"></i>
+                  </button>
 
-              {row.hasUserAccount && row.mustChangePassword && (
-                <button
-                  onClick={() => onResendPassword(row.employeeId)}
-                  className="p-1 text-amber-600 hover:bg-amber-50 rounded transition-colors"
-                  title="Resend Temporary Password"
-                >
-                  <i className="bi bi-envelope-arrow-up text-lg"></i>
-                </button>
-              )}
+                  {row.hasUserAccount && row.mustChangePassword && (
+                    <button
+                      onClick={() => onResendPassword(row.employeeId)}
+                      className="p-1 text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                      title="Resend Temporary Password"
+                    >
+                      <i className="bi bi-envelope-arrow-up text-lg"></i>
+                    </button>
+                  )}
 
-              {row.hasUserAccount && row.email && (
-                <button
-                  onClick={() => onSendNewPassword(row.employeeId)}
-                  className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                  title="Send New Temporary Password (Reset)"
-                >
-                  <i className="bi bi-key-fill text-lg"></i>
-                </button>
+                  {row.hasUserAccount && row.email && (
+                    <button
+                      onClick={() => onSendNewPassword(row.employeeId)}
+                      className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                      title="Send New Temporary Password (Reset)"
+                    >
+                      <i className="bi bi-key-fill text-lg"></i>
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )
         },
       },
-    ],
-    [onView, onEdit, onResendPassword, onSendNewPassword, onChangeStatus]
+      )
+
+      return baseColumns
+    },
+    [isHR, onView, onEdit, onResendPassword, onSendNewPassword, onChangeStatus]
   )
 
   const table = useReactTable({

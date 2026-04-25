@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('HR')")
+@PreAuthorize("principal.roleId == 1")
 public class EmployeeMovementController {
 
     private final EmployeeMovementService movementService;

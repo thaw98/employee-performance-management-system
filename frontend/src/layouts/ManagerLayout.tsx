@@ -4,7 +4,6 @@ import {
   Target,
   FileText,
   Award,
-  MessageSquare,
   Calendar,
   BarChart,
   LayoutDashboard,
@@ -12,9 +11,7 @@ import {
   ChevronDown,
   ShieldCheck,
   Search,
-  AlertTriangle,
   Zap,
-  Inbox,
   RefreshCcw
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
@@ -25,16 +22,6 @@ import { resolveProfilePictureSrc } from '../utils/mediaUrl';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { pipApi } from '../features/pip/pipApi';
 import { ProfileDropdown } from '../components/layout/ProfileDropdown';
-
-function initialsFromName(name: string | undefined) {
-  if (!name) return '?'
-  return name
-    .split(/\s+/)
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
 
 const ManagerLayout: React.FC = () => {
   const { user: authUser } = useSelector((state: RootState) => state.auth);
@@ -58,7 +45,9 @@ const ManagerLayout: React.FC = () => {
 
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/manager/dashboard' },
-    { icon: <Users size={20} />, label: 'My Team', path: '/manager/team' },
+    ...(user?.roleId === 2
+      ? [{ icon: <Users size={20} />, label: 'Employees', path: '/manager/employees' }]
+      : []),
     { icon: <Target size={20} />, label: 'KPIs', path: '/manager/kpis' },
     { icon: <FileText size={20} />, label: 'Self Assessments', path: '/manager/assessments' },
     { icon: <ShieldCheck size={20} />, label: 'My Self Assessments', path: '/manager/my-assessment' },

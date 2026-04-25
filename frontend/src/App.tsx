@@ -96,6 +96,7 @@ function App() {
           <Route element={<ProtectedRoute allowedRoleGroups={['MANAGER']} />}>
             <Route path="/manager" element={<ManagerLayout />}>
               <Route path="dashboard" element={<ManagerDashboardPage />} />
+              <Route path="employees" element={<EmployeeListPage />} />
               <Route path="my-assessment" element={<SelfAssessmentPage />} />
               <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
               <Route path="pip" element={<PipMonitoringPage />} />
