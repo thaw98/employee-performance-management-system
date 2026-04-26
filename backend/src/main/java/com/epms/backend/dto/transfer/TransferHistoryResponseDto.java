@@ -1,4 +1,4 @@
-package com.epms.backend.dto.movement;
+package com.epms.backend.dto.transfer;
 
 import java.time.LocalDate;
 
@@ -13,11 +13,11 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class MovementHistoryResponseDto {
+public class TransferHistoryResponseDto {
 
     private Long id;
     private Long employeeId;
-    private String movementType;
+    private String transferType;
 
     private Long fromDepartmentId;
     private String fromDepartmentName;

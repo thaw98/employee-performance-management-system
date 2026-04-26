@@ -1,5 +1,6 @@
 package com.epms.backend.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -8,7 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.epms.backend.entity.EmployeeDepartmentHistory;
-import com.epms.backend.entity.MovementType;
+import com.epms.backend.entity.TransferType;
 
 public interface EmployeeDepartmentHistoryRepository extends JpaRepository<EmployeeDepartmentHistory, Long> {
 
@@ -18,19 +19,20 @@ public interface EmployeeDepartmentHistoryRepository extends JpaRepository<Emplo
 
     List<EmployeeDepartmentHistory> findByEmployee_IdOrderByEffectiveStartDateDesc(Long employeeId);
 
-    /**
-     * Latest non-TEMPORARY movement row before the current one — used to derive home department.
-     */
     @Query("""
         SELECT h FROM EmployeeDepartmentHistory h
         WHERE h.employee.id = :employeeId
-          AND h.movementType IN :baseTypes
+          AND h.transferType IN :baseTypes
           AND h.current = false
         ORDER BY h.effectiveStartDate DESC
         """)
-    List<EmployeeDepartmentHistory> findLatestBaseMovements(
+    List<EmployeeDepartmentHistory> findLatestBaseTransfers(
         @Param("employeeId") Long employeeId,
-        @Param("baseTypes") List<MovementType> baseTypes);
+        @Param("baseTypes") List<TransferType> baseTypes);
+
+    List<EmployeeDepartmentHistory> findByCurrentTrueAndTransferTypeAndEffectiveEndDateBefore(
+        TransferType transferType,
+        LocalDate date);
 
     @Query("""
         SELECT CASE WHEN COUNT(h) > 0 THEN true ELSE false END FROM EmployeeDepartmentHistory h

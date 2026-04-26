@@ -53,8 +53,8 @@ public class EmployeeContextSnapshotService {
         Employee employee = employeeRepository.findById(employeeId)
             .orElseThrow(() -> new IllegalArgumentException("Employee not found: " + employeeId));
 
-        EmployeeDepartmentHistory movementRow = historyRepository.findByEmployee_IdAndCurrentTrue(employeeId)
-            .orElseThrow(() -> new IllegalStateException("No active movement record for employee " + employeeId));
+        EmployeeDepartmentHistory transferRow = historyRepository.findByEmployee_IdAndCurrentTrue(employeeId)
+            .orElseThrow(() -> new IllegalStateException("No active transfer record for employee " + employeeId));
 
         EmployeeReportingHistory reportingRow = reportingRepository
             .findByEmployee_IdAndCurrentTrue(employeeId).orElse(null);
@@ -63,12 +63,12 @@ public class EmployeeContextSnapshotService {
         snapshot.setModuleType(moduleType);
         snapshot.setReferenceId(referenceId);
         snapshot.setEmployeeId(employeeId);
-        snapshot.setEmployeeDepartmentHistoryId(movementRow.getId());
+        snapshot.setEmployeeDepartmentHistoryId(transferRow.getId());
         snapshot.setEmployeeReportingHistoryId(reportingRow != null ? reportingRow.getId() : null);
-        snapshot.setDepartmentId(movementRow.getToDepartment().getId());
-        snapshot.setDepartmentName(movementRow.getToDepartment().getName());
-        snapshot.setPositionId(movementRow.getToPosition().getId());
-        snapshot.setPositionName(movementRow.getToPosition().getName());
+        snapshot.setDepartmentId(transferRow.getToDepartment().getId());
+        snapshot.setDepartmentName(transferRow.getToDepartment().getName());
+        snapshot.setPositionId(transferRow.getToPosition().getId());
+        snapshot.setPositionName(transferRow.getToPosition().getName());
         snapshot.setEmployeeName(employee.getEmployeeName());
         snapshot.setStaffNo(employee.getEmployeeId());
         if (reportingRow != null) {

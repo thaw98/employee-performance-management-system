@@ -1,4 +1,4 @@
-package com.epms.backend.dto.movement;
+package com.epms.backend.dto.transfer;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

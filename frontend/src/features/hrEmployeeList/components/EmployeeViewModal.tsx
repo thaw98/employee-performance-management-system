@@ -1,8 +1,12 @@
 import { Dialog, Transition, Tab } from '@headlessui/react'
-import { Fragment, useState, useMemo, memo, useCallback } from 'react'
+import { Fragment, useState, useMemo, memo, useCallback, useEffect } from 'react'
+import { ArrowLeftRight, CheckCircle2, RotateCcw } from 'lucide-react'
 import type { EmployeeViewDetail } from '../hrEmployeeApi'
-import { useGetMovementHistoryQuery } from '../employeeMovementApi'
-import { MovementHistoryTable } from './MovementHistoryTable'
+import { useGetTransferHistoryQuery } from '../employeeTransferApi'
+import { TransferHistoryTable } from './TransferHistoryTable'
+import { TemporaryTransferModal } from './TemporaryTransferModal'
+import { ReturnModal } from './ReturnModal'
+import { MakePermanentModal } from './MakePermanentModal'
 
 interface EmployeeViewModalProps {
   isOpen: boolean
@@ -52,10 +56,23 @@ function EmployeeViewModal({
   hideSensitiveFields = false,
 }: EmployeeViewModalProps) {
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null)
+  const [showTransfer, setShowTransfer] = useState(false)
+  const [showReturn, setShowReturn] = useState(false)
+  const [showMakePermanent, setShowMakePermanent] = useState(false)
 
-  const { data: movementRes, isLoading: movementLoading } = useGetMovementHistoryQuery(employeeId ?? 0, {
+  const { data: transferRes, isLoading: transferLoading, refetch: refetchTransfers } = useGetTransferHistoryQuery(employeeId ?? 0, {
     skip: !isOpen || !employeeId || hideSensitiveFields,
   })
+  const transferHistory = transferRes?.data ?? []
+  const currentTransfer = transferHistory.find((row) => row.isCurrent) ?? null
+
+  useEffect(() => {
+    if (!isOpen) {
+      setShowTransfer(false)
+      setShowReturn(false)
+      setShowMakePermanent(false)
+    }
+  }, [isOpen])
 
   const profilePictureUrl = data?.profilePictureUrl ?? null
   const fullName = data?.fullName ?? null
@@ -88,8 +105,9 @@ function EmployeeViewModal({
   )
 
   return (
-    <Transition show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose} onKeyDown={handleKeyDown}>
+    <>
+      <Transition show={isOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={onClose} onKeyDown={handleKeyDown}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -211,7 +229,7 @@ function EmployeeViewModal({
                           <Tab className={tabClasses}>Employment</Tab>
                           {!hideSensitiveFields && <Tab className={tabClasses}>Emergency</Tab>}
                           {!hideSensitiveFields && <Tab className={tabClasses}>Father</Tab>}
-                          {!hideSensitiveFields && <Tab className={tabClasses}>Movement</Tab>}
+                          {!hideSensitiveFields && <Tab className={tabClasses}>Transfer History</Tab>}
                         </Tab.List>
 
                         <Tab.Panels>
@@ -330,12 +348,43 @@ function EmployeeViewModal({
                             </Tab.Panel>
                           )}
 
-                          {/* 5. Movement History */}
+                          {/* 5. Transfer History */}
                           {!hideSensitiveFields && (
-                            <Tab.Panel>
-                              <MovementHistoryTable
-                                history={movementRes?.data ?? []}
-                                isLoading={movementLoading}
+                            <Tab.Panel className="space-y-4">
+                              <div className="flex flex-wrap justify-end gap-2">
+                                {currentTransfer?.transferType === 'TEMPORARY' ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowMakePermanent(true)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-700"
+                                    >
+                                      <CheckCircle2 size={13} />
+                                      Make Permanent
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowReturn(true)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
+                                    >
+                                      <RotateCcw size={13} />
+                                      Return
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowTransfer(true)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-700"
+                                  >
+                                    <ArrowLeftRight size={13} />
+                                    Transfer
+                                  </button>
+                                )}
+                              </div>
+                              <TransferHistoryTable
+                                history={transferHistory}
+                                isLoading={transferLoading}
                               />
                             </Tab.Panel>
                           )}
@@ -360,8 +409,31 @@ function EmployeeViewModal({
             </Transition.Child>
           </div>
         </div>
-      </Dialog>
-    </Transition>
+        </Dialog>
+      </Transition>
+      <TemporaryTransferModal
+        isOpen={showTransfer}
+        employeeId={employeeId ?? null}
+        employeeName={fullName ?? ''}
+        onClose={() => setShowTransfer(false)}
+        onSuccess={() => { void refetchTransfers() }}
+      />
+      <ReturnModal
+        isOpen={showReturn}
+        employeeId={employeeId ?? null}
+        employeeName={fullName ?? ''}
+        onClose={() => setShowReturn(false)}
+        onSuccess={() => { void refetchTransfers() }}
+      />
+      <MakePermanentModal
+        isOpen={showMakePermanent}
+        employeeId={employeeId ?? null}
+        employeeName={fullName ?? ''}
+        currentTransfer={currentTransfer}
+        onClose={() => setShowMakePermanent(false)}
+        onSuccess={() => { void refetchTransfers() }}
+      />
+    </>
   )
 }
 

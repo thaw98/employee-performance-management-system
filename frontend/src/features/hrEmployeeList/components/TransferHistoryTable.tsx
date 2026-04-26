@@ -1,17 +1,17 @@
-import type { MovementHistoryItem } from '../employeeMovementApi'
+import type { TransferHistoryItem } from '../employeeTransferApi'
 
-const MOVEMENT_TYPE_STYLES: Record<string, string> = {
+const TRANSFER_TYPE_STYLES: Record<string, string> = {
   INITIAL: 'bg-blue-100 text-blue-800',
   TEMPORARY: 'bg-amber-100 text-amber-800',
   PERMANENT_TRANSFER: 'bg-purple-100 text-purple-800',
   RETURN: 'bg-green-100 text-green-800',
 }
 
-const MOVEMENT_TYPE_LABELS: Record<string, string> = {
-  INITIAL: 'Initial',
-  TEMPORARY: 'Temporary',
+const TRANSFER_TYPE_LABELS: Record<string, string> = {
+  INITIAL: 'Initial Placement',
+  TEMPORARY: 'Temporary Transfer',
   PERMANENT_TRANSFER: 'Permanent Transfer',
-  RETURN: 'Return',
+  RETURN: 'Return from Temporary',
 }
 
 function formatDate(d: string | null | undefined): string {
@@ -26,12 +26,12 @@ function formatDate(d: string | null | undefined): string {
   }
 }
 
-interface MovementHistoryTableProps {
-  history: MovementHistoryItem[]
+interface TransferHistoryTableProps {
+  history: TransferHistoryItem[]
   isLoading: boolean
 }
 
-export function MovementHistoryTable({ history, isLoading }: MovementHistoryTableProps) {
+export function TransferHistoryTable({ history, isLoading }: TransferHistoryTableProps) {
   if (isLoading) {
     return (
       <div className="flex justify-center py-10">
@@ -42,7 +42,7 @@ export function MovementHistoryTable({ history, isLoading }: MovementHistoryTabl
 
   if (history.length === 0) {
     return (
-      <p className="py-6 text-center text-sm text-gray-400">No movement history found.</p>
+      <p className="py-6 text-center text-sm text-gray-400">No transfer history found.</p>
     )
   }
 
@@ -62,8 +62,8 @@ export function MovementHistoryTable({ history, isLoading }: MovementHistoryTabl
           {history.map((row) => (
             <tr key={row.id} className={row.isCurrent ? 'bg-indigo-50/40' : ''}>
               <td className="px-4 py-3">
-                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${MOVEMENT_TYPE_STYLES[row.movementType] ?? 'bg-gray-100 text-gray-700'}`}>
-                  {MOVEMENT_TYPE_LABELS[row.movementType] ?? row.movementType}
+                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${TRANSFER_TYPE_STYLES[row.transferType] ?? 'bg-gray-100 text-gray-700'}`}>
+                  {TRANSFER_TYPE_LABELS[row.transferType] ?? row.transferType}
                 </span>
               </td>
               <td className="px-4 py-3 text-gray-600">{row.fromDepartmentName ?? '-'}</td>

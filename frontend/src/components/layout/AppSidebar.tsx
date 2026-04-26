@@ -43,11 +43,12 @@ export function AppSidebar() {
         ...(isHr
           ? [
               {
-                name: 'Employees',
+                name: 'Employee',
                 path: '/hr/employees',
                 icon: 'bi-person-badge',
                 end: false,
                 subItems: [
+                  { name: 'Employee List', path: '/hr/employees' },
                   { name: 'Create Employee Account', path: '/hr/employees/create-account' },
                 ],
               },

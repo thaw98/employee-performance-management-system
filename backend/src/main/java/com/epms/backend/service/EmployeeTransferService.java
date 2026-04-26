@@ -7,24 +7,26 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.epms.backend.audit.AuditActionType;
 import com.epms.backend.audit.AuditTargetType;
-import com.epms.backend.dto.movement.HomeDepartmentResponseDto;
-import com.epms.backend.dto.movement.MovementHistoryResponseDto;
-import com.epms.backend.dto.movement.PermanentTransferRequestDto;
-import com.epms.backend.dto.movement.ReportingHistoryRequestDto;
-import com.epms.backend.dto.movement.ReportingHistoryResponseDto;
-import com.epms.backend.dto.movement.ReturnRequestDto;
-import com.epms.backend.dto.movement.TemporaryTransferRequestDto;
+import com.epms.backend.dto.transfer.HomeDepartmentResponseDto;
+import com.epms.backend.dto.transfer.MakePermanentRequestDto;
+import com.epms.backend.dto.transfer.PermanentTransferRequestDto;
+import com.epms.backend.dto.transfer.ReportingHistoryRequestDto;
+import com.epms.backend.dto.transfer.ReportingHistoryResponseDto;
+import com.epms.backend.dto.transfer.ReturnRequestDto;
+import com.epms.backend.dto.transfer.TemporaryTransferRequestDto;
+import com.epms.backend.dto.transfer.TransferHistoryResponseDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeDepartmentHistory;
 import com.epms.backend.entity.EmployeeReportingHistory;
-import com.epms.backend.entity.MovementType;
 import com.epms.backend.entity.Position;
+import com.epms.backend.entity.TransferType;
 import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
@@ -37,12 +39,14 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class EmployeeMovementService {
+public class EmployeeTransferService {
 
-    private static final List<MovementType> BASE_MOVEMENT_TYPES = List.of(
-        MovementType.INITIAL,
-        MovementType.PERMANENT_TRANSFER,
-        MovementType.RETURN
+    public static final long AUDIT_SYSTEM_ACTOR_ID = 0L;
+
+    private static final List<TransferType> BASE_TRANSFER_TYPES = List.of(
+        TransferType.INITIAL,
+        TransferType.PERMANENT_TRANSFER,
+        TransferType.RETURN
     );
 
     private final EmployeeRepository employeeRepository;
@@ -53,35 +57,30 @@ public class EmployeeMovementService {
     private final EmployeeReportingHistoryRepository reportingHistoryRepository;
     private final AuditService auditService;
 
-    // ── Temporary Transfer ──────────────────────────────────────────────────────
-
     @Transactional
-    public MovementHistoryResponseDto temporaryTransfer(Long employeeId, TemporaryTransferRequestDto req, UserPrincipal actor) {
+    public TransferHistoryResponseDto temporaryTransfer(Long employeeId, TemporaryTransferRequestDto req, UserPrincipal actor) {
         Employee employee = requireEmployee(employeeId);
         Department toDept = requireActiveDepartment(req.getToDepartmentId());
         Position toPos = requirePositionInDepartment(req.getToPositionId(), toDept.getId());
 
-        EmployeeDepartmentHistory current = requireCurrentMovement(employeeId);
+        EmployeeDepartmentHistory current = requireCurrentTransfer(employeeId);
         validateEffectiveDate(req.getEffectiveStartDate(), current.getEffectiveStartDate());
+        validateTemporaryEndDate(req.getEffectiveStartDate(), req.getEffectiveEndDate());
 
-        // Cannot temporarily transfer if already on temporary assignment
-        if (current.getMovementType() == MovementType.TEMPORARY) {
+        if (current.getTransferType() == TransferType.TEMPORARY) {
             throw new IllegalArgumentException("Employee is already on a temporary assignment. Return first before another temporary transfer.");
         }
 
-        // Close previous row
-        closeMovement(current, req.getEffectiveStartDate().minusDays(1));
+        closeTransfer(current, req.getEffectiveStartDate().minusDays(1), actor.getId());
 
-        // Create TEMPORARY row
-        EmployeeDepartmentHistory newRow = buildMovement(
+        EmployeeDepartmentHistory newRow = buildTransfer(
             employee, current.getToDepartment(), toDept,
             current.getToPosition(), toPos,
-            MovementType.TEMPORARY, req.getEffectiveStartDate(),
+            TransferType.TEMPORARY, req.getEffectiveStartDate(), req.getEffectiveEndDate(),
             req.getReason(), req.getRemarks(), actor.getId()
         );
         EmployeeDepartmentHistory saved = historyRepository.save(newRow);
 
-        // Update employee current dept/pos
         employee.setDepartment(toDept);
         employee.setPosition(toPos);
         employeeRepository.save(employee);
@@ -91,37 +90,70 @@ public class EmployeeMovementService {
             AuditTargetType.EMPLOYEE,
             employeeId, actor.getId(), actor.getRoleId(),
             "Temporary transfer of employee " + employeeId + " to department " + toDept.getName(),
-            buildMovementMeta(saved));
+            buildTransferMeta(saved));
 
         return toDto(saved);
     }
 
-    // ── Return ──────────────────────────────────────────────────────────────────
-
     @Transactional
-    public MovementHistoryResponseDto returnFromTemporary(Long employeeId, ReturnRequestDto req, UserPrincipal actor) {
-        Employee employee = requireEmployee(employeeId);
-        EmployeeDepartmentHistory current = requireCurrentMovement(employeeId);
+    public TransferHistoryResponseDto returnFromTemporary(Long employeeId, ReturnRequestDto req, UserPrincipal actor) {
+        return returnFromTemporary(employeeId, req, actor, actor.getId(), actor.getRoleId());
+    }
 
-        if (current.getMovementType() != MovementType.TEMPORARY) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public TransferHistoryResponseDto autoReturnExpiredTemporary(Long temporaryHistoryId) {
+        EmployeeDepartmentHistory temporary = historyRepository.findById(temporaryHistoryId)
+            .orElseThrow(() -> new IllegalArgumentException("Transfer history not found: " + temporaryHistoryId));
+        if (!temporary.isCurrent() || temporary.getTransferType() != TransferType.TEMPORARY) {
+            throw new IllegalArgumentException("Transfer history row is not an active temporary assignment");
+        }
+        if (temporary.getEffectiveEndDate() == null || !temporary.getEffectiveEndDate().isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("Temporary assignment has not expired");
+        }
+
+        ReturnRequestDto req = new ReturnRequestDto();
+        HomePlacement homePlacement = deriveHomePlacement(temporary.getEmployee().getId())
+            .orElseThrow(() -> new IllegalStateException("Cannot determine home placement for employee " + temporary.getEmployee().getId()));
+        req.setToPositionId(homePlacement.position().getId());
+        req.setEffectiveStartDate(temporary.getEffectiveEndDate().plusDays(1));
+        req.setReason("Auto-return: temporary assignment ended on " + temporary.getEffectiveEndDate());
+        req.setRemarks(null);
+
+        return returnFromTemporary(
+            temporary.getEmployee().getId(),
+            req,
+            null,
+            AUDIT_SYSTEM_ACTOR_ID,
+            null);
+    }
+
+    private TransferHistoryResponseDto returnFromTemporary(
+            Long employeeId,
+            ReturnRequestDto req,
+            UserPrincipal actor,
+            Long auditActorId,
+            Long auditRoleId) {
+        Employee employee = requireEmployee(employeeId);
+        EmployeeDepartmentHistory current = requireCurrentTransfer(employeeId);
+
+        if (current.getTransferType() != TransferType.TEMPORARY) {
             throw new IllegalArgumentException("Employee is not on a temporary assignment. Return is only valid after TEMPORARY transfer.");
         }
 
-        Department homeDept = deriveHomeDepartmentEntity(employeeId)
-            .orElseThrow(() -> new IllegalStateException("Cannot determine home department for employee " + employeeId));
+        HomePlacement homePlacement = deriveHomePlacement(employeeId)
+            .orElseThrow(() -> new IllegalStateException("Cannot determine home placement for employee " + employeeId));
+        Department homeDept = homePlacement.department();
         Position toPos = requirePositionInDepartment(req.getToPositionId(), homeDept.getId());
 
         validateEffectiveDate(req.getEffectiveStartDate(), current.getEffectiveStartDate());
 
-        // Close TEMPORARY row
-        closeMovement(current, req.getEffectiveStartDate().minusDays(1));
+        closeTransfer(current, req.getEffectiveStartDate().minusDays(1), auditActorId);
 
-        // Create RETURN row
-        EmployeeDepartmentHistory newRow = buildMovement(
+        EmployeeDepartmentHistory newRow = buildTransfer(
             employee, current.getToDepartment(), homeDept,
             current.getToPosition(), toPos,
-            MovementType.RETURN, req.getEffectiveStartDate(),
-            req.getReason(), req.getRemarks(), actor.getId()
+            TransferType.RETURN, req.getEffectiveStartDate(), null,
+            req.getReason(), req.getRemarks(), auditActorId
         );
         EmployeeDepartmentHistory saved = historyRepository.save(newRow);
 
@@ -132,32 +164,30 @@ public class EmployeeMovementService {
         auditService.record(
             AuditActionType.EMPLOYEE_RETURN,
             AuditTargetType.EMPLOYEE,
-            employeeId, actor.getId(), actor.getRoleId(),
-            "Return of employee " + employeeId + " to home department " + homeDept.getName(),
-            buildMovementMeta(saved));
+            employeeId, auditActorId, auditRoleId,
+            actor == null
+                ? "Auto-return of employee " + employeeId + " to home department " + homeDept.getName()
+                : "Return of employee " + employeeId + " to home department " + homeDept.getName(),
+            buildTransferMeta(saved));
 
         return toDto(saved);
     }
 
-    // ── Permanent Transfer ──────────────────────────────────────────────────────
-
     @Transactional
-    public MovementHistoryResponseDto permanentTransfer(Long employeeId, PermanentTransferRequestDto req, UserPrincipal actor) {
+    public TransferHistoryResponseDto permanentTransfer(Long employeeId, PermanentTransferRequestDto req, UserPrincipal actor) {
         Employee employee = requireEmployee(employeeId);
         Department toDept = requireActiveDepartment(req.getToDepartmentId());
         Position toPos = requirePositionInDepartment(req.getToPositionId(), toDept.getId());
 
-        EmployeeDepartmentHistory current = requireCurrentMovement(employeeId);
+        EmployeeDepartmentHistory current = requireCurrentTransfer(employeeId);
         validateEffectiveDate(req.getEffectiveStartDate(), current.getEffectiveStartDate());
 
-        // Close previous row
-        closeMovement(current, req.getEffectiveStartDate().minusDays(1));
+        closeTransfer(current, req.getEffectiveStartDate().minusDays(1), actor.getId());
 
-        // Create PERMANENT_TRANSFER row
-        EmployeeDepartmentHistory newRow = buildMovement(
+        EmployeeDepartmentHistory newRow = buildTransfer(
             employee, current.getToDepartment(), toDept,
             current.getToPosition(), toPos,
-            MovementType.PERMANENT_TRANSFER, req.getEffectiveStartDate(),
+            TransferType.PERMANENT_TRANSFER, req.getEffectiveStartDate(), null,
             req.getReason(), req.getRemarks(), actor.getId()
         );
         EmployeeDepartmentHistory saved = historyRepository.save(newRow);
@@ -171,22 +201,59 @@ public class EmployeeMovementService {
             AuditTargetType.EMPLOYEE,
             employeeId, actor.getId(), actor.getRoleId(),
             "Permanent transfer of employee " + employeeId + " to department " + toDept.getName(),
-            buildMovementMeta(saved));
+            buildTransferMeta(saved));
 
         return toDto(saved);
     }
 
-    // ── Queries ─────────────────────────────────────────────────────────────────
+    @Transactional
+    public TransferHistoryResponseDto makePermanent(Long employeeId, MakePermanentRequestDto req, UserPrincipal actor) {
+        Employee employee = requireEmployee(employeeId);
+        EmployeeDepartmentHistory current = requireCurrentTransfer(employeeId);
+        if (current.getTransferType() != TransferType.TEMPORARY) {
+            throw new IllegalArgumentException("Employee is not on a temporary assignment");
+        }
+        if (current.getEffectiveEndDate() == null) {
+            throw new IllegalArgumentException("Temporary assignment end date is required before making permanent");
+        }
+        if (req.getEffectiveStartDate().isBefore(current.getEffectiveStartDate())
+                || req.getEffectiveStartDate().isAfter(current.getEffectiveEndDate())) {
+            throw new IllegalArgumentException("Effective start date must be within the temporary assignment date range");
+        }
+
+        closeTransfer(current, req.getEffectiveStartDate().minusDays(1), actor.getId());
+
+        EmployeeDepartmentHistory newRow = buildTransfer(
+            employee, current.getFromDepartment(), current.getToDepartment(),
+            current.getFromPosition(), current.getToPosition(),
+            TransferType.PERMANENT_TRANSFER, req.getEffectiveStartDate(), null,
+            req.getReason(), req.getRemarks(), actor.getId()
+        );
+        EmployeeDepartmentHistory saved = historyRepository.save(newRow);
+
+        employee.setDepartment(current.getToDepartment());
+        employee.setPosition(current.getToPosition());
+        employeeRepository.save(employee);
+
+        auditService.record(
+            AuditActionType.EMPLOYEE_PERMANENT_TRANSFER,
+            AuditTargetType.EMPLOYEE,
+            employeeId, actor.getId(), actor.getRoleId(),
+            "Temporary transfer of employee " + employeeId + " made permanent",
+            buildTransferMeta(saved));
+
+        return toDto(saved);
+    }
 
     @Transactional(readOnly = true)
-    public List<MovementHistoryResponseDto> getMovementHistory(Long employeeId) {
+    public List<TransferHistoryResponseDto> getTransferHistory(Long employeeId) {
         requireEmployee(employeeId);
         return historyRepository.findByEmployee_IdOrderByEffectiveStartDateDesc(employeeId)
             .stream().map(this::toDto).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public Optional<MovementHistoryResponseDto> getCurrentMovement(Long employeeId) {
+    public Optional<TransferHistoryResponseDto> getCurrentTransfer(Long employeeId) {
         requireEmployee(employeeId);
         return historyRepository.findByEmployee_IdAndCurrentTrue(employeeId).map(this::toDto);
     }
@@ -194,26 +261,24 @@ public class EmployeeMovementService {
     @Transactional(readOnly = true)
     public HomeDepartmentResponseDto getHomeDepartment(Long employeeId) {
         requireEmployee(employeeId);
-        EmployeeDepartmentHistory current = requireCurrentMovement(employeeId);
+        EmployeeDepartmentHistory current = requireCurrentTransfer(employeeId);
 
-        if (current.getMovementType() != MovementType.TEMPORARY) {
+        if (current.getTransferType() != TransferType.TEMPORARY) {
             return HomeDepartmentResponseDto.builder()
                 .departmentId(current.getToDepartment().getId())
                 .departmentName(current.getToDepartment().getName())
-                .derivedFrom(current.getMovementType().name())
+                .derivedFrom(current.getTransferType().name())
                 .build();
         }
 
-        Department home = deriveHomeDepartmentEntity(employeeId)
+        HomePlacement home = deriveHomePlacement(employeeId)
             .orElseThrow(() -> new IllegalStateException("Cannot determine home department for employee " + employeeId));
         return HomeDepartmentResponseDto.builder()
-            .departmentId(home.getId())
-            .departmentName(home.getName())
-            .derivedFrom("LATEST_BASE_MOVEMENT")
+            .departmentId(home.department().getId())
+            .departmentName(home.department().getName())
+            .derivedFrom("LATEST_BASE_TRANSFER")
             .build();
     }
-
-    // ── Reporting History ────────────────────────────────────────────────────────
 
     @Transactional
     public ReportingHistoryResponseDto assignManager(Long employeeId, ReportingHistoryRequestDto req, UserPrincipal actor) {
@@ -224,7 +289,6 @@ public class EmployeeMovementService {
             throw new IllegalArgumentException("An employee cannot be their own manager");
         }
 
-        // Close current reporting row if exists
         reportingHistoryRepository.findByEmployee_IdAndCurrentTrue(employeeId).ifPresent(existing -> {
             existing.setCurrent(false);
             existing.setEffectiveEndDate(req.getEffectiveStartDate().minusDays(1));
@@ -244,7 +308,6 @@ public class EmployeeMovementService {
         newRow.setCreatedOn(LocalDateTime.now());
         EmployeeReportingHistory saved = reportingHistoryRepository.save(newRow);
 
-        // Keep employee.manager in sync
         employee.setManager(manager);
         employeeRepository.save(employee);
 
@@ -265,30 +328,28 @@ public class EmployeeMovementService {
             .stream().map(this::toReportingDto).collect(Collectors.toList());
     }
 
-    // ── Home department derivation ───────────────────────────────────────────────
-
-    /**
-     * Derives the home department entity for an employee.
-     * If current movement is TEMPORARY, looks up latest non-TEMPORARY base movement.
-     */
+    @Transactional(readOnly = true)
     public Optional<Department> deriveHomeDepartmentEntity(Long employeeId) {
+        return deriveHomePlacement(employeeId).map(HomePlacement::department);
+    }
+
+    private Optional<HomePlacement> deriveHomePlacement(Long employeeId) {
         Optional<EmployeeDepartmentHistory> currentOpt = historyRepository.findByEmployee_IdAndCurrentTrue(employeeId);
         if (currentOpt.isEmpty()) {
             return Optional.empty();
         }
         EmployeeDepartmentHistory current = currentOpt.get();
-        if (current.getMovementType() != MovementType.TEMPORARY) {
-            return Optional.of(current.getToDepartment());
+        if (current.getTransferType() != TransferType.TEMPORARY) {
+            return Optional.of(new HomePlacement(current.getToDepartment(), current.getToPosition()));
         }
-        List<EmployeeDepartmentHistory> baseMovements =
-            historyRepository.findLatestBaseMovements(employeeId, BASE_MOVEMENT_TYPES);
-        if (baseMovements.isEmpty()) {
+        List<EmployeeDepartmentHistory> baseTransfers =
+            historyRepository.findLatestBaseTransfers(employeeId, BASE_TRANSFER_TYPES);
+        if (baseTransfers.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(baseMovements.get(0).getToDepartment());
+        EmployeeDepartmentHistory base = baseTransfers.get(0);
+        return Optional.of(new HomePlacement(base.getToDepartment(), base.getToPosition()));
     }
-
-    // ── Helpers ─────────────────────────────────────────────────────────────────
 
     private Employee requireEmployee(Long id) {
         return employeeRepository.findById(id)
@@ -316,31 +377,38 @@ public class EmployeeMovementService {
         return pos;
     }
 
-    private EmployeeDepartmentHistory requireCurrentMovement(Long employeeId) {
+    private EmployeeDepartmentHistory requireCurrentTransfer(Long employeeId) {
         return historyRepository.findByEmployee_IdAndCurrentTrue(employeeId)
             .orElseThrow(() -> new IllegalStateException(
-                "No active movement record found for employee " + employeeId +
+                "No active transfer record found for employee " + employeeId +
                 ". Employee may not have an INITIAL history row yet."));
     }
 
     private static void validateEffectiveDate(LocalDate newDate, LocalDate prevStartDate) {
         if (!newDate.isAfter(prevStartDate)) {
             throw new IllegalArgumentException(
-                "Effective start date must be after the previous movement's start date (" + prevStartDate + ")");
+                "Effective start date must be after the previous transfer's start date (" + prevStartDate + ")");
         }
     }
 
-    private void closeMovement(EmployeeDepartmentHistory row, LocalDate endDate) {
+    private static void validateTemporaryEndDate(LocalDate startDate, LocalDate endDate) {
+        if (!endDate.isAfter(startDate)) {
+            throw new IllegalArgumentException("Effective end date must be after effective start date");
+        }
+    }
+
+    private void closeTransfer(EmployeeDepartmentHistory row, LocalDate endDate, Long updatedBy) {
         row.setCurrent(false);
         row.setEffectiveEndDate(endDate);
+        row.setUpdatedBy(updatedBy);
         row.setUpdatedOn(LocalDateTime.now());
         historyRepository.save(row);
     }
 
-    private EmployeeDepartmentHistory buildMovement(
+    private EmployeeDepartmentHistory buildTransfer(
             Employee employee, Department fromDept, Department toDept,
             Position fromPos, Position toPos,
-            MovementType type, LocalDate startDate,
+            TransferType type, LocalDate startDate, LocalDate endDate,
             String reason, String remarks, Long createdBy) {
         EmployeeDepartmentHistory row = new EmployeeDepartmentHistory();
         row.setEmployee(employee);
@@ -348,8 +416,9 @@ public class EmployeeMovementService {
         row.setToDepartment(toDept);
         row.setFromPosition(fromPos);
         row.setToPosition(toPos);
-        row.setMovementType(type);
+        row.setTransferType(type);
         row.setEffectiveStartDate(startDate);
+        row.setEffectiveEndDate(endDate);
         row.setCurrent(true);
         row.setReason(reason);
         row.setRemarks(remarks);
@@ -358,16 +427,16 @@ public class EmployeeMovementService {
         return row;
     }
 
-    private String buildMovementMeta(EmployeeDepartmentHistory h) {
-        return "{\"movementHistoryId\":%d,\"movementType\":\"%s\",\"toDepartmentId\":%d}"
-            .formatted(h.getId(), h.getMovementType(), h.getToDepartment().getId());
+    private String buildTransferMeta(EmployeeDepartmentHistory h) {
+        return "{\"transferHistoryId\":%d,\"transferType\":\"%s\",\"toDepartmentId\":%d}"
+            .formatted(h.getId(), h.getTransferType(), h.getToDepartment().getId());
     }
 
-    private MovementHistoryResponseDto toDto(EmployeeDepartmentHistory h) {
-        return MovementHistoryResponseDto.builder()
+    private TransferHistoryResponseDto toDto(EmployeeDepartmentHistory h) {
+        return TransferHistoryResponseDto.builder()
             .id(h.getId())
             .employeeId(h.getEmployee().getId())
-            .movementType(h.getMovementType().name())
+            .transferType(h.getTransferType().name())
             .fromDepartmentId(h.getFromDepartment() != null ? h.getFromDepartment().getId() : null)
             .fromDepartmentName(h.getFromDepartment() != null ? h.getFromDepartment().getName() : null)
             .toDepartmentId(h.getToDepartment().getId())
@@ -396,5 +465,8 @@ public class EmployeeMovementService {
             .reason(h.getReason())
             .remarks(h.getRemarks())
             .build();
+    }
+
+    private record HomePlacement(Department department, Position position) {
     }
 }

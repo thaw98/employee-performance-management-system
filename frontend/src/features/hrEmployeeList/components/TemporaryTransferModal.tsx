@@ -9,7 +9,7 @@ import {
   type DepartmentOptionDto,
   type PositionOptionDto,
 } from '../../hrCreateEmployee/hrEmployeeAccountApi'
-import { useTemporaryTransferMutation } from '../employeeMovementApi'
+import { useTemporaryTransferMutation } from '../employeeTransferApi'
 
 interface TemporaryTransferModalProps {
   isOpen: boolean
@@ -25,6 +25,7 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
   const [toDepartmentId, setToDepartmentId] = useState<number | ''>('')
   const [toPositionId, setToPositionId] = useState<number | ''>('')
   const [effectiveStartDate, setEffectiveStartDate] = useState('')
+  const [effectiveEndDate, setEffectiveEndDate] = useState('')
   const [reason, setReason] = useState('')
   const [remarks, setRemarks] = useState('')
 
@@ -42,6 +43,7 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
     setToDepartmentId('')
     setToPositionId('')
     setEffectiveStartDate('')
+    setEffectiveEndDate('')
     setReason('')
     setRemarks('')
   }
@@ -50,8 +52,12 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!employeeId || !toDepartmentId || !toPositionId || !effectiveStartDate) {
+    if (!employeeId || !toDepartmentId || !toPositionId || !effectiveStartDate || !effectiveEndDate) {
       toast.error('Please fill in all required fields')
+      return
+    }
+    if (effectiveEndDate <= effectiveStartDate) {
+      toast.error('Effective end date must be after effective start date')
       return
     }
     try {
@@ -61,6 +67,7 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
           toDepartmentId: toDepartmentId as number,
           toPositionId: toPositionId as number,
           effectiveStartDate,
+          effectiveEndDate,
           reason: reason || undefined,
           remarks: remarks || undefined,
         },
@@ -145,6 +152,23 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
                 onChange={(e) => setEffectiveStartDate(e.target.value)}
                 required
               />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                Effective End Date <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="date"
+                className={inputBase}
+                value={effectiveEndDate}
+                min={effectiveStartDate || undefined}
+                onChange={(e) => setEffectiveEndDate(e.target.value)}
+                required
+              />
+              {effectiveStartDate && effectiveEndDate && effectiveEndDate <= effectiveStartDate ? (
+                <p className="mt-1 text-xs font-medium text-red-500">End date must be after the start date.</p>
+              ) : null}
             </div>
 
             <div>

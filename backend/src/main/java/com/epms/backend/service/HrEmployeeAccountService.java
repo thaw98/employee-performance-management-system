@@ -27,10 +27,10 @@ import com.epms.backend.entity.EmployeeFather;
 import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.Gender;
-import com.epms.backend.entity.MovementType;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.Role;
 import com.epms.backend.entity.StaffType;
+import com.epms.backend.entity.TransferType;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
@@ -209,7 +209,7 @@ public class HrEmployeeAccountService {
 		initialHistory.setEmployee(savedEmployee);
 		initialHistory.setToDepartment(department);
 		initialHistory.setToPosition(position);
-		initialHistory.setMovementType(MovementType.INITIAL);
+		initialHistory.setTransferType(TransferType.INITIAL);
 		initialHistory.setEffectiveStartDate(request.getHireDate());
 		initialHistory.setCurrent(true);
 		initialHistory.setCreatedBy(principal.getId());
@@ -217,13 +217,13 @@ public class HrEmployeeAccountService {
 		EmployeeDepartmentHistory savedHistory = departmentHistoryRepository.save(initialHistory);
 
 		auditService.record(
-				AuditActionType.EMPLOYEE_INITIAL_MOVEMENT,
+				AuditActionType.EMPLOYEE_INITIAL_TRANSFER,
 				AuditTargetType.EMPLOYEE,
 				savedEmployee.getId(),
 				principal.getId(),
 				principal.getRoleId(),
-				"Initial movement history created for employee_id " + savedEmployee.getId(),
-				("{\"movementHistoryId\":%d,\"toDepartmentId\":%d,\"toPositionId\":%d}")
+				"Initial transfer history created for employee_id " + savedEmployee.getId(),
+				("{\"transferHistoryId\":%d,\"toDepartmentId\":%d,\"toPositionId\":%d}")
 						.formatted(savedHistory.getId(), department.getId(), position.getId()));
 
 		String temporaryPassword = generateTemporaryPassword();
