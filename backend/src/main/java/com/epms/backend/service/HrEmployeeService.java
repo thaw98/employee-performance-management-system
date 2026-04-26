@@ -520,6 +520,7 @@ public class HrEmployeeService {
                 .employeeName(employee.getEmployeeName())
                 .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
                 .positionName(employee.getPosition() != null ? employee.getPosition().getName() : null)
+                .staffTypeId(employee.getStaffType() != null ? employee.getStaffType().getId() : null)
                 .staffTypeName(employee.getStaffType() != null ? employee.getStaffType().getName() : null)
                 .phoneNumber(employee.getPhoneNo())
                 .profilePictureUrl(employee.getProfilePictureUrl())

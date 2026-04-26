@@ -17,6 +17,8 @@ public class EmployeeListItemResponseDto {
     private String employeeName;
     private String departmentName;
     private String positionName;
+    /** Primary key in {@code staff_type} (1 = permanent, 2 = probation). */
+    private Long staffTypeId;
     private String staffTypeName;
     private String phoneNumber;
     private String profilePictureUrl;

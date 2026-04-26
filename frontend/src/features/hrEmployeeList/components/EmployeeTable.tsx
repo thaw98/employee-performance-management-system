@@ -10,6 +10,7 @@ import {
 import { useMemo, memo } from 'react'
 import { ArrowLeftRight } from 'lucide-react'
 import EmployeeProfileCell from './EmployeeProfileCell'
+import { STAFF_TYPE_PROBATION } from '../../employeeOnboarding/utils/staffType'
 import type { EmployeeListItem } from '../hrEmployeeApi'
 
 interface EmployeeTableProps {
@@ -150,18 +151,20 @@ function EmployeeTable({
                     <i className="bi bi-pencil-square text-lg"></i>
                   </button>
 
-                  <button
-                    onClick={() => onTransfer?.(row.employeeId, row.employeeName)}
-                    disabled={row.currentTransferType === 'TEMPORARY'}
-                    className="p-1 text-amber-500 hover:bg-amber-50 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
-                    title={
-                      row.currentTransferType === 'TEMPORARY'
-                        ? 'Already on temporary assignment — return first'
-                        : 'Temporary Transfer'
-                    }
-                  >
-                    <ArrowLeftRight size={18} />
-                  </button>
+                  {row.staffTypeId !== STAFF_TYPE_PROBATION && (
+                    <button
+                      onClick={() => onTransfer?.(row.employeeId, row.employeeName)}
+                      disabled={row.currentTransferType === 'TEMPORARY'}
+                      className="p-1 text-amber-500 hover:bg-amber-50 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+                      title={
+                        row.currentTransferType === 'TEMPORARY'
+                          ? 'Already on temporary assignment — return first'
+                          : 'Temporary Transfer'
+                      }
+                    >
+                      <ArrowLeftRight size={18} />
+                    </button>
+                  )}
 
                   {row.hasUserAccount && row.mustChangePassword && (
                     <button
