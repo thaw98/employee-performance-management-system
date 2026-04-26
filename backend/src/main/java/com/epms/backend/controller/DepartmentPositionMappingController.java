@@ -2,6 +2,7 @@ package com.epms.backend.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -65,5 +66,12 @@ public class DepartmentPositionMappingController {
 	@PreAuthorize("hasRole('HR')")
 	public ResponseEntity<ApiResponse<DepartmentPositionMappingDto>> toggleStatus(@PathVariable Long id) {
 		return ResponseEntity.ok(ApiResponse.ok("Mapping status updated successfully.", mappingService.toggleStatus(id)));
+	}
+
+	@DeleteMapping("/{id}")
+	@PreAuthorize("hasRole('HR')")
+	public ResponseEntity<ApiResponse<Void>> deleteMapping(@PathVariable Long id) {
+		mappingService.deleteMapping(id);
+		return ResponseEntity.ok(ApiResponse.ok("Position removed from department.", null));
 	}
 }

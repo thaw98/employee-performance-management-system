@@ -5,6 +5,7 @@ import com.epms.backend.service.UserService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.user.dto.ChangePasswordRequestDto;
+import com.epms.backend.user.dto.UpdateProfileRequestDto;
 import com.epms.backend.user.dto.UserProfileDto;
 
 import jakarta.validation.Valid;
@@ -34,6 +36,18 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok("Profile retrieved successfully", profile));
     }
 
+    @PutMapping
+    public ResponseEntity<ApiResponse<UserProfileDto>> updateProfile(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody UpdateProfileRequestDto request) {
+        try {
+            UserProfileDto profile = userService.updateProfile(principal.getId(), request);
+            return ResponseEntity.ok(ApiResponse.ok("Profile updated successfully", profile));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
+    }
+
     @PutMapping(value = "/picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<UserProfileDto>> updateProfilePicture(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -41,6 +55,40 @@ public class UserController {
         try {
             UserProfileDto profile = userService.updateProfilePicture(principal.getId(), file);
             return ResponseEntity.ok(ApiResponse.ok("Profile picture updated successfully", profile));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/picture")
+    public ResponseEntity<ApiResponse<UserProfileDto>> deleteProfilePicture(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            UserProfileDto profile = userService.deleteProfilePicture(principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Profile picture deleted successfully", profile));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
+    }
+
+    @PutMapping(value = "/wallpaper", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<UserProfileDto>> updateWallpaper(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            UserProfileDto profile = userService.updateWallpaper(principal.getId(), file);
+            return ResponseEntity.ok(ApiResponse.ok("Wallpaper updated successfully", profile));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/wallpaper")
+    public ResponseEntity<ApiResponse<UserProfileDto>> deleteWallpaper(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            UserProfileDto profile = userService.deleteWallpaper(principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Wallpaper deleted successfully", profile));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
         }

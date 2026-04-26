@@ -29,6 +29,9 @@ public class AppraisalCategory {
     @Column(name = "sort_order")
     private Integer sortOrder = 0;
 
+    @Column(name = "is_finalized")
+    private Boolean isFinalized = false;
+
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AppraisalQuestion> questions;
 }

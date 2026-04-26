@@ -7,6 +7,8 @@ export interface EmployeeListItem {
   employeeName: string
   departmentName: string
   positionName: string
+  staffTypeName?: string
+  phoneNumber?: string
   profilePictureUrl: string
   email: string
   mustChangePassword: boolean | null
@@ -200,6 +202,13 @@ export const hrEmployeeApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Employee'],
     }),
+    exportEmployees: builder.mutation<Blob, void>({
+      query: () => ({
+        url: '/employees/export',
+        method: 'GET',
+        responseHandler: (response) => response.blob(),
+      }),
+    }),
     getEmployeeViewById: builder.query<ApiResponse<EmployeeViewDetail>, number>({
       query: (id) => `/hr/employees/${id}/view`,
       providesTags: (_result, _error, id) => [{ type: 'Employee', id }],
@@ -214,5 +223,6 @@ export const {
   useResendPasswordMutation,
   useSendNewPasswordMutation,
   useUpdateEmploymentStatusMutation,
+  useExportEmployeesMutation,
   useLazyGetEmployeeViewByIdQuery,
 } = hrEmployeeApi

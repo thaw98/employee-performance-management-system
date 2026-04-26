@@ -11,6 +11,7 @@ import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.UserRepository;
+import com.epms.backend.user.dto.UpdateProfileRequestDto;
 import com.epms.backend.user.dto.UserProfileDto;
 
 @Service
@@ -49,6 +50,44 @@ public class UserService {
         profilePictureStorageService.deleteIfStored(previous);
         employee.setProfilePictureUrl(url);
         employeeRepository.save(employee);
+        return toUserProfileDto(user);
+    }
+
+    @Transactional
+    public UserProfileDto deleteProfilePicture(Long userId) {
+        User user = findUserById(userId);
+        Employee employee = user.getEmployee();
+        String currentUrl = employee.getProfilePictureUrl();
+        if (currentUrl != null) {
+            profilePictureStorageService.deleteIfStored(currentUrl);
+            employee.setProfilePictureUrl(null);
+            employeeRepository.save(employee);
+        }
+        return toUserProfileDto(user);
+    }
+
+    @Transactional
+    public UserProfileDto updateWallpaper(Long userId, MultipartFile file) {
+        User user = findUserById(userId);
+        String previous = user.getWallpaperUrl();
+        String url = profilePictureStorageService.store(file);
+        profilePictureStorageService.deleteIfStored(previous);
+        user.setWallpaperUrl(url);
+        user.setTheme("wallpaper");
+        userRepository.save(user);
+        return toUserProfileDto(user);
+    }
+
+    @Transactional
+    public UserProfileDto deleteWallpaper(Long userId) {
+        User user = findUserById(userId);
+        String currentUrl = user.getWallpaperUrl();
+        if (currentUrl != null) {
+            profilePictureStorageService.deleteIfStored(currentUrl);
+            user.setWallpaperUrl(null);
+            user.setTheme("light");
+            userRepository.save(user);
+        }
         return toUserProfileDto(user);
     }
 
@@ -96,6 +135,37 @@ public class UserService {
         }
     }
 
+    @Transactional
+    public UserProfileDto updateProfile(Long userId, UpdateProfileRequestDto request) {
+        User user = findUserById(userId);
+        Employee employee = user.getEmployee();
+
+        if (request.getName() != null && !request.getName().isBlank()) {
+            employee.setEmployeeName(request.getName());
+        }
+
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            employee.setEmail(request.getEmail());
+        }
+
+        if (request.getTheme() != null && !request.getTheme().isBlank()) {
+            user.setTheme(request.getTheme());
+        }
+
+        if (request.getLanguage() != null && !request.getLanguage().isBlank()) {
+            user.setLanguage(request.getLanguage());
+        }
+
+        if (request.getTimezone() != null && !request.getTimezone().isBlank()) {
+            user.setTimezone(request.getTimezone());
+        }
+
+        employeeRepository.save(employee);
+        userRepository.save(user);
+
+        return toUserProfileDto(user);
+    }
+
     private User findUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -108,6 +178,10 @@ public class UserService {
                 user.getEmployee().getEmployeeName(),
                 user.getEmail(),
                 user.getRole().getName(),
-                user.getEmployee().getProfilePictureUrl());
+                user.getEmployee().getProfilePictureUrl(),
+                user.getTheme(),
+                user.getWallpaperUrl(),
+                user.getLanguage(),
+                user.getTimezone());
     }
 }

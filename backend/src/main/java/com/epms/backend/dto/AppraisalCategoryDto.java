@@ -9,4 +9,5 @@ public class AppraisalCategoryDto {
     private String description;
     private Boolean status;
     private Integer sortOrder;
+    private Boolean isFinalized;
 }

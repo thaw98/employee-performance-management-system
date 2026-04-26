@@ -31,6 +31,7 @@ interface Submission {
         name: string;
     };
     totalScore?: number;
+    maxPoints?: number;
     ratingCategory?: string;
     status: 'HR_APPROVED' | 'REJECTED' | 'RETURNED' | 'LOCKED' | 'SUBMITTED' | 'PENDING';
     submittedAt?: string;
@@ -332,10 +333,18 @@ export function AppraisalSubmissionsPage() {
                         {/* Modal Content */}
                         <div className="flex-1 overflow-y-auto p-10 space-y-8">
                             {/* Summary Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                                 <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200 rounded-3xl space-y-2">
-                                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Self Score</p>
-                                    <p className="text-3xl font-bold text-blue-700">
+                                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Points Achieved</p>
+                                    <p className="text-3xl font-black text-blue-700 italic">
+                                        {selectedAsmt.answers?.reduce((acc, curr) => acc + (curr.rating || 0), 0)}
+                                        <span className="text-blue-300 mx-2 text-xl font-normal">/</span>
+                                        <span className="text-blue-400 text-2xl">{(selectedAsmt.answers?.length || 0) * 5}</span>
+                                    </p>
+                                </div>
+                                <div className="p-6 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200 rounded-3xl space-y-2">
+                                    <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">Overall Score</p>
+                                    <p className="text-3xl font-black text-indigo-700">
                                         {selectedAsmt.totalScore?.toFixed(1) || '0.0'}%
                                     </p>
                                 </div>
@@ -362,21 +371,32 @@ export function AppraisalSubmissionsPage() {
                                 <div className="grid grid-cols-1 gap-3">
                                     {selectedAsmt.answers && selectedAsmt.answers.length > 0 ? (
                                         selectedAsmt.answers.map((ans, idx) => (
-                                            <div key={ans.id || idx} className="p-5 bg-slate-50 rounded-2xl border border-slate-200 hover:border-slate-300 transition-all">
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="space-y-2 flex-1">
-                                                        <p className="text-sm font-medium text-slate-700">
-                                                            <span className="font-bold text-slate-400 mr-2">Q{idx + 1}:</span>
-                                                            {ans.question?.questionText || 'Question not available'}
-                                                        </p>
+                                            <div key={ans.id || idx} className="p-5 bg-white rounded-2xl border border-slate-100 hover:border-blue-200 transition-all shadow-sm group">
+                                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                                                    <div className="space-y-3 flex-1">
+                                                        <div className="flex items-start gap-3">
+                                                            <span className="font-black text-slate-200 group-hover:text-blue-200 text-lg">{(idx + 1).toString().padStart(2, '0')}</span>
+                                                            <p className="text-sm font-bold text-slate-700 leading-relaxed">
+                                                                {ans.question?.questionText || 'Question not available'}
+                                                            </p>
+                                                        </div>
                                                         {ans.comments && (
-                                                            <p className="text-sm text-slate-500 italic bg-white p-3 rounded-xl border border-slate-100">
+                                                            <p className="text-[11px] text-slate-500 italic bg-slate-50 p-3 rounded-xl border border-slate-100 ml-8">
                                                                 "{ans.comments}"
                                                             </p>
                                                         )}
                                                     </div>
-                                                    <div className="px-4 py-2 bg-white rounded-xl border border-slate-200 text-blue-600 font-bold shadow-sm">
-                                                        {ans.rating} / 5
+                                                    
+                                                    {/* Rating Display 5 4 3 2 1 */}
+                                                    <div className="flex items-center gap-1.5 bg-slate-50/50 p-1.5 rounded-2xl border border-slate-100 self-start lg:self-center">
+                                                        {[5, 4, 3, 2, 1].map(num => (
+                                                            <div 
+                                                                key={num}
+                                                                className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center transition-all ${ans.rating === num ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-110 z-10' : 'bg-white text-slate-300 border border-slate-100 opacity-60'}`}
+                                                            >
+                                                                <span className="text-[9px] font-black uppercase tracking-tighter opacity-70 leading-none mb-0.5">{num}</span>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </div>
                                             </div>

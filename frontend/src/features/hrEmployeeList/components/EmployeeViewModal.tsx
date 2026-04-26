@@ -1,5 +1,5 @@
 import { Dialog, Transition, Tab } from '@headlessui/react'
-import { Fragment, useState, useMemo, memo, useEffect, useCallback } from 'react'
+import { Fragment, useState, useMemo, memo, useCallback } from 'react'
 import type { EmployeeViewDetail } from '../hrEmployeeApi'
 import { useGetMovementHistoryQuery } from '../employeeMovementApi'
 import { MovementHistoryTable } from './MovementHistoryTable'
@@ -12,6 +12,7 @@ interface EmployeeViewModalProps {
   isLoading: boolean
   isError: boolean
   onRetry: () => void
+  hideSensitiveFields?: boolean
 }
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -48,27 +49,26 @@ function EmployeeViewModal({
   isLoading,
   isError,
   onRetry,
+  hideSensitiveFields = false,
 }: EmployeeViewModalProps) {
-  const [imgError, setImgError] = useState(false)
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null)
 
   const { data: movementRes, isLoading: movementLoading } = useGetMovementHistoryQuery(employeeId ?? 0, {
-    skip: !isOpen || !employeeId,
+    skip: !isOpen || !employeeId || hideSensitiveFields,
   })
 
-  // Reset image error state when data changes
-  useEffect(() => {
-    setImgError(false)
-  }, [data?.profilePictureUrl])
+  const profilePictureUrl = data?.profilePictureUrl ?? null
+  const fullName = data?.fullName ?? null
 
   const initials = useMemo(() => {
-    if (!data?.fullName) return '?'
-    return data.fullName
+    if (!fullName) return '?'
+    return fullName
       .split(' ')
       .map((n) => n[0])
       .join('')
       .substring(0, 2)
       .toUpperCase()
-  }, [data?.fullName])
+  }, [fullName])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -158,12 +158,12 @@ function EmployeeViewModal({
                     <>
                       {/* Profile Header */}
                       <div className="flex items-center gap-4 mb-6 pb-5 border-b border-gray-100">
-                        {data.profilePictureUrl && !imgError ? (
+                        {profilePictureUrl && failedImageUrl !== profilePictureUrl ? (
                           <img
-                            src={data.profilePictureUrl}
+                            src={profilePictureUrl}
                             alt={data.fullName}
                             className="h-16 w-16 rounded-full object-cover border-2 border-indigo-100 shadow-sm"
-                            onError={() => setImgError(true)}
+                            onError={() => setFailedImageUrl(profilePictureUrl)}
                           />
                         ) : (
                           <div className="h-16 w-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xl font-bold border-2 border-indigo-200">
@@ -209,9 +209,9 @@ function EmployeeViewModal({
                         <Tab.List className="flex gap-1 p-1 bg-gray-50 rounded-xl mb-5">
                           <Tab className={tabClasses}>Personal</Tab>
                           <Tab className={tabClasses}>Employment</Tab>
-                          <Tab className={tabClasses}>Emergency</Tab>
-                          <Tab className={tabClasses}>Father</Tab>
-                          <Tab className={tabClasses}>Movement</Tab>
+                          {!hideSensitiveFields && <Tab className={tabClasses}>Emergency</Tab>}
+                          {!hideSensitiveFields && <Tab className={tabClasses}>Father</Tab>}
+                          {!hideSensitiveFields && <Tab className={tabClasses}>Movement</Tab>}
                         </Tab.List>
 
                         <Tab.Panels>
@@ -220,13 +220,17 @@ function EmployeeViewModal({
                             <dl className="space-y-0">
                               <InfoRow label="Staff No" value={displayValue(data.staffNo)} />
                               <InfoRow label="Full Name" value={displayValue(data.fullName)} />
-                              <InfoRow label="Email" value={displayValue(data.email)} />
                               <InfoRow label="Phone Number" value={displayValue(data.phoneNumber)} />
                               <InfoRow label="Gender" value={displayValue(data.gender)} />
-                              <InfoRow label="Date of Birth" value={formatDate(data.dateOfBirth)} />
-                              <InfoRow label="Staff NRC Number" value={displayValue(data.staffNrcNumber)} />
-                              <InfoRow label="Address" value={displayValue(data.address)} />
-                              <InfoRow label="Nationality" value={displayValue(data.nationality)} />
+                              {!hideSensitiveFields && (
+                                <>
+                                  <InfoRow label="Email" value={displayValue(data.email)} />
+                                  <InfoRow label="Date of Birth" value={formatDate(data.dateOfBirth)} />
+                                  <InfoRow label="Staff NRC Number" value={displayValue(data.staffNrcNumber)} />
+                                  <InfoRow label="Address" value={displayValue(data.address)} />
+                                  <InfoRow label="Nationality" value={displayValue(data.nationality)} />
+                                </>
+                              )}
                             </dl>
                           </Tab.Panel>
 
@@ -281,54 +285,60 @@ function EmployeeViewModal({
                           </Tab.Panel>
 
                           {/* 3. Emergency Contact */}
-                          <Tab.Panel>
-                            <dl className="space-y-0">
-                              <InfoRow
-                                label="Phone"
-                                value={displayValue(data.emergencyContact?.employeePhone)}
-                              />
-                              <InfoRow
-                                label="Relation"
-                                value={displayValue(data.emergencyContact?.relation)}
-                              />
-                            </dl>
-                            {!data.emergencyContact && (
-                              <p className="text-sm text-gray-400 italic mt-4">
-                                No emergency contact information available.
-                              </p>
-                            )}
-                          </Tab.Panel>
+                          {!hideSensitiveFields && (
+                            <Tab.Panel>
+                              <dl className="space-y-0">
+                                <InfoRow
+                                  label="Phone"
+                                  value={displayValue(data.emergencyContact?.employeePhone)}
+                                />
+                                <InfoRow
+                                  label="Relation"
+                                  value={displayValue(data.emergencyContact?.relation)}
+                                />
+                              </dl>
+                              {!data.emergencyContact && (
+                                <p className="text-sm text-gray-400 italic mt-4">
+                                  No emergency contact information available.
+                                </p>
+                              )}
+                            </Tab.Panel>
+                          )}
 
                           {/* 4. Father Information */}
-                          <Tab.Panel>
-                            <dl className="space-y-0">
-                              <InfoRow
-                                label="Father Name"
-                                value={displayValue(data.father?.fatherName)}
-                              />
-                              <InfoRow
-                                label="Father NRC No"
-                                value={displayValue(data.father?.fatherNrcNo)}
-                              />
-                              <InfoRow
-                                label="Father Occupation"
-                                value={displayValue(data.father?.fatherOccupation)}
-                              />
-                            </dl>
-                            {!data.father && (
-                              <p className="text-sm text-gray-400 italic mt-4">
-                                No father information available.
-                              </p>
-                            )}
-                          </Tab.Panel>
+                          {!hideSensitiveFields && (
+                            <Tab.Panel>
+                              <dl className="space-y-0">
+                                <InfoRow
+                                  label="Father Name"
+                                  value={displayValue(data.father?.fatherName)}
+                                />
+                                <InfoRow
+                                  label="Father NRC No"
+                                  value={displayValue(data.father?.fatherNrcNo)}
+                                />
+                                <InfoRow
+                                  label="Father Occupation"
+                                  value={displayValue(data.father?.fatherOccupation)}
+                                />
+                              </dl>
+                              {!data.father && (
+                                <p className="text-sm text-gray-400 italic mt-4">
+                                  No father information available.
+                                </p>
+                              )}
+                            </Tab.Panel>
+                          )}
 
                           {/* 5. Movement History */}
-                          <Tab.Panel>
-                            <MovementHistoryTable
-                              history={movementRes?.data ?? []}
-                              isLoading={movementLoading}
-                            />
-                          </Tab.Panel>
+                          {!hideSensitiveFields && (
+                            <Tab.Panel>
+                              <MovementHistoryTable
+                                history={movementRes?.data ?? []}
+                                isLoading={movementLoading}
+                              />
+                            </Tab.Panel>
+                          )}
                         </Tab.Panels>
                       </Tab.Group>
                     </>

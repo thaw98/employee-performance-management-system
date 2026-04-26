@@ -29,4 +29,5 @@ public class EmployeeImportRowDto {
     private String fatherPhone;
     private String fatherAddress;
     private String fatherNationality;
+    private String profilePictureUrl;
 }

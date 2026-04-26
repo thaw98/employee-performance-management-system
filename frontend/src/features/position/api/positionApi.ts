@@ -44,6 +44,7 @@ export interface GetPositionsParams {
 	search?: string
 	positionName?: string
 	roleId?: number
+	levelCodeId?: number
 	status?: string
 	sortBy?: string
 	sortDir?: string
@@ -59,6 +60,12 @@ export interface RoleOption {
 	id: number
 	name: string
 	description: string | null
+}
+
+export interface AssignedDepartmentDto {
+	departmentId: number
+	departmentCode: string
+	departmentName: string
 }
 
 type RawPositionListPayload =
@@ -94,12 +101,22 @@ export const positionApi = baseApi.injectEndpoints({
 			query: (id) => `/positions/${id}`,
 			providesTags: (_result, _error, id) => [{ type: 'Position', id }],
 		}),
+		getDepartmentsByPositionId: builder.query<AssignedDepartmentDto[], number>({
+			query: (positionId) => `/positions/${positionId}/departments`,
+			providesTags: (_result, _error, positionId) => [
+				{ type: 'PositionDepartments', id: positionId },
+			],
+		}),
 		createPosition: builder.mutation<ApiResponse<PositionDto>, CreatePositionRequest>({
 			query: (body) => ({ url: '/positions', method: 'POST', body }),
 			invalidatesTags: ['Position'],
 		}),
 		updatePosition: builder.mutation<ApiResponse<PositionDto>, { id: number; body: UpdatePositionRequest }>({
 			query: ({ id, body }) => ({ url: `/positions/${id}`, method: 'PUT', body }),
+			invalidatesTags: ['Position'],
+		}),
+		deletePosition: builder.mutation<ApiResponse<void>, number>({
+			query: (id) => ({ url: `/positions/${id}`, method: 'DELETE' }),
 			invalidatesTags: ['Position'],
 		}),
 		togglePositionStatus: builder.mutation<ApiResponse<PositionDto>, number>({
@@ -120,8 +137,10 @@ export const positionApi = baseApi.injectEndpoints({
 export const {
 	useGetPositionsQuery,
 	useGetPositionByIdQuery,
+	useGetDepartmentsByPositionIdQuery,
 	useCreatePositionMutation,
 	useUpdatePositionMutation,
+	useDeletePositionMutation,
 	useTogglePositionStatusMutation,
 	useGetActiveLevelCodesQuery,
 	useGetActiveRolesQuery,

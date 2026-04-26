@@ -13,8 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.mapping.DepartmentPositionMappingOptionDto;
 import com.epms.backend.entity.DepartmentPosition;
-import com.epms.backend.entity.LevelCode;
-import com.epms.backend.entity.Role;
 import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.LevelCodeRepository;

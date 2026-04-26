@@ -40,6 +40,15 @@ interface Question {
     status: boolean;
 }
 
+interface AppraisalTemplateDto {
+    id: number;
+    name: string;
+    assessmentDate: string;
+    effectiveDate: string;
+    isActive: boolean;
+    categoryIds: number[];
+}
+
 interface SortableCategoryRowProps {
     category: Category;
     index: number;
@@ -139,9 +148,11 @@ interface ConfirmedAppraisalViewProps {
     onConfirm: () => void;
     isFinalizedView?: boolean;
     onReset?: () => void;
+    assessmentDate: string;
+    effectiveDate: string;
 }
 
-function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onRemove, onConfirm, onReset, isFinalizedView = false }: ConfirmedAppraisalViewProps) {
+function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onRemove, onConfirm, onReset, assessmentDate, effectiveDate, isFinalizedView = false }: ConfirmedAppraisalViewProps) {
     const [allQuestions, setAllQuestions] = useState<Record<number, Question[]>>({});
     const [showPicker, setShowPicker] = useState(false);
 
@@ -185,6 +196,12 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                             {categories.length} Categories Selected • {Object.values(allQuestions).flat().length} Questions Total
                         </p>
+                        {isFinalizedView && (
+                            <div className="flex gap-4 mt-2">
+                                <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tight">ASMT: {assessmentDate}</span>
+                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md uppercase tracking-tight">EFF: {effectiveDate}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -255,6 +272,12 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-28 border-b border-blue-400/20 print:text-slate-900 print:border-slate-800 print:border-b-2">Category</th>
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-16 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">No.</th>
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-left border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">Evaluation Criteria & Performance Indicators</th>
+                            {/* RATING COLUMNS */}
+                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-12 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">5</th>
+                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-12 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">4</th>
+                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-12 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">3</th>
+                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-12 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">2</th>
+                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-12 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">1</th>
                             {!isFinalizedView && (
                                 <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-24 border-b border-blue-400/20 border-l border-blue-400/10">Action</th>
                             )}
@@ -309,6 +332,12 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                                                 {q.questionText}
                                                             </div>
                                                         </td>
+                                                        {/* RATING BOXES */}
+                                                        {[5, 4, 3, 2, 1].map(num => (
+                                                            <td key={num} className="p-6 text-center border-l border-slate-50 border-b border-slate-50 group-hover:bg-blue-50/20 transition-all print:border-slate-800 print:border-l-2 print:border-b-2">
+                                                                <div className="w-6 h-6 rounded-lg border-2 border-slate-200 mx-auto transition-all group-hover:border-blue-200 print:border-slate-900 print:w-5 print:h-5 print:rounded-sm" />
+                                                            </td>
+                                                        ))}
                                                         {!isFinalizedView && idx === 0 && (
                                                             <td 
                                                                 rowSpan={qList.length} 
@@ -353,6 +382,41 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                         )}
                     </tbody>
                 </table>
+
+                {/* SCORING SUMMARY - Premium UI style matching Image 1 */}
+                <div className="p-10 bg-slate-50/50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-12 print:border-t-2 print:border-slate-800 print:bg-white print:p-6">
+                    <div className="space-y-4 max-w-md">
+                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                            <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
+                            Scoring Methodology
+                        </h4>
+                        <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                            Total score is calculated as a percentage of achieved points relative to the maximum possible points (number of questions × 5). 
+                            Final rating category is determined based on the percentage achieved.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-6 w-full md:w-auto">
+                        <div className="flex-1 bg-white p-6 rounded-3xl border border-shadow-sm border-slate-200 shadow-sm shadow-blue-100/50 min-w-[200px] flex flex-col items-center justify-center text-center space-y-1 print:border-2 print:border-slate-800 print:rounded-none">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Total Points</span>
+                            <div className="text-3xl font-black text-slate-800 italic">
+                                {Object.values(allQuestions).flat().length > 0 ? "Sum" : "0"}
+                                <span className="text-slate-300 mx-2 text-xl font-normal">/</span>
+                                <span className="text-slate-400 text-2xl">{Object.values(allQuestions).flat().length * 5}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 bg-gradient-to-br from-blue-600 to-blue-800 p-6 rounded-3xl min-w-[220px] flex flex-col items-center justify-center text-center space-y-1 shadow-2xl shadow-blue-200 border-2 border-blue-500/20 print:bg-white print:border-2 print:border-slate-800 print:text-black print:rounded-none print:shadow-none">
+                            <span className="text-[10px] font-black text-blue-100 uppercase tracking-[0.2em] print:text-slate-500">Total Score Rate</span>
+                            <div className="text-4xl font-black text-white flex items-baseline gap-1 print:text-slate-900 italic">
+                                0.0<span className="text-xl opacity-60">%</span>
+                            </div>
+                            <div className="px-3 py-1 bg-blue-500/30 rounded-lg text-[9px] font-black text-white uppercase tracking-widest border border-white/10 mt-2 print:text-slate-900 print:border-slate-800">
+                                Result Category
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
 
@@ -367,6 +431,8 @@ export function AppraisalsPage() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [confirmedCategories, setConfirmedCategories] = useState<number[]>([]); // Current selection (Draft)
     const [finalizedCategories, setFinalizedCategories] = useState<number[]>([]); // Locked selection
+    const [allTemplates, setAllTemplates] = useState<AppraisalTemplateDto[]>([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
     const [showCatModal, setShowCatModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [catForm, setCatForm] = useState({ name: '', description: '', status: true });
@@ -386,6 +452,8 @@ export function AppraisalsPage() {
     });
 
     const [isLoading, setIsLoading] = useState(false);
+    const [assessmentDate, setAssessmentDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [effectiveDate, setEffectiveDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [isReorderingCat, setIsReorderingCat] = useState(false);
     const [isReorderingQue, setIsReorderingQue] = useState(false);
 
@@ -394,23 +462,20 @@ export function AppraisalsPage() {
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
-    useEffect(() => {
-        fetchCategories();
-    }, []);
-
-    useEffect(() => {
-        if (selectedCategoryId) {
-            fetchQuestions(Number(selectedCategoryId));
-        } else {
-            setQuestions([]);
-        }
-    }, [selectedCategoryId]);
-
     const fetchCategories = async () => {
         try {
             const resp = await axios.get('/appraisal-categories');
             const data = resp.data.data || [];
-            setCategories([...data].sort((a, b) => a.sortOrder - b.sortOrder));
+            const sorted = [...data].sort((a, b) => a.sortOrder - b.sortOrder);
+            setCategories(sorted);
+
+            // Sync from Backend (Source of Truth)
+            const backendFinalized = sorted.filter((c: any) => c.isFinalized).map((c: any) => c.id);
+            if (backendFinalized.length > 0) {
+                setFinalizedCategories(backendFinalized);
+                setConfirmedCategories([]); // Keep review tab empty if finalized
+                if (activeTab === 'category') setActiveTab('finalized');
+            }
         } catch (err) {
             toast.error('Failed to load categories');
         }
@@ -425,6 +490,59 @@ export function AppraisalsPage() {
             toast.error('Failed to load questions');
         }
     };
+
+    const handleFinalize = async () => {
+        setIsLoading(true);
+        try {
+            const payload = {
+                assessmentDate: assessmentDate,
+                effectiveDate: effectiveDate,
+                categoryIds: confirmedCategories
+            };
+            await axios.post('/appraisal-categories/finalize', payload);
+            setFinalizedCategories([...confirmedCategories]);
+            setConfirmedCategories([]); // Clear review tab on finalize
+            setActiveTab('finalized');
+            toast.success('Appraisal Configuration Saved to Database!');
+            fetchAllTemplates(); // Refresh the list
+        } catch (err) {
+            toast.error('Failed to save to database');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchAllTemplates = async () => {
+        try {
+            const resp = await axios.get('/appraisal-categories/templates');
+            const data = resp.data.data || [];
+            setAllTemplates(data);
+            if (data.length > 0 && !selectedTemplateId) {
+                // By default select the active one or the latest one
+                const active = data.find((t: any) => t.isActive);
+                const toSelect = active || data[0];
+                setSelectedTemplateId(toSelect.id);
+                setFinalizedCategories(toSelect.categoryIds);
+                setAssessmentDate(toSelect.assessmentDate);
+                setEffectiveDate(toSelect.effectiveDate);
+            }
+        } catch (err) {
+            console.error('Failed to load all templates');
+        }
+    };
+
+    useEffect(() => {
+        fetchCategories();
+        fetchAllTemplates();
+    }, []);
+
+    useEffect(() => {
+        if (selectedCategoryId) {
+            fetchQuestions(Number(selectedCategoryId));
+        } else {
+            setQuestions([]);
+        }
+    }, [selectedCategoryId]);
 
     const handleDragEndCategory = async (event: DragEndEvent) => {
         const { active, over } = event;
@@ -595,29 +713,115 @@ export function AppraisalsPage() {
             </div>
 
             {activeTab === 'finalized' ? (
-                <ConfirmedAppraisalView
-                    categories={categories.filter(c => finalizedCategories.includes(c.id!))}
-                    allAvailableCategories={categories}
-                    onAdd={() => {}}
-                    onRemove={() => {}}
-                    onConfirm={() => {}}
-                    onReset={() => {
-                        setActiveTab('confirmed');
-                    }}
-                    isFinalizedView={true}
-                />
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    {/* Sidebar: All Finalized Templates */}
+                    <div className="lg:col-span-1 space-y-4">
+                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] px-2">History</h3>
+                            <div className="space-y-2">
+                                {allTemplates.length === 0 ? (
+                                    <div className="p-8 text-center text-slate-300 italic text-xs">No records found</div>
+                                ) : (
+                                    allTemplates.map(t => (
+                                        <button
+                                            key={t.id}
+                                            onClick={() => {
+                                                setSelectedTemplateId(t.id);
+                                                setFinalizedCategories(t.categoryIds);
+                                                setAssessmentDate(t.assessmentDate);
+                                                setEffectiveDate(t.effectiveDate);
+                                            }}
+                                            className={`w-full group text-left p-5 rounded-2xl border-2 transition-all relative overflow-hidden ${selectedTemplateId === t.id ? 'border-blue-600 bg-blue-50/50 shadow-md translate-x-1' : 'border-slate-50 hover:border-slate-200'}`}
+                                        >
+                                            <div className="relative z-10">
+                                                <div className={`text-[11px] font-black uppercase tracking-tight mb-1 ${selectedTemplateId === t.id ? 'text-blue-600' : 'text-slate-700'}`}>{t.name}</div>
+                                                <div className="text-[9px] font-bold text-slate-400">Created: {t.assessmentDate}</div>
+                                                {t.isActive && (
+                                                    <span className="absolute top-0 right-0 px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black uppercase rounded-md shadow-sm shadow-emerald-100">Active</span>
+                                                )}
+                                            </div>
+                                            {selectedTemplateId === t.id && (
+                                                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600" />
+                                            )}
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Main Content: Template Detail View */}
+                    <div className="lg:col-span-3">
+                        {selectedTemplateId ? (
+                             <ConfirmedAppraisalView
+                                categories={categories.filter(c => finalizedCategories.includes(c.id!))}
+                                allAvailableCategories={categories}
+                                assessmentDate={assessmentDate}
+                                effectiveDate={effectiveDate}
+                                onAdd={() => {}}
+                                onRemove={() => {}}
+                                onConfirm={() => {}}
+                                onReset={() => {
+                                    setConfirmedCategories([...finalizedCategories]);
+                                    setFinalizedCategories([]);
+                                    setActiveTab('confirmed');
+                                }}
+                                isFinalizedView={true}
+                            />
+                        ) : (
+                            <div className="bg-white p-20 rounded-[32px] border border-slate-100 text-center space-y-4">
+                                <HelpCircle size={48} className="mx-auto text-slate-200" />
+                                <p className="text-slate-400 font-bold uppercase tracking-widest">Select a template from the list to view</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
             ) : activeTab === 'confirmed' ? (
-                <ConfirmedAppraisalView
-                    categories={categories.filter(c => confirmedCategories.includes(c.id!))}
-                    allAvailableCategories={categories}
-                    onAdd={(id) => setConfirmedCategories(prev => [...prev, id])}
-                    onRemove={(id) => setConfirmedCategories(prev => prev.filter(cid => cid !== id))}
-                    onConfirm={() => {
-                        setFinalizedCategories([...confirmedCategories]);
-                        setActiveTab('finalized');
-                        toast.success('Appraisal Confirmed Successfully!');
-                    }}
-                />
+                <div className="space-y-6">
+                    {/* Date Config Bar */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-wrap items-center gap-8 px-10 animate-in fade-in slide-in-from-top-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                                <HelpCircle size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assessment Date</p>
+                                <input 
+                                    type="date" 
+                                    value={assessmentDate}
+                                    onChange={(e) => setAssessmentDate(e.target.value)}
+                                    className="text-sm font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 cursor-pointer hover:text-blue-600 transition-colors"
+                                />
+                            </div>
+                        </div>
+                        <div className="w-px h-10 bg-slate-100 hidden md:block" />
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                                <CheckCircle2 size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Effective Date</p>
+                                <input 
+                                    type="date" 
+                                    value={effectiveDate}
+                                    onChange={(e) => setEffectiveDate(e.target.value)}
+                                    className="text-sm font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 cursor-pointer hover:text-emerald-600 transition-colors"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <ConfirmedAppraisalView
+                        categories={categories.filter(c => confirmedCategories.includes(c.id!))}
+                        allAvailableCategories={categories}
+                        assessmentDate={assessmentDate}
+                        effectiveDate={effectiveDate}
+                        onAdd={(id) => setConfirmedCategories(prev => [...prev, id])}
+                        onRemove={(id) => setConfirmedCategories(prev => prev.filter(cid => cid !== id))}
+                        onConfirm={handleFinalize}
+                        onReset={() => setActiveTab('confirmed')}
+                    />
+                </div>
             ) : activeTab === 'category' ? (
                 <div className="space-y-6">
                     <div className="flex justify-end">
