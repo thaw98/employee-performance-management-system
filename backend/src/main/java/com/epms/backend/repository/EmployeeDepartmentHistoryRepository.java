@@ -31,4 +31,13 @@ public interface EmployeeDepartmentHistoryRepository extends JpaRepository<Emplo
     List<EmployeeDepartmentHistory> findLatestBaseMovements(
         @Param("employeeId") Long employeeId,
         @Param("baseTypes") List<MovementType> baseTypes);
+
+    @Query("""
+        SELECT CASE WHEN COUNT(h) > 0 THEN true ELSE false END FROM EmployeeDepartmentHistory h
+        WHERE (h.toDepartment.id = :departmentId AND h.toPosition.id = :positionId)
+           OR (h.fromDepartment.id = :departmentId AND h.fromPosition.id = :positionId)
+        """)
+    boolean existsByDepartmentAndPositionOnEitherSide(
+        @Param("departmentId") Long departmentId,
+        @Param("positionId") Long positionId);
 }

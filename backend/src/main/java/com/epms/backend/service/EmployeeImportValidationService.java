@@ -228,6 +228,7 @@ public class EmployeeImportValidationService {
         data.put("fatherName",                 ExcelCellReaderUtil.readString(row.getCell(19)));
         data.put("fatherNrcNo",                ExcelCellReaderUtil.readString(row.getCell(20)));
         data.put("fatherOccupation",           ExcelCellReaderUtil.readString(row.getCell(21)));
+        data.put("profilePictureUrl",          ExcelCellReaderUtil.readString(row.getCell(22)));
         return data;
     }
 
@@ -365,7 +366,7 @@ public class EmployeeImportValidationService {
 
     private boolean isRowFullyEmpty(Row row) {
         if (row == null) return true;
-        for (int c = 0; c < 22; c++) {
+        for (int c = 0; c < 23; c++) {
             if (!ExcelCellReaderUtil.isCellBlank(row.getCell(c))) return false;
         }
         return true;

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.epms.backend.dto.position.AssignedDepartmentDto;
 import com.epms.backend.entity.DepartmentPosition;
 
 public interface DepartmentPositionRepository extends JpaRepository<DepartmentPosition, Long>,
@@ -16,6 +17,15 @@ public interface DepartmentPositionRepository extends JpaRepository<DepartmentPo
 	boolean existsByDepartmentIdAndPositionIdAndStatusIgnoreCase(Long departmentId, Long positionId, String status);
 
 	Optional<DepartmentPosition> findByDepartmentIdAndPositionId(Long departmentId, Long positionId);
+
+	@Query("SELECT dp FROM DepartmentPosition dp " +
+			"JOIN FETCH dp.department " +
+			"JOIN FETCH dp.position " +
+			"WHERE dp.department.id = :departmentId " +
+			"ORDER BY dp.id ASC")
+	List<DepartmentPosition> findAllByDepartment_IdOrderByIdAsc(@Param("departmentId") Long departmentId);
+
+	boolean existsByDepartment_IdAndPosition_Id(Long departmentId, Long positionId);
 
 	@Query("SELECT dp FROM DepartmentPosition dp " +
 			"JOIN FETCH dp.department " +
@@ -41,4 +51,18 @@ public interface DepartmentPositionRepository extends JpaRepository<DepartmentPo
 	List<DepartmentPosition> findByDepartmentId(Long departmentId);
 
 	List<DepartmentPosition> findByPositionId(Long positionId);
+
+	@Query("""
+			SELECT new com.epms.backend.dto.position.AssignedDepartmentDto(
+				d.id,
+				d.code,
+				d.name
+			)
+			FROM DepartmentPosition dp
+			JOIN dp.department d
+			JOIN dp.position p
+			WHERE p.id = :positionId
+			ORDER BY d.name ASC
+			""")
+	List<AssignedDepartmentDto> findDepartmentsByPositionId(@Param("positionId") Long positionId);
 }

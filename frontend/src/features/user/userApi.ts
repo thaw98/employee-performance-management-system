@@ -10,6 +10,9 @@ export interface UserProfileDto {
   /** Relative path (e.g. /api/public/profile-pictures/...) or absolute URL */
   profilePictureUrl?: string
   theme?: string
+  wallpaperUrl?: string
+  language?: string
+  timezone?: string
 }
 
 export interface ProfilePictureUploadResponseDto {
@@ -39,6 +42,32 @@ export const userApi = baseApi.injectEndpoints({
           body,
         }
       },
+      invalidatesTags: ['UserProfile'],
+    }),
+    deleteProfilePicture: builder.mutation<ApiResponse<UserProfileDto>, void>({
+      query: () => ({
+        url: '/users/profile/picture',
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['UserProfile'],
+    }),
+    updateWallpaper: builder.mutation<ApiResponse<UserProfileDto>, File>({
+      query: (file) => {
+        const body = new FormData()
+        body.append('file', file)
+        return {
+          url: '/users/profile/wallpaper',
+          method: 'PUT',
+          body,
+        }
+      },
+      invalidatesTags: ['UserProfile'],
+    }),
+    deleteWallpaper: builder.mutation<ApiResponse<UserProfileDto>, void>({
+      query: () => ({
+        url: '/users/profile/wallpaper',
+        method: 'DELETE',
+      }),
       invalidatesTags: ['UserProfile'],
     }),
     uploadProfilePicture: builder.mutation<ApiResponse<ProfilePictureUploadResponseDto>, File>({
@@ -73,6 +102,9 @@ export const userApi = baseApi.injectEndpoints({
 export const {
   useGetProfileQuery,
   useUpdateProfilePictureMutation,
+  useDeleteProfilePictureMutation,
+  useUpdateWallpaperMutation,
+  useDeleteWallpaperMutation,
   useUploadProfilePictureMutation,
   useUpdateProfileMutation,
   useChangePasswordMutation,

@@ -14,9 +14,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.JpaSort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.epms.backend.StaffTypes;
 import com.epms.backend.audit.AuditActionType;
@@ -65,18 +67,18 @@ public class HrEmployeeService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
     private static final int TEMP_PASSWORD_LENGTH = 8;
+    private static final long ROLE_HR = 1L;
+    private static final long ROLE_DEPARTMENT_MANAGER = 2L;
 
     @Transactional(readOnly = true)
-    public EmployeeListResponseDto getEmployees(int page, int size, String search, Long departmentId, Long positionId, String employmentStatus, String sortBy, String sortDir) {
+    public EmployeeListResponseDto getEmployeesForCurrentUser(int page, int size, String search, Long departmentId, Long positionId, String employmentStatus, String sortBy, String sortDir, UserPrincipal principal) {
+        validateCanAccessEmployeeList(principal);
         Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
-        Sort sort;
-        if (sortBy.equals("staffNo")) {
-            // Natural sort for numeric staff numbers stored as text (1,2,3...10).
-            sort = JpaSort.unsafe(direction, "LENGTH(employeeId)").and(Sort.by(direction, "employeeId"));
-        } else {
-            sort = Sort.by(direction, sortBy);
-        }
+        Sort sort = resolveEmployeeSort(sortBy, direction);
         Pageable pageable = PageRequest.of(page, size, sort);
+        Long managerDepartmentId = isDepartmentManager(principal)
+                ? resolveCurrentDepartmentId(principal)
+                : null;
 
         Specification<Employee> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -94,6 +96,10 @@ public class HrEmployeeService {
 
             if (departmentId != null) {
                 predicates.add(cb.equal(root.get("department").get("id"), departmentId));
+            }
+
+            if (managerDepartmentId != null) {
+                predicates.add(cb.equal(root.get("departmentPosition").get("department").get("id"), managerDepartmentId));
             }
 
             if (positionId != null) {
@@ -140,14 +146,72 @@ public class HrEmployeeService {
     }
 
     @Transactional(readOnly = true)
+    public EmployeeListResponseDto getEmployees(int page, int size, String search, Long departmentId, Long positionId, String employmentStatus, String sortBy, String sortDir) {
+        Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, resolveEmployeeSort(sortBy, direction));
+
+        Specification<Employee> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (search != null && !search.isBlank()) {
+                String pattern = "%" + search.toLowerCase() + "%";
+                predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("employeeId")), pattern),
+                    cb.like(cb.lower(root.get("employeeName")), pattern),
+                    cb.like(cb.lower(root.get("email")), pattern),
+                    cb.like(cb.lower(root.get("department").get("name")), pattern),
+                    cb.like(cb.lower(root.get("position").get("name")), pattern)
+                ));
+            }
+
+            if (departmentId != null) {
+                predicates.add(cb.equal(root.get("department").get("id"), departmentId));
+            }
+
+            if (positionId != null) {
+                predicates.add(cb.equal(root.get("position").get("id"), positionId));
+            }
+
+            if (employmentStatus != null && !employmentStatus.isBlank()) {
+                addEmploymentStatusPredicate(root, cb, predicates, employmentStatus);
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Employee> employeePage = employeeRepository.findAll(spec, pageable);
+        List<EmployeeListItemResponseDto> content = employeePage.getContent().stream()
+                .map(this::toListItemDto)
+                .collect(Collectors.toList());
+
+        return EmployeeListResponseDto.builder()
+                .content(content)
+                .page(employeePage.getNumber())
+                .size(employeePage.getSize())
+                .totalElements(employeePage.getTotalElements())
+                .totalPages(employeePage.getTotalPages())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
     public EmployeeDetailResponseDto getEmployeeById(Long employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
         return toDetailDto(employee);
     }
 
+    @Transactional(readOnly = true)
+    public EmployeeDetailResponseDto getEmployeeByIdForCurrentUser(Long employeeId, UserPrincipal principal) {
+        validateCanAccessEmployeeList(principal);
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+        validateCanViewEmployee(principal, employee);
+        return toDetailDto(employee);
+    }
+
     @Transactional
     public void updateEmployee(Long employeeId, EmployeeUpdateRequestDto request, UserPrincipal principal) {
+        validateHrOnlyAction(principal);
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 
@@ -222,6 +286,7 @@ public class HrEmployeeService {
 
     @Transactional
     public PasswordActionResponseDto resendTemporaryPassword(Long employeeId, UserPrincipal principal) {
+        validateHrOnlyAction(principal);
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
         
@@ -263,6 +328,7 @@ public class HrEmployeeService {
 
     @Transactional
     public PasswordActionResponseDto sendNewTemporaryPassword(Long employeeId, UserPrincipal principal) {
+        validateHrOnlyAction(principal);
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
         
@@ -300,12 +366,14 @@ public class HrEmployeeService {
 
     @Transactional
     public void updateEmploymentStatus(Long employeeId, UpdateEmploymentStatusRequestDto request, UserPrincipal principal) {
+        validateHrOnlyAction(principal);
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 
         String currentStatus = determineEmploymentStatus(employee);
         String targetStatus = request.getTargetStatus();
 
+        boolean shouldDeactivateUserAccount = false;
         if ("PERMANENT".equalsIgnoreCase(targetStatus)) {
             if (!"Probation".equals(currentStatus)) {
                 throw new IllegalArgumentException("Only Probation employees can be changed to Permanent");
@@ -369,6 +437,7 @@ public class HrEmployeeService {
             } else {
                 employee.setEmploymentStatus(EmployeeStatus.TERMINATED);
             }
+            shouldDeactivateUserAccount = true;
 
         } else {
             throw new IllegalArgumentException("Invalid target status: " + targetStatus + ". Must be PERMANENT, RESIGNED, or TERMINATED");
@@ -377,6 +446,12 @@ public class HrEmployeeService {
         employee.setUpdatedBy(principal.getId());
         employee.setUpdatedDate(Instant.now());
         employeeRepository.save(employee);
+        if (shouldDeactivateUserAccount) {
+            userRepository.findByEmployee_Id(employee.getId()).ifPresent(user -> {
+                user.setActive(false);
+                userRepository.save(user);
+            });
+        }
 
         auditService.record(
             AuditActionType.EMPLOYMENT_STATUS_UPDATED,
@@ -417,6 +492,8 @@ public class HrEmployeeService {
                 .employeeName(employee.getEmployeeName())
                 .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
                 .positionName(employee.getPosition() != null ? employee.getPosition().getName() : null)
+                .staffTypeName(employee.getStaffType() != null ? employee.getStaffType().getName() : null)
+                .phoneNumber(employee.getPhoneNo())
                 .profilePictureUrl(employee.getProfilePictureUrl())
                 .email(employee.getEmail())
                 .mustChangePassword(user != null ? user.isMustChangePassword() : null)
@@ -483,6 +560,102 @@ public class HrEmployeeService {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
         return toViewDto(employee);
+    }
+
+    @Transactional(readOnly = true)
+    public EmployeeViewResponseDto getEmployeeViewByIdForCurrentUser(Long employeeId, UserPrincipal principal) {
+        validateCanAccessEmployeeList(principal);
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("Employee not found"));
+        validateCanViewEmployee(principal, employee);
+        return toViewDto(employee);
+    }
+
+    public void validateHrOnlyAction(UserPrincipal principal) {
+        if (principal == null || principal.getRoleId() == null || principal.getRoleId() != ROLE_HR) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This action is available to HR only");
+        }
+    }
+
+    private void validateCanAccessEmployeeList(UserPrincipal principal) {
+        if (principal == null || principal.getRoleId() == null
+                || (principal.getRoleId() != ROLE_HR && principal.getRoleId() != ROLE_DEPARTMENT_MANAGER)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to access employee records");
+        }
+    }
+
+    private void validateCanViewEmployee(UserPrincipal principal, Employee target) {
+        if (!isDepartmentManager(principal)) {
+            return;
+        }
+        Long viewerDepartmentId = resolveCurrentDepartmentId(principal);
+        Long targetDepartmentId = resolveCurrentDepartmentId(target);
+        if (targetDepartmentId == null || !viewerDepartmentId.equals(targetDepartmentId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to view this employee.");
+        }
+    }
+
+    private boolean isDepartmentManager(UserPrincipal principal) {
+        return principal != null && principal.getRoleId() != null && principal.getRoleId() == ROLE_DEPARTMENT_MANAGER;
+    }
+
+    private Long resolveCurrentDepartmentId(UserPrincipal principal) {
+        User user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "User account not found"));
+        Long departmentId = resolveCurrentDepartmentId(user.getEmployee());
+        if (departmentId == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Your department information is not configured. Please contact HR.");
+        }
+        return departmentId;
+    }
+
+    private Long resolveCurrentDepartmentId(Employee employee) {
+        if (employee == null || employee.getDepartmentPosition() == null
+                || employee.getDepartmentPosition().getDepartment() == null) {
+            return null;
+        }
+        return employee.getDepartmentPosition().getDepartment().getId();
+    }
+
+    private Sort resolveEmployeeSort(String sortBy, Sort.Direction direction) {
+        if ("staffNo".equals(sortBy)) {
+            // Natural sort for numeric staff numbers stored as text (1,2,3...10).
+            return JpaSort.unsafe(direction, "LENGTH(employeeId)").and(Sort.by(direction, "employeeId"));
+        }
+        return switch (sortBy == null ? "" : sortBy) {
+            case "employeeName" -> Sort.by(direction, "employeeName");
+            case "departmentName" -> Sort.by(direction, "department.name");
+            case "positionName" -> Sort.by(direction, "position.name");
+            case "staffTypeName" -> Sort.by(direction, "staffType.name");
+            case "phoneNumber" -> Sort.by(direction, "phoneNo");
+            case "email" -> Sort.by(direction, "email");
+            default -> Sort.by(direction, "employeeId");
+        };
+    }
+
+    private void addEmploymentStatusPredicate(jakarta.persistence.criteria.Root<Employee> root,
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            List<Predicate> predicates,
+            String employmentStatus) {
+        if (employmentStatus.equalsIgnoreCase("Resigned")) {
+            predicates.add(cb.equal(root.get("employmentStatus"), EmployeeStatus.RESIGNED));
+        } else if (employmentStatus.equalsIgnoreCase("Terminated")) {
+            predicates.add(cb.equal(root.get("employmentStatus"), EmployeeStatus.TERMINATED));
+        } else {
+            predicates.add(cb.or(
+                cb.isNull(root.get("employmentStatus")),
+                cb.equal(root.get("employmentStatus"), EmployeeStatus.ACTIVE)
+            ));
+
+            Join<Employee, EmployeeProbation> probationJoin = root.join("probation", JoinType.LEFT);
+
+            if (employmentStatus.equalsIgnoreCase("Probation")) {
+                predicates.add(cb.isNotNull(probationJoin.get("id")));
+            } else if (employmentStatus.equalsIgnoreCase("Permanent")) {
+                predicates.add(cb.isNull(probationJoin.get("id")));
+            }
+        }
     }
 
     private EmployeeViewResponseDto toViewDto(Employee employee) {

@@ -4,7 +4,6 @@ import {
   Target,
   FileText,
   Award,
-  MessageSquare,
   Calendar,
   BarChart,
   LayoutDashboard,
@@ -12,30 +11,22 @@ import {
   ChevronDown,
   ShieldCheck,
   Search,
-  AlertTriangle,
   Zap,
-  Inbox,
   RefreshCcw
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../store/store';
 import { logout } from '../store/authSlice';
+import { resolveProfilePictureSrc } from '../utils/mediaUrl';
+import { useGetProfileQuery } from '../features/user/userApi';
 import { pipApi } from '../features/pip/pipApi';
 import { ProfileDropdown } from '../components/layout/ProfileDropdown';
 
-function initialsFromName(name: string | undefined) {
-  if (!name) return '?'
-  return name
-    .split(/\s+/)
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
-
 const ManagerLayout: React.FC = () => {
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user: authUser } = useSelector((state: RootState) => state.auth);
+  const { data: profileResponse } = useGetProfileQuery();
+  const user = profileResponse?.data || authUser;
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -54,7 +45,9 @@ const ManagerLayout: React.FC = () => {
 
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/manager/dashboard' },
-    { icon: <Users size={20} />, label: 'My Team', path: '/manager/team' },
+    ...(user?.roleId === 2
+      ? [{ icon: <Users size={20} />, label: 'Employees', path: '/manager/employees' }]
+      : []),
     { icon: <Target size={20} />, label: 'KPIs', path: '/manager/kpis' },
     { icon: <FileText size={20} />, label: 'Self Assessments', path: '/manager/assessments' },
     { icon: <ShieldCheck size={20} />, label: 'My Self Assessments', path: '/manager/my-assessment' },
@@ -75,7 +68,7 @@ const ManagerLayout: React.FC = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] dark:bg-slate-950 transition-colors duration-300">
+    <div className="flex h-screen bg-transparent font-sans transition-colors duration-300">
       {/* Sidebar */}
       <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-colors duration-300">
         {/* Brand Header */}
@@ -94,8 +87,12 @@ const ManagerLayout: React.FC = () => {
         {/* User Profile Card */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner">
-              {user?.name?.charAt(0)}
+            <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner flex-shrink-0">
+              {user?.profilePictureUrl ? (
+                 <img src={resolveProfilePictureSrc(user.profilePictureUrl)} className="w-full h-full object-cover" alt="Profile" />
+              ) : (
+                 user?.name?.charAt(0)
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate uppercase mt-1">{user?.name}</h4>
@@ -207,7 +204,7 @@ const ManagerLayout: React.FC = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-[#f8fafc] dark:bg-slate-950 transition-colors duration-300">
+      <main className="flex-1 flex flex-col overflow-hidden bg-transparent transition-colors duration-300">
         {/* Top Header */}
         <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between transition-colors duration-300">
           <div>

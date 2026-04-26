@@ -9,9 +9,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import com.epms.backend.dto.position.AssignedDepartmentDto;
 import com.epms.backend.dto.position.CreatePositionRequest;
 import com.epms.backend.dto.position.PositionDto;
 import com.epms.backend.dto.position.PositionListResponse;
@@ -19,6 +22,7 @@ import com.epms.backend.dto.position.UpdatePositionRequest;
 import com.epms.backend.entity.LevelCode;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.Role;
+import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.LevelCodeRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.RoleRepository;
@@ -32,6 +36,7 @@ public class PositionServiceImpl implements PositionService {
 	private final PositionRepository positionRepository;
 	private final LevelCodeRepository levelCodeRepository;
 	private final RoleRepository roleRepository;
+	private final DepartmentPositionRepository departmentPositionRepository;
 
 	private static final String STATUS_ACTIVE = "ACTIVE";
 	private static final String STATUS_INACTIVE = "INACTIVE";
@@ -147,6 +152,15 @@ public class PositionServiceImpl implements PositionService {
 
 		Position saved = positionRepository.save(position);
 		return mapToDto(saved);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<AssignedDepartmentDto> getDepartmentsByPositionId(Long positionId) {
+		if (!positionRepository.existsById(positionId)) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Position not found.");
+		}
+		return departmentPositionRepository.findDepartmentsByPositionId(positionId);
 	}
 
 	private Specification<Position> buildSpecification(String search, String positionName, Long roleId) {

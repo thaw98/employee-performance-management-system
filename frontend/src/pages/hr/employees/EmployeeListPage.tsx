@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { skipToken } from '@reduxjs/toolkit/query'
 import type { UpdateEmploymentStatusRequest, ProbationInfo } from '../../../features/hrEmployeeList/hrEmployeeApi'
 
@@ -16,6 +16,7 @@ import {
   useResendPasswordMutation,
   useSendNewPasswordMutation,
   useUpdateEmploymentStatusMutation,
+  useExportEmployeesMutation,
   useLazyGetEmployeeViewByIdQuery,
 } from '../../../features/hrEmployeeList/hrEmployeeApi'
 import ChangeStatusModal from '../../../features/hrEmployeeList/components/ChangeStatusModal'
@@ -24,6 +25,7 @@ import {
   useGetDepartmentPositionsQuery 
 } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
 import { useAppSelector } from '../../../app/hooks'
+import { downloadBlobFile } from '../../../utils/downloadBlobFile'
 
 const API_BASE =
   (import.meta.env.VITE_API_BASE_URL as string)?.replace(/\/$/, '') ||
@@ -33,6 +35,7 @@ export default function EmployeeListPage() {
   const user = useAppSelector((s) => s.auth.user)
   const token = useAppSelector((s) => s.auth.token)
   const isHR = user?.roleId === 1
+  const isDepartmentManager = user?.roleId === 2
 
   // State for filters and pagination
   const [page, setPage] = useState(0)
@@ -77,16 +80,18 @@ export default function EmployeeListPage() {
     typeof departmentId === 'number' ? departmentId : skipToken
   )
 
-  const { data: empData, isLoading, isFetching } = useGetEmployeesQuery({
+  const employeeQueryParams = useMemo(() => ({
     page,
     size,
     search,
-    departmentId,
-    positionId,
+    departmentId: isHR ? departmentId : undefined,
+    positionId: isHR ? positionId : undefined,
     employmentStatus,
     sortBy: sorting[0]?.id || 'staffNo',
     sortDir: sorting[0]?.desc ? 'desc' : 'asc'
-  })
+  }), [page, size, search, isHR, departmentId, positionId, employmentStatus, sorting])
+
+  const { data: empData, isLoading, isFetching, error: employeeListError } = useGetEmployeesQuery(employeeQueryParams)
 
   // Memoize filter options to prevent unnecessary recreations
   const departments = useMemo(() => deptData?.data || [], [deptData?.data])
@@ -99,10 +104,21 @@ export default function EmployeeListPage() {
   const [resendPassword, { isLoading: isResending }] = useResendPasswordMutation()
   const [sendNewPassword, { isLoading: isSendingNew }] = useSendNewPasswordMutation()
   const [updateEmploymentStatus, { isLoading: isUpdatingStatus }] = useUpdateEmploymentStatusMutation()
+  const [exportEmployees, { isLoading: isExporting }] = useExportEmployeesMutation()
   const [
     triggerGetEmployeeView,
     { data: viewData, isLoading: isViewLoading, isError: isViewError },
   ] = useLazyGetEmployeeViewByIdQuery()
+
+  useEffect(() => {
+    if (!employeeListError) return
+    const message = employeeListError && typeof employeeListError === 'object' && 'data' in employeeListError
+      ? (employeeListError as { data?: { message?: string } }).data?.message
+      : undefined
+    if (message === 'Your department information is not configured. Please contact HR.') {
+      toast.error(message)
+    }
+  }, [employeeListError])
 
   // Handlers
   const handleSearchChange = useCallback((val: string) => {
@@ -143,9 +159,19 @@ export default function EmployeeListPage() {
     setEditEmployeeId(null)
   }, [])
 
-  const handleView = useCallback((id: number) => {
+  const handleView = useCallback(async (id: number) => {
     setSelectedViewEmployeeId(id)
-    triggerGetEmployeeView(id, true) // `true` forces refetch
+    try {
+      await triggerGetEmployeeView(id, true).unwrap()
+    } catch (error: unknown) {
+      const status = error && typeof error === 'object' && 'status' in error
+        ? (error as { status?: number }).status
+        : undefined
+      if (status === 403) {
+        toast.error('You are not allowed to view this employee.')
+        setSelectedViewEmployeeId(null)
+      }
+    }
   }, [triggerGetEmployeeView])
 
   const handleCloseViewModal = useCallback(() => {
@@ -266,6 +292,25 @@ export default function EmployeeListPage() {
     }
   }, [token])
 
+  const handleExportEmployees = useCallback(async () => {
+    try {
+      const data = await exportEmployees().unwrap()
+      const blob = new Blob([data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const now = new Date()
+      const today = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, '0'),
+        String(now.getDate()).padStart(2, '0'),
+      ].join('-')
+      downloadBlobFile(blob, `employees_export_${today}.xlsx`)
+      toast.success('Employees exported successfully.')
+    } catch {
+      toast.error('Failed to export employees.')
+    }
+  }, [exportEmployees])
+
   const handleImportSuccess = useCallback(() => {
     // RTK Query invalidation via commitEmployeeImport handles the refetch automatically
   }, [])
@@ -292,6 +337,18 @@ export default function EmployeeListPage() {
               Download Template
             </button>
             <button
+              onClick={handleExportEmployees}
+              disabled={isExporting}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-700 text-sm font-semibold hover:bg-emerald-50 disabled:opacity-60 transition shadow-sm"
+            >
+              {isExporting ? (
+                <span className="inline-block w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <i className="bi bi-file-earmark-excel"></i>
+              )}
+              {isExporting ? 'Exporting...' : 'Export Employees'}
+            </button>
+            <button
               onClick={() => setImportModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition shadow-sm"
             >
@@ -314,6 +371,7 @@ export default function EmployeeListPage() {
         departments={departments}
         positions={positions}
         onReset={handleReset}
+        showDepartmentPositionFilters={isHR}
       />
 
       <EmployeeTable
@@ -326,6 +384,7 @@ export default function EmployeeListPage() {
         onChangeStatus={handleChangeStatus}
         sorting={sorting}
         setSorting={setSorting}
+        isHR={isHR}
       />
 
       {/* Pagination */}
@@ -469,6 +528,7 @@ export default function EmployeeListPage() {
         isLoading={isViewLoading}
         isError={isViewError}
         onRetry={handleRetryView}
+        hideSensitiveFields={isDepartmentManager}
       />
 
       {/* Employee Import Modal */}

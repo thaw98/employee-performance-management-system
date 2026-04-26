@@ -57,12 +57,6 @@ export function AppSidebar() {
                 icon: 'bi-diagram-3',
                 end: true,
               },
-              {
-                name: 'Department-Position Mapping',
-                path: '/hr/department-position-mappings',
-                icon: 'bi-diagram-2',
-                end: true,
-              },
             ]
           : []),
         ...(isManager ? [{ name: 'Manager Dashboard', path: '/hr/manager-dashboard', icon: 'bi-people', end: false }] : []),
