@@ -78,6 +78,18 @@ export const hrEmployeeAccountApi = baseApi.injectEndpoints({
         })),
       }),
     }),
+    getDepartmentOptions: builder.query<ApiResponse<DepartmentOptionDto[]>, void>({
+      query: () => ({ url: '/departments/options' }),
+      transformResponse: (response: ApiResponse<{ departmentId: number; departmentName: string }[]>) => ({
+        ...response,
+        data: (response.data ?? []).map((d) => ({
+          id: d.departmentId,
+          name: d.departmentName,
+          departmentId: d.departmentId,
+          departmentName: d.departmentName,
+        })),
+      }),
+    }),
     getDepartmentPositions: builder.query<ApiResponse<PositionOptionDto[]>, number>({
       query: (departmentId) => {
         if (typeof departmentId !== 'number') {
@@ -120,6 +132,7 @@ export const hrEmployeeAccountApi = baseApi.injectEndpoints({
 
 export const {
   useGetDepartmentsQuery,
+  useGetDepartmentOptionsQuery,
   useGetDepartmentPositionsQuery,
   useGetNextStaffNoQuery,
   useLazyCheckEmailQuery,

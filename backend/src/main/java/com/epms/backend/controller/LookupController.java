@@ -33,7 +33,7 @@ public class LookupController {
 	private final PositionRepository positionRepository;
 
 	@GetMapping("/level-codes/active")
-	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE')")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
 	public ResponseEntity<ApiResponse<List<LevelCodeOptionDto>>> getActiveLevelCodes() {
 		List<LevelCodeOptionDto> levelCodes = levelCodeRepository.findAll().stream()
 				.filter(lc -> lc.getCode() != null && !lc.getCode().isBlank())
@@ -43,7 +43,7 @@ public class LookupController {
 	}
 
 	@GetMapping("/roles/active")
-	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE')")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
 	public ResponseEntity<ApiResponse<List<RoleOptionDto>>> getActiveRoles() {
 		List<RoleOptionDto> roles = roleRepository.findAll().stream()
 				.filter(r -> r.getName() != null && !r.getName().isBlank())
@@ -53,7 +53,7 @@ public class LookupController {
 	}
 
 	@GetMapping("/departments/active")
-	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE')")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
 	public ResponseEntity<ApiResponse<List<DepartmentOptionDto>>> getActiveDepartments() {
 		List<DepartmentOptionDto> departments = departmentRepository.findAll().stream()
 				.filter(d -> d.getStatus() == null || "active".equalsIgnoreCase(d.getStatus().trim()))
@@ -63,7 +63,7 @@ public class LookupController {
 	}
 
 	@GetMapping("/departments/{departmentId}/positions")
-	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE')")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
 	public ResponseEntity<ApiResponse<List<DepartmentPositionMappingOptionDto>>> getPositionsByDepartment(
 			@PathVariable Long departmentId) {
 		List<DepartmentPosition> activeMappings = departmentPositionRepository
@@ -83,7 +83,7 @@ public class LookupController {
 	}
 
 	@GetMapping("/positions/active")
-	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE')")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
 	public ResponseEntity<ApiResponse<List<PositionOptionDto>>> getActivePositions() {
 		List<PositionOptionDto> positions = positionRepository.findByStatusIgnoreCase("ACTIVE").stream()
 				.map(p -> new PositionOptionDto(p.getId(), p.getName(), p.getCode()))

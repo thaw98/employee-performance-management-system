@@ -4,6 +4,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -23,7 +26,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Position {
 
     @Id
@@ -41,10 +44,6 @@ public class Position {
     @JoinColumn(name = "level_code_id", nullable = false)
     private LevelCode levelCode;
 
-    /**
-     * Application role granted to users whose account is tied to this position.
-     * Not derived from {@link #levelCode}.
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
@@ -59,5 +58,6 @@ public class Position {
     private Instant updatedDate;
 
     @OneToMany(mappedBy = "position", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<DepartmentPosition> departmentPositions = new ArrayList<>();
 }

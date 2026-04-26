@@ -1,10 +1,10 @@
 import { useGetPipsQuery } from '../features/pip/pipApi'
+import { skipToken } from '@reduxjs/toolkit/query'
 import { Link, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
-import { useGetDepartmentsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
-import { useGetPositionsQuery } from '../features/position/api/positionApi'
+import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING_CREATION: 'bg-yellow-100 text-yellow-700',
@@ -14,6 +14,41 @@ const STATUS_COLORS: Record<string, string> = {
   COMPLETED: 'bg-green-100 text-green-700',
   CLOSED: 'bg-slate-100 text-slate-700',
   DENIED: 'bg-red-100 text-red-700',
+}
+
+type ApiError = {
+  data?: {
+    message?: string
+  }
+  error?: string
+}
+
+type EmployeeDisplay = {
+  id?: number
+  employeeName?: string
+  positionName?: string | null
+  positionId?: number | null
+  department?: {
+    departmentName?: string
+    name?: string
+  }
+  position?: {
+    positionName?: string
+    name?: string
+  }
+}
+
+const getPositionName = (employee?: EmployeeDisplay) => {
+  return employee?.position?.positionName || employee?.position?.name || employee?.positionName || 'N/A'
+}
+
+const getDepartmentName = (employee?: EmployeeDisplay) => {
+  return employee?.department?.departmentName || employee?.department?.name || 'N/A'
+}
+
+type PositionFilterOption = {
+  positionId: number
+  positionName: string
 }
 
 export default function PipMonitoringPage() {
@@ -28,28 +63,83 @@ export default function PipMonitoringPage() {
   const [searchName, setSearchName] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const departmentFilter = isHr ? filterDept : undefined
 
   const { data: pips, isLoading, isError, error } = useGetPipsQuery({
-    departmentId: filterDept,
+    departmentId: departmentFilter,
     positionId: filterPos,
     employeeName: searchName,
     status: filterStatus || undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
   })
+  const { data: departmentPips } = useGetPipsQuery(
+    isHr && typeof departmentFilter === 'number'
+      ? { departmentId: departmentFilter }
+      : skipToken,
+  )
+
+  const managerDepartmentId = useMemo(() => {
+    if (isHr) return undefined
+    const firstPip = pips?.[0]
+    const emp = firstPip?.employee as any
+    const employeeObj = emp?.employee || emp
+    const dept = employeeObj?.department
+    if (dept) {
+      return dept.departmentId || dept.id
+    }
+    return undefined
+  }, [pips, isHr])
 
   const { data: departmentsData } = useGetDepartmentsQuery()
-  const { data: positionsData } = useGetPositionsQuery(filterDept)
+  const targetDepartmentId = isHr && typeof filterDept === 'number' ? filterDept : (!isHr && managerDepartmentId ? managerDepartmentId : undefined)
+  const { data: positionsData } = useGetDepartmentPositionsQuery(
+    targetDepartmentId !== undefined ? targetDepartmentId : skipToken,
+  )
 
   const departments = departmentsData?.data || []
-  const positions = positionsData?.data || []
+  const positions = useMemo<PositionFilterOption[]>(() => {
+    const apiPositions = (positionsData?.data ?? [])
+      .filter((position) => typeof position.positionId === 'number' && position.positionId > 0)
+      .map((position) => ({
+        positionId: position.positionId,
+        positionName: position.positionName || 'Unnamed Position',
+      }))
 
-  // Auto-select department for manager
-  useEffect(() => {
-    if (isManager && !isHr && departments.length > 0) {
-      setFilterDept(departments[0].departmentId)
+    const fallbackPips = departmentPips ?? pips ?? []
+    const fallbackPositions = fallbackPips.reduce<PositionFilterOption[]>((acc, pip) => {
+      const employee = pip.employee.employee as EmployeeDisplay | undefined
+      const positionId = employee?.positionId
+      const positionName = getPositionName(employee)
+
+      if (!positionId || !positionName || positionName === 'N/A') {
+        return acc
+      }
+
+      if (acc.some((position) => position.positionId === positionId)) {
+        return acc
+      }
+
+      acc.push({ positionId, positionName })
+      return acc
+    }, [])
+
+    return [...apiPositions, ...fallbackPositions]
+      .filter((position, index, all) => all.findIndex((item) => item.positionId === position.positionId) === index)
+      .sort((a, b) => a.positionName.localeCompare(b.positionName))
+  }, [departmentPips, pips, positionsData?.data])
+
+  const managerDepartmentName = useMemo(() => {
+    if (isHr) return null
+    const firstPip = pips?.[0]
+    const emp = firstPip?.employee as any
+    const employeeObj = emp?.employee || emp
+    const dept = employeeObj?.department
+    if (dept) {
+      return dept.departmentName || dept.name || 'My Department'
     }
-  }, [isManager, isHr, departments])
+    return 'My Department'
+  }, [pips, isHr])
 
   const location = useLocation()
   const canCreate = isManager && !isHr // Only managers can create, HR is auditor/reviewer
@@ -68,7 +158,8 @@ export default function PipMonitoringPage() {
   if (isLoading) return <div className="p-8 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><span className="ml-3">Loading PIPs...</span></div>
 
   if (isError) {
-    const errorMessage = (error as any)?.data?.message || (error as any)?.error || 'Failed to load PIP records.'
+    const apiError = error as ApiError | undefined
+    const errorMessage = apiError?.data?.message || apiError?.error || 'Failed to load PIP records.'
     return (
       <div className="p-8">
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
@@ -101,42 +192,49 @@ export default function PipMonitoringPage() {
       <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
           {/* Department Filter - Only for HR or if Manager has multiple (unlikely based on current backend) */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Department</label>
-            <select
-              value={filterDept || ''}
-              onChange={(e) => {
-                setFilterDept(e.target.value ? Number(e.target.value) : undefined)
-                setFilterPos(undefined) // Reset position when department changes
-              }}
-              disabled={!isHr}
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
-            >
-              {(isHr || !isManager) && <option value="">All Departments</option>}
-              {departments.map((d) => (
-                <option key={d.departmentId} value={d.departmentId}>
-                  {d.departmentName || 'Unnamed Department'}
-                </option>
-              ))}
-            </select>
-          </div>
+          {(isHr || isManager) && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Department</label>
+              <select
+                value={filterDept || ''}
+                onChange={(e) => {
+                  setFilterDept(e.target.value ? Number(e.target.value) : undefined)
+                  setFilterPos(undefined) // Reset position when department changes
+                }}
+                disabled={!isHr}
+                className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-700"
+              >
+                {isHr ? <option value="">All Departments</option> : <option value="">{managerDepartmentName}</option>}
+                {isHr && departments.map((d) => (
+                  <option key={d.departmentId} value={d.departmentId}>
+                    {d.departmentName || 'Unnamed Department'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Position Filter */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Position</label>
-            <select
-              value={filterPos || ''}
-              onChange={(e) => setFilterPos(e.target.value ? Number(e.target.value) : undefined)}
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">All Positions</option>
-              {positions.map((p) => (
-                <option key={p.positionId} value={p.positionId}>
-                  {p.positionName || 'Unnamed Position'}
+          {(isHr || isManager) && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Position</label>
+              <select
+                value={filterPos || ''}
+                onChange={(e) => setFilterPos(e.target.value ? Number(e.target.value) : undefined)}
+                disabled={isHr && typeof filterDept !== 'number'}
+                className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">
+                  {isHr && typeof filterDept !== 'number' ? 'Select Department First' : 'All Positions'}
                 </option>
-              ))}
-            </select>
-          </div>
+                {positions.map((p) => (
+                  <option key={p.positionId} value={p.positionId}>
+                    {p.positionName || 'Unnamed Position'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Status Filter */}
           <div className="flex flex-col gap-2">
@@ -154,19 +252,21 @@ export default function PipMonitoringPage() {
           </div>
 
           {/* Employee Name Search */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Employee Name</label>
-            <div className="relative">
-              <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 pl-9 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
+          {(isHr || isManager) && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Employee Name</label>
+              <div className="relative">
+                <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 pl-9 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Start Date */}
           <div className="flex flex-col gap-2">
@@ -194,7 +294,7 @@ export default function PipMonitoringPage() {
         <div className="mt-4 flex justify-end">
           <button
             onClick={() => {
-              setFilterDept(isHr ? undefined : (isManager ? departments[0]?.departmentId : undefined))
+              setFilterDept(undefined)
               setFilterPos(undefined)
               setFilterStatus('')
               setSearchName('')
@@ -214,7 +314,7 @@ export default function PipMonitoringPage() {
             <tr>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Employee</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Position</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Department</th>
+              {isHr && <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Department</th>}
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Status</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Start Date</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">End Date</th>
@@ -224,21 +324,23 @@ export default function PipMonitoringPage() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredPips.map((pip) => {
-              const emp = pip.employee.employee
+              const emp: EmployeeDisplay | undefined = pip.employee.employee
               return (
                 <tr key={pip.id} className="group hover:bg-slate-50 transition-all duration-200">
                   <td className="px-6 py-5">
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{emp?.employeeName || 'N/A'}</span>
-                      <span className="text-xs text-slate-400">ID: {emp?.id || '—'}</span>
+                      <span className="text-xs text-slate-400">ID: {emp?.id || 'N/A'}</span>
                     </div>
                   </td>
                   <td className="px-6 py-5">
-                    <span className="text-sm text-slate-600 font-medium">{(emp as any)?.position?.positionName || (emp as any)?.position?.name || '—'}</span>
+                    <span className="text-sm text-slate-600 font-medium">{getPositionName(emp)}</span>
                   </td>
-                  <td className="px-6 py-5 text-sm text-slate-600">
-                    {emp?.department?.departmentName || (emp as any)?.department?.name || '—'}
-                  </td>
+                  {isHr && (
+                    <td className="px-6 py-5 text-sm text-slate-600">
+                      {getDepartmentName(emp)}
+                    </td>
+                  )}
                   <td className="px-6 py-5 text-center">
                     <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${STATUS_COLORS[pip.status]}`}>
                       {pip.status.replace('_', ' ')}

@@ -24,7 +24,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@JsonIgnoreProperties({ "manager", "employee", "createdBy" })
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "manager", "employee", "createdBy" })
 public class OneOnOneMeeting {
 
     @Id
