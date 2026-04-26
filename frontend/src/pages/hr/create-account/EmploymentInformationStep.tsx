@@ -19,6 +19,9 @@ interface EmploymentInformationStepProps {
   positionLoading: boolean
   disableProbationOption?: boolean
   beforeHireDate?: ReactNode
+  readOnlyHireDate?: boolean
+  /** When true, Department and Position cannot be changed (e.g. edit existing employee). */
+  readOnlyDepartmentAndPosition?: boolean
 }
 
 function SectionHeader({ icon: Icon, title }: { icon: React.ComponentType<{ size?: number; className?: string }>; title: string }) {
@@ -49,6 +52,8 @@ export function EmploymentInformationStep({
   positionLoading,
   disableProbationOption,
   beforeHireDate,
+  readOnlyHireDate,
+  readOnlyDepartmentAndPosition,
 }: EmploymentInformationStepProps) {
   const staffType = useWatch({ control, name: 'staffType' })
   const probationStart = useWatch({ control, name: 'probationStartDate' })
@@ -216,13 +221,25 @@ export function EmploymentInformationStep({
 
         <div className="md:col-span-2">
           <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="hireDate">
-            Hire Date <span className="text-red-400">*</span>
+            Hire Date{' '}
+            {readOnlyHireDate ? (
+              <span className="text-xs font-normal text-slate-400">(read-only)</span>
+            ) : (
+              <span className="text-red-400">*</span>
+            )}
           </label>
           <input
             id="hireDate"
             type="date"
-            className={errors.hireDate ? inputError : inputNormal}
+            className={
+              readOnlyHireDate
+                ? 'w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500'
+                : errors.hireDate
+                  ? inputError
+                  : inputNormal
+            }
             {...register('hireDate')}
+            readOnly={readOnlyHireDate}
           />
           {errors.hireDate?.message ? (
             <p className="mt-1 text-xs text-red-600">{String(errors.hireDate.message)}</p>
@@ -236,7 +253,12 @@ export function EmploymentInformationStep({
 
         <div className="md:col-span-2">
           <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-            Department <span className="text-red-400">*</span>
+            Department{' '}
+            {readOnlyDepartmentAndPosition ? (
+              <span className="text-xs font-normal text-slate-400">(read-only)</span>
+            ) : (
+              <span className="text-red-400">*</span>
+            )}
           </label>
           <Controller
             control={control}
@@ -249,7 +271,7 @@ export function EmploymentInformationStep({
                   field.onChange(id)
                   setValue('departmentPositionId', null, { shouldValidate: true })
                 }}
-                disabled={departmentLoading}
+                disabled={departmentLoading || readOnlyDepartmentAndPosition}
                 error={errors.departmentId?.message ? String(errors.departmentId.message) : undefined}
               />
             )}
@@ -258,7 +280,12 @@ export function EmploymentInformationStep({
 
         <div className="md:col-span-2">
           <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-            Position <span className="text-red-400">*</span>
+            Position{' '}
+            {readOnlyDepartmentAndPosition ? (
+              <span className="text-xs font-normal text-slate-400">(read-only)</span>
+            ) : (
+              <span className="text-red-400">*</span>
+            )}
           </label>
           <Controller
             control={control}
@@ -274,7 +301,7 @@ export function EmploymentInformationStep({
                     shouldValidate: true,
                   })
                 }
-                disabled={!departmentId || positionLoading}
+                disabled={!departmentId || positionLoading || readOnlyDepartmentAndPosition}
                 error={errors.departmentPositionId?.message ? String(errors.departmentPositionId.message) : undefined}
                 placeholder={!departmentId ? 'Select a department first' : 'Search position…'}
               />

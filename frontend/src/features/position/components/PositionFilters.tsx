@@ -43,13 +43,13 @@ function PositionFilters({
           <div className="relative group">
             <Layers className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
             <select
-              value={selectedLevelCodeId ?? ''}
+              value={selectedLevelCodeId != null ? String(selectedLevelCodeId) : ''}
               onChange={(e) => onLevelCodeChange(e.target.value ? Number(e.target.value) : null)}
               className="w-full pl-11 pr-10 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition-all appearance-none bg-white text-sm text-slate-700 cursor-pointer hover:border-slate-300 group-focus-within:shadow-lg group-focus-within:shadow-indigo-100"
             >
               <option value="">All Levels</option>
               {levelCodes.map((l) => (
-                <option key={l.id} value={l.id}>
+                <option key={l.id} value={String(l.id)}>
                   {l.code}
                 </option>
               ))}
@@ -61,13 +61,13 @@ function PositionFilters({
           <div className="relative group">
             <Shield className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
             <select
-              value={selectedRoleId ?? ''}
+              value={selectedRoleId != null ? String(selectedRoleId) : ''}
               onChange={(e) => onRoleChange(e.target.value ? Number(e.target.value) : null)}
               className="w-full pl-11 pr-10 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition-all appearance-none bg-white text-sm text-slate-700 cursor-pointer hover:border-slate-300 group-focus-within:shadow-lg group-focus-within:shadow-indigo-100"
             >
               <option value="">All Roles</option>
               {roles.map((r) => (
-                <option key={r.id} value={r.id}>
+                <option key={r.id} value={String(r.id)}>
                   {r.name}
                 </option>
               ))}

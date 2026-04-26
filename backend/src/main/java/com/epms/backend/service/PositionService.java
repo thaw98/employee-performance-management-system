@@ -11,7 +11,7 @@ import com.epms.backend.dto.position.UpdatePositionRequest;
 public interface PositionService {
 
 	PositionListResponse getPositions(int page, int size, String search, String positionName, Long roleId,
-			String sortBy, String sortDir);
+			Long levelCodeId, String sortBy, String sortDir);
 
 	PositionDto getPositionById(Long id);
 

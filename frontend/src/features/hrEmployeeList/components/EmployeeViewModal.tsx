@@ -1,10 +1,9 @@
 import { Dialog, Transition, Tab } from '@headlessui/react'
 import { Fragment, useState, useMemo, memo, useCallback, useEffect } from 'react'
-import { ArrowLeftRight, CheckCircle2, RotateCcw } from 'lucide-react'
+import { CheckCircle2, RotateCcw } from 'lucide-react'
 import type { EmployeeViewDetail } from '../hrEmployeeApi'
 import { useGetTransferHistoryQuery } from '../employeeTransferApi'
 import { TransferHistoryTable } from './TransferHistoryTable'
-import { TemporaryTransferModal } from './TemporaryTransferModal'
 import { ReturnModal } from './ReturnModal'
 import { MakePermanentModal } from './MakePermanentModal'
 
@@ -56,7 +55,6 @@ function EmployeeViewModal({
   hideSensitiveFields = false,
 }: EmployeeViewModalProps) {
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null)
-  const [showTransfer, setShowTransfer] = useState(false)
   const [showReturn, setShowReturn] = useState(false)
   const [showMakePermanent, setShowMakePermanent] = useState(false)
 
@@ -68,7 +66,6 @@ function EmployeeViewModal({
 
   useEffect(() => {
     if (!isOpen) {
-      setShowTransfer(false)
       setShowReturn(false)
       setShowMakePermanent(false)
     }
@@ -351,37 +348,26 @@ function EmployeeViewModal({
                           {/* 5. Transfer History */}
                           {!hideSensitiveFields && (
                             <Tab.Panel className="space-y-4">
-                              <div className="flex flex-wrap justify-end gap-2">
-                                {currentTransfer?.transferType === 'TEMPORARY' ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowMakePermanent(true)}
-                                      className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-700"
-                                    >
-                                      <CheckCircle2 size={13} />
-                                      Make Permanent
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowReturn(true)}
-                                      className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
-                                    >
-                                      <RotateCcw size={13} />
-                                      Return
-                                    </button>
-                                  </>
-                                ) : (
+                              {currentTransfer?.transferType === 'TEMPORARY' && (
+                                <div className="flex flex-wrap justify-end gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => setShowTransfer(true)}
+                                    onClick={() => setShowMakePermanent(true)}
                                     className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-700"
                                   >
-                                    <ArrowLeftRight size={13} />
-                                    Transfer
+                                    <CheckCircle2 size={13} />
+                                    Make Permanent
                                   </button>
-                                )}
-                              </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowReturn(true)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
+                                  >
+                                    <RotateCcw size={13} />
+                                    Return
+                                  </button>
+                                </div>
+                              )}
                               <TransferHistoryTable
                                 history={transferHistory}
                                 isLoading={transferLoading}
@@ -411,13 +397,6 @@ function EmployeeViewModal({
         </div>
         </Dialog>
       </Transition>
-      <TemporaryTransferModal
-        isOpen={showTransfer}
-        employeeId={employeeId ?? null}
-        employeeName={fullName ?? ''}
-        onClose={() => setShowTransfer(false)}
-        onSuccess={() => { void refetchTransfers() }}
-      />
       <ReturnModal
         isOpen={showReturn}
         employeeId={employeeId ?? null}

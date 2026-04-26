@@ -15,6 +15,7 @@ export interface EmployeeListItem {
   hasUserAccount: boolean
   employmentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated'
   employeeActiveStatus: 'ACTIVE' | 'RESIGNED' | 'TERMINATED'
+  currentTransferType: 'INITIAL' | 'TEMPORARY' | 'PERMANENT_TRANSFER' | 'RETURN' | null
 }
 
 export interface EmployeeListResponse {

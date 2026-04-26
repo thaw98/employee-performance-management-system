@@ -41,9 +41,10 @@ public class PositionController {
 			@RequestParam(defaultValue = "asc") String sortDir,
 			@RequestParam(required = false) String search,
 			@RequestParam(required = false) String positionName,
-			@RequestParam(required = false) Long roleId) {
+			@RequestParam(required = false) Long roleId,
+			@RequestParam(required = false) Long levelCodeId) {
 		return ResponseEntity.ok(ApiResponse.ok("Positions fetched successfully.",
-				positionService.getPositions(page, size, search, positionName, roleId, sortBy, sortDir)));
+				positionService.getPositions(page, size, search, positionName, roleId, levelCodeId, sortBy, sortDir)));
 	}
 
 	@GetMapping("/{id}")

@@ -59,6 +59,13 @@ function PositionListPage() {
 
   const levelCodes = levelCodesData?.data || []
   const roles = rolesData?.data || []
+  const selectedLevelCodeLabel = useMemo(
+    () =>
+      selectedLevelCodeId != null
+        ? levelCodes.find((l) => l.id === selectedLevelCodeId)?.code
+        : null,
+    [levelCodes, selectedLevelCodeId],
+  )
   const positions = useMemo(() => positionsData?.data?.content ?? [], [positionsData?.data?.content])
   const totalElements = positionsData?.data?.totalElements || 0
   const totalPages = positionsData?.data?.totalPages || 0
@@ -272,7 +279,11 @@ function PositionListPage() {
                 <div className="flex-1">
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Level Codes</p>
                   <div className="flex items-baseline gap-2">
-                    <h3 className="text-3xl font-bold text-slate-900">{levelCodes.length}</h3>
+                    <h3 className="text-3xl font-bold text-slate-900 tabular-nums">
+                      {selectedLevelCodeId != null
+                        ? (selectedLevelCodeLabel ?? '—')
+                        : levelCodes.length}
+                    </h3>
                   </div>
                 </div>
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
@@ -282,7 +293,11 @@ function PositionListPage() {
               <div className="mt-4 flex items-center gap-2">
                 <div className="flex items-center gap-1 text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
                   <Shield className="w-3 h-3" />
-                  <span>Available levels</span>
+                  <span>
+                    {selectedLevelCodeId != null
+                      ? 'Filter: selected level'
+                      : 'Available levels'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -333,10 +348,16 @@ function PositionListPage() {
                 search={search}
                 onSearchChange={handleSearchChange}
                 selectedRoleId={selectedRoleId}
-                onRoleChange={setSelectedRoleId}
+                onRoleChange={(id) => {
+                  setSelectedRoleId(id)
+                  setPage(0)
+                }}
                 roles={roles}
                 selectedLevelCodeId={selectedLevelCodeId}
-                onLevelCodeChange={setSelectedLevelCodeId}
+                onLevelCodeChange={(id) => {
+                  setSelectedLevelCodeId(id)
+                  setPage(0)
+                }}
                 levelCodes={levelCodes}
               />
             </div>

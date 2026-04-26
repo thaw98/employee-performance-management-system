@@ -1,6 +1,7 @@
 package com.epms.backend.repository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,6 +13,11 @@ import com.epms.backend.entity.EmployeeDepartmentHistory;
 import com.epms.backend.entity.TransferType;
 
 public interface EmployeeDepartmentHistoryRepository extends JpaRepository<EmployeeDepartmentHistory, Long> {
+
+    interface CurrentTransferTypeView {
+        Long getEmployeeId();
+        TransferType getTransferType();
+    }
 
     Optional<EmployeeDepartmentHistory> findByEmployee_IdAndCurrentTrue(Long employeeId);
 
@@ -33,6 +39,15 @@ public interface EmployeeDepartmentHistoryRepository extends JpaRepository<Emplo
     List<EmployeeDepartmentHistory> findByCurrentTrueAndTransferTypeAndEffectiveEndDateBefore(
         TransferType transferType,
         LocalDate date);
+
+    @Query("""
+        SELECT h.employee.id AS employeeId, h.transferType AS transferType
+        FROM EmployeeDepartmentHistory h
+        WHERE h.current = true
+          AND h.employee.id IN :employeeIds
+        """)
+    List<CurrentTransferTypeView> findCurrentTransferTypesByEmployeeIds(
+        @Param("employeeIds") Collection<Long> employeeIds);
 
     @Query("""
         SELECT CASE WHEN COUNT(h) > 0 THEN true ELSE false END FROM EmployeeDepartmentHistory h

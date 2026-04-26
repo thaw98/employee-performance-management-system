@@ -3,7 +3,7 @@ import { skipToken } from '@reduxjs/toolkit/query'
 import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import toast from 'react-hot-toast'
-import { X, Pencil, Save, ArrowLeftRight, RotateCcw, Building2, History } from 'lucide-react'
+import { X, Pencil, Save } from 'lucide-react'
 
 import {
   useGetEmployeeByIdQuery,
@@ -24,11 +24,6 @@ import { EmployeeInformationStep } from '../../../pages/hr/create-account/Employ
 import { EmploymentInformationStep } from '../../../pages/hr/create-account/EmploymentInformationStep'
 import { FamilyEmergencyStep } from '../../../pages/hr/create-account/FamilyEmergencyStep'
 import { useUploadProfilePictureMutation } from '../../user/userApi'
-import { useGetTransferHistoryQuery } from '../employeeTransferApi'
-import { TransferHistoryTable } from './TransferHistoryTable'
-import { TemporaryTransferModal } from './TemporaryTransferModal'
-import { ReturnModal } from './ReturnModal'
-import { PermanentTransferModal } from './PermanentTransferModal'
 
 const STAFF_TYPE_PERMANENT_ID = 1
 
@@ -71,16 +66,9 @@ export default function EditEmployeeModal({
   })
   const departments = deptRes?.data ?? []
 
-  const [activeTab, setActiveTab] = useState<'personal' | 'family' | 'employment' | 'transfer'>('personal')
+  const [activeTab, setActiveTab] = useState<'personal' | 'family' | 'employment'>('personal')
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
   const [photoError] = useState('')
-  const [showTempTransfer, setShowTempTransfer] = useState(false)
-  const [showReturn, setShowReturn] = useState(false)
-  const [showPermTransfer, setShowPermTransfer] = useState(false)
-
-  const { data: transferRes, isLoading: transferLoading } = useGetTransferHistoryQuery(id, {
-    skip: !isOpen || !employeeId,
-  })
   const [transitionMode, setTransitionMode] = useState<'NOW' | 'CUSTOM' | ''>('')
   const [transitionDate, setTransitionDate] = useState('')
 
@@ -104,9 +92,6 @@ export default function EditEmployeeModal({
       setProfilePhotoFile(null)
       setTransitionMode('')
       setTransitionDate('')
-      setShowTempTransfer(false)
-      setShowReturn(false)
-      setShowPermTransfer(false)
     }
   }, [isOpen])
 
@@ -305,12 +290,11 @@ export default function EditEmployeeModal({
 
           {/* ── Tabs ── */}
           <div className="flex border-b border-gray-100 shrink-0 bg-white">
-            {(['personal', 'family', 'employment', 'transfer'] as const).map((tab) => {
+            {(['personal', 'family', 'employment'] as const).map((tab) => {
               const labels: Record<typeof tab, string> = {
                 personal: 'Personal Details',
                 family: 'Family & Emergency',
                 employment: 'Employment Info',
-                transfer: 'Transfer History',
               }
               const isActive = activeTab === tab
               return (
@@ -386,6 +370,8 @@ export default function EditEmployeeModal({
                           departmentLoading={deptLoading}
                           positionLoading={posLoading}
                           disableProbationOption={isPermanentStaff}
+                          readOnlyHireDate
+                          readOnlyDepartmentAndPosition
                           beforeHireDate={
                             isProbationToPermanent ? (
                               <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -463,45 +449,6 @@ export default function EditEmployeeModal({
                         />
                       </div>
                     )}
-
-                    {activeTab === 'transfer' && (
-                      <div className="animate-fade-in space-y-4">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setShowTempTransfer(true)}
-                            className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
-                          >
-                            <ArrowLeftRight size={13} />
-                            Temporary Transfer
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowReturn(true)}
-                            className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
-                          >
-                            <RotateCcw size={13} />
-                            Return
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowPermTransfer(true)}
-                            className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-700 transition-colors"
-                          >
-                            <Building2 size={13} />
-                            Permanent Transfer
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                          <History size={15} className="text-indigo-600" />
-                          Transfer History
-                        </div>
-                        <TransferHistoryTable
-                          history={transferRes?.data ?? []}
-                          isLoading={transferLoading}
-                        />
-                      </div>
-                    )}
                   </div>
                 </form>
               </FormProvider>
@@ -533,28 +480,6 @@ export default function EditEmployeeModal({
           </div>
         </div>
       </div>
-
-      <TemporaryTransferModal
-        isOpen={showTempTransfer}
-        employeeId={employeeId}
-        employeeName={empRes?.data?.employeeName ?? ''}
-        onClose={() => setShowTempTransfer(false)}
-        onSuccess={onSuccess}
-      />
-      <ReturnModal
-        isOpen={showReturn}
-        employeeId={employeeId}
-        employeeName={empRes?.data?.employeeName ?? ''}
-        onClose={() => setShowReturn(false)}
-        onSuccess={onSuccess}
-      />
-      <PermanentTransferModal
-        isOpen={showPermTransfer}
-        employeeId={employeeId}
-        employeeName={empRes?.data?.employeeName ?? ''}
-        onClose={() => setShowPermTransfer(false)}
-        onSuccess={onSuccess}
-      />
     </>
   )
 }

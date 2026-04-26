@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
+import { Dialog, Transition } from '@headlessui/react'
 import { skipToken } from '@reduxjs/toolkit/query'
 import toast from 'react-hot-toast'
 import { ArrowLeftRight, X } from 'lucide-react'
@@ -9,7 +10,7 @@ import {
   type DepartmentOptionDto,
   type PositionOptionDto,
 } from '../../hrCreateEmployee/hrEmployeeAccountApi'
-import { useTemporaryTransferMutation } from '../employeeTransferApi'
+import { useGetCurrentTransferQuery, useTemporaryTransferMutation } from '../employeeTransferApi'
 
 interface TemporaryTransferModalProps {
   isOpen: boolean
@@ -19,7 +20,15 @@ interface TemporaryTransferModalProps {
   onSuccess?: () => void
 }
 
-const inputBase = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-400 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]'
+const inputBase = 'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-indigo-400 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]'
+
+const addDaysToIsoDate = (date: string, days: number) => {
+  const [year, month, day] = date.split('-').map(Number)
+  if (!year || !month || !day) return ''
+
+  const value = new Date(Date.UTC(year, month - 1, day + days))
+  return value.toISOString().slice(0, 10)
+}
 
 export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClose, onSuccess }: TemporaryTransferModalProps) {
   const [toDepartmentId, setToDepartmentId] = useState<number | ''>('')
@@ -36,6 +45,26 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
     isOpen && !!toDepartmentId ? Number(toDepartmentId) : skipToken,
   )
   const positions: PositionOptionDto[] = posRes?.data ?? []
+
+  const { data: currentTransferRes } = useGetCurrentTransferQuery(employeeId ?? 0, {
+    skip: !isOpen || !employeeId,
+  })
+  const currentTransfer = currentTransferRes?.data ?? null
+  const previousEffectiveStartDate = currentTransfer?.effectiveStartDate ?? ''
+  const minEffectiveStartDate = useMemo(
+    () => previousEffectiveStartDate ? addDaysToIsoDate(previousEffectiveStartDate, 1) : undefined,
+    [previousEffectiveStartDate],
+  )
+  const minEffectiveEndDate = useMemo(
+    () => effectiveStartDate ? addDaysToIsoDate(effectiveStartDate, 1) : undefined,
+    [effectiveStartDate],
+  )
+  const hasInvalidStartDate = Boolean(
+    previousEffectiveStartDate && effectiveStartDate && effectiveStartDate <= previousEffectiveStartDate,
+  )
+  const hasInvalidEndDate = Boolean(
+    effectiveStartDate && effectiveEndDate && effectiveEndDate <= effectiveStartDate,
+  )
 
   const [temporaryTransfer, { isLoading }] = useTemporaryTransferMutation()
 
@@ -56,7 +85,10 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
       toast.error('Please fill in all required fields')
       return
     }
-    if (effectiveEndDate <= effectiveStartDate) {
+    if (hasInvalidStartDate) {
+      return
+    }
+    if (hasInvalidEndDate) {
       toast.error('Effective end date must be after effective start date')
       return
     }
@@ -82,137 +114,173 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
     }
   }
 
-  if (!isOpen) return null
-
   return (
-    <>
-      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={handleClose} aria-hidden="true" />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-        <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white">
-                <ArrowLeftRight size={18} />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-gray-900">Temporary Transfer</h2>
-                <p className="text-xs text-gray-500">{employeeName}</p>
-              </div>
-            </div>
-            <button onClick={handleClose} className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" aria-label="Close">
-              <X size={18} />
-            </button>
+    <Transition show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={handleClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" aria-hidden="true" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 z-10 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-4">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              enterTo="opacity-100 translate-y-0 sm:scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            >
+              <Dialog.Panel className="relative w-full max-w-xl transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-2xl transition-all">
+                <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
+                      <ArrowLeftRight size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <Dialog.Title className="text-base font-bold text-gray-900">Temporary Transfer</Dialog.Title>
+                      <p className="truncate text-xs text-gray-500">{employeeName}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="shrink-0 rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                    aria-label="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-3.5 p-5">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                      Target Department <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      className={inputBase}
+                      value={toDepartmentId}
+                      onChange={(e) => { setToDepartmentId(Number(e.target.value) || ''); setToPositionId('') }}
+                      disabled={deptLoading}
+                      required
+                    >
+                      <option value="">Select department…</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                      Target Position <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      className={inputBase}
+                      value={toPositionId}
+                      onChange={(e) => setToPositionId(Number(e.target.value) || '')}
+                      disabled={!toDepartmentId || posLoading}
+                      required
+                    >
+                      <option value="">{!toDepartmentId ? 'Select a department first' : 'Select position…'}</option>
+                      {positions.map((p) => (
+                        <option key={p.id} value={p.positionId}>{p.positionName} ({p.positionCode})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="min-w-0">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Effective Start <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        className={inputBase}
+                        value={effectiveStartDate}
+                        min={minEffectiveStartDate}
+                        onChange={(e) => setEffectiveStartDate(e.target.value)}
+                        required
+                      />
+                      {hasInvalidStartDate ? (
+                        <p className="mt-1 text-xs font-medium text-red-500">
+                          Start date must be after the previous transfer ({previousEffectiveStartDate})
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="min-w-0">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Effective End <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        className={inputBase}
+                        value={effectiveEndDate}
+                        min={minEffectiveEndDate}
+                        onChange={(e) => setEffectiveEndDate(e.target.value)}
+                        required
+                      />
+                      {hasInvalidEndDate ? (
+                        <p className="mt-1 text-xs font-medium text-red-500">End date must be after the start date.</p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Reason</label>
+                    <textarea
+                      className={inputBase}
+                      rows={2}
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      placeholder="Reason for temporary transfer…"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Remarks</label>
+                    <textarea
+                      className={inputBase}
+                      rows={2}
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Additional remarks…"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleClose}
+                      className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
+                    >
+                      {isLoading ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" /> : null}
+                      Confirm Transfer
+                    </button>
+                  </div>
+                </form>
+              </Dialog.Panel>
+            </Transition.Child>
           </div>
-
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                Target Department <span className="text-red-400">*</span>
-              </label>
-              <select
-                className={inputBase}
-                value={toDepartmentId}
-                onChange={(e) => { setToDepartmentId(Number(e.target.value) || ''); setToPositionId('') }}
-                disabled={deptLoading}
-                required
-              >
-                <option value="">Select department…</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                Target Position <span className="text-red-400">*</span>
-              </label>
-              <select
-                className={inputBase}
-                value={toPositionId}
-                onChange={(e) => setToPositionId(Number(e.target.value) || '')}
-                disabled={!toDepartmentId || posLoading}
-                required
-              >
-                <option value="">{!toDepartmentId ? 'Select a department first' : 'Select position…'}</option>
-                {positions.map((p) => (
-                  <option key={p.id} value={p.positionId}>{p.positionName} ({p.positionCode})</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                Effective Start Date <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="date"
-                className={inputBase}
-                value={effectiveStartDate}
-                onChange={(e) => setEffectiveStartDate(e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                Effective End Date <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="date"
-                className={inputBase}
-                value={effectiveEndDate}
-                min={effectiveStartDate || undefined}
-                onChange={(e) => setEffectiveEndDate(e.target.value)}
-                required
-              />
-              {effectiveStartDate && effectiveEndDate && effectiveEndDate <= effectiveStartDate ? (
-                <p className="mt-1 text-xs font-medium text-red-500">End date must be after the start date.</p>
-              ) : null}
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Reason</label>
-              <textarea
-                className={inputBase}
-                rows={2}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Reason for temporary transfer…"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Remarks</label>
-              <textarea
-                className={inputBase}
-                rows={2}
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                placeholder="Additional remarks…"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-100 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition-colors disabled:opacity-50"
-              >
-                {isLoading ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" /> : null}
-                Confirm Transfer
-              </button>
-            </div>
-          </form>
         </div>
-      </div>
-    </>
+      </Dialog>
+    </Transition>
   )
 }
