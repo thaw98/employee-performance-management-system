@@ -117,6 +117,18 @@ export default function PipMonitoringPage() {
       .sort((a, b) => a.positionName.localeCompare(b.positionName))
   }, [departmentPips, pips, positionsData?.data])
 
+  const managerDepartmentName = useMemo(() => {
+    if (isHr) return null
+    const firstPip = pips?.[0]
+    const emp = firstPip?.employee as any
+    const employeeObj = emp?.employee || emp
+    const dept = employeeObj?.department
+    if (dept) {
+      return dept.departmentName || dept.name || 'My Department'
+    }
+    return 'My Department'
+  }, [pips, isHr])
+
   const location = useLocation()
   const canCreate = isManager && !isHr // Only managers can create, HR is auditor/reviewer
 
@@ -168,45 +180,49 @@ export default function PipMonitoringPage() {
       <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
           {/* Department Filter - Only for HR or if Manager has multiple (unlikely based on current backend) */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Department</label>
-            <select
-              value={filterDept || ''}
-              onChange={(e) => {
-                setFilterDept(e.target.value ? Number(e.target.value) : undefined)
-                setFilterPos(undefined) // Reset position when department changes
-              }}
-              disabled={!isHr}
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
-            >
-              {isHr ? <option value="">All Departments</option> : <option value="">My Department</option>}
-              {isHr && departments.map((d) => (
-                <option key={d.departmentId} value={d.departmentId}>
-                  {d.departmentName || 'Unnamed Department'}
-                </option>
-              ))}
-            </select>
-          </div>
+          {(isHr || isManager) && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Department</label>
+              <select
+                value={filterDept || ''}
+                onChange={(e) => {
+                  setFilterDept(e.target.value ? Number(e.target.value) : undefined)
+                  setFilterPos(undefined) // Reset position when department changes
+                }}
+                disabled={!isHr}
+                className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-700"
+              >
+                {isHr ? <option value="">All Departments</option> : <option value="">{managerDepartmentName}</option>}
+                {isHr && departments.map((d) => (
+                  <option key={d.departmentId} value={d.departmentId}>
+                    {d.departmentName || 'Unnamed Department'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Position Filter */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Position</label>
-            <select
-              value={filterPos || ''}
-              onChange={(e) => setFilterPos(e.target.value ? Number(e.target.value) : undefined)}
-              disabled={isHr && typeof filterDept !== 'number'}
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">
-                {isHr && typeof filterDept !== 'number' ? 'Select Department First' : 'All Positions'}
-              </option>
-              {positions.map((p) => (
-                <option key={p.positionId} value={p.positionId}>
-                  {p.positionName || 'Unnamed Position'}
+          {(isHr || isManager) && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Position</label>
+              <select
+                value={filterPos || ''}
+                onChange={(e) => setFilterPos(e.target.value ? Number(e.target.value) : undefined)}
+                disabled={isHr && typeof filterDept !== 'number'}
+                className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">
+                  {isHr && typeof filterDept !== 'number' ? 'Select Department First' : 'All Positions'}
                 </option>
-              ))}
-            </select>
-          </div>
+                {positions.map((p) => (
+                  <option key={p.positionId} value={p.positionId}>
+                    {p.positionName || 'Unnamed Position'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Status Filter */}
           <div className="flex flex-col gap-2">
@@ -224,19 +240,21 @@ export default function PipMonitoringPage() {
           </div>
 
           {/* Employee Name Search */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Employee Name</label>
-            <div className="relative">
-              <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 pl-9 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
+          {(isHr || isManager) && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Employee Name</label>
+              <div className="relative">
+                <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 pl-9 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Start Date */}
           <div className="flex flex-col gap-2">

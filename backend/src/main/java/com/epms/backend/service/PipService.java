@@ -147,23 +147,24 @@ public class PipService {
             List<Predicate> predicates = new ArrayList<>();
 
             // Role-based visibility
+            String roleName = actor.getRole() != null ? actor.getRole().getName() : "";
+            boolean isManager = "DEPARTMENT_HEAD".equalsIgnoreCase(roleName) || "TEAM_HEAD".equalsIgnoreCase(roleName)
+                    || "MANAGER".equalsIgnoreCase(roleName);
+
             if (isHr(actor)) {
                 if (departmentId != null) {
                     predicates.add(cb.equal(root.get("employee").get("department").get("id"), departmentId));
                 }
-            } else if (actor.getEmployee() != null && actor.getEmployee().getDepartment() != null) {
-                // Manager or Employee - restricted to their own department for managers,
-                // but the controller logic usually handles Manager vs Employee differently.
-                // For "Monitoring", we assume Manager view of department.
+            } else if (isManager && actor.getEmployee() != null && actor.getEmployee().getDepartment() != null) {
+                // Manager - restricted to their own department
                 predicates.add(cb.equal(root.get("employee").get("department").get("id"),
                         actor.getEmployee().getDepartment().getId()));
+            } else if (actor.getEmployee() != null) {
+                // Regular employee - only see their own PIPs
+                predicates.add(cb.equal(root.get("employee").get("id"), actor.getEmployee().getId()));
             } else {
-                // No department, return nothing or just their own if they are an employee
-                if (actor.getEmployee() != null) {
-                    predicates.add(cb.equal(root.get("employee").get("id"), actor.getEmployee().getId()));
-                } else {
-                    return cb.disjunction();
-                }
+                // No access
+                return cb.disjunction();
             }
 
             if (positionId != null) {
