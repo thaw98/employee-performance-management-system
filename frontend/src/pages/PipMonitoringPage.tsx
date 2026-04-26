@@ -4,8 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
-import { useGetDepartmentsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
-import { useGetPositionsByDepartmentQuery } from '../features/position/api/positionApi'
+import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING_CREATION: 'bg-yellow-100 text-yellow-700',
@@ -80,9 +79,22 @@ export default function PipMonitoringPage() {
       : skipToken,
   )
 
+  const managerDepartmentId = useMemo(() => {
+    if (isHr) return undefined
+    const firstPip = pips?.[0]
+    const emp = firstPip?.employee as any
+    const employeeObj = emp?.employee || emp
+    const dept = employeeObj?.department
+    if (dept) {
+      return dept.departmentId || dept.id
+    }
+    return undefined
+  }, [pips, isHr])
+
   const { data: departmentsData } = useGetDepartmentsQuery()
-  const { data: positionsData } = useGetPositionsByDepartmentQuery(
-    isHr && typeof filterDept === 'number' ? filterDept : skipToken,
+  const targetDepartmentId = isHr && typeof filterDept === 'number' ? filterDept : (!isHr && managerDepartmentId ? managerDepartmentId : undefined)
+  const { data: positionsData } = useGetDepartmentPositionsQuery(
+    targetDepartmentId !== undefined ? targetDepartmentId : skipToken,
   )
 
   const departments = departmentsData?.data || []
@@ -302,7 +314,7 @@ export default function PipMonitoringPage() {
             <tr>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Employee</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Position</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Department</th>
+              {isHr && <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Department</th>}
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Status</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Start Date</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">End Date</th>
@@ -324,9 +336,11 @@ export default function PipMonitoringPage() {
                   <td className="px-6 py-5">
                     <span className="text-sm text-slate-600 font-medium">{getPositionName(emp)}</span>
                   </td>
-                  <td className="px-6 py-5 text-sm text-slate-600">
-                    {getDepartmentName(emp)}
-                  </td>
+                  {isHr && (
+                    <td className="px-6 py-5 text-sm text-slate-600">
+                      {getDepartmentName(emp)}
+                    </td>
+                  )}
                   <td className="px-6 py-5 text-center">
                     <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${STATUS_COLORS[pip.status]}`}>
                       {pip.status.replace('_', ' ')}

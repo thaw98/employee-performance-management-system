@@ -11,7 +11,8 @@ import {
   Search,
   RefreshCcw,
   BellRing,
-  Inbox
+  Inbox,
+  TrendingUp
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -54,6 +55,7 @@ const EmployeeLayout: React.FC = () => {
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/employee/dashboard' },
     { icon: <Target size={20} />, label: 'My KPIs', path: '/employee/kpis' },
     { icon: <FileText size={20} />, label: 'Self Assessment', path: '/employee/my-assessment' },
+    { icon: <TrendingUp size={20} />, label: 'My PIPs', path: '/employee/pip' },
     {
       icon: <RefreshCcw size={20} />,
       label: '360 Feedback',

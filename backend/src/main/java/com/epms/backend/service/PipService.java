@@ -147,9 +147,9 @@ public class PipService {
             List<Predicate> predicates = new ArrayList<>();
 
             // Role-based visibility
-            String roleName = actor.getRole() != null ? actor.getRole().getName() : "";
-            boolean isManager = "DEPARTMENT_HEAD".equalsIgnoreCase(roleName) || "TEAM_HEAD".equalsIgnoreCase(roleName)
-                    || "MANAGER".equalsIgnoreCase(roleName);
+            String roleName = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase().replace(" ", "_") : "";
+            boolean isManager = "DEPARTMENT_HEAD".equals(roleName) || "TEAM_HEAD".equals(roleName)
+                    || "MANAGER".equals(roleName);
 
             if (isHr(actor)) {
                 if (departmentId != null) {
@@ -427,8 +427,8 @@ public class PipService {
 
         // Allowed if they are a department/team head and the employee is in their
         // department
-        String role = actor.getRole() != null ? actor.getRole().getName() : "";
-        if (("DEPARTMENT_HEAD".equalsIgnoreCase(role) || "TEAM_HEAD".equalsIgnoreCase(role))
+        String role = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase().replace(" ", "_") : "";
+        if (("DEPARTMENT_HEAD".equals(role) || "TEAM_HEAD".equals(role))
                 && actor.getEmployee().getDepartment() != null
                 && pip.getEmployee() != null
                 && pip.getEmployee().getDepartment() != null
