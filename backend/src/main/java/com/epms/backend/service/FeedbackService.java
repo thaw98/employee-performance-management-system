@@ -22,6 +22,8 @@ public class FeedbackService {
     private final FeedbackRepository feedbackRepository;
     private final EmployeeRepository employeeRepository;
     private final CriteriaRepository criteriaRepository;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public void submitFeedback(Long evaluatorId, FeedbackSubmissionRequest request) {
@@ -65,21 +67,25 @@ public class FeedbackService {
         feedback.setDetails(details);
 
         feedbackRepository.save(feedback);
+
+        userRepository.findByEmployee_Id(evaluatee.getId())
+                .ifPresent(recipient -> notificationService.send(
+                        recipient,
+                        "Feedback received",
+                        "You have received feedback",
+                        "360_FEEDBACK"));
     }
 
+    @Transactional(readOnly = true)
     public Page<FeedbackHistoryDto> getFeedbackHistory(Long evaluatorId, Pageable pageable) {
         Page<Feedback> feedbackPage = feedbackRepository.findByEvaluatorId(evaluatorId, pageable);
         return feedbackPage.map(this::mapToHistoryDto);
     }
 
+    @Transactional(readOnly = true)
     public Page<FeedbackHistoryDto> getReceivedFeedback(Long evaluateeId, Pageable pageable) {
         Page<Feedback> feedbackPage = feedbackRepository.findByEvaluateeId(evaluateeId, pageable);
-        return feedbackPage.map(f -> {
-            FeedbackHistoryDto dto = mapToHistoryDto(f);
-            // Overwrite evaluator info to indicate who gave it if needed,
-            // but usually 360 can be anonymous. For now, let's keep it as is.
-            return dto;
-        });
+        return feedbackPage.map(this::mapToReceivedHistoryDto);
     }
 
     private String calculateRemark(double score) {
@@ -98,12 +104,25 @@ public class FeedbackService {
         FeedbackHistoryDto dto = new FeedbackHistoryDto();
         dto.setId(entity.getId());
         dto.setDate(entity.getCreatedDate());
+        dto.setEvaluatorName(entity.getEvaluator().getEmployeeName());
         dto.setEvaluateeName(entity.getEvaluatee().getEmployeeName());
         dto.setEvaluateeStaffNo(entity.getEvaluatee().getEmployeeId());
         dto.setPosition(entity.getEvaluatee().getPosition().getName());
         dto.setRole(entity.getRole());
         dto.setScore(entity.getScore());
         dto.setRemark(entity.getRemark());
+        return dto;
+    }
+
+    private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity) {
+        FeedbackHistoryDto dto = mapToHistoryDto(entity);
+        Employee evaluatee = entity.getEvaluatee();
+        Employee manager = evaluatee.getManager();
+        boolean directManagerFeedback = manager != null
+                && entity.getEvaluator() != null
+                && manager.getId().equals(entity.getEvaluator().getId());
+
+        dto.setEvaluatorName(directManagerFeedback ? entity.getEvaluator().getEmployeeName() : "Anonymous");
         return dto;
     }
 

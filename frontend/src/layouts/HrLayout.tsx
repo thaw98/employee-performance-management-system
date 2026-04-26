@@ -6,7 +6,6 @@ import {
   Calendar,
   BarChart,
   LayoutDashboard,
-  Bell,
   ChevronDown,
   ShieldCheck,
   Search,
@@ -18,12 +17,13 @@ import {
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import type { RootState } from '../store/store';
-import { logout } from '../store/authSlice';
+import type { RootState } from '../app/store';
+import { logout } from '../features/auth/authSlice';
 import { resolveProfilePictureSrc } from '../utils/mediaUrl';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { pipApi } from '../features/pip/pipApi';
 import { ProfileDropdown } from '../components/layout/ProfileDropdown';
+import { NotificationBell } from '../components/common/NotificationBell';
 
 const HrLayout: React.FC = () => {
   const { user: authUser } = useSelector((state: RootState) => state.auth);
@@ -45,22 +45,17 @@ const HrLayout: React.FC = () => {
     setExpandedMenus((prev) => ({ ...prev, [label]: !prev[label] }));
   };
 
-  const isHrAdmin = user?.roleId === 1;
-
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/hr/dashboard' },
-    isHrAdmin
-      ? {
-        icon: <Users size={20} />,
-        label: 'Employees',
-        path: '/hr/employees',
-        subItems: [
-          { label: 'Employee List', path: '/hr/employees' },
-          { label: 'Create Employee Account', path: '/hr/employees/create-account' }
-        ]
-
-      }
-      : { icon: <Users size={20} />, label: 'Employees', path: '/hr/employees' },
+    {
+      icon: <Users size={20} />,
+      label: 'Employee',
+      path: '/hr/employees',
+      subItems: [
+        { label: 'Employee List', path: '/hr/employees' },
+        { label: 'Create Employee Account', path: '/hr/employees/create-account' }
+      ]
+    },
     { icon: <Building2 size={20} />, label: 'Department', path: '/hr/departments' },
     { icon: <Briefcase size={20} />, label: 'Positions', path: '/hr/positions' },
     {
@@ -272,13 +267,7 @@ const HrLayout: React.FC = () => {
               />
             </div>
 
-            <button
-              type="button"
-              className="relative w-10 h-10 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-            >
-              <Bell size={22} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
-            </button>
+            <NotificationBell />
 
             <ProfileDropdown />
           </div>

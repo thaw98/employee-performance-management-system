@@ -1,6 +1,6 @@
 package com.epms.backend.entity;
 
-public enum MovementType {
+public enum TransferType {
     INITIAL,
     TEMPORARY,
     PERMANENT_TRANSFER,

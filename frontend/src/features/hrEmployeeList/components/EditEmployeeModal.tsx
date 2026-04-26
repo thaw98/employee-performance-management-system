@@ -24,11 +24,13 @@ import { EmployeeInformationStep } from '../../../pages/hr/create-account/Employ
 import { EmploymentInformationStep } from '../../../pages/hr/create-account/EmploymentInformationStep'
 import { FamilyEmergencyStep } from '../../../pages/hr/create-account/FamilyEmergencyStep'
 import { useUploadProfilePictureMutation } from '../../user/userApi'
-import { useGetMovementHistoryQuery } from '../employeeMovementApi'
-import { MovementHistoryTable } from './MovementHistoryTable'
+import { useGetTransferHistoryQuery } from '../employeeTransferApi'
+import { TransferHistoryTable } from './TransferHistoryTable'
 import { TemporaryTransferModal } from './TemporaryTransferModal'
 import { ReturnModal } from './ReturnModal'
 import { PermanentTransferModal } from './PermanentTransferModal'
+
+const STAFF_TYPE_PERMANENT_ID = 1
 
 function formatDateDisplay(dateStr?: string | null): string {
   if (!dateStr) return '-'
@@ -69,14 +71,14 @@ export default function EditEmployeeModal({
   })
   const departments = deptRes?.data ?? []
 
-  const [activeTab, setActiveTab] = useState<'personal' | 'family' | 'employment' | 'movement'>('personal')
+  const [activeTab, setActiveTab] = useState<'personal' | 'family' | 'employment' | 'transfer'>('personal')
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
   const [photoError] = useState('')
   const [showTempTransfer, setShowTempTransfer] = useState(false)
   const [showReturn, setShowReturn] = useState(false)
   const [showPermTransfer, setShowPermTransfer] = useState(false)
 
-  const { data: movementRes, isLoading: movementLoading } = useGetMovementHistoryQuery(id, {
+  const { data: transferRes, isLoading: transferLoading } = useGetTransferHistoryQuery(id, {
     skip: !isOpen || !employeeId,
   })
   const [transitionMode, setTransitionMode] = useState<'NOW' | 'CUSTOM' | ''>('')
@@ -164,6 +166,7 @@ export default function EditEmployeeModal({
   }, [empRes, reset])
 
   const currentStatus = empRes?.data?.staffTypeName === 'Probation' ? 'PROBATION' : 'PERMANENT'
+  const isPermanentStaff = empRes?.data?.staffTypeId === STAFF_TYPE_PERMANENT_ID
   const selectedStaffType = watch('staffType')
   const isProbationToPermanent = currentStatus === 'PROBATION' && selectedStaffType === 'PERMANENT'
   const probationStartDate = empRes?.data?.probationStartDate || ''
@@ -302,12 +305,12 @@ export default function EditEmployeeModal({
 
           {/* ── Tabs ── */}
           <div className="flex border-b border-gray-100 shrink-0 bg-white">
-            {(['personal', 'family', 'employment', 'movement'] as const).map((tab) => {
+            {(['personal', 'family', 'employment', 'transfer'] as const).map((tab) => {
               const labels: Record<typeof tab, string> = {
                 personal: 'Personal Details',
                 family: 'Family & Emergency',
                 employment: 'Employment Info',
-                movement: 'Movement History',
+                transfer: 'Transfer History',
               }
               const isActive = activeTab === tab
               return (
@@ -373,38 +376,6 @@ export default function EditEmployeeModal({
 
                     {activeTab === 'employment' && (
                       <div className="animate-fade-in space-y-4">
-                        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
-                          <p className="font-semibold">Department &amp; Position are read-only here.</p>
-                          <p className="mt-0.5 text-xs text-indigo-600">
-                            To change department or position, use the Movement History tab or the transfer action buttons.
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setShowTempTransfer(true)}
-                            className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
-                          >
-                            <ArrowLeftRight size={13} />
-                            Temporary Transfer
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowReturn(true)}
-                            className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
-                          >
-                            <RotateCcw size={13} />
-                            Return
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowPermTransfer(true)}
-                            className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-700 transition-colors"
-                          >
-                            <Building2 size={13} />
-                            Permanent Transfer
-                          </button>
-                        </div>
                         <EmploymentInformationStep
                           register={form.register as never}
                           control={form.control as never}
@@ -414,6 +385,7 @@ export default function EditEmployeeModal({
                           positions={positions}
                           departmentLoading={deptLoading}
                           positionLoading={posLoading}
+                          disableProbationOption={isPermanentStaff}
                           beforeHireDate={
                             isProbationToPermanent ? (
                               <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -492,7 +464,7 @@ export default function EditEmployeeModal({
                       </div>
                     )}
 
-                    {activeTab === 'movement' && (
+                    {activeTab === 'transfer' && (
                       <div className="animate-fade-in space-y-4">
                         <div className="flex flex-wrap gap-2">
                           <button
@@ -522,11 +494,11 @@ export default function EditEmployeeModal({
                         </div>
                         <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                           <History size={15} className="text-indigo-600" />
-                          Movement History
+                          Transfer History
                         </div>
-                        <MovementHistoryTable
-                          history={movementRes?.data ?? []}
-                          isLoading={movementLoading}
+                        <TransferHistoryTable
+                          history={transferRes?.data ?? []}
+                          isLoading={transferLoading}
                         />
                       </div>
                     )}

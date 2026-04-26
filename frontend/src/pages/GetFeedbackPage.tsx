@@ -3,11 +3,9 @@ import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
     Search, 
-    Download, 
     Eye, 
     ChevronLeft, 
     ChevronRight,
-    Star,
     Calendar,
     User,
     Printer,
@@ -118,7 +116,8 @@ export function GetFeedbackPage() {
 
     const filteredItems = received.filter(item => 
         item.remark.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.role.toLowerCase().includes(searchTerm.toLowerCase())
+        item.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.evaluatorName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -152,6 +151,7 @@ export function GetFeedbackPage() {
                     <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-100">
                             <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400">Date Received</th>
+                            <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400">Evaluator</th>
                             <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400">Evaluator Role</th>
                             <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400 text-center">Score</th>
                             <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400">Performance Remark</th>
@@ -162,12 +162,12 @@ export function GetFeedbackPage() {
                         {loading ? (
                             Array.from({ length: 5 }).map((_, i) => (
                                 <tr key={i} className="animate-pulse">
-                                    <td colSpan={5} className="p-6 h-20 bg-slate-50/20" />
+                                    <td colSpan={6} className="p-6 h-20 bg-slate-50/20" />
                                 </tr>
                             ))
                         ) : filteredItems.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="p-20 text-center">
+                                <td colSpan={6} className="p-20 text-center">
                                     <div className="flex flex-col items-center gap-4 text-slate-400">
                                         <Inbox size={48} className="opacity-20" />
                                         <p className="font-bold underline decoration-slate-200 decoration-2 underline-offset-4 decoration-wavy">No feedback received yet.</p>
@@ -183,6 +183,14 @@ export function GetFeedbackPage() {
                                                 <Calendar size={18} />
                                             </div>
                                             <span className="font-bold text-slate-700">{item.date}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                                                <User size={18} />
+                                            </div>
+                                            <span className="font-bold text-slate-700">{item.evaluatorName}</span>
                                         </div>
                                     </td>
                                     <td className="p-6">

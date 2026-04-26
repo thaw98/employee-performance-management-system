@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { skipToken } from '@reduxjs/toolkit/query'
 import type { UpdateEmploymentStatusRequest, ProbationInfo } from '../../../features/hrEmployeeList/hrEmployeeApi'
 
@@ -9,7 +10,6 @@ import EmployeeTable from '../../../features/hrEmployeeList/components/EmployeeT
 import EmployeeFilters from '../../../features/hrEmployeeList/components/EmployeeFilters'
 import ConfirmActionModal from '../../../features/hrEmployeeList/components/ConfirmActionModal'
 import EmployeeViewModal from '../../../features/hrEmployeeList/components/EmployeeViewModal'
-import EditEmployeeModal from '../../../features/hrEmployeeList/components/EditEmployeeModal'
 import EmployeeImportModal from '../../../features/hrEmployeeList/components/EmployeeImportModal'
 import {
   useGetEmployeesQuery,
@@ -32,6 +32,7 @@ const API_BASE =
   'http://localhost:8080'
 
 export default function EmployeeListPage() {
+  const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
   const token = useAppSelector((s) => s.auth.token)
   const isHR = user?.roleId === 1
@@ -63,9 +64,6 @@ export default function EmployeeListPage() {
     currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated' | null
     probationInfo: ProbationInfo | null
   }>({ isOpen: false, employeeId: null, currentStatus: null, probationInfo: null })
-
-  // Edit modal state
-  const [editEmployeeId, setEditEmployeeId] = useState<number | null>(null)
 
   // View modal state
   const [selectedViewEmployeeId, setSelectedViewEmployeeId] = useState<number | null>(null)
@@ -152,12 +150,8 @@ export default function EmployeeListPage() {
   }, [])
 
   const handleEdit = useCallback((id: number) => {
-    setEditEmployeeId(id)
-  }, [])
-
-  const handleCloseEditModal = useCallback(() => {
-    setEditEmployeeId(null)
-  }, [])
+    navigate(`/hr/employees/${id}/edit`)
+  }, [navigate])
 
   const handleView = useCallback(async (id: number) => {
     setSelectedViewEmployeeId(id)
@@ -510,13 +504,6 @@ export default function EmployeeListPage() {
         confirmText="Send New Password"
         variant="danger"
         isLoading={isSendingNew}
-      />
-
-      {/* Edit Employee Modal */}
-      <EditEmployeeModal
-        isOpen={editEmployeeId !== null}
-        employeeId={editEmployeeId}
-        onClose={handleCloseEditModal}
       />
 
       {/* Employee View Modal */}

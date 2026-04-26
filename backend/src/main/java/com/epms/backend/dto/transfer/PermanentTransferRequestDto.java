@@ -1,4 +1,4 @@
-package com.epms.backend.dto.movement;
+package com.epms.backend.dto.transfer;
 
 import java.time.LocalDate;
 
@@ -8,7 +8,10 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ReturnRequestDto {
+public class PermanentTransferRequestDto {
+
+    @NotNull(message = "Target department is required")
+    private Long toDepartmentId;
 
     @NotNull(message = "Target position is required")
     private Long toPositionId;

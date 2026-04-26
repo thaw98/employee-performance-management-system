@@ -1,4 +1,4 @@
-package com.epms.backend.dto.movement;
+package com.epms.backend.dto.transfer;
 
 import java.time.LocalDate;
 
@@ -8,10 +8,10 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ReportingHistoryRequestDto {
+public class ReturnRequestDto {
 
-    @NotNull(message = "Manager employee ID is required")
-    private Long managerEmployeeId;
+    @NotNull(message = "Target position is required")
+    private Long toPositionId;
 
     @NotNull(message = "Effective start date is required")
     private LocalDate effectiveStartDate;

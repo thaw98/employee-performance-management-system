@@ -31,6 +31,8 @@ export const userApi = baseApi.injectEndpoints({
     getProfile: builder.query<ApiResponse<UserProfileDto>, void>({
       query: () => '/users/profile',
       providesTags: ['UserProfile'],
+      // Prevent serving previous account profile from cache after logout/login switch.
+      keepUnusedDataFor: 0,
     }),
     updateProfilePicture: builder.mutation<ApiResponse<UserProfileDto>, File>({
       query: (file) => {

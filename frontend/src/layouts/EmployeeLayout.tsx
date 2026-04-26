@@ -2,25 +2,22 @@ import React from 'react';
 import {
   Target,
   FileText,
-  MessageSquare,
   Calendar,
   LayoutDashboard,
-  Bell,
   ChevronDown,
   ShieldCheck,
   Search,
   RefreshCcw,
-  BellRing,
-  Inbox,
-  TrendingUp
+  BellRing
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { resolveProfilePictureSrc } from '../utils/mediaUrl';
 import { useGetProfileQuery } from '../features/user/userApi';
-import type { RootState } from '../store/store';
-import { logout } from '../store/authSlice';
+import type { RootState } from '../app/store';
+import { logout } from '../features/auth/authSlice';
 import { ProfileDropdown } from '../components/layout/ProfileDropdown';
+import { NotificationBell } from '../components/common/NotificationBell';
 
 function initialsFromName(name: string | undefined) {
   if (!name) return '?'
@@ -219,10 +216,7 @@ const EmployeeLayout: React.FC = () => {
                  <input type="text" placeholder="Search..." className="bg-transparent border-none focus:ring-0 text-sm font-medium ml-2 w-48 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600" />
               </div>
               
-              <button className="relative w-10 h-10 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-                 <Bell size={22} />
-                 <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
-              </button>
+              <NotificationBell />
               
               <ProfileDropdown />
             </div>

@@ -7,7 +7,7 @@ import {
   useGetDepartmentPositionsQuery,
   type PositionOptionDto,
 } from '../../hrCreateEmployee/hrEmployeeAccountApi'
-import { useReturnFromTemporaryMutation, useGetHomeDepartmentQuery } from '../employeeMovementApi'
+import { useReturnFromTemporaryMutation, useGetHomeDepartmentQuery } from '../employeeTransferApi'
 
 interface ReturnModalProps {
   isOpen: boolean
@@ -110,7 +110,7 @@ export function ReturnModal({ isOpen, employeeId, employeeName, onClose, onSucce
                   readOnly
                 />
               )}
-              <p className="mt-1 text-xs text-gray-400">Automatically derived from movement history.</p>
+              <p className="mt-1 text-xs text-gray-400">Automatically derived from transfer history.</p>
             </div>
 
             <div>

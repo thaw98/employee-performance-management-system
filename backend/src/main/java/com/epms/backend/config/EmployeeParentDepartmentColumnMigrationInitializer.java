@@ -56,7 +56,7 @@ public class EmployeeParentDepartmentColumnMigrationInitializer implements BeanP
             log.info("Dropped FK {} on employee.parent_department_id", fk);
         }
         jdbc.execute("ALTER TABLE employee DROP COLUMN parent_department_id");
-        log.info("Dropped employee.parent_department_id column — home department is now derived from movement history");
+        log.info("Dropped employee.parent_department_id column; home department is now derived from transfer history");
     }
 
     private static boolean tableExists(JdbcTemplate jdbc, String tableName) {

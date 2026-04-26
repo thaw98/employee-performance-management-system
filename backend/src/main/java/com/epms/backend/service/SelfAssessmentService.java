@@ -125,7 +125,8 @@ public class SelfAssessmentService {
         // SA-7: Notify employee
         userRepository.findByEmployee_Id(sa.getEmployee().getId()).ifPresent(user -> {
             notificationService.send(user, "Manager Review Submitted",
-                    "Your manager has reviewed your self-assessment. Comments: " + comments);
+                    "Your manager has reviewed your self-assessment. Comments: " + comments,
+                    "SELF_ASSESSMENT");
         });
 
         return selfAssessmentRepository.save(sa);
@@ -157,7 +158,8 @@ public class SelfAssessmentService {
         // Notify employee
         userRepository.findByEmployee_Id(sa.getEmployee().getId()).ifPresent(user -> {
             notificationService.send(user, "Correction Requested",
-                    "HR has requested a correction on your self-assessment: " + remarks);
+                    "HR has requested a correction on your self-assessment: " + remarks,
+                    "SELF_ASSESSMENT");
         });
 
         return selfAssessmentRepository.save(sa);

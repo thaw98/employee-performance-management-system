@@ -41,7 +41,7 @@ public class EmployeeDepartmentHistorySchemaMigrationInitializer implements Bean
                 to_department_id BIGINT NOT NULL,
                 from_position_id BIGINT NULL,
                 to_position_id BIGINT NOT NULL,
-                movement_type VARCHAR(30) NOT NULL,
+                transfer_type ENUM('INITIAL','PERMANENT_TRANSFER','RETURN','TEMPORARY') NOT NULL,
                 effective_start_date DATE NOT NULL,
                 effective_end_date DATE NULL,
                 reason TEXT NULL,
@@ -70,8 +70,9 @@ public class EmployeeDepartmentHistorySchemaMigrationInitializer implements Bean
         if (!indexExists(jdbc, "employee_department_history", "idx_edh_employee_start")) {
             jdbc.execute("CREATE INDEX idx_edh_employee_start ON employee_department_history(employee_id, effective_start_date)");
         }
-        if (!indexExists(jdbc, "employee_department_history", "idx_edh_movement_type")) {
-            jdbc.execute("CREATE INDEX idx_edh_movement_type ON employee_department_history(movement_type)");
+        if (columnExists(jdbc, "employee_department_history", "transfer_type")
+                && !indexExists(jdbc, "employee_department_history", "idx_edh_transfer_type")) {
+            jdbc.execute("CREATE INDEX idx_edh_transfer_type ON employee_department_history(transfer_type)");
         }
     }
 
@@ -85,5 +86,11 @@ public class EmployeeDepartmentHistorySchemaMigrationInitializer implements Bean
         return Boolean.TRUE.equals(jdbc.queryForObject(
             "SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?",
             Boolean.class, tableName, indexName));
+    }
+
+    private static boolean columnExists(JdbcTemplate jdbc, String tableName, String columnName) {
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+            "SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+            Boolean.class, tableName, columnName));
     }
 }

@@ -50,8 +50,8 @@ public class EmployeeDepartmentHistory {
     private Position toPosition;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "movement_type", nullable = false, length = 30)
-    private MovementType movementType;
+    @Column(name = "transfer_type", nullable = false, length = 30)
+    private TransferType transferType;
 
     @Column(name = "effective_start_date", nullable = false)
     private LocalDate effectiveStartDate;

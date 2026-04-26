@@ -1,15 +1,31 @@
 // src/components/auth/AuthBootstrap.tsx
 import { useEffect, useRef } from 'react';
-import { useDispatch } from 'react-redux';
 import { useLazyGetMeQuery } from '../../features/auth/authApi';
 import { updateUser, logout } from '../../features/auth/authSlice';
-import { useAppSelector } from '../../app/hooks';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { websocketService } from '../../services/websocketService';
+import { resetNotifications } from '../../features/notification/notificationSlice';
 
 export function AuthBootstrap() {
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
     const { token, user, isAuthenticated } = useAppSelector((state) => state.auth);
     const [getMe] = useLazyGetMeQuery();
     const attempted = useRef(false);
+
+    useEffect(() => {
+        if (isAuthenticated && token) {
+            websocketService.connect(token, dispatch);
+        } else {
+            websocketService.disconnect();
+            dispatch(resetNotifications());
+        }
+
+        return () => {
+            if (!isAuthenticated || !token) {
+                websocketService.disconnect();
+            }
+        };
+    }, [dispatch, isAuthenticated, token]);
 
     useEffect(() => {
         if (!isAuthenticated || !token || attempted.current) {
