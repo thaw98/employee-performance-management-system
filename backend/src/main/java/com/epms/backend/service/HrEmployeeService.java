@@ -224,11 +224,11 @@ public class HrEmployeeService {
         employee.setDateOfJoining(request.getDateOfJoining());
         employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
 
-        // Department and position must only change via movement APIs — block direct edit
+        // Department and position must only change via transfer APIs.
         if (request.getDepartmentId() != null && employee.getDepartment() != null
                 && !request.getDepartmentId().equals(employee.getDepartment().getId())) {
             throw new IllegalArgumentException(
-                "Department changes must be done through movement actions (Temporary Transfer, " +
+                "Department changes must be done through transfer actions (Temporary Transfer, " +
                 "Permanent Transfer, or Return), not through the normal employee edit.");
         }
         DepartmentPosition selectedMapping = departmentPositionRepository.findById(request.getDepartmentPositionId())
@@ -244,13 +244,18 @@ public class HrEmployeeService {
         }
         if (employee.getPosition() != null && !selectedMapping.getPosition().getId().equals(employee.getPosition().getId())) {
             throw new IllegalArgumentException(
-                "Position changes must be done through movement actions (Temporary Transfer, " +
+                "Position changes must be done through transfer actions (Temporary Transfer, " +
                 "Permanent Transfer, or Return), not through the normal employee edit.");
         }
         employee.setDepartmentPosition(selectedMapping);
         employee.setPosition(selectedMapping.getPosition());
 
         if (request.getStaffTypeId() != null) {
+            if (employee.getStaffType() != null
+                    && employee.getStaffType().getId() == StaffTypes.PERMANENT
+                    && request.getStaffTypeId() == StaffTypes.PROBATION) {
+                throw new IllegalArgumentException("Permanent staff cannot be changed to Probation while editing staff");
+            }
             StaffType st = staffTypeRepository.findById(request.getStaffTypeId())
                     .orElseThrow(() -> new IllegalArgumentException("Staff type not found"));
             employee.setStaffType(st);

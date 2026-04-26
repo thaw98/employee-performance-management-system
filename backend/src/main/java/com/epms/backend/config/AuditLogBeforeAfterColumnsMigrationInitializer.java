@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Adds before_data and after_data JSON columns to audit_log for movement audit trails.
+ * Adds before_data and after_data JSON columns to audit_log for transfer audit trails.
  */
 @Component
 @Slf4j

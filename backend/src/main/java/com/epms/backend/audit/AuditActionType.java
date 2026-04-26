@@ -20,6 +20,6 @@ public final class AuditActionType {
 	public static final String EMPLOYEE_TEMPORARY_TRANSFER = "EMPLOYEE_TEMPORARY_TRANSFER";
 	public static final String EMPLOYEE_PERMANENT_TRANSFER = "EMPLOYEE_PERMANENT_TRANSFER";
 	public static final String EMPLOYEE_RETURN = "EMPLOYEE_RETURN";
-	public static final String EMPLOYEE_INITIAL_MOVEMENT = "EMPLOYEE_INITIAL_MOVEMENT";
+	public static final String EMPLOYEE_INITIAL_TRANSFER = "EMPLOYEE_INITIAL_TRANSFER";
 	public static final String SNAPSHOT_CREATED = "SNAPSHOT_CREATED";
 }

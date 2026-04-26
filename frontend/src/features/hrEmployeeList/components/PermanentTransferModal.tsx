@@ -9,7 +9,7 @@ import {
   type DepartmentOptionDto,
   type PositionOptionDto,
 } from '../../hrCreateEmployee/hrEmployeeAccountApi'
-import { usePermanentTransferMutation } from '../employeeMovementApi'
+import { usePermanentTransferMutation } from '../employeeTransferApi'
 
 interface PermanentTransferModalProps {
   isOpen: boolean
