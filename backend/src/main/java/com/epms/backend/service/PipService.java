@@ -147,7 +147,8 @@ public class PipService {
             List<Predicate> predicates = new ArrayList<>();
 
             // Role-based visibility
-            String roleName = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase().replace(" ", "_") : "";
+            String roleName = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase().replace(" ", "_")
+                    : "";
             boolean isManager = "DEPARTMENT_HEAD".equals(roleName) || "TEAM_HEAD".equals(roleName)
                     || "MANAGER".equals(roleName);
 
@@ -228,6 +229,12 @@ public class PipService {
         update.setCreatedDate(Instant.now());
 
         objective.setProgressPercentage(request.getProgressPercentage());
+
+        // Use manual hours if provided, otherwise updatePipProgress will calculate it
+        if (request.getCompletedHours() != null) {
+            pip.setCompletedHours(request.getCompletedHours());
+        }
+
         pip.setUpdatedDate(Instant.now());
         updatePipProgress(pip);
 
@@ -389,13 +396,33 @@ public class PipService {
         List<PipObjective> objectives = pip.getObjectives();
         if (objectives == null || objectives.isEmpty()) {
             pip.setOverallProgressPercentage(BigDecimal.ZERO);
+            pip.setCompletedHours(0);
             return;
         }
-        double average = objectives.stream()
-                .mapToInt(PipObjective::getProgressPercentage)
-                .average()
-                .orElse(0.0);
-        pip.setOverallProgressPercentage(BigDecimal.valueOf(average).setScale(2, RoundingMode.HALF_UP));
+
+        double totalWeightedProgress = 0.0;
+        double totalWeight = 0.0;
+
+        for (PipObjective obj : objectives) {
+            double weight = obj.getWeightPercentage() != null ? obj.getWeightPercentage().doubleValue() : 0.0;
+            double progress = obj.getProgressPercentage() != null ? obj.getProgressPercentage().doubleValue() : 0.0;
+            totalWeightedProgress += (progress * weight);
+            totalWeight += weight;
+        }
+
+        double overallPercentage = totalWeight > 0 ? (totalWeightedProgress / totalWeight) : 0.0;
+        pip.setOverallProgressPercentage(BigDecimal.valueOf(overallPercentage).setScale(2, RoundingMode.HALF_UP));
+
+        // Update completed hours ONLY if it's currently null or if it was never set
+        // Note: If updateObjectiveProgress already set it from manual input, we don't
+        // overwrite it here
+        // However, if we want the automated calculation to always run UNLESS manual is
+        // provided,
+        // we can check if the value changed. For now, let's make it smarter:
+        if (pip.getTotalHours() != null && (pip.getCompletedHours() == null || pip.getCompletedHours() == 0)) {
+            int calculatedHours = (int) Math.round((overallPercentage / 100.0) * pip.getTotalHours());
+            pip.setCompletedHours(calculatedHours);
+        }
     }
 
     private Employee requireManagerEmployee(User actor) {
