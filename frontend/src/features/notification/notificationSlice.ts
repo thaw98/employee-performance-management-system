@@ -5,6 +5,7 @@ export interface NotificationItem {
   userId: number;
   title: string;
   message: string;
+  source: string;
   read: boolean;
   createdAt: string;
 }

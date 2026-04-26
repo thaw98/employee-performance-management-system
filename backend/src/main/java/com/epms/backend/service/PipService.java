@@ -268,10 +268,10 @@ public class PipService {
 
         try {
             if (pip.getEmployee() != null && pip.getEmployee().getUserAccount() != null) {
-                notificationService.send(pip.getEmployee().getUserAccount(), title, message);
+                notificationService.send(pip.getEmployee().getUserAccount(), title, message, "PIP");
             }
             if (pip.getManager() != null && pip.getManager().getUserAccount() != null) {
-                notificationService.send(pip.getManager().getUserAccount(), title, message);
+                notificationService.send(pip.getManager().getUserAccount(), title, message, "PIP");
             }
         } catch (Exception ignored) {
             // Keep meeting creation successful even if notification delivery fails.

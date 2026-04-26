@@ -7,6 +7,7 @@ public record NotificationDto(
         Long userId,
         String title,
         String message,
+        String source,
         boolean read,
         LocalDateTime createdAt) {
 }

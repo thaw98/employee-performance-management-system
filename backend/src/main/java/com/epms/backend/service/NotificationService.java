@@ -19,10 +19,16 @@ public class NotificationService {
 
     @Transactional
     public NotificationDto send(User recipient, String title, String message) {
+        return send(recipient, title, message, "GENERAL");
+    }
+
+    @Transactional
+    public NotificationDto send(User recipient, String title, String message, String source) {
         Notification notification = new Notification();
         notification.setRecipient(recipient);
         notification.setTitle(title);
         notification.setMessage(message);
+        notification.setSource(source == null || source.isBlank() ? "GENERAL" : source);
         Notification saved = notificationRepository.save(notification);
         NotificationDto dto = toDto(saved);
         webSocketNotificationService.sendNotification(recipient.getId(), dto);
@@ -60,6 +66,7 @@ public class NotificationService {
                 notification.getRecipient().getId(),
                 notification.getTitle(),
                 notification.getMessage(),
+                notification.getSource(),
                 notification.isRead(),
                 notification.getCreatedAt());
     }

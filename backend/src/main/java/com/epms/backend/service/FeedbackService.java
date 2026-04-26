@@ -72,7 +72,8 @@ public class FeedbackService {
                 .ifPresent(recipient -> notificationService.send(
                         recipient,
                         "Feedback received",
-                        "You have received feedback"));
+                        "You have received feedback",
+                        "360_FEEDBACK"));
     }
 
     @Transactional(readOnly = true)

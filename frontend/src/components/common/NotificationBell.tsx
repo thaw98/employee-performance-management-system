@@ -33,12 +33,35 @@ function getFeedbackPath(pathname: string) {
 }
 
 function formatCreatedAt(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(value));
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+  const units = [
+    ['year', 31536000],
+    ['month', 2592000],
+    ['week', 604800],
+    ['day', 86400],
+    ['hour', 3600],
+    ['minute', 60],
+  ] as const;
+
+  for (const [unit, seconds] of units) {
+    const count = Math.floor(elapsedSeconds / seconds);
+    if (count >= 1) {
+      return `${count} ${unit}${count === 1 ? '' : 's'} ago`;
+    }
+  }
+
+  return 'Just now';
+}
+
+type NotificationTab = 'all' | 'unread' | 'read';
+
+function getInitialNotificationTab(): NotificationTab {
+  const savedTab = localStorage.getItem('notifTab');
+  return savedTab === 'unread' || savedTab === 'read' ? savedTab : 'all';
+}
+
+function getNotificationTitle(notification: NotificationItem) {
+  return notification.source === '360_FEEDBACK' ? '360 Feedback' : notification.title;
 }
 
 export function NotificationBell() {
@@ -46,6 +69,7 @@ export function NotificationBell() {
   const navigate = useNavigate();
   const location = useLocation();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  const [selectedTab, setSelectedTab] = useState<NotificationTab>(getInitialNotificationTab);
   const { notifications, unreadCount } = useAppSelector((state) => state.notification);
   const { data: notificationsResponse, isFetching } = useGetNotificationsQuery();
   const { data: unreadCountResponse } = useGetUnreadCountQuery();
@@ -63,6 +87,16 @@ export function NotificationBell() {
       dispatch(setUnreadCount(unreadCountResponse.data));
     }
   }, [dispatch, unreadCountResponse]);
+
+  useEffect(() => {
+    localStorage.setItem('notifTab', selectedTab);
+  }, [selectedTab]);
+
+  const filteredNotifications = notifications.filter((notification) => {
+    if (selectedTab === 'unread') return !notification.read;
+    if (selectedTab === 'read') return notification.read;
+    return true;
+  });
 
   const handleNotificationClick = async (notification: NotificationItem) => {
     setAnchorEl(null);
@@ -116,12 +150,12 @@ export function NotificationBell() {
         slotProps={{
           paper: {
             sx: {
-            mt: 1.5,
-            width: 360,
-            maxWidth: 'calc(100vw - 32px)',
-            borderRadius: 2,
-            border: '1px solid rgb(226 232 240)',
-            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.14)',
+              mt: 1.5,
+              width: 360,
+              maxWidth: 'calc(100vw - 32px)',
+              borderRadius: 2,
+              border: '1px solid rgb(226 232 240)',
+              boxShadow: '0 20px 45px rgba(15, 23, 42, 0.14)',
             },
           },
         }}
@@ -135,30 +169,60 @@ export function NotificationBell() {
               {unreadCount} unread
             </Box>
           </Box>
-          <Button
-            size="small"
-            disabled={unreadCount === 0 || isMarkingAll}
-            onClick={handleReadAll}
-            sx={{ fontSize: 11, fontWeight: 800, textTransform: 'none' }}
-          >
-            Mark all read
-          </Button>
+          {selectedTab === 'unread' && (
+            <Button
+              size="small"
+              disabled={unreadCount === 0 || isMarkingAll}
+              onClick={handleReadAll}
+              sx={{ fontSize: 11, fontWeight: 800, textTransform: 'none' }}
+            >
+              Mark all read
+            </Button>
+          )}
         </Box>
         <Divider />
+        <Box sx={{ display: 'flex', borderBottom: '1px solid rgb(229 231 235)' }}>
+          {[
+            ['all', 'All'],
+            ['unread', 'Unread'],
+            ['read', 'Read'],
+          ].map(([value, label]) => {
+            const isActive = selectedTab === value;
+            return (
+              <Button
+                key={value}
+                onClick={() => setSelectedTab(value as NotificationTab)}
+                sx={{
+                  flex: 1,
+                  py: 1,
+                  borderRadius: 0,
+                  borderBottom: isActive ? '2px solid rgb(13 148 136)' : '2px solid transparent',
+                  color: isActive ? 'rgb(13 148 136)' : 'rgb(107 114 128)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  '&:hover': { backgroundColor: 'rgb(240 253 250)' },
+                }}
+              >
+                {label}
+              </Button>
+            );
+          })}
+        </Box>
 
         {isFetching && notifications.length === 0 ? (
           <Box sx={{ py: 5, display: 'flex', justifyContent: 'center' }}>
             <CircularProgress size={24} />
           </Box>
-        ) : notifications.length === 0 ? (
+        ) : filteredNotifications.length === 0 ? (
           <Box sx={{ px: 3, py: 5, textAlign: 'center' }}>
             <Box component="p" sx={{ m: 0, fontSize: 13, fontWeight: 700, color: 'rgb(100 116 139)' }}>
-              No notifications yet
+              {notifications.length === 0 ? 'No notifications yet' : `No ${selectedTab} notifications`}
             </Box>
           </Box>
         ) : (
           <List disablePadding sx={{ maxHeight: 420, overflowY: 'auto' }}>
-            {notifications.map((notification) => (
+            {filteredNotifications.map((notification) => (
               <ListItemButton
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
@@ -188,6 +252,19 @@ export function NotificationBell() {
                       fontSize: 13,
                       fontWeight: notification.read ? 700 : 900,
                       color: 'rgb(15 23 42)',
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
+                    {getNotificationTitle(notification)}
+                  </Box>
+                  <Box
+                    component="p"
+                    sx={{
+                      m: 0,
+                      mt: 0.25,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'rgb(71 85 105)',
                       overflowWrap: 'anywhere',
                     }}
                   >
