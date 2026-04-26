@@ -6,7 +6,6 @@ import {
   Calendar,
   BarChart,
   LayoutDashboard,
-  Bell,
   ChevronDown,
   ShieldCheck,
   Search,
@@ -24,6 +23,7 @@ import { resolveProfilePictureSrc } from '../utils/mediaUrl';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { pipApi } from '../features/pip/pipApi';
 import { ProfileDropdown } from '../components/layout/ProfileDropdown';
+import { NotificationBell } from '../components/common/NotificationBell';
 
 const HrLayout: React.FC = () => {
   const { user: authUser } = useSelector((state: RootState) => state.auth);
@@ -267,13 +267,7 @@ const HrLayout: React.FC = () => {
               />
             </div>
 
-            <button
-              type="button"
-              className="relative w-10 h-10 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-            >
-              <Bell size={22} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
-            </button>
+            <NotificationBell />
 
             <ProfileDropdown />
           </div>

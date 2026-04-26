@@ -2,10 +2,12 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { baseApi } from './baseApi';
 import authReducer from '../features/auth/authSlice';
+import notificationReducer from '../features/notification/notificationSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
+    notification: notificationReducer,
     [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
