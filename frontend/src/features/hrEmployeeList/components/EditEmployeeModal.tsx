@@ -376,38 +376,6 @@ export default function EditEmployeeModal({
 
                     {activeTab === 'employment' && (
                       <div className="animate-fade-in space-y-4">
-                        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
-                          <p className="font-semibold">Department &amp; Position are read-only here.</p>
-                          <p className="mt-0.5 text-xs text-indigo-600">
-                            To change department or position, use the Transfer History tab or the transfer action buttons.
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setShowTempTransfer(true)}
-                            className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-600 transition-colors"
-                          >
-                            <ArrowLeftRight size={13} />
-                            Temporary Transfer
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowReturn(true)}
-                            className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
-                          >
-                            <RotateCcw size={13} />
-                            Return
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowPermTransfer(true)}
-                            className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-xs font-semibold text-white hover:bg-purple-700 transition-colors"
-                          >
-                            <Building2 size={13} />
-                            Permanent Transfer
-                          </button>
-                        </div>
                         <EmploymentInformationStep
                           register={form.register as never}
                           control={form.control as never}
