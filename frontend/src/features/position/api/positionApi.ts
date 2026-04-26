@@ -14,6 +14,13 @@ export interface PositionDto {
 	updatedDate: string
 }
 
+export interface PositionOptionDto {
+	positionId: number
+	positionName: string
+	roleId: number | null
+	roleName: string | null
+}
+
 export interface PositionListResponse {
 	content: PositionDto[]
 	page: number
@@ -97,6 +104,13 @@ export const positionApi = baseApi.injectEndpoints({
 			transformResponse: (response: RawPositionListPayload) => normalizePositionListResponse(response),
 			providesTags: ['Position'],
 		}),
+		getPositionsByDepartment: builder.query<ApiResponse<PositionOptionDto[]>, number | void>({
+			query: (departmentId) => ({
+				url: '/positions/by-department',
+				params: departmentId ? { departmentId } : undefined,
+			}),
+			providesTags: ['Position'],
+		}),
 		getPositionById: builder.query<ApiResponse<PositionDto>, number>({
 			query: (id) => `/positions/${id}`,
 			providesTags: (_result, _error, id) => [{ type: 'Position', id }],
@@ -136,6 +150,7 @@ export const positionApi = baseApi.injectEndpoints({
 
 export const {
 	useGetPositionsQuery,
+	useGetPositionsByDepartmentQuery,
 	useGetPositionByIdQuery,
 	useGetDepartmentsByPositionIdQuery,
 	useCreatePositionMutation,

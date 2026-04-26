@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.hibernate.Hibernate;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -29,7 +30,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @JsonIgnoreProperties({
-    "manager",
+    "hibernateLazyInitializer", "handler", "manager",
     "position",
     "staffType",
     "father",
@@ -137,6 +138,22 @@ public class Employee {
 
     @Column(name = "phone_number", length = 20)
     private String phoneNo;
+
+    @Transient
+    public Long getPositionId() {
+        if (position == null || !Hibernate.isInitialized(position)) {
+            return null;
+        }
+        return position.getId();
+    }
+
+    @Transient
+    public String getPositionName() {
+        if (position == null || !Hibernate.isInitialized(position)) {
+            return null;
+        }
+        return position.getName();
+    }
 
     @Transient
     private MaritalStatus maritalStatus;

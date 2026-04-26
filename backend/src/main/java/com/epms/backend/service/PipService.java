@@ -147,23 +147,25 @@ public class PipService {
             List<Predicate> predicates = new ArrayList<>();
 
             // Role-based visibility
+            String roleName = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase().replace(" ", "_")
+                    : "";
+            boolean isManager = "DEPARTMENT_HEAD".equals(roleName) || "TEAM_HEAD".equals(roleName)
+                    || "MANAGER".equals(roleName);
+
             if (isHr(actor)) {
                 if (departmentId != null) {
                     predicates.add(cb.equal(root.get("employee").get("department").get("id"), departmentId));
                 }
-            } else if (actor.getEmployee() != null && actor.getEmployee().getDepartment() != null) {
-                // Manager or Employee - restricted to their own department for managers,
-                // but the controller logic usually handles Manager vs Employee differently.
-                // For "Monitoring", we assume Manager view of department.
+            } else if (isManager && actor.getEmployee() != null && actor.getEmployee().getDepartment() != null) {
+                // Manager - restricted to their own department
                 predicates.add(cb.equal(root.get("employee").get("department").get("id"),
                         actor.getEmployee().getDepartment().getId()));
+            } else if (actor.getEmployee() != null) {
+                // Regular employee - only see their own PIPs
+                predicates.add(cb.equal(root.get("employee").get("id"), actor.getEmployee().getId()));
             } else {
-                // No department, return nothing or just their own if they are an employee
-                if (actor.getEmployee() != null) {
-                    predicates.add(cb.equal(root.get("employee").get("id"), actor.getEmployee().getId()));
-                } else {
-                    return cb.disjunction();
-                }
+                // No access
+                return cb.disjunction();
             }
 
             if (positionId != null) {
@@ -227,6 +229,12 @@ public class PipService {
         update.setCreatedDate(Instant.now());
 
         objective.setProgressPercentage(request.getProgressPercentage());
+
+        // Use manual hours if provided, otherwise updatePipProgress will calculate it
+        if (request.getCompletedHours() != null) {
+            pip.setCompletedHours(request.getCompletedHours());
+        }
+
         pip.setUpdatedDate(Instant.now());
         updatePipProgress(pip);
 
@@ -388,13 +396,33 @@ public class PipService {
         List<PipObjective> objectives = pip.getObjectives();
         if (objectives == null || objectives.isEmpty()) {
             pip.setOverallProgressPercentage(BigDecimal.ZERO);
+            pip.setCompletedHours(0);
             return;
         }
-        double average = objectives.stream()
-                .mapToInt(PipObjective::getProgressPercentage)
-                .average()
-                .orElse(0.0);
-        pip.setOverallProgressPercentage(BigDecimal.valueOf(average).setScale(2, RoundingMode.HALF_UP));
+
+        double totalWeightedProgress = 0.0;
+        double totalWeight = 0.0;
+
+        for (PipObjective obj : objectives) {
+            double weight = obj.getWeightPercentage() != null ? obj.getWeightPercentage().doubleValue() : 0.0;
+            double progress = obj.getProgressPercentage() != null ? obj.getProgressPercentage().doubleValue() : 0.0;
+            totalWeightedProgress += (progress * weight);
+            totalWeight += weight;
+        }
+
+        double overallPercentage = totalWeight > 0 ? (totalWeightedProgress / totalWeight) : 0.0;
+        pip.setOverallProgressPercentage(BigDecimal.valueOf(overallPercentage).setScale(2, RoundingMode.HALF_UP));
+
+        // Update completed hours ONLY if it's currently null or if it was never set
+        // Note: If updateObjectiveProgress already set it from manual input, we don't
+        // overwrite it here
+        // However, if we want the automated calculation to always run UNLESS manual is
+        // provided,
+        // we can check if the value changed. For now, let's make it smarter:
+        if (pip.getTotalHours() != null && (pip.getCompletedHours() == null || pip.getCompletedHours() == 0)) {
+            int calculatedHours = (int) Math.round((overallPercentage / 100.0) * pip.getTotalHours());
+            pip.setCompletedHours(calculatedHours);
+        }
     }
 
     private Employee requireManagerEmployee(User actor) {
@@ -426,8 +454,8 @@ public class PipService {
 
         // Allowed if they are a department/team head and the employee is in their
         // department
-        String role = actor.getRole() != null ? actor.getRole().getName() : "";
-        if (("DEPARTMENT_HEAD".equalsIgnoreCase(role) || "TEAM_HEAD".equalsIgnoreCase(role))
+        String role = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase().replace(" ", "_") : "";
+        if (("DEPARTMENT_HEAD".equals(role) || "TEAM_HEAD".equals(role))
                 && actor.getEmployee().getDepartment() != null
                 && pip.getEmployee() != null
                 && pip.getEmployee().getDepartment() != null

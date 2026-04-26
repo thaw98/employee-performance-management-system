@@ -1,5 +1,6 @@
 package com.epms.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -26,6 +27,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Pip {
 
     @Id
