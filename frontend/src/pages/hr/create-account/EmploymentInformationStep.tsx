@@ -82,27 +82,24 @@ export function EmploymentInformationStep({
           </p>
           <div className="grid grid-cols-2 gap-4">
             <label
-              className={`group relative flex cursor-pointer items-center gap-4 rounded-xl border-2 p-5 transition-all ${
-                staffType === 'PERMANENT'
+              className={`group relative flex cursor-pointer items-center gap-4 rounded-xl border-2 p-5 transition-all ${staffType === 'PERMANENT'
                   ? 'border-teal-500 bg-gradient-to-br from-teal-50 to-emerald-50 shadow-md shadow-teal-500/10'
                   : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
-              }`}
+                }`}
             >
               <input type="radio" value="PERMANENT" className="sr-only" {...register('staffType')} />
               <div
-                className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${
-                  staffType === 'PERMANENT'
+                className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${staffType === 'PERMANENT'
                     ? 'bg-teal-500 text-white shadow-md shadow-teal-500/25'
                     : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 <Shield size={20} />
               </div>
               <div>
                 <p
-                  className={`text-sm font-bold ${
-                    staffType === 'PERMANENT' ? 'text-teal-900' : 'text-slate-700'
-                  }`}
+                  className={`text-sm font-bold ${staffType === 'PERMANENT' ? 'text-teal-900' : 'text-slate-700'
+                    }`}
                 >
                   Permanent
                 </p>
@@ -118,43 +115,39 @@ export function EmploymentInformationStep({
             </label>
 
             <label
-              className={`group relative flex ${
-                disableProbationOption ? 'cursor-not-allowed opacity-60 bg-slate-50 border-slate-200' : 'cursor-pointer'
-              } items-center gap-4 rounded-xl border-2 p-5 transition-all ${
-                disableProbationOption
+              className={`group relative flex ${disableProbationOption ? 'cursor-not-allowed opacity-60 bg-slate-50 border-slate-200' : 'cursor-pointer'
+                } items-center gap-4 rounded-xl border-2 p-5 transition-all ${disableProbationOption
                   ? ''
                   : staffType === 'PROBATION'
-                  ? 'border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md shadow-amber-500/10'
-                  : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
-              }`}
+                    ? 'border-amber-500 bg-gradient-to-br from-amber-50 to-orange-50 shadow-md shadow-amber-500/10'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
+                }`}
             >
-              <input 
-                type="radio" 
-                value="PROBATION" 
-                className="sr-only" 
+              <input
+                type="radio"
+                value="PROBATION"
+                className="sr-only"
                 disabled={disableProbationOption}
-                {...register('staffType')} 
+                {...register('staffType')}
               />
               <div
-                className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${
-                  disableProbationOption
+                className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${disableProbationOption
                     ? 'bg-slate-200 text-slate-400'
                     : staffType === 'PROBATION'
-                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
-                    : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
-                }`}
+                      ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
+                      : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
+                  }`}
               >
                 <Clock size={20} />
               </div>
               <div>
                 <p
-                  className={`text-sm font-bold ${
-                    disableProbationOption
+                  className={`text-sm font-bold ${disableProbationOption
                       ? 'text-slate-500'
-                      : staffType === 'PROBATION' 
-                      ? 'text-amber-900' 
-                      : 'text-slate-700'
-                  }`}
+                      : staffType === 'PROBATION'
+                        ? 'text-amber-900'
+                        : 'text-slate-700'
+                    }`}
                 >
                   Probation
                 </p>
