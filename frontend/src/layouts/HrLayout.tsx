@@ -13,7 +13,18 @@ import {
   Zap,
   ClipboardList,
   Building2,
-  Briefcase
+  Briefcase,
+  List,
+  UserPlus,
+  SlidersHorizontal,
+  ListChecks,
+  ClipboardCheck,
+  MessageCircleQuestionMark,
+  LayoutGrid,
+  Inbox,
+  ListFilter,
+  Send,
+  History
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -52,8 +63,8 @@ const HrLayout: React.FC = () => {
       label: 'Employee',
       path: '/hr/employees',
       subItems: [
-        { label: 'Employee List', path: '/hr/employees' },
-        { label: 'Create Employee Account', path: '/hr/employees/create-account' }
+        { label: 'Employee List', path: '/hr/employees', icon: <List size={16} className="shrink-0" /> },
+        { label: 'Create Employee Account', path: '/hr/employees/create-account', icon: <UserPlus size={16} className="shrink-0" /> }
       ]
     },
     { icon: <Building2 size={20} />, label: 'Department', path: '/hr/departments' },
@@ -63,8 +74,8 @@ const HrLayout: React.FC = () => {
       label: 'Performance',
       path: '/hr/kpi-management',
       subItems: [
-        { label: 'KPI Modeler', path: '/hr/kpi-management' },
-        { label: 'Assigned List', path: '/hr/kpi-assigned' }
+        { label: 'KPI Modeler', path: '/hr/kpi-management', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
+        { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} className="shrink-0" /> }
       ]
     },
     {
@@ -72,27 +83,29 @@ const HrLayout: React.FC = () => {
       label: 'Self Assessments',
       path: '/hr/assessments',
       subItems: [
-        { label: 'My Assessment', path: '/hr/my-assessment' },
-        { label: 'Compliance Review', path: '/hr/assessments' },
-        { label: 'Question', path: '/hr/assessment-subitems' }
+        { label: 'My Assessment', path: '/hr/my-assessment', icon: <ClipboardCheck size={16} className="shrink-0" /> },
+        { label: 'Compliance Review', path: '/hr/assessments', icon: <ShieldCheck size={16} className="shrink-0" /> },
+        { label: 'Question', path: '/hr/assessment-subitems', icon: <MessageCircleQuestionMark size={16} className="shrink-0" /> }
       ]
     },
     {
       icon: <Award size={20} />,
       label: 'Appraisals',
       path: '/hr/appraisals',
-      subItems: [{ label: 'Management', path: '/hr/appraisals' },
-      { label: "Review Submissions", path: '/hr/appraisals/submissions' }]
+      subItems: [
+        { label: 'Management', path: '/hr/appraisals', icon: <LayoutGrid size={16} className="shrink-0" /> },
+        { label: 'Review Submissions', path: '/hr/appraisals/submissions', icon: <Inbox size={16} className="shrink-0" /> }
+      ]
     },
     {
       icon: <RefreshCcw size={20} />,
       label: '360 Feedback',
       path: '/hr/360-feedback/criteria',
       subItems: [
-        { label: 'Criteria', path: '/hr/360-feedback/criteria' },
-        { label: 'Give Feedback', path: '/hr/360-feedback/give' },
-        { label: 'Get Feedback', path: '/hr/360-feedback/received' },
-        { label: 'Feedback History', path: '/hr/360-feedback/history' }
+        { label: 'Criteria', path: '/hr/360-feedback/criteria', icon: <ListFilter size={16} className="shrink-0" /> },
+        { label: 'Give Feedback', path: '/hr/360-feedback/give', icon: <Send size={16} className="shrink-0" /> },
+        { label: 'Get Feedback', path: '/hr/360-feedback/received', icon: <Inbox size={16} className="shrink-0" /> },
+        { label: 'Feedback History', path: '/hr/360-feedback/history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
     { icon: <Zap size={20} />, label: 'PIP Management', path: '/hr/pip-monitoring' },
@@ -184,7 +197,7 @@ const HrLayout: React.FC = () => {
                   </div>
 
                   {isExpanded && (
-                    <div className="pl-11 pr-4 space-y-1 mt-1">
+                    <div className="pl-7 pr-3 space-y-1 mt-1">
                       {item.subItems.map((subItem) => {
                         const isSubActive = location.pathname === subItem.path;
 
@@ -192,11 +205,14 @@ const HrLayout: React.FC = () => {
                           <Link
                             key={subItem.label}
                             to={subItem.path}
-                            className={`block px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${isSubActive
+                            className={`flex items-center gap-2.5 pl-2 pr-2.5 py-2 text-sm font-semibold rounded-lg transition-colors ${isSubActive
                               ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300'
                               : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                               }`}
                           >
+                            <span className={isSubActive ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-400'}>
+                              {subItem.icon}
+                            </span>
                             {subItem.label}
                           </Link>
                         );
