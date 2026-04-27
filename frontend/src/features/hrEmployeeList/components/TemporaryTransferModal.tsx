@@ -238,25 +238,32 @@ export function TemporaryTransferModal({ isOpen, employeeId, employeeName, onClo
 
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">Reason</label>
-                    <textarea
+                    <select
                       className={inputBase}
-                      rows={2}
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
-                      placeholder="Reason for temporary transfer…"
-                    />
+                    >
+                      <option value="">Select reason…</option>
+                      <option value="Project Assignment">Project Assignment</option>
+                      <option value="Role Change">Role Change</option>
+                      <option value="Team Restructuring">Team Restructuring</option>
+                      <option value="Department Needs">Department Needs</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
 
-                  <div>
-                    <label className="mb-1.5 block text-sm font-semibold text-slate-700">Remarks</label>
-                    <textarea
-                      className={inputBase}
-                      rows={2}
-                      value={remarks}
-                      onChange={(e) => setRemarks(e.target.value)}
-                      placeholder="Additional remarks…"
-                    />
-                  </div>
+                  {reason === 'Other' && (
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Remarks</label>
+                      <textarea
+                        className={inputBase}
+                        rows={2}
+                        value={remarks}
+                        onChange={(e) => setRemarks(e.target.value)}
+                        placeholder="Additional remarks…"
+                      />
+                    </div>
+                  )}
 
                   <div className="flex justify-end gap-3 pt-2">
                     <button
