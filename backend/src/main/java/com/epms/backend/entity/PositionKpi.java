@@ -9,19 +9,23 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "employeekpis")
+@Table(name = "position_kpis")
 @Getter
 @Setter
 @NoArgsConstructor
-public class EmployeeKpi {
+public class PositionKpi {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employee_id", nullable = false)
-    private Employee employee;
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "position_id", nullable = false)
+    private Position position;
 
     @Column(nullable = false)
     private String name;
@@ -35,21 +39,11 @@ public class EmployeeKpi {
     @Column(nullable = false)
     private String unit;
 
-    private String actual;
-
     @Column(nullable = false)
     private BigDecimal weight;
 
-    private BigDecimal score;
-
-    @Column(name = "weighted_score")
-    private BigDecimal weightedScore;
-
     @Column(nullable = false)
-    private String period; // e.g. "2026-2027"
-
-    @Column(nullable = false)
-    private String status; // DRAFT, SUBMITTED, LOCKED
+    private String period;
 
     @Column(name = "created_date")
     private Instant createdDate;

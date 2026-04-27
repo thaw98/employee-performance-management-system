@@ -88,14 +88,18 @@ public class HrEmployeeService {
             List<Predicate> predicates = new ArrayList<>();
 
             if (search != null && !search.isBlank()) {
-                String pattern = "%" + search.toLowerCase() + "%";
-                predicates.add(cb.or(
-                    cb.like(cb.lower(root.get("employeeId")), pattern),
-                    cb.like(cb.lower(root.get("employeeName")), pattern),
-                    cb.like(cb.lower(root.get("email")), pattern),
-                    cb.like(cb.lower(root.get("department").get("name")), pattern),
-                    cb.like(cb.lower(root.get("position").get("name")), pattern)
-                ));
+                String[] keywords = search.toLowerCase().split("\\s+");
+                for (String keyword : keywords) {
+                    if (keyword.isEmpty()) continue;
+                    String pattern = "%" + keyword + "%";
+                    predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("employeeId")), pattern),
+                        cb.like(cb.lower(root.get("employeeName")), pattern),
+                        cb.like(cb.lower(root.get("email")), pattern),
+                        cb.like(cb.lower(root.get("department").get("name")), pattern),
+                        cb.like(cb.lower(root.get("position").get("name")), pattern)
+                    ));
+                }
             }
 
             if (departmentId != null) {
@@ -103,7 +107,8 @@ public class HrEmployeeService {
             }
 
             if (managerDepartmentId != null) {
-                predicates.add(cb.equal(root.get("departmentPosition").get("department").get("id"), managerDepartmentId));
+                // Consistency check: ensure we use the direct department link if possible
+                predicates.add(cb.equal(root.get("department").get("id"), managerDepartmentId));
             }
 
             if (positionId != null) {
@@ -159,14 +164,18 @@ public class HrEmployeeService {
             List<Predicate> predicates = new ArrayList<>();
 
             if (search != null && !search.isBlank()) {
-                String pattern = "%" + search.toLowerCase() + "%";
-                predicates.add(cb.or(
-                    cb.like(cb.lower(root.get("employeeId")), pattern),
-                    cb.like(cb.lower(root.get("employeeName")), pattern),
-                    cb.like(cb.lower(root.get("email")), pattern),
-                    cb.like(cb.lower(root.get("department").get("name")), pattern),
-                    cb.like(cb.lower(root.get("position").get("name")), pattern)
-                ));
+                String[] keywords = search.toLowerCase().split("\\s+");
+                for (String keyword : keywords) {
+                    if (keyword.isEmpty()) continue;
+                    String pattern = "%" + keyword + "%";
+                    predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("employeeId")), pattern),
+                        cb.like(cb.lower(root.get("employeeName")), pattern),
+                        cb.like(cb.lower(root.get("email")), pattern),
+                        cb.like(cb.lower(root.get("department").get("name")), pattern),
+                        cb.like(cb.lower(root.get("position").get("name")), pattern)
+                    ));
+                }
             }
 
             if (departmentId != null) {
