@@ -169,8 +169,5 @@ public class Employee {
     private User userAccount;
 
     @Transient
-    private EmployeeSpouse spouse;
-
-    @Transient
     private Passport passport;
 }
