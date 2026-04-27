@@ -11,7 +11,10 @@ import {
   ShieldCheck,
   Search,
   Zap,
-  RefreshCcw
+  RefreshCcw,
+  Send,
+  Inbox,
+  History
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -58,9 +61,9 @@ const ManagerLayout: React.FC = () => {
       label: '360 Feedback',
       path: '/manager/360-feedback/give',
       subItems: [
-        { label: 'Give Feedback', path: '/manager/360-feedback/give' },
-        { label: 'Get Feedback', path: '/manager/360-feedback/received' },
-        { label: 'Feedback History', path: '/manager/360-feedback/history' }
+        { label: 'Give Feedback', path: '/manager/360-feedback/give', icon: <Send size={16} className="shrink-0" /> },
+        { label: 'Get Feedback', path: '/manager/360-feedback/received', icon: <Inbox size={16} className="shrink-0" /> },
+        { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/manager/meetings' },
@@ -147,7 +150,7 @@ const ManagerLayout: React.FC = () => {
                   </div>
 
                   {isExpanded && (
-                    <div className="pl-11 pr-4 space-y-1 mt-1">
+                    <div className="pl-7 pr-3 space-y-1 mt-1">
                       {item.subItems.map((subItem) => {
                         const isSubActive = location.pathname === subItem.path;
 
@@ -155,11 +158,14 @@ const ManagerLayout: React.FC = () => {
                           <Link
                             key={subItem.label}
                             to={subItem.path}
-                            className={`block px-3 py-2 text-sm font-semibold rounded-lg transition-colors ${isSubActive
+                            className={`flex items-center gap-2.5 pl-2 pr-2.5 py-2 text-sm font-semibold rounded-lg transition-colors ${isSubActive
                               ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 font-bold'
                               : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                               }`}
                           >
+                            <span className={isSubActive ? 'text-amber-800 dark:text-amber-300' : 'text-slate-400'}>
+                              {subItem.icon}
+                            </span>
                             {subItem.label}
                           </Link>
                         );

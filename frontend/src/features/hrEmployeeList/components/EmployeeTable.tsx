@@ -8,7 +8,9 @@ import {
   type OnChangeFn,
 } from '@tanstack/react-table'
 import { useMemo, memo } from 'react'
+import { ArrowLeftRight } from 'lucide-react'
 import EmployeeProfileCell from './EmployeeProfileCell'
+import { STAFF_TYPE_PROBATION } from '../../employeeOnboarding/utils/staffType'
 import type { EmployeeListItem } from '../hrEmployeeApi'
 
 interface EmployeeTableProps {
@@ -16,8 +18,8 @@ interface EmployeeTableProps {
   isLoading: boolean
   onView: (id: number) => void
   onEdit: (id: number) => void
+  onTransfer?: (id: number, employeeName: string) => void
   onResendPassword: (id: number) => void
-  onSendNewPassword: (id: number) => void
   onChangeStatus: (id: number, currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated') => void
   sorting: SortingState
   setSorting: OnChangeFn<SortingState>
@@ -29,8 +31,8 @@ function EmployeeTable({
   isLoading,
   onView,
   onEdit,
+  onTransfer,
   onResendPassword,
-  onSendNewPassword,
   onChangeStatus,
   sorting,
   setSorting,
@@ -149,6 +151,21 @@ function EmployeeTable({
                     <i className="bi bi-pencil-square text-lg"></i>
                   </button>
 
+                  {row.staffTypeId !== STAFF_TYPE_PROBATION && (
+                    <button
+                      onClick={() => onTransfer?.(row.employeeId, row.employeeName)}
+                      disabled={row.currentTransferType === 'TEMPORARY'}
+                      className="p-1 text-amber-500 hover:bg-amber-50 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+                      title={
+                        row.currentTransferType === 'TEMPORARY'
+                          ? 'Already on temporary assignment — return first'
+                          : 'Temporary Transfer'
+                      }
+                    >
+                      <ArrowLeftRight size={18} />
+                    </button>
+                  )}
+
                   {row.hasUserAccount && row.mustChangePassword && (
                     <button
                       onClick={() => onResendPassword(row.employeeId)}
@@ -156,16 +173,6 @@ function EmployeeTable({
                       title="Resend Temporary Password"
                     >
                       <i className="bi bi-envelope-arrow-up text-lg"></i>
-                    </button>
-                  )}
-
-                  {row.hasUserAccount && row.email && (
-                    <button
-                      onClick={() => onSendNewPassword(row.employeeId)}
-                      className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                      title="Send New Temporary Password (Reset)"
-                    >
-                      <i className="bi bi-key-fill text-lg"></i>
                     </button>
                   )}
                 </>
@@ -178,7 +185,7 @@ function EmployeeTable({
 
       return baseColumns
     },
-    [isHR, onView, onEdit, onResendPassword, onSendNewPassword, onChangeStatus]
+    [isHR, onView, onEdit, onTransfer, onResendPassword, onChangeStatus]
   )
 
   const table = useReactTable({

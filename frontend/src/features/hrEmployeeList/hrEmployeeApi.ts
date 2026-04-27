@@ -7,6 +7,8 @@ export interface EmployeeListItem {
   employeeName: string
   departmentName: string
   positionName: string
+  /** Matches {@code staff_type.id} (1 = permanent, 2 = probation). */
+  staffTypeId?: number
   staffTypeName?: string
   phoneNumber?: string
   profilePictureUrl: string
@@ -15,6 +17,7 @@ export interface EmployeeListItem {
   hasUserAccount: boolean
   employmentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated'
   employeeActiveStatus: 'ACTIVE' | 'RESIGNED' | 'TERMINATED'
+  currentTransferType: 'INITIAL' | 'TEMPORARY' | 'PERMANENT_TRANSFER' | 'RETURN' | null
 }
 
 export interface EmployeeListResponse {

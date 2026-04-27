@@ -5,7 +5,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
@@ -39,6 +41,7 @@ import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentPositionRepository;
+import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
@@ -56,6 +59,7 @@ import lombok.RequiredArgsConstructor;
 public class HrEmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final EmployeeDepartmentHistoryRepository employeeDepartmentHistoryRepository;
     private final UserRepository userRepository;
     private final StaffTypeRepository staffTypeRepository;
     private final DepartmentPositionRepository departmentPositionRepository;
@@ -132,8 +136,9 @@ public class HrEmployeeService {
         };
 
         Page<Employee> employeePage = employeeRepository.findAll(spec, pageable);
+        Map<Long, String> currentTransferTypes = loadCurrentTransferTypes(employeePage.getContent());
         List<EmployeeListItemResponseDto> content = employeePage.getContent().stream()
-                .map(this::toListItemDto)
+                .map(employee -> toListItemDto(employee, currentTransferTypes.get(employee.getId())))
                 .collect(Collectors.toList());
 
         return EmployeeListResponseDto.builder()
@@ -180,8 +185,9 @@ public class HrEmployeeService {
         };
 
         Page<Employee> employeePage = employeeRepository.findAll(spec, pageable);
+        Map<Long, String> currentTransferTypes = loadCurrentTransferTypes(employeePage.getContent());
         List<EmployeeListItemResponseDto> content = employeePage.getContent().stream()
-                .map(this::toListItemDto)
+                .map(employee -> toListItemDto(employee, currentTransferTypes.get(employee.getId())))
                 .collect(Collectors.toList());
 
         return EmployeeListResponseDto.builder()
@@ -484,7 +490,24 @@ public class HrEmployeeService {
         return EmployeeReligion.fromValue(value);
     }
 
-    private EmployeeListItemResponseDto toListItemDto(Employee employee) {
+    private Map<Long, String> loadCurrentTransferTypes(Collection<Employee> employees) {
+        List<Long> employeeIds = employees.stream()
+                .map(Employee::getId)
+                .collect(Collectors.toList());
+
+        if (employeeIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return employeeDepartmentHistoryRepository.findCurrentTransferTypesByEmployeeIds(employeeIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        EmployeeDepartmentHistoryRepository.CurrentTransferTypeView::getEmployeeId,
+                        view -> view.getTransferType() != null ? view.getTransferType().name() : null,
+                        (existing, replacement) -> existing));
+    }
+
+    private EmployeeListItemResponseDto toListItemDto(Employee employee, String currentTransferType) {
         User user = employee.getUserAccount();
         String employmentStatus = determineEmploymentStatus(employee);
         EmployeeStatus activeStatus = employee.getEmploymentStatus() != null
@@ -497,6 +520,7 @@ public class HrEmployeeService {
                 .employeeName(employee.getEmployeeName())
                 .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
                 .positionName(employee.getPosition() != null ? employee.getPosition().getName() : null)
+                .staffTypeId(employee.getStaffType() != null ? employee.getStaffType().getId() : null)
                 .staffTypeName(employee.getStaffType() != null ? employee.getStaffType().getName() : null)
                 .phoneNumber(employee.getPhoneNo())
                 .profilePictureUrl(employee.getProfilePictureUrl())
@@ -505,6 +529,7 @@ public class HrEmployeeService {
                 .hasUserAccount(user != null)
                 .employmentStatus(employmentStatus)
                 .employeeActiveStatus(activeStatus.name())
+                .currentTransferType(currentTransferType)
                 .build();
     }
 

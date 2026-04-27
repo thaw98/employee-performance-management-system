@@ -10,7 +10,7 @@ const SIDEBAR_LINK_ACTIVE =
 const SIDEBAR_LINK_IDLE =
   'text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400'
 
-type SubItem = { name: string; path: string }
+type SubItem = { name: string; path: string; icon: string }
 type NavItem = {
   name: string;
   path: string;
@@ -48,8 +48,8 @@ export function AppSidebar() {
                 icon: 'bi-person-badge',
                 end: false,
                 subItems: [
-                  { name: 'Employee List', path: '/hr/employees' },
-                  { name: 'Create Employee Account', path: '/hr/employees/create-account' },
+                  { name: 'Employee List', path: '/hr/employees', icon: 'bi-list-ul' },
+                  { name: 'Create Employee Account', path: '/hr/employees/create-account', icon: 'bi-person-plus' },
                 ],
               },
               {
@@ -73,7 +73,7 @@ export function AppSidebar() {
           icon: 'bi-clipboard-check', 
           end: false,
           subItems: [
-            { name: 'Management', path: '/hr/appraisals' }
+            { name: 'Management', path: '/hr/appraisals', icon: 'bi-kanban' }
           ]
         },
         {
@@ -82,10 +82,10 @@ export function AppSidebar() {
           icon: 'bi-chat-dots',
           end: false,
           subItems: [
-            ...(isHr ? [{ name: 'Criteria', path: '/hr/360-feedback/criteria' }] : []),
-            { name: 'Give Feedback', path: '/hr/360-feedback/give' },
-            { name: 'Get Feedback', path: '/hr/360-feedback/received' },
-            { name: 'Feedback History', path: '/hr/360-feedback/history' }
+            ...(isHr ? [{ name: 'Criteria', path: '/hr/360-feedback/criteria', icon: 'bi-funnel' }] : []),
+            { name: 'Give Feedback', path: '/hr/360-feedback/give', icon: 'bi-send' },
+            { name: 'Get Feedback', path: '/hr/360-feedback/received', icon: 'bi-inbox' },
+            { name: 'Feedback History', path: '/hr/360-feedback/history', icon: 'bi-clock-history' }
           ]
         },
         { name: 'PIP Monitoring', path: '/hr/pip-monitoring', icon: 'bi-exclamation-triangle', end: false },
@@ -95,9 +95,9 @@ export function AppSidebar() {
           icon: 'bi-journal-check', 
           end: false,
           subItems: isHr ? [
-            { name: 'My Assessment', path: '/hr/self-assessment' },
-            { name: 'Subjects Management', path: '/hr/self-assessment-subjects' },
-            { name: 'Compliance Review', path: '/hr/compliance-review' }
+            { name: 'My Assessment', path: '/hr/self-assessment', icon: 'bi-journal-text' },
+            { name: 'Subjects Management', path: '/hr/self-assessment-subjects', icon: 'bi-collection' },
+            { name: 'Compliance Review', path: '/hr/compliance-review', icon: 'bi-shield-check' }
           ] : undefined
         },
         ...(isManager && !isHr ? [{ name: 'Compliance Review', path: '/hr/compliance-review', icon: 'bi-shield-check', end: false }] : []),
@@ -182,20 +182,27 @@ export function AppSidebar() {
                     )}
 
                     {item.subItems && isExpanded && (
-                      <div className="ml-8 mt-1 space-y-1">
+                      <div className="ml-2 mt-1 space-y-1">
                         {item.subItems.map(subItem => (
                           <NavLink
                             key={subItem.path}
                             to={subItem.path}
                             end
                             className={({ isActive }) =>
-                              `block rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 ${isActive
+                              `flex items-center gap-2.5 rounded-md pl-2 pr-2.5 py-2 text-sm font-medium transition-all duration-200 ${isActive
                                 ? 'bg-blue-600/15 dark:bg-blue-600/10 font-semibold text-blue-700 dark:text-blue-400 ring-1 ring-blue-600/20 dark:ring-blue-600/30'
                                 : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400'
                               }`
                             }
                           >
-                            {subItem.name}
+                            {({ isActive }) => (
+                              <>
+                                <i
+                                  className={`bi ${subItem.icon} text-sm opacity-80 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}
+                                />
+                                <span>{subItem.name}</span>
+                              </>
+                            )}
                           </NavLink>
                         ))}
                       </div>

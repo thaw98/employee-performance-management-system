@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { skipToken } from '@reduxjs/toolkit/query'
 import type { UpdateEmploymentStatusRequest, ProbationInfo } from '../../../features/hrEmployeeList/hrEmployeeApi'
 
@@ -10,11 +9,12 @@ import EmployeeTable from '../../../features/hrEmployeeList/components/EmployeeT
 import EmployeeFilters from '../../../features/hrEmployeeList/components/EmployeeFilters'
 import ConfirmActionModal from '../../../features/hrEmployeeList/components/ConfirmActionModal'
 import EmployeeViewModal from '../../../features/hrEmployeeList/components/EmployeeViewModal'
+import EditEmployeeModal from '../../../features/hrEmployeeList/components/EditEmployeeModal'
 import EmployeeImportModal from '../../../features/hrEmployeeList/components/EmployeeImportModal'
+import { TemporaryTransferModal } from '../../../features/hrEmployeeList/components/TemporaryTransferModal'
 import {
   useGetEmployeesQuery,
   useResendPasswordMutation,
-  useSendNewPasswordMutation,
   useUpdateEmploymentStatusMutation,
   useExportEmployeesMutation,
   useLazyGetEmployeeViewByIdQuery,
@@ -32,7 +32,6 @@ const API_BASE =
   'http://localhost:8080'
 
 export default function EmployeeListPage() {
-  const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
   const token = useAppSelector((s) => s.auth.token)
   const isHR = user?.roleId === 1
@@ -50,7 +49,7 @@ export default function EmployeeListPage() {
   // Modals state
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean
-    type: 'RESEND' | 'NEW_PASSWORD' | null
+    type: 'RESEND' | null
     employeeId: number | null
   }>({
     isOpen: false,
@@ -64,6 +63,15 @@ export default function EmployeeListPage() {
     currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated' | null
     probationInfo: ProbationInfo | null
   }>({ isOpen: false, employeeId: null, currentStatus: null, probationInfo: null })
+
+  const [transferModal, setTransferModal] = useState<{
+    isOpen: boolean
+    employeeId: number | null
+    employeeName: string
+  }>({ isOpen: false, employeeId: null, employeeName: '' })
+
+  // Edit modal state
+  const [editEmployeeId, setEditEmployeeId] = useState<number | null>(null)
 
   // View modal state
   const [selectedViewEmployeeId, setSelectedViewEmployeeId] = useState<number | null>(null)
@@ -89,7 +97,7 @@ export default function EmployeeListPage() {
     sortDir: sorting[0]?.desc ? 'desc' : 'asc'
   }), [page, size, search, isHR, departmentId, positionId, employmentStatus, sorting])
 
-  const { data: empData, isLoading, isFetching, error: employeeListError } = useGetEmployeesQuery(employeeQueryParams)
+  const { data: empData, isLoading, isFetching, error: employeeListError, refetch } = useGetEmployeesQuery(employeeQueryParams)
 
   // Memoize filter options to prevent unnecessary recreations
   const departments = useMemo(() => deptData?.data || [], [deptData?.data])
@@ -100,7 +108,6 @@ export default function EmployeeListPage() {
 
   // Mutations
   const [resendPassword, { isLoading: isResending }] = useResendPasswordMutation()
-  const [sendNewPassword, { isLoading: isSendingNew }] = useSendNewPasswordMutation()
   const [updateEmploymentStatus, { isLoading: isUpdatingStatus }] = useUpdateEmploymentStatusMutation()
   const [exportEmployees, { isLoading: isExporting }] = useExportEmployeesMutation()
   const [
@@ -150,8 +157,12 @@ export default function EmployeeListPage() {
   }, [])
 
   const handleEdit = useCallback((id: number) => {
-    navigate(`/hr/employees/${id}/edit`)
-  }, [navigate])
+    setEditEmployeeId(id)
+  }, [])
+
+  const handleCloseEditModal = useCallback(() => {
+    setEditEmployeeId(null)
+  }, [])
 
   const handleView = useCallback(async (id: number) => {
     setSelectedViewEmployeeId(id)
@@ -171,6 +182,19 @@ export default function EmployeeListPage() {
   const handleCloseViewModal = useCallback(() => {
     setSelectedViewEmployeeId(null)
   }, [])
+
+  const handleOpenTransfer = useCallback((id: number, name: string) => {
+    setTransferModal({ isOpen: true, employeeId: id, employeeName: name })
+  }, [])
+
+  const handleCloseTransfer = useCallback(() => {
+    setTransferModal({ isOpen: false, employeeId: null, employeeName: '' })
+  }, [])
+
+  const handleTransferSuccess = useCallback(() => {
+    refetch()
+    setTransferModal({ isOpen: false, employeeId: null, employeeName: '' })
+  }, [refetch])
 
   const handleRetryView = useCallback(() => {
     if (selectedViewEmployeeId !== null) {
@@ -210,25 +234,20 @@ export default function EmployeeListPage() {
     }
   }, [statusModal.employeeId, updateEmploymentStatus])
 
-  const openConfirmModal = useCallback((id: number, type: 'RESEND' | 'NEW_PASSWORD') => {
+  const openConfirmModal = useCallback((id: number) => {
     setConfirmModal({
       isOpen: true,
-      type,
+      type: 'RESEND',
       employeeId: id
     })
   }, [])
 
   const handleConfirmAction = useCallback(async () => {
-    if (!confirmModal.employeeId || !confirmModal.type) return
+    if (!confirmModal.employeeId || confirmModal.type !== 'RESEND') return
 
     try {
-      if (confirmModal.type === 'RESEND') {
-        const res = await resendPassword(confirmModal.employeeId).unwrap()
-        toast.success(res.data?.message || 'Temporary password resent successfully')
-      } else {
-        const res = await sendNewPassword(confirmModal.employeeId).unwrap()
-        toast.success(res.data?.message || 'New temporary password sent successfully')
-      }
+      const res = await resendPassword(confirmModal.employeeId).unwrap()
+      toast.success(res.data?.message || 'Temporary password resent successfully')
       setConfirmModal({ isOpen: false, type: null, employeeId: null })
     } catch (error: unknown) {
       const errorMessage = error && typeof error === 'object' && 'data' in error
@@ -236,7 +255,7 @@ export default function EmployeeListPage() {
         : 'Action failed'
       toast.error(errorMessage)
     }
-  }, [confirmModal.employeeId, confirmModal.type, resendPassword, sendNewPassword])
+  }, [confirmModal.employeeId, confirmModal.type, resendPassword])
 
   // Modal close handlers
   const handleCloseStatusModal = useCallback(() => {
@@ -373,8 +392,8 @@ export default function EmployeeListPage() {
         isLoading={isLoading || isFetching}
         onView={handleView}
         onEdit={handleEdit}
-        onResendPassword={(id) => openConfirmModal(id, 'RESEND')}
-        onSendNewPassword={(id) => openConfirmModal(id, 'NEW_PASSWORD')}
+        onTransfer={handleOpenTransfer}
+        onResendPassword={openConfirmModal}
         onChangeStatus={handleChangeStatus}
         sorting={sorting}
         setSorting={setSorting}
@@ -495,15 +514,11 @@ export default function EmployeeListPage() {
         isLoading={isResending}
       />
 
-      <ConfirmActionModal
-        isOpen={confirmModal.isOpen && confirmModal.type === 'NEW_PASSWORD'}
-        onClose={handleCloseResendModal}
-        onConfirm={handleConfirmAction}
-        title="Confirm Send New Password"
-        message="This will generate a new temporary password, replace the current password, and require the employee to change it after login. Continue?"
-        confirmText="Send New Password"
-        variant="danger"
-        isLoading={isSendingNew}
+      {/* Edit Employee Modal */}
+      <EditEmployeeModal
+        isOpen={editEmployeeId !== null}
+        employeeId={editEmployeeId}
+        onClose={handleCloseEditModal}
       />
 
       {/* Employee View Modal */}
@@ -516,6 +531,14 @@ export default function EmployeeListPage() {
         isError={isViewError}
         onRetry={handleRetryView}
         hideSensitiveFields={isDepartmentManager}
+      />
+
+      <TemporaryTransferModal
+        isOpen={transferModal.isOpen}
+        employeeId={transferModal.employeeId}
+        employeeName={transferModal.employeeName}
+        onClose={handleCloseTransfer}
+        onSuccess={handleTransferSuccess}
       />
 
       {/* Employee Import Modal */}

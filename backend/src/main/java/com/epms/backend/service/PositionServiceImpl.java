@@ -44,12 +44,12 @@ public class PositionServiceImpl implements PositionService {
 	@Override
 	@Transactional(readOnly = true)
 	public PositionListResponse getPositions(int page, int size, String search, String positionName, Long roleId,
-			String sortBy, String sortDir) {
+			Long levelCodeId, String sortBy, String sortDir) {
 		Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
 		Sort sort = Sort.by(direction, mapSortField(sortBy));
 		Pageable pageable = PageRequest.of(page, size, sort);
 
-		Specification<Position> spec = buildSpecification(search, positionName, roleId);
+		Specification<Position> spec = buildSpecification(search, positionName, roleId, levelCodeId);
 
 		Page<Position> positionPage = positionRepository.findAll(spec, pageable);
 		List<PositionDto> content = positionPage.getContent().stream()
@@ -163,7 +163,8 @@ public class PositionServiceImpl implements PositionService {
 		return departmentPositionRepository.findDepartmentsByPositionId(positionId);
 	}
 
-	private Specification<Position> buildSpecification(String search, String positionName, Long roleId) {
+	private Specification<Position> buildSpecification(String search, String positionName, Long roleId,
+			Long levelCodeId) {
 		return (root, query, cb) -> {
 			List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
 
@@ -180,6 +181,10 @@ public class PositionServiceImpl implements PositionService {
 
 			if (roleId != null) {
 				predicates.add(cb.equal(root.get("role").get("id"), roleId));
+			}
+
+			if (levelCodeId != null) {
+				predicates.add(cb.equal(root.get("levelCode").get("id"), levelCodeId));
 			}
 
 			return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import {
   flexRender,
   getCoreRowModel,
@@ -196,14 +196,6 @@ export default function DepartmentDetailPage() {
         <div className="absolute top-24 left-1/4 w-24 h-24 bg-white/5 rounded-full pointer-events-none" />
 
         <div className="relative max-w-7xl mx-auto">
-          <div className="flex items-center gap-2 text-blue-100 text-xs font-semibold mb-4">
-            <Link to="/hr" className="hover:text-white transition-colors">HR</Link>
-            <span>/</span>
-            <Link to="/hr/departments" className="hover:text-white transition-colors">Departments</Link>
-            <span>/</span>
-            <span className="text-white">{department?.departmentCode || '...'}</span>
-          </div>
-
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-start gap-5">
               <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20 shadow-2xl flex-shrink-0">
