@@ -56,6 +56,18 @@ public class Pip {
     @Column(name = "target_end_date", nullable = false)
     private LocalDate endDate;
 
+    @Column(name = "original_end_date")
+    private LocalDate originalEndDate;
+
+    @Column(name = "auto_close_date")
+    private LocalDate autoCloseDate;
+
+    @Column(name = "extended_end_date")
+    private LocalDate extendedEndDate;
+
+    @Column(name = "final_close_date")
+    private LocalDate finalCloseDate;
+
     @Column(name = "actual_end_date")
     private LocalDate actualEndDate;
 
@@ -91,6 +103,12 @@ public class Pip {
 
     @Column(name = "review_reason", columnDefinition = "text")
     private String reviewReason;
+
+    @Column(name = "reopen_decision", length = 20)
+    private String reopenDecision;
+
+    @Column(name = "reopen_decision_date")
+    private Instant reopenDecisionDate;
 
     @Column(name = "updated_date")
     private Instant updatedDate;
