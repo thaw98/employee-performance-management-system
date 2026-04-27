@@ -2,10 +2,13 @@ package com.epms.backend.service;
 
 import com.epms.backend.dto.AppraisalCategoryDto;
 import com.epms.backend.dto.AppraisalQuestionDto;
+import com.epms.backend.dto.AppraisalTemplateDto;
 import com.epms.backend.entity.AppraisalCategory;
 import com.epms.backend.entity.AppraisalQuestion;
+import com.epms.backend.entity.AppraisalTemplate;
 import com.epms.backend.repository.AppraisalCategoryRepository;
 import com.epms.backend.repository.AppraisalQuestionRepository;
+import com.epms.backend.repository.AppraisalTemplateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,7 @@ public class AppraisalService {
 
     private final AppraisalCategoryRepository categoryRepository;
     private final AppraisalQuestionRepository questionRepository;
+    private final AppraisalTemplateRepository templateRepository;
 
     // Category CRUD
     public List<AppraisalCategoryDto> getAllCategories() {
@@ -103,6 +107,55 @@ public class AppraisalService {
         questionRepository.deleteById(id);
     }
 
+    @Transactional
+    public void finalizeAppraisal(AppraisalTemplateDto dto) {
+        // Reset all categories finalize flag
+        List<AppraisalCategory> allCategories = categoryRepository.findAll();
+        allCategories.forEach(c -> c.setIsFinalized(false));
+        
+        // Deactivate previous active templates
+        templateRepository.findByIsActiveTrue().ifPresent(t -> {
+            t.setIsActive(false);
+            templateRepository.save(t);
+        });
+
+        // Create new Template
+        AppraisalTemplate template = new AppraisalTemplate();
+        template.setName(dto.getName() != null ? dto.getName() : "Appraisal Form " + java.time.LocalDate.now().getYear());
+        template.setAssessmentDate(dto.getAssessmentDate());
+        template.setEffectiveDate(dto.getEffectiveDate());
+        template.setIsActive(true);
+
+        List<AppraisalCategory> selected = categoryRepository.findAllById(dto.getCategoryIds());
+        selected.forEach(c -> c.setIsFinalized(true));
+        template.setCategories(selected);
+
+        templateRepository.save(template);
+    }
+
+    public AppraisalTemplateDto getCurrentTemplate() {
+        return templateRepository.findByIsActiveTrue()
+                .map(this::mapToTemplateDto).orElse(null);
+    }
+
+    public List<AppraisalTemplateDto> getAllTemplates() {
+        return templateRepository.findAll().stream()
+                .map(this::mapToTemplateDto)
+                .sorted((a, b) -> b.getId().compareTo(a.getId()))
+                .collect(Collectors.toList());
+    }
+
+    private AppraisalTemplateDto mapToTemplateDto(AppraisalTemplate t) {
+        AppraisalTemplateDto dto = new AppraisalTemplateDto();
+        dto.setId(t.getId());
+        dto.setName(t.getName());
+        dto.setAssessmentDate(t.getAssessmentDate());
+        dto.setEffectiveDate(t.getEffectiveDate());
+        dto.setIsActive(t.getIsActive());
+        dto.setCategoryIds(t.getCategories().stream().map(AppraisalCategory::getId).collect(Collectors.toList()));
+        return dto;
+    }
+
     // Mappers
     private AppraisalCategoryDto mapToCategoryDto(AppraisalCategory entity) {
         AppraisalCategoryDto dto = new AppraisalCategoryDto();
@@ -111,6 +164,7 @@ public class AppraisalService {
         dto.setDescription(entity.getDescription());
         dto.setStatus(entity.getStatus());
         dto.setSortOrder(entity.getSortOrder());
+        dto.setIsFinalized(entity.getIsFinalized());
         return dto;
     }
 
