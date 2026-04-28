@@ -62,6 +62,20 @@ export default function PipDetailPage() {
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
   const isAdmin = userRole === 'HR'
   const isEmployee = userRole === 'EMPLOYEE'
+  const getLocalDateString = (dateString?: string | Date) => {
+    if (!dateString) return undefined;
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return undefined;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const minMeetingDate = pip?.startDate ? getLocalDateString(pip.startDate) : getLocalDateString(new Date());
+  const applicableEndDate = pip?.extendedEndDate ? pip.extendedEndDate : (pip?.originalEndDate || pip?.endDate);
+  const maxMeetingDate = applicableEndDate ? getLocalDateString(applicableEndDate) : undefined;
+
   const isDirectManager = Boolean(
     isManager &&
     pip &&
@@ -501,7 +515,8 @@ export default function PipDetailPage() {
                 <input
                   type="date"
                   required
-                  min={new Date().toISOString().split('T')[0]}
+                  min={minMeetingDate}
+                  max={maxMeetingDate}
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
                   value={meetingDate}
                   onChange={(e) => setMeetingDate(e.target.value)}
