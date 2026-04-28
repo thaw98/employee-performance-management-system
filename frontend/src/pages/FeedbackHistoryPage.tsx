@@ -131,7 +131,7 @@ export function FeedbackHistoryPage() {
             doc.text(`Staff No: ${item.evaluateeStaffNo}`, 25, 60);
             doc.text(`Position: ${item.position}`, 25, 65);
             
-            doc.text(`Feedback Role: ${item.role === 'PEER' ? 'ANONYMOUS' : item.role}`, 110, 55);
+            doc.text(`Feedback Role: ${item.role}`, 110, 55);
             doc.text(`Score: ${item.score.toFixed(2)}%`, 110, 60);
             doc.text(`Category: ${item.remark}`, 110, 65);
 
@@ -239,7 +239,7 @@ export function FeedbackHistoryPage() {
                                     </td>
                                     <td className="p-6">
                                         <span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                            {item.role === 'PEER' ? 'ANONYMOUS' : item.role}
+                                            {item.role}
                                         </span>
                                     </td>
                                     <td className="p-6 text-center">

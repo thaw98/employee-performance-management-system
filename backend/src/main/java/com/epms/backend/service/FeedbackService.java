@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,6 +25,7 @@ public class FeedbackService {
     private final CriteriaRepository criteriaRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final TimeSettingService timeSettingService;
 
     @Transactional
     public void submitFeedback(Long evaluatorId, FeedbackSubmissionRequest request) {
@@ -32,9 +34,24 @@ public class FeedbackService {
         Employee evaluatee = employeeRepository.findById(request.getEvaluateeId())
                 .orElseThrow(() -> new RuntimeException("Evaluatee not found"));
 
-        // Rule: Same department only
         if (!evaluator.getDepartment().getId().equals(evaluatee.getDepartment().getId())) {
             throw new RuntimeException("Evaluator and Evaluatee must be in the same department");
+        }
+
+        com.epms.backend.dto.TimeSettingDto cycle = timeSettingService.getCurrentCycleRange();
+        Instant cycleStart = cycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant cycleEnd = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1)
+                .toInstant();
+
+        long currentRoleCount = feedbackRepository.countByEvaluatorIdAndRoleAndCreatedDateBetween(evaluatorId,
+                request.getRole(), cycleStart, cycleEnd);
+        if (currentRoleCount >= 5) {
+            throw new RuntimeException("Maximum of 5 feedbacks allowed per role in the active cycle");
+        }
+
+        if (feedbackRepository.existsByEvaluatorIdAndEvaluateeIdAndCreatedDateBetween(evaluatorId,
+                request.getEvaluateeId(), cycleStart, cycleEnd)) {
+            throw new RuntimeException("Feedback already given for this employee in the current cycle");
         }
 
         Feedback feedback = new Feedback();
@@ -115,15 +132,7 @@ public class FeedbackService {
     }
 
     private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity) {
-        FeedbackHistoryDto dto = mapToHistoryDto(entity);
-        Employee evaluatee = entity.getEvaluatee();
-        Employee manager = evaluatee.getManager();
-        boolean directManagerFeedback = manager != null
-                && entity.getEvaluator() != null
-                && manager.getId().equals(entity.getEvaluator().getId());
-
-        dto.setEvaluatorName(directManagerFeedback ? entity.getEvaluator().getEmployeeName() : "Anonymous");
-        return dto;
+        return mapToHistoryDto(entity);
     }
 
     public List<com.epms.backend.dto.FeedbackDetailDto> getFeedbackDetails(Long feedbackId) {
@@ -154,7 +163,7 @@ public class FeedbackService {
         List<Employee> colleagues = employeeRepository.findByDepartmentId(deptId);
 
         return colleagues.stream()
-                .filter(e -> !e.getId().equals(evaluatorId)) // Exclude self
+                .filter(e -> !e.getId().equals(evaluatorId))
                 .filter(e -> e.getPosition() != null && e.getPosition().getLevelCode() != null)
                 .filter(e -> {
                     Long eLevelId = e.getPosition().getLevelCode().getId();
@@ -162,13 +171,27 @@ public class FeedbackService {
                         case "PEER":
                             return eLevelId.equals(levelId);
                         case "SUBORDINATE":
-                            return eLevelId > levelId; // Higher ID = Lower rank
+                            return eLevelId > levelId;
                         case "MANAGER":
-                            return eLevelId < levelId; // Lower ID = Higher rank
+                            return eLevelId < levelId;
                         default:
                             return false;
                     }
                 })
                 .collect(Collectors.toList());
     }
+
+    public boolean isFeedbackGivenInCurrentCycle(Long evaluatorId, Long evaluateeId) {
+        com.epms.backend.dto.TimeSettingDto cycle = timeSettingService.getCurrentCycleRange();
+        Instant cycleStart = cycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant cycleEnd = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1)
+                .toInstant();
+        return feedbackRepository.existsByEvaluatorIdAndEvaluateeIdAndCreatedDateBetween(evaluatorId, evaluateeId,
+                cycleStart, cycleEnd);
+    }
+
+    public long countFeedbacksByRoleInCycle(Long evaluatorId, String role, Instant start, Instant end) {
+        return feedbackRepository.countByEvaluatorIdAndRoleAndCreatedDateBetween(evaluatorId, role, start, end);
+    }
+
 }

@@ -7,6 +7,7 @@ export interface UserProfileDto {
   name: string
   email: string
   role: string
+  roleId: number
   /** Relative path (e.g. /api/public/profile-pictures/...) or absolute URL */
   profilePictureUrl?: string
   theme?: string

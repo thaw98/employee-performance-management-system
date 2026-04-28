@@ -53,6 +53,40 @@ public class TimeSettingService {
         return toDto(saved);
     }
 
+    @Transactional(readOnly = true)
+    public TimeSettingDto getCurrentCycleRange() {
+        TimeSetting setting = repository.findFirstByOrderByIdAsc().orElse(null);
+        if (setting == null) {
+            // Default to calendar year if not set
+            LocalDate start = LocalDate.now().withMonth(1).withDayOfMonth(1);
+            return new TimeSettingDto("Calendar Year", start, start.plusYears(1).minusDays(1), "1 Year");
+        }
+
+        LocalDate today = LocalDate.now();
+        int durationMonths = setting.getDuration().contains("Months") 
+            ? Integer.parseInt(setting.getDuration().split(" ")[0]) 
+            : 12;
+
+        int startMonth = "Budget Year".equals(setting.getYearType()) ? 4 : 1;
+        LocalDate orgYearStart = today.withMonth(startMonth).withDayOfMonth(1);
+        
+        if ("Budget Year".equals(setting.getYearType()) && today.isBefore(orgYearStart)) {
+            orgYearStart = orgYearStart.minusYears(1);
+        } else if ("Calendar Year".equals(setting.getYearType()) && today.isBefore(orgYearStart)) {
+             // For calendar, today.isBefore(Jan 1) is impossible unless we handle year wrap
+        }
+
+        LocalDate cycleStart = orgYearStart;
+        LocalDate cycleEnd = orgYearStart.plusMonths(durationMonths).minusDays(1);
+
+        while (today.isAfter(cycleEnd)) {
+            cycleStart = cycleEnd.plusDays(1);
+            cycleEnd = cycleStart.plusMonths(durationMonths).minusDays(1);
+        }
+
+        return new TimeSettingDto(setting.getYearType(), cycleStart, cycleEnd, setting.getDuration());
+    }
+
     private TimeSettingDto toDto(TimeSetting entity) {
         return new TimeSettingDto(
                 entity.getYearType(),

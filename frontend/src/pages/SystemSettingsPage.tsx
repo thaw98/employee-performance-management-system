@@ -27,7 +27,9 @@ export function SystemSettingsPage() {
   const [duration, setDuration] = useState('1 Year')
   const [customMonths, setCustomMonths] = useState(3)
   const [loadingGlobal, setLoadingGlobal] = useState(false)
-  const isHR = profileResponse?.data?.role === 'HR'
+  const userRole = profileResponse?.data?.role || ''
+  const roleId = profileResponse?.data?.roleId
+  const isHR = userRole === 'HR' || roleId === 1
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
@@ -56,7 +58,7 @@ export function SystemSettingsPage() {
       setTimeFormat(profileResponse.data.timeFormat)
     }
 
-    if (isHR) {
+    if (isHR && !isSaving) {
       fetchGlobalTimeSettings()
     }
   }, [profileResponse, isHR])
@@ -65,7 +67,7 @@ export function SystemSettingsPage() {
     try {
       setLoadingGlobal(true)
       const resp = await axios.get('/feedback/time-settings')
-      if (resp.data.success) {
+      if (resp.data.success && resp.data.data) {
         setYearType(resp.data.data.yearType)
         setDuration(resp.data.data.duration)
       }
@@ -78,16 +80,13 @@ export function SystemSettingsPage() {
 
   const getAllCycles = () => {
     const isBudget = yearType === 'Budget Year'
-    const durationMonths = duration.includes('Months') ? parseInt(duration.split(' ')[0]) : 12
+    const durationMonths = duration.includes('Months') ? (parseInt(duration.split(' ')[0]) || 12) : 12
     const startMonth = isBudget ? 3 : 0 // April is 3, Jan is 0
     
+// ... (omitting intermediate lines for brevity if tool allows, but I'll provide full block)
     const cycles = []
     const today = new Date()
     const currentYear = today.getFullYear()
-    
-    // We treat the "Year" as starting from startMonth of currentYear
-    // For Budget Year, if today is Jan-Mar, the "Cycle Year" started April last year.
-    // However, for simplicity in "Preview", we show cycles for the organizational year that contains today.
     
     let orgYearStart = new Date(currentYear, startMonth, 1)
     if (isBudget && today < orgYearStart) {
@@ -138,6 +137,12 @@ export function SystemSettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
+      // 1. Save Global Time Settings first (HR Only)
+      if (isHR) {
+        await axios.post('/feedback/time-settings', { yearType, duration })
+      }
+
+      // 2. Then save Personal Profile Settings
       if (pendingWallpaper === 'remove') {
           await deleteWallpaper().unwrap()
           if (theme === 'wallpaper') {
@@ -153,17 +158,12 @@ export function SystemSettingsPage() {
         await updateProfile({ theme, timezone, timeFormat }).unwrap()
       }
 
-      if (isHR) {
-        await axios.post('/feedback/time-settings', { yearType, duration })
-      }
-
       setPendingWallpaper(null)
       setSaved(true)
-
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
       console.error("Failed to save system settings", err)
-      alert("Failed to save settings.")
+      toast.error("Failed to save settings.")
     } finally {
       setIsSaving(false)
     }

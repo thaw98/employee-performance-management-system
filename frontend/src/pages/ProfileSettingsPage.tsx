@@ -14,6 +14,15 @@ export function ProfileSettingsPage() {
   const pictureSrc = resolveProfilePictureSrc(user?.profilePictureUrl)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const getRolePrefix = () => {
+    const userRoleStr = (user?.role || '').toUpperCase()
+    const userRoleId = user?.roleId
+    if (userRoleStr === 'HR' || userRoleId === 1) return '/hr'
+    if (userRoleId === 2 || userRoleId === 3 || userRoleStr.includes('HEAD') || userRoleStr.includes('MANAGER') || userRoleStr.includes('LEAD')) return '/manager'
+    return '/employee'
+  }
+  const rolePrefix = getRolePrefix()
+
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   
   // Form state
@@ -276,7 +285,7 @@ export function ProfileSettingsPage() {
                  </p>
               </div>
               <Link 
-                to="/hr/settings/password"
+                to={`${rolePrefix}/settings/password`}
                 className="px-6 py-4 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl text-sm font-black shadow-xl hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
               >
                 Change System Password

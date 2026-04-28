@@ -33,8 +33,19 @@ export function ProfileDropdown() {
     navigate('/login')
   }
 
-  // Determine settings path based on role
-  const rolePrefix = user?.role?.toLowerCase() === 'hr' ? '/hr' : (user?.role?.toLowerCase() === 'manager' ? '/manager' : '/employee')
+  // Determine settings path based on role with robust detection
+  const userRoleStr = (user?.role || '').toUpperCase()
+  const userRoleId = user?.roleId
+  
+  const isHR = userRoleStr === 'HR' || userRoleId === 1
+  const isManager = 
+    userRoleId === 2 || 
+    userRoleId === 3 || 
+    userRoleStr.includes('HEAD') || 
+    userRoleStr.includes('MANAGER') || 
+    userRoleStr.includes('LEAD')
+  
+  const rolePrefix = isHR ? '/hr' : (isManager ? '/manager' : '/employee')
   const profileSettingsPath = `${rolePrefix}/settings/profile`
   const systemSettingsPath = `${rolePrefix}/settings/system`
 
