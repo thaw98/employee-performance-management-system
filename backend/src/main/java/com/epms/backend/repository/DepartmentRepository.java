@@ -38,7 +38,7 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
 			join e.position p
 			join p.role r
 			where e.id = :managerId
-			  and r.id = :roleId
+			  and r.id = 2
 			""")
-	Optional<String> findManagerNameByIdAndRoleId(@Param("managerId") Long managerId, @Param("roleId") Long roleId);
+	Optional<String> findManagerNameById(@Param("managerId") Long managerId);
 }
