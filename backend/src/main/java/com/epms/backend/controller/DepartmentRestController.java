@@ -19,11 +19,8 @@ import com.epms.backend.dto.department.CreateDepartmentRequest;
 import com.epms.backend.dto.department.DepartmentDto;
 import com.epms.backend.dto.department.UpdateDepartmentRequest;
 import com.epms.backend.dto.hr.DepartmentOptionDto;
-import com.epms.backend.dto.hr.EmployeeOptionDto;
 import com.epms.backend.entity.Department;
-import com.epms.backend.entity.Employee;
 import com.epms.backend.repository.DepartmentRepository;
-import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.service.DepartmentService;
 
 import jakarta.validation.Valid;
@@ -35,7 +32,6 @@ import lombok.RequiredArgsConstructor;
 public class DepartmentRestController {
 
 	private final DepartmentRepository departmentRepository;
-	private final EmployeeRepository employeeRepository;
 	private final DepartmentService departmentService;
 
 	@GetMapping("/options")
@@ -47,15 +43,6 @@ public class DepartmentRestController {
 				.sorted(Comparator.comparing(DepartmentOptionDto::getDepartmentName, String.CASE_INSENSITIVE_ORDER))
 				.toList();
 		return ResponseEntity.ok(ApiResponse.ok("Departments", rows));
-	}
-
-	@GetMapping("/managers/options")
-	@PreAuthorize("hasRole('HR')")
-	public ResponseEntity<ApiResponse<List<EmployeeOptionDto>>> listManagers() {
-		List<EmployeeOptionDto> rows = employeeRepository.findDepartmentHeadOptions().stream()
-				.map(this::toEmployeeOption)
-				.toList();
-		return ResponseEntity.ok(ApiResponse.ok("Department head managers", rows));
 	}
 
 	@GetMapping
@@ -95,10 +82,6 @@ public class DepartmentRestController {
 			return true;
 		}
 		return "active".equalsIgnoreCase(s.trim());
-	}
-
-	private EmployeeOptionDto toEmployeeOption(Employee employee) {
-		return new EmployeeOptionDto(employee.getId(), employee.getEmployeeName());
 	}
 }
 

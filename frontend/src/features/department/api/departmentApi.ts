@@ -1,6 +1,6 @@
 import { baseApi } from '../../../app/baseApi'
 import type { ApiResponse } from '../../../types/auth'
-import type { DepartmentDto, CreateDepartmentRequest, UpdateDepartmentRequest, EmployeeOptionDto } from '../types'
+import type { DepartmentDto, CreateDepartmentRequest, UpdateDepartmentRequest } from '../types'
 
 type DepartmentApiRaw = Partial<DepartmentDto> & {
   id?: number | string
@@ -19,10 +19,6 @@ type DepartmentApiRaw = Partial<DepartmentDto> & {
   department_name?: string
   created_date?: string
   updated_date?: string
-  managerId?: number | string | null
-  managerName?: string | null
-  manager_id?: number | string | null
-  manager_name?: string | null
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -90,9 +86,6 @@ const normalizeDepartment = (raw: DepartmentApiRaw): DepartmentDto => {
   const explicitStatus = getByAliases(raw, ['status', 'departmentStatus'])
   const statusFlag = explicitStatus ?? getByAliases(raw, ['isActive', 'active', 'enabled'])
   const status = normalizeStatus(statusFlag)
-  const managerIdValue = getByAliases(raw, ['managerId', 'manager_id', 'managerid'])
-  const managerId = managerIdValue === undefined || managerIdValue === null || managerIdValue === '' ? null : Number(managerIdValue)
-  const managerNameValue = getByAliases(raw, ['managerName', 'manager_name', 'managername'])
   return {
     departmentId: Number.isFinite(departmentId) ? departmentId : 0,
     departmentCode: code,
@@ -100,8 +93,6 @@ const normalizeDepartment = (raw: DepartmentApiRaw): DepartmentDto => {
     status,
     createdDate: String(getByAliases(raw, ['createdDate', 'created_date']) ?? ''),
     updatedDate: String(getByAliases(raw, ['updatedDate', 'updated_date']) ?? ''),
-    managerId: managerId !== null && Number.isFinite(managerId) ? managerId : null,
-    managerName: managerNameValue === undefined || managerNameValue === null ? null : String(managerNameValue),
   }
 }
 
@@ -173,10 +164,6 @@ export const departmentApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Department'],
     }),
-    listDepartmentManagers: builder.query<ApiResponse<EmployeeOptionDto[]>, void>({
-      query: () => '/departments/managers/options',
-      providesTags: ['Department'],
-    }),
   }),
 })
 
@@ -186,5 +173,4 @@ export const {
   useCreateDepartmentMutation,
   useUpdateDepartmentMutation,
   useDeleteDepartmentMutation,
-  useListDepartmentManagersQuery,
 } = departmentApi
