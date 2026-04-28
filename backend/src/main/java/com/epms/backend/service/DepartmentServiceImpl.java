@@ -32,14 +32,17 @@ public class DepartmentServiceImpl implements DepartmentService {
     public List<DepartmentDto> getAllDepartments() {
         return jdbcTemplate.query("""
                 SELECT
-                    department_id,
-                    department_code,
-                    department_name,
-                    status,
-                    created_date,
-                    updated_date
-                FROM department
-                ORDER BY department_id ASC
+                    d.department_id,
+                    d.department_code,
+                    d.department_name,
+                    d.status,
+                    d.created_date,
+                    d.updated_date,
+                    d.manager_id,
+                    e.full_name AS manager_name
+                FROM department d
+                LEFT JOIN employee e ON e.employee_id = d.manager_id
+                ORDER BY d.department_id ASC
                 """, (rs, rowNum) -> DepartmentDto.builder()
                 .departmentId(rs.getLong("department_id"))
                 .departmentCode(rs.getString("department_code"))
@@ -47,6 +50,8 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .status(rs.getString("status"))
                 .createdDate(rs.getTimestamp("created_date") == null ? null : rs.getTimestamp("created_date").toInstant())
                 .updatedDate(rs.getTimestamp("updated_date") == null ? null : rs.getTimestamp("updated_date").toInstant())
+                .managerId(rs.getObject("manager_id", Long.class))
+                .managerName(rs.getString("manager_name"))
                 .build());
     }
 
@@ -76,6 +81,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         department.setCode(code);
         department.setName(name);
         department.setStatus(request.getStatus() != null ? normalizeStatus(request.getStatus()) : STATUS_ACTIVE);
+        department.setManagerId(validateManager(request.getManagerId()));
         department.setCreatedDate(Instant.now());
         department.setUpdatedDate(Instant.now());
 
@@ -103,6 +109,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         department.setCode(code);
         department.setName(name);
         department.setStatus(normalizeStatus(request.getStatus()));
+        department.setManagerId(validateManager(request.getManagerId()));
         department.setUpdatedDate(Instant.now());
 
         Department saved = departmentRepository.save(department);
@@ -136,6 +143,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     }
 
     private DepartmentDto mapToDto(Department department) {
+        Long managerId = department.getManagerId();
         return DepartmentDto.builder()
                 .departmentId(department.getId())
                 .departmentCode(department.getCode())
@@ -143,6 +151,17 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .status(department.getStatus())
                 .createdDate(department.getCreatedDate())
                 .updatedDate(department.getUpdatedDate())
+                .managerId(managerId)
+                .managerName(managerId == null ? null : departmentRepository.findManagerNameById(managerId).orElse(null))
                 .build();
+    }
+
+    private Long validateManager(Long managerId) {
+        if (managerId == null) {
+            throw new IllegalArgumentException("Manager is required.");
+        }
+        departmentRepository.findManagerNameById(managerId)
+                .orElseThrow(() -> new IllegalArgumentException("Manager must be a Department Head."));
+        return managerId;
     }
 }
