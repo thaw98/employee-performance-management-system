@@ -38,6 +38,14 @@ public class AppraisalTemplate {
     )
     private List<AppraisalCategory> categories;
 
+    @ManyToMany
+    @JoinTable(
+        name = "template_positions",
+        joinColumns = @JoinColumn(name = "template_id"),
+        inverseJoinColumns = @JoinColumn(name = "position_id")
+    )
+    private List<Position> targetPositions;
+
     @Column(name = "created_at")
     private LocalDate createdAt = LocalDate.now();
 }

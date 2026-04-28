@@ -18,7 +18,7 @@ import {
     sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, HelpCircle, GripVertical, Download, RotateCcw } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, HelpCircle, GripVertical, Download, RotateCcw, Calendar, ArrowRight, Clock, Users, Layers, Filter } from 'lucide-react';
 
 const PRIMARY = '#0855BF';
 
@@ -47,6 +47,7 @@ interface AppraisalTemplateDto {
     effectiveDate: string;
     isActive: boolean;
     categoryIds: number[];
+    positionIds: number[];
 }
 
 interface SortableCategoryRowProps {
@@ -457,6 +458,12 @@ export function AppraisalsPage() {
     const [isReorderingCat, setIsReorderingCat] = useState(false);
     const [isReorderingQue, setIsReorderingQue] = useState(false);
 
+    // Target Audience State
+    const [allPositions, setAllPositions] = useState<any[]>([]);
+    const [allLevels, setAllLevels] = useState<any[]>([]);
+    const [selectedPositionIds, setSelectedPositionIds] = useState<number[]>([]);
+    const [viewMode, setViewMode] = useState<'level' | 'position'>('level');
+
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -497,7 +504,8 @@ export function AppraisalsPage() {
             const payload = {
                 assessmentDate: assessmentDate,
                 effectiveDate: effectiveDate,
-                categoryIds: confirmedCategories
+                categoryIds: confirmedCategories,
+                positionIds: selectedPositionIds
             };
             await axios.post('/appraisal-categories/finalize', payload);
             setFinalizedCategories([...confirmedCategories]);
@@ -531,9 +539,23 @@ export function AppraisalsPage() {
         }
     };
 
+    const fetchPositionsAndLevels = async () => {
+        try {
+            const [posResp, lvlResp] = await Promise.all([
+                axios.get('/positions/by-department'),
+                axios.get('/levels')
+            ]);
+            setAllPositions(posResp.data.data || []);
+            setAllLevels(lvlResp.data.data || []);
+        } catch (err) {
+            console.error('Failed to fetch criteria');
+        }
+    };
+
     useEffect(() => {
         fetchCategories();
         fetchAllTemplates();
+        fetchPositionsAndLevels();
     }, []);
 
     useEffect(() => {
@@ -778,36 +800,143 @@ export function AppraisalsPage() {
                 </div>
             ) : activeTab === 'confirmed' ? (
                 <div className="space-y-6">
-                    {/* Date Config Bar */}
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-wrap items-center gap-8 px-10 animate-in fade-in slide-in-from-top-4">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                                <HelpCircle size={20} />
+                    <div className="bg-white p-2 rounded-[28px] border border-slate-100 shadow-sm flex flex-wrap items-center gap-2 px-2 animate-in fade-in slide-in-from-top-4 print:hidden">
+                        {/* Assessment Date Card */}
+                        <div className="flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border border-transparent hover:border-blue-100 hover:bg-white transition-all group">
+                            <div className="w-12 h-12 bg-white text-blue-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                <Calendar size={22} />
                             </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assessment Date</p>
-                                <input 
-                                    type="date" 
-                                    value={assessmentDate}
-                                    onChange={(e) => setAssessmentDate(e.target.value)}
-                                    className="text-sm font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 cursor-pointer hover:text-blue-600 transition-colors"
-                                />
+                            <div className="flex-1">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Assessment Date</p>
+                                <div className="relative">
+                                    <input 
+                                        type="date" 
+                                        value={assessmentDate}
+                                        onChange={(e) => setAssessmentDate(e.target.value)}
+                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                                    />
+                                </div>
                             </div>
                         </div>
-                        <div className="w-px h-10 bg-slate-100 hidden md:block" />
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-                                <CheckCircle2 size={20} />
+
+                        {/* Connection Arrow/Line */}
+                        <div className="hidden lg:flex items-center justify-center w-10 text-slate-200">
+                            <ArrowRight size={20} strokeWidth={3} />
+                        </div>
+
+                        {/* Effective Date Card */}
+                        <div className="flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border border-transparent hover:border-emerald-100 hover:bg-white transition-all group">
+                            <div className="w-12 h-12 bg-white text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                <Clock size={22} />
                             </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Effective Date</p>
-                                <input 
-                                    type="date" 
-                                    value={effectiveDate}
-                                    onChange={(e) => setEffectiveDate(e.target.value)}
-                                    className="text-sm font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 cursor-pointer hover:text-emerald-600 transition-colors"
-                                />
+                            <div className="flex-1">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Effective Date</p>
+                                <div className="relative">
+                                    <input 
+                                        type="date" 
+                                        value={effectiveDate}
+                                        min={assessmentDate}
+                                        onChange={(e) => setEffectiveDate(e.target.value)}
+                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                                    />
+                                </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* TARGET AUDIENCE SELECTION - Premium UI */}
+                    <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                                    <Users size={24} />
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="font-black text-slate-800 uppercase tracking-tight">Target Audience</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assign this form to specific levels or positions</p>
+                                </div>
+                            </div>
+                            <div className="flex bg-slate-100 p-1 rounded-xl self-start md:self-center">
+                                <button 
+                                    onClick={() => setViewMode('level')}
+                                    className={`px-4 py-2 rounded-lg text-[10px] font-black transition-all ${viewMode === 'level' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                                >
+                                    BY LEVEL
+                                </button>
+                                <button 
+                                    onClick={() => setViewMode('position')}
+                                    className={`px-4 py-2 rounded-lg text-[10px] font-black transition-all ${viewMode === 'position' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
+                                >
+                                    BY POSITION
+                                </button>
+                            </div>
+                        </div>
+
+                        {viewMode === 'level' ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
+                                {allLevels.map(lvl => {
+                                    const positionsInLevel = allPositions.filter(p => p.levelCodeId === lvl.id);
+                                    const isSomeSelected = positionsInLevel.some(p => selectedPositionIds.includes(p.positionId));
+                                    const isAllSelected = positionsInLevel.length > 0 && positionsInLevel.every(p => selectedPositionIds.includes(p.positionId));
+                                    
+                                    return (
+                                        <button
+                                            key={lvl.id}
+                                            onClick={() => {
+                                                const ids = positionsInLevel.map(p => p.positionId);
+                                                if (isAllSelected) {
+                                                    setSelectedPositionIds(prev => prev.filter(id => !ids.includes(id)));
+                                                } else {
+                                                    setSelectedPositionIds(prev => Array.from(new Set([...prev, ...ids])));
+                                                }
+                                            }}
+                                            className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${isAllSelected ? 'border-blue-600 bg-blue-50 text-blue-600' : isSomeSelected ? 'border-blue-200 bg-blue-50/30 text-blue-400' : 'border-slate-50 bg-slate-50/50 text-slate-400 hover:border-slate-200'}`}
+                                        >
+                                            <Layers size={20} />
+                                            <span className="text-xs font-black">{lvl.levelCode}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto p-2 border border-slate-50 rounded-2xl text-left font-sans">
+                                {allPositions.map(pos => (
+                                    <label 
+                                        key={pos.positionId}
+                                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedPositionIds.includes(pos.positionId) ? 'border-blue-500 bg-blue-50/50' : 'border-slate-50 hover:border-slate-100'}`}
+                                    >
+                                        <input 
+                                            type="checkbox"
+                                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                            checked={selectedPositionIds.includes(pos.positionId)}
+                                            onChange={() => {
+                                                setSelectedPositionIds(prev => 
+                                                    prev.includes(pos.positionId) ? prev.filter(id => id !== pos.positionId) : [...prev, pos.positionId]
+                                                );
+                                            }}
+                                        />
+                                        <div className="flex-1">
+                                            <div className="text-[11px] font-black text-slate-700 leading-none mb-1">{pos.positionName}</div>
+                                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">ID: {pos.positionId}</div>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Filter size={14} className="text-blue-500" />
+                                <p className="text-[10px] font-bold text-slate-500 italic">
+                                    {selectedPositionIds.length} positions currently selected.
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => setSelectedPositionIds([])}
+                                className="text-[10px] font-black text-red-400 hover:text-red-600 uppercase tracking-widest transition-colors"
+                            >
+                                Clear Selection
+                            </button>
                         </div>
                     </div>
 

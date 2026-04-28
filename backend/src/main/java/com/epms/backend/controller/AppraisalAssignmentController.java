@@ -62,6 +62,15 @@ public class AppraisalAssignmentController {
         return ResponseEntity.ok(ApiResponse.ok("Appraisal locked", saved));
     }
 
+    @PostMapping("/{id}/unlock")
+    public ResponseEntity<ApiResponse<AppraisalAssignment>> unlock(@PathVariable Long id, 
+                                                                 @RequestBody ActionRequest req,
+                                                                 Authentication auth) {
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        AppraisalAssignment saved = appraisalAssignmentService.unlock(id, req.getComments(), principal.getId(), principal.getRoleId());
+        return ResponseEntity.ok(ApiResponse.ok("Appraisal unlocked", saved));
+    }
+
     @lombok.Data
     public static class ActionRequest {
         private String comments;

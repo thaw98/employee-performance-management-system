@@ -114,4 +114,25 @@ public class AppraisalAssignmentService {
 
         return saved;
     }
+
+    @Transactional
+    public AppraisalAssignment unlock(Long id, String reason, Long userId, Long roleId) {
+        AppraisalAssignment assignment = getById(id);
+
+        if (assignment.getStatus() != AppraisalStatus.LOCKED) {
+            throw new RuntimeException("Only locked appraisal forms can be unlocked.");
+        }
+
+        // Change status back to RETURNED so it becomes editable
+        assignment.setStatus(AppraisalStatus.RETURNED);
+        assignment.setHrComments(reason);
+        assignment.setUpdatedAt(Instant.now());
+
+        AppraisalAssignment saved = appraisalAssignmentRepository.save(assignment);
+
+        auditService.record("UNLOCK", "AppraisalAssignment", id, userId, roleId, 
+                "HR Unlocked appraisal for employee ID: " + assignment.getEmployee().getId() + ". Reason: " + reason, null);
+
+        return saved;
+    }
 }
