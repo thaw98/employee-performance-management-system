@@ -1,5 +1,6 @@
 package com.epms.backend.service;
 
+import com.epms.backend.StaffTypes;
 import com.epms.backend.dto.pip.*;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
@@ -45,6 +46,7 @@ public class PipService {
         }
         return employeeRepository.findAll().stream()
                 .filter(employee -> isManagedBy(employee, manager.getEmployee().getId()))
+                .filter(employee -> !isProbationEmployee(employee))
                 .map(employee -> new EligibleEmployeeDTO(
                         employee.getId(),
                         employee.getEmployeeId(),
@@ -74,6 +76,9 @@ public class PipService {
 
         if (!isManagedBy(employee, managerEmployee.getId())) {
             throw new RuntimeException("You can only create PIPs for employees under your supervision");
+        }
+        if (isProbationEmployee(employee)) {
+            throw new RuntimeException("Probation employees cannot be assigned to PIP");
         }
 
         boolean hasOpenPip = pipRepository.findByEmployeeAndStatusIn(employee,
@@ -543,6 +548,12 @@ public class PipService {
         }
         Long departmentManagerId = employee.getDepartment().getManagerId();
         return departmentManagerId != null && departmentManagerId.equals(managerEmployeeId);
+    }
+
+    private boolean isProbationEmployee(Employee employee) {
+        return employee != null
+                && employee.getStaffType() != null
+                && employee.getStaffType().getId() == StaffTypes.PROBATION;
     }
 
     private String normalizeStatus(String status) {
