@@ -12,9 +12,12 @@ import java.util.Optional;
 public interface KpiRepository extends JpaRepository<EmployeeKpi, Long> {
     List<EmployeeKpi> findByEmployee_IdAndPeriod(Long employeeId, String period);
 
-    @Query(value = "SELECT DISTINCT period FROM employee_kpi WHERE employee_id = :employeeId ORDER BY period DESC", nativeQuery = true)
+    @Query(value = "SELECT DISTINCT period FROM employeekpis WHERE employee_id = :employeeId ORDER BY period DESC", nativeQuery = true)
     List<String> findDistinctPeriodsByEmployee_IdOrderByPeriodDesc(Long employeeId);
 
-    @Query(value = "SELECT DISTINCT period FROM employee_kpi WHERE employee_id = :employeeId ORDER BY period DESC LIMIT 1", nativeQuery = true)
+    @Query(value = "SELECT DISTINCT period FROM employeekpis WHERE employee_id = :employeeId ORDER BY period DESC LIMIT 1", nativeQuery = true)
     Optional<String> findLatestPeriodByEmployee_Id(Long employeeId);
+
+    @Query(value = "SELECT MAX(updated_date) FROM employeekpis WHERE employee_id = :employeeId", nativeQuery = true)
+    Optional<java.time.Instant> findLatestUpdatedDateByEmployeeId(Long employeeId);
 }

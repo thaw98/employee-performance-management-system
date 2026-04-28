@@ -4,13 +4,13 @@ import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users } fr
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
-import { 
-  useGetKpisByEmployeeQuery, 
+import {
+  useGetKpisByEmployeeQuery,
   useSetupKpisMutation,
   useGetPositionKpisQuery,
-  useSetupPositionKpisMutation 
+  useSetupPositionKpisMutation
 } from '../../features/kpi/kpiApi';
-import type { Kpi, PositionKpi } from '../../features/kpi/kpiApi';
+
 import { toast } from 'react-hot-toast';
 
 export const KpiManagementPage: React.FC = () => {
@@ -177,17 +177,15 @@ export const KpiManagementPage: React.FC = () => {
       <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
         <button
           onClick={() => setMode('individual')}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${
-            mode === 'individual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-          }`}
+          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'individual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
         >
           <User size={14} /> Individual
         </button>
         <button
           onClick={() => setMode('position')}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${
-            mode === 'position' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-          }`}
+          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'position' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
         >
           <Users size={14} /> Same Position
         </button>
@@ -199,7 +197,7 @@ export const KpiManagementPage: React.FC = () => {
             {mode === 'individual' ? 'Individual KPI Modeler' : 'Same Position KPI Setup'}
           </h1>
           <p className="text-slate-500 text-sm font-medium mt-1">
-            {mode === 'individual' 
+            {mode === 'individual'
               ? 'Define performance targets and weights for specific employees.'
               : 'Setup universal KPIs for all employees in a specific position/department.'}
           </p>
@@ -454,15 +452,14 @@ export const KpiManagementPage: React.FC = () => {
         <button
           onClick={handleSave}
           disabled={isSaving || totalWeight !== 100}
-          className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-xs font-black transition-all shadow-xl uppercase tracking-widest ${
-            isSaving || totalWeight !== 100
-              ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
-          }`}
+          className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-xs font-black transition-all shadow-xl uppercase tracking-widest ${isSaving || totalWeight !== 100
+            ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
+            }`}
         >
           {isSaving ? 'Processing...' : (
             <>
-              <Save size={18} /> 
+              <Save size={18} />
               {mode === 'individual' ? 'Finalize Individual KPI' : 'Save & Apply to All Employees'}
             </>
           )}
