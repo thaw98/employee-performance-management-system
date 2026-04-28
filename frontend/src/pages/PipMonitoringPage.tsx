@@ -341,8 +341,14 @@ export default function PipMonitoringPage() {
                     </td>
                   )}
                   <td className="px-6 py-5 text-center">
-                    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${STATUS_COLORS[pip.status]}`}>
-                      {pip.status.replace(/_/g, ' ')}
+                    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                      pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-100 text-green-700' :
+                      pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-100 text-red-700' :
+                      (STATUS_COLORS[pip.status] || 'bg-slate-100 text-slate-700')
+                    }`}>
+                      {pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'Close - Successful' :
+                       pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'Close - Fail' :
+                       pip.status.replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td className="px-6 py-5 text-sm text-slate-600 font-medium">
