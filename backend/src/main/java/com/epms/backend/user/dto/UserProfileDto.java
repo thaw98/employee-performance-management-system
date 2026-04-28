@@ -18,4 +18,5 @@ public class UserProfileDto {
     private String wallpaperUrl;
     private String language;
     private String timezone;
+    private String timeFormat;
 }

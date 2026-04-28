@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { Monitor, Moon, Sun, Globe, Bell, Accessibility, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, Clock, AlertTriangle, X } from 'lucide-react'
+import { Monitor, Moon, Sun, Globe, Accessibility, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, Clock, AlertTriangle, X, Calendar, Info, CheckCircle2 } from 'lucide-react'
+import axios from '../app/axiosInstance'
+import { toast } from 'react-hot-toast'
 import { useGetProfileQuery, useUpdateProfileMutation, useUpdateWallpaperMutation, useDeleteWallpaperMutation } from '../features/user/userApi'
 
 export function SystemSettingsPage() {
@@ -10,9 +12,8 @@ export function SystemSettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [theme, setTheme] = useState<'light' | 'dark' | 'wallpaper'>('light')
-  const [language, setLanguage] = useState('English')
   const [timezone, setTimezone] = useState('UTC+06:30 (Yangon)')
-  const [notifications, setNotifications] = useState(true)
+  const [timeFormat, setTimeFormat] = useState('12h')
   const [compactMode, setCompactMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -20,6 +21,13 @@ export function SystemSettingsPage() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showResetModal, setShowResetModal] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
+
+  // Global Time Configuration States (HR Only)
+  const [yearType, setYearType] = useState('Calendar Year')
+  const [duration, setDuration] = useState('1 Year')
+  const [customMonths, setCustomMonths] = useState(3)
+  const [loadingGlobal, setLoadingGlobal] = useState(false)
+  const isHR = profileResponse?.data?.role === 'HR'
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
@@ -29,20 +37,68 @@ export function SystemSettingsPage() {
   const formatTime = (date: Date, offsetHours: number, offsetMinutes: number = 0) => {
     const utc = date.getTime() + (date.getTimezoneOffset() * 60000)
     const newDate = new Date(utc + (3600000 * offsetHours) + (60000 * offsetMinutes))
-    return newDate.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    return newDate.toLocaleTimeString('en-US', { 
+        hour12: timeFormat === '12h', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+    })
   }
 
   useEffect(() => {
     if (profileResponse?.data?.theme) {
       setTheme(profileResponse.data.theme as any)
     }
-    if (profileResponse?.data?.language) {
-      setLanguage(profileResponse.data.language)
-    }
     if (profileResponse?.data?.timezone) {
       setTimezone(profileResponse.data.timezone)
     }
-  }, [profileResponse])
+    if (profileResponse?.data?.timeFormat) {
+      setTimeFormat(profileResponse.data.timeFormat)
+    }
+
+    if (isHR) {
+      fetchGlobalTimeSettings()
+    }
+  }, [profileResponse, isHR])
+
+  const fetchGlobalTimeSettings = async () => {
+    try {
+      setLoadingGlobal(true)
+      const resp = await axios.get('/feedback/time-settings')
+      if (resp.data.success) {
+        setYearType(resp.data.data.yearType)
+        setDuration(resp.data.data.duration)
+      }
+    } catch (err) {
+      console.error("Failed to load global time settings", err)
+    } finally {
+      setLoadingGlobal(false)
+    }
+  }
+
+  const getPreviewDates = () => {
+    const isBudget = yearType === 'Budget Year'
+    const startObj = new Date()
+    startObj.setMonth(isBudget ? 3 : 0) // April is 0-indexed 3, January is 0
+    startObj.setDate(1)
+
+    const startStr = startObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+    
+    let endObj = new Date(startObj)
+    if (duration.includes('Months')) {
+      const m = parseInt(duration.split(' ')[0])
+      endObj.setMonth(startObj.getMonth() + m)
+      endObj.setDate(0) // Last day of previous month
+    } else {
+      endObj.setFullYear(startObj.getFullYear() + 1)
+      endObj.setDate(0)
+    }
+
+    const endStr = endObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+    return { start: startStr, end: endStr }
+  }
+
+  const dates = getPreviewDates()
 
   const handleThemeChange = (newTheme: 'light' | 'dark' | 'wallpaper') => {
     setTheme(newTheme)
@@ -67,31 +123,26 @@ export function SystemSettingsPage() {
       if (pendingWallpaper === 'remove') {
           await deleteWallpaper().unwrap()
           if (theme === 'wallpaper') {
-             await updateProfile({ theme: 'light', language, timezone }).unwrap()
+             await updateProfile({ theme: 'light', timezone, timeFormat }).unwrap()
              setTheme('light')
           } else {
-             await updateProfile({ theme, language, timezone }).unwrap()
+             await updateProfile({ theme, timezone, timeFormat }).unwrap()
           }
       } else if (pendingWallpaper instanceof File && theme === 'wallpaper') {
         await updateWallpaper(pendingWallpaper).unwrap()
-        await updateProfile({ language, timezone }).unwrap()
+        await updateProfile({ timezone, timeFormat }).unwrap()
       } else {
-        await updateProfile({ theme, language, timezone }).unwrap()
+        await updateProfile({ theme, timezone, timeFormat }).unwrap()
       }
+
+      if (isHR) {
+        await axios.post('/feedback/time-settings', { yearType, duration })
+      }
+
       setPendingWallpaper(null)
       setSaved(true)
 
-      const previousLang = profileResponse?.data?.language
-      if (previousLang !== language) {
-         if (language === 'English') {
-            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname
-            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost'
-            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-         }
-         setTimeout(() => window.location.reload(), 400)
-      } else {
-         setTimeout(() => setSaved(false), 3000)
-      }
+      setTimeout(() => setSaved(false), 3000)
     } catch (err) {
       console.error("Failed to save system settings", err)
       alert("Failed to save settings.")
@@ -107,21 +158,13 @@ export function SystemSettingsPage() {
       await deleteWallpaper().unwrap()
       await updateProfile({ 
         theme: 'light', 
-        language: 'English', 
-        timezone: 'UTC+06:30 (Yangon)' 
+        timezone: 'UTC+06:30 (Yangon)',
+        timeFormat: '12h' 
       }).unwrap()
 
-      // Handle language cookie if resetting from Burmese to English
-      if (profileResponse?.data?.language !== 'English') {
-        document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname
-        document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost'
-        document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-        window.location.reload()
-      } else {
-        setShowResetModal(false)
-        setSaved(true)
-        setTimeout(() => setSaved(false), 3000)
-      }
+      setShowResetModal(false)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
     } catch (err) {
       console.error("Reset failed", err)
       alert("Failed to reset settings.")
@@ -219,18 +262,6 @@ export function SystemSettingsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Primary Language</label>
-                  <select 
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none"
-                  >
-                     <option className="dark:bg-slate-900">English</option>
-                     <option className="dark:bg-slate-900">Myanmar (Burmese)</option>
-                  </select>
-               </div>
-
                <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Time Zone Preference</label>
                   <select 
@@ -242,42 +273,120 @@ export function SystemSettingsPage() {
                      <option className="dark:bg-slate-900">UTC+00:00 (GMT)</option>
                   </select>
                </div>
+
+               <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Clock Display Format</label>
+                  <select 
+                    value={timeFormat}
+                    onChange={(e) => setTimeFormat(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none"
+                  >
+                     <option className="dark:bg-slate-900" value="12h">12-Hour Clock (AM/PM)</option>
+                     <option className="dark:bg-slate-900" value="24h">24-Hour Clock (Military)</option>
+                  </select>
+               </div>
             </div>
           </div>
         </div>
 
-        {/* Notification Settings */}
-        <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md">
-          <div className="p-8">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center">
-                <Bell size={20} />
+        {/* Global Time Configuration Section - visible only to HR */}
+        {isHR && (
+          <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md animate-in slide-in-from-bottom-4">
+            <div className="p-8">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
+                  <Calendar size={20} />
+                </div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Time Settings Configuration <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-400 px-2 py-0.5 rounded-full uppercase tracking-tighter">Global</span></h2>
               </div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Notification Feed</h2>
-            </div>
 
-            <div className="space-y-4">
-               {[
-                 { id: 'browser', label: 'Browser Notifications', desc: 'Alerts on the desktop', enabled: notifications },
-                 { id: 'email', label: 'Email Summaries', desc: 'Weekly performance updates', enabled: true },
-                 { id: 'slack', label: 'Slack Integration', desc: 'Activity feed in channels', enabled: false }
-               ].map(n => (
-                 <div key={n.id} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100/50">
-                    <div>
-                       <p className="text-sm font-bold text-slate-900 mb-0.5">{n.label}</p>
-                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{n.desc}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Organization Year Type</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {['Budget Year', 'Calendar Year'].map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setYearType(type)}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${
+                            yearType === type 
+                              ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/10' 
+                              : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900'
+                          }`}
+                        >
+                          <div className="font-bold text-xs text-slate-700 dark:text-slate-300">{type}</div>
+                          <div className="text-[9px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-tight mt-1">
+                            {type === 'Budget Year' ? 'Apr 1 – Mar 31' : 'Jan 1 – Dec 31'}
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                    <button 
-                      onClick={() => n.id === 'browser' && setNotifications(!notifications)}
-                      className={`relative w-10 h-5 rounded-full transition-colors duration-300 ${n.enabled ? 'bg-blue-600' : 'bg-slate-200'}`}
-                    >
-                       <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform duration-300 ${n.enabled ? 'left-5.5' : 'left-0.5'}`} />
-                    </button>
-                 </div>
-                ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Duration Cycle</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {['6 Months', '1 Year', 'Custom'].map((dur) => (
+                        <button
+                          key={dur}
+                          onClick={() => {
+                            if (dur === 'Custom') {
+                              setDuration(`${customMonths} Months`)
+                            } else {
+                              setDuration(dur)
+                            }
+                          }}
+                          className={`py-3 rounded-xl border-2 font-bold text-xs transition-all ${
+                            (dur === 'Custom' && duration !== '6 Months' && duration !== '1 Year') || (duration === dur)
+                              ? 'border-emerald-600 bg-emerald-600 text-white shadow-lg shadow-emerald-100 dark:shadow-none' 
+                              : 'border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800'
+                          }`}
+                        >
+                          {dur}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Custom input visible only when Custom is chosen */}
+                    {(duration !== '6 Months' && duration !== '1 Year') && (
+                      <div className="mt-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max="60"
+                          value={parseInt(duration.split(' ')[0]) || 3}
+                          onChange={(e) => setDuration(`${e.target.value} Months`)}
+                          className="w-24 bg-slate-50 dark:bg-slate-800 border-2 border-emerald-500/30 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 focus:border-emerald-500 outline-none transition-all"
+                        />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Months Range</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col justify-center">
+                  <div className="bg-[#115e59] text-white p-6 rounded-3xl space-y-4 shadow-xl shadow-emerald-900/20">
+                    <div className="flex items-center gap-3">
+                       <div className="p-2 bg-white/20 rounded-xl">
+                          <Info size={16} />
+                       </div>
+                       <div className="text-[10px] font-black uppercase tracking-widest">Active Cycle Summary</div>
+                    </div>
+                    <div className="space-y-1">
+                       <div className="text-xl font-black">{dates.start} — {dates.end}</div>
+                       <div className="text-[10px] font-bold text-emerald-100/50 uppercase tracking-widest">{yearType} • {duration} Period</div>
+                    </div>
+                    <div className="pt-4 mt-4 border-t border-white/10 flex items-center gap-2">
+                       <CheckCircle2 size={14} className="text-emerald-400" />
+                       <span className="text-[10px] font-medium text-emerald-100/70 italic">Calculated automatically for the system.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Action Bar */}
         <div className="pt-6 flex justify-end gap-3">

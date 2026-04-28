@@ -35,7 +35,6 @@ export function GiveFeedbackPage() {
     const [selectedEvaluatee, setSelectedEvaluatee] = useState<Evaluatee | null>(null);
     const [criteriaList, setCriteriaList] = useState<Criteria[]>([]);
     const [role, setRole] = useState<'MANAGER' | 'PEER' | 'SUBORDINATE'>('PEER');
-    const [currentPage, setCurrentPage] = useState(1);
     
     // Form state: criteriaId -> { rating, comment }
     const [ratings, setRatings] = useState<Record<number, number>>({});
@@ -98,20 +97,17 @@ export function GiveFeedbackPage() {
         }
     };
 
-    const criteriaPerPage = Math.ceil(criteriaList.length / 3);
-    const paginatedCriteria = criteriaList.slice(
-        (currentPage - 1) * criteriaPerPage,
-        currentPage * criteriaPerPage
-    );
-
-    const isAllRatedOnCurrentPage = paginatedCriteria.every(c => ratings[c.id]);
     const isAllRatedTotal = criteriaList.every(c => ratings[c.id]);
+
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async () => {
         if (!selectedEvaluatee) return toast.error('Please select an employee');
         if (!isAllRatedTotal) return toast.error('Please rate all criteria');
 
         try {
+            setIsSubmitting(true);
             const payload = {
                 evaluateeId: selectedEvaluatee.id,
                 role: role,
@@ -122,11 +118,11 @@ export function GiveFeedbackPage() {
                 }))
             };
             await axios.post('/feedback', payload);
-            toast.success('Feedback submitted successfully!');
-            // Reset form or redirect
-            window.location.reload(); 
+            setShowSuccessModal(true);
         } catch (err) {
             toast.error('Failed to submit feedback');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -207,10 +203,9 @@ export function GiveFeedbackPage() {
                                 </div>
                                 {selectedEvaluatee && (
                                     <div className="grid grid-cols-2 gap-4 pt-2 border-t border-blue-100 mt-2">
-                                        <div className="text-[11px] font-bold text-slate-500 uppercase tracking-tight">Level: <span className="text-blue-700">{selectedEvaluatee.position}</span></div>
                                         <div className="text-[11px] font-bold text-slate-500 uppercase tracking-tight">Dept: <span className="text-blue-700">{selectedEvaluatee.department}</span></div>
                                         <div className="text-[11px] font-bold text-slate-500 uppercase tracking-tight flex items-center gap-1">
-                                            <Calendar size={12} /> Today: {evaluator?.date}
+                                            <Calendar size={12} /> Today: {evaluator?.date ? new Date(evaluator.date).toLocaleDateString('en-GB') : '---'}
                                         </div>
                                     </div>
                                 )}
@@ -230,7 +225,7 @@ export function GiveFeedbackPage() {
                     {(['PEER', 'MANAGER', 'SUBORDINATE'] as const).map(r => (
                         <button
                             key={r}
-                            onClick={() => { setRole(r); setCurrentPage(1); }}
+                            onClick={() => { setRole(r); }}
                             className={`px-8 py-3 rounded-xl text-xs font-black transition-all ${role === r ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
                         >
                             {r}
@@ -239,22 +234,13 @@ export function GiveFeedbackPage() {
                 </div>
             </div>
 
-            {/* Pagination Progress */}
-            <div className="flex items-center justify-center gap-4">
-                {[1, 2, 3].map(p => (
-                    <div key={p} className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border-2 transition-all ${p === currentPage ? 'bg-blue-600 border-blue-600 text-white scale-110 shadow-lg' : p < currentPage ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-slate-200 text-slate-400'}`}>
-                            {p}
-                        </div>
-                        {p < 3 && <div className={`w-12 h-1 rounded-full ${p < currentPage ? 'bg-emerald-500' : 'bg-slate-200'}`} />}
-                    </div>
-                ))}
-            </div>
+            {/* Single Page Form */}
+
 
             {/* Feedback Form Content */}
             <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
                 <div className="p-8 space-y-10">
-                    {paginatedCriteria.map(criteria => (
+                    {criteriaList.map(criteria => (
                         <div key={criteria.id} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                             <div className="space-y-2">
                                 <h4 className="text-lg font-black text-slate-800">{criteria.name}</h4>
@@ -291,14 +277,6 @@ export function GiveFeedbackPage() {
                 {/* Score & Navigation Footer */}
                 <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                            className="flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black text-slate-400 hover:text-slate-600 disabled:opacity-0 transition-all"
-                        >
-                            <ChevronLeft size={18} /> PREVIOUS
-                        </button>
-
                         {/* Live Score Preview */}
                         {Object.keys(ratings).length > 0 && (
                             <div className={`px-6 py-3 rounded-2xl border-2 flex items-center gap-4 transition-all animate-in zoom-in duration-300 ${getLiveRemarkColor(liveResult.remark)}`}>
@@ -316,26 +294,53 @@ export function GiveFeedbackPage() {
                     </div>
                     
                     <div className="flex items-center gap-3">
-                        {currentPage < 3 ? (
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.min(3, prev + 1))}
-                                disabled={!isAllRatedOnCurrentPage}
-                                className="flex items-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50"
-                            >
-                                NEXT PAGE <ChevronRight size={18} />
-                            </button>
-                        ) : (
-                            <button
-                                onClick={handleSubmit}
-                                disabled={!isAllRatedTotal}
-                                className="flex items-center gap-3 px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black text-sm hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 disabled:opacity-50"
-                            >
-                                <Send size={20} /> SUBMIT FEEDBACK
-                            </button>
-                        )}
+                        <button
+                            onClick={() => {
+                                setRatings({});
+                                setComments({});
+                                toast.success('Form cleared');
+                            }}
+                            className="px-8 py-5 bg-white border-2 border-slate-200 text-slate-500 rounded-2xl font-black text-sm hover:bg-slate-50 hover:text-slate-800 transition-all"
+                        >
+                            RESET CHOICE
+                        </button>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={!isAllRatedTotal || isSubmitting}
+                            className="flex items-center gap-3 px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black text-sm hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 disabled:opacity-50"
+                        >
+                            {isSubmitting ? <CheckCircle2 size={20} className="animate-spin" /> : <Send size={20} />} 
+                            SUBMIT FEEDBACK
+                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* Success Confirmation Modal */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" />
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm relative z-10 overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-10 text-center space-y-6">
+                            <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto scale-110 shadow-inner">
+                                <CheckCircle2 size={42} strokeWidth={2.5} />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Feedback given!</h3>
+                                <p className="text-slate-500 font-medium text-sm">
+                                    Your response has been recorded successfully.
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => window.location.reload()}
+                                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm transition-all shadow-lg shadow-emerald-600/20 active:scale-95"
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
