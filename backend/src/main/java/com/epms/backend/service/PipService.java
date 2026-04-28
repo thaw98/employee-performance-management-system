@@ -113,7 +113,10 @@ public class PipService {
         }).toList();
 
         pip.setObjectives(objectives);
-        return pipRepository.save(pip);
+
+        Pip savedPip = pipRepository.save(pip);
+        syncTrainingRecords(savedPip);
+        return savedPip;
     }
 
     public List<Pip> getManagerPips(User manager) {
@@ -248,7 +251,9 @@ public class PipService {
 
         progressUpdateRepository.save(update);
         pipRepository.save(pip);
-        return objectiveRepository.save(objective);
+        PipObjective savedObjective = objectiveRepository.save(objective);
+        syncTrainingRecord(pip, savedObjective);
+        return savedObjective;
     }
 
     @Transactional
@@ -432,10 +437,72 @@ public class PipService {
         }
     }
 
+    @Transactional
     public List<TrainingRecord> getEmployeeTrainingHistory(Long employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
-        return trainingRepository.findByEmployee(employee);
+        pipRepository.findByEmployee(employee).forEach(this::syncTrainingRecords);
+        return trainingRepository.findByEmployee_IdOrderByStartDateDescCreatedDateDesc(employeeId);
+    }
+
+    private void syncTrainingRecords(Pip pip) {
+        if (pip.getObjectives() == null) {
+            return;
+        }
+        pip.getObjectives().forEach(objective -> syncTrainingRecord(pip, objective));
+    }
+
+    private void syncTrainingRecord(Pip pip, PipObjective objective) {
+        if (pip == null || objective == null || objective.getDescription() == null
+                || objective.getDescription().trim().isEmpty()) {
+            return;
+        }
+
+        String trainingName = objective.getDescription().trim();
+        TrainingRecord record = trainingRepository
+                .findFirstByPipAndEmployeeAndTrainingName(pip, pip.getEmployee(), trainingName)
+                .orElseGet(() -> {
+                    TrainingRecord newRecord = new TrainingRecord();
+                    newRecord.setEmployee(pip.getEmployee());
+                    newRecord.setPip(pip);
+                    newRecord.setTrainingName(trainingName);
+                    newRecord.setCreatedDate(Instant.now());
+                    return newRecord;
+                });
+
+        record.setTrainingProvider(pip.getManager() == null ? null : pip.getManager().getEmployeeName());
+        String status = resolveTrainingStatus(objective.getProgressPercentage());
+        record.setStartDate(pip.getStartDate() == null ? LocalDate.now() : pip.getStartDate());
+        record.setEndDate(resolveTrainingEndDate(pip, objective, record, status));
+        record.setCompletionStatus(status);
+        record.setCertificationReceived(Boolean.FALSE);
+        record.setNotes("PIP objective #" + (objective.getId() == null ? "pending" : objective.getId()));
+        record.setUpdatedDate(Instant.now());
+        trainingRepository.save(record);
+    }
+
+    private LocalDate resolveTrainingEndDate(Pip pip, PipObjective objective, TrainingRecord record, String status) {
+        if ("COMPLETED".equals(status)) {
+            if ("COMPLETED".equals(record.getCompletionStatus()) && record.getEndDate() != null) {
+                return record.getEndDate();
+            }
+            return LocalDate.now();
+        }
+        if (objective.getDueDate() != null) {
+            return objective.getDueDate();
+        }
+        return pip.getEndDate();
+    }
+
+    private String resolveTrainingStatus(Integer progressPercentage) {
+        int progress = progressPercentage == null ? 0 : progressPercentage;
+        if (progress >= 100) {
+            return "COMPLETED";
+        }
+        if (progress > 0) {
+            return "IN_PROGRESS";
+        }
+        return "NOT_STARTED";
     }
 
     public List<PipProgressUpdate> getObjectiveHistory(Long objectiveId) {
