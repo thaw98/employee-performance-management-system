@@ -76,29 +76,47 @@ export function SystemSettingsPage() {
     }
   }
 
-  const getPreviewDates = () => {
+  const getAllCycles = () => {
     const isBudget = yearType === 'Budget Year'
-    const startObj = new Date()
-    startObj.setMonth(isBudget ? 3 : 0) // April is 0-indexed 3, January is 0
-    startObj.setDate(1)
-
-    const startStr = startObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+    const durationMonths = duration.includes('Months') ? parseInt(duration.split(' ')[0]) : 12
+    const startMonth = isBudget ? 3 : 0 // April is 3, Jan is 0
     
-    let endObj = new Date(startObj)
-    if (duration.includes('Months')) {
-      const m = parseInt(duration.split(' ')[0])
-      endObj.setMonth(startObj.getMonth() + m)
-      endObj.setDate(0) // Last day of previous month
-    } else {
-      endObj.setFullYear(startObj.getFullYear() + 1)
-      endObj.setDate(0)
+    const cycles = []
+    const today = new Date()
+    const currentYear = today.getFullYear()
+    
+    // We treat the "Year" as starting from startMonth of currentYear
+    // For Budget Year, if today is Jan-Mar, the "Cycle Year" started April last year.
+    // However, for simplicity in "Preview", we show cycles for the organizational year that contains today.
+    
+    let orgYearStart = new Date(currentYear, startMonth, 1)
+    if (isBudget && today < orgYearStart) {
+      orgYearStart.setFullYear(currentYear - 1)
     }
-
-    const endStr = endObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
-    return { start: startStr, end: endStr }
+    
+    for (let i = 0; i < 12; i += durationMonths) {
+      const cycleStart = new Date(orgYearStart)
+      cycleStart.setMonth(orgYearStart.getMonth() + i)
+      
+      const cycleEnd = new Date(cycleStart)
+      cycleEnd.setMonth(cycleStart.getMonth() + durationMonths)
+      cycleEnd.setDate(0)
+      
+      const isCurrent = today >= cycleStart && today <= cycleEnd
+      
+      cycles.push({
+        start: cycleStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        end: cycleEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        isCurrent
+      })
+      
+      if (durationMonths >= 12) break
+    }
+    
+    return cycles
   }
 
-  const dates = getPreviewDates()
+  const cycles = getAllCycles()
 
   const handleThemeChange = (newTheme: 'light' | 'dark' | 'wallpaper') => {
     setTheme(newTheme)
@@ -354,35 +372,77 @@ export function SystemSettingsPage() {
                         <input 
                           type="number" 
                           min="1" 
-                          max="60"
-                          value={parseInt(duration.split(' ')[0]) || 3}
-                          onChange={(e) => setDuration(`${e.target.value} Months`)}
+                          max="12"
+                          value={duration.includes('Months') && duration.split(' ')[0] !== '' ? duration.split(' ')[0] : ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') {
+                              setDuration(' Months');
+                              return;
+                            }
+                            let num = parseInt(val);
+                            if (isNaN(num)) return;
+                            if (num > 12) num = 12;
+                            if (num < 1) num = 1;
+                            setDuration(`${num} Months`);
+                          }}
+                          onBlur={() => {
+                            if (duration === ' Months' || parseInt(duration.split(' ')[0]) < 1) {
+                              setDuration('1 Months');
+                            }
+                          }}
                           className="w-24 bg-slate-50 dark:bg-slate-800 border-2 border-emerald-500/30 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 focus:border-emerald-500 outline-none transition-all"
                         />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Months Range</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Months Range (1-12)</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="flex flex-col justify-center">
-                  <div className="bg-[#115e59] text-white p-6 rounded-3xl space-y-4 shadow-xl shadow-emerald-900/20">
-                    <div className="flex items-center gap-3">
-                       <div className="p-2 bg-white/20 rounded-xl">
-                          <Info size={16} />
-                       </div>
-                       <div className="text-[10px] font-black uppercase tracking-widest">Active Cycle Summary</div>
-                    </div>
-                    <div className="space-y-1">
-                       <div className="text-xl font-black">{dates.start} — {dates.end}</div>
-                       <div className="text-[10px] font-bold text-emerald-100/50 uppercase tracking-widest">{yearType} • {duration} Period</div>
-                    </div>
-                    <div className="pt-4 mt-4 border-t border-white/10 flex items-center gap-2">
-                       <CheckCircle2 size={14} className="text-emerald-400" />
-                       <span className="text-[10px] font-medium text-emerald-100/70 italic">Calculated automatically for the system.</span>
+                  <div className="flex flex-col justify-center">
+                    <div className="bg-[#115e59] text-white p-8 rounded-3xl space-y-6 shadow-xl shadow-emerald-900/20 relative overflow-hidden">
+                      {/* Decorative Background Element */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 -mr-10 -mt-10 rounded-full blur-2xl" />
+                      
+                      <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white/20 rounded-xl">
+                               <Clock size={16} />
+                            </div>
+                            <div className="text-[10px] font-black uppercase tracking-widest">Active Cycle Summary</div>
+                         </div>
+                         <div className="text-[10px] bg-emerald-400/20 text-emerald-200 px-2 py-1 rounded-lg font-bold border border-emerald-400/20">
+                            {yearType}
+                         </div>
+                      </div>
+
+                      <div className="space-y-3 relative z-10">
+                         {cycles.map((c, idx) => (
+                           <div 
+                             key={idx} 
+                             className={`p-4 rounded-2xl transition-all duration-300 flex items-center justify-between border ${
+                               c.isCurrent 
+                               ? 'bg-white text-emerald-900 border-white shadow-lg scale-[1.02]' 
+                               : 'bg-emerald-800/40 border-emerald-700/50 text-emerald-100/60'
+                             }`}
+                           >
+                              <div className="flex flex-col">
+                                 <span className={`text-[10px] font-black uppercase tracking-tighter ${c.isCurrent ? 'text-emerald-600' : 'text-emerald-400/50'}`}>
+                                    Cycle {idx + 1}
+                                 </span>
+                                 <span className="text-sm font-black tracking-tight">{c.start} — {c.end}</span>
+                              </div>
+                              {c.isCurrent && (
+                                <div className="flex items-center gap-1.5 bg-emerald-100 text-emerald-600 px-2.5 py-1 rounded-full animate-pulse">
+                                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                                   <span className="text-[9px] font-black uppercase tracking-widest">Active Now</span>
+                                </div>
+                              )}
+                           </div>
+                         ))}
+                      </div>
                     </div>
                   </div>
-                </div>
               </div>
             </div>
           </div>
