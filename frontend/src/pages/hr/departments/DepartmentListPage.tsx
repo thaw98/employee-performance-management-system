@@ -71,6 +71,8 @@ const normalizeDepartmentRow = (row: unknown): DepartmentDto | null => {
   const departmentCode = String(getAliasValue(row, ['departmentCode', 'department_code', 'departmentcode', 'deptCode', 'code']) ?? '').trim()
   const departmentName = String(getAliasValue(row, ['departmentName', 'department_name', 'departmentname', 'deptName', 'name']) ?? '').trim()
   const rawStatus = getAliasValue(row, ['status', 'departmentStatus', 'isActive', 'active', 'enabled'])
+  const rawManagerId = getAliasValue(row, ['managerId', 'manager_id', 'managerid'])
+  const managerId = Number(rawManagerId)
 
   const normalizedStatus =
     String(rawStatus ?? '').trim().toLowerCase() === 'inactive' ||
@@ -84,7 +86,10 @@ const normalizeDepartmentRow = (row: unknown): DepartmentDto | null => {
     departmentCode,
     departmentName,
     status: normalizedStatus,
-    managerId: Number(getAliasValue(row, ['managerId', 'manager_id', 'managerid']) ?? 0) || 0,
+    managerId:
+      rawManagerId === undefined || rawManagerId === null || rawManagerId === '' || !Number.isFinite(managerId)
+        ? null
+        : managerId,
     managerName: String(getAliasValue(row, ['managerName', 'manager_name', 'managername']) ?? ''),
     createdDate: String(getAliasValue(row, ['createdDate', 'created_date']) ?? ''),
     updatedDate: String(getAliasValue(row, ['updatedDate', 'updated_date']) ?? ''),
@@ -95,6 +100,16 @@ const getDepartmentCodeForDisplay = (row: DepartmentDto): string => {
   const raw = row as unknown as Record<string, unknown>
   const code = getAliasValue(raw, ['departmentCode', 'department_code', 'departmentcode', 'deptCode', 'code'])
   return String(code ?? '').trim()
+}
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === 'object' && error !== null && 'data' in error) {
+    const data = (error as { data?: { message?: unknown } }).data
+    if (typeof data?.message === 'string' && data.message.trim()) {
+      return data.message
+    }
+  }
+  return fallback
 }
 
 export default function DepartmentListPage() {
@@ -293,8 +308,8 @@ export default function DepartmentListPage() {
       await loadDepartments()
       toast.success('Department deleted successfully.')
       setIsDeleteOpen(false)
-    } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to delete department.')
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Failed to delete department.'))
     }
   }
 
