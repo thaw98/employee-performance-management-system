@@ -130,7 +130,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ManagerOptionDto> getAllManagers() {
+    public List<ManagerOptionDto> getAllManagers(Long departmentId) {
         String sql = """
                 SELECT
                     e.employee_id,
@@ -139,11 +139,41 @@ public class DepartmentServiceImpl implements DepartmentService {
                     COALESCE(d.department_name, '') AS department_name,
                     COALESCE(p.position_name, '') AS position_name
                 FROM employee e
-                INNER JOIN user_account u ON e.employee_id = u.employee_id
+                LEFT JOIN user_account u ON e.employee_id = u.employee_id
                 LEFT JOIN department d ON e.department_id = d.department_id
                 LEFT JOIN position p ON e.position_id = p.position_id
-                WHERE u.role_id = 2
-                    AND e.employment_status = 'ACTIVE'
+                WHERE (
+                    EXISTS (
+                        SELECT 1
+                        FROM department current_department
+                        WHERE current_department.department_id = ?
+                            AND current_department.manager_id = e.employee_id
+                    )
+                    OR (
+                        e.employment_status = 'ACTIVE'
+                        AND (
+                            u.role_id = 2
+                            OR EXISTS (
+                                SELECT 1
+                                FROM department assigned
+                                WHERE assigned.manager_id = e.employee_id
+                            )
+                        )
+                        AND (
+                            NOT EXISTS (
+                                SELECT 1
+                                FROM department assigned_department
+                                WHERE assigned_department.manager_id = e.employee_id
+                            )
+                            OR EXISTS (
+                                SELECT 1
+                                FROM department current_department
+                                WHERE current_department.department_id = ?
+                                    AND current_department.manager_id = e.employee_id
+                            )
+                        )
+                    )
+                )
                 ORDER BY e.full_name ASC
                 """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new ManagerOptionDto(
@@ -151,7 +181,7 @@ public class DepartmentServiceImpl implements DepartmentService {
                 rs.getString("full_name"),
                 rs.getString("staff_no"),
                 rs.getString("department_name"),
-                rs.getString("position_name")));
+                rs.getString("position_name")), departmentId, departmentId);
     }
 
     @Override

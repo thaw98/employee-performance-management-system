@@ -11,7 +11,7 @@ export interface DepartmentDto {
   departmentCode: string
   departmentName: string
   status: 'Active' | 'Inactive'
-  managerId: number
+  managerId: number | null
   managerName: string
   createdDate: string
   updatedDate: string
@@ -20,7 +20,7 @@ export interface DepartmentDto {
 export interface CreateDepartmentRequest {
   departmentCode: string
   departmentName: string
-  managerId: number
+  managerId: number | null
   status?: 'Active' | 'Inactive'
 }
 
@@ -28,5 +28,5 @@ export interface UpdateDepartmentRequest {
   departmentCode: string
   departmentName: string
   status: 'Active' | 'Inactive'
-  managerId: number
+  managerId: number | null
 }

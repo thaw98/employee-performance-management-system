@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.epms.backend.common.ApiResponse;
@@ -54,8 +55,21 @@ public class DepartmentRestController {
 
 	@GetMapping("/managers")
 	@PreAuthorize("hasRole('HR')")
-	public ResponseEntity<ApiResponse<List<ManagerOptionDto>>> getAllManagers() {
-		return ResponseEntity.ok(ApiResponse.ok("Managers fetched successfully.", departmentService.getAllManagers()));
+	public ResponseEntity<ApiResponse<List<ManagerOptionDto>>> getAllManagers(
+			@RequestParam(name = "departmentId", required = false) Long departmentId) {
+		return ResponseEntity.ok(ApiResponse.ok("Managers fetched successfully.", departmentService.getAllManagers(departmentId)));
+	}
+
+	@GetMapping("/managers/available")
+	@PreAuthorize("hasRole('HR')")
+	public ResponseEntity<ApiResponse<List<ManagerOptionDto>>> getAvailableManagersForCreate() {
+		return ResponseEntity.ok(ApiResponse.ok("Available managers fetched successfully.", departmentService.getAllManagers(null)));
+	}
+
+	@GetMapping("/{id}/managers")
+	@PreAuthorize("hasRole('HR')")
+	public ResponseEntity<ApiResponse<List<ManagerOptionDto>>> getManagersForDepartmentEdit(@PathVariable Long id) {
+		return ResponseEntity.ok(ApiResponse.ok("Department managers fetched successfully.", departmentService.getAllManagers(id)));
 	}
 
 	@GetMapping("/{id}")
