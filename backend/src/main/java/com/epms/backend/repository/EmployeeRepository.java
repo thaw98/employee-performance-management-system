@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.repository.query.Param;
 
 import com.epms.backend.entity.Employee;
 
@@ -77,8 +78,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 			from Employee e
 			join fetch e.position p
 			join fetch p.role r
-			where r.id = 2
+			where r.id = :roleId
 			order by e.employeeName asc
 			""")
-	List<Employee> findDepartmentHeadOptions();
+	List<Employee> findByPositionRoleIdOrderByEmployeeNameAsc(@Param("roleId") Long roleId);
 }

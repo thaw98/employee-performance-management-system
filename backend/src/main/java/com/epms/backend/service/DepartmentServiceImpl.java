@@ -27,6 +27,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     private static final String STATUS_ACTIVE = "Active";
     private static final String STATUS_INACTIVE = "Inactive";
+    private static final Long DEPARTMENT_HEAD_ROLE_ID = 2L;
 
     @Override
     public List<DepartmentDto> getAllDepartments() {
@@ -39,9 +40,11 @@ public class DepartmentServiceImpl implements DepartmentService {
                     d.created_date,
                     d.updated_date,
                     d.manager_id,
-                    e.full_name AS manager_name
+                    CASE WHEN r.id = ? THEN e.full_name ELSE NULL END AS manager_name
                 FROM department d
                 LEFT JOIN employee e ON e.employee_id = d.manager_id
+                LEFT JOIN position p ON p.position_id = e.position_id
+                LEFT JOIN role r ON r.id = p.role_id
                 ORDER BY d.department_id ASC
                 """, (rs, rowNum) -> DepartmentDto.builder()
                 .departmentId(rs.getLong("department_id"))
@@ -52,7 +55,7 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .updatedDate(rs.getTimestamp("updated_date") == null ? null : rs.getTimestamp("updated_date").toInstant())
                 .managerId(rs.getObject("manager_id", Long.class))
                 .managerName(rs.getString("manager_name"))
-                .build());
+                .build(), DEPARTMENT_HEAD_ROLE_ID);
     }
 
     @Override
@@ -152,7 +155,8 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .createdDate(department.getCreatedDate())
                 .updatedDate(department.getUpdatedDate())
                 .managerId(managerId)
-                .managerName(managerId == null ? null : departmentRepository.findManagerNameById(managerId).orElse(null))
+                .managerName(managerId == null ? null
+                        : departmentRepository.findManagerNameByIdAndRoleId(managerId, DEPARTMENT_HEAD_ROLE_ID).orElse(null))
                 .build();
     }
 
@@ -160,7 +164,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         if (managerId == null) {
             throw new IllegalArgumentException("Manager is required.");
         }
-        departmentRepository.findManagerNameById(managerId)
+        departmentRepository.findManagerNameByIdAndRoleId(managerId, DEPARTMENT_HEAD_ROLE_ID)
                 .orElseThrow(() -> new IllegalArgumentException("Manager must be a Department Head."));
         return managerId;
     }
