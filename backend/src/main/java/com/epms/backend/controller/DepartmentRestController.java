@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.department.CreateDepartmentRequest;
 import com.epms.backend.dto.department.DepartmentDto;
+import com.epms.backend.dto.department.ManagerOptionDto;
 import com.epms.backend.dto.department.UpdateDepartmentRequest;
 import com.epms.backend.dto.hr.DepartmentOptionDto;
 import com.epms.backend.entity.Department;
@@ -49,6 +50,12 @@ public class DepartmentRestController {
 	@PreAuthorize("hasRole('HR')")
 	public ResponseEntity<ApiResponse<List<DepartmentDto>>> getAll() {
 		return ResponseEntity.ok(ApiResponse.ok("Departments fetched successfully.", departmentService.getAllDepartments()));
+	}
+
+	@GetMapping("/managers")
+	@PreAuthorize("hasRole('HR')")
+	public ResponseEntity<ApiResponse<List<ManagerOptionDto>>> getAllManagers() {
+		return ResponseEntity.ok(ApiResponse.ok("Managers fetched successfully.", departmentService.getAllManagers()));
 	}
 
 	@GetMapping("/{id}")

@@ -12,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.epms.backend.dto.department.CreateDepartmentRequest;
 import com.epms.backend.dto.department.DepartmentDto;
+import com.epms.backend.dto.department.ManagerOptionDto;
 import com.epms.backend.dto.department.UpdateDepartmentRequest;
 import com.epms.backend.entity.Department;
 import com.epms.backend.repository.DepartmentRepository;
@@ -36,15 +37,31 @@ public class DepartmentServiceImpl implements DepartmentService {
                     department_code,
                     department_name,
                     status,
+                    manager_id,
+                    manager_name,
                     created_date,
                     updated_date
-                FROM department
+                FROM (
+                    SELECT
+                        d.department_id,
+                        d.department_code,
+                        d.department_name,
+                        d.status,
+                        d.manager_id,
+                        e.full_name AS manager_name,
+                        d.created_date,
+                        d.updated_date
+                    FROM department d
+                    LEFT JOIN employee e ON d.manager_id = e.employee_id
+                ) departments
                 ORDER BY department_id ASC
                 """, (rs, rowNum) -> DepartmentDto.builder()
                 .departmentId(rs.getLong("department_id"))
                 .departmentCode(rs.getString("department_code"))
                 .departmentName(rs.getString("department_name"))
                 .status(rs.getString("status"))
+                .managerId(rs.getObject("manager_id", Long.class))
+                .managerName(rs.getString("manager_name"))
                 .createdDate(rs.getTimestamp("created_date") == null ? null : rs.getTimestamp("created_date").toInstant())
                 .updatedDate(rs.getTimestamp("updated_date") == null ? null : rs.getTimestamp("updated_date").toInstant())
                 .build());
@@ -75,6 +92,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         Department department = new Department();
         department.setCode(code);
         department.setName(name);
+        department.setManagerId(request.getManagerId());
         department.setStatus(request.getStatus() != null ? normalizeStatus(request.getStatus()) : STATUS_ACTIVE);
         department.setCreatedDate(Instant.now());
         department.setUpdatedDate(Instant.now());
@@ -102,11 +120,38 @@ public class DepartmentServiceImpl implements DepartmentService {
 
         department.setCode(code);
         department.setName(name);
+        department.setManagerId(request.getManagerId());
         department.setStatus(normalizeStatus(request.getStatus()));
         department.setUpdatedDate(Instant.now());
 
         Department saved = departmentRepository.save(department);
         return mapToDto(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ManagerOptionDto> getAllManagers() {
+        String sql = """
+                SELECT
+                    e.employee_id,
+                    e.full_name,
+                    e.staff_no,
+                    COALESCE(d.department_name, '') AS department_name,
+                    COALESCE(p.position_name, '') AS position_name
+                FROM employee e
+                INNER JOIN user_account u ON e.employee_id = u.employee_id
+                LEFT JOIN department d ON e.department_id = d.department_id
+                LEFT JOIN position p ON e.position_id = p.position_id
+                WHERE u.role_id = 2
+                    AND e.employment_status = 'ACTIVE'
+                ORDER BY e.full_name ASC
+                """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new ManagerOptionDto(
+                rs.getLong("employee_id"),
+                rs.getString("full_name"),
+                rs.getString("staff_no"),
+                rs.getString("department_name"),
+                rs.getString("position_name")));
     }
 
     @Override
@@ -141,8 +186,22 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .departmentCode(department.getCode())
                 .departmentName(department.getName())
                 .status(department.getStatus())
+                .managerId(department.getManagerId())
+                .managerName(getManagerName(department.getManagerId()))
                 .createdDate(department.getCreatedDate())
                 .updatedDate(department.getUpdatedDate())
                 .build();
+    }
+
+    private String getManagerName(Long managerId) {
+        if (managerId == null) {
+            return null;
+        }
+        String sql = "SELECT full_name FROM employee WHERE employee_id = ?";
+        try {
+            return jdbcTemplate.queryForObject(sql, String.class, managerId);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
