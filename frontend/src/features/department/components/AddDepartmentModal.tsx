@@ -1,15 +1,11 @@
-import { Fragment, useState } from 'react'
+import { Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { X, Save, Building2, Hash, AlertCircle, UserRound } from 'lucide-react'
-import { useCreateDepartmentMutation, useGetManagerOptionsQuery } from '../api/departmentApi'
-import ManagerAutocomplete from './ManagerAutocomplete'
-import type { ManagerOption } from '../types'
-
-const EMPTY_MANAGER_OPTIONS: ManagerOption[] = []
+import { X, Save, Building2, Hash, AlertCircle } from 'lucide-react'
+import { useCreateDepartmentMutation } from '../api/departmentApi'
 
 const departmentSchema = z.object({
   departmentCode: z.string().trim().min(1, 'Department code is required.'),
@@ -27,11 +23,6 @@ interface AddDepartmentModalProps {
 
 export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDepartmentModalProps) {
   const [createDepartment, { isLoading }] = useCreateDepartmentMutation()
-  const { data: managersData, isLoading: isLoadingManagers } = useGetManagerOptionsQuery(undefined, {
-    skip: !isOpen,
-  })
-  const managers = managersData ?? EMPTY_MANAGER_OPTIONS
-  const [managerId, setManagerId] = useState<number | null>(null)
 
   const {
     register,
@@ -44,17 +35,15 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
 
   const handleClose = () => {
     reset()
-    setManagerId(null)
     onClose()
   }
 
   const onSubmit = async (data: DepartmentFormValues) => {
     try {
-      await createDepartment({ ...data, managerId }).unwrap()
+      await createDepartment(data).unwrap()
       toast.success('Department created successfully.')
       await onSuccess?.()
       reset()
-      setManagerId(null)
       onClose()
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to create department.')
@@ -171,21 +160,6 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
                         {errors.departmentName.message}
                       </p>
                     )}
-                  </div>
-
-                  {/* Department Manager */}
-                  <div>
-                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                      <UserRound size={11} className="text-slate-400" />
-                      Department Manager
-                    </label>
-                    <ManagerAutocomplete
-                      managers={managers}
-                      value={managerId}
-                      onChange={setManagerId}
-                      disabled={isLoading || isLoadingManagers}
-                      placeholder={isLoadingManagers ? 'Loading managers...' : 'Select a manager'}
-                    />
                   </div>
 
                   {/* Divider */}

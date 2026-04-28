@@ -16,6 +16,4 @@ public class UpdateDepartmentRequest {
     @NotBlank(message = "Status is required.")
     @Pattern(regexp = "^(?i)(Active|Inactive)$", message = "Status must be Active or Inactive.")
     private String status;
-
-    private Long managerId;
 }

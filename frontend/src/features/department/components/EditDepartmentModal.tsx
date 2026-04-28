@@ -1,15 +1,12 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { X, Save, Pencil, Building2, Hash, AlertCircle, UserRound } from 'lucide-react'
-import { useGetManagerOptionsQuery, useUpdateDepartmentMutation } from '../api/departmentApi'
-import ManagerAutocomplete from './ManagerAutocomplete'
-import type { DepartmentDto, ManagerOption } from '../types'
-
-const EMPTY_MANAGER_OPTIONS: ManagerOption[] = []
+import { X, Save, Pencil, Building2, Hash, AlertCircle } from 'lucide-react'
+import { useUpdateDepartmentMutation } from '../api/departmentApi'
+import type { DepartmentDto } from '../types'
 
 const departmentSchema = z.object({
   departmentCode: z.string().trim().min(1, 'Department code is required.'),
@@ -29,11 +26,6 @@ interface EditDepartmentModalProps {
 
 export default function EditDepartmentModal({ isOpen, onClose, department, onSuccess }: EditDepartmentModalProps) {
   const [updateDepartment, { isLoading }] = useUpdateDepartmentMutation()
-  const { data: managersData, isLoading: isLoadingManagers } = useGetManagerOptionsQuery(undefined, {
-    skip: !isOpen,
-  })
-  const managers = managersData ?? EMPTY_MANAGER_OPTIONS
-  const [managerId, setManagerId] = useState<number | null>(null)
 
   const normalizeFormStatus = (value: unknown): DepartmentFormValues['status'] => {
     return String(value ?? '').trim().toLowerCase() === 'inactive' ? 'Inactive' : 'Active'
@@ -58,25 +50,10 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
     }
   }, [department, reset])
 
-  useEffect(() => {
-    if (!isOpen || !department) {
-      setManagerId(null)
-      return
-    }
-
-    if (department.managerId != null) {
-      setManagerId(department.managerId)
-      return
-    }
-
-    const currentManager = managers.find((manager) => manager.departmentId === department.departmentId)
-    setManagerId(currentManager?.employeeId ?? null)
-  }, [department, isOpen, managers])
-
   const onSubmit = async (data: DepartmentFormValues) => {
     if (!department) return
     try {
-      await updateDepartment({ id: department.departmentId, body: { ...data, managerId } }).unwrap()
+      await updateDepartment({ id: department.departmentId, body: data }).unwrap()
       toast.success('Department updated successfully.')
       await onSuccess?.()
       onClose()
@@ -196,21 +173,6 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
                         {errors.departmentName.message}
                       </p>
                     )}
-                  </div>
-
-                  {/* Department Manager */}
-                  <div>
-                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                      <UserRound size={11} className="text-slate-400" />
-                      Department Manager
-                    </label>
-                    <ManagerAutocomplete
-                      managers={managers}
-                      value={managerId}
-                      onChange={setManagerId}
-                      disabled={isLoading || isLoadingManagers}
-                      placeholder={isLoadingManagers ? 'Loading managers...' : 'Select a manager'}
-                    />
                   </div>
 
                   {/* Status */}
