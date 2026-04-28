@@ -160,6 +160,10 @@ public class UserService {
             user.setTimezone(request.getTimezone());
         }
 
+        if (request.getTimeFormat() != null && !request.getTimeFormat().isBlank()) {
+            user.setTimeFormat(request.getTimeFormat());
+        }
+
         employeeRepository.save(employee);
         userRepository.save(user);
 
@@ -182,6 +186,7 @@ public class UserService {
                 user.getTheme(),
                 user.getWallpaperUrl(),
                 user.getLanguage(),
-                user.getTimezone());
+                user.getTimezone(),
+                user.getTimeFormat());
     }
 }
