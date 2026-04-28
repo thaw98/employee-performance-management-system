@@ -24,6 +24,7 @@ export const baseApi = createApi({
     'Department',
     'EmployeeTransfer',
     'Position',
+    'LevelCode',
     'PositionDepartments',
     'DepartmentPositions',
     'Lookup',

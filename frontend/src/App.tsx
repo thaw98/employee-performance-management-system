@@ -44,6 +44,7 @@ import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
 import DepartmentDetailPage from './pages/hr/departments/DepartmentDetailPage';
 import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
 import PositionListPage from './features/position/pages/PositionListPage';
+import LevelCodeListPage from './features/levelCode/pages/LevelCodeListPage';
 
 function App() {
   return (
@@ -70,6 +71,7 @@ function App() {
             <Route path="departments" element={<DepartmentListPage />} />
             <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
             <Route path="positions" element={<PositionListPage />} />
+            <Route path="level-codes" element={<LevelCodeListPage />} />
 
             <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
             <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
