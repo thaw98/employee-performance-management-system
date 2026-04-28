@@ -4,15 +4,17 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { X, Save, Building2, Hash, AlertCircle } from 'lucide-react'
-import { useCreateDepartmentMutation } from '../api/departmentApi'
+import { X, Save, Building2, Hash, AlertCircle, UserRound } from 'lucide-react'
+import { useCreateDepartmentMutation, useListDepartmentManagersQuery } from '../api/departmentApi'
 
 const departmentSchema = z.object({
   departmentCode: z.string().trim().min(1, 'Department code is required.'),
   departmentName: z.string().trim().min(1, 'Department name is required.'),
+  managerId: z.coerce.number().min(1, 'Manager is required.'),
 })
 
-type DepartmentFormValues = z.infer<typeof departmentSchema>
+type DepartmentFormInput = z.input<typeof departmentSchema>
+type DepartmentFormValues = z.output<typeof departmentSchema>
 
 interface AddDepartmentModalProps {
   isOpen: boolean
@@ -23,13 +25,15 @@ interface AddDepartmentModalProps {
 
 export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDepartmentModalProps) {
   const [createDepartment, { isLoading }] = useCreateDepartmentMutation()
+  const { data: managersResponse, isLoading: isManagersLoading } = useListDepartmentManagersQuery(undefined, { skip: !isOpen })
+  const managers = managersResponse?.data ?? []
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<DepartmentFormValues>({
+  } = useForm<DepartmentFormInput, unknown, DepartmentFormValues>({
     resolver: zodResolver(departmentSchema),
   })
 
@@ -162,6 +166,38 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
                     )}
                   </div>
 
+                  {/* Manager */}
+                  <div>
+                    <label htmlFor="add-dept-manager" className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                      <UserRound size={11} className="text-slate-400" />
+                      Manager <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="add-dept-manager"
+                      {...register('managerId', { setValueAs: (value) => (value === '' ? 0 : Number(value)) })}
+                      disabled={isManagersLoading}
+                      className={`w-full px-4 py-2.5 rounded-xl border text-sm font-medium transition-all outline-none cursor-pointer
+                        focus:ring-2 focus:ring-offset-0
+                        ${errors.managerId
+                          ? 'border-red-300 bg-red-50/50 focus:border-red-400 focus:ring-red-100 text-red-900'
+                          : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-400 focus:ring-blue-100 text-slate-800'
+                        }`}
+                    >
+                      <option value="">{isManagersLoading ? 'Loading managers...' : 'Select manager'}</option>
+                      {managers.map((manager) => (
+                        <option key={manager.employeeId} value={manager.employeeId}>
+                          {manager.employeeName}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.managerId && (
+                      <p className="mt-2 text-xs text-red-600 font-medium flex items-center gap-1.5">
+                        <AlertCircle size={12} />
+                        {errors.managerId.message}
+                      </p>
+                    )}
+                  </div>
+
                   {/* Divider */}
                   <div className="border-t border-slate-100 pt-1" />
 
@@ -177,7 +213,7 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
                     </button>
                     <button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={isLoading || isManagersLoading}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
                         bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold
                         shadow-lg shadow-blue-600/25 hover:from-blue-700 hover:to-indigo-700

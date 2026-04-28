@@ -17,6 +17,7 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Building2, CheckCircle2, XCircle, LayoutGrid, AlertTriangle, BriefcaseBusiness,
   Loader2,
+  UserRound,
 } from 'lucide-react'
 
 import {
@@ -71,6 +72,9 @@ const normalizeDepartmentRow = (row: unknown): DepartmentDto | null => {
   const departmentCode = String(getAliasValue(row, ['departmentCode', 'department_code', 'departmentcode', 'deptCode', 'code']) ?? '').trim()
   const departmentName = String(getAliasValue(row, ['departmentName', 'department_name', 'departmentname', 'deptName', 'name']) ?? '').trim()
   const rawStatus = getAliasValue(row, ['status', 'departmentStatus', 'isActive', 'active', 'enabled'])
+  const managerIdValue = getAliasValue(row, ['managerId', 'manager_id', 'managerid'])
+  const managerId = managerIdValue === undefined || managerIdValue === null || managerIdValue === '' ? null : Number(managerIdValue)
+  const managerNameValue = getAliasValue(row, ['managerName', 'manager_name', 'managername'])
 
   const normalizedStatus =
     String(rawStatus ?? '').trim().toLowerCase() === 'inactive' ||
@@ -86,6 +90,8 @@ const normalizeDepartmentRow = (row: unknown): DepartmentDto | null => {
     status: normalizedStatus,
     createdDate: String(getAliasValue(row, ['createdDate', 'created_date']) ?? ''),
     updatedDate: String(getAliasValue(row, ['updatedDate', 'updated_date']) ?? ''),
+    managerId: managerId !== null && Number.isFinite(managerId) ? managerId : null,
+    managerName: managerNameValue === undefined || managerNameValue === null ? null : String(managerNameValue),
   }
 }
 
@@ -206,6 +212,16 @@ export default function DepartmentListPage() {
             </span>
           )
         },
+      },
+      {
+        accessorKey: 'managerName',
+        header: 'Manager',
+        cell: (info) => (
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <UserRound size={15} className="text-slate-400" />
+            <span>{String(info.getValue() ?? '').trim() || 'Unassigned'}</span>
+          </div>
+        ),
       },
       {
         id: 'actions',

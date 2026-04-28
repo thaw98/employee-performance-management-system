@@ -20,6 +20,8 @@ public class DepartmentDto {
     private String status;
     private Instant createdDate;
     private Instant updatedDate;
+    private Long managerId;
+    private String managerName;
 
     @JsonProperty("id")
     public Long getId() {

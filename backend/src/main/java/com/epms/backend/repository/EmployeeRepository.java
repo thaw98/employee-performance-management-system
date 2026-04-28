@@ -71,4 +71,14 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 			order by e.id asc
 			""")
 	List<Employee> findAllForExport();
+
+	@Query("""
+			select e
+			from Employee e
+			join fetch e.position p
+			join fetch p.role r
+			where r.id = 2
+			order by e.employeeName asc
+			""")
+	List<Employee> findDepartmentHeadOptions();
 }
