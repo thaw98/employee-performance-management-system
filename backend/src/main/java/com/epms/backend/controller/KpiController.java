@@ -1,6 +1,7 @@
 package com.epms.backend.controller;
 
 import com.epms.backend.dto.KpiDto;
+import com.epms.backend.dto.PositionKpiDto;
 import com.epms.backend.service.KpiService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,10 +23,43 @@ public class KpiController {
         return ResponseEntity.ok(kpiService.getKpisByEmployeeAndPeriod(employeeId, period));
     }
 
+    @GetMapping("/latest/{employeeId}")
+    public ResponseEntity<List<KpiDto>> getLatestKpisByEmployee(@PathVariable Long employeeId) {
+        return ResponseEntity.ok(kpiService.getLatestKpisByEmployee(employeeId));
+    }
+
+    @GetMapping("/latest-date/{employeeId}")
+    public ResponseEntity<java.util.Map<String, String>> getLatestUpdatedDateByEmployee(@PathVariable Long employeeId) {
+        java.time.Instant latest = kpiService.getLatestUpdatedDate(employeeId);
+        return ResponseEntity.ok(java.util.Map.of("latestDate", latest != null ? latest.toString() : ""));
+    }
+
+    @GetMapping("/periods/{employeeId}")
+    public ResponseEntity<List<String>> getEmployeeKpiPeriods(@PathVariable Long employeeId) {
+        return ResponseEntity.ok(kpiService.getEmployeeKpiPeriods(employeeId));
+    }
+
     @PostMapping("/setup")
     public ResponseEntity<List<KpiDto>> setupKpis(@RequestBody List<KpiDto> kpiDtos) {
         try {
             return ResponseEntity.ok(kpiService.saveKpis(kpiDtos));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/position")
+    public ResponseEntity<List<PositionKpiDto>> getPositionKpis(
+            @RequestParam Long departmentId,
+            @RequestParam Long positionId,
+            @RequestParam String period) {
+        return ResponseEntity.ok(kpiService.getPositionKpis(departmentId, positionId, period));
+    }
+
+    @PostMapping("/position/setup")
+    public ResponseEntity<List<PositionKpiDto>> setupPositionKpis(@RequestBody List<PositionKpiDto> dtoList) {
+        try {
+            return ResponseEntity.ok(kpiService.savePositionKpis(dtoList));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(null);
         }

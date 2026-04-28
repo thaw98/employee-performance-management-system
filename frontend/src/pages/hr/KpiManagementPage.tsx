@@ -1,40 +1,90 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users } from 'lucide-react';
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
-import { useGetKpisByEmployeeQuery, useSetupKpisMutation } from '../../features/kpi/kpiApi';
-import type { Kpi } from '../../features/kpi/kpiApi';
+import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
+import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
+import {
+  useGetKpisByEmployeeQuery,
+  useSetupKpisMutation,
+  useGetPositionKpisQuery,
+  useSetupPositionKpisMutation
+} from '../../features/kpi/kpiApi';
+
 import { toast } from 'react-hot-toast';
 
 export const KpiManagementPage: React.FC = () => {
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [searchParams] = useSearchParams();
+  const initialEmpId = searchParams.get('employeeId');
+
+  const [mode, setMode] = useState<'individual' | 'position'>('individual');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(initialEmpId ? Number(initialEmpId) : null);
+  const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
+  const [selectedPosId, setSelectedPosId] = useState<number | null>(null);
   const [period, setPeriod] = useState('2026-2027');
-  const [kpis, setKpis] = useState<Kpi[]>([]);
-
-  const { data: employeesResponse, isLoading: employeesLoading } = useGetEmployeesQuery({ size: 1000 });
-  const employees = employeesResponse?.data?.content || [];
-
-  const { data: existingKpis, isLoading: kpisLoading, refetch: refetchKpis } = useGetKpisByEmployeeQuery(
-    { employeeId: selectedEmployeeId!, period },
-    { skip: !selectedEmployeeId }
-  );
-
-  const [setupKpis, { isLoading: isSaving }] = useSetupKpisMutation();
+  const [kpis, setKpis] = useState<any[]>([]);
 
   useEffect(() => {
-    if (existingKpis && existingKpis.length > 0) {
-      setKpis(existingKpis);
-    } else {
-      setKpis([]);
+    if (initialEmpId) {
+      setSelectedEmployeeId(Number(initialEmpId));
+      setMode('individual');
     }
-  }, [existingKpis]);
+  }, [initialEmpId]);
+
+  // Individual Mode Data
+  const { data: employeesResponse } = useGetEmployeesQuery({ size: 1000 });
+  const employees = employeesResponse?.data?.content || [];
+
+  const { data: existingKpis, refetch: refetchKpis } = useGetKpisByEmployeeQuery(
+    { employeeId: selectedEmployeeId!, period },
+    { skip: mode !== 'individual' || !selectedEmployeeId }
+  );
+
+  // Position Mode Data
+  const { data: deptsResponse } = useGetDepartmentsQuery();
+  const departments = deptsResponse?.data || [];
+
+  const { data: positionsResponse } = useGetPositionsByDepartmentQuery(selectedDeptId!, { skip: !selectedDeptId });
+  const positions = positionsResponse?.data || [];
+
+  const { data: existingPosKpis, refetch: refetchPosKpis } = useGetPositionKpisQuery(
+    { departmentId: selectedDeptId!, positionId: selectedPosId!, period },
+    { skip: mode !== 'position' || !selectedDeptId || !selectedPosId }
+  );
+
+  const [setupKpis, { isLoading: isSavingInd }] = useSetupKpisMutation();
+  const [setupPosKpis, { isLoading: isSavingPos }] = useSetupPositionKpisMutation();
+
+  const isSaving = isSavingInd || isSavingPos;
+
+  useEffect(() => {
+    if (mode === 'individual') {
+      if (existingKpis && existingKpis.length > 0) {
+        setKpis(existingKpis);
+      } else {
+        setKpis([]);
+      }
+    } else {
+      if (existingPosKpis && existingPosKpis.length > 0) {
+        setKpis(existingPosKpis);
+      } else {
+        setKpis([]);
+      }
+    }
+  }, [existingKpis, existingPosKpis, mode]);
 
   const addKpiRow = () => {
-    if (!selectedEmployeeId) {
+    if (mode === 'individual' && !selectedEmployeeId) {
       toast.error('Please select an employee first');
       return;
     }
-    const newKpi: Kpi = {
-      employeeId: selectedEmployeeId,
+    if (mode === 'position' && (!selectedDeptId || !selectedPosId)) {
+      toast.error('Please select department and position first');
+      return;
+    }
+
+    const newKpi = mode === 'individual' ? {
+      employeeId: selectedEmployeeId!,
       name: '',
       category: '',
       target: '',
@@ -45,6 +95,15 @@ export const KpiManagementPage: React.FC = () => {
       weightedScore: 0,
       period,
       status: 'DRAFT'
+    } : {
+      departmentId: selectedDeptId!,
+      positionId: selectedPosId!,
+      name: '',
+      category: '',
+      target: '',
+      unit: '',
+      weight: 0,
+      period
     };
     setKpis([...kpis, newKpi]);
   };
@@ -55,12 +114,11 @@ export const KpiManagementPage: React.FC = () => {
     setKpis(newKpis);
   };
 
-  const handleInputChange = (index: number, field: keyof Kpi, value: any) => {
+  const handleInputChange = (index: number, field: string, value: any) => {
     const newKpis = [...kpis];
     (newKpis[index] as any)[field] = value;
 
-    // Recalculate score and weighted score if weight or actual/score changes
-    if (field === 'weight' || field === 'score') {
+    if (mode === 'individual' && (field === 'weight' || field === 'score')) {
       const weight = Number(newKpis[index].weight) || 0;
       const score = Number(newKpis[index].score) || 0;
       newKpis[index].weightedScore = (score * weight) / 100;
@@ -70,11 +128,15 @@ export const KpiManagementPage: React.FC = () => {
   };
 
   const totalWeight = kpis.reduce((sum, kpi) => sum + (Number(kpi.weight) || 0), 0);
-  const totalScore = kpis.reduce((sum, kpi) => sum + (Number(kpi.weightedScore) || 0), 0);
+  const totalScore = mode === 'individual' ? kpis.reduce((sum, kpi) => sum + (Number(kpi.weightedScore) || 0), 0) : null;
 
   const handleSave = async () => {
-    if (!selectedEmployeeId) {
+    if (mode === 'individual' && !selectedEmployeeId) {
       toast.error('Please select an employee');
+      return;
+    }
+    if (mode === 'position' && (!selectedDeptId || !selectedPosId)) {
+      toast.error('Please select department and position');
       return;
     }
 
@@ -83,7 +145,6 @@ export const KpiManagementPage: React.FC = () => {
       return;
     }
 
-    // Validation
     const invalidKpis = kpis.filter(kpi => !kpi.name || !kpi.category || !kpi.target || !kpi.weight);
     if (invalidKpis.length > 0) {
       toast.error('Please fill in all required fields (Name, Category, Target, Weight)');
@@ -96,9 +157,15 @@ export const KpiManagementPage: React.FC = () => {
     }
 
     try {
-      await setupKpis(kpis.map(k => ({ ...k, employeeId: selectedEmployeeId }))).unwrap();
-      toast.success('KPI setup saved successfully');
-      refetchKpis();
+      if (mode === 'individual') {
+        await setupKpis(kpis.map(k => ({ ...k, employeeId: selectedEmployeeId }))).unwrap();
+        toast.success('Individual KPI setup saved successfully');
+        refetchKpis();
+      } else {
+        await setupPosKpis(kpis.map(k => ({ ...k, departmentId: selectedDeptId, positionId: selectedPosId }))).unwrap();
+        toast.success('Position KPIs saved and applied to all employees');
+        refetchPosKpis();
+      }
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to save KPI setup');
     }
@@ -106,27 +173,90 @@ export const KpiManagementPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Mode Switcher */}
+      <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
+        <button
+          onClick={() => setMode('individual')}
+          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'individual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+        >
+          <User size={14} /> Individual
+        </button>
+        <button
+          onClick={() => setMode('position')}
+          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'position' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+        >
+          <Users size={14} /> Same Position
+        </button>
+      </div>
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
         <div className="flex-1">
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">KPI Modeler</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">Define performance targets and weights for employees.</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
+            {mode === 'individual' ? 'Individual KPI Modeler' : 'Same Position KPI Setup'}
+          </h1>
+          <p className="text-slate-500 text-sm font-medium mt-1">
+            {mode === 'individual'
+              ? 'Define performance targets and weights for specific employees.'
+              : 'Setup universal KPIs for all employees in a specific position/department.'}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee</span>
-            <select
-              className="bg-transparent border-none text-sm font-bold text-slate-900 focus:ring-0 outline-none min-w-[200px]"
-              value={selectedEmployeeId || ''}
-              onChange={(e) => setSelectedEmployeeId(Number(e.target.value))}
-            >
-              <option value="">Select Employee</option>
-              {employees.map(emp => (
-                <option key={emp.employeeId} value={emp.employeeId}>
-                  {emp.employeeName} ({emp.staffNo})
-                </option>
-              ))}
-            </select>
-          </div>
+          {mode === 'individual' ? (
+            <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee</span>
+              <select
+                className="bg-transparent border-none text-sm font-bold text-slate-900 focus:ring-0 outline-none min-w-[200px]"
+                value={selectedEmployeeId || ''}
+                onChange={(e) => setSelectedEmployeeId(Number(e.target.value))}
+              >
+                <option value="">Select Employee</option>
+                {employees.map(emp => (
+                  <option key={emp.employeeId} value={emp.employeeId}>
+                    {emp.employeeName} ({emp.staffNo})
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dept</span>
+                <select
+                  className="bg-transparent border-none text-sm font-bold text-slate-900 focus:ring-0 outline-none min-w-[150px]"
+                  value={selectedDeptId || ''}
+                  onChange={(e) => {
+                    setSelectedDeptId(Number(e.target.value));
+                    setSelectedPosId(null);
+                  }}
+                >
+                  <option value="">Select Department</option>
+                  {departments.map(dept => (
+                    <option key={dept.departmentId} value={dept.departmentId}>
+                      {dept.departmentName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pos</span>
+                <select
+                  className="bg-transparent border-none text-sm font-bold text-slate-900 focus:ring-0 outline-none min-w-[150px]"
+                  value={selectedPosId || ''}
+                  disabled={!selectedDeptId}
+                  onChange={(e) => setSelectedPosId(Number(e.target.value))}
+                >
+                  <option value="">Select Position</option>
+                  {positions.map(pos => (
+                    <option key={pos.positionId} value={pos.positionId}>
+                      {pos.positionName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
           <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Period</span>
             <select
@@ -145,7 +275,9 @@ export const KpiManagementPage: React.FC = () => {
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div className="flex items-center gap-4">
-            <h3 className="font-black text-slate-800 uppercase tracking-wider text-sm">KPI Setup Configuration</h3>
+            <h3 className="font-black text-slate-800 uppercase tracking-wider text-sm">
+              {mode === 'individual' ? 'Individual KPI Setup' : 'Position Template Setup'}
+            </h3>
             {totalWeight === 100 ? (
               <span className="flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-full border border-emerald-200 uppercase tracking-tighter">
                 <CheckCircle2 size={12} /> Valid Weight (100%)
@@ -172,10 +304,10 @@ export const KpiManagementPage: React.FC = () => {
                 <th className="py-4 px-6">Category</th>
                 <th className="py-4 px-6">Target</th>
                 <th className="py-4 px-6">Unit</th>
-                <th className="py-4 px-6">Actual</th>
+                {mode === 'individual' && <th className="py-4 px-6">Actual</th>}
                 <th className="py-4 px-6 text-center">Weight (%)</th>
-                <th className="py-4 px-6 text-center">Score (%)</th>
-                <th className="py-4 px-6 text-right">Weighted Score</th>
+                {mode === 'individual' && <th className="py-4 px-6 text-center">Score (%)</th>}
+                {mode === 'individual' && <th className="py-4 px-6 text-right">Weighted Score</th>}
                 <th className="py-4 px-6 text-center">Action</th>
               </tr>
             </thead>
@@ -224,15 +356,17 @@ export const KpiManagementPage: React.FC = () => {
                       onChange={(e) => handleInputChange(idx, 'unit', e.target.value)}
                     />
                   </td>
-                  <td className="py-3 px-6">
-                    <input
-                      type="text"
-                      className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none"
-                      placeholder="Actual"
-                      value={kpi.actual}
-                      onChange={(e) => handleInputChange(idx, 'actual', e.target.value)}
-                    />
-                  </td>
+                  {mode === 'individual' && (
+                    <td className="py-3 px-6">
+                      <input
+                        type="text"
+                        className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none"
+                        placeholder="Actual"
+                        value={kpi.actual}
+                        onChange={(e) => handleInputChange(idx, 'actual', e.target.value)}
+                      />
+                    </td>
+                  )}
                   <td className="py-3 px-6 text-center">
                     <input
                       type="number"
@@ -241,17 +375,21 @@ export const KpiManagementPage: React.FC = () => {
                       onChange={(e) => handleInputChange(idx, 'weight', Number(e.target.value))}
                     />
                   </td>
-                  <td className="py-3 px-6 text-center">
-                    <input
-                      type="number"
-                      className="w-20 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-black text-emerald-600 text-center focus:ring-2 focus:ring-emerald-200 outline-none"
-                      value={kpi.score}
-                      onChange={(e) => handleInputChange(idx, 'score', Number(e.target.value))}
-                    />
-                  </td>
-                  <td className="py-3 px-6 text-right font-black text-slate-900 text-sm">
-                    {(Number(kpi.weightedScore) || 0).toFixed(2)}
-                  </td>
+                  {mode === 'individual' && (
+                    <td className="py-3 px-6 text-center">
+                      <input
+                        type="number"
+                        className="w-20 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-black text-emerald-600 text-center focus:ring-2 focus:ring-emerald-200 outline-none"
+                        value={kpi.score}
+                        onChange={(e) => handleInputChange(idx, 'score', Number(e.target.value))}
+                      />
+                    </td>
+                  )}
+                  {mode === 'individual' && (
+                    <td className="py-3 px-6 text-right font-black text-slate-900 text-sm">
+                      {(Number(kpi.weightedScore) || 0).toFixed(2)}
+                    </td>
+                  )}
                   <td className="py-3 px-6 text-center">
                     <button
                       onClick={() => removeKpiRow(idx)}
@@ -264,7 +402,7 @@ export const KpiManagementPage: React.FC = () => {
               ))}
               {kpis.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center">
+                  <td colSpan={mode === 'individual' ? 9 : 6} className="py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
                         <Target size={32} />
@@ -283,18 +421,20 @@ export const KpiManagementPage: React.FC = () => {
             </tbody>
             <tfoot className="bg-slate-50/50 border-t border-slate-100">
               <tr className="font-black text-slate-900">
-                <td colSpan={5} className="py-6 px-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <td colSpan={mode === 'individual' ? 5 : 4} className="py-6 px-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Totals
                 </td>
                 <td className="py-6 px-6 text-center text-lg font-black text-blue-700">
                   {totalWeight}%
                 </td>
-                <td className="py-6 px-6 text-center text-slate-400">
-                  -
-                </td>
-                <td className="py-6 px-6 text-right text-2xl font-black text-indigo-700">
-                  {totalScore.toFixed(2)}
-                </td>
+                {mode === 'individual' && (
+                  <>
+                    <td className="py-6 px-6 text-center text-slate-400">-</td>
+                    <td className="py-6 px-6 text-right text-2xl font-black text-indigo-700">
+                      {totalScore?.toFixed(2)}
+                    </td>
+                  </>
+                )}
                 <td></td>
               </tr>
             </tfoot>
@@ -312,13 +452,17 @@ export const KpiManagementPage: React.FC = () => {
         <button
           onClick={handleSave}
           disabled={isSaving || totalWeight !== 100}
-          className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-xs font-black transition-all shadow-xl uppercase tracking-widest ${
-            isSaving || totalWeight !== 100
-              ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
-          }`}
+          className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-xs font-black transition-all shadow-xl uppercase tracking-widest ${isSaving || totalWeight !== 100
+            ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
+            }`}
         >
-          {isSaving ? 'Processing...' : <><Save size={18} /> Finalize KPI Setup</>}
+          {isSaving ? 'Processing...' : (
+            <>
+              <Save size={18} />
+              {mode === 'individual' ? 'Finalize Individual KPI' : 'Save & Apply to All Employees'}
+            </>
+          )}
         </button>
       </div>
     </div>

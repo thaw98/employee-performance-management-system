@@ -37,7 +37,7 @@ public class Position {
     @Column(name = "position_code", unique = true, length = 20)
     private String code;
 
-    @Column(name = "position_name", unique = true, length = 100)
+    @Column(name = "position_name", unique = true, length = 100)	
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)

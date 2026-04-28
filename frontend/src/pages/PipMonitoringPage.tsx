@@ -7,10 +7,9 @@ import type { RootState } from '../app/store'
 import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING_CREATION: 'bg-yellow-100 text-yellow-700',
-  PENDING_REOPEN: 'bg-orange-100 text-orange-700',
-  PENDING_CLOSE: 'bg-amber-100 text-amber-700',
   ACTIVE: 'bg-blue-100 text-blue-700',
+  AUTO_CLOSED: 'bg-amber-100 text-amber-700',
+  REOPEN_REQUESTED: 'bg-orange-100 text-orange-700',
   COMPLETED: 'bg-green-100 text-green-700',
   CLOSED: 'bg-slate-100 text-slate-700',
   DENIED: 'bg-red-100 text-red-700',
@@ -142,13 +141,13 @@ export default function PipMonitoringPage() {
   }, [pips, isHr])
 
   const location = useLocation()
-  const canCreate = isManager && !isHr // Only managers can create, HR is auditor/reviewer
+  const canCreate = isManager && !isHr
 
   const filteredPips = useMemo(() => {
     if (!pips) return []
     return pips.slice().sort((a, b) => {
-      const isAActive = ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN', 'PENDING_CLOSE'].includes(a.status)
-      const isBActive = ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN', 'PENDING_CLOSE'].includes(b.status)
+      const isAActive = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(a.status)
+      const isBActive = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(b.status)
       if (isAActive && !isBActive) return -1
       if (!isAActive && isBActive) return 1
       return 0
@@ -246,7 +245,7 @@ export default function PipMonitoringPage() {
             >
               <option value="">All Statuses</option>
               {Object.keys(STATUS_COLORS).map((s) => (
-                <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
               ))}
             </select>
           </div>
@@ -342,8 +341,14 @@ export default function PipMonitoringPage() {
                     </td>
                   )}
                   <td className="px-6 py-5 text-center">
-                    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${STATUS_COLORS[pip.status]}`}>
-                      {pip.status.replace('_', ' ')}
+                    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                      pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-100 text-green-700' :
+                      pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-100 text-red-700' :
+                      (STATUS_COLORS[pip.status] || 'bg-slate-100 text-slate-700')
+                    }`}>
+                      {pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'Close - Successful' :
+                       pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'Close - Fail' :
+                       pip.status.replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td className="px-6 py-5 text-sm text-slate-600 font-medium">

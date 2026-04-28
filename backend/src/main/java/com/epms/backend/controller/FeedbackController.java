@@ -7,6 +7,8 @@ import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.service.FeedbackService;
+import com.epms.backend.service.TimeSettingService;
+import com.epms.backend.dto.TimeSettingDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +27,7 @@ import java.util.stream.Collectors;
 public class FeedbackController {
 
     private final FeedbackService feedbackService;
+    private final TimeSettingService timeSettingService;
     private final UserRepository userRepository;
 
     @PostMapping
@@ -110,6 +113,27 @@ public class FeedbackController {
             return ResponseEntity.ok(new ApiResponse<>(true, "Details fetched", feedbackService.getFeedbackDetails(id)));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Details Error: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/time-settings")
+    public ResponseEntity<ApiResponse<TimeSettingDto>> getTimeSettings() {
+        try {
+            return ResponseEntity.ok(new ApiResponse<>(true, "Fetched settings", timeSettingService.getSettings()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Error fetching settings: " + e.getMessage(), null));
+        }
+    }
+
+    @PostMapping("/time-settings")
+    public ResponseEntity<ApiResponse<TimeSettingDto>> saveTimeSettings(@RequestBody TimeSettingDto dto) {
+        try {
+            if (dto.getYearType() == null || dto.getDuration() == null) {
+                return ResponseEntity.badRequest().body(new ApiResponse<>(false, "Required fields cannot be empty", null));
+            }
+            return ResponseEntity.ok(new ApiResponse<>(true, "Settings saved successfully", timeSettingService.saveSettings(dto)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Error saving settings: " + e.getMessage(), null));
         }
     }
 

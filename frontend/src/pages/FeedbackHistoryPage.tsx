@@ -19,6 +19,7 @@ import {
     Transition, 
     TransitionChild 
 } from '@headlessui/react';
+import { useGetProfileQuery } from '../features/user/userApi';
 
 interface HistoryItem {
     id: number;
@@ -42,6 +43,8 @@ export function FeedbackHistoryPage() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const { data: profileResponse } = useGetProfileQuery();
+    const timeFormat = profileResponse?.data?.timeFormat || '12h';
 
     // Modal state
     const [selectedFeedback, setSelectedFeedback] = useState<HistoryItem | null>(null);
@@ -128,7 +131,7 @@ export function FeedbackHistoryPage() {
             doc.text(`Staff No: ${item.evaluateeStaffNo}`, 25, 60);
             doc.text(`Position: ${item.position}`, 25, 65);
             
-            doc.text(`Feedback Role: ${item.role}`, 110, 55);
+            doc.text(`Feedback Role: ${item.role === 'PEER' ? 'ANONYMOUS' : item.role}`, 110, 55);
             doc.text(`Score: ${item.score.toFixed(2)}%`, 110, 60);
             doc.text(`Category: ${item.remark}`, 110, 65);
 
@@ -218,8 +221,14 @@ export function FeedbackHistoryPage() {
                             history.map((item) => (
                                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="p-6">
-                                        <div className="text-sm font-bold text-slate-700">{new Date(item.date).toLocaleDateString()}</div>
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase">{new Date(item.date).toLocaleTimeString()}</div>
+                                        <div className="text-sm font-bold text-slate-700">{new Date(item.date).toLocaleDateString('en-GB')}</div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase">
+                                            {new Date(item.date).toLocaleTimeString('en-US', { 
+                                                hour12: timeFormat === '12h', 
+                                                hour: '2-digit', 
+                                                minute: '2-digit' 
+                                            })}
+                                        </div>
                                     </td>
                                     <td className="p-6">
                                         <div className="font-black text-slate-800">{item.evaluateeName}</div>
@@ -229,7 +238,9 @@ export function FeedbackHistoryPage() {
                                         <div className="text-sm font-bold text-slate-600">{item.position}</div>
                                     </td>
                                     <td className="p-6">
-                                        <span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">{item.role}</span>
+                                        <span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                            {item.role === 'PEER' ? 'ANONYMOUS' : item.role}
+                                        </span>
                                     </td>
                                     <td className="p-6 text-center">
                                         <div className="text-base font-black text-blue-600">{item.score.toFixed(1)}%</div>
