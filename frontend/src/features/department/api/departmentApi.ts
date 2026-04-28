@@ -1,6 +1,6 @@
 import { baseApi } from '../../../app/baseApi'
 import type { ApiResponse } from '../../../types/auth'
-import type { DepartmentDto, CreateDepartmentRequest, UpdateDepartmentRequest } from '../types'
+import type { DepartmentDto, CreateDepartmentRequest, ManagerOption, UpdateDepartmentRequest } from '../types'
 
 type DepartmentApiRaw = Partial<DepartmentDto> & {
   id?: number | string
@@ -19,6 +19,12 @@ type DepartmentApiRaw = Partial<DepartmentDto> & {
   department_name?: string
   created_date?: string
   updated_date?: string
+  managerId?: number | string | null
+  manager_id?: number | string | null
+  managerName?: string | null
+  manager_name?: string | null
+  managerStaffNo?: string | null
+  manager_staff_no?: string | null
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -93,7 +99,22 @@ const normalizeDepartment = (raw: DepartmentApiRaw): DepartmentDto => {
     status,
     createdDate: String(getByAliases(raw, ['createdDate', 'created_date']) ?? ''),
     updatedDate: String(getByAliases(raw, ['updatedDate', 'updated_date']) ?? ''),
+    managerId: normalizeOptionalNumber(getByAliases(raw, ['managerId', 'manager_id'])),
+    managerName: normalizeOptionalString(getByAliases(raw, ['managerName', 'manager_name'])),
+    managerStaffNo: normalizeOptionalString(getByAliases(raw, ['managerStaffNo', 'manager_staff_no'])),
   }
+}
+
+const normalizeOptionalNumber = (value: unknown): number | null => {
+  if (value === undefined || value === null || value === '') return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+const normalizeOptionalString = (value: unknown): string | null => {
+  if (value === undefined || value === null) return null
+  const text = String(value).trim()
+  return text || null
 }
 
 const extractDepartmentRows = (data: unknown): DepartmentApiRaw[] => {
@@ -133,6 +154,16 @@ export const departmentApi = baseApi.injectEndpoints({
       }),
       providesTags: (_result, _error, id) => [{ type: 'Department', id }],
     }),
+    getManagerOptions: builder.query<ManagerOption[], void>({
+      query: () => '/departments/managers/options',
+      transformResponse: (response: ManagerOption[] | ApiResponse<ManagerOption[]>) => {
+        if (Array.isArray(response)) {
+          return response
+        }
+        return Array.isArray(response.data) ? response.data : []
+      },
+      providesTags: ['Department'],
+    }),
     createDepartment: builder.mutation<ApiResponse<DepartmentDto>, CreateDepartmentRequest>({
       query: (body) => ({
         url: '/departments',
@@ -170,6 +201,7 @@ export const departmentApi = baseApi.injectEndpoints({
 export const {
   useGetDepartmentsQuery,
   useGetDepartmentByIdQuery,
+  useGetManagerOptionsQuery,
   useCreateDepartmentMutation,
   useUpdateDepartmentMutation,
   useDeleteDepartmentMutation,

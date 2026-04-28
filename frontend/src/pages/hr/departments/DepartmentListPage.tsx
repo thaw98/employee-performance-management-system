@@ -86,7 +86,22 @@ const normalizeDepartmentRow = (row: unknown): DepartmentDto | null => {
     status: normalizedStatus,
     createdDate: String(getAliasValue(row, ['createdDate', 'created_date']) ?? ''),
     updatedDate: String(getAliasValue(row, ['updatedDate', 'updated_date']) ?? ''),
+    managerId: normalizeOptionalNumber(getAliasValue(row, ['managerId', 'manager_id'])),
+    managerName: normalizeOptionalString(getAliasValue(row, ['managerName', 'manager_name'])),
+    managerStaffNo: normalizeOptionalString(getAliasValue(row, ['managerStaffNo', 'manager_staff_no'])),
   }
+}
+
+const normalizeOptionalNumber = (value: unknown): number | null => {
+  if (value === undefined || value === null || value === '') return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+const normalizeOptionalString = (value: unknown): string | null => {
+  if (value === undefined || value === null) return null
+  const text = String(value).trim()
+  return text || null
 }
 
 const getDepartmentCodeForDisplay = (row: DepartmentDto): string => {

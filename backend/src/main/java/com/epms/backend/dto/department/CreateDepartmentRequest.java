@@ -15,4 +15,6 @@ public class CreateDepartmentRequest {
 
     @Pattern(regexp = "^(?i)(Active|Inactive)$", message = "Status must be Active or Inactive.")
     private String status;
+
+    private Long managerId;
 }
