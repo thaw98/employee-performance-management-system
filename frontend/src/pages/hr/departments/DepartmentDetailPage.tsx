@@ -29,7 +29,6 @@ import {
   Search,
   Shield,
   Trash2,
-  UserRound,
   XCircle,
 } from 'lucide-react'
 import { useGetDepartmentByIdQuery } from '../../../features/department/api/departmentApi'
@@ -222,10 +221,6 @@ export default function DepartmentDetailPage() {
                   {isDepartmentLoading ? 'Loading...' : department?.departmentName}
                 </h1>
                 <p className="text-blue-100 text-base">Manage positions and organizational structure</p>
-                <p className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-white/90">
-                  <UserRound size={16} className="text-blue-100" />
-                  Manager: {department?.managerName || 'Unassigned'}
-                </p>
               </div>
             </div>
 
@@ -270,20 +265,6 @@ export default function DepartmentDetailPage() {
                 <p className={`text-lg font-bold leading-tight ${isActive(department?.status) ? 'text-emerald-600' : 'text-amber-600'}`}>
                   {isActive(department?.status) ? 'Active Dept' : 'Inactive Dept'}
                 </p>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center flex-shrink-0 shadow-md">
-              <UserRound size={22} className="text-white" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Manager</p>
-              {isDepartmentLoading ? (
-                <div className="h-8 w-28 bg-slate-100 rounded animate-pulse" />
-              ) : (
-                <p className="text-lg font-bold leading-tight text-slate-800">{department?.managerName || 'Unassigned'}</p>
               )}
             </div>
           </div>

@@ -4,8 +4,6 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import com.epms.backend.entity.Department;
 
@@ -31,14 +29,4 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
 	boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 
 	Optional<Department> findByCodeIgnoreCase(String code);
-
-	@Query("""
-			select e.employeeName
-			from Employee e
-			join e.position p
-			join p.role r
-			where e.id = :managerId
-			  and r.id = 2
-			""")
-	Optional<String> findManagerNameById(@Param("managerId") Long managerId);
 }
