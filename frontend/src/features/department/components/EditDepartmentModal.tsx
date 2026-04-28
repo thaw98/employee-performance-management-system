@@ -21,16 +21,6 @@ const departmentSchema = z.object({
 type DepartmentFormInput = z.input<typeof departmentSchema>
 type DepartmentFormValues = z.output<typeof departmentSchema>
 
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (typeof error === 'object' && error !== null && 'data' in error) {
-    const data = (error as { data?: { message?: unknown } }).data
-    if (typeof data?.message === 'string' && data.message.trim()) {
-      return data.message
-    }
-  }
-  return fallback
-}
-
 interface EditDepartmentModalProps {
   isOpen: boolean
   onClose: () => void
@@ -43,19 +33,6 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
   const [updateDepartment, { isLoading }] = useUpdateDepartmentMutation()
   const { data: managersData } = useGetManagersQuery(department?.departmentId)
   const managers = managersData?.data ?? []
-  const managerOptions =
-    department?.managerId && !managers.some((manager) => manager.employeeId === department.managerId)
-      ? [
-          {
-            employeeId: department.managerId,
-            fullName: department.managerName || `Manager #${department.managerId}`,
-            staffNo: '',
-            departmentName: department.departmentName,
-            positionName: '',
-          },
-          ...managers,
-        ]
-      : managers
 
   const normalizeFormStatus = (value: unknown): DepartmentFormValues['status'] => {
     return String(value ?? '').trim().toLowerCase() === 'inactive' ? 'Inactive' : 'Active'
@@ -76,7 +53,7 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
         departmentCode: department.departmentCode,
         departmentName: department.departmentName,
         status: normalizeFormStatus(department.status),
-        managerId: department.managerId ?? '',
+        managerId: department.managerId,
       })
     }
   }, [department, reset])
@@ -88,8 +65,8 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
       toast.success('Department updated successfully.')
       await onSuccess?.()
       onClose()
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error, 'Failed to update department.'))
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to update department.')
     }
   }
 
@@ -228,11 +205,9 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
                       }}
                     >
                       <option value="">Select Manager</option>
-                      {managerOptions.map((m) => (
+                      {managers.map((m) => (
                         <option key={m.employeeId} value={m.employeeId}>
-                          {[m.fullName, m.staffNo ? `(${m.staffNo})` : '', m.departmentName, m.positionName]
-                            .filter(Boolean)
-                            .join(' - ')}
+                          {m.fullName} ({m.staffNo}) - {m.departmentName} - {m.positionName}
                         </option>
                       ))}
                     </select>
