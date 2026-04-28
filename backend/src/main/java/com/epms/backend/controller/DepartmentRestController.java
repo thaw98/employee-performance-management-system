@@ -37,6 +37,7 @@ public class DepartmentRestController {
 	private final DepartmentRepository departmentRepository;
 	private final EmployeeRepository employeeRepository;
 	private final DepartmentService departmentService;
+	private static final Long DEPARTMENT_HEAD_ROLE_ID = 2L;
 
 	@GetMapping("/options")
 	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE')")
@@ -52,7 +53,7 @@ public class DepartmentRestController {
 	@GetMapping("/managers/options")
 	@PreAuthorize("hasRole('HR')")
 	public ResponseEntity<ApiResponse<List<EmployeeOptionDto>>> listManagers() {
-		List<EmployeeOptionDto> rows = employeeRepository.findDepartmentHeadOptions().stream()
+		List<EmployeeOptionDto> rows = employeeRepository.findByPositionRoleIdOrderByEmployeeNameAsc(DEPARTMENT_HEAD_ROLE_ID).stream()
 				.map(this::toEmployeeOption)
 				.toList();
 		return ResponseEntity.ok(ApiResponse.ok("Department head managers", rows));
