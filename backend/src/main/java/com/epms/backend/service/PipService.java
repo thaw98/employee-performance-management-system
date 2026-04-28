@@ -4,6 +4,7 @@ import com.epms.backend.dto.pip.*;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +23,13 @@ import jakarta.persistence.criteria.Predicate;
 public class PipService {
 
     private static final String STATUS_ACTIVE = "ACTIVE";
-    private static final String STATUS_PENDING_CREATION = "PENDING_CREATION";
-    private static final String STATUS_PENDING_CLOSE = "PENDING_CLOSE";
-    private static final String STATUS_PENDING_REOPEN = "PENDING_REOPEN";
+    private static final String STATUS_AUTO_CLOSED = "AUTO_CLOSED";
+    private static final String STATUS_REOPEN_REQUESTED = "REOPEN_REQUESTED";
     private static final String STATUS_CLOSED = "CLOSED";
     private static final String STATUS_DENIED = "DENIED";
     private static final String STATUS_SCHEDULED = "SCHEDULED";
+    private static final String DECISION_APPROVED = "APPROVED";
+    private static final String DECISION_REJECTED = "REJECTED";
 
     private final PipRepository pipRepository;
     private final PipObjectiveRepository objectiveRepository;
@@ -76,7 +78,7 @@ public class PipService {
         }
 
         boolean hasOpenPip = pipRepository.findByEmployeeAndStatusIn(employee,
-                List.of(STATUS_ACTIVE, STATUS_PENDING_CREATION, STATUS_PENDING_REOPEN))
+                List.of(STATUS_ACTIVE, STATUS_AUTO_CLOSED, STATUS_REOPEN_REQUESTED))
                 .stream()
                 .anyMatch(pip -> !STATUS_CLOSED.equalsIgnoreCase(pip.getStatus())
                         && !STATUS_DENIED.equalsIgnoreCase(pip.getStatus()));
@@ -90,7 +92,8 @@ public class PipService {
         pip.setCreatedBy(managerEmployee);
         pip.setStartDate(request.getStartDate());
         pip.setEndDate(request.getEndDate());
-        pip.setStatus(STATUS_PENDING_CREATION);
+        pip.setOriginalEndDate(request.getEndDate());
+        pip.setStatus(STATUS_ACTIVE);
         pip.setOverallProgressPercentage(BigDecimal.ZERO);
         pip.setTotalHours(request.getTotalHours());
         pip.setCompletedHours(0);
@@ -130,6 +133,7 @@ public class PipService {
             LocalDate startDate,
             LocalDate endDate,
             User actor) {
+        autoCloseExpiredPips();
         Specification<Pip> spec = (root, query, cb) -> {
             // Eagerly fetch nested entities to avoid LazyInitializationException and ensure
             // data is present in JSON
@@ -200,6 +204,7 @@ public class PipService {
     }
 
     public Pip getPipById(Long id, User actor) {
+        autoCloseExpiredPips();
         Pip pip = pipRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("PIP not found"));
         authorizePipAccess(pip, actor);
@@ -292,21 +297,31 @@ public class PipService {
     public Pip closePip(Long pipId, PipCloseRequest request, User actor) {
         Pip pip = getPipById(pipId, actor);
         if (!isDirectManager(pip, actor)) {
-            throw new RuntimeException("Only the assigned manager can submit a close request");
+            throw new RuntimeException("Only the assigned manager can mark the PIP result");
         }
-        if (request.getFinalOutcome() == null || request.getFinalOutcome().trim().isEmpty()) {
-            throw new RuntimeException("Final outcome is required");
+        if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("The PIP result can only be marked after the PIP is automatically closed");
+        }
+        if (pip.getFinalOutcome() != null && !pip.getFinalOutcome().isBlank()) {
+            throw new RuntimeException("The final result has already been marked");
+        }
+        String outcome = normalizeStatus(request.getFinalOutcome());
+        if (!"SUCCESSFUL".equals(outcome) && !"FAILED".equals(outcome)) {
+            throw new RuntimeException("Final result must be Successful or Failed");
         }
         if (request.getClosingRemarks() == null || request.getClosingRemarks().trim().isEmpty()) {
-            throw new RuntimeException("Closing remarks are required");
+            throw new RuntimeException("Manager comments are required");
         }
-        pip.setStatus(STATUS_PENDING_CLOSE);
-        pip.setActualEndDate(null);
+        pip.setStatus(STATUS_CLOSED);
+        if (pip.getFinalCloseDate() == null) {
+            pip.setFinalCloseDate(LocalDate.now());
+        }
+        pip.setActualEndDate(pip.getFinalCloseDate());
         pip.setClosingRemarks(request.getClosingRemarks().trim());
-        pip.setFinalOutcome(request.getFinalOutcome().trim());
+        pip.setFinalOutcome(outcome);
         pip.setReviewReason(null);
-        pip.setClosedBy(null);
-        pip.setClosedDate(null);
+        pip.setClosedBy(actor.getEmployee());
+        pip.setClosedDate(Instant.now());
         pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
     }
@@ -314,20 +329,28 @@ public class PipService {
     @Transactional
     public Pip reopenPip(Long pipId, PipReopenRequest request, User actor) {
         Pip pip = getPipById(pipId, actor);
-        if (!isDirectManager(pip, actor)) {
-            throw new RuntimeException("Only the assigned manager can submit a reopen request");
+        if (!isPipEmployee(pip, actor)) {
+            throw new RuntimeException("Only the employee assigned to this PIP can request reopening");
         }
-        if (!STATUS_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
-            throw new RuntimeException("Only closed PIPs can be reopened");
+        if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Only automatically closed PIPs can be requested for reopening");
+        }
+        if (hasReopenBeenUsed(pip)) {
+            throw new RuntimeException("A PIP can only be reopened one time");
+        }
+        if (pip.getFinalOutcome() != null && !pip.getFinalOutcome().isBlank()) {
+            throw new RuntimeException("A PIP cannot be reopened after the final result is marked");
         }
         if (request.getReason() == null || request.getReason().trim().isEmpty()) {
             throw new RuntimeException("Reopen reason is required");
         }
-        pip.setStatus(STATUS_PENDING_REOPEN);
+        pip.setStatus(STATUS_REOPEN_REQUESTED);
         pip.setReopenReason(request.getReason().trim());
         pip.setReviewReason(null);
         pip.setReopenedBy(null);
         pip.setReopenedDate(null);
+        pip.setReopenDecision(null);
+        pip.setReopenDecisionDate(null);
         pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
     }
@@ -335,49 +358,57 @@ public class PipService {
     @Transactional
     public Pip reviewPip(Long pipId, PipReviewRequest request, User actor) {
         Pip pip = getPipById(pipId, actor);
+        if (!isDirectManager(pip, actor)) {
+            throw new RuntimeException("Only the assigned manager can review a reopen request");
+        }
         String normalizedStatus = normalizeStatus(pip.getStatus());
         String action = request.getAction() == null ? "" : request.getAction().trim().toUpperCase(Locale.ROOT);
         String reason = request.getReason() == null ? null : request.getReason().trim();
 
+        if (!STATUS_REOPEN_REQUESTED.equals(normalizedStatus)) {
+            throw new RuntimeException("Only employee reopen requests can be reviewed");
+        }
         if ("DENIED".equals(action) && (reason == null || reason.isEmpty())) {
             throw new RuntimeException("Deny reason is required");
         }
 
-        if ("CONFIRMED".equals(action) && STATUS_PENDING_CLOSE.equals(normalizedStatus)) {
-            pip.setStatus(STATUS_CLOSED);
-            pip.setActualEndDate(LocalDate.now());
-            pip.setClosedBy(actor.getEmployee());
-            pip.setClosedDate(Instant.now());
-            pip.setReviewReason(null);
-        } else if ("DENIED".equals(action) && STATUS_PENDING_CLOSE.equals(normalizedStatus)) {
+        if ("CONFIRMED".equals(action)) {
+            if (request.getExtendedEndDate() == null) {
+                throw new RuntimeException("Extended end date is required when approving a reopen request");
+            }
+            LocalDate minimumDate = LocalDate.now().plusDays(1);
+            if (request.getExtendedEndDate().isBefore(minimumDate)) {
+                throw new RuntimeException("Extended end date must be after today");
+            }
             pip.setStatus(STATUS_ACTIVE);
+            pip.setEndDate(request.getExtendedEndDate());
+            pip.setExtendedEndDate(request.getExtendedEndDate());
             pip.setActualEndDate(null);
-            pip.setClosedBy(null);
-            pip.setClosedDate(null);
-            pip.setReviewReason(reason);
-        } else if ("CONFIRMED".equals(action) && STATUS_PENDING_REOPEN.equals(normalizedStatus)) {
-            pip.setStatus(STATUS_ACTIVE);
             pip.setReopenedBy(actor.getEmployee());
             pip.setReopenedDate(Instant.now());
-            pip.setReviewReason(null);
-        } else if ("DENIED".equals(action) && STATUS_PENDING_REOPEN.equals(normalizedStatus)) {
-            pip.setStatus(STATUS_CLOSED);
-            pip.setReviewReason(reason);
-        } else if ("CONFIRMED".equals(action) && STATUS_PENDING_CREATION.equals(normalizedStatus)) {
-            pip.setStatus(STATUS_ACTIVE);
-            pip.setReviewReason(null);
-        } else if ("DENIED".equals(action) && STATUS_PENDING_CREATION.equals(normalizedStatus)) {
-            pip.setStatus(STATUS_DENIED);
-            pip.setReviewReason(reason);
-        } else if ("CONFIRMED".equals(action)) {
-            pip.setStatus(STATUS_ACTIVE);
+            pip.setReopenDecision(DECISION_APPROVED);
+            pip.setReopenDecisionDate(Instant.now());
             pip.setReviewReason(null);
         } else if ("DENIED".equals(action)) {
-            pip.setStatus(STATUS_DENIED);
+            pip.setStatus(STATUS_AUTO_CLOSED);
+            pip.setReopenDecision(DECISION_REJECTED);
+            pip.setReopenDecisionDate(Instant.now());
             pip.setReviewReason(reason);
+        } else {
+            throw new RuntimeException("Review action must be CONFIRMED or DENIED");
         }
         pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
+    }
+
+    @Scheduled(cron = "0 0 0 * * *")
+    @Transactional
+    public void autoCloseExpiredPips() {
+        LocalDate today = LocalDate.now();
+        List<Pip> expiredPips = pipRepository.findByStatusInAndEndDateLessThanEqual(List.of(STATUS_ACTIVE), today);
+        for (Pip pip : expiredPips) {
+            autoClosePip(pip, today);
+        }
     }
 
     public List<TrainingRecord> getEmployeeTrainingHistory(Long employeeId) {
@@ -432,6 +463,21 @@ public class PipService {
         return actor.getEmployee();
     }
 
+    private void autoClosePip(Pip pip, LocalDate closeDate) {
+        if (pip.getOriginalEndDate() == null) {
+            pip.setOriginalEndDate(pip.getEndDate());
+        }
+        pip.setStatus(STATUS_AUTO_CLOSED);
+        pip.setActualEndDate(closeDate);
+        if (hasReopenBeenUsed(pip)) {
+            pip.setFinalCloseDate(closeDate);
+        } else if (pip.getAutoCloseDate() == null) {
+            pip.setAutoCloseDate(closeDate);
+        }
+        pip.setUpdatedDate(Instant.now());
+        pipRepository.save(pip);
+    }
+
     private void authorizePipAccess(Pip pip, User actor) {
         if (isHr(actor)) {
             return;
@@ -476,6 +522,16 @@ public class PipService {
         return actor.getEmployee() != null
                 && pip.getManager() != null
                 && pip.getManager().getId().equals(actor.getEmployee().getId());
+    }
+
+    private boolean isPipEmployee(Pip pip, User actor) {
+        return actor.getEmployee() != null
+                && pip.getEmployee() != null
+                && pip.getEmployee().getId().equals(actor.getEmployee().getId());
+    }
+
+    private boolean hasReopenBeenUsed(Pip pip) {
+        return pip.getReopenReason() != null && !pip.getReopenReason().isBlank();
     }
 
     private boolean isHr(User actor) {

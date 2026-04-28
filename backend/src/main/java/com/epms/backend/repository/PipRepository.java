@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 import java.util.List;
+import java.time.LocalDate;
 
 @Repository
 public interface PipRepository extends JpaRepository<Pip, Long>, JpaSpecificationExecutor<Pip> {
@@ -28,4 +29,5 @@ public interface PipRepository extends JpaRepository<Pip, Long>, JpaSpecificatio
     List<Pip> findByEmployee(Employee employee);
     List<Pip> findByManager(Employee manager);
     List<Pip> findByEmployeeAndStatusIn(Employee employee, List<String> statuses);
+    List<Pip> findByStatusInAndEndDateLessThanEqual(List<String> statuses, LocalDate endDate);
 }

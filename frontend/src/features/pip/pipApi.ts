@@ -36,11 +36,17 @@ export interface Pip {
   id: number
   employee: User
   manager: User
-  status: 'PENDING_CREATION' | 'PENDING_REOPEN' | 'PENDING_CLOSE' | 'ACTIVE' | 'COMPLETED' | 'CLOSED' | 'DENIED'
+  status: 'ACTIVE' | 'AUTO_CLOSED' | 'REOPEN_REQUESTED' | 'COMPLETED' | 'CLOSED' | 'DENIED'
   startDate: string
   endDate: string
+  originalEndDate?: string
+  autoCloseDate?: string
+  extendedEndDate?: string
+  finalCloseDate?: string
   reopenReason?: string
   reviewReason?: string
+  reopenDecision?: string
+  reopenDecisionDate?: string
   closingRemarks?: string
   finalOutcome?: string
   objectives: PipObjective[]
@@ -177,7 +183,10 @@ const normalizePerson = (person: unknown): User => {
 const normalizeStatus = (status?: unknown): Pip['status'] => {
   const normalized = getString(status).trim().toUpperCase().replace(/\s+/g, '_')
   if (normalized === 'REOPENED') return 'ACTIVE'
-  if (normalized === 'ACTIVE' || normalized === 'CLOSED' || normalized === 'COMPLETED' || normalized === 'DENIED' || normalized === 'PENDING_CREATION' || normalized === 'PENDING_REOPEN' || normalized === 'PENDING_CLOSE') {
+  if (normalized === 'PENDING_CREATION') return 'ACTIVE'
+  if (normalized === 'PENDING_CLOSE') return 'AUTO_CLOSED'
+  if (normalized === 'PENDING_REOPEN') return 'REOPEN_REQUESTED'
+  if (normalized === 'ACTIVE' || normalized === 'AUTO_CLOSED' || normalized === 'REOPEN_REQUESTED' || normalized === 'CLOSED' || normalized === 'COMPLETED' || normalized === 'DENIED') {
     return normalized
   }
   return 'ACTIVE'
@@ -193,8 +202,14 @@ const normalizePip = (pip: unknown): Pip => {
     status: normalizeStatus(source.status),
     startDate: getString(source.startDate),
     endDate: getString(source.endDate),
+    originalEndDate: getOptionalString(source.originalEndDate),
+    autoCloseDate: getOptionalString(source.autoCloseDate),
+    extendedEndDate: getOptionalString(source.extendedEndDate),
+    finalCloseDate: getOptionalString(source.finalCloseDate),
     reopenReason: getOptionalString(source.reopenReason),
     reviewReason: getOptionalString(source.reviewReason),
+    reopenDecision: getOptionalString(source.reopenDecision),
+    reopenDecisionDate: getOptionalString(source.reopenDecisionDate),
     closingRemarks: getOptionalString(source.closingRemarks),
     finalOutcome: getOptionalString(source.finalOutcome),
     objectives: getArray(source.objectives).map(normalizeObjective),
@@ -265,7 +280,7 @@ export const pipApi = baseApi.injectEndpoints({
       invalidatesTags: () => ['PIP'],
       transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
     }),
-    reviewPip: builder.mutation<Pip, { pipId: number; action: 'CONFIRMED' | 'DENIED'; reason?: string }>({
+    reviewPip: builder.mutation<Pip, { pipId: number; action: 'CONFIRMED' | 'DENIED'; reason?: string; extendedEndDate?: string }>({
       query: ({ pipId, ...body }) => ({
         url: `/pips/${pipId}/review`,
         method: 'PUT',
