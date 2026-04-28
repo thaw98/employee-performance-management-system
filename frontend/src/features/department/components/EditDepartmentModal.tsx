@@ -43,19 +43,6 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
   const [updateDepartment, { isLoading }] = useUpdateDepartmentMutation()
   const { data: managersData } = useGetManagersQuery(department?.departmentId)
   const managers = managersData?.data ?? []
-  const managerOptions =
-    department?.managerId && !managers.some((manager) => manager.employeeId === department.managerId)
-      ? [
-          {
-            employeeId: department.managerId,
-            fullName: department.managerName || `Manager #${department.managerId}`,
-            staffNo: '',
-            departmentName: department.departmentName,
-            positionName: '',
-          },
-          ...managers,
-        ]
-      : managers
 
   const normalizeFormStatus = (value: unknown): DepartmentFormValues['status'] => {
     return String(value ?? '').trim().toLowerCase() === 'inactive' ? 'Inactive' : 'Active'
@@ -65,6 +52,7 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<DepartmentFormInput, unknown, DepartmentFormValues>({
     resolver: zodResolver(departmentSchema),
@@ -80,6 +68,19 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
       })
     }
   }, [department, reset])
+
+  useEffect(() => {
+    if (!department?.managerId || !managersData) {
+      return
+    }
+
+    const managerStillAvailable = (managersData.data ?? []).some(
+      (manager) => manager.employeeId === department.managerId,
+    )
+    if (!managerStillAvailable) {
+      setValue('managerId', '')
+    }
+  }, [department?.managerId, managersData, setValue])
 
   const onSubmit: SubmitHandler<DepartmentFormValues> = async (data) => {
     if (!department) return
@@ -228,7 +229,7 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
                       }}
                     >
                       <option value="">Select Manager</option>
-                      {managerOptions.map((m) => (
+                      {managers.map((m) => (
                         <option key={m.employeeId} value={m.employeeId}>
                           {[m.fullName, m.staffNo ? `(${m.staffNo})` : '', m.departmentName, m.positionName]
                             .filter(Boolean)

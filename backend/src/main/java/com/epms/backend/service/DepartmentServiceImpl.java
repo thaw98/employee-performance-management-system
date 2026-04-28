@@ -118,6 +118,10 @@ public class DepartmentServiceImpl implements DepartmentService {
             throw new IllegalArgumentException("Department name already exists.");
         }
 
+        if (request.getManagerId() != null && !isDepartmentManagerOption(request.getManagerId(), id)) {
+            throw new IllegalArgumentException("Manager must belong to the selected department.");
+        }
+
         department.setCode(code);
         department.setName(name);
         department.setManagerId(request.getManagerId());
@@ -131,6 +135,48 @@ public class DepartmentServiceImpl implements DepartmentService {
     @Override
     @Transactional(readOnly = true)
     public List<ManagerOptionDto> getAllManagers(Long departmentId) {
+        if (departmentId != null) {
+            String departmentManagersSql = """
+                    SELECT
+                        e.employee_id,
+                        e.full_name,
+                        e.staff_no,
+                        COALESCE(d.department_name, '') AS department_name,
+                        COALESCE(p.position_name, '') AS position_name
+                    FROM employee e
+                    LEFT JOIN user_account u ON e.employee_id = u.employee_id
+                    LEFT JOIN department d ON e.department_id = d.department_id
+                    LEFT JOIN position p ON e.position_id = p.position_id
+                    WHERE e.department_id = ?
+                        AND (
+                            EXISTS (
+                                SELECT 1
+                                FROM department current_department
+                                WHERE current_department.department_id = ?
+                                    AND current_department.manager_id = e.employee_id
+                            )
+                            OR (
+                                e.employment_status = 'ACTIVE'
+                                AND (
+                                    u.role_id = 2
+                                    OR EXISTS (
+                                        SELECT 1
+                                        FROM department assigned
+                                        WHERE assigned.manager_id = e.employee_id
+                                    )
+                                )
+                            )
+                        )
+                    ORDER BY e.full_name ASC
+                    """;
+            return jdbcTemplate.query(departmentManagersSql, (rs, rowNum) -> new ManagerOptionDto(
+                    rs.getLong("employee_id"),
+                    rs.getString("full_name"),
+                    rs.getString("staff_no"),
+                    rs.getString("department_name"),
+                    rs.getString("position_name")), departmentId, departmentId);
+        }
+
         String sql = """
                 SELECT
                     e.employee_id,
@@ -142,38 +188,20 @@ public class DepartmentServiceImpl implements DepartmentService {
                 LEFT JOIN user_account u ON e.employee_id = u.employee_id
                 LEFT JOIN department d ON e.department_id = d.department_id
                 LEFT JOIN position p ON e.position_id = p.position_id
-                WHERE (
-                    EXISTS (
+                WHERE e.employment_status = 'ACTIVE'
+                    AND (
+                        u.role_id = 2
+                        OR EXISTS (
+                            SELECT 1
+                            FROM department assigned
+                            WHERE assigned.manager_id = e.employee_id
+                        )
+                    )
+                    AND NOT EXISTS (
                         SELECT 1
-                        FROM department current_department
-                        WHERE current_department.department_id = ?
-                            AND current_department.manager_id = e.employee_id
+                        FROM department assigned_department
+                        WHERE assigned_department.manager_id = e.employee_id
                     )
-                    OR (
-                        e.employment_status = 'ACTIVE'
-                        AND (
-                            u.role_id = 2
-                            OR EXISTS (
-                                SELECT 1
-                                FROM department assigned
-                                WHERE assigned.manager_id = e.employee_id
-                            )
-                        )
-                        AND (
-                            NOT EXISTS (
-                                SELECT 1
-                                FROM department assigned_department
-                                WHERE assigned_department.manager_id = e.employee_id
-                            )
-                            OR EXISTS (
-                                SELECT 1
-                                FROM department current_department
-                                WHERE current_department.department_id = ?
-                                    AND current_department.manager_id = e.employee_id
-                            )
-                        )
-                    )
-                )
                 ORDER BY e.full_name ASC
                 """;
         return jdbcTemplate.query(sql, (rs, rowNum) -> new ManagerOptionDto(
@@ -181,7 +209,7 @@ public class DepartmentServiceImpl implements DepartmentService {
                 rs.getString("full_name"),
                 rs.getString("staff_no"),
                 rs.getString("department_name"),
-                rs.getString("position_name")), departmentId, departmentId);
+                rs.getString("position_name")));
     }
 
     @Override
@@ -233,5 +261,36 @@ public class DepartmentServiceImpl implements DepartmentService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private boolean isDepartmentManagerOption(Long managerId, Long departmentId) {
+        String sql = """
+                SELECT COUNT(*)
+                FROM employee e
+                LEFT JOIN user_account u ON e.employee_id = u.employee_id
+                WHERE e.employee_id = ?
+                    AND e.department_id = ?
+                    AND (
+                        EXISTS (
+                            SELECT 1
+                            FROM department current_department
+                            WHERE current_department.department_id = ?
+                                AND current_department.manager_id = e.employee_id
+                        )
+                        OR (
+                            e.employment_status = 'ACTIVE'
+                            AND (
+                                u.role_id = 2
+                                OR EXISTS (
+                                    SELECT 1
+                                    FROM department assigned
+                                    WHERE assigned.manager_id = e.employee_id
+                                )
+                            )
+                        )
+                    )
+                """;
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, managerId, departmentId, departmentId);
+        return count != null && count > 0;
     }
 }
