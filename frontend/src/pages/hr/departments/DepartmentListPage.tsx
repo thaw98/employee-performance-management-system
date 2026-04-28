@@ -16,7 +16,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Building2, CheckCircle2, XCircle, LayoutGrid, AlertTriangle, BriefcaseBusiness,
-  Loader2,
+  Loader2, User,
 } from 'lucide-react'
 
 import {
@@ -84,6 +84,8 @@ const normalizeDepartmentRow = (row: unknown): DepartmentDto | null => {
     departmentCode,
     departmentName,
     status: normalizedStatus,
+    managerId: Number(getAliasValue(row, ['managerId', 'manager_id', 'managerid']) ?? 0) || 0,
+    managerName: String(getAliasValue(row, ['managerName', 'manager_name', 'managername']) ?? ''),
     createdDate: String(getAliasValue(row, ['createdDate', 'created_date']) ?? ''),
     updatedDate: String(getAliasValue(row, ['updatedDate', 'updated_date']) ?? ''),
   }
@@ -203,6 +205,19 @@ export default function DepartmentListPage() {
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
               <XCircle size={13} />
               Inactive
+            </span>
+          )
+        },
+      },
+      {
+        accessorKey: 'managerName',
+        header: 'Manager',
+        cell: (info) => {
+          const managerName = String(info.getValue() ?? '').trim()
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-slate-700 text-xs font-semibold">
+              <User size={13} className="text-slate-400" />
+              {managerName || '-'}
             </span>
           )
         },

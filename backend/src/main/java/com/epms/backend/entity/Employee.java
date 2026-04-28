@@ -30,7 +30,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @JsonIgnoreProperties({
-    "hibernateLazyInitializer", "handler", "manager",
+    "hibernateLazyInitializer", "handler",
     "position",
     "staffType",
     "father",
@@ -68,10 +68,6 @@ public class Employee {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_position_id")
     private DepartmentPosition departmentPosition;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_id")
-    private Employee manager;
 
     @Column(name = "hire_date")
     private LocalDate dateOfJoining;

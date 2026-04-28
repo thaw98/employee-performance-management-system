@@ -18,6 +18,8 @@ public class DepartmentDto {
     private String departmentCode;
     private String departmentName;
     private String status;
+    private Long managerId;
+    private String managerName;
     private Instant createdDate;
     private Instant updatedDate;
 

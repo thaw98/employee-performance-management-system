@@ -29,6 +29,7 @@ import {
   Search,
   Shield,
   Trash2,
+  User,
   XCircle,
 } from 'lucide-react'
 import { useGetDepartmentByIdQuery } from '../../../features/department/api/departmentApi'
@@ -264,6 +265,22 @@ export default function DepartmentDetailPage() {
               ) : (
                 <p className={`text-lg font-bold leading-tight ${isActive(department?.status) ? 'text-emerald-600' : 'text-amber-600'}`}>
                   {isActive(department?.status) ? 'Active Dept' : 'Inactive Dept'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 flex items-center justify-center flex-shrink-0 shadow-md">
+              <User size={22} className="text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Manager</p>
+              {isDepartmentLoading ? (
+                <div className="h-8 w-32 bg-slate-100 rounded animate-pulse" />
+              ) : (
+                <p className="text-lg font-bold leading-tight text-slate-800 truncate">
+                  {department?.managerName || '-'}
                 </p>
               )}
             </div>
