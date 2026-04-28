@@ -14,6 +14,8 @@ export interface Kpi {
   weightedScore?: number
   period: string
   status: string
+  createdDate?: string
+  updatedDate?: string
 }
 
 export interface PositionKpi {
@@ -42,6 +44,10 @@ export const kpiApi = baseApi.injectEndpoints({
     }),
     getLatestKpisByEmployee: builder.query<Kpi[], number>({
       query: (employeeId) => `/kpis/latest/${employeeId}`,
+      providesTags: ['KPI'],
+    }),
+    getLatestKpiDateByEmployee: builder.query<{ latestDate: string }, number>({
+      query: (employeeId) => `/kpis/latest-date/${employeeId}`,
       providesTags: ['KPI'],
     }),
     getEmployeeKpiPeriods: builder.query<String[], number>({
@@ -77,6 +83,7 @@ export const kpiApi = baseApi.injectEndpoints({
 export const {
   useGetKpisByEmployeeQuery,
   useGetLatestKpisByEmployeeQuery,
+  useGetLatestKpiDateByEmployeeQuery,
   useGetEmployeeKpiPeriodsQuery,
   useSetupKpisMutation,
   useGetPositionKpisQuery,

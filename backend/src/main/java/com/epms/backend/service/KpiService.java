@@ -57,6 +57,10 @@ public class KpiService {
                 .orElse(List.of());
     }
 
+    public java.time.Instant getLatestUpdatedDate(Long employeeId) {
+        return kpiRepository.findLatestUpdatedDateByEmployeeId(employeeId).orElse(null);
+    }
+
     @Transactional
     public List<KpiDto> saveKpis(List<KpiDto> kpiDtos) {
         if (kpiDtos.isEmpty())
@@ -76,56 +80,27 @@ public class KpiService {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        // Update the master template for this position in this department
-        if (employee.getDepartment() != null && employee.getPosition() != null) {
-            Long deptId = employee.getDepartment().getId();
-            Long posId = employee.getPosition().getId();
+        // Only update this specific employee
+        List<EmployeeKpi> existing = kpiRepository.findByEmployee_IdAndPeriod(employeeId, period);
+        kpiRepository.deleteAll(existing);
 
-            // Clear existing template
-            List<PositionKpi> existingTemplate = positionKpiRepository.findByDepartment_IdAndPosition_IdAndPeriod(deptId, posId, period);
-            positionKpiRepository.deleteAll(existingTemplate);
+        List<EmployeeKpi> kpis = kpiDtos.stream().map(dto -> {
+            EmployeeKpi kpi = new EmployeeKpi();
+            kpi.setEmployee(employee);
+            kpi.setName(dto.getName());
+            kpi.setCategory(dto.getCategory());
+            kpi.setTarget(dto.getTarget());
+            kpi.setUnit(dto.getUnit());
+            kpi.setActual(dto.getActual());
+            kpi.setWeight(dto.getWeight());
+            kpi.setScore(dto.getScore());
+            kpi.setWeightedScore(dto.getWeightedScore());
+            kpi.setPeriod(dto.getPeriod());
+            kpi.setStatus(dto.getStatus() != null ? dto.getStatus() : "SUBMITTED");
+            return kpi;
+        }).collect(Collectors.toList());
 
-            // Save new template
-            List<PositionKpi> templateEntities = kpiDtos.stream().map(dto -> {
-                PositionKpi t = new PositionKpi();
-                t.setDepartment(employee.getDepartment());
-                t.setPosition(employee.getPosition());
-                t.setName(dto.getName());
-                t.setCategory(dto.getCategory());
-                t.setTarget(dto.getTarget());
-                t.setUnit(dto.getUnit());
-                t.setWeight(dto.getWeight());
-                t.setPeriod(period);
-                return t;
-            }).collect(Collectors.toList());
-            
-            List<PositionKpi> savedTemplates = positionKpiRepository.saveAll(templateEntities);
-
-            // Propagate to ALL employees in the same department and position (including current one)
-            applyToEmployees(deptId, posId, period, savedTemplates);
-        } else {
-            // Fallback for employees without department/position (only update this specific employee)
-            List<EmployeeKpi> existing = kpiRepository.findByEmployee_IdAndPeriod(employeeId, period);
-            kpiRepository.deleteAll(existing);
-
-            List<EmployeeKpi> kpis = kpiDtos.stream().map(dto -> {
-                EmployeeKpi kpi = new EmployeeKpi();
-                kpi.setEmployee(employee);
-                kpi.setName(dto.getName());
-                kpi.setCategory(dto.getCategory());
-                kpi.setTarget(dto.getTarget());
-                kpi.setUnit(dto.getUnit());
-                kpi.setActual(dto.getActual());
-                kpi.setWeight(dto.getWeight());
-                kpi.setScore(dto.getScore());
-                kpi.setWeightedScore(dto.getWeightedScore());
-                kpi.setPeriod(dto.getPeriod());
-                kpi.setStatus(dto.getStatus() != null ? dto.getStatus() : "SUBMITTED");
-                return kpi;
-            }).collect(Collectors.toList());
-
-            kpiRepository.saveAll(kpis);
-        }
+        kpiRepository.saveAll(kpis);
 
         return getKpisByEmployeeAndPeriod(employeeId, period);
     }

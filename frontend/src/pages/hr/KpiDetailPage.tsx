@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { 
-  useGetLatestKpisByEmployeeQuery, 
+import {
+  useGetLatestKpisByEmployeeQuery,
   useGetEmployeeKpiPeriodsQuery,
-  useGetKpisByEmployeeQuery 
+  useGetKpisByEmployeeQuery,
+  useGetLatestKpiDateByEmployeeQuery
 } from '../../features/kpi/kpiApi';
 import { useGetEmployeeByIdQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { Target, ChevronLeft, Calendar, User, Briefcase, Award, TrendingUp, ShieldCheck, FileEdit, Lock } from 'lucide-react';
@@ -17,7 +18,7 @@ export const KpiDetailPage: React.FC = () => {
   const { data: employeeResponse, isLoading: empLoading } = useGetEmployeeByIdQuery(Number(employeeId), {
     skip: !employeeId
   });
-  
+
   const { data: periods } = useGetEmployeeKpiPeriodsQuery(Number(employeeId), {
     skip: !employeeId
   });
@@ -30,6 +31,10 @@ export const KpiDetailPage: React.FC = () => {
     { employeeId: Number(employeeId), period: selectedPeriod },
     { skip: !employeeId || !selectedPeriod }
   );
+
+  const { data: latestDateData } = useGetLatestKpiDateByEmployeeQuery(Number(employeeId), {
+    skip: !employeeId
+  });
 
   useEffect(() => {
     if (periods && periods.length > 0 && !selectedPeriod) {
@@ -46,7 +51,7 @@ export const KpiDetailPage: React.FC = () => {
   const currentStatus = kpis?.[0]?.status || 'N/A';
 
   const getStatusStyle = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'LOCKED': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       case 'SUBMITTED': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'DRAFT': return 'bg-amber-100 text-amber-700 border-amber-200';
@@ -55,7 +60,7 @@ export const KpiDetailPage: React.FC = () => {
   };
 
   const getStatusIcon = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'LOCKED': return <Lock size={12} />;
       case 'SUBMITTED': return <ShieldCheck size={12} />;
       case 'DRAFT': return <FileEdit size={12} />;
@@ -69,7 +74,7 @@ export const KpiDetailPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={() => navigate(-1)}
             className="p-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-500 transition-all shadow-sm"
           >
@@ -110,12 +115,12 @@ export const KpiDetailPage: React.FC = () => {
                   employee?.employeeName.charAt(0)
                 )}
                 <div className={`absolute -right-2 -bottom-2 w-8 h-8 rounded-full border-4 border-white flex items-center justify-center text-white shadow-sm ${getStatusStyle(currentStatus).split(' ')[0].replace('bg-', 'bg-')}`}>
-                   {getStatusIcon(currentStatus)}
+                  {getStatusIcon(currentStatus)}
                 </div>
               </div>
               <h2 className="text-xl font-black text-slate-900">{employee?.employeeName}</h2>
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mt-1">{employee?.employeeId}</p>
-              
+
               <div className="w-full mt-8 space-y-4">
                 <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
                   <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200">
@@ -142,7 +147,7 @@ export const KpiDetailPage: React.FC = () => {
                   <div className="text-left">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Last Updated</p>
                     <p className="text-xs font-bold text-slate-700">
-                      {kpis?.[0]?.updatedDate ? new Date(kpis[0].updatedDate).toLocaleDateString() : 'N/A'}
+                      {latestDateData?.latestDate ? new Date(latestDateData.latestDate).toLocaleDateString() : 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -150,19 +155,19 @@ export const KpiDetailPage: React.FC = () => {
             </div>
 
             <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-6 shadow-xl shadow-indigo-100 text-white relative overflow-hidden">
-               <TrendingUp className="absolute -right-4 -bottom-4 w-32 h-32 text-white/10 -rotate-12" />
-               <p className="text-xs font-black uppercase tracking-widest opacity-60">Performance Score</p>
-               <h3 className="text-4xl font-black mt-2">
-                 {kpis && kpis.length > 0 ? totalScore.toFixed(2) : 'N/A'}
-               </h3>
-               <div className="mt-4 flex items-center gap-2">
-                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter border border-white/20 bg-white/10`}>
-                    {currentStatus}
-                 </span>
-                 <span className="text-[10px] font-bold opacity-60 flex items-center gap-1">
-                   <Target size={12} /> {totalWeight}% Weight
-                 </span>
-               </div>
+              <TrendingUp className="absolute -right-4 -bottom-4 w-32 h-32 text-white/10 -rotate-12" />
+              <p className="text-xs font-black uppercase tracking-widest opacity-60">Performance Score</p>
+              <h3 className="text-4xl font-black mt-2">
+                {kpis && kpis.length > 0 ? totalScore.toFixed(2) : 'N/A'}
+              </h3>
+              <div className="mt-4 flex items-center gap-2">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter border border-white/20 bg-white/10`}>
+                  {currentStatus}
+                </span>
+                <span className="text-[10px] font-bold opacity-60 flex items-center gap-1">
+                  <Target size={12} /> {totalWeight}% Weight
+                </span>
+              </div>
             </div>
           </div>
 
@@ -209,26 +214,26 @@ export const KpiDetailPage: React.FC = () => {
                           <span className="text-xs font-black text-blue-600">{kpi.weight}%</span>
                         </td>
                         <td className="py-4 px-6 text-right">
-                           <p className="text-sm font-black text-slate-900">{kpi.actual || '-'}</p>
+                          <p className="text-sm font-black text-slate-900">{kpi.actual || '-'}</p>
                         </td>
                         <td className="py-4 px-6 text-right font-black text-indigo-600">
-                           {kpi.weightedScore?.toFixed(2) || '0.00'}
+                          {kpi.weightedScore?.toFixed(2) || '0.00'}
                         </td>
                         <td className="py-4 px-6 text-right">
-                           <p className="text-[10px] font-bold text-slate-400">
-                             {kpi.updatedDate ? new Date(kpi.updatedDate).toLocaleDateString() : 'N/A'}
-                           </p>
+                          <p className="text-[10px] font-bold text-slate-400">
+                            {kpi.updatedDate ? new Date(kpi.updatedDate).toLocaleDateString() : 'N/A'}
+                          </p>
                         </td>
                       </tr>
                     )) : (
                       <tr>
                         <td colSpan={7} className="py-20 text-center">
-                           <div className="flex flex-col items-center gap-3">
-                             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
-                               <Target size={32} />
-                             </div>
-                             <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">No KPIs Assigned for this Employee</p>
-                           </div>
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                              <Target size={32} />
+                            </div>
+                            <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">No KPIs Assigned for this Employee</p>
+                          </div>
                         </td>
                       </tr>
                     )}

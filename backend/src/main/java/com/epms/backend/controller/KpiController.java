@@ -28,6 +28,12 @@ public class KpiController {
         return ResponseEntity.ok(kpiService.getLatestKpisByEmployee(employeeId));
     }
 
+    @GetMapping("/latest-date/{employeeId}")
+    public ResponseEntity<java.util.Map<String, String>> getLatestUpdatedDateByEmployee(@PathVariable Long employeeId) {
+        java.time.Instant latest = kpiService.getLatestUpdatedDate(employeeId);
+        return ResponseEntity.ok(java.util.Map.of("latestDate", latest != null ? latest.toString() : ""));
+    }
+
     @GetMapping("/periods/{employeeId}")
     public ResponseEntity<List<String>> getEmployeeKpiPeriods(@PathVariable Long employeeId) {
         return ResponseEntity.ok(kpiService.getEmployeeKpiPeriods(employeeId));
