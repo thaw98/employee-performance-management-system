@@ -1,4 +1,4 @@
-import { Fragment, useEffect } from 'react'
+import { Fragment, useEffect, useMemo } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -6,7 +6,7 @@ import { z } from 'zod'
 import toast from 'react-hot-toast'
 import { X, Save, Pencil, Building2, Hash, AlertCircle, User } from 'lucide-react'
 import { useGetManagersQuery, useUpdateDepartmentMutation } from '../api/departmentApi'
-import type { DepartmentDto } from '../types'
+import type { DepartmentDto, ManagerOption } from '../types'
 
 const departmentSchema = z.object({
   departmentCode: z.string().trim().min(1, 'Department code is required.'),
@@ -42,7 +42,23 @@ interface EditDepartmentModalProps {
 export default function EditDepartmentModal({ isOpen, onClose, department, onSuccess }: EditDepartmentModalProps) {
   const [updateDepartment, { isLoading }] = useUpdateDepartmentMutation()
   const { data: managersData } = useGetManagersQuery(department?.departmentId)
-  const managers = managersData?.data ?? []
+  const managers = useMemo<ManagerOption[]>(() => {
+    const options = managersData?.data ?? []
+    if (!department?.managerId || options.some((manager) => manager.employeeId === department.managerId)) {
+      return options
+    }
+
+    return [
+      {
+        employeeId: department.managerId,
+        fullName: department.managerName || 'Current manager',
+        staffNo: '',
+        departmentName: department.departmentName,
+        positionName: '',
+      },
+      ...options,
+    ]
+  }, [department?.departmentName, department?.managerId, department?.managerName, managersData?.data])
 
   const normalizeFormStatus = (value: unknown): DepartmentFormValues['status'] => {
     return String(value ?? '').trim().toLowerCase() === 'inactive' ? 'Inactive' : 'Active'
@@ -52,7 +68,6 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<DepartmentFormInput, unknown, DepartmentFormValues>({
     resolver: zodResolver(departmentSchema),
@@ -68,19 +83,6 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
       })
     }
   }, [department, reset])
-
-  useEffect(() => {
-    if (!department?.managerId || !managersData) {
-      return
-    }
-
-    const managerStillAvailable = (managersData.data ?? []).some(
-      (manager) => manager.employeeId === department.managerId,
-    )
-    if (!managerStillAvailable) {
-      setValue('managerId', '')
-    }
-  }, [department?.managerId, managersData, setValue])
 
   const onSubmit: SubmitHandler<DepartmentFormValues> = async (data) => {
     if (!department) return
