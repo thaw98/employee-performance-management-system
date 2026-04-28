@@ -117,13 +117,20 @@ public class FeedbackService {
     private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity) {
         FeedbackHistoryDto dto = mapToHistoryDto(entity);
         Employee evaluatee = entity.getEvaluatee();
-        Employee manager = evaluatee.getManager();
+        Employee manager = resolveDepartmentManager(evaluatee);
         boolean directManagerFeedback = manager != null
                 && entity.getEvaluator() != null
                 && manager.getId().equals(entity.getEvaluator().getId());
 
         dto.setEvaluatorName(directManagerFeedback ? entity.getEvaluator().getEmployeeName() : "Anonymous");
         return dto;
+    }
+
+    private Employee resolveDepartmentManager(Employee employee) {
+        if (employee == null || employee.getDepartment() == null || employee.getDepartment().getManagerId() == null) {
+            return null;
+        }
+        return employeeRepository.findById(employee.getDepartment().getManagerId()).orElse(null);
     }
 
     public List<com.epms.backend.dto.FeedbackDetailDto> getFeedbackDetails(Long feedbackId) {

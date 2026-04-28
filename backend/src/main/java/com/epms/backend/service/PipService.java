@@ -42,8 +42,7 @@ public class PipService {
             return new ArrayList<>();
         }
         return employeeRepository.findAll().stream()
-                .filter(employee -> employee.getManager() != null
-                        && employee.getManager().getId().equals(manager.getEmployee().getId()))
+                .filter(employee -> isManagedBy(employee, manager.getEmployee().getId()))
                 .map(employee -> new EligibleEmployeeDTO(
                         employee.getId(),
                         employee.getEmployeeId(),
@@ -71,7 +70,7 @@ public class PipService {
         Employee employee = employeeRepository.findById(request.getEmployeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        if (employee.getManager() == null || !employee.getManager().getId().equals(managerEmployee.getId())) {
+        if (!isManagedBy(employee, managerEmployee.getId())) {
             throw new RuntimeException("You can only create PIPs for employees under your supervision");
         }
 
@@ -480,6 +479,14 @@ public class PipService {
 
     private boolean isHr(User actor) {
         return actor.getRole() != null && "HR".equalsIgnoreCase(actor.getRole().getName());
+    }
+
+    private boolean isManagedBy(Employee employee, Long managerEmployeeId) {
+        if (employee == null || managerEmployeeId == null || employee.getDepartment() == null) {
+            return false;
+        }
+        Long departmentManagerId = employee.getDepartment().getManagerId();
+        return departmentManagerId != null && departmentManagerId.equals(managerEmployeeId);
     }
 
     private String normalizeStatus(String status) {
