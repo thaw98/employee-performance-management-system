@@ -1,11 +1,36 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
+import type { FetchBaseQueryError } from '@reduxjs/toolkit/query'
 import { useGetProfileQuery, useUpdateProfilePictureMutation, useUpdateProfileMutation, useDeleteProfilePictureMutation, useGetDefaultSignatureQuery, useSaveDrawnSignatureMutation, useUploadSignatureMutation } from '../features/user/userApi'
 import { resolveMediaSrc, resolveProfilePictureSrc } from '../utils/mediaUrl'
 import { User, Mail, Shield, BadgeCheck, Hash, Camera, Lock, Loader2, Save, Trash2, PenLine, Upload, Image as ImageIcon, RotateCcw } from 'lucide-react'
 
+// Drawn signatures are posted as base64 JSON, so keep payload notably below server max-request-size.
+const MAX_DRAWN_SIGNATURE_REQUEST_BYTES = 3 * 1024 * 1024
+
 function getErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string' && message.trim()) {
+      return message
+    }
+  }
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const fbqError = error as FetchBaseQueryError & { data?: { message?: unknown }; error?: string }
+    if (typeof fbqError.data?.message === 'string' && fbqError.data.message.trim()) {
+      return fbqError.data.message
+    }
+    if (typeof fbqError.error === 'string' && fbqError.error.trim()) {
+      return fbqError.error
+    }
+    if (typeof fbqError.status === 'number') {
+      return `Request failed (HTTP ${fbqError.status}).`
+    }
+    if (typeof fbqError.status === 'string' && fbqError.status.trim()) {
+      return `Request failed (${fbqError.status}).`
+    }
+  }
   if (typeof error === 'object' && error !== null && 'data' in error) {
     const data = (error as { data?: { message?: unknown } }).data
     if (typeof data?.message === 'string' && data.message.trim()) {
@@ -13,6 +38,77 @@ function getErrorMessage(error: unknown, fallback: string): string {
     }
   }
   return fallback
+}
+
+function getErrorCodeLabel(error: unknown): string {
+  if (typeof error === 'object' && error !== null) {
+    const errorObj = error as {
+      status?: unknown
+      originalStatus?: unknown
+      code?: unknown
+      name?: unknown
+      message?: unknown
+      error?: unknown
+    }
+
+    const status = errorObj.status
+    if (typeof status === 'number') {
+      return `HTTP_${status}`
+    }
+    if (typeof status === 'string' && status.trim()) {
+      return status.trim().toUpperCase()
+    }
+
+    const originalStatus = errorObj.originalStatus
+    if (typeof originalStatus === 'number') {
+      return `HTTP_${originalStatus}`
+    }
+
+    const code = errorObj.code
+    if (typeof code === 'string' && code.trim()) {
+      return code.trim().toUpperCase()
+    }
+
+    const message = typeof errorObj.message === 'string' ? errorObj.message : ''
+    const rawError = typeof errorObj.error === 'string' ? errorObj.error : ''
+    const combined = `${message} ${rawError}`.toUpperCase()
+    if (combined.includes('FAILED TO FETCH') || combined.includes('NETWORKERROR') || combined.includes('NETWORK ERROR')) {
+      return 'FETCH_ERROR'
+    }
+
+    const name = errorObj.name
+    if (typeof name === 'string' && name.trim()) {
+      return name.trim().toUpperCase()
+    }
+  }
+  return 'CLIENT_ERROR'
+}
+
+function estimateDataUrlBytes(dataUrl: string): number {
+  const commaIndex = dataUrl.indexOf(',')
+  if (commaIndex < 0) return 0
+  const base64 = dataUrl.slice(commaIndex + 1)
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0
+  return Math.floor((base64.length * 3) / 4) - padding
+}
+
+function exportSignatureDataUrl(canvas: HTMLCanvasElement): string {
+  // Keep shrinking until the PNG comfortably fits backend request limits.
+  let currentCanvas = canvas
+  let dataUrl = currentCanvas.toDataURL('image/png')
+
+  while (estimateDataUrlBytes(dataUrl) > MAX_DRAWN_SIGNATURE_REQUEST_BYTES && currentCanvas.width > 120 && currentCanvas.height > 60) {
+    const nextCanvas = document.createElement('canvas')
+    nextCanvas.width = Math.floor(currentCanvas.width * 0.8)
+    nextCanvas.height = Math.floor(currentCanvas.height * 0.8)
+    const ctx = nextCanvas.getContext('2d')
+    if (!ctx) break
+    ctx.drawImage(currentCanvas, 0, 0, nextCanvas.width, nextCanvas.height)
+    currentCanvas = nextCanvas
+    dataUrl = currentCanvas.toDataURL('image/png')
+  }
+
+  return dataUrl
 }
 
 export function ProfileSettingsPage() {
@@ -132,12 +228,31 @@ export function ProfileSettingsPage() {
         setSignatureMessage({ type: 'error', text: 'Draw your signature before saving.' })
         return
       }
-      const dataUrl = signatureCanvasRef.current.getTrimmedCanvas().toDataURL('image/png')
-      await saveDrawnSignature(dataUrl).unwrap()
+      const trimmedCanvas = signatureCanvasRef.current.getTrimmedCanvas()
+      const dataUrl = exportSignatureDataUrl(trimmedCanvas)
+      if (estimateDataUrlBytes(dataUrl) > MAX_DRAWN_SIGNATURE_REQUEST_BYTES) {
+        setSignatureMessage({ type: 'error', text: 'Signature is too detailed. Please draw a simpler signature and try again.' })
+        return
+      }
+      const result = await saveDrawnSignature(dataUrl)
+      if ('error' in result) {
+        const message = getErrorMessage(result.error, '')
+        const errorCode = getErrorCodeLabel(result.error)
+        setSignatureMessage({
+          type: 'error',
+          text: message ? `Save signature failed [${errorCode}]: ${message}` : `Save signature failed [${errorCode}]`,
+        })
+        return
+      }
       signatureCanvasRef.current.clear()
       setSignatureMessage({ type: 'success', text: 'Default signature saved.' })
     } catch (err: unknown) {
-      setSignatureMessage({ type: 'error', text: getErrorMessage(err, 'Failed to save signature.') })
+      const message = getErrorMessage(err, '')
+      const errorCode = getErrorCodeLabel(err)
+      setSignatureMessage({
+        type: 'error',
+        text: message ? `Save signature failed [${errorCode}]: ${message}` : `Save signature failed [${errorCode}]`,
+      })
     }
   }
 
