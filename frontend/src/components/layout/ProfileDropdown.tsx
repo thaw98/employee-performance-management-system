@@ -96,7 +96,7 @@ export function ProfileDropdown() {
               <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
                 <PenLine size={18} />
               </div>
-              Siganture Settings
+              Signature Settings
             </Link>
 
             <Link
