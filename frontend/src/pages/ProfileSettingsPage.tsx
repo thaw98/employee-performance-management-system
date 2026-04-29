@@ -111,6 +111,41 @@ function exportSignatureDataUrl(canvas: HTMLCanvasElement): string {
   return dataUrl
 }
 
+function trimSignatureCanvas(sourceCanvas: HTMLCanvasElement): HTMLCanvasElement {
+  const sourceContext = sourceCanvas.getContext('2d')
+  if (!sourceContext) return sourceCanvas
+
+  const { width, height } = sourceCanvas
+  const pixels = sourceContext.getImageData(0, 0, width, height)
+  const data = pixels.data
+  let top = height
+  let right = 0
+  let bottom = 0
+  let left = width
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const alpha = data[(y * width + x) * 4 + 3]
+      if (alpha === 0) continue
+      if (x < left) left = x
+      if (x > right) right = x
+      if (y < top) top = y
+      if (y > bottom) bottom = y
+    }
+  }
+
+  if (left > right || top > bottom) return sourceCanvas
+
+  const trimmedCanvas = document.createElement('canvas')
+  trimmedCanvas.width = right - left + 1
+  trimmedCanvas.height = bottom - top + 1
+  const trimmedContext = trimmedCanvas.getContext('2d')
+  if (!trimmedContext) return sourceCanvas
+
+  trimmedContext.putImageData(sourceContext.getImageData(left, top, trimmedCanvas.width, trimmedCanvas.height), 0, 0)
+  return trimmedCanvas
+}
+
 export function ProfileSettingsPage() {
   const { data: profileResponse, isLoading } = useGetProfileQuery()
   const { data: signatureResponse, isLoading: isLoadingSignature } = useGetDefaultSignatureQuery()
@@ -228,7 +263,7 @@ export function ProfileSettingsPage() {
         setSignatureMessage({ type: 'error', text: 'Draw your signature before saving.' })
         return
       }
-      const trimmedCanvas = signatureCanvasRef.current.getTrimmedCanvas()
+      const trimmedCanvas = trimSignatureCanvas(signatureCanvasRef.current.getCanvas())
       const dataUrl = exportSignatureDataUrl(trimmedCanvas)
       if (estimateDataUrlBytes(dataUrl) > MAX_DRAWN_SIGNATURE_REQUEST_BYTES) {
         setSignatureMessage({ type: 'error', text: 'Signature is too detailed. Please draw a simpler signature and try again.' })
