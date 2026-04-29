@@ -46,6 +46,10 @@ export const kpiApi = baseApi.injectEndpoints({
       query: (employeeId) => `/kpis/latest/${employeeId}`,
       providesTags: ['KPI'],
     }),
+    getMyLatestKpis: builder.query<Kpi[], void>({
+      query: () => '/kpis/me/latest',
+      providesTags: ['KPI'],
+    }),
     getLatestKpiDateByEmployee: builder.query<{ latestDate: string }, number>({
       query: (employeeId) => `/kpis/latest-date/${employeeId}`,
       providesTags: ['KPI'],
@@ -77,6 +81,18 @@ export const kpiApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['KPI'],
     }),
+    updateManagerKpiActuals: builder.mutation<Kpi[], { employeeId: number; kpis: Kpi[] }>({
+      query: ({ employeeId, kpis }) => ({
+        url: `/kpis/manager/employee/${employeeId}/actuals`,
+        method: 'PUT',
+        body: kpis,
+      }),
+      invalidatesTags: [{ type: 'KPI', id: 'LIST' }],
+    }),
+    getManagerTeam: builder.query<{ id: number; name: string; role: string; status: string }[], void>({
+      query: () => '/kpis/manager/team',
+      providesTags: ['KPI'],
+    }),
   }),
 })
 
@@ -88,4 +104,7 @@ export const {
   useSetupKpisMutation,
   useGetPositionKpisQuery,
   useSetupPositionKpisMutation,
+  useUpdateManagerKpiActualsMutation,
+  useGetManagerTeamQuery,
+  useGetMyLatestKpisQuery,
 } = kpiApi
