@@ -34,7 +34,7 @@ import {
 } from 'lucide-react'
 import { useGetDepartmentByIdQuery } from '../../../features/department/api/departmentApi'
 import {
-  useGetPositionsByDepartmentQuery,
+  useGetDepartmentPositionMappingsByDepartmentQuery,
   useRemoveDepartmentPositionMutation,
   type DepartmentPositionMappingDto,
 } from '../../../features/departmentPositions/api/departmentPositionsApi'
@@ -65,7 +65,7 @@ export default function DepartmentDetailPage() {
     isLoading: isPositionsLoading,
     isError: isPositionsError,
     refetch: refetchPositions,
-  } = useGetPositionsByDepartmentQuery(departmentId, { skip: !isValidDepartmentId })
+  } = useGetDepartmentPositionMappingsByDepartmentQuery(departmentId, { skip: !isValidDepartmentId })
   const [removePosition, { isLoading: isRemoving }] = useRemoveDepartmentPositionMutation()
 
   const department = departmentResponse?.data
