@@ -20,6 +20,7 @@ import {
     Transition, 
     TransitionChild 
 } from '@headlessui/react';
+import { useGetProfileQuery } from '../features/user/userApi';
 
 interface FeedbackItem {
     id: number;
@@ -42,6 +43,8 @@ export function GetFeedbackPage() {
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
+    const { data: profileResponse } = useGetProfileQuery();
+    const timeFormat = profileResponse?.data?.timeFormat || '12h';
 
     // Modal state
     const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
@@ -87,7 +90,7 @@ export function GetFeedbackPage() {
         doc.text('360-Degree Feedback Assessment Report', 105, 20, { align: 'center' });
         
         doc.setFontSize(10);
-        doc.text(`Date: ${item.date}`, 14, 35);
+        doc.text(`Date: ${new Date(item.date).toLocaleDateString('en-GB')} ${new Date(item.date).toLocaleTimeString('en-US', { hour12: timeFormat === '12h', hour: '2-digit', minute: '2-digit' })}`, 14, 35);
         doc.text(`Role of Evaluator: ${item.role}`, 14, 42);
         doc.text(`Overall Score: ${item.score.toFixed(1)}%`, 14, 49);
         doc.text(`Performance Remark: ${item.remark}`, 14, 56);
@@ -182,7 +185,16 @@ export function GetFeedbackPage() {
                                             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
                                                 <Calendar size={18} />
                                             </div>
-                                            <span className="font-bold text-slate-700">{item.date}</span>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-700">{new Date(item.date).toLocaleDateString('en-GB')}</span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                                    {new Date(item.date).toLocaleTimeString('en-US', { 
+                                                        hour12: timeFormat === '12h', 
+                                                        hour: '2-digit', 
+                                                        minute: '2-digit' 
+                                                    })}
+                                                </span>
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="p-6">

@@ -81,4 +81,7 @@ public class User {
 
     @Column(name = "timezone", length = 50)
     private String timezone = "UTC+06:30 (Yangon)";
+
+    @Column(name = "time_format", length = 10)
+    private String timeFormat = "12h";
 }

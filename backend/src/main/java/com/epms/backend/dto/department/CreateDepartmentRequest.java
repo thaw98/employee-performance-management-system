@@ -13,6 +13,8 @@ public class CreateDepartmentRequest {
     @NotBlank(message = "Department name is required.")
     private String departmentName;
 
+    private Long managerId;
+
     @Pattern(regexp = "^(?i)(Active|Inactive)$", message = "Status must be Active or Inactive.")
     private String status;
 }

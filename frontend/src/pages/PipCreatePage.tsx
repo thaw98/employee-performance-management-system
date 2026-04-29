@@ -97,7 +97,7 @@ export default function PipCreatePage() {
         const employeeId = values.employeeId
         const existingPip = existingPips?.find((pip) => {
           const pipEmployeeId = pip.employee?.employee?.id
-          return pipEmployeeId === employeeId && ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN'].includes(pip.status)
+          return pipEmployeeId === employeeId && ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(pip.status)
         })
 
         if (existingPip) {

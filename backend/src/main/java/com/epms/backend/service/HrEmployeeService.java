@@ -276,14 +276,6 @@ public class HrEmployeeService {
             employee.setStaffType(st);
         }
 
-        if (request.getManagerId() != null) {
-            Employee manager = employeeRepository.findById(request.getManagerId())
-                    .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
-            employee.setManager(manager);
-        } else {
-            employee.setManager(null);
-        }
-
         employee.setUpdatedBy(principal.getId());
         employee.setUpdatedDate(Instant.now());
 
@@ -561,6 +553,7 @@ public class HrEmployeeService {
     }
 
     private EmployeeDetailResponseDto toDetailDto(Employee employee) {
+        Employee manager = resolveDepartmentManager(employee);
         return EmployeeDetailResponseDto.builder()
                 .id(employee.getId())
                 .employeeId(employee.getEmployeeId())
@@ -579,8 +572,8 @@ public class HrEmployeeService {
                 .departmentPositionId(employee.getDepartmentPosition() != null ? employee.getDepartmentPosition().getId() : null)
                 .positionId(employee.getPosition() != null ? employee.getPosition().getId() : null)
                 .positionName(employee.getPosition() != null ? employee.getPosition().getName() : null)
-                .managerId(employee.getManager() != null ? employee.getManager().getId() : null)
-                .managerName(employee.getManager() != null ? employee.getManager().getEmployeeName() : null)
+                .managerId(manager != null ? manager.getId() : null)
+                .managerName(manager != null ? manager.getEmployeeName() : null)
                 .staffTypeId(employee.getStaffType() != null ? employee.getStaffType().getId() : null)
                 .staffTypeName(employee.getStaffType() != null ? employee.getStaffType().getName() : null)
                 .dateOfJoining(employee.getDateOfJoining())
@@ -588,6 +581,17 @@ public class HrEmployeeService {
                 .probationEndDate(employee.getProbation() != null ? employee.getProbation().getProbationEndDate() : null)
                 .profilePictureUrl(employee.getProfilePictureUrl())
                 .build();
+    }
+
+    private Employee resolveDepartmentManager(Employee employee) {
+        if (employee.getDepartment() == null || employee.getDepartment().getManagerId() == null) {
+            return null;
+        }
+        Long managerId = employee.getDepartment().getManagerId();
+        if (employee.getId() != null && employee.getId().equals(managerId)) {
+            return null;
+        }
+        return employeeRepository.findById(managerId).orElse(null);
     }
 
     private boolean isActiveEntity(String status) {

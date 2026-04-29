@@ -35,6 +35,9 @@ public class Department {
     @Column(name = "status", nullable = false, columnDefinition = "ENUM('Active','Inactive')")
     private String status;
 
+    @Column(name = "manager_id")
+    private Long managerId;
+
     @Column(name = "created_date")
     private Instant createdDate;
 

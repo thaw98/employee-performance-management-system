@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   flexRender,
   getCoreRowModel,
@@ -9,6 +9,8 @@ import {
   getFilteredRowModel,
   type SortingState,
   type ColumnDef,
+  type PaginationState,
+  type Updater,
 } from '@tanstack/react-table'
 import toast from 'react-hot-toast'
 import {
@@ -16,7 +18,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Building2, CheckCircle2, XCircle, LayoutGrid, AlertTriangle, BriefcaseBusiness,
-  Loader2,
+  Loader2, User,
 } from 'lucide-react'
 
 import {
@@ -84,6 +86,8 @@ const normalizeDepartmentRow = (row: unknown): DepartmentDto | null => {
     departmentCode,
     departmentName,
     status: normalizedStatus,
+    managerId: Number(getAliasValue(row, ['managerId', 'manager_id', 'managerid']) ?? 0) || 0,
+    managerName: String(getAliasValue(row, ['managerName', 'manager_name', 'managername']) ?? ''),
     createdDate: String(getAliasValue(row, ['createdDate', 'created_date']) ?? ''),
     updatedDate: String(getAliasValue(row, ['updatedDate', 'updated_date']) ?? ''),
   }
@@ -96,6 +100,7 @@ const getDepartmentCodeForDisplay = (row: DepartmentDto): string => {
 }
 
 export default function DepartmentListPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [deleteDepartment, { isLoading: isDeleting }] = useDeleteDepartmentMutation()
   const [departments, setDepartments] = useState<DepartmentDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -103,6 +108,15 @@ export default function DepartmentListPage() {
 
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const [pagination, setPagination] = useState<PaginationState>(() => {
+    const parsedPage = Number(searchParams.get('page'))
+    const parsedPageSize = Number(searchParams.get('pageSize'))
+
+    return {
+      pageIndex: Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage - 1 : 0,
+      pageSize: Number.isInteger(parsedPageSize) && parsedPageSize > 0 ? parsedPageSize : 10,
+    }
+  })
 
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
@@ -144,6 +158,48 @@ export default function DepartmentListPage() {
   useEffect(() => {
     void loadDepartments()
   }, [loadDepartments])
+
+  useEffect(() => {
+    const parsedPage = Number(searchParams.get('page'))
+    const parsedPageSize = Number(searchParams.get('pageSize'))
+    const nextPageIndex = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage - 1 : 0
+    const nextPageSize = Number.isInteger(parsedPageSize) && parsedPageSize > 0 ? parsedPageSize : 10
+
+    setPagination((prev) => {
+      if (prev.pageIndex === nextPageIndex && prev.pageSize === nextPageSize) {
+        return prev
+      }
+      return { pageIndex: nextPageIndex, pageSize: nextPageSize }
+    })
+  }, [searchParams])
+
+  const syncPaginationToUrl = useCallback((nextPagination: PaginationState) => {
+    setSearchParams((prevParams) => {
+      const nextParams = new URLSearchParams(prevParams)
+
+      if (nextPagination.pageIndex > 0) {
+        nextParams.set('page', String(nextPagination.pageIndex + 1))
+      } else {
+        nextParams.delete('page')
+      }
+
+      if (nextPagination.pageSize !== 10) {
+        nextParams.set('pageSize', String(nextPagination.pageSize))
+      } else {
+        nextParams.delete('pageSize')
+      }
+
+      return nextParams
+    }, { replace: true })
+  }, [setSearchParams])
+
+  const handlePaginationChange = useCallback((updater: Updater<PaginationState>) => {
+    setPagination((prev) => {
+      const nextPagination = typeof updater === 'function' ? updater(prev) : updater
+      syncPaginationToUrl(nextPagination)
+      return nextPagination
+    })
+  }, [syncPaginationToUrl])
 
   const columns = useMemo<ColumnDef<DepartmentDto>[]>(
     () => [
@@ -208,6 +264,19 @@ export default function DepartmentListPage() {
         },
       },
       {
+        accessorKey: 'managerName',
+        header: 'Manager',
+        cell: (info) => {
+          const managerName = String(info.getValue() ?? '').trim()
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-slate-700 text-xs font-semibold">
+              <User size={13} className="text-slate-400" />
+              {managerName || '-'}
+            </span>
+          )
+        },
+      },
+      {
         id: 'actions',
         enableSorting: false,
         header: 'Actions',
@@ -256,9 +325,11 @@ export default function DepartmentListPage() {
   const table = useReactTable({
     data: departments,
     columns,
-    state: { sorting, globalFilter },
+    state: { sorting, globalFilter, pagination },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: handlePaginationChange,
+    autoResetPageIndex: false,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),

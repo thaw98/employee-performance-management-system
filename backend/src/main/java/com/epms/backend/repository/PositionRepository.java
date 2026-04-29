@@ -24,6 +24,12 @@ public interface PositionRepository extends JpaRepository<Position, Long>, JpaSp
 	@Query("SELECT DISTINCT p FROM Position p LEFT JOIN FETCH p.levelCode LEFT JOIN FETCH p.role WHERE p.id = :id")
 	Optional<Position> findByIdWithLevelCodeAndRole(@Param("id") Long id);
 
+	@Query("SELECT p FROM Position p LEFT JOIN FETCH p.role WHERE p.levelCode.id = :levelCodeId ORDER BY p.code ASC, p.name ASC")
+	List<Position> findByLevelCodeIdWithRole(@Param("levelCodeId") Long levelCodeId);
+
+	@Query("SELECT COUNT(p) FROM Position p WHERE p.levelCode.id = :levelCodeId")
+	long countByLevelCodeId(@Param("levelCodeId") Long levelCodeId);
+
 	List<Position> findByStatusIgnoreCase(String status);
 
 	@Query("SELECT p FROM Position p WHERE LOWER(COALESCE(p.status, 'ACTIVE')) = 'active' AND LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY p.name ASC")

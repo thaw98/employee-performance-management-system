@@ -1,5 +1,6 @@
 package com.epms.backend.service;
 
+import com.epms.backend.StaffTypes;
 import com.epms.backend.dto.FeedbackHistoryDto;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
 import com.epms.backend.entity.*;
@@ -31,6 +32,9 @@ public class FeedbackService {
                 .orElseThrow(() -> new RuntimeException("Evaluator not found"));
         Employee evaluatee = employeeRepository.findById(request.getEvaluateeId())
                 .orElseThrow(() -> new RuntimeException("Evaluatee not found"));
+        if (isProbationEmployee(evaluatee)) {
+            throw new RuntimeException("Probation employees cannot receive 360 feedback");
+        }
 
         // Rule: Same department only
         if (!evaluator.getDepartment().getId().equals(evaluatee.getDepartment().getId())) {
@@ -117,13 +121,20 @@ public class FeedbackService {
     private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity) {
         FeedbackHistoryDto dto = mapToHistoryDto(entity);
         Employee evaluatee = entity.getEvaluatee();
-        Employee manager = evaluatee.getManager();
+        Employee manager = resolveDepartmentManager(evaluatee);
         boolean directManagerFeedback = manager != null
                 && entity.getEvaluator() != null
                 && manager.getId().equals(entity.getEvaluator().getId());
 
         dto.setEvaluatorName(directManagerFeedback ? entity.getEvaluator().getEmployeeName() : "Anonymous");
         return dto;
+    }
+
+    private Employee resolveDepartmentManager(Employee employee) {
+        if (employee == null || employee.getDepartment() == null || employee.getDepartment().getManagerId() == null) {
+            return null;
+        }
+        return employeeRepository.findById(employee.getDepartment().getManagerId()).orElse(null);
     }
 
     public List<com.epms.backend.dto.FeedbackDetailDto> getFeedbackDetails(Long feedbackId) {
@@ -155,6 +166,7 @@ public class FeedbackService {
 
         return colleagues.stream()
                 .filter(e -> !e.getId().equals(evaluatorId)) // Exclude self
+                .filter(e -> !isProbationEmployee(e))
                 .filter(e -> e.getPosition() != null && e.getPosition().getLevelCode() != null)
                 .filter(e -> {
                     Long eLevelId = e.getPosition().getLevelCode().getId();
@@ -170,5 +182,11 @@ public class FeedbackService {
                     }
                 })
                 .collect(Collectors.toList());
+    }
+
+    private boolean isProbationEmployee(Employee employee) {
+        return employee != null
+                && employee.getStaffType() != null
+                && employee.getStaffType().getId() == StaffTypes.PROBATION;
     }
 }

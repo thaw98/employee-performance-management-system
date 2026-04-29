@@ -13,6 +13,7 @@ export interface UserProfileDto {
   wallpaperUrl?: string
   language?: string
   timezone?: string
+  timeFormat?: string
 }
 
 export interface ProfilePictureUploadResponseDto {
