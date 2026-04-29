@@ -18,6 +18,8 @@ public class DepartmentPositionMappingDto {
 	private Long positionId;
 	private String positionCode;
 	private String positionName;
+	private Long levelCodeId;
+	private String levelCodeName;
 	private String status;
 	private Instant createdOn;
 	private Instant updatedOn;
