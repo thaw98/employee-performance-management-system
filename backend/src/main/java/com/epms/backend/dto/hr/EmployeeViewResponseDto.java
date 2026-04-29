@@ -28,6 +28,8 @@ public class EmployeeViewResponseDto {
     private String address;
     private String race;
     private String employmentStatus;
+    private LocalDate statusEffectiveFrom;
+    private String employmentStatusReason;
     /** {@code Single} or {@code Married}, or null if unset. */
     private String maritalStatus;
     private DepartmentInfo department;

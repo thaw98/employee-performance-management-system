@@ -77,6 +77,12 @@ public class Employee {
     @Column(name = "employment_status", length = 20)
     private EmployeeStatus employmentStatus = EmployeeStatus.ACTIVE;
 
+    @Column(name = "status_effective_from")
+    private LocalDate statusEffectiveFrom;
+
+    @Column(name = "employment_status_reason", length = 255)
+    private String employmentStatusReason;
+
     @Column(name = "staff_nrc_no", length = 100)
     private String staffNrcNo;
 

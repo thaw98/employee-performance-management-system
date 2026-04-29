@@ -68,10 +68,10 @@ function LevelCodeListPage() {
   const handleSubmitLevelCode = async (values: LevelCodeFormValues) => {
     try {
       if (editingLevelCode) {
-        await updateLevelCode({ id: editingLevelCode.id, body: { description: values.description?.trim() || undefined } }).unwrap()
+        await updateLevelCode({ id: editingLevelCode.id, body: {} }).unwrap()
         toast.success('Level code updated successfully')
       } else {
-        await createLevelCode({ code: values.code.trim(), description: values.description?.trim() || undefined }).unwrap()
+        await createLevelCode({ code: values.code.trim() }).unwrap()
         toast.success('Level code created successfully')
       }
       setIsLevelCodeModalOpen(false)

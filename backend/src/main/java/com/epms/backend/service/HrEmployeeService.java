@@ -30,6 +30,7 @@ import com.epms.backend.dto.hr.EmployeeViewResponseDto;
 import com.epms.backend.dto.hr.EmployeeListItemResponseDto;
 import com.epms.backend.dto.hr.EmployeeListResponseDto;
 import com.epms.backend.dto.hr.EmployeeUpdateRequestDto;
+import com.epms.backend.dto.hr.EmploymentStatusHistoryResponseDto;
 import com.epms.backend.dto.hr.PasswordActionResponseDto;
 import com.epms.backend.dto.hr.UpdateEmploymentStatusRequestDto;
 import com.epms.backend.entity.Department;
@@ -41,12 +42,14 @@ import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.EmployeeSpouse;
 import com.epms.backend.entity.EmployeeStatus;
+import com.epms.backend.entity.EmploymentStatusHistory;
 import com.epms.backend.entity.MaritalStatus;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
 import com.epms.backend.repository.EmployeeRepository;
+import com.epms.backend.repository.EmploymentStatusHistoryRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.UserPrincipal;
@@ -67,6 +70,7 @@ public class HrEmployeeService {
     private final UserRepository userRepository;
     private final StaffTypeRepository staffTypeRepository;
     private final DepartmentPositionRepository departmentPositionRepository;
+    private final EmploymentStatusHistoryRepository employmentStatusHistoryRepository;
     private final PositionRoleResolutionService positionRoleResolutionService;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
@@ -418,6 +422,8 @@ public class HrEmployeeService {
 
         String currentStatus = determineEmploymentStatus(employee);
         String targetStatus = request.getTargetStatus();
+        LocalDate statusEffectiveDate = request.getEffectiveDate() != null ? request.getEffectiveDate() : LocalDate.now();
+        String newStatus = normalizeTargetDisplayStatus(targetStatus);
 
         boolean shouldDeactivateUserAccount = false;
         if ("PERMANENT".equalsIgnoreCase(targetStatus)) {
@@ -432,7 +438,13 @@ public class HrEmployeeService {
 
             EmployeeProbation probation = employee.getProbation();
             if (probation == null) {
-                throw new IllegalArgumentException("No probation record found for this employee");
+                // Backfill missing probation rows for legacy/incomplete data so Probation -> Permanent can proceed.
+                probation = new EmployeeProbation();
+                probation.setEmployee(employee);
+                probation.setProbationStartDate(employee.getDateOfJoining() != null ? employee.getDateOfJoining() : LocalDate.now());
+                probation.setCreatedOn(LocalDateTime.now());
+                probation.setCreatedBy(principal.getId());
+                employee.setProbation(probation);
             }
 
             if ("NOW".equalsIgnoreCase(mode)) {
@@ -489,6 +501,9 @@ public class HrEmployeeService {
             throw new IllegalArgumentException("Invalid target status: " + targetStatus + ". Must be PERMANENT, RESIGNED, or TERMINATED");
         }
 
+        recordEmploymentStatusHistory(employee, currentStatus, newStatus, statusEffectiveDate, principal.getId(), request.getReason());
+        employee.setStatusEffectiveFrom(statusEffectiveDate);
+        employee.setEmploymentStatusReason(normalizeReason(request.getReason()));
         employee.setUpdatedBy(principal.getId());
         employee.setUpdatedDate(Instant.now());
         employeeRepository.save(employee);
@@ -508,6 +523,69 @@ public class HrEmployeeService {
             "HR updated employment status to " + targetStatus + " for employee_id " + employee.getId(),
             null
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<EmploymentStatusHistoryResponseDto> getEmploymentStatusHistory(Long employeeId, UserPrincipal principal) {
+        validateHrOnlyAction(principal);
+        if (!employeeRepository.existsById(employeeId)) {
+            throw new IllegalArgumentException("Employee not found");
+        }
+        return employmentStatusHistoryRepository.findByEmployee_IdOrderByEffectiveDateDescChangedAtDesc(employeeId)
+                .stream()
+                .map(this::toEmploymentStatusHistoryDto)
+                .collect(Collectors.toList());
+    }
+
+    private void recordEmploymentStatusHistory(
+            Employee employee,
+            String previousStatus,
+            String newStatus,
+            LocalDate effectiveDate,
+            Long changedByUserId,
+            String reason) {
+        EmploymentStatusHistory history = new EmploymentStatusHistory();
+        history.setEmployee(employee);
+        history.setPreviousStatus(previousStatus);
+        history.setNewStatus(newStatus);
+        history.setEffectiveDate(effectiveDate);
+        history.setChangedByUserId(changedByUserId);
+        history.setChangedAt(LocalDateTime.now());
+        history.setReason(normalizeReason(reason));
+        employmentStatusHistoryRepository.save(history);
+    }
+
+    private String normalizeTargetDisplayStatus(String targetStatus) {
+        if ("PERMANENT".equalsIgnoreCase(targetStatus)) {
+            return "Permanent";
+        }
+        if ("RESIGNED".equalsIgnoreCase(targetStatus)) {
+            return "Resigned";
+        }
+        if ("TERMINATED".equalsIgnoreCase(targetStatus)) {
+            return "Terminated";
+        }
+        throw new IllegalArgumentException("Invalid target status: " + targetStatus + ". Must be PERMANENT, RESIGNED, or TERMINATED");
+    }
+
+    private String normalizeReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return null;
+        }
+        return reason.trim();
+    }
+
+    private EmploymentStatusHistoryResponseDto toEmploymentStatusHistoryDto(EmploymentStatusHistory history) {
+        return EmploymentStatusHistoryResponseDto.builder()
+                .id(history.getId())
+                .employeeId(history.getEmployee().getId())
+                .previousStatus(history.getPreviousStatus())
+                .newStatus(history.getNewStatus())
+                .effectiveDate(history.getEffectiveDate())
+                .changedByUserId(history.getChangedByUserId())
+                .changedAt(history.getChangedAt())
+                .reason(history.getReason())
+                .build();
     }
 
     private String generateTemporaryPassword() {
@@ -835,6 +913,8 @@ public class HrEmployeeService {
                 .address(employee.getAddress())
                 .race(employee.getRace())
                 .employmentStatus(determineEmploymentStatus(employee))
+                .statusEffectiveFrom(employee.getStatusEffectiveFrom())
+                .employmentStatusReason(employee.getEmploymentStatusReason())
                 .maritalStatus(employee.getMaritalStatus() == null ? null : employee.getMaritalStatus().name())
                 .department(deptInfo)
                 .position(posInfo)

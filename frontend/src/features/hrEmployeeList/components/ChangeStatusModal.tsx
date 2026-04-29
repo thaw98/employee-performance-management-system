@@ -34,6 +34,7 @@ function ChangeStatusModal({
   const [selectedTarget, setSelectedTarget] = useState<string>('')
   const [transitionMode, setTransitionMode] = useState<string>('')
   const [effectiveDate, setEffectiveDate] = useState('')
+  const [reason, setReason] = useState('')
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -41,6 +42,7 @@ function ChangeStatusModal({
       setSelectedTarget('')
       setTransitionMode('')
       setEffectiveDate('')
+      setReason('')
     }
   }, [isOpen])
 
@@ -88,6 +90,10 @@ function ChangeStatusModal({
 
     const request: UpdateEmploymentStatusRequest = {
       targetStatus: selectedTarget,
+    }
+    const trimmedReason = reason.trim()
+    if (trimmedReason) {
+      request.reason = trimmedReason
     }
 
     if (selectedTarget === 'PERMANENT') {
@@ -355,6 +361,23 @@ function ChangeStatusModal({
                             <p className="mt-1 text-xs text-gray-500">
                               This date will be saved as the probation end date.
                             </p>
+                          </div>
+                        )}
+
+                        {selectedTarget && (
+                          <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Reason
+                            </label>
+                            <textarea
+                              value={reason}
+                              onChange={(e) => setReason(e.target.value.slice(0, 255))}
+                              rows={3}
+                              maxLength={255}
+                              className="block w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                              placeholder="Optional"
+                            />
+                            <p className="mt-1 text-xs text-gray-500 text-right">{reason.length}/255</p>
                           </div>
                         )}
 

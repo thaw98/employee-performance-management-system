@@ -2,6 +2,7 @@ import { Dialog, Transition, Tab } from '@headlessui/react'
 import { Fragment, useState, useMemo, memo, useCallback, useEffect } from 'react'
 import { CheckCircle2, RotateCcw } from 'lucide-react'
 import type { EmployeeViewDetail } from '../hrEmployeeApi'
+import { useGetEmploymentStatusHistoryQuery } from '../hrEmployeeApi'
 import { useGetTransferHistoryQuery } from '../employeeTransferApi'
 import { TransferHistoryTable } from './TransferHistoryTable'
 import { ReturnModal } from './ReturnModal'
@@ -35,6 +36,20 @@ function displayValue(val: string | number | null | undefined): string {
   return String(val)
 }
 
+function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  try {
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return '-'
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}, ${hours}:${minutes}`
+  } catch {
+    return '-'
+  }
+}
+
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-start py-2.5 border-b border-gray-50 last:border-b-0">
@@ -61,8 +76,14 @@ function EmployeeViewModal({
   const { data: transferRes, isLoading: transferLoading, refetch: refetchTransfers } = useGetTransferHistoryQuery(employeeId ?? 0, {
     skip: !isOpen || !employeeId || hideSensitiveFields,
   })
+  const { data: statusHistoryRes, isLoading: statusHistoryLoading } = useGetEmploymentStatusHistoryQuery(employeeId ?? 0, {
+    skip: !isOpen || !employeeId || hideSensitiveFields,
+  })
   const transferHistory = transferRes?.data ?? []
+  const statusHistory = statusHistoryRes?.data ?? []
   const currentTransfer = transferHistory.find((row) => row.isCurrent) ?? null
+  const hasOnlyInitialPlacement = transferHistory.length === 1 && transferHistory[0]?.transferType === 'INITIAL'
+  const visibleTransferHistory = hasOnlyInitialPlacement ? [] : transferHistory
 
   useEffect(() => {
     if (!isOpen) {
@@ -221,11 +242,12 @@ function EmployeeViewModal({
 
                       {/* Tabs */}
                       <Tab.Group>
-                        <Tab.List className="flex gap-1 p-1 bg-gray-50 rounded-xl mb-5">
+                        <Tab.List className="flex flex-wrap gap-1 p-1 bg-gray-50 rounded-xl mb-5">
                           <Tab className={tabClasses}>Personal</Tab>
                           <Tab className={tabClasses}>Employment</Tab>
                           {!hideSensitiveFields && <Tab className={tabClasses}>Emergency</Tab>}
                           {!hideSensitiveFields && <Tab className={tabClasses}>Father</Tab>}
+                          {!hideSensitiveFields && <Tab className={tabClasses}>Status History</Tab>}
                           {!hideSensitiveFields && <Tab className={tabClasses}>Transfer History</Tab>}
                         </Tab.List>
 
@@ -272,6 +294,14 @@ function EmployeeViewModal({
                               <InfoRow
                                 label="Employment Status"
                                 value={displayValue(data.employmentStatus)}
+                              />
+                              <InfoRow
+                                label="Status Effective From"
+                                value={formatDate(data.statusEffectiveFrom)}
+                              />
+                              <InfoRow
+                                label="Status Reason"
+                                value={displayValue(data.employmentStatusReason)}
                               />
                               <InfoRow
                                 label="Staff Type"
@@ -352,7 +382,47 @@ function EmployeeViewModal({
                             </Tab.Panel>
                           )}
 
-                          {/* 5. Transfer History */}
+                          {/* 5. Status History */}
+                          {!hideSensitiveFields && (
+                            <Tab.Panel>
+                              {statusHistoryLoading ? (
+                                <div className="py-8 text-center text-sm text-gray-500">Loading status history...</div>
+                              ) : statusHistory.length === 0 ? (
+                                <div className="py-8 text-center text-sm text-gray-500">
+                                  No employment status history recorded yet.
+                                </div>
+                              ) : (
+                                <div className="overflow-x-auto rounded-lg border border-gray-200">
+                                  <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                    <thead className="bg-gray-50">
+                                      <tr>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-600">Change</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-600">Effective</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-600">Recorded</th>
+                                        <th className="px-3 py-2 text-left font-semibold text-gray-600">Reason</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 bg-white">
+                                      {statusHistory.map((row) => (
+                                        <tr key={row.id}>
+                                          <td className="px-3 py-2 text-gray-900">
+                                            <span className="font-medium">{displayValue(row.previousStatus)}</span>
+                                            <span className="mx-1.5 text-gray-400">to</span>
+                                            <span className="font-medium">{displayValue(row.newStatus)}</span>
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-700">{formatDate(row.effectiveDate)}</td>
+                                          <td className="px-3 py-2 text-gray-700">{formatDateTime(row.changedAt)}</td>
+                                          <td className="px-3 py-2 text-gray-700 whitespace-pre-wrap">{displayValue(row.reason)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </Tab.Panel>
+                          )}
+
+                          {/* 6. Transfer History */}
                           {!hideSensitiveFields && (
                             <Tab.Panel className="space-y-4">
                               {currentTransfer?.transferType === 'TEMPORARY' && (
@@ -376,7 +446,7 @@ function EmployeeViewModal({
                                 </div>
                               )}
                               <TransferHistoryTable
-                                history={transferHistory}
+                                history={visibleTransferHistory}
                                 isLoading={transferLoading}
                               />
                             </Tab.Panel>

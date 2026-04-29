@@ -162,6 +162,8 @@ export interface EmployeeViewDetail {
   address: string
   race: string
   employmentStatus: string
+  statusEffectiveFrom: string | null
+  employmentStatusReason: string | null
   /** Single | Married */
   maritalStatus?: string | null
   department: EmployeeViewDepartment | null
@@ -177,6 +179,18 @@ export interface UpdateEmploymentStatusRequest {
   targetStatus: string
   transitionMode?: string
   effectiveDate?: string
+  reason?: string
+}
+
+export interface EmploymentStatusHistoryItem {
+  id: number
+  employeeId: number
+  previousStatus: string | null
+  newStatus: string
+  effectiveDate: string
+  changedByUserId: number | null
+  changedAt: string
+  reason: string | null
 }
 
 export const hrEmployeeApi = baseApi.injectEndpoints({
@@ -222,6 +236,10 @@ export const hrEmployeeApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Employee'],
     }),
+    getEmploymentStatusHistory: builder.query<ApiResponse<EmploymentStatusHistoryItem[]>, number>({
+      query: (id) => `/hr/employees/${id}/employment-status-history`,
+      providesTags: (_result, _error, id) => [{ type: 'Employee', id }],
+    }),
     exportEmployees: builder.mutation<Blob, void>({
       query: () => ({
         url: '/employees/export',
@@ -243,6 +261,7 @@ export const {
   useResendPasswordMutation,
   useSendNewPasswordMutation,
   useUpdateEmploymentStatusMutation,
+  useGetEmploymentStatusHistoryQuery,
   useExportEmployeesMutation,
   useLazyGetEmployeeViewByIdQuery,
 } = hrEmployeeApi
