@@ -62,6 +62,16 @@ function buildFatherNrc(v: CreateEmployeeAccountFormValues): string | undefined 
   return undefined
 }
 
+function buildSpouseNrc(v: CreateEmployeeAccountFormValues): string | undefined {
+  const a = v.spouseNrcStateCode?.trim()
+  const b = v.spouseNrcTownshipCode?.trim()
+  const c = v.spouseNrcType?.trim()
+  const d = v.spouseNrcNumber?.trim()
+  if (!a && !b && !c && !d) return undefined
+  if (a && b && c && d) return `${a}/${b}(${c})${d}`
+  return undefined
+}
+
 const emailOk = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())
 
 function staffDupBlocks(staffDup: Dup): boolean {
@@ -94,7 +104,7 @@ export function CreateEmployeeAccountPage() {
       phoneNo: '',
       address: '',
       religion: '',
-      nationality: '',
+      race: '',
       nrcStateCode: '',
       nrcTownshipCode: '',
       nrcType: '',
@@ -105,6 +115,12 @@ export function CreateEmployeeAccountPage() {
       fatherNrcType: '',
       fatherNrcNumber: '',
       fatherOccupation: '',
+      maritalStatus: 'Single',
+      spouseName: '',
+      spouseNrcStateCode: '',
+      spouseNrcTownshipCode: '',
+      spouseNrcType: '',
+      spouseNrcNumber: '',
       emergencyPhone: '',
       emergencyRelation: '',
       staffType: 'PERMANENT',
@@ -263,6 +279,17 @@ export function CreateEmployeeAccountPage() {
     return ''
   }, [fatherNrcStateCode, fatherNrcTownshipCode, fatherNrcType, fatherNrcNumber])
 
+  const spouseNrcStateCode = watch('spouseNrcStateCode')
+  const spouseNrcTownshipCode = watch('spouseNrcTownshipCode')
+  const spouseNrcType = watch('spouseNrcType')
+  const spouseNrcNumber = watch('spouseNrcNumber')
+  const spouseNrcPreview = useMemo(() => {
+    if (spouseNrcStateCode && spouseNrcTownshipCode && spouseNrcType && spouseNrcNumber) {
+      return `${spouseNrcStateCode}/${spouseNrcTownshipCode}(${spouseNrcType})${spouseNrcNumber}`
+    }
+    return ''
+  }, [spouseNrcStateCode, spouseNrcTownshipCode, spouseNrcType, spouseNrcNumber])
+
   const allValues = watch()
 
   const goNext = async () => {
@@ -276,7 +303,7 @@ export function CreateEmployeeAccountPage() {
         'phoneNo',
         'address',
         'religion',
-        'nationality',
+        'race',
         'nrcStateCode',
         'nrcTownshipCode',
         'nrcType',
@@ -313,6 +340,12 @@ export function CreateEmployeeAccountPage() {
     }
     if (step === 2) {
       const ok = await trigger([
+        'maritalStatus',
+        'spouseName',
+        'spouseNrcStateCode',
+        'spouseNrcTownshipCode',
+        'spouseNrcType',
+        'spouseNrcNumber',
         'fatherName',
         'fatherNrcStateCode',
         'fatherNrcTownshipCode',
@@ -395,6 +428,7 @@ export function CreateEmployeeAccountPage() {
           profilePictureUrl = up.data.profilePictureUrl
         }
         const fatherNrc = buildFatherNrc(v)
+        const spouseNrcBuilt = buildSpouseNrc(v)
         const fatherOcc = v.fatherOccupation.trim()
         const res = await createAccount({
           staffNo: staffNorm,
@@ -405,11 +439,14 @@ export function CreateEmployeeAccountPage() {
           phoneNo: v.phoneNo.trim(),
           address: v.address.trim(),
           religion: v.religion.trim(),
-          nationality: v.nationality.trim(),
+          race: v.race.trim(),
           nrc,
           fatherName: v.fatherName.trim(),
           fatherNrc,
           fatherOccupation: fatherOcc,
+          maritalStatus: v.maritalStatus,
+          spouseName: v.maritalStatus === 'Married' ? (v.spouseName ?? '').trim() : undefined,
+          spouseNrc: v.maritalStatus === 'Married' ? spouseNrcBuilt : undefined,
           emergencyPhone: v.emergencyPhone.trim(),
           emergencyRelation: v.emergencyRelation.trim(),
           staffType: v.staffType,
@@ -451,7 +488,7 @@ export function CreateEmployeeAccountPage() {
       phoneNo: '',
       address: '',
       religion: '',
-      nationality: '',
+      race: '',
       nrcStateCode: '',
       nrcTownshipCode: '',
       nrcType: '',
@@ -462,6 +499,12 @@ export function CreateEmployeeAccountPage() {
       fatherNrcType: '',
       fatherNrcNumber: '',
       fatherOccupation: '',
+      maritalStatus: 'Single',
+      spouseName: '',
+      spouseNrcStateCode: '',
+      spouseNrcTownshipCode: '',
+      spouseNrcType: '',
+      spouseNrcNumber: '',
       emergencyPhone: '',
       emergencyRelation: '',
       staffType: 'PERMANENT',
@@ -520,7 +563,7 @@ export function CreateEmployeeAccountPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/25">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/25">
                 <UserPlus size={24} />
               </div>
               <div>
@@ -559,7 +602,7 @@ export function CreateEmployeeAccountPage() {
                         isDone
                           ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
                           : isActive
-                            ? 'bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md shadow-teal-500/25'
+                            ? 'bg-linear-to-br from-teal-500 to-emerald-600 text-white shadow-md shadow-teal-500/25'
                             : 'border border-slate-200 bg-slate-50 text-slate-400'
                       }`}
                     >
@@ -583,10 +626,10 @@ export function CreateEmployeeAccountPage() {
                     </div>
                   </div>
                   {num < STEPS.length ? (
-                    <div className="mx-4 flex-1">
-                      <div className="h-0.5 rounded-full bg-slate-100">
+                    <div className="mx-4 min-w-6 flex-1">
+                      <div className="h-0.5 rounded-full bg-slate-300">
                         <div
-                          className="h-0.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-500"
+                          className="h-0.5 rounded-full bg-linear-to-r from-emerald-400 to-teal-500 transition-all duration-500"
                           style={{ width: isDone ? '100%' : '0%' }}
                         />
                       </div>
@@ -603,7 +646,7 @@ export function CreateEmployeeAccountPage() {
           {/* Step indicator bar */}
           <div className="h-1 bg-slate-100">
             <div
-              className="h-1 rounded-r-full bg-gradient-to-r from-teal-400 to-emerald-500 transition-all duration-500 ease-out"
+              className="h-1 rounded-r-full bg-linear-to-r from-teal-400 to-emerald-500 transition-all duration-500 ease-out"
               style={{ width: `${(step / STEPS.length) * 100}%` }}
             />
           </div>
@@ -648,6 +691,7 @@ export function CreateEmployeeAccountPage() {
                   values={allValues}
                   nrcPreview={nrcPreview}
                   fatherNrcPreview={fatherNrcPreview}
+                  spouseNrcPreview={spouseNrcPreview}
                   linkedRoleName={undefined}
                 />
               ) : null}
@@ -672,7 +716,7 @@ export function CreateEmployeeAccountPage() {
                 <button
                   type="button"
                   onClick={() => void goNext()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/25 transition hover:shadow-lg hover:shadow-teal-500/30 active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-teal-500 to-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/25 transition hover:shadow-lg hover:shadow-teal-500/30 active:scale-[0.98]"
                 >
                   Next
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -684,7 +728,7 @@ export function CreateEmployeeAccountPage() {
                   type="button"
                   disabled={createLoading || isSubmitting}
                   onClick={() => void handleSubmit(onFinal)()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-500/25 transition hover:shadow-lg hover:shadow-emerald-500/30 active:scale-[0.98] disabled:opacity-60 disabled:shadow-none"
+                  className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-green-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-500/25 transition hover:shadow-lg hover:shadow-emerald-500/30 active:scale-[0.98] disabled:opacity-60 disabled:shadow-none"
                 >
                   {createLoading || isSubmitting ? (
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

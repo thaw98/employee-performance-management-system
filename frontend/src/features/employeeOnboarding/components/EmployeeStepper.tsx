@@ -29,8 +29,8 @@ function StepCircle({
 function Connector({ complete }: { complete: boolean }) {
   return (
     <div
-      className={`mt-5 h-0.5 min-w-4 flex-1 rounded-full transition-colors duration-500 ${
-        complete ? 'bg-emerald-300' : 'bg-slate-200'
+      className={`mt-5 h-0.5 min-w-6 flex-1 rounded-full transition-colors duration-500 ${
+        complete ? 'bg-emerald-300' : 'bg-slate-300'
       }`}
     />
   )

@@ -24,8 +24,39 @@ import { EmployeeInformationStep } from '../../../pages/hr/create-account/Employ
 import { EmploymentInformationStep } from '../../../pages/hr/create-account/EmploymentInformationStep'
 import { FamilyEmergencyStep } from '../../../pages/hr/create-account/FamilyEmergencyStep'
 import { useUploadProfilePictureMutation } from '../../user/userApi'
+import { getNrcTownships } from '../../employeeOnboarding/utils/nrcData'
 
 const STAFF_TYPE_PERMANENT_ID = 1
+const nrcTownships = getNrcTownships()
+
+function normalizeNrcType(raw: string): string {
+  const v = (raw ?? '').trim().toUpperCase()
+  if (v === 'N' || v === 'E' || v === 'P') return v
+  const lastLatin = v.match(/[A-Z](?!.*[A-Z])/)
+  if (lastLatin) return lastLatin[0]
+  if (v.includes('နိုင်')) return 'N'
+  if (v.includes('ဧ')) return 'E'
+  if (v.includes('ပြု')) return 'P'
+  return ''
+}
+
+function parseNrc(raw?: string | null): { state: string; township: string; type: string; number: string } {
+  if (!raw) return { state: '', township: '', type: '', number: '' }
+  const match = raw.match(/^([^/]+)\/([^(]+)\(([^)]+)\)(.+)$/)
+  if (!match) return { state: '', township: '', type: '', number: '' }
+  const state = String(match[1] ?? '').trim()
+  const townshipRaw = String(match[2] ?? '').trim()
+  const type = normalizeNrcType(String(match[3] ?? ''))
+  const number = String(match[4] ?? '').replace(/[^0-9]/g, '')
+
+  const township = nrcTownships.find(
+    (t) =>
+      t.stateCode === state &&
+      (t.short.en.toLowerCase() === townshipRaw.toLowerCase() || t.name.en.toLowerCase() === townshipRaw.toLowerCase()),
+  )?.short.en ?? townshipRaw
+
+  return { state, township, type, number }
+}
 
 function formatDateDisplay(dateStr?: string | null): string {
   if (!dateStr) return '-'
@@ -100,21 +131,11 @@ export default function EditEmployeeModal({
     if (empRes?.data) {
       const d = empRes.data
 
-      let nrcParts = { state: '', township: '', type: '', number: '' }
-      if (d.staffNrcNo) {
-        const match = d.staffNrcNo.match(/^(\d+)\/([^(]+)\(([^)]+)\)(\d+)$/)
-        if (match) {
-          nrcParts = { state: match[1], township: match[2], type: match[3], number: match[4] }
-        }
-      }
+      const nrcParts = parseNrc(d.staffNrcNo)
 
-      let fNrcParts = { state: '', township: '', type: '', number: '' }
-      if (d.fatherNrcNo) {
-        const match = d.fatherNrcNo.match(/^(\d+)\/([^(]+)\(([^)]+)\)(\d+)$/)
-        if (match) {
-          fNrcParts = { state: match[1], township: match[2], type: match[3], number: match[4] }
-        }
-      }
+      const fNrcParts = parseNrc(d.fatherNrcNo)
+
+      const spouseNrcParts = parseNrc(d.spouseNrc)
 
       reset({
         employeeId: d.employeeId,
@@ -123,10 +144,10 @@ export default function EditEmployeeModal({
         email: d.email,
         gender: d.gender as never,
         dateOfBirth: d.dateOfBirth,
-        phoneNo: '',
-        address: '',
+        phoneNo: d.phoneNo || '',
+        address: d.address || '',
         religion: d.religion,
-        nationality: '',
+        race: d.race || '',
         nrcStateCode: nrcParts.state,
         nrcTownshipCode: nrcParts.township,
         nrcType: nrcParts.type,
@@ -139,6 +160,12 @@ export default function EditEmployeeModal({
         fatherOccupation: d.fatherOccupation || '',
         emergencyPhone: d.emergencyPhone || '',
         emergencyRelation: d.emergencyRelation || '',
+        maritalStatus: d.maritalStatus === 'Married' ? 'Married' : 'Single',
+        spouseName: d.spouseName || '',
+        spouseNrcStateCode: spouseNrcParts.state,
+        spouseNrcTownshipCode: spouseNrcParts.township,
+        spouseNrcType: spouseNrcParts.type,
+        spouseNrcNumber: spouseNrcParts.number,
         staffType: d.staffTypeName === 'Probation' ? 'PROBATION' : 'PERMANENT',
         probationStartDate: d.probationStartDate || '',
         probationEndDate: d.probationEndDate || '',
@@ -203,6 +230,12 @@ export default function EditEmployeeModal({
         staffNrcNo: `${v.nrcStateCode}/${v.nrcTownshipCode}(${v.nrcType})${v.nrcNumber}`,
         gender: v.gender,
         religion: v.religion,
+        maritalStatus: v.maritalStatus,
+        spouseName: v.maritalStatus === 'Married' ? v.spouseName : undefined,
+        spouseNrc:
+          v.maritalStatus === 'Married' && v.spouseNrcStateCode
+            ? `${v.spouseNrcStateCode}/${v.spouseNrcTownshipCode}(${v.spouseNrcType})${v.spouseNrcNumber}`
+            : undefined,
         fatherName: v.fatherName,
         fatherNrcNo: v.fatherNrcStateCode
           ? `${v.fatherNrcStateCode}/${v.fatherNrcTownshipCode}(${v.fatherNrcType})${v.fatherNrcNumber}`

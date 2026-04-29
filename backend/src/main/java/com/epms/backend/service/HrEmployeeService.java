@@ -35,9 +35,13 @@ import com.epms.backend.dto.hr.UpdateEmploymentStatusRequestDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.EmergencyContact;
+import com.epms.backend.entity.EmployeeFather;
 import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
+import com.epms.backend.entity.EmployeeSpouse;
 import com.epms.backend.entity.EmployeeStatus;
+import com.epms.backend.entity.MaritalStatus;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentPositionRepository;
@@ -238,6 +242,36 @@ public class HrEmployeeService {
         employee.setReligion(parseReligion(request.getReligion()));
         employee.setDateOfJoining(request.getDateOfJoining());
         employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
+        employee.setMaritalStatus(parseMaritalStatus(request.getMaritalStatus()));
+
+        EmployeeFather father = employee.getFather();
+        if (father == null) {
+            father = new EmployeeFather();
+            employee.setFather(father);
+        }
+        father.setFatherName(request.getFatherName());
+        father.setFatherNrcNo(request.getFatherNrcNo());
+        father.setFatherOccupation(request.getFatherOccupation());
+
+        EmergencyContact emergencyContact = employee.getEmergencyContact();
+        if (emergencyContact == null) {
+            emergencyContact = new EmergencyContact();
+            employee.setEmergencyContact(emergencyContact);
+        }
+        emergencyContact.setEmergencyPhone(request.getEmergencyPhone());
+        emergencyContact.setRelation(request.getEmergencyRelation());
+
+        if (employee.getMaritalStatus() == MaritalStatus.Married) {
+            EmployeeSpouse spouse = employee.getSpouse();
+            if (spouse == null) {
+                spouse = new EmployeeSpouse();
+                employee.setSpouse(spouse);
+            }
+            spouse.setSpouseName(request.getSpouseName());
+            spouse.setSpouseNrc(request.getSpouseNrc());
+        } else {
+            employee.setSpouse(null);
+        }
 
         // Department and position must only change via transfer APIs.
         if (request.getDepartmentId() != null && employee.getDepartment() != null
@@ -491,6 +525,13 @@ public class HrEmployeeService {
         return EmployeeReligion.fromValue(value);
     }
 
+    private MaritalStatus parseMaritalStatus(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return MaritalStatus.valueOf(value.trim());
+    }
+
     private Map<Long, String> loadCurrentTransferTypes(Collection<Employee> employees) {
         List<Long> employeeIds = employees.stream()
                 .map(Employee::getId)
@@ -565,7 +606,7 @@ public class HrEmployeeService {
                 .dateOfBirth(employee.getDateOfBirth())
                 .phoneNo(employee.getPhoneNo())
                 .address(employee.getAddress())
-                .nationality(employee.getNationality())
+                .race(employee.getRace())
                 .status(employee.getEmploymentStatus() == null ? "ACTIVE" : employee.getEmploymentStatus().name())
                 .departmentId(employee.getDepartment() != null ? employee.getDepartment().getId() : null)
                 .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
@@ -579,7 +620,16 @@ public class HrEmployeeService {
                 .dateOfJoining(employee.getDateOfJoining())
                 .probationStartDate(employee.getProbation() != null ? employee.getProbation().getProbationStartDate() : null)
                 .probationEndDate(employee.getProbation() != null ? employee.getProbation().getProbationEndDate() : null)
+                .fatherName(employee.getFather() != null ? employee.getFather().getFatherName() : null)
+                .fatherNrcNo(employee.getFather() != null ? employee.getFather().getFatherNrcNo() : null)
+                .fatherOccupation(employee.getFather() != null ? employee.getFather().getFatherOccupation() : null)
+                .emergencyPhone(employee.getEmergencyContact() != null ? employee.getEmergencyContact().getEmergencyPhone() : null)
+                .emergencyRelation(employee.getEmergencyContact() != null ? employee.getEmergencyContact().getRelation() : null)
                 .profilePictureUrl(employee.getProfilePictureUrl())
+                .maritalStatus(employee.getMaritalStatus() == null ? null : employee.getMaritalStatus().name())
+                .spouseId(employee.getSpouse() != null ? employee.getSpouse().getSpouseId() : null)
+                .spouseName(employee.getSpouse() != null ? employee.getSpouse().getSpouseName() : null)
+                .spouseNrc(employee.getSpouse() != null ? employee.getSpouse().getSpouseNrc() : null)
                 .build();
     }
 
@@ -744,6 +794,15 @@ public class HrEmployeeService {
                     .build();
         }
 
+        EmployeeViewResponseDto.SpouseInfo spouseInfo = null;
+        if (employee.getSpouse() != null) {
+            spouseInfo = EmployeeViewResponseDto.SpouseInfo.builder()
+                    .spouseId(employee.getSpouse().getSpouseId())
+                    .spouseName(employee.getSpouse().getSpouseName())
+                    .spouseNrc(employee.getSpouse().getSpouseNrc())
+                    .build();
+        }
+
         // Build probation info
         EmployeeViewResponseDto.ProbationInfo probationInfo = null;
         EmployeeProbation probation = employee.getProbation();
@@ -774,13 +833,15 @@ public class HrEmployeeService {
                 .profilePictureUrl(employee.getProfilePictureUrl())
                 .staffNrcNumber(employee.getStaffNrcNo())
                 .address(employee.getAddress())
-                .nationality(employee.getNationality())
+                .race(employee.getRace())
                 .employmentStatus(determineEmploymentStatus(employee))
+                .maritalStatus(employee.getMaritalStatus() == null ? null : employee.getMaritalStatus().name())
                 .department(deptInfo)
                 .position(posInfo)
                 .staffType(staffTypeInfo)
                 .emergencyContact(emergencyInfo)
                 .father(fatherInfo)
+                .spouse(spouseInfo)
                 .probationInfo(probationInfo)
                 .build();
     }

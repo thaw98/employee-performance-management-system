@@ -52,7 +52,17 @@ const ManagerLayout: React.FC = () => {
       ? [{ icon: <Users size={20} />, label: 'Employees', path: '/manager/employees' }]
       : []),
     { icon: <Target size={20} />, label: 'KPIs', path: '/manager/kpis' },
-    { icon: <FileText size={20} />, label: 'Self Assessments', path: '/manager/assessments' },
+    {
+      icon: <FileText size={20} />,
+      label: 'Self Assessments',
+      path: '/manager/assessments',
+      subItems: [
+        { label: 'Assessment List', path: '/manager/assessments', icon: <FileText size={16} className="shrink-0" /> },
+        ...(authUser?.roleId === 2
+          ? [{ label: 'Assessment Questions', path: '/manager/assessment-subitems', icon: <FileText size={16} className="shrink-0" /> }]
+          : []),
+      ],
+    },
     { icon: <ShieldCheck size={20} />, label: 'My Self Assessments', path: '/manager/my-assessment' },
     { icon: <Zap size={20} />, label: 'Team PIPs', path: '/manager/pip' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/manager/appraisals' },
@@ -90,7 +100,7 @@ const ManagerLayout: React.FC = () => {
         {/* User Profile Card */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner flex-shrink-0">
+            <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner shrink-0">
               {user?.profilePictureUrl ? (
                  <img src={resolveProfilePictureSrc(user.profilePictureUrl)} className="w-full h-full object-cover" alt="Profile" />
               ) : (

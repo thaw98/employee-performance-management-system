@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Normalizes spouse fields to {@code employee_spouse} with {@code employees.employee_spouse_id}
- * referencing {@code employee_spouse.id}, and drops denormalized spouse columns on {@code employees}.
+ * referencing {@code employee_spouse.spouse_id}, and drops denormalized spouse columns on {@code employees}.
  * <p>
  * Runs as a {@link BeanPostProcessor} on the primary {@code dataSource} bean so this executes
  * before Hibernate {@code ddl-auto} applies the new mapping; otherwise legacy columns could be
@@ -54,6 +54,7 @@ public class EmployeeSpouseSchemaMigrationInitializer implements BeanPostProcess
 	private void runMigration(DataSource dataSource) throws Exception {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 		ensureEmployeeSpouseTable(jdbcTemplate, dataSource);
+		ensureEmployeeSpousePrimaryKeyColumn(jdbcTemplate, dataSource);
 		ensureEmployeeSpouseFkOnEmployees(jdbcTemplate, dataSource);
 		copyDenormalizedSpouseRowsIntoEmployeeSpouse(jdbcTemplate, dataSource);
 		dropDenormalizedSpouseColumnsFromEmployees(jdbcTemplate, dataSource);
@@ -66,13 +67,38 @@ public class EmployeeSpouseSchemaMigrationInitializer implements BeanPostProcess
 		}
 		jdbcTemplate.execute("""
 				CREATE TABLE employee_spouse (
-				  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+				  spouse_id BIGINT PRIMARY KEY AUTO_INCREMENT,
 				  spouse_name VARCHAR(100) NULL,
-				  spouse_nrc_no VARCHAR(100) NULL,
-				  spouse_occupation VARCHAR(100) NULL
+				  spouse_nrc VARCHAR(100) NULL
 				)
 				""");
 		log.info("Created table employee_spouse");
+	}
+
+	private void ensureEmployeeSpousePrimaryKeyColumn(JdbcTemplate jdbcTemplate, DataSource dataSource) throws Exception {
+		if (!tableExists(dataSource, "employee_spouse")) {
+			return;
+		}
+		boolean hasLegacyId = columnExists(dataSource, "employee_spouse", "id");
+		boolean hasSpouseId = columnExists(dataSource, "employee_spouse", "spouse_id");
+		if (hasLegacyId && !hasSpouseId) {
+			jdbcTemplate.execute("ALTER TABLE employee_spouse CHANGE COLUMN id spouse_id BIGINT NOT NULL AUTO_INCREMENT");
+			log.info("Renamed employee_spouse.id -> spouse_id");
+		}
+		if (columnExists(dataSource, "employee_spouse", "spouse_nrc_no")
+				&& !columnExists(dataSource, "employee_spouse", "spouse_nrc")) {
+			jdbcTemplate.execute(
+					"ALTER TABLE employee_spouse CHANGE COLUMN spouse_nrc_no spouse_nrc VARCHAR(100) NULL");
+			log.info("Renamed employee_spouse.spouse_nrc_no -> spouse_nrc");
+		}
+		if (columnExists(dataSource, "employee_spouse", "spouse_occupation")) {
+			jdbcTemplate.execute("ALTER TABLE employee_spouse DROP COLUMN spouse_occupation");
+			log.info("Dropped employee_spouse.spouse_occupation");
+		}
+		if (columnExists(dataSource, "employee_spouse", "spouse_no")) {
+			jdbcTemplate.execute("ALTER TABLE employee_spouse DROP COLUMN spouse_no");
+			log.info("Dropped employee_spouse.spouse_no");
+		}
 	}
 
 	private void ensureEmployeeSpouseFkOnEmployees(JdbcTemplate jdbcTemplate, DataSource dataSource) throws Exception {
@@ -82,11 +108,11 @@ public class EmployeeSpouseSchemaMigrationInitializer implements BeanPostProcess
 		if (!columnExists(dataSource, "employees", "employee_spouse_id")) {
 			jdbcTemplate.execute("ALTER TABLE employees ADD COLUMN employee_spouse_id BIGINT NULL");
 		}
-		if (!hasForeignKeyOnColumn(jdbcTemplate, "employees", "employee_spouse_id", "employee_spouse", "id")) {
+		if (!hasForeignKeyOnColumn(jdbcTemplate, "employees", "employee_spouse_id", "employee_spouse", "spouse_id")) {
 			jdbcTemplate.execute("""
 					ALTER TABLE employees
 					ADD CONSTRAINT fk_employees_employee_spouse
-					FOREIGN KEY (employee_spouse_id) REFERENCES employee_spouse(id)
+					FOREIGN KEY (employee_spouse_id) REFERENCES employee_spouse(spouse_id)
 					""");
 		}
 		log.info("employees.employee_spouse_id migration finished");
@@ -97,26 +123,40 @@ public class EmployeeSpouseSchemaMigrationInitializer implements BeanPostProcess
 		if (!tableExists(dataSource, "employees") || !columnExists(dataSource, "employees", "spouse_name")) {
 			return;
 		}
+		boolean hasLegacyNrc = columnExists(dataSource, "employees", "spouse_nrc_no");
+		boolean hasModernNrc = columnExists(dataSource, "employees", "spouse_nrc");
+		if (!hasLegacyNrc && !hasModernNrc) {
+			return;
+		}
+		String nrcSelect = hasLegacyNrc ? "spouse_nrc_no" : "NULL as spouse_nrc_no";
+		String altNrcSelect = hasModernNrc ? "spouse_nrc" : "NULL as spouse_nrc";
+		String nrcFilter = hasLegacyNrc && hasModernNrc
+				? "(spouse_name IS NOT NULL OR spouse_nrc_no IS NOT NULL OR spouse_nrc IS NOT NULL)"
+				: hasLegacyNrc
+						? "(spouse_name IS NOT NULL OR spouse_nrc_no IS NOT NULL)"
+						: "(spouse_name IS NOT NULL OR spouse_nrc IS NOT NULL)";
 		String sql = """
-				SELECT id, spouse_name, spouse_nrc_no, spouse_occupation
+				SELECT id, spouse_name, %s, %s
 				FROM employees
 				WHERE employee_spouse_id IS NULL
-				  AND (spouse_name IS NOT NULL OR spouse_nrc_no IS NOT NULL OR spouse_occupation IS NOT NULL)
-				""";
+				  AND %s
+				""".formatted(nrcSelect, altNrcSelect, nrcFilter);
 		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
 		for (Map<String, Object> row : rows) {
 			Long empId = ((Number) row.get("id")).longValue();
 			String spouseName = (String) row.get("spouse_name");
 			String spouseNrcNo = (String) row.get("spouse_nrc_no");
-			String spouseOccupation = (String) row.get("spouse_occupation");
+			if (spouseNrcNo == null) {
+				spouseNrcNo = (String) row.get("spouse_nrc");
+			}
+			final String spouseNrcValue = spouseNrcNo;
 			GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
 			jdbcTemplate.update(connection -> {
 				PreparedStatement ps = connection.prepareStatement(
-						"INSERT INTO employee_spouse (spouse_name, spouse_nrc_no, spouse_occupation) VALUES (?,?,?)",
+						"INSERT INTO employee_spouse (spouse_name, spouse_nrc) VALUES (?,?)",
 						Statement.RETURN_GENERATED_KEYS);
 				ps.setString(1, spouseName);
-				ps.setString(2, spouseNrcNo);
-				ps.setString(3, spouseOccupation);
+				ps.setString(2, spouseNrcValue);
 				return ps;
 			}, keyHolder);
 			Number key = keyHolder.getKey();
@@ -134,7 +174,7 @@ public class EmployeeSpouseSchemaMigrationInitializer implements BeanPostProcess
 		if (!tableExists(dataSource, "employees")) {
 			return;
 		}
-		for (String col : List.of("spouse_name", "spouse_nrc_no", "spouse_occupation")) {
+		for (String col : List.of("spouse_name", "spouse_nrc_no", "spouse_nrc", "spouse_occupation")) {
 			if (columnExists(dataSource, "employees", col)) {
 				jdbcTemplate.execute("ALTER TABLE employees DROP COLUMN `" + col + "`");
 				log.info("Dropped legacy column employees.{}", col);

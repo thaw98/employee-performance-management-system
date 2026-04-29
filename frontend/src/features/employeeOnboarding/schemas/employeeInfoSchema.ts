@@ -74,7 +74,7 @@ const personalContactShape = z.object({
   nrcType: z.string(g).min(1, g),
   nrcNumber: z.string(g).regex(/^[0-9]{6}$/, g),
   gender: z.enum(['Male', 'Female'], g),
-  race: z.string(g).min(1, g),
+  race: z.string(g).min(1, g).max(100, g),
   religionId: z.number(g).positive(g),
   dateOfBirth: z
     .string(g)
@@ -98,7 +98,6 @@ const personalContactShape = z.object({
   spouseOccupation: z.string().optional(),
   emergencyPhone: z.string(g).regex(phoneRegex, { message: g }),
   emergencyRelation: z.string(g).min(1, g),
-  nationality: z.string(g).min(1, g).max(100, g),
 })
 
 export const PROBATION_DURATION_VALUES = ['1', '3', '6', 'custom'] as const

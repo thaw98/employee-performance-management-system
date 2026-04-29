@@ -32,6 +32,7 @@ import { STAFF_TYPE_PERMANENT, STAFF_TYPE_PROBATION } from '../utils/staffType'
 import { toTitleCasePersonName } from '../../../utils/personName'
 import { EmployeeStepper } from '../components/EmployeeStepper'
 import { NrcFields } from '../components/NrcFields'
+import { useUploadProfilePictureMutation } from '../../../features/user/userApi'
 
 const MAX_PHONE_INPUT_LENGTH = 16 // optional "+" plus up to 15 digits
 const EMPLOYEE_NAME_MAX_LENGTH = 50
@@ -47,7 +48,7 @@ const STEP1_FIELD_NAMES: FieldPath<EmployeeInfoFormValues>[] = [
   'race',
   'religionId',
   'dateOfBirth',
-  'nationality',
+  'race',
   'phoneNo',
   'contactAddress',
 ]
@@ -284,6 +285,7 @@ export function CreateEmployeeAccountPage() {
   const [createAccount] = useCreateEmployeeAccountMutation()
   const [checkEmailUsers] = useLazyCheckUserEmailQuery()
   const [checkStaffNrc] = useLazyCheckStaffNrcQuery()
+  const [uploadProfilePicture] = useUploadProfilePictureMutation()
 
   const religions = useGetReligionsQuery()
   const departments = useGetDepartmentsQuery('')
@@ -308,7 +310,7 @@ export function CreateEmployeeAccountPage() {
       religionId: undefined,
       departmentId: undefined,
       positionId: undefined,
-      nationality: '',
+      race: '',
       nrcStateCode: '',
       nrcTownshipCode: '',
       nrcType: '',
@@ -776,11 +778,11 @@ export function CreateEmployeeAccountPage() {
                 />
                 <TextField
                   fullWidth
-                  label="Nationality *"
+                  label="Race *"
                   slotProps={{ htmlInput: { maxLength: 100 } }}
-                  {...register('nationality')}
-                  error={Boolean(errors.nationality)}
-                  helperText={errors.nationality?.message}
+                  {...register('race')}
+                  error={Boolean(errors.race)}
+                  helperText={errors.race?.message}
                 />
               </div>
             </div>

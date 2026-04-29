@@ -26,7 +26,9 @@ import com.epms.backend.entity.EmployeeDepartmentHistory;
 import com.epms.backend.entity.EmployeeFather;
 import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
+import com.epms.backend.entity.EmployeeSpouse;
 import com.epms.backend.entity.Gender;
+import com.epms.backend.entity.MaritalStatus;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.Role;
 import com.epms.backend.entity.StaffType;
@@ -165,7 +167,7 @@ public class HrEmployeeAccountService {
 		employee.setPhoneNo(request.getPhoneNo().trim());
 		employee.setAddress(address);
 		employee.setReligion(EmployeeReligion.fromValue(religion));
-		employee.setNationality(request.getNationality().trim());
+		employee.setRace(request.getRace().trim());
 		employee.setStaffNrcNo(trimToNull(request.getNrc()));
 		employee.setDepartment(department);
 		employee.setPosition(position);
@@ -196,6 +198,35 @@ public class HrEmployeeAccountService {
 		father.setFatherNrcNo(trimToNull(request.getFatherNrc()));
 		father.setFatherOccupation(trimToNull(request.getFatherOccupation()));
 		employee.setFather(father);
+
+		MaritalStatus maritalStatus;
+		try {
+			maritalStatus = MaritalStatus.valueOf(requireTrimmed(request.getMaritalStatus(), "Marital status is required"));
+		} catch (IllegalArgumentException ex) {
+			throw new IllegalArgumentException("Marital status must be Single or Married");
+		}
+		employee.setMaritalStatus(maritalStatus);
+
+		if (maritalStatus == MaritalStatus.Married) {
+			String spouseNameNorm = PersonNameNormalizer.normalize(request.getSpouseName());
+			if (spouseNameNorm.isEmpty()) {
+				throw new IllegalArgumentException("Spouse name is required when marital status is Married");
+			}
+			if (spouseNameNorm.length() > 100) {
+				throw new IllegalArgumentException("Spouse name must be at most 100 characters");
+			}
+			String spouseNrcNorm = trimToNull(request.getSpouseNrc());
+			if (spouseNrcNorm == null) {
+				throw new IllegalArgumentException("Spouse NRC is required when marital status is Married");
+			}
+			validateStaffNrc(spouseNrcNorm);
+			EmployeeSpouse spouse = new EmployeeSpouse();
+			spouse.setSpouseName(spouseNameNorm);
+			spouse.setSpouseNrc(spouseNrcNorm);
+			employee.setSpouse(spouse);
+		} else {
+			employee.setSpouse(null);
+		}
 
 		EmergencyContact emergencyContact = new EmergencyContact();
 		emergencyContact.setEmergencyPhone(request.getEmergencyPhone().trim());

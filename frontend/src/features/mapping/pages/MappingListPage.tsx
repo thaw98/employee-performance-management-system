@@ -104,6 +104,32 @@ function MappingListPage() {
   const mappings = mappingsData?.data?.content || []
   const totalElements = mappingsData?.data?.totalElements || 0
   const totalPages = mappingsData?.data?.totalPages || 0
+  const getPageItems = useCallback((): (number | 'ellipsis')[] => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => index)
+    }
+
+    const candidatePages = new Set<number>([
+      0, 1, 2,
+      totalPages - 3, totalPages - 2, totalPages - 1,
+      page - 1, page, page + 1,
+    ])
+
+    const normalizedPages = [...candidatePages]
+      .filter((value) => value >= 0 && value < totalPages)
+      .sort((left, right) => left - right)
+
+    const items: (number | 'ellipsis')[] = []
+    let previous: number | null = null
+    for (const pageNumber of normalizedPages) {
+      if (previous !== null && pageNumber - previous > 1) {
+        items.push('ellipsis')
+      }
+      items.push(pageNumber)
+      previous = pageNumber
+    }
+    return items
+  }, [page, totalPages])
 
   return (
     <div className="p-6">
@@ -135,7 +161,7 @@ function MappingListPage() {
           <span className="text-sm text-gray-500">
             Showing {page * size + 1} to {Math.min((page + 1) * size, totalElements)} of {totalElements} entries
           </span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
@@ -143,6 +169,25 @@ function MappingListPage() {
             >
               Previous
             </button>
+            {getPageItems().map((item, index) =>
+              item === 'ellipsis' ? (
+                <span key={`ellipsis-${index}`} className="px-1 text-sm text-gray-400 select-none">
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  onClick={() => setPage(item)}
+                  className={`min-w-[34px] px-2.5 py-1 border rounded text-sm font-medium transition-colors ${
+                    item === page
+                      ? 'bg-indigo-600 border-indigo-600 text-white'
+                      : 'hover:bg-gray-50'
+                  }`}
+                >
+                  {item + 1}
+                </button>
+              )
+            )}
             <button
               onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}

@@ -164,6 +164,34 @@ export default function DepartmentDetailPage() {
   }
 
   const filteredCount = table.getFilteredRowModel().rows.length
+  const pageIndex = table.getState().pagination.pageIndex
+  const pageCount = table.getPageCount()
+  const paginationItems: (number | 'ellipsis')[] = useMemo(() => {
+    if (pageCount <= 7) {
+      return Array.from({ length: pageCount }, (_, index) => index)
+    }
+
+    const candidatePages = new Set<number>([
+      0, 1, 2,
+      pageCount - 3, pageCount - 2, pageCount - 1,
+      pageIndex - 1, pageIndex, pageIndex + 1,
+    ])
+
+    const normalizedPages = [...candidatePages]
+      .filter((value) => value >= 0 && value < pageCount)
+      .sort((left, right) => left - right)
+
+    const items: (number | 'ellipsis')[] = []
+    let previous: number | null = null
+    for (const pageNumber of normalizedPages) {
+      if (previous !== null && pageNumber - previous > 1) {
+        items.push('ellipsis')
+      }
+      items.push(pageNumber)
+      previous = pageNumber
+    }
+    return items
+  }, [pageCount, pageIndex])
 
   if (isError) {
     return (
@@ -404,9 +432,24 @@ export default function DepartmentDetailPage() {
                 <button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all" title="Previous page">
                   <ChevronLeft size={15} />
                 </button>
-                <span className="px-3 text-xs font-bold text-slate-600">
-                  Page {table.getState().pagination.pageIndex + 1} of {Math.max(table.getPageCount(), 1)}
-                </span>
+                {paginationItems.map((item, index) =>
+                  item === 'ellipsis' ? (
+                    <span key={`ellipsis-${index}`} className="px-1.5 text-slate-400 text-xs select-none">...</span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => table.setPageIndex(item)}
+                      className={`min-w-[32px] h-8 text-xs font-bold rounded-lg border transition-all ${
+                        item === pageIndex
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                      }`}
+                    >
+                      {item + 1}
+                    </button>
+                  )
+                )}
                 <button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all" title="Next page">
                   <ChevronRight size={15} />
                 </button>

@@ -24,19 +24,19 @@ public class SelfAssessmentSubjectController {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasRole('HR')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD')")
     public ResponseEntity<ApiResponse<List<SelfAssessmentSubject>>> getAll() {
         return ResponseEntity.ok(ApiResponse.ok("All subjects fetched", repository.findAll()));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('HR')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD')")
     public ResponseEntity<ApiResponse<SelfAssessmentSubject>> create(@RequestBody SelfAssessmentSubject subject) {
         return ResponseEntity.ok(ApiResponse.ok("Subject created", repository.save(subject)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('HR')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD')")
     public ResponseEntity<ApiResponse<SelfAssessmentSubject>> update(@PathVariable Long id, @RequestBody SelfAssessmentSubject updated) {
         SelfAssessmentSubject existing = repository.findById(id).orElseThrow();
         existing.setSubjectText(updated.getSubjectText());
@@ -46,7 +46,7 @@ public class SelfAssessmentSubjectController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('HR')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         repository.deleteById(id);
         return ResponseEntity.ok(ApiResponse.ok("Subject deleted", null));

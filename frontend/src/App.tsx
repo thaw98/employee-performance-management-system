@@ -100,6 +100,7 @@ function App() {
             <Route path="employees" element={<EmployeeListPage />} />
             <Route path="my-assessment" element={<SelfAssessmentPage />} />
             <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
+            <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
             <Route path="pip" element={<PipMonitoringPage />} />
             <Route path="pip/create" element={<PipCreatePage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />

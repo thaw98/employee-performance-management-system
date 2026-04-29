@@ -178,7 +178,7 @@ export function EmployeeInformationStep({
           <div
             role="button"
             tabIndex={0}
-            className="group flex w-full max-w-sm cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-gradient-to-b from-slate-50 to-white px-6 py-8 text-center transition-all hover:border-teal-300 hover:from-teal-50/30 hover:to-white hover:shadow-md"
+            className="group flex w-full max-w-sm cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-linear-to-b from-slate-50 to-white px-6 py-8 text-center transition-all hover:border-teal-300 hover:from-teal-50/30 hover:to-white hover:shadow-md"
             onClick={() => photoInputRef.current?.click()}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') photoInputRef.current?.click()
@@ -200,7 +200,7 @@ export function EmployeeInformationStep({
 
       {/* ── Staff Number Banner ── */}
       {!hideStaffBanner && (
-        <div className="rounded-xl border border-teal-200/50 bg-gradient-to-r from-teal-50 to-emerald-50 p-5">
+        <div className="rounded-xl border border-teal-200/50 bg-linear-to-r from-teal-50 to-emerald-50 p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-teal-600 shadow-sm">
               <Hash size={18} />
@@ -363,17 +363,17 @@ export function EmployeeInformationStep({
         </div>
 
         <div className="md:col-span-2">
-          <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="nationality">
-            Nationality <span className="text-red-400">*</span>
+          <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="race">
+            Race <span className="text-red-400">*</span>
           </label>
           <input
-            id="nationality"
-            className={errors.nationality ? inputError : inputNormal}
-            placeholder="e.g. Myanmar"
-            {...register('nationality')}
+            id="race"
+            className={errors.race ? inputError : inputNormal}
+            placeholder="e.g. Burmese"
+            {...register('race')}
           />
-          {errors.nationality?.message ? (
-            <p className="mt-1 text-xs text-red-600">{String(errors.nationality.message)}</p>
+          {errors.race?.message ? (
+            <p className="mt-1 text-xs text-red-600">{String(errors.race.message)}</p>
           ) : null}
         </div>
 

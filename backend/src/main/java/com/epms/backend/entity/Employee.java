@@ -34,6 +34,7 @@ import lombok.Setter;
     "position",
     "staffType",
     "father",
+    "spouse",
     "probation",
     "emergencyContact",
     "createdBy",
@@ -101,6 +102,10 @@ public class Employee {
     @JoinColumn(name = "father_id")
     private EmployeeFather father;
 
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "employee_spouse_id")
+    private EmployeeSpouse spouse;
+
     @OneToOne(mappedBy = "employee", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private EmployeeProbation probation;
 
@@ -116,9 +121,6 @@ public class Employee {
 
     @Transient
     private String otherName;
-
-    @Transient
-    private String race;
 
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
@@ -151,11 +153,15 @@ public class Employee {
         return position.getName();
     }
 
-    @Transient
+    @Enumerated(EnumType.STRING)
+    @Column(
+        name = "marital_status",
+        columnDefinition = "ENUM('Single', 'Married')"
+    )
     private MaritalStatus maritalStatus;
 
-    @Column(name = "nationality", length = 100)
-    private String nationality;
+    @Column(name = "race", length = 100)
+    private String race;
 
     @Transient
     private LocalDate dateOfDemotion;

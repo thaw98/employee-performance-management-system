@@ -34,9 +34,10 @@ public class EmployeeImportErrorFileService {
             "Row#", "staff_no", "full_name", "staff_nrc_no", "email", "department", "position",
             "phone_number", "gender", "date_of_birth", "hire_date", "staff_type",
             "probation_start_date", "probation_end_date",
-            "address", "nationality", "employment_status", "religion",
+            "address", "race", "employment_status", "religion",
             "emergency_contact_relationship", "emergency_contact_phone",
             "father_name", "father_nrc_no", "father_occupation",
+            "marital_status", "spouse_name", "spouse_nrc",
             "profile_picture_url",
             "Errors"
     };
@@ -85,7 +86,7 @@ public class EmployeeImportErrorFileService {
                 row.createCell(12).setCellValue(strOrEmpty(rd, "probationStartDate"));
                 row.createCell(13).setCellValue(strOrEmpty(rd, "probationEndDate"));
                 row.createCell(14).setCellValue(strOrEmpty(rd, "address"));
-                row.createCell(15).setCellValue(strOrEmpty(rd, "nationality"));
+                row.createCell(15).setCellValue(strOrEmpty(rd, "race"));
                 row.createCell(16).setCellValue(strOrEmpty(rd, "employmentStatus"));
                 row.createCell(17).setCellValue(strOrEmpty(rd, "religion"));
                 row.createCell(18).setCellValue(strOrEmpty(rd, "emergencyContactRelationship"));
@@ -93,10 +94,13 @@ public class EmployeeImportErrorFileService {
                 row.createCell(20).setCellValue(strOrEmpty(rd, "fatherName"));
                 row.createCell(21).setCellValue(strOrEmpty(rd, "fatherNrcNo"));
                 row.createCell(22).setCellValue(strOrEmpty(rd, "fatherOccupation"));
-                row.createCell(23).setCellValue(strOrEmpty(rd, "profilePictureUrl"));
+                row.createCell(23).setCellValue(strOrEmpty(rd, "maritalStatus"));
+                row.createCell(24).setCellValue(strOrEmpty(rd, "spouseName"));
+                row.createCell(25).setCellValue(strOrEmpty(rd, "spouseNrc"));
+                row.createCell(26).setCellValue(strOrEmpty(rd, "profilePictureUrl"));
 
                 String errors = inv.getErrors() != null ? String.join("; ", inv.getErrors()) : "";
-                Cell errCell = row.createCell(24);
+                Cell errCell = row.createCell(27);
                 errCell.setCellValue(errors);
                 errCell.setCellStyle(errorCellStyle);
             }

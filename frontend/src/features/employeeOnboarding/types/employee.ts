@@ -30,7 +30,6 @@ export interface EmployeeInfoPayload {
   emergencyRelation?: string
   departmentId: number
   positionId: number
-  nationality: string
   dateOfJoining: string
   passportNo?: string
   passportExpireDate?: string

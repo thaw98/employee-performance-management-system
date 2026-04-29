@@ -48,11 +48,14 @@ export interface HrCreateEmployeeAccountRequest {
   phoneNo: string
   address: string
   religion: string
-  nationality: string
+  race: string
   nrc: string
   fatherName: string
   fatherNrc?: string
   fatherOccupation: string
+  maritalStatus: 'Single' | 'Married'
+  spouseName?: string
+  spouseNrc?: string
   emergencyPhone: string
   emergencyRelation: string
   staffType: 'PERMANENT' | 'PROBATION'

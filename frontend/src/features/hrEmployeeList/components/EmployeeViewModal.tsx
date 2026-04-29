@@ -39,7 +39,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-start py-2.5 border-b border-gray-50 last:border-b-0">
       <dt className="text-sm font-medium text-gray-500 sm:w-44 sm:shrink-0">{label}</dt>
-      <dd className="mt-0.5 sm:mt-0 text-sm text-gray-900 break-words whitespace-pre-wrap">{value}</dd>
+      <dd className="mt-0.5 sm:mt-0 text-sm text-gray-900 wrap-break-word whitespace-pre-wrap">{value}</dd>
     </div>
   )
 }
@@ -130,7 +130,7 @@ function EmployeeViewModal({
             >
               <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all w-full max-w-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-white">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-white">
                   <Dialog.Title className="text-lg font-semibold text-gray-900">
                     Employee Details
                   </Dialog.Title>
@@ -243,7 +243,14 @@ function EmployeeViewModal({
                                   <InfoRow label="Date of Birth" value={formatDate(data.dateOfBirth)} />
                                   <InfoRow label="Staff NRC Number" value={displayValue(data.staffNrcNumber)} />
                                   <InfoRow label="Address" value={displayValue(data.address)} />
-                                  <InfoRow label="Nationality" value={displayValue(data.nationality)} />
+                                  <InfoRow label="Race" value={displayValue(data.race)} />
+                                  <InfoRow label="Marital status" value={displayValue(data.maritalStatus)} />
+                                  {data.maritalStatus === 'Married' && data.spouse ? (
+                                    <>
+                                      <InfoRow label="Spouse name" value={displayValue(data.spouse.spouseName)} />
+                                      <InfoRow label="Spouse NRC" value={displayValue(data.spouse.spouseNrc)} />
+                                    </>
+                                  ) : null}
                                 </>
                               )}
                             </dl>

@@ -34,11 +34,6 @@ function LevelCodeTable({ data, isLoading, onRowClick, onEdit, sorting, setSorti
         ),
       },
       {
-        accessorKey: 'description',
-        header: 'Description',
-        cell: (info) => <span className="font-medium text-slate-700">{(info.getValue() as string | null) || 'No description'}</span>,
-      },
-      {
         accessorKey: 'positionCount',
         header: 'Position Count',
         cell: (info) => (

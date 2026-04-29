@@ -70,6 +70,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 			left join fetch e.probation
 			left join fetch e.emergencyContact
 			left join fetch e.father
+			left join fetch e.spouse
 			order by e.id asc
 			""")
 	List<Employee> findAllForExport();
