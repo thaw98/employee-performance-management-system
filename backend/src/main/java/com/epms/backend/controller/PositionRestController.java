@@ -55,6 +55,7 @@ public class PositionRestController {
 				.map(p -> new PositionOptionDto(
 						p.getId(),
 						p.getName(),
+						p.getLevelCode() != null ? p.getLevelCode().getId() : null,
 						p.getRole() != null ? p.getRole().getId() : null,
 						p.getRole() != null ? p.getRole().getName() : null))
 				.sorted(Comparator.comparing(PositionOptionDto::getPositionName,

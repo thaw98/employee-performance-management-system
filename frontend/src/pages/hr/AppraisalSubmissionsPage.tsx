@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, FileText, User, Loader2 } from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2 } from 'lucide-react';
 import { formatDate } from '../../utils/dateUtils';
 import SignatureCanvas from 'react-signature-canvas';
 
@@ -84,7 +84,7 @@ export function AppraisalSubmissionsPage() {
         }
     };
 
-    const handleAction = async (action: 'approve' | 'reject' | 'return') => {
+    const handleAction = async (action: 'approve' | 'reject' | 'return' | 'unlock') => {
         if (!selectedAsmt) return;
 
         if (!comments.trim() && action !== 'approve') {
@@ -481,50 +481,70 @@ export function AppraisalSubmissionsPage() {
 
                                     {/* Action Buttons */}
                                     <div className="flex flex-col justify-end gap-3">
-                                        <button
-                                            onClick={() => handleAction('approve')}
-                                            disabled={isActionLoading || !signature}
-                                            className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-200 hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            {actionInProgress === 'approve' ? (
-                                                <>
+                                        {selectedAsmt.status === 'LOCKED' ? (
+                                            <button
+                                                onClick={() => handleAction('unlock')}
+                                                disabled={isActionLoading || !comments.trim()}
+                                                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {actionInProgress === 'unlock' ? (
                                                     <Loader2 className="animate-spin" size={18} />
-                                                    PROCESSING...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <CheckCircle size={18} />
+                                                ) : (
+                                                    <Unlock size={18} />
+                                                )}
+                                                UNLOCK FOR CORRECTION
+                                            </button>
+                                        ) : selectedAsmt.status === 'HR_APPROVED' ? (
+                                            <button
+                                                onClick={() => handleLock(selectedAsmt.id)}
+                                                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-lg shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-3"
+                                            >
+                                                <Lock size={18} />
+                                                LOCK FOREVER (FINALIZE)
+                                            </button>
+                                        ) : (selectedAsmt.status === 'SUBMITTED' || selectedAsmt.status === 'RETURNED') ? (
+                                            <>
+                                                <button
+                                                    onClick={() => handleAction('approve')}
+                                                    disabled={isActionLoading || !signature}
+                                                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-200 hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {actionInProgress === 'approve' ? (
+                                                        <Loader2 className="animate-spin" size={18} />
+                                                    ) : (
+                                                        <CheckCircle size={18} />
+                                                    )}
                                                     APPROVE & FINALIZE
-                                                </>
-                                            )}
-                                        </button>
+                                                </button>
 
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <button
-                                                onClick={() => handleAction('return')}
-                                                disabled={isActionLoading}
-                                                className="py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all flex items-center justify-center gap-2 border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                {actionInProgress === 'return' ? (
-                                                    <Loader2 className="animate-spin" size={14} />
-                                                ) : (
-                                                    <RotateCcw size={14} />
-                                                )}
-                                                RETURN
-                                            </button>
-                                            <button
-                                                onClick={() => handleAction('reject')}
-                                                disabled={isActionLoading}
-                                                className="py-3.5 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 transition-all flex items-center justify-center gap-2 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                {actionInProgress === 'reject' ? (
-                                                    <Loader2 className="animate-spin" size={14} />
-                                                ) : (
-                                                    <XCircle size={14} />
-                                                )}
-                                                REJECT
-                                            </button>
-                                        </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <button
+                                                        onClick={() => handleAction('return')}
+                                                        disabled={isActionLoading || !comments.trim()}
+                                                        className="py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all flex items-center justify-center gap-2 border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {actionInProgress === 'return' ? (
+                                                            <Loader2 className="animate-spin" size={14} />
+                                                        ) : (
+                                                            <RotateCcw size={14} />
+                                                        )}
+                                                        RETURN
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleAction('reject')}
+                                                        disabled={isActionLoading || !comments.trim()}
+                                                        className="py-3.5 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 transition-all flex items-center justify-center gap-2 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {actionInProgress === 'reject' ? (
+                                                            <Loader2 className="animate-spin" size={14} />
+                                                        ) : (
+                                                            <XCircle size={14} />
+                                                        )}
+                                                        REJECT
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : null}
                                     </div>
                                 </div>
                             </div>
