@@ -12,4 +12,6 @@ public class PipCreateRequest {
     private LocalDate endDate;
     private Integer totalHours;
     private List<String> objectives;
+    private String expectedImprovements;
+    private String reasonForPlan;
 }

@@ -47,8 +47,10 @@ export interface Pip {
   reviewReason?: string
   reopenDecision?: string
   reopenDecisionDate?: string
-  closingRemarks?: string
+closingRemarks?: string
   finalOutcome?: string
+  expectedImprovements?: string
+  reasonForPlan?: string
   objectives: PipObjective[]
   overallProgressPercentage: number
   totalHours: number
@@ -210,8 +212,10 @@ const normalizePip = (pip: unknown): Pip => {
     reviewReason: getOptionalString(source.reviewReason),
     reopenDecision: getOptionalString(source.reopenDecision),
     reopenDecisionDate: getOptionalString(source.reopenDecisionDate),
-    closingRemarks: getOptionalString(source.closingRemarks),
+closingRemarks: getOptionalString(source.closingRemarks),
     finalOutcome: getOptionalString(source.finalOutcome),
+    expectedImprovements: getOptionalString(source.expectedImprovements),
+    reasonForPlan: getOptionalString(source.reasonForPlan),
     objectives: getArray(source.objectives).map(normalizeObjective),
     overallProgressPercentage: getNumber(source.overallProgressPercentage),
     totalHours: getNumber(source.totalHours),
@@ -237,7 +241,7 @@ export const pipApi = baseApi.injectEndpoints({
       providesTags: (_result, _error, id) => [{ type: 'PIP', id }],
       transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
     }),
-    createPip: builder.mutation<Pip, { employeeId: number; startDate: string; endDate: string; totalHours: number; objectives: string[] }>({
+    createPip: builder.mutation<Pip, { employeeId: number; startDate: string; endDate: string; totalHours: number; objectives: string[]; expectedImprovements?: string; reasonForPlan?: string }>({
       query: (body) => ({
         url: '/pips',
         method: 'POST',
@@ -269,6 +273,14 @@ export const pipApi = baseApi.injectEndpoints({
         body,
       }),
       invalidatesTags: () => ['PIP'],
+      transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
+    }),
+    markPipCompleted: builder.mutation<Pip, number>({
+      query: (pipId) => ({
+        url: `/pips/${pipId}/completed`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: (_result, _error, pipId) => ['PIP', { type: 'PIP', id: pipId }],
       transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
     }),
     reopenPip: builder.mutation<Pip, { pipId: number; reason: string }>({
@@ -311,6 +323,7 @@ export const {
   useUpdateProgressMutation,
   useScheduleMeetingMutation,
   useClosePipMutation,
+  useMarkPipCompletedMutation,
   useReopenPipMutation,
   useReviewPipMutation,
   useGetTrainingHistoryQuery,
