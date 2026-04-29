@@ -90,13 +90,18 @@ const normalizeDepartment = (raw: DepartmentApiRaw): DepartmentDto => {
   const explicitStatus = getByAliases(raw, ['status', 'departmentStatus'])
   const statusFlag = explicitStatus ?? getByAliases(raw, ['isActive', 'active', 'enabled'])
   const status = normalizeStatus(statusFlag)
-  const managerId = Number(getByAliases(raw, ['managerId', 'manager_id', 'managerid']) ?? 0)
+  const rawManagerId = getByAliases(raw, ['managerId', 'manager_id', 'managerid'])
+  const managerIdNumber = Number(rawManagerId)
+  const managerId =
+    rawManagerId === undefined || rawManagerId === null || rawManagerId === '' || !Number.isFinite(managerIdNumber)
+      ? null
+      : managerIdNumber
   return {
     departmentId: Number.isFinite(departmentId) ? departmentId : 0,
     departmentCode: code,
     departmentName: name,
     status,
-    managerId: Number.isFinite(managerId) ? managerId : 0,
+    managerId,
     managerName: String(getByAliases(raw, ['managerName', 'manager_name', 'managername']) ?? ''),
     createdDate: String(getByAliases(raw, ['createdDate', 'created_date']) ?? ''),
     updatedDate: String(getByAliases(raw, ['updatedDate', 'updated_date']) ?? ''),
@@ -140,8 +145,13 @@ export const departmentApi = baseApi.injectEndpoints({
       }),
       providesTags: (_result, _error, id) => [{ type: 'Department', id }],
     }),
-    getManagers: builder.query<ApiResponse<ManagerOption[]>, void>({
-      query: () => '/departments/managers',
+    getManagers: builder.query<ApiResponse<ManagerOption[]>, number | void>({
+      query: (departmentId) => {
+        if (typeof departmentId === 'number' && Number.isFinite(departmentId) && departmentId > 0) {
+          return `/departments/${departmentId}/managers`
+        }
+        return '/departments/managers/available'
+      },
       providesTags: ['Manager'],
     }),
     createDepartment: builder.mutation<ApiResponse<DepartmentDto>, CreateDepartmentRequest>({

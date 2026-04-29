@@ -10,7 +10,10 @@ import { useCreateDepartmentMutation, useGetManagersQuery } from '../api/departm
 const departmentSchema = z.object({
   departmentCode: z.string().trim().min(1, 'Department code is required.'),
   departmentName: z.string().trim().min(1, 'Department name is required.'),
-  managerId: z.coerce.number().min(1, 'Manager is required.'),
+  managerId: z.preprocess(
+    (value) => (value === '' || value === undefined || value === null ? null : Number(value)),
+    z.number().int().positive().nullable(),
+  ),
 })
 
 type DepartmentFormInput = z.input<typeof departmentSchema>
@@ -170,7 +173,7 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
                   <div>
                     <label htmlFor="add-dept-manager" className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
                       <User size={11} className="text-slate-400" />
-                      Manager <span className="text-red-500">*</span>
+                      Manager
                     </label>
                     <select
                       id="add-dept-manager"

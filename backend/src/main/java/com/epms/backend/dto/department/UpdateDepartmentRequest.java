@@ -1,7 +1,6 @@
 package com.epms.backend.dto.department;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
@@ -14,7 +13,6 @@ public class UpdateDepartmentRequest {
     @NotBlank(message = "Department name is required.")
     private String departmentName;
 
-    @NotNull(message = "Manager is required.")
     private Long managerId;
 
     @NotBlank(message = "Status is required.")
