@@ -64,6 +64,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/forgot-password/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public/profile-pictures/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/uploads/signatures/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint((request, response, authException) -> {
