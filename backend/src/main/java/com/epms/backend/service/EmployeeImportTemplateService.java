@@ -2,6 +2,8 @@ package com.epms.backend.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
@@ -39,6 +41,7 @@ public class EmployeeImportTemplateService {
     private final DepartmentRepository departmentRepository;
     private final PositionRepository positionRepository;
     private final StaffTypeRepository staffTypeRepository;
+    private static final DateTimeFormatter DD_MM_YYYY = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     /**
      * Column layout (0-indexed):
@@ -85,8 +88,9 @@ public class EmployeeImportTemplateService {
     private static final String[] RELIGIONS = java.util.Arrays.stream(EmployeeReligion.values())
             .map(EmployeeReligion::toApiLabel).toArray(String[]::new);
 
-    /** Columns that must be Text format: phone numbers + date columns (to preserve dd-mm-yyyy strings) */
-    private static final int[] TEXT_FORMAT_COLS = { 6, 8, 9, 11, 12, 18 };
+    /** Columns that must be Text format to preserve leading zeros. */
+    private static final int[] TEXT_FORMAT_COLS = { 6, 18 };
+    private static final int[] DATE_FORMAT_COLS = { 8, 9, 11, 12 };
 
     @Transactional(readOnly = true)
     public byte[] generateTemplate() {
@@ -111,6 +115,10 @@ public class EmployeeImportTemplateService {
             short textFmt = wb.createDataFormat().getFormat("@");
             CellStyle textStyle = wb.createCellStyle();
             textStyle.setDataFormat(textFmt);
+
+            short dateFmt = wb.createDataFormat().getFormat("dd-mm-yyyy");
+            CellStyle dateStyle = wb.createCellStyle();
+            dateStyle.setDataFormat(dateFmt);
 
             // ─── 1. Instructions sheet ────────────────────────────────────────────
             Sheet instrSheet = wb.createSheet("Instructions");
@@ -192,26 +200,30 @@ public class EmployeeImportTemplateService {
             sampleStyle.setBorderTop(BorderStyle.THIN);
             sampleStyle.setBorderLeft(BorderStyle.THIN);
             sampleStyle.setBorderRight(BorderStyle.THIN);
+            CellStyle dateSampleStyle = wb.createCellStyle();
+            dateSampleStyle.cloneStyleFrom(sampleStyle);
+            dateSampleStyle.setDataFormat(dateFmt);
 
             // Write row 1 (Probation)
             Row dataRow1 = sampleSheet.createRow(1);
             for (int i = 0; i < sampleRow1.length; i++) {
                 Cell cell = dataRow1.createCell(i);
-                cell.setCellValue(sampleRow1[i]);
-                cell.setCellStyle(isTextCol(i) ? textStyle : sampleStyle);
+                setSampleCell(cell, sampleRow1[i], i, textStyle, dateSampleStyle, sampleStyle);
             }
 
             // Write row 2 (Permanent)
             Row dataRow2 = sampleSheet.createRow(2);
             for (int i = 0; i < sampleRow2.length; i++) {
                 Cell cell = dataRow2.createCell(i);
-                cell.setCellValue(sampleRow2[i]);
-                cell.setCellStyle(isTextCol(i) ? textStyle : sampleStyle);
+                setSampleCell(cell, sampleRow2[i], i, textStyle, dateSampleStyle, sampleStyle);
             }
 
-            // Apply text format to phone columns on sample sheet
+            // Apply formats to sample sheet
             for (int col : TEXT_FORMAT_COLS) {
                 sampleSheet.setDefaultColumnStyle(col, textStyle);
+            }
+            for (int col : DATE_FORMAT_COLS) {
+                sampleSheet.setDefaultColumnStyle(col, dateStyle);
             }
 
             Row noteRow = sampleSheet.createRow(5);
@@ -230,9 +242,12 @@ public class EmployeeImportTemplateService {
             buildHeaderRow(empSheet, headerStyle, textStyle);
             empSheet.createFreezePane(0, 1);
 
-            // Apply text format to phone columns on employees sheet
+            // Apply text/date formats on employees sheet
             for (int col : TEXT_FORMAT_COLS) {
                 empSheet.setDefaultColumnStyle(col, textStyle);
+            }
+            for (int col : DATE_FORMAT_COLS) {
+                empSheet.setDefaultColumnStyle(col, dateStyle);
             }
 
             // ─── 4. Lookups sheet (hidden) ────────────────────────────────────────
@@ -304,6 +319,9 @@ public class EmployeeImportTemplateService {
             addDropdown(empSheet, "StatusList",    1, 1000, 15, 15);  // employment_status
             addDropdown(empSheet, "ReligionList",  1, 1000, 16, 16);  // religion
             addDropdown(empSheet, "MaritalStatusList", 1, 1000, 22, 22); // marital_status
+            for (int col : DATE_FORMAT_COLS) {
+                addDateValidation(empSheet, 1, 1000, col, col);
+            }
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             wb.write(baos);
@@ -335,6 +353,24 @@ public class EmployeeImportTemplateService {
             if (c == col) return true;
         }
         return false;
+    }
+
+    private boolean isDateCol(int col) {
+        for (int c : DATE_FORMAT_COLS) {
+            if (c == col) return true;
+        }
+        return false;
+    }
+
+    private void setSampleCell(Cell cell, String value, int col,
+            CellStyle textStyle, CellStyle dateStyle, CellStyle defaultStyle) {
+        if (isDateCol(col) && !value.isBlank()) {
+            cell.setCellValue(java.sql.Date.valueOf(LocalDate.parse(value, DD_MM_YYYY)));
+            cell.setCellStyle(dateStyle);
+            return;
+        }
+        cell.setCellValue(value);
+        cell.setCellStyle(isTextCol(col) ? textStyle : defaultStyle);
     }
 
     private void addInstructions(Workbook wb, Sheet sheet,
@@ -373,11 +409,11 @@ public class EmployeeImportTemplateService {
             { "  Col F  position               Required. Select from dropdown.", "normal" },
             { "  Col G  phone_number           Required. Format: 09XXXXXXXXX or +95XXXXXXXXX.", "normal" },
             { "  Col H  gender                 Required. Select from dropdown: Male | Female.", "normal" },
-            { "  Col I  date_of_birth          Required. Format: dd-mm-yyyy  e.g. 25-12-1990. Pre-formatted as Text.", "normal" },
-            { "  Col J  hire_date              Required. Format: dd-mm-yyyy  e.g. 01-01-2024. Pre-formatted as Text.", "normal" },
+            { "  Col I  date_of_birth          Required. Use Excel Date Picker or enter a valid date. Display format: dd-mm-yyyy.", "normal" },
+            { "  Col J  hire_date              Required. Use Excel Date Picker or enter a valid date. Display format: dd-mm-yyyy.", "normal" },
             { "  Col K  staff_type             Required. Select from dropdown.", "normal" },
-            { "  Col L  probation_start_date   Required if staff_type=Probation. Format: dd-mm-yyyy. Pre-formatted as Text.", "normal" },
-            { "  Col M  probation_end_date     Required if staff_type=Probation. Format: dd-mm-yyyy. Pre-formatted as Text.", "normal" },
+            { "  Col L  probation_start_date   Required if staff_type=Probation. Use Excel Date Picker. Display format: dd-mm-yyyy.", "normal" },
+            { "  Col M  probation_end_date     Required if staff_type=Probation. Use Excel Date Picker. Display format: dd-mm-yyyy.", "normal" },
             { "  Col N  address                Required. Current residential address.", "normal" },
             { "  Col O  race                   Required. e.g. Bamar.", "normal" },
             { "  Col P  employment_status      Required. Select from dropdown (ACTIVE).", "normal" },
@@ -401,10 +437,9 @@ public class EmployeeImportTemplateService {
             { "  Typing a value not in the list will cause that row to fail validation.", "normal" },
             { "", "normal" },
             { "STEP 5 — DATE FORMAT", "bold" },
-            { "  All dates must use the format:  dd-mm-yyyy", "normal" },
-            { "  Example:  15-06-1995  (15 June 1995)", "normal" },
-            { "  Columns I, J, L, M are pre-formatted as Text so Excel will NOT convert your dates.", "normal" },
-            { "  Type the date directly as text (e.g. 15-06-1995). Do NOT use Excel date picker.", "normal" },
+            { "  Columns I, J, L, M are formatted as Excel Date cells.", "normal" },
+            { "  Use Excel Date Picker for these columns, or type a valid date and let Excel store it as a date.", "normal" },
+            { "  Dates will display as dd-mm-yyyy. Example: 15-06-1995 (15 June 1995).", "normal" },
             { "", "normal" },
             { "STEP 6 — PHONE NUMBER FORMAT", "bold" },
             { "  Columns G, S are pre-formatted as Text so leading zeros are preserved.", "normal" },
@@ -499,6 +534,22 @@ public class EmployeeImportTemplateService {
         DataValidation dv = dvh.createValidation(dvc,
                 new CellRangeAddressList(firstRow, lastRow, firstCol, lastCol));
         dv.setShowErrorBox(true);
+        sheet.addValidationData(dv);
+    }
+
+    private void addDateValidation(Sheet sheet,
+            int firstRow, int lastRow, int firstCol, int lastCol) {
+        DataValidationHelper dvh = sheet.getDataValidationHelper();
+        DataValidationConstraint dvc = dvh.createDateConstraint(
+                DataValidationConstraint.OperatorType.BETWEEN,
+                "01-01-1900",
+                "31-12-9999",
+                "dd-mm-yyyy");
+        DataValidation dv = dvh.createValidation(dvc,
+                new CellRangeAddressList(firstRow, lastRow, firstCol, lastCol));
+        dv.setEmptyCellAllowed(true);
+        dv.setShowErrorBox(true);
+        dv.createErrorBox("Invalid date", "Use Excel Date Picker or enter a valid date.");
         sheet.addValidationData(dv);
     }
 
