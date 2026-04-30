@@ -20,6 +20,9 @@ public class TimeSetting {
     @Column(name = "year_type", nullable = false)
     private String yearType;
 
+    @Column(name = "pending_year_type")
+    private String pendingYearType;
+
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
@@ -28,4 +31,14 @@ public class TimeSetting {
 
     @Column(name = "duration", nullable = false)
     private String duration;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "period_type")
+    private PeriodType periodType;
+
+    public enum PeriodType {
+        ANNUAL,
+        SEMI_ANNUAL,
+        BOTH
+    }
 }

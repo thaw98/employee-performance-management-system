@@ -111,16 +111,20 @@ export const userApi = baseApi.injectEndpoints({
       query: () => '/signatures/default',
       providesTags: ['Signature'],
     }),
-    saveDrawnSignature: builder.mutation<ApiResponse<SignatureDto>, string>({
-      query: (signaturePngDataUrl) => ({
+    getAllSignatures: builder.query<ApiResponse<SignatureDto[]>, void>({
+      query: () => '/signatures',
+      providesTags: ['Signature'],
+    }),
+    saveDrawnSignature: builder.mutation<ApiResponse<SignatureDto>, { signaturePngDataUrl: string }>({
+      query: (body) => ({
         url: '/signatures/drawn',
         method: 'POST',
-        body: { signaturePngDataUrl },
+        body,
       }),
       invalidatesTags: ['Signature'],
     }),
-    uploadSignature: builder.mutation<ApiResponse<SignatureDto>, File>({
-      query: (file) => {
+    uploadSignature: builder.mutation<ApiResponse<SignatureDto>, { file: File }>({
+      query: ({ file }) => {
         const body = new FormData()
         body.append('file', file)
         return {
@@ -129,6 +133,20 @@ export const userApi = baseApi.injectEndpoints({
           body,
         }
       },
+      invalidatesTags: ['Signature'],
+    }),
+    setDefaultSignature: builder.mutation<ApiResponse<SignatureDto>, number>({
+      query: (signatureId) => ({
+        url: `/signatures/${signatureId}/default`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: ['Signature'],
+    }),
+    deleteSignature: builder.mutation<ApiResponse<null>, number>({
+      query: (signatureId) => ({
+        url: `/signatures/${signatureId}`,
+        method: 'DELETE',
+      }),
       invalidatesTags: ['Signature'],
     }),
   }),
@@ -144,6 +162,9 @@ export const {
   useUpdateProfileMutation,
   useChangePasswordMutation,
   useGetDefaultSignatureQuery,
+  useGetAllSignaturesQuery,
   useSaveDrawnSignatureMutation,
   useUploadSignatureMutation,
+  useSetDefaultSignatureMutation,
+  useDeleteSignatureMutation,
 } = userApi

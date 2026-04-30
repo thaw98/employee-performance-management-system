@@ -1,0 +1,16 @@
+package com.epms.backend.dto.selfassessmentform;
+
+import java.time.Instant;
+import java.util.List;
+
+public record SelfAssessmentFormTemplateDto(
+        Long id,
+        Long departmentId,
+        String departmentName,
+        Long positionId,
+        String positionName,
+        boolean isActive,
+        List<QuestionDto> questions,
+        Instant createdOn,
+        Long createdBy
+) {}

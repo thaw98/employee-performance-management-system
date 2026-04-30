@@ -13,6 +13,8 @@ import java.util.Optional;
 public interface SignatureRepository extends JpaRepository<Signature, Long> {
     List<Signature> findByUser(User user);
     Optional<Signature> findByUserAndIsDefaultTrue(User user);
+    Optional<Signature> findByIdAndUser(Long id, User user);
+    long countByUser(User user);
 
     @Modifying
     @Query("update Signature s set s.isDefault = false where s.user = :user and s.isDefault = true")

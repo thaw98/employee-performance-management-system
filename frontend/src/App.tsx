@@ -29,9 +29,6 @@ import { SystemSettingsPage } from './pages/SystemSettingsPage';
 import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 
 // Performance Modules
-import { SelfAssessmentPage } from './pages/SelfAssessmentPage';
-import { SelfAssessmentReviewListPage } from './pages/SelfAssessmentReviewListPage';
-import { SelfAssessmentSubitemPage } from './pages/SelfAssessmentSubjectPage';
 import PipMonitoringPage from './pages/PipMonitoringPage';
 import PipCreatePage from './pages/PipCreatePage';
 import PipDetailPage from './pages/PipDetailPage';
@@ -48,6 +45,12 @@ import DepartmentDetailPage from './pages/hr/departments/DepartmentDetailPage';
 import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
 import PositionListPage from './features/position/pages/PositionListPage';
 import LevelCodeListPage from './features/levelCode/pages/LevelCodeListPage';
+
+// Self Assessment Forms
+import { SelfAssessmentFormTemplatePage } from './pages/self-assessment-form/SelfAssessmentFormTemplatePage';
+import { CreateSelfAssessmentTemplatePage } from './pages/self-assessment-form/CreateSelfAssessmentTemplatePage';
+import { MySelfAssessmentFormPage } from './pages/self-assessment-form/MySelfAssessmentFormPage';
+import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfAssessmentFormReviewPage';
 
 function App() {
   return (
@@ -76,8 +79,6 @@ function App() {
             <Route path="positions" element={<PositionListPage />} />
             <Route path="level-codes" element={<LevelCodeListPage />} />
 
-            <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
-            <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
             <Route path="pip-monitoring" element={<PipMonitoringPage />} />
             <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
             <Route path="360-feedback/criteria" element={<CriteriaPage />} />
@@ -93,6 +94,9 @@ function App() {
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="self-assessment/forms" element={<SelfAssessmentFormTemplatePage />} />
+            <Route path="self-assessment/forms/create" element={<CreateSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -102,11 +106,8 @@ function App() {
           <Route path="/manager" element={<ManagerLayout />}>
             <Route path="dashboard" element={<ManagerDashboardPage />} />
             <Route path="employees" element={<EmployeeListPage />} />
-            <Route path="my-assessment" element={<SelfAssessmentPage />} />
-            <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
             <Route path="kpis" element={<ManagerKpisPage />} />
             <Route path="my-kpis" element={<MyKpisPage />} />
-            <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
             <Route path="pip" element={<PipMonitoringPage />} />
             <Route path="pip/create" element={<PipCreatePage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />
@@ -116,6 +117,7 @@ function App() {
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>
@@ -125,7 +127,6 @@ function App() {
           <Route path="/employee" element={<EmployeeLayout />}>
             <Route path="dashboard" element={<EmployeeDashboardPage />} />
             <Route path="kpis" element={<MyKpisPage />} />
-            <Route path="assessment" element={<SelfAssessmentPage />} />
             <Route path="pip" element={<PipMonitoringPage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
@@ -134,6 +135,7 @@ function App() {
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>

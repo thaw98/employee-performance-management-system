@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Users,
   Calendar,
@@ -6,7 +6,6 @@ import {
   MessageSquare,
   TrendingUp,
   ExternalLink,
-  FileText,
   Zap,
   X,
   Save
@@ -232,10 +231,6 @@ export function ManagerDashboardPage() {
           <p className="text-slate-500 font-medium">Monitor and manage your team's performance</p>
         </div>
         <div className="flex gap-3">
-          <a href="/manager/assessments" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-700 hover:shadow-md transition-all">
-            <FileText size={14} className="text-blue-600" />
-            Team Assessments
-          </a>
           <a href="/manager/pip" className="flex items-center gap-2 px-4 py-2 bg-slate-900 rounded-xl text-xs font-black text-white hover:shadow-lg transition-all">
             <Zap size={14} className="text-amber-400" />
             Team PIPs

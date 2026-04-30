@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { SelfAssessmentWarning } from '../components/SelfAssessmentWarning';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../app/store';
 import { useGetKpisByEmployeeQuery } from '../features/kpi/kpiApi';
@@ -8,7 +7,7 @@ export const EmployeeKpiViewPage: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState('2026-2027');
   const { user } = useSelector((state: RootState) => state.auth);
 
-  const { data: kpis = [], isLoading } = useGetKpisByEmployeeQuery(
+  const { data: kpis = [] } = useGetKpisByEmployeeQuery(
     { employeeId: user?.employeeId ? Number(user.employeeId) : 0, period: selectedYear },
     { skip: !user?.employeeId }
   );
@@ -18,7 +17,6 @@ export const EmployeeKpiViewPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 font-inter animate-in fade-in duration-500">
-      <SelfAssessmentWarning />
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
