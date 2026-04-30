@@ -49,7 +49,7 @@ public class TimeSettingService {
     public TimeSettingDto saveSettings(TimeSettingDto dto, Long actingUserId, Long actingRoleId) {
         TimeSetting setting = repository.findFirstByOrderByIdAsc().orElse(new TimeSetting());
         if (setting.getYearType() == null) {
-            setting.setYearType("Calendar Year");
+            setting.setYearType("Budget Year");
         }
 
         String oldYearType = setting.getYearType();
@@ -123,10 +123,10 @@ public class TimeSettingService {
     }
 
     private TimeSettingDto defaultSettings() {
-        LocalDate start = LocalDate.now().withMonth(1).withDayOfMonth(1);
-        LocalDate end = start.plusYears(1).minusDays(1);
-        Period period = buildPeriod("Annual", start, end, Period.PeriodType.ANNUAL, null);
-        return new TimeSettingDto("Calendar Year", null, start, end, "1 Year", TimeSetting.PeriodType.ANNUAL.name(), List.of(toPeriodDto(period)));
+        LocalDate start = getYearStart("Budget Year");
+        LocalDate end = calculateEndDate(start, "6 Months");
+        Period period = buildPeriod("Semi-annual 1", start, end, Period.PeriodType.SEMI_ANNUAL, null);
+        return new TimeSettingDto("Budget Year", null, start, end, "6 Months", TimeSetting.PeriodType.SEMI_ANNUAL.name(), List.of(toPeriodDto(period)));
     }
 
     private void replacePeriods(TimeSetting setting) {
@@ -225,7 +225,7 @@ public class TimeSettingService {
             return "Both";
         }
         if (duration == null || duration.isBlank()) {
-            return "1 Year";
+            return "6 Months";
         }
         if (duration.contains("Months")) {
             return parseMonths(duration) + " Months";
@@ -233,7 +233,7 @@ public class TimeSettingService {
         if ("6 Months".equals(duration) || "1 Year".equals(duration)) {
             return duration;
         }
-        return "1 Year";
+        return "6 Months";
     }
 
     private int parseMonths(String duration) {
