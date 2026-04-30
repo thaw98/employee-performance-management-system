@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 public class EmployeeExportService {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-    private static final int[] TEXT_COLUMNS = { 6, 8, 9, 11, 12, 18 };
+    private static final int[] TEXT_COLUMNS = { 6, 8, 9, 11, 12, 18, 24 };
 
     private final EmployeeRepository employeeRepository;
     private final EmployeeImportTemplateService templateService;
@@ -87,7 +87,7 @@ public class EmployeeExportService {
         write(row, 11, probation != null ? formatDate(probation.getProbationStartDate()) : null, textStyle);
         write(row, 12, probation != null ? formatDate(probation.getProbationEndDate()) : null, textStyle);
         write(row, 13, employee.getAddress(), null);
-        write(row, 14, employee.getNationality(), null);
+        write(row, 14, employee.getRace(), null);
         write(row, 15, formatEmploymentStatus(employee.getEmploymentStatus()), null);
         write(row, 16, formatReligion(employee.getReligion()), null);
         write(row, 17, employee.getEmergencyContact() != null ? employee.getEmergencyContact().getRelation() : null, null);
@@ -95,7 +95,10 @@ public class EmployeeExportService {
         write(row, 19, employee.getFather() != null ? employee.getFather().getFatherName() : null, null);
         write(row, 20, employee.getFather() != null ? employee.getFather().getFatherNrcNo() : null, null);
         write(row, 21, employee.getFather() != null ? employee.getFather().getFatherOccupation() : null, null);
-        write(row, 22, employee.getProfilePictureUrl(), null);
+        write(row, 22, employee.getMaritalStatus() != null ? employee.getMaritalStatus().name() : null, null);
+        write(row, 23, employee.getSpouse() != null ? employee.getSpouse().getSpouseName() : null, null);
+        write(row, 24, employee.getSpouse() != null ? employee.getSpouse().getSpouseNrc() : null, textStyle);
+        write(row, 25, employee.getProfilePictureUrl(), null);
     }
 
     private void write(Row row, int columnIndex, String value, CellStyle style) {

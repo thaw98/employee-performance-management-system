@@ -28,6 +28,9 @@ public class EmployeeUpdateRequestDto {
     private String fatherOccupation;
     private String emergencyPhone;
     private String emergencyRelation;
+    private String maritalStatus;
+    private String spouseName;
+    private String spouseNrc;
     
     @NotNull
     private Long departmentId;

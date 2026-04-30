@@ -1,8 +1,41 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import type { FetchBaseQueryError } from '@reduxjs/toolkit/query'
 import { useGetProfileQuery, useUpdateProfilePictureMutation, useUpdateProfileMutation, useDeleteProfilePictureMutation } from '../features/user/userApi'
 import { resolveProfilePictureSrc } from '../utils/mediaUrl'
 import { User, Mail, Shield, BadgeCheck, Hash, Camera, Lock, Loader2, Save, Trash2 } from 'lucide-react'
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string' && message.trim()) {
+      return message
+    }
+  }
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const fbqError = error as FetchBaseQueryError & { data?: { message?: unknown }; error?: string }
+    if (typeof fbqError.data?.message === 'string' && fbqError.data.message.trim()) {
+      return fbqError.data.message
+    }
+    if (typeof fbqError.error === 'string' && fbqError.error.trim()) {
+      return fbqError.error
+    }
+    if (typeof fbqError.status === 'number') {
+      return `Request failed (HTTP ${fbqError.status}).`
+    }
+    if (typeof fbqError.status === 'string' && fbqError.status.trim()) {
+      return `Request failed (${fbqError.status}).`
+    }
+  }
+  if (typeof error === 'object' && error !== null && 'data' in error) {
+    const data = (error as { data?: { message?: unknown } }).data
+    if (typeof data?.message === 'string' && data.message.trim()) {
+      return data.message
+    }
+  }
+  return fallback
+}
+
 
 export function ProfileSettingsPage() {
   const { data: profileResponse, isLoading } = useGetProfileQuery()
@@ -28,6 +61,7 @@ export function ProfileSettingsPage() {
 
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         name: user.name || '',
         email: user.email || ''
@@ -68,8 +102,8 @@ export function ProfileSettingsPage() {
       setPendingPicture(null)
       setMessage({ type: 'success', text: 'Profile updated successfully!' })
       setTimeout(() => setMessage(null), 3000)
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.data?.message || 'Failed to save changes' })
+    } catch (err: unknown) {
+      setMessage({ type: 'error', text: getErrorMessage(err, 'Failed to save changes') })
     }
   }
 
@@ -125,7 +159,7 @@ export function ProfileSettingsPage() {
               />
               <div
                 onClick={() => !isProcessActive && fileInputRef.current?.click()}
-                className={`h-32 w-32 rounded-[2.5rem] bg-blue-100 text-blue-700 flex flex-shrink-0 items-center justify-center text-5xl font-black border-4 border-white shadow-xl overflow-hidden transition-all transform group-hover:scale-105 
+                className={`h-32 w-32 rounded-[2.5rem] bg-blue-100 text-blue-700 flex shrink-0 items-center justify-center text-5xl font-black border-4 border-white shadow-xl overflow-hidden transition-all transform group-hover:scale-105 
                   ${isProcessActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 {displaySrc ? (

@@ -22,3 +22,7 @@ export function resolveProfilePictureSrc(pathOrUrl: string | undefined | null): 
   if (s.startsWith('/')) return `${backendOrigin()}${s}`
   return `${backendOrigin()}/${s}`
 }
+
+export function resolveMediaSrc(pathOrUrl: string | undefined | null): string | undefined {
+  return resolveProfilePictureSrc(pathOrUrl)
+}

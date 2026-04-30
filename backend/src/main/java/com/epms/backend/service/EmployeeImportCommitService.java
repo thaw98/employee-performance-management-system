@@ -24,7 +24,9 @@ import com.epms.backend.entity.EmployeeImportSession;
 import com.epms.backend.entity.EmployeeImportSessionItem;
 import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
+import com.epms.backend.entity.EmployeeSpouse;
 import com.epms.backend.entity.Gender;
+import com.epms.backend.entity.MaritalStatus;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.Role;
 import com.epms.backend.entity.StaffType;
@@ -168,13 +170,16 @@ public class EmployeeImportCommitService {
         String probationStartStr = strOrEmpty(row, "probationStartDate");
         String probationEndStr = strOrEmpty(row, "probationEndDate");
         String address = strOrEmpty(row, "address").trim();
-        String nationality = strOrEmpty(row, "nationality").trim();
+        String race = strOrEmpty(row, "race").trim();
         String religion = strOrEmpty(row, "religion").trim();
         String emergencyRel = strOrEmpty(row, "emergencyContactRelationship").trim();
         String emergencyPhone = strOrEmpty(row, "emergencyContactPhone").trim();
         String fatherName = strOrEmpty(row, "fatherName").trim();
         String fatherNrcNo = strOrEmpty(row, "fatherNrcNo").trim();
         String fatherOccupation = strOrEmpty(row, "fatherOccupation").trim();
+        String maritalStatusStr = strOrEmpty(row, "maritalStatus").trim();
+        String spouseName = strOrEmpty(row, "spouseName").trim();
+        String spouseNrc = strOrEmpty(row, "spouseNrc").trim();
         String profilePictureUrl = strOrEmpty(row, "profilePictureUrl").trim();
 
         // Resolve master data
@@ -188,6 +193,7 @@ public class EmployeeImportCommitService {
         if (staffType == null) throw new IllegalArgumentException("Staff type not found: " + staffTypeName);
 
         Gender gender = Gender.valueOf(genderStr);
+        MaritalStatus maritalStatus = MaritalStatus.valueOf(maritalStatusStr);
         LocalDate dob = dobStr.isEmpty() ? null : LocalDate.parse(dobStr);
         LocalDate hireDate = hireDateStr.isEmpty() ? null : LocalDate.parse(hireDateStr);
 
@@ -209,8 +215,9 @@ public class EmployeeImportCommitService {
         employee.setGender(gender);
         employee.setDateOfBirth(dob);
         employee.setPhoneNo(phoneNumber);
+        employee.setMaritalStatus(maritalStatus);
         employee.setAddress(address);
-        employee.setNationality(nationality);
+        employee.setRace(race);
         if (!religion.isEmpty()) employee.setReligion(EmployeeReligion.fromValue(religion));
         employee.setDepartment(dept);
         employee.setPosition(pos);
@@ -229,6 +236,13 @@ public class EmployeeImportCommitService {
             if (!fatherNrcNo.isEmpty()) father.setFatherNrcNo(fatherNrcNo);
             if (!fatherOccupation.isEmpty()) father.setFatherOccupation(fatherOccupation);
             employee.setFather(father);
+        }
+
+        if (maritalStatus == MaritalStatus.Married) {
+            EmployeeSpouse spouse = new EmployeeSpouse();
+            spouse.setSpouseName(spouseName);
+            spouse.setSpouseNrc(spouseNrc);
+            employee.setSpouse(spouse);
         }
 
         // Emergency contact

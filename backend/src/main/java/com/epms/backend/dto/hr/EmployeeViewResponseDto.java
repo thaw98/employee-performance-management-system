@@ -26,13 +26,18 @@ public class EmployeeViewResponseDto {
     private String profilePictureUrl;
     private String staffNrcNumber;
     private String address;
-    private String nationality;
+    private String race;
     private String employmentStatus;
+    private LocalDate statusEffectiveFrom;
+    private String employmentStatusReason;
+    /** {@code Single} or {@code Married}, or null if unset. */
+    private String maritalStatus;
     private DepartmentInfo department;
     private PositionInfo position;
     private StaffTypeInfo staffType;
     private EmergencyContactInfo emergencyContact;
     private FatherInfo father;
+    private SpouseInfo spouse;
     private ProbationInfo probationInfo;
 
     @Getter
@@ -84,6 +89,17 @@ public class EmployeeViewResponseDto {
         private String fatherName;
         private String fatherNrcNo;
         private String fatherOccupation;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class SpouseInfo {
+        private Long spouseId;
+        private String spouseName;
+        private String spouseNrc;
     }
 
     @Getter

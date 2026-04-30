@@ -13,7 +13,7 @@ export type EmployeeImportRowData = {
   hireDate: string
   staffType: string
   address: string
-  nationality: string
+  race: string
   employmentStatus: string
   emergencyContactName: string
   emergencyContactRelationship: string

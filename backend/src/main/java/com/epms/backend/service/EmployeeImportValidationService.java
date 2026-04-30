@@ -220,7 +220,7 @@ public class EmployeeImportValidationService {
         LocalDate ped = ExcelCellReaderUtil.readDate(row.getCell(12));
         data.put("probationEndDate",   ped != null ? ped.toString() : "");
         data.put("address",                    ExcelCellReaderUtil.readString(row.getCell(13)));
-        data.put("nationality",                ExcelCellReaderUtil.readString(row.getCell(14)));
+        data.put("race",                       ExcelCellReaderUtil.readString(row.getCell(14)));
         data.put("employmentStatus",           ExcelCellReaderUtil.readString(row.getCell(15)));
         data.put("religion",                   ExcelCellReaderUtil.readString(row.getCell(16)));
         data.put("emergencyContactRelationship", ExcelCellReaderUtil.readString(row.getCell(17)));
@@ -228,7 +228,10 @@ public class EmployeeImportValidationService {
         data.put("fatherName",                 ExcelCellReaderUtil.readString(row.getCell(19)));
         data.put("fatherNrcNo",                ExcelCellReaderUtil.readString(row.getCell(20)));
         data.put("fatherOccupation",           ExcelCellReaderUtil.readString(row.getCell(21)));
-        data.put("profilePictureUrl",          ExcelCellReaderUtil.readString(row.getCell(22)));
+        data.put("maritalStatus",              ExcelCellReaderUtil.readString(row.getCell(22)));
+        data.put("spouseName",                 ExcelCellReaderUtil.readString(row.getCell(23)));
+        data.put("spouseNrc",                  ExcelCellReaderUtil.readString(row.getCell(24)));
+        data.put("profilePictureUrl",          ExcelCellReaderUtil.readString(row.getCell(25)));
         return data;
     }
 
@@ -338,7 +341,7 @@ public class EmployeeImportValidationService {
         }
 
         requireField(errors, row, "address", "address is required");
-        requireField(errors, row, "nationality", "nationality is required");
+        requireField(errors, row, "race", "race is required");
         requireField(errors, row, "employmentStatus", "employment_status is required");
 
         String religion = trimOrEmpty(row, "religion");
@@ -361,12 +364,22 @@ public class EmployeeImportValidationService {
         requireField(errors, row, "fatherNrcNo", "father_nrc_no is required");
         requireField(errors, row, "fatherOccupation", "father_occupation is required");
 
+        String maritalStatus = trimOrEmpty(row, "maritalStatus");
+        if (maritalStatus.isEmpty()) {
+            errors.add("marital_status is required");
+        } else if (!maritalStatus.equals("Single") && !maritalStatus.equals("Married")) {
+            errors.add("marital_status must be Single or Married");
+        } else if (maritalStatus.equals("Married")) {
+            requireField(errors, row, "spouseName", "spouse_name is required when marital_status is Married");
+            requireField(errors, row, "spouseNrc", "spouse_nrc is required when marital_status is Married");
+        }
+
         return errors;
     }
 
     private boolean isRowFullyEmpty(Row row) {
         if (row == null) return true;
-        for (int c = 0; c < 23; c++) {
+        for (int c = 0; c < 26; c++) {
             if (!ExcelCellReaderUtil.isCellBlank(row.getCell(c))) return false;
         }
         return true;

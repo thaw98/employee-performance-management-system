@@ -22,4 +22,6 @@ public class UpdateEmploymentStatusRequestDto {
 
     // Required for PERMANENT transition: "NOW" or "CUSTOM".
     private String transitionMode;
+
+    private String reason;
 }

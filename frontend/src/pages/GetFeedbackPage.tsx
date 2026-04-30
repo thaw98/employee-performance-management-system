@@ -51,6 +51,32 @@ export function GetFeedbackPage() {
     const [details, setDetails] = useState<FeedbackDetail[]>([]);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const getPageItems = (): (number | 'ellipsis')[] => {
+        if (totalPages <= 7) {
+            return Array.from({ length: totalPages }, (_, index) => index);
+        }
+
+        const candidatePages = new Set<number>([
+            0, 1, 2,
+            totalPages - 3, totalPages - 2, totalPages - 1,
+            page - 1, page, page + 1,
+        ]);
+
+        const normalizedPages = [...candidatePages]
+            .filter((value) => value >= 0 && value < totalPages)
+            .sort((left, right) => left - right);
+
+        const items: (number | 'ellipsis')[] = [];
+        let previous: number | null = null;
+        for (const pageNumber of normalizedPages) {
+            if (previous !== null && pageNumber - previous > 1) {
+                items.push('ellipsis');
+            }
+            items.push(pageNumber);
+            previous = pageNumber;
+        }
+        return items;
+    };
 
     useEffect(() => {
         fetchReceived();
@@ -329,7 +355,7 @@ export function GetFeedbackPage() {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-6 pt-4">
+                <div className="flex items-center justify-center gap-3 pt-4 flex-wrap">
                     <button 
                         onClick={() => setPage(prev => Math.max(0, prev - 1))}
                         disabled={page === 0}
@@ -337,9 +363,23 @@ export function GetFeedbackPage() {
                     >
                         <ChevronLeft size={20} />
                     </button>
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                        Page {page + 1} of {totalPages}
-                    </span>
+                    {getPageItems().map((item, index) =>
+                        item === 'ellipsis' ? (
+                            <span key={`ellipsis-${index}`} className="px-1 text-slate-400 text-sm select-none">...</span>
+                        ) : (
+                            <button
+                                key={item}
+                                onClick={() => setPage(item)}
+                                className={`min-w-[42px] h-10 px-3 rounded-xl text-sm font-black border transition-all ${
+                                    item === page
+                                        ? 'bg-blue-600 border-blue-600 text-white'
+                                        : 'bg-white border-slate-100 text-slate-500 hover:text-blue-600 hover:border-blue-100'
+                                }`}
+                            >
+                                {item + 1}
+                            </button>
+                        )
+                    )}
                     <button 
                         onClick={() => setPage(prev => Math.min(totalPages - 1, prev + 1))}
                         disabled={page === totalPages - 1}

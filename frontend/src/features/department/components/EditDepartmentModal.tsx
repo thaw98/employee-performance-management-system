@@ -1,4 +1,4 @@
-import { Fragment, useEffect } from 'react'
+import { Fragment, useEffect, useMemo } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { useForm, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -6,7 +6,7 @@ import { z } from 'zod'
 import toast from 'react-hot-toast'
 import { X, Save, Pencil, Building2, Hash, AlertCircle, User } from 'lucide-react'
 import { useGetManagersQuery, useUpdateDepartmentMutation } from '../api/departmentApi'
-import type { DepartmentDto } from '../types'
+import type { DepartmentDto, ManagerOption } from '../types'
 
 const departmentSchema = z.object({
   departmentCode: z.string().trim().min(1, 'Department code is required.'),
@@ -33,6 +33,37 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
   const [updateDepartment, { isLoading }] = useUpdateDepartmentMutation()
   const { data: managersData } = useGetManagersQuery(department?.departmentId)
   const managers = managersData?.data ?? []
+  const managerOptions = useMemo<ManagerOption[]>(() => {
+    if (!department?.managerId || !department.managerName?.trim()) {
+      return managers
+    }
+
+    const hasCurrentManager = managers.some((manager) => manager.employeeId === department.managerId)
+    if (hasCurrentManager) {
+      return managers
+    }
+
+    return [
+      {
+        employeeId: department.managerId,
+        fullName: department.managerName,
+        staffNo: '',
+        departmentName: department.departmentName,
+        positionName: '',
+      },
+      ...managers,
+    ]
+  }, [department, managers])
+
+  const formatManagerLabel = (manager: ManagerOption) => {
+    const details = [
+      manager.staffNo ? `(${manager.staffNo})` : '',
+      manager.departmentName,
+      manager.positionName,
+    ].filter(Boolean)
+
+    return [manager.fullName, ...details].join(' - ')
+  }
 
   const normalizeFormStatus = (value: unknown): DepartmentFormValues['status'] => {
     return String(value ?? '').trim().toLowerCase() === 'inactive' ? 'Inactive' : 'Active'
@@ -205,9 +236,9 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
                       }}
                     >
                       <option value="">Select Manager</option>
-                      {managers.map((m) => (
+                      {managerOptions.map((m) => (
                         <option key={m.employeeId} value={m.employeeId}>
-                          {m.fullName} ({m.staffNo}) - {m.departmentName} - {m.positionName}
+                          {formatManagerLabel(m)}
                         </option>
                       ))}
                     </select>

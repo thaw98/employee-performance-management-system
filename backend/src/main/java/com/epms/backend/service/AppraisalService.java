@@ -6,10 +6,12 @@ import com.epms.backend.dto.AppraisalTemplateDto;
 import com.epms.backend.entity.AppraisalCategory;
 import com.epms.backend.entity.AppraisalQuestion;
 import com.epms.backend.entity.AppraisalTemplate;
+import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.Position;
 import com.epms.backend.repository.AppraisalCategoryRepository;
 import com.epms.backend.repository.AppraisalQuestionRepository;
 import com.epms.backend.repository.AppraisalTemplateRepository;
+import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.PositionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ public class AppraisalService {
     private final AppraisalQuestionRepository questionRepository;
     private final AppraisalTemplateRepository templateRepository;
     private final PositionRepository positionRepository;
+    private final DepartmentPositionRepository departmentPositionRepository;
 
     // Category CRUD
     public List<AppraisalCategoryDto> getAllCategories() {
@@ -134,8 +137,8 @@ public class AppraisalService {
         template.setCategories(selected);
 
         if (dto.getPositionIds() != null && !dto.getPositionIds().isEmpty()) {
-            List<Position> positions = positionRepository.findAllById(dto.getPositionIds());
-            template.setTargetPositions(positions);
+            List<DepartmentPosition> mappings = departmentPositionRepository.findAllById(dto.getPositionIds());
+            template.setTargetDepartmentPositions(mappings);
         }
 
         templateRepository.save(template);
@@ -161,8 +164,8 @@ public class AppraisalService {
         dto.setEffectiveDate(t.getEffectiveDate());
         dto.setIsActive(t.getIsActive());
         dto.setCategoryIds(t.getCategories().stream().map(AppraisalCategory::getId).collect(Collectors.toList()));
-        if (t.getTargetPositions() != null) {
-            dto.setPositionIds(t.getTargetPositions().stream().map(Position::getId).collect(Collectors.toList()));
+        if (t.getTargetDepartmentPositions() != null) {
+            dto.setPositionIds(t.getTargetDepartmentPositions().stream().map(DepartmentPosition::getId).collect(Collectors.toList()));
         }
         return dto;
     }

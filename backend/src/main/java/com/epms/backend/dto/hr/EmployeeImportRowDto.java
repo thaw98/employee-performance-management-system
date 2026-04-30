@@ -21,7 +21,7 @@ public class EmployeeImportRowDto {
     private LocalDate hireDate;
     private String staffType;
     private String address;
-    private String nationality;
+    private String race;
     private String employmentStatus;
     private String emergencyContactRelationship;
     private String emergencyContactPhone;
@@ -29,5 +29,8 @@ public class EmployeeImportRowDto {
     private String fatherPhone;
     private String fatherAddress;
     private String fatherNationality;
+    private String maritalStatus;
+    private String spouseName;
+    private String spouseNrc;
     private String profilePictureUrl;
 }

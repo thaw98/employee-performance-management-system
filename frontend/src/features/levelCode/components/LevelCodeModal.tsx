@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import type { SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Check, FileText, Hash, Layers, Plus, X } from 'lucide-react'
+import { Check, Hash, Layers, Plus, X } from 'lucide-react'
 import type { LevelCodeDto } from '../api/levelCodeApi'
 
 const schema = z.object({
@@ -69,11 +69,6 @@ function LevelCodeModal({ isOpen, onClose, onSubmit, levelCode, existingCodes, i
                       <label className="text-sm font-semibold text-slate-700 flex items-center gap-2"><Hash className="w-4 h-4 text-slate-400" />Level Code<span className="text-red-500">*</span></label>
                       <input {...register('code')} disabled={isEdit} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500" placeholder="e.g. L10" />
                       {errors.code && <p className="text-sm text-red-500">{errors.code.message}</p>}
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-semibold text-slate-700 flex items-center gap-2"><FileText className="w-4 h-4 text-slate-400" />Description</label>
-                      <input {...register('description')} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none" placeholder="Optional description" />
-                      {errors.description && <p className="text-sm text-red-500">{errors.description.message}</p>}
                     </div>
                   </div>
                   <div className="px-6 py-4 sm:px-8 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100/50 flex justify-end gap-3">

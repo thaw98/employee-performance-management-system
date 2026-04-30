@@ -39,7 +39,7 @@ export interface EmployeeDetail {
   dateOfBirth?: string
   phoneNo?: string
   address?: string
-  nationality?: string
+  race?: string
   departmentId: number
   departmentName: string
   departmentPositionId?: number
@@ -60,6 +60,11 @@ export interface EmployeeDetail {
   emergencyPhone?: string
   emergencyRelation?: string
   probationDays?: number
+  /** Single | Married */
+  maritalStatus?: string
+  spouseId?: number | null
+  spouseName?: string | null
+  spouseNrc?: string | null
 }
 
 export interface EmployeeUpdateRequest {
@@ -69,6 +74,9 @@ export interface EmployeeUpdateRequest {
   staffNrcNo?: string
   gender?: string
   religion?: string
+  maritalStatus?: 'Single' | 'Married'
+  spouseName?: string
+  spouseNrc?: string
   fatherName?: string
   fatherNrcNo?: string
   fatherOccupation?: string
@@ -127,6 +135,12 @@ export interface EmployeeViewFather {
   fatherOccupation: string
 }
 
+export interface EmployeeViewSpouse {
+  spouseId: number
+  spouseName: string | null
+  spouseNrc: string | null
+}
+
 export interface ProbationInfo {
   hasProbationRecord: boolean
   probationStartDate: string | null
@@ -146,13 +160,18 @@ export interface EmployeeViewDetail {
   profilePictureUrl: string
   staffNrcNumber: string
   address: string
-  nationality: string
+  race: string
   employmentStatus: string
+  statusEffectiveFrom: string | null
+  employmentStatusReason: string | null
+  /** Single | Married */
+  maritalStatus?: string | null
   department: EmployeeViewDepartment | null
   position: EmployeeViewPosition | null
   staffType: EmployeeViewStaffType | null
   emergencyContact: EmployeeViewEmergencyContact | null
   father: EmployeeViewFather | null
+  spouse: EmployeeViewSpouse | null
   probationInfo: ProbationInfo | null
 }
 
@@ -160,6 +179,18 @@ export interface UpdateEmploymentStatusRequest {
   targetStatus: string
   transitionMode?: string
   effectiveDate?: string
+  reason?: string
+}
+
+export interface EmploymentStatusHistoryItem {
+  id: number
+  employeeId: number
+  previousStatus: string | null
+  newStatus: string
+  effectiveDate: string
+  changedByUserId: number | null
+  changedAt: string
+  reason: string | null
 }
 
 export const hrEmployeeApi = baseApi.injectEndpoints({
@@ -205,6 +236,10 @@ export const hrEmployeeApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Employee'],
     }),
+    getEmploymentStatusHistory: builder.query<ApiResponse<EmploymentStatusHistoryItem[]>, number>({
+      query: (id) => `/hr/employees/${id}/employment-status-history`,
+      providesTags: (_result, _error, id) => [{ type: 'Employee', id }],
+    }),
     exportEmployees: builder.mutation<Blob, void>({
       query: () => ({
         url: '/employees/export',
@@ -226,6 +261,7 @@ export const {
   useResendPasswordMutation,
   useSendNewPasswordMutation,
   useUpdateEmploymentStatusMutation,
+  useGetEmploymentStatusHistoryQuery,
   useExportEmployeesMutation,
   useLazyGetEmployeeViewByIdQuery,
 } = hrEmployeeApi

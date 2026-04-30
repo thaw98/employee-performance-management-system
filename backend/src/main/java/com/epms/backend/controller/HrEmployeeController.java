@@ -1,5 +1,7 @@
 package com.epms.backend.controller;
 
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +20,7 @@ import com.epms.backend.dto.hr.EmployeeDetailResponseDto;
 import com.epms.backend.dto.hr.EmployeeViewResponseDto;
 import com.epms.backend.dto.hr.EmployeeListResponseDto;
 import com.epms.backend.dto.hr.EmployeeUpdateRequestDto;
+import com.epms.backend.dto.hr.EmploymentStatusHistoryResponseDto;
 import com.epms.backend.dto.hr.HrCreateEmployeeAccountRequestDto;
 import com.epms.backend.dto.hr.HrCreateEmployeeAccountResponseDto;
 import com.epms.backend.dto.hr.NextStaffNoResponseDto;
@@ -111,6 +114,20 @@ public class HrEmployeeController {
         try {
             hrEmployeeService.updateEmploymentStatus(employeeId, request, principal);
             return ResponseEntity.ok(ApiResponse.ok("Employment status updated", null));
+        } catch (ResponseStatusException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/{employeeId}/employment-status-history")
+    public ResponseEntity<ApiResponse<List<EmploymentStatusHistoryResponseDto>>> getEmploymentStatusHistory(
+            @PathVariable Long employeeId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            List<EmploymentStatusHistoryResponseDto> result = hrEmployeeService.getEmploymentStatusHistory(employeeId, principal);
+            return ResponseEntity.ok(ApiResponse.ok("Employment status history retrieved", result));
         } catch (ResponseStatusException ex) {
             throw ex;
         } catch (Exception ex) {

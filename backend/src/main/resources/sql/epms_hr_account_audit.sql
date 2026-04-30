@@ -13,7 +13,7 @@ USE epms_db;
 -- ALTER TABLE employee ADD COLUMN date_of_birth DATE NULL;
 -- ALTER TABLE employee ADD COLUMN phone_number VARCHAR(20) NULL;
 -- ALTER TABLE employee ADD COLUMN address TEXT NULL;
--- ALTER TABLE employee ADD COLUMN nationality VARCHAR(100) NULL;
+-- ALTER TABLE employee ADD COLUMN race VARCHAR(100) NULL;
 -- ALTER TABLE employee ADD COLUMN created_by BIGINT NULL;
 -- ALTER TABLE employee ADD COLUMN updated_by BIGINT NULL;
 

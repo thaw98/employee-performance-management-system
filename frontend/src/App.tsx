@@ -26,6 +26,7 @@ import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage'
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
+import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 
 // Performance Modules
 import { SelfAssessmentPage } from './pages/SelfAssessmentPage';
@@ -90,6 +91,7 @@ function App() {
             <Route path="kpi-detail" element={<KpiDetailPage />} />
             <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
@@ -104,6 +106,7 @@ function App() {
             <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
             <Route path="kpis" element={<ManagerKpisPage />} />
             <Route path="my-kpis" element={<MyKpisPage />} />
+            <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
             <Route path="pip" element={<PipMonitoringPage />} />
             <Route path="pip/create" element={<PipCreatePage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />
@@ -111,6 +114,7 @@ function App() {
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
@@ -128,6 +132,7 @@ function App() {
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>

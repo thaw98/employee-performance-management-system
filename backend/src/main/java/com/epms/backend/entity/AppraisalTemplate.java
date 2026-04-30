@@ -40,11 +40,11 @@ public class AppraisalTemplate {
 
     @ManyToMany
     @JoinTable(
-        name = "template_positions",
+        name = "template_department_positions",
         joinColumns = @JoinColumn(name = "template_id"),
-        inverseJoinColumns = @JoinColumn(name = "position_id")
+        inverseJoinColumns = @JoinColumn(name = "department_position_id")
     )
-    private List<Position> targetPositions;
+    private List<DepartmentPosition> targetDepartmentPositions;
 
     @Column(name = "created_at")
     private LocalDate createdAt = LocalDate.now();

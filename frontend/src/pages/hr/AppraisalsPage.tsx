@@ -18,7 +18,8 @@ import {
     sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, HelpCircle, GripVertical, Download, RotateCcw, Calendar, ArrowRight, Clock, Users, Layers, Filter } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, HelpCircle, GripVertical, Download, RotateCcw, Calendar, ArrowRight, Clock, Users, Filter, FileSpreadsheet, FileText, Send } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const PRIMARY = '#0855BF';
 
@@ -28,6 +29,17 @@ interface Category {
     description: string;
     status: boolean;
     sortOrder: number;
+}
+
+interface DepartmentPositionMapping {
+    id: number;
+    departmentId: number;
+    departmentName: string;
+    positionId: number;
+    positionCode: string;
+    positionName: string;
+    levelCodeId: number;
+    levelCodeName: string;
 }
 
 interface Question {
@@ -177,6 +189,41 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
         });
     }, [categories]);
 
+    const handleExportExcel = () => {
+        const data: any[] = [];
+        
+        // Form Info
+        data.push(['PERFORMANCE APPRAISAL FORM']);
+        data.push(['Assessment Date:', assessmentDate]);
+        data.push(['Effective Date:', effectiveDate]);
+        data.push([]); // Spacer
+
+        // Table Headers
+        data.push(['Category', 'No.', 'Evaluation Criteria & Performance Indicators', 'Rating: 5', 'Rating: 4', 'Rating: 3', 'Rating: 2', 'Rating: 1']);
+        
+        let localGlobalIndex = 1;
+        categories.forEach(cat => {
+            const qList = allQuestions[cat.id!] || [];
+            qList.forEach((q, idx) => {
+                data.push([
+                    idx === 0 ? cat.name : '',
+                    (localGlobalIndex++).toString().padStart(2, '0'),
+                    q.questionText,
+                    '', '', '', '', ''
+                ]);
+            });
+        });
+        
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        
+        // Basic styling/merging could be done here if using a more advanced library, 
+        // but simple AOA is good for basic Excel.
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Appraisal");
+        XLSX.writeFile(wb, `Appraisal_Form_${assessmentDate}.xlsx`);
+        toast.success('Excel file generated successfully');
+    };
+
     let globalIndex = 1;
 
     return (
@@ -256,9 +303,21 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                             </button>
                             <button
                                 onClick={() => window.print()}
-                                className="flex items-center gap-3 px-8 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 hover:shadow-[0_20px_40px_rgba(15,23,42,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-slate-100 whitespace-nowrap"
+                                className="flex items-center gap-3 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 hover:shadow-[0_20px_40px_rgba(15,23,42,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-slate-100 whitespace-nowrap"
                             >
-                                <Download size={18} /> <span>Export PDF</span>
+                                <FileText size={18} /> <span>PDF</span>
+                            </button>
+                            <button
+                                onClick={handleExportExcel}
+                                className="flex items-center gap-3 px-6 py-3.5 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 hover:shadow-[0_20px_40px_rgba(16,185,129,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 whitespace-nowrap"
+                            >
+                                <FileSpreadsheet size={18} /> <span>Excel</span>
+                            </button>
+                            <button
+                                onClick={() => toast.success('Sent to Managers successfully')}
+                                className="flex items-center gap-3 px-6 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 hover:shadow-[0_20px_40px_rgba(37,99,235,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-blue-100 whitespace-nowrap"
+                            >
+                                <Send size={18} /> <span>To Manager</span>
                             </button>
                         </div>
                     )}
@@ -459,10 +518,8 @@ export function AppraisalsPage() {
     const [isReorderingQue, setIsReorderingQue] = useState(false);
 
     // Target Audience State
-    const [allPositions, setAllPositions] = useState<any[]>([]);
-    const [allLevels, setAllLevels] = useState<any[]>([]);
+    const [allPositions, setAllPositions] = useState<DepartmentPositionMapping[]>([]);
     const [selectedPositionIds, setSelectedPositionIds] = useState<number[]>([]);
-    const [viewMode, setViewMode] = useState<'level' | 'position'>('level');
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -541,12 +598,8 @@ export function AppraisalsPage() {
 
     const fetchPositionsAndLevels = async () => {
         try {
-            const [posResp, lvlResp] = await Promise.all([
-                axios.get('/positions/by-department'),
-                axios.get('/levels')
-            ]);
+            const posResp = await axios.get('/lookups/department-positions/active');
             setAllPositions(posResp.data.data || []);
-            setAllLevels(lvlResp.data.data || []);
         } catch (err) {
             console.error('Failed to fetch criteria');
         }
@@ -737,7 +790,7 @@ export function AppraisalsPage() {
             {activeTab === 'finalized' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     {/* Sidebar: All Finalized Templates */}
-                    <div className="lg:col-span-1 space-y-4">
+                    <div className="lg:col-span-1 space-y-4 print:hidden">
                         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] px-2">History</h3>
                             <div className="space-y-2">
@@ -773,7 +826,7 @@ export function AppraisalsPage() {
                     </div>
 
                     {/* Main Content: Template Detail View */}
-                    <div className="lg:col-span-3">
+                    <div className="lg:col-span-3 print:col-span-4">
                         {selectedTemplateId ? (
                              <ConfirmedAppraisalView
                                 categories={categories.filter(c => finalizedCategories.includes(c.id!))}
@@ -853,76 +906,55 @@ export function AppraisalsPage() {
                                 </div>
                                 <div className="space-y-1">
                                     <h3 className="font-black text-slate-800 uppercase tracking-tight">Target Audience</h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assign this form to specific levels or positions</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assign this form to specific organizational positions</p>
                                 </div>
-                            </div>
-                            <div className="flex bg-slate-100 p-1 rounded-xl self-start md:self-center">
-                                <button 
-                                    onClick={() => setViewMode('level')}
-                                    className={`px-4 py-2 rounded-lg text-[10px] font-black transition-all ${viewMode === 'level' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
-                                >
-                                    BY LEVEL
-                                </button>
-                                <button 
-                                    onClick={() => setViewMode('position')}
-                                    className={`px-4 py-2 rounded-lg text-[10px] font-black transition-all ${viewMode === 'position' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
-                                >
-                                    BY POSITION
-                                </button>
                             </div>
                         </div>
 
-                        {viewMode === 'level' ? (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
-                                {allLevels.map(lvl => {
-                                    const positionsInLevel = allPositions.filter(p => p.levelCodeId === lvl.id);
-                                    const isSomeSelected = positionsInLevel.some(p => selectedPositionIds.includes(p.positionId));
-                                    const isAllSelected = positionsInLevel.length > 0 && positionsInLevel.every(p => selectedPositionIds.includes(p.positionId));
-                                    
-                                    return (
-                                        <button
-                                            key={lvl.id}
-                                            onClick={() => {
-                                                const ids = positionsInLevel.map(p => p.positionId);
-                                                if (isAllSelected) {
-                                                    setSelectedPositionIds(prev => prev.filter(id => !ids.includes(id)));
-                                                } else {
-                                                    setSelectedPositionIds(prev => Array.from(new Set([...prev, ...ids])));
-                                                }
-                                            }}
-                                            className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${isAllSelected ? 'border-blue-600 bg-blue-50 text-blue-600' : isSomeSelected ? 'border-blue-200 bg-blue-50/30 text-blue-400' : 'border-slate-50 bg-slate-50/50 text-slate-400 hover:border-slate-200'}`}
-                                        >
-                                            <Layers size={20} />
-                                            <span className="text-xs font-black">{lvl.levelCode}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto p-2 border border-slate-50 rounded-2xl text-left font-sans">
-                                {allPositions.map(pos => (
-                                    <label 
-                                        key={pos.positionId}
-                                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedPositionIds.includes(pos.positionId) ? 'border-blue-500 bg-blue-50/50' : 'border-slate-50 hover:border-slate-100'}`}
-                                    >
-                                        <input 
-                                            type="checkbox"
-                                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                            checked={selectedPositionIds.includes(pos.positionId)}
-                                            onChange={() => {
-                                                setSelectedPositionIds(prev => 
-                                                    prev.includes(pos.positionId) ? prev.filter(id => id !== pos.positionId) : [...prev, pos.positionId]
-                                                );
-                                            }}
-                                        />
-                                        <div className="flex-1">
-                                            <div className="text-[11px] font-black text-slate-700 leading-none mb-1">{pos.positionName}</div>
-                                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">ID: {pos.positionId}</div>
-                                        </div>
-                                    </label>
-                                ))}
-                            </div>
-                        )}
+                        <div className="space-y-6 max-h-96 overflow-y-auto p-4 border border-slate-50 rounded-2xl">
+                            {Object.entries(
+                                allPositions.reduce((acc, pos) => {
+                                    const dept = pos.departmentName || 'General';
+                                    if (!acc[dept]) acc[dept] = [];
+                                    acc[dept].push(pos);
+                                    return acc;
+                                }, {} as Record<string, DepartmentPositionMapping[]>)
+                            ).map(([deptName, deptPositions]) => (
+                                <div key={deptName} className="space-y-3">
+                                    <div className="flex items-center gap-2 px-2">
+                                        <div className="h-px bg-slate-100 flex-1" />
+                                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">{deptName}</span>
+                                        <div className="h-px bg-slate-100 flex-1" />
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {deptPositions.map(pos => (
+                                            <label 
+                                                key={pos.id}
+                                                className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedPositionIds.includes(pos.id) ? 'border-blue-500 bg-blue-50/50' : 'border-slate-50 hover:border-slate-100'}`}
+                                            >
+                                                <input 
+                                                    type="checkbox"
+                                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                    checked={selectedPositionIds.includes(pos.id)}
+                                                    onChange={() => {
+                                                        setSelectedPositionIds(prev => 
+                                                            prev.includes(pos.id) ? prev.filter(id => id !== pos.id) : [...prev, pos.id]
+                                                        );
+                                                    }}
+                                                />
+                                                <div className="flex-1">
+                                                    <div className="text-[11px] font-black text-slate-700 leading-tight mb-1">{pos.positionName}</div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded uppercase">{pos.levelCodeName}</span>
+                                                        <span className="text-[8px] font-bold text-slate-400">ID: {pos.id}</span>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
 
                         <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
                             <div className="flex items-center gap-2">
