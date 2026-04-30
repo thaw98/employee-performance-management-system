@@ -101,7 +101,7 @@ const HrLayout: React.FC = () => {
     { icon: <Zap size={20} />, label: 'PIP Management', path: '/hr/pip-monitoring' },
     {
       icon: <FileText size={20} />,
-      label: 'Self Assessment',
+      label: 'Self-Assessment',
       path: '/hr/self-assessment/forms',
       subItems: [
         { label: 'Form Management', path: '/hr/self-assessment/forms', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
