@@ -16,7 +16,6 @@ export function SystemSettingsPage() {
   const [timeFormat, setTimeFormat] = useState('12h')
   const [compactMode, setCompactMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [pendingWallpaper, setPendingWallpaper] = useState<File | 'remove' | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showResetModal, setShowResetModal] = useState(false)
@@ -206,12 +205,10 @@ export function SystemSettingsPage() {
       }
 
       setPendingWallpaper(null)
-      setSaved(true)
-
-      setTimeout(() => setSaved(false), 3000)
+      toast.success('Changes saved!')
     } catch (err) {
       console.error("Failed to save system settings", err)
-      alert("Failed to save settings.")
+      toast.error('Failed to save settings.')
     } finally {
       setIsSaving(false)
     }
@@ -229,11 +226,10 @@ export function SystemSettingsPage() {
       }).unwrap()
 
       setShowResetModal(false)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+      toast.success('Changes saved!')
     } catch (err) {
       console.error("Reset failed", err)
-      alert("Failed to reset settings.")
+      toast.error('Failed to reset settings.')
     } finally {
       setIsResetting(false)
     }
@@ -393,7 +389,7 @@ export function SystemSettingsPage() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Duration Cycle</label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {['6 Months', '1 Year', 'Custom', 'Both'].map((dur) => (
+                      {['6 Months', '1 Year', 'Both', 'Custom'].map((dur) => (
                         <button
                           key={dur}
                           onClick={() => {
@@ -409,7 +405,7 @@ export function SystemSettingsPage() {
                               : 'border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800'
                           }`}
                         >
-                          {dur === 'Both' ? 'Annual with Semi-annual periods' : dur}
+                          {dur === 'Both' ? 'Both' : dur}
                         </button>
                       ))}
                     </div>
@@ -498,12 +494,6 @@ export function SystemSettingsPage() {
 
         {/* Action Bar */}
         <div className="pt-6 flex justify-end gap-3">
-           {saved && (
-             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-xl animate-in slide-in-from-right-4">
-                <Save size={16} />
-                Changes saved!
-             </div>
-           )}
            <button 
              onClick={() => setShowResetModal(true)}
              className="px-6 py-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-sm font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all flex items-center gap-2 transform active:scale-95"
