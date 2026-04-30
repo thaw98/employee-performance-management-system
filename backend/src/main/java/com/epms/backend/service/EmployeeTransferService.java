@@ -308,9 +308,6 @@ public class EmployeeTransferService {
         newRow.setCreatedOn(LocalDateTime.now());
         EmployeeReportingHistory saved = reportingHistoryRepository.save(newRow);
 
-        employee.setManager(manager);
-        employeeRepository.save(employee);
-
         auditService.record(
             AuditActionType.EMPLOYEE_INFO_UPDATED,
             AuditTargetType.EMPLOYEE,

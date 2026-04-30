@@ -1,18 +1,23 @@
 import { Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { useForm } from 'react-hook-form'
+import { useForm, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { X, Save, Building2, Hash, AlertCircle } from 'lucide-react'
-import { useCreateDepartmentMutation } from '../api/departmentApi'
+import { X, Save, Building2, Hash, AlertCircle, User } from 'lucide-react'
+import { useCreateDepartmentMutation, useGetManagersQuery } from '../api/departmentApi'
 
 const departmentSchema = z.object({
   departmentCode: z.string().trim().min(1, 'Department code is required.'),
   departmentName: z.string().trim().min(1, 'Department name is required.'),
+  managerId: z.preprocess(
+    (value) => (value === '' || value === undefined || value === null ? null : Number(value)),
+    z.number().int().positive().nullable(),
+  ),
 })
 
-type DepartmentFormValues = z.infer<typeof departmentSchema>
+type DepartmentFormInput = z.input<typeof departmentSchema>
+type DepartmentFormValues = z.output<typeof departmentSchema>
 
 interface AddDepartmentModalProps {
   isOpen: boolean
@@ -23,13 +28,15 @@ interface AddDepartmentModalProps {
 
 export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDepartmentModalProps) {
   const [createDepartment, { isLoading }] = useCreateDepartmentMutation()
+  const { data: managersData } = useGetManagersQuery()
+  const managers = managersData?.data ?? []
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<DepartmentFormValues>({
+  } = useForm<DepartmentFormInput, unknown, DepartmentFormValues>({
     resolver: zodResolver(departmentSchema),
   })
 
@@ -38,7 +45,7 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
     onClose()
   }
 
-  const onSubmit = async (data: DepartmentFormValues) => {
+  const onSubmit: SubmitHandler<DepartmentFormValues> = async (data) => {
     try {
       await createDepartment(data).unwrap()
       toast.success('Department created successfully.')
@@ -158,6 +165,42 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
                       <p className="mt-2 text-xs text-red-600 font-medium flex items-center gap-1.5">
                         <AlertCircle size={12} />
                         {errors.departmentName.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Manager */}
+                  <div>
+                    <label htmlFor="add-dept-manager" className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                      <User size={11} className="text-slate-400" />
+                      Manager
+                    </label>
+                    <select
+                      id="add-dept-manager"
+                      {...register('managerId')}
+                      className={`w-full px-4 py-2.5 rounded-xl border text-sm font-medium transition-all outline-none
+                        focus:ring-2 focus:ring-offset-0 appearance-none cursor-pointer
+                        ${errors.managerId
+                          ? 'border-red-300 bg-red-50/50 focus:border-red-400 focus:ring-red-100 text-red-900'
+                          : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-400 focus:ring-blue-100 text-slate-800'
+                        }`}
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 14px center',
+                      }}
+                    >
+                      <option value="">Select Manager</option>
+                      {managers.map((m) => (
+                        <option key={m.employeeId} value={m.employeeId}>
+                          {m.fullName} ({m.staffNo}) - {m.departmentName} - {m.positionName}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.managerId && (
+                      <p className="mt-2 text-xs text-red-600 font-medium flex items-center gap-1.5">
+                        <AlertCircle size={12} />
+                        {errors.managerId.message}
                       </p>
                     )}
                   </div>

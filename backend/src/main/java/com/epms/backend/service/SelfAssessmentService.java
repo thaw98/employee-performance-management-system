@@ -1,5 +1,6 @@
 package com.epms.backend.service;
 
+import com.epms.backend.StaffTypes;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.SelfAssessment;
 import com.epms.backend.entity.SelfAssessmentItem;
@@ -33,14 +34,22 @@ public class SelfAssessmentService {
     }
 
     public List<SelfAssessment> getAllSelfAssessments() {
-        return selfAssessmentRepository.findAll();
+        return selfAssessmentRepository.findAll().stream()
+                .filter(sa -> !isProbationEmployee(sa.getEmployee()))
+                .toList();
     }
 
     public List<SelfAssessment> getEmployeeSelfAssessments(Employee employee) {
+        if (isProbationEmployee(employee)) {
+            return List.of();
+        }
         return selfAssessmentRepository.findByEmployee(employee);
     }
 
     public SelfAssessment getLatestSelfAssessment(Employee employee) {
+        if (isProbationEmployee(employee)) {
+            return null;
+        }
         return selfAssessmentRepository.findTopByEmployeeOrderByCreatedDateDesc(employee).orElse(null);
     }
 
@@ -48,6 +57,9 @@ public class SelfAssessmentService {
     public void createForAllEmployees() {
         List<Employee> allEmployees = employeeRepository.findAll();
         for (Employee emp : allEmployees) {
+            if (isProbationEmployee(emp)) {
+                continue;
+            }
             // Optional: Skip if already assigned an active one?
             // For now, allow multiple as per "add more self-assignments" requirement.
             createAssignment(emp);
@@ -56,8 +68,13 @@ public class SelfAssessmentService {
 
     @Transactional
     public SelfAssessment createAssignment(Employee employee) {
+        Employee resolvedEmployee = employeeRepository.findById(employee.getId())
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+        if (isProbationEmployee(resolvedEmployee)) {
+            throw new RuntimeException("Probation employees cannot be assigned to self-assessment");
+        }
         SelfAssessment sa = new SelfAssessment();
-        sa.setEmployee(employee);
+        sa.setEmployee(resolvedEmployee);
         sa.setStatus(SelfAssessmentStatus.UNLOCKED);
         sa.setAssessmentDate(LocalDateTime.now());
         return selfAssessmentRepository.save(sa);
@@ -199,5 +216,11 @@ public class SelfAssessmentService {
         if (score >= 40)
             return "Needs Improvement";
         return "Unsatisfactory";
+    }
+
+    private boolean isProbationEmployee(Employee employee) {
+        return employee != null
+                && employee.getStaffType() != null
+                && employee.getStaffType().getId() == StaffTypes.PROBATION;
     }
 }

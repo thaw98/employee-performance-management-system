@@ -1,20 +1,25 @@
 import { Fragment, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { useForm } from 'react-hook-form'
+import { useForm, type SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { X, Save, Pencil, Building2, Hash, AlertCircle } from 'lucide-react'
-import { useUpdateDepartmentMutation } from '../api/departmentApi'
+import { X, Save, Pencil, Building2, Hash, AlertCircle, User } from 'lucide-react'
+import { useGetManagersQuery, useUpdateDepartmentMutation } from '../api/departmentApi'
 import type { DepartmentDto } from '../types'
 
 const departmentSchema = z.object({
   departmentCode: z.string().trim().min(1, 'Department code is required.'),
   departmentName: z.string().trim().min(1, 'Department name is required.'),
   status: z.enum(['Active', 'Inactive']),
+  managerId: z.preprocess(
+    (value) => (value === '' || value === undefined || value === null ? null : Number(value)),
+    z.number().int().positive().nullable(),
+  ),
 })
 
-type DepartmentFormValues = z.infer<typeof departmentSchema>
+type DepartmentFormInput = z.input<typeof departmentSchema>
+type DepartmentFormValues = z.output<typeof departmentSchema>
 
 interface EditDepartmentModalProps {
   isOpen: boolean
@@ -26,6 +31,8 @@ interface EditDepartmentModalProps {
 
 export default function EditDepartmentModal({ isOpen, onClose, department, onSuccess }: EditDepartmentModalProps) {
   const [updateDepartment, { isLoading }] = useUpdateDepartmentMutation()
+  const { data: managersData } = useGetManagersQuery(department?.departmentId)
+  const managers = managersData?.data ?? []
 
   const normalizeFormStatus = (value: unknown): DepartmentFormValues['status'] => {
     return String(value ?? '').trim().toLowerCase() === 'inactive' ? 'Inactive' : 'Active'
@@ -36,7 +43,7 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<DepartmentFormValues>({
+  } = useForm<DepartmentFormInput, unknown, DepartmentFormValues>({
     resolver: zodResolver(departmentSchema),
   })
 
@@ -46,11 +53,12 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
         departmentCode: department.departmentCode,
         departmentName: department.departmentName,
         status: normalizeFormStatus(department.status),
+        managerId: department.managerId,
       })
     }
   }, [department, reset])
 
-  const onSubmit = async (data: DepartmentFormValues) => {
+  const onSubmit: SubmitHandler<DepartmentFormValues> = async (data) => {
     if (!department) return
     try {
       await updateDepartment({ id: department.departmentId, body: data }).unwrap()
@@ -171,6 +179,42 @@ export default function EditDepartmentModal({ isOpen, onClose, department, onSuc
                       <p className="mt-2 text-xs text-red-600 font-medium flex items-center gap-1.5">
                         <AlertCircle size={12} />
                         {errors.departmentName.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Manager */}
+                  <div>
+                    <label htmlFor="edit-dept-manager" className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                      <User size={11} className="text-slate-400" />
+                      Manager
+                    </label>
+                    <select
+                      id="edit-dept-manager"
+                      {...register('managerId')}
+                      className={`w-full px-4 py-2.5 rounded-xl border text-sm font-medium transition-all outline-none
+                        focus:ring-2 focus:ring-offset-0 appearance-none cursor-pointer
+                        ${errors.managerId
+                          ? 'border-red-300 bg-red-50/50 focus:border-red-400 focus:ring-red-100 text-red-900'
+                          : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-amber-400 focus:ring-amber-100 text-slate-800'
+                        }`}
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 14px center',
+                      }}
+                    >
+                      <option value="">Select Manager</option>
+                      {managers.map((m) => (
+                        <option key={m.employeeId} value={m.employeeId}>
+                          {m.fullName} ({m.staffNo}) - {m.departmentName} - {m.positionName}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.managerId && (
+                      <p className="mt-2 text-xs text-red-600 font-medium flex items-center gap-1.5">
+                        <AlertCircle size={12} />
+                        {errors.managerId.message}
                       </p>
                     )}
                   </div>

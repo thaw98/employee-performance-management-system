@@ -28,6 +28,17 @@ public class KpiController {
         return ResponseEntity.ok(kpiService.getLatestKpisByEmployee(employeeId));
     }
 
+    @GetMapping("/me/latest")
+    public ResponseEntity<List<KpiDto>> getMyLatestKpis() {
+        try {
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.getMyLatestKpis(userId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
     @GetMapping("/latest-date/{employeeId}")
     public ResponseEntity<java.util.Map<String, String>> getLatestUpdatedDateByEmployee(@PathVariable Long employeeId) {
         java.time.Instant latest = kpiService.getLatestUpdatedDate(employeeId);
@@ -61,6 +72,29 @@ public class KpiController {
         try {
             return ResponseEntity.ok(kpiService.savePositionKpis(dtoList));
         } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+    @PutMapping("/manager/employee/{employeeId}/actuals")
+    public ResponseEntity<List<KpiDto>> updateKpiActuals(
+            @PathVariable Long employeeId,
+            @RequestBody List<KpiDto> kpiUpdates) {
+        try {
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.updateKpiActualsByManager(userId, employeeId, kpiUpdates));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/manager/team")
+    public ResponseEntity<List<java.util.Map<String, Object>>> getManagerTeam() {
+        try {
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.getManagerTeam(userId));
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
         }
     }

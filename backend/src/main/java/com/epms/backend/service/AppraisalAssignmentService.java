@@ -1,5 +1,6 @@
 package com.epms.backend.service;
 
+import com.epms.backend.StaffTypes;
 import com.epms.backend.entity.AppraisalAssignment;
 import com.epms.backend.entity.AppraisalStatus;
 import com.epms.backend.repository.AppraisalAssignmentRepository;
@@ -17,12 +18,18 @@ public class AppraisalAssignmentService {
     private final AuditService auditService;
 
     public List<AppraisalAssignment> getAllAssignments() {
-        return appraisalAssignmentRepository.findAll();
+        return appraisalAssignmentRepository.findAll().stream()
+                .filter(assignment -> !isProbationEmployee(assignment))
+                .toList();
     }
 
     public AppraisalAssignment getById(Long id) {
-        return appraisalAssignmentRepository.findById(id)
+        AppraisalAssignment assignment = appraisalAssignmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Appraisal not found"));
+        if (isProbationEmployee(assignment)) {
+            throw new RuntimeException("Appraisal not found");
+        }
+        return assignment;
     }
 
     @Transactional
@@ -113,5 +120,34 @@ public class AppraisalAssignmentService {
                 "HR Locked appraisal for employee ID: " + assignment.getEmployee().getId(), null);
 
         return saved;
+    }
+
+    @Transactional
+    public AppraisalAssignment unlock(Long id, String comments, Long userId, Long roleId) {
+        AppraisalAssignment assignment = getById(id);
+
+        if (assignment.getStatus() != AppraisalStatus.LOCKED) {
+            throw new RuntimeException("Only locked appraisals can be unlocked.");
+        }
+
+        assignment.setStatus(AppraisalStatus.HR_APPROVED);
+        if (comments != null && !comments.isBlank()) {
+            assignment.setHrComments(comments);
+        }
+        assignment.setUpdatedAt(Instant.now());
+
+        AppraisalAssignment saved = appraisalAssignmentRepository.save(assignment);
+
+        auditService.record("UNLOCK", "AppraisalAssignment", id, userId, roleId, 
+                "HR Unlocked appraisal for employee ID: " + assignment.getEmployee().getId(), null);
+
+        return saved;
+    }
+
+    private boolean isProbationEmployee(AppraisalAssignment assignment) {
+        return assignment != null
+                && assignment.getEmployee() != null
+                && assignment.getEmployee().getStaffType() != null
+                && assignment.getEmployee().getStaffType().getId() == StaffTypes.PROBATION;
     }
 }

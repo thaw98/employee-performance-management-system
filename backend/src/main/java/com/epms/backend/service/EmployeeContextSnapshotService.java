@@ -74,9 +74,11 @@ public class EmployeeContextSnapshotService {
         if (reportingRow != null) {
             snapshot.setManagerEmployeeId(reportingRow.getManager().getId());
             snapshot.setManagerName(reportingRow.getManager().getEmployeeName());
-        } else if (employee.getManager() != null) {
-            snapshot.setManagerEmployeeId(employee.getManager().getId());
-            snapshot.setManagerName(employee.getManager().getEmployeeName());
+        } else if (employee.getDepartment() != null && employee.getDepartment().getManagerId() != null) {
+            employeeRepository.findById(employee.getDepartment().getManagerId()).ifPresent(manager -> {
+                snapshot.setManagerEmployeeId(manager.getId());
+                snapshot.setManagerName(manager.getEmployeeName());
+            });
         }
         snapshot.setSnapshotEffectiveDate(asOfDate);
         snapshot.setCreatedBy(createdBy);
