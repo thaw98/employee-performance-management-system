@@ -3,6 +3,7 @@ package com.epms.backend.repository;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.SelfAssessmentForm;
 import com.epms.backend.entity.SelfAssessmentFormStatus;
+import com.epms.backend.entity.SelfAssessmentFormTemplate;
 import com.epms.backend.entity.TimeSetting;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -27,6 +28,8 @@ public interface SelfAssessmentFormRepository extends JpaRepository<SelfAssessme
 
     @Query("SELECT f FROM SelfAssessmentForm f WHERE f.status = :status AND f.cycle = :cycle")
     List<SelfAssessmentForm> findByStatusAndCycle(@Param("status") SelfAssessmentFormStatus status, @Param("cycle") TimeSetting cycle);
+
+    List<SelfAssessmentForm> findByTemplate(SelfAssessmentFormTemplate template);
 
     boolean existsByEmployeeAndCycle(Employee employee, TimeSetting cycle);
 }

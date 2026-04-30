@@ -48,6 +48,7 @@ import LevelCodeListPage from './features/levelCode/pages/LevelCodeListPage';
 
 // Self Assessment Forms
 import { SelfAssessmentFormTemplatePage } from './pages/self-assessment-form/SelfAssessmentFormTemplatePage';
+import { CreateSelfAssessmentTemplatePage } from './pages/self-assessment-form/CreateSelfAssessmentTemplatePage';
 import { MySelfAssessmentFormPage } from './pages/self-assessment-form/MySelfAssessmentFormPage';
 import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfAssessmentFormReviewPage';
 
@@ -93,8 +94,9 @@ function App() {
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
-            <Route path="self-assessment-forms/templates" element={<SelfAssessmentFormTemplatePage />} />
-            <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
+            <Route path="self-assessment/forms" element={<SelfAssessmentFormTemplatePage />} />
+            <Route path="self-assessment/forms/create" element={<CreateSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>

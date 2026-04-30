@@ -11,10 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -23,7 +23,6 @@ public class SelfAssessmentFormService {
 
     private final SelfAssessmentFormTemplateRepository templateRepository;
     private final SelfAssessmentFormRepository formRepository;
-    private final SelfAssessmentFormAnswerRepository answerRepository;
     private final SelfAssessmentFormAdjustmentRepository adjustmentRepository;
     private final EmployeeRepository employeeRepository;
     private final DepartmentRepository departmentRepository;
@@ -38,7 +37,6 @@ public class SelfAssessmentFormService {
     public SelfAssessmentFormService(
             SelfAssessmentFormTemplateRepository templateRepository,
             SelfAssessmentFormRepository formRepository,
-            SelfAssessmentFormAnswerRepository answerRepository,
             SelfAssessmentFormAdjustmentRepository adjustmentRepository,
             EmployeeRepository employeeRepository,
             DepartmentRepository departmentRepository,
@@ -51,7 +49,6 @@ public class SelfAssessmentFormService {
             NotificationRepository notificationRepository) {
         this.templateRepository = templateRepository;
         this.formRepository = formRepository;
-        this.answerRepository = answerRepository;
         this.adjustmentRepository = adjustmentRepository;
         this.employeeRepository = employeeRepository;
         this.departmentRepository = departmentRepository;
@@ -80,7 +77,7 @@ public class SelfAssessmentFormService {
         SelfAssessmentFormTemplate template = new SelfAssessmentFormTemplate();
         template.setDepartment(department);
         template.setPosition(position);
-        template.setIsActive(true);
+        template.setActive(true);
         template.setCreatedBy(userId);
         template.setCreatedOn(Instant.now());
 
@@ -129,7 +126,7 @@ public class SelfAssessmentFormService {
 
         template.setDepartment(department);
         template.setPosition(position);
-        template.setIsActive(request.isActive());
+        template.setActive(request.isActive());
         template.setUpdatedBy(userId);
         template.setUpdatedOn(Instant.now());
 
@@ -148,6 +145,7 @@ public class SelfAssessmentFormService {
         questions.forEach(q -> q.setTemplate(template));
 
         SelfAssessmentFormTemplate saved = templateRepository.save(template);
+        syncExistingFormsWithTemplate(saved);
 
         auditService.record(
                 AuditActionType.SELF_ASSESSMENT_FORM_TEMPLATE_UPDATED,
@@ -662,8 +660,6 @@ public class SelfAssessmentFormService {
         }
     }
 
-    private final NotificationRepository notificationRepository;
-
     private SelfAssessmentForm getOrCreateForm(Employee employee) {
         TimeSetting activeCycle = getActiveCycle();
         if (activeCycle == null) {
@@ -740,6 +736,43 @@ public class SelfAssessmentFormService {
                 }
             }
         }
+    }
+
+    private void syncExistingFormsWithTemplate(SelfAssessmentFormTemplate template) {
+        List<SelfAssessmentForm> forms = formRepository.findByTemplate(template);
+        for (SelfAssessmentForm form : forms) {
+            if (!isEditableFormStatus(form.getStatus())) {
+                continue;
+            }
+
+            Map<Integer, SelfAssessmentFormAnswer> existingBySortOrder = new HashMap<>();
+            for (SelfAssessmentFormAnswer existingAnswer : form.getAnswers()) {
+                existingBySortOrder.put(existingAnswer.getSortOrder(), existingAnswer);
+            }
+
+            form.clearAnswers();
+            for (SelfAssessmentFormTemplateQuestion templateQuestion : template.getQuestions()) {
+                SelfAssessmentFormAnswer answer = new SelfAssessmentFormAnswer();
+                answer.setQuestionText(templateQuestion.getQuestionText());
+                answer.setSortOrder(templateQuestion.getSortOrder());
+
+                SelfAssessmentFormAnswer oldAnswer = existingBySortOrder.get(templateQuestion.getSortOrder());
+                if (oldAnswer != null) {
+                    answer.setYesNoAnswer(oldAnswer.getYesNoAnswer());
+                    answer.setRating(oldAnswer.getRating());
+                    answer.setRemarks(oldAnswer.getRemarks());
+                }
+
+                form.addAnswer(answer);
+            }
+            form.setUpdatedDate(Instant.now());
+        }
+    }
+
+    private boolean isEditableFormStatus(SelfAssessmentFormStatus status) {
+        return status == SelfAssessmentFormStatus.DRAFT
+                || status == SelfAssessmentFormStatus.REOPENED
+                || status == SelfAssessmentFormStatus.NOT_SUBMITTED;
     }
 
     private void validateAllAnswersAnswered(SelfAssessmentForm form) {

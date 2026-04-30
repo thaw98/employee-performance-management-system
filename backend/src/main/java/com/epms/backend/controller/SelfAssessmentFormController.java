@@ -141,7 +141,7 @@ public class SelfAssessmentFormController {
             @Valid @RequestBody HrApproveManagerReviewRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            SelfAssessmentFormDto form = selfAssessmentFormService.hrApproveManagerReview(id, request, principal.getUserId());
+            SelfAssessmentFormDto form = selfAssessmentFormService.hrApproveManagerReview(id, request, principal.getId());
             return ResponseEntity.ok(ApiResponse.ok("Manager review approved", form));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
@@ -155,7 +155,7 @@ public class SelfAssessmentFormController {
             @Valid @RequestBody HrRejectManagerReviewRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            SelfAssessmentFormDto form = selfAssessmentFormService.hrRejectManagerReview(id, request, principal.getUserId());
+            SelfAssessmentFormDto form = selfAssessmentFormService.hrRejectManagerReview(id, request, principal.getId());
             return ResponseEntity.ok(ApiResponse.ok("Manager review rejected", form));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
@@ -169,7 +169,7 @@ public class SelfAssessmentFormController {
             @Valid @RequestBody HrApproveFormRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            SelfAssessmentFormDto form = selfAssessmentFormService.hrApproveForm(id, request, principal.getUserId());
+            SelfAssessmentFormDto form = selfAssessmentFormService.hrApproveForm(id, request, principal.getId());
             return ResponseEntity.ok(ApiResponse.ok("Form approved", form));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
@@ -183,7 +183,7 @@ public class SelfAssessmentFormController {
             @Valid @RequestBody HrReopenFormRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            SelfAssessmentFormDto form = selfAssessmentFormService.hrReopenForm(id, request, principal.getUserId());
+            SelfAssessmentFormDto form = selfAssessmentFormService.hrReopenForm(id, request, principal.getId());
             return ResponseEntity.ok(ApiResponse.ok("Form reopened", form));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
@@ -232,7 +232,7 @@ public class SelfAssessmentFormController {
             @Valid @RequestBody CreateTemplateRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            SelfAssessmentFormTemplateDto template = selfAssessmentFormService.createTemplate(request, principal.getUserId());
+            SelfAssessmentFormTemplateDto template = selfAssessmentFormService.createTemplate(request, principal.getId());
             return ResponseEntity.ok(ApiResponse.ok("Template created", template));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
@@ -246,7 +246,7 @@ public class SelfAssessmentFormController {
             @Valid @RequestBody UpdateTemplateRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            SelfAssessmentFormTemplateDto template = selfAssessmentFormService.updateTemplate(id, request, principal.getUserId());
+            SelfAssessmentFormTemplateDto template = selfAssessmentFormService.updateTemplate(id, request, principal.getId());
             return ResponseEntity.ok(ApiResponse.ok("Template updated", template));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
@@ -265,7 +265,7 @@ public class SelfAssessmentFormController {
     }
 
     private Employee getEmployeeFromPrincipal(UserPrincipal principal) {
-        return employeeRepository.findById(principal.getEmployeeId())
+        return employeeRepository.findByEmployeeId(principal.getEmployeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
     }
 }

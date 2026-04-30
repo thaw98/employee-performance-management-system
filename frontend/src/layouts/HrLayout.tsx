@@ -101,11 +101,11 @@ const HrLayout: React.FC = () => {
     { icon: <Zap size={20} />, label: 'PIP Management', path: '/hr/pip-monitoring' },
     {
       icon: <FileText size={20} />,
-      label: 'Self Assessment Forms',
-      path: '/hr/self-assessment-forms/templates',
+      label: 'Self Assessment',
+      path: '/hr/self-assessment/forms',
       subItems: [
-        { label: 'Template Management', path: '/hr/self-assessment-forms/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
-        { label: 'Compliance Review', path: '/hr/self-assessment-forms/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
+        { label: 'Form Management', path: '/hr/self-assessment/forms', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
+        { label: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
       ]
     },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/hr/meetings' },

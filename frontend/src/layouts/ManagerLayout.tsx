@@ -58,7 +58,7 @@ const ManagerLayout: React.FC = () => {
     { icon: <Award size={20} />, label: 'Appraisals', path: '/manager/appraisals' },
     {
       icon: <FileText size={20} />,
-      label: 'Self Assessment Forms',
+      label: 'Self Assessment',
       path: '/manager/self-assessment-forms/reviews',
       subItems: [
         { label: 'Review Forms', path: '/manager/self-assessment-forms/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
