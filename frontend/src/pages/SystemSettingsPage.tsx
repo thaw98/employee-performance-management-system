@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { Moon, Sun, Globe, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, Clock, AlertTriangle, X, Calendar, PlayCircle } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { Moon, Sun, Globe, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, Clock, AlertTriangle, X, Calendar } from 'lucide-react'
 import axios from '../app/axiosInstance'
 import { toast } from 'react-hot-toast'
 import { useGetProfileQuery, useUpdateProfileMutation, useUpdateWallpaperMutation, useDeleteWallpaperMutation } from '../features/user/userApi'
@@ -38,8 +38,6 @@ export function SystemSettingsPage() {
   const [duration, setDuration] = useState('1 Year')
   const [loadingGlobal, setLoadingGlobal] = useState(false)
   const [cyclePreview, setCyclePreview] = useState<ReviewCycle[]>([])
-  const [generatedCycles, setGeneratedCycles] = useState<ReviewCycle[]>([])
-  const [isGeneratingCycles, setIsGeneratingCycles] = useState(false)
   const isHR = profileResponse?.data?.role === 'HR'
 
   useEffect(() => {
@@ -64,9 +62,10 @@ export function SystemSettingsPage() {
       const resp = await axios.get('/feedback/time-settings')
       if (resp.data.success) {
         setYearType(resp.data.data.yearType)
-        setDuration(resp.data.data.duration)
+        const savedDuration = resp.data.data.duration
+        setDuration(savedDuration === 'Both' ? '6 Months' : savedDuration)
       }
-      await Promise.all([fetchCyclePreview(), fetchGeneratedCycles()])
+      await fetchCyclePreview()
     } catch (err) {
       console.error("Failed to load global time settings", err)
     } finally {
@@ -81,15 +80,8 @@ export function SystemSettingsPage() {
     }
   }
 
-  const fetchGeneratedCycles = async () => {
-    const resp = await axios.get('/review-cycles')
-    if (resp.data.success) {
-      setGeneratedCycles(resp.data.data)
-    }
-  }
-
   const getPeriodType = () => {
-    if (duration === 'Both') return 'BOTH'
+    if (duration === 'Both') return 'SEMI_ANNUAL'
     if (duration === '6 Months') return 'SEMI_ANNUAL'
     if (duration === '1 Year') return 'ANNUAL'
     return null
@@ -145,31 +137,114 @@ export function SystemSettingsPage() {
     }
   }
 
-  const handleGenerateCycles = async () => {
-    setIsGeneratingCycles(true)
-    try {
-      await axios.post('/feedback/time-settings', { yearType, duration, periodType: getPeriodType() })
-      const resp = await axios.post('/review-cycles/generate')
-      if (resp.data.success) {
-        setGeneratedCycles(resp.data.data)
-        await fetchCyclePreview()
-        toast.success('Review cycles generated.')
-      }
-    } catch (err) {
-      console.error("Failed to generate review cycles", err)
-      toast.error('Failed to generate review cycles.')
-    } finally {
-      setIsGeneratingCycles(false)
-    }
-  }
-
   const formatDate = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  })
+  }).replace(',', '')
 
-  const cycles = generatedCycles.length > 0 ? generatedCycles : cyclePreview
+  const buildLocalCyclePreview = (selectedYearType: string, selectedDuration: string): ReviewCycle[] => {
+    const today = new Date()
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+    const getCurrentYearStart = () => {
+      if (selectedYearType === 'Budget Year') {
+        const aprFirst = new Date(todayDateOnly.getFullYear(), 3, 1)
+        return todayDateOnly < aprFirst
+          ? new Date(todayDateOnly.getFullYear() - 1, 3, 1)
+          : aprFirst
+      }
+      return new Date(todayDateOnly.getFullYear(), 0, 1)
+    }
+
+    const start = getCurrentYearStart()
+    const end = new Date(start.getFullYear() + 1, start.getMonth(), start.getDate() - 1)
+    const yearLabel = selectedYearType === 'Budget Year'
+      ? `${start.getFullYear()}-${start.getFullYear() + 1}`
+      : `${start.getFullYear()}`
+
+    const parseMonths = () => {
+      if (!selectedDuration.includes('Months')) return 12
+      const parsed = Number.parseInt(selectedDuration.split(' ')[0] ?? '', 10)
+      if (Number.isNaN(parsed)) return 12
+      return Math.max(1, Math.min(12, parsed))
+    }
+
+    const getStatus = (s: Date, e: Date): ReviewCycle['status'] => {
+      if (todayDateOnly < s) return 'UPCOMING'
+      if (todayDateOnly > e) return 'COMPLETED'
+      return 'ACTIVE'
+    }
+
+    const toISODate = (d: Date) => {
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+    const hasChildren = selectedDuration !== '1 Year'
+    const baseCycles: ReviewCycle[] = []
+    const annualStatus = getStatus(start, end)
+
+    baseCycles.push({
+      id: null,
+      name: `Annual Cycle ${start.getMonth() === 0 ? start.getFullYear() : yearLabel}`,
+      cycleType: 'ANNUAL',
+      yearLabel,
+      sequenceNo: 0,
+      startDate: toISODate(start),
+      endDate: toISODate(end),
+      requiresEmployeeSubmission: !hasChildren,
+      rollupMethod: 'AVERAGE',
+      status: annualStatus,
+      isActive: annualStatus === 'ACTIVE',
+    })
+
+    if (selectedDuration === '1 Year') {
+      return baseCycles
+    }
+
+    const months = parseMonths()
+    const childCount = Math.max(1, Math.ceil(12 / months))
+    const children: ReviewCycle[] = []
+
+    for (let i = 0; i < childCount; i += 1) {
+      const childStart = new Date(start.getFullYear(), start.getMonth() + (i * months), start.getDate())
+      let childEnd = new Date(childStart.getFullYear(), childStart.getMonth() + months, childStart.getDate() - 1)
+      if (childEnd > end) childEnd = end
+
+      const status = getStatus(childStart, childEnd)
+      const cycleType = months === 3 ? 'QUARTERLY' : months === 6 ? 'SEMI_ANNUAL' : 'CUSTOM'
+      const name = (months === 3 || months === 6)
+        ? `Q${i + 1} ${yearLabel}`
+        : `Cycle ${i + 1} ${yearLabel}`
+
+      children.push({
+        id: null,
+        name,
+        cycleType,
+        yearLabel,
+        sequenceNo: i + 1,
+        startDate: toISODate(childStart),
+        endDate: toISODate(childEnd),
+        requiresEmployeeSubmission: true,
+        rollupMethod: null,
+        status,
+        isActive: status === 'ACTIVE',
+      })
+
+      if (childEnd >= end) break
+    }
+
+    return [...baseCycles, ...children]
+  }
+
+  const cycles = useMemo(() => {
+    if (loadingGlobal && cyclePreview.length > 0) {
+      return cyclePreview
+    }
+    return buildLocalCyclePreview(yearType, duration)
+  }, [yearType, duration, loadingGlobal, cyclePreview])
 
   const handleReset = async () => {
     setIsResetting(true)
@@ -346,7 +421,7 @@ export function SystemSettingsPage() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Duration Cycle</label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {['6 Months', '1 Year', 'Both', 'Custom'].map((dur) => (
+                      {['6 Months', '1 Year', 'Custom'].map((dur) => (
                         <button
                           key={dur}
                           onClick={() => {
@@ -357,18 +432,18 @@ export function SystemSettingsPage() {
                             }
                           }}
                           className={`py-3 rounded-xl border-2 font-bold text-xs transition-all ${
-                            (dur === 'Custom' && duration !== '6 Months' && duration !== '1 Year' && duration !== 'Both') || (duration === dur)
+                            (dur === 'Custom' && duration !== '6 Months' && duration !== '1 Year') || (duration === dur)
                               ? 'border-emerald-600 bg-emerald-600 text-white shadow-lg shadow-emerald-100 dark:shadow-none' 
                               : 'border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800'
                           }`}
                         >
-                          {dur === 'Both' ? 'Both' : dur}
+                          {dur}
                         </button>
                       ))}
                     </div>
 
                     {/* Custom input visible only when Custom is chosen */}
-                    {(duration !== '6 Months' && duration !== '1 Year' && duration !== 'Both') && (
+                    {(duration !== '6 Months' && duration !== '1 Year') && (
                       <div className="mt-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                         <input 
                           type="number" 
@@ -405,21 +480,13 @@ export function SystemSettingsPage() {
                       {/* Decorative Background Element */}
                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 -mr-10 -mt-10 rounded-full blur-2xl" />
                       
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center">
                          <div className="flex items-center gap-3">
                             <div className="p-2 bg-white/20 rounded-xl">
                                <Clock size={16} />
                             </div>
                             <div className="text-[10px] font-black uppercase tracking-widest">Review Cycles</div>
                          </div>
-                         <button
-                           onClick={handleGenerateCycles}
-                           disabled={isGeneratingCycles}
-                           className="text-[10px] bg-emerald-400/20 text-emerald-50 px-2 py-1 rounded-lg font-bold border border-emerald-400/20 flex items-center gap-1 disabled:opacity-60"
-                         >
-                            {isGeneratingCycles ? <Loader2 size={12} className="animate-spin" /> : <PlayCircle size={12} />}
-                            Generate
-                         </button>
                       </div>
 
                       <div className="space-y-3 relative z-10">
@@ -455,7 +522,7 @@ export function SystemSettingsPage() {
                          ))}
                          {cycles.length === 0 && (
                            <div className="p-4 rounded-2xl bg-emerald-800/40 border border-emerald-700/50 text-emerald-100/70 text-xs font-bold">
-                             Save time settings to refresh the API preview, then generate cycles.
+                             Save time settings to refresh the API preview.
                            </div>
                          )}
                       </div>
