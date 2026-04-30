@@ -224,14 +224,14 @@ public class ReviewCycleService {
 
     private TimeSetting currentSetting() {
         TimeSetting setting = timeSettingRepository.findFirstByOrderByIdAsc().orElseGet(() -> {
-            TimeSetting setting = new TimeSetting();
+            TimeSetting created = new TimeSetting();
             LocalDate start = LocalDate.now().withMonth(1).withDayOfMonth(1);
-            setting.setYearType("Calendar Year");
-            setting.setDuration("1 Year");
-            setting.setPeriodType(TimeSetting.PeriodType.ANNUAL);
-            setting.setStartDate(start);
-            setting.setEndDate(start.plusYears(1).minusDays(1));
-            return timeSettingRepository.save(setting);
+            created.setYearType("Calendar Year");
+            created.setDuration("1 Year");
+            created.setPeriodType(TimeSetting.PeriodType.ANNUAL);
+            created.setStartDate(start);
+            created.setEndDate(start.plusYears(1).minusDays(1));
+            return timeSettingRepository.save(created);
         });
         applyPendingYearTypeIfNextCycleDue(setting);
         return setting;
