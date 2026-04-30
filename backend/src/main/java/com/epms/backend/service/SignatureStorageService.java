@@ -115,6 +115,21 @@ public class SignatureStorageService {
         };
     }
 
+    public void deleteFile(String publicPath) {
+        if (publicPath == null || !publicPath.startsWith(PUBLIC_PATH_PREFIX + "/")) {
+            return;
+        }
+        String filename = publicPath.substring(PUBLIC_PATH_PREFIX.length() + 1);
+        Path file = Path.of(uploadDir).toAbsolutePath().normalize().resolve(filename).normalize();
+        if (!file.startsWith(Path.of(uploadDir).toAbsolutePath().normalize())) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(file);
+        } catch (IOException ignored) {
+        }
+    }
+
     private static String safeOriginalExtension(String originalFilename) {
         if (originalFilename == null) {
             return ".img";

@@ -53,8 +53,8 @@ public class SignatureController {
             @Valid @RequestBody SaveDrawnSignatureRequestDto request) {
         try {
             User user = getUser(principal);
-            Signature saved = signatureService.saveDrawnSignature(user, request.getSignaturePngDataUrl());
-            return ResponseEntity.ok(ApiResponse.ok("Default signature saved", SignatureDto.from(saved)));
+            Signature saved = signatureService.saveDrawnSignature(user, request.getSignaturePngDataUrl(), request.getName());
+            return ResponseEntity.ok(ApiResponse.ok("Signature saved", SignatureDto.from(saved)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
         }
@@ -63,13 +63,48 @@ public class SignatureController {
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<SignatureDto>> uploadSignature(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "name", required = false) String name) {
         try {
             User user = getUser(principal);
-            Signature saved = signatureService.saveUploadedSignature(user, file);
-            return ResponseEntity.ok(ApiResponse.ok("Default signature uploaded", SignatureDto.from(saved)));
+            Signature saved = signatureService.saveUploadedSignature(user, file, name);
+            return ResponseEntity.ok(ApiResponse.ok("Signature uploaded", SignatureDto.from(saved)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
+    }
+
+    @PatchMapping("/{id}/default")
+    public ResponseEntity<ApiResponse<SignatureDto>> setDefaultSignature(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
+        try {
+            User user = getUser(principal);
+            Signature updated = signatureService.setDefaultSignature(user, id);
+            return ResponseEntity.ok(ApiResponse.ok("Default signature updated", SignatureDto.from(updated)));
+        } catch (IllegalArgumentException e) {
+            String msg = e.getMessage();
+            if ("Signature not found".equals(msg)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.fail(msg));
+            }
+            return ResponseEntity.badRequest().body(ApiResponse.fail(msg));
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteSignature(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
+        try {
+            User user = getUser(principal);
+            signatureService.deleteSignature(user, id);
+            return ResponseEntity.ok(ApiResponse.ok("Signature deleted", null));
+        } catch (IllegalArgumentException e) {
+            String msg = e.getMessage();
+            if ("Signature not found".equals(msg)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.fail(msg));
+            }
+            return ResponseEntity.badRequest().body(ApiResponse.fail(msg));
         }
     }
 

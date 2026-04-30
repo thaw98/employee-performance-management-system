@@ -26,6 +26,9 @@ public class Signature {
     @Column(name = "signature_type")
     private String signatureType; // CANVAS, FILE, TEXT
 
+    @Column(name = "name", length = 50)
+    private String name;
+
     @Column(name = "is_default")
     private boolean isDefault = false;
 

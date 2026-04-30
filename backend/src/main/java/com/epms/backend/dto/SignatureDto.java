@@ -8,6 +8,7 @@ public record SignatureDto(
         Long id,
         String signatureData,
         String signatureType,
+        String name,
         boolean isDefault,
         LocalDateTime createdAt) {
 
@@ -19,6 +20,7 @@ public record SignatureDto(
                 signature.getId(),
                 signature.getSignatureData(),
                 signature.getSignatureType(),
+                signature.getName(),
                 signature.isDefault(),
                 signature.getCreatedAt());
     }

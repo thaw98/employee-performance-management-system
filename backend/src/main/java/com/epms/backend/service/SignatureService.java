@@ -29,24 +29,58 @@ public class SignatureService {
     }
 
     @Transactional
-    public Signature saveDrawnSignature(User user, String signaturePngDataUrl) {
+    public Signature saveDrawnSignature(User user, String signaturePngDataUrl, String name) {
         String path = signatureStorageService.storeDrawnPng(signaturePngDataUrl);
-        return saveNewDefaultSignature(user, path, "DRAWN_PNG");
+        return saveSignature(user, path, "DRAWN_PNG", name);
     }
 
     @Transactional
-    public Signature saveUploadedSignature(User user, MultipartFile file) {
+    public Signature saveUploadedSignature(User user, MultipartFile file, String name) {
         String path = signatureStorageService.storeUploadedImage(file);
-        return saveNewDefaultSignature(user, path, "UPLOADED_IMAGE");
+        return saveSignature(user, path, "UPLOADED_IMAGE", name);
     }
 
-    private Signature saveNewDefaultSignature(User user, String path, String type) {
-        signatureRepository.clearDefaultForUser(user);
+    private Signature saveSignature(User user, String path, String type, String name) {
         Signature signature = new Signature();
         signature.setUser(user);
         signature.setSignatureData(path);
         signature.setSignatureType(type);
+        signature.setName(name);
+        long count = signatureRepository.countByUser(user);
+        if (count == 0) {
+            signature.setDefault(true);
+        }
+        return signatureRepository.save(signature);
+    }
+
+    @Transactional
+    public Signature setDefaultSignature(User user, Long signatureId) {
+        Signature signature = signatureRepository.findByIdAndUser(signatureId, user)
+                .orElseThrow(() -> new IllegalArgumentException("Signature not found"));
+        if (signature.isDefault()) {
+            throw new IllegalArgumentException("Signature is already the default");
+        }
+        signatureRepository.clearDefaultForUser(user);
         signature.setDefault(true);
         return signatureRepository.save(signature);
+    }
+
+    @Transactional
+    public void deleteSignature(User user, Long signatureId) {
+        long count = signatureRepository.countByUser(user);
+        if (count <= 1) {
+            throw new IllegalArgumentException("Cannot delete the last signature");
+        }
+        Signature signature = signatureRepository.findByIdAndUser(signatureId, user)
+                .orElseThrow(() -> new IllegalArgumentException("Signature not found"));
+        boolean wasDefault = signature.isDefault();
+        signatureStorageService.deleteFile(signature.getSignatureData());
+        signatureRepository.delete(signature);
+        if (wasDefault) {
+            signatureRepository.findByUser(user).stream().findFirst().ifPresent(first -> {
+                first.setDefault(true);
+                signatureRepository.save(first);
+            });
+        }
     }
 }

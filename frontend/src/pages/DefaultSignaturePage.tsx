@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import SignatureCanvas from 'react-signature-canvas'
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query'
-import { useGetDefaultSignatureQuery, useSaveDrawnSignatureMutation, useUploadSignatureMutation } from '../features/user/userApi'
+import {
+  useGetAllSignaturesQuery,
+  useSaveDrawnSignatureMutation,
+  useUploadSignatureMutation,
+  useSetDefaultSignatureMutation,
+  useDeleteSignatureMutation,
+} from '../features/user/userApi'
 import { resolveMediaSrc } from '../utils/mediaUrl'
 import toast from 'react-hot-toast'
 import {
@@ -17,6 +23,10 @@ import {
   PenTool,
   ChevronRight,
   Clock,
+  Trash2,
+  Star,
+  CheckCircle2,
+  X,
 } from 'lucide-react'
 
 const MAX_DRAWN_SIGNATURE_REQUEST_BYTES = 3 * 1024 * 1024
@@ -146,13 +156,14 @@ const PEN_COLORS = [
 ] as const
 
 export function DefaultSignaturePage() {
-  const { data: signatureResponse, isLoading } = useGetDefaultSignatureQuery()
+  const { data: signaturesResponse, isLoading: isLoadingSignatures } = useGetAllSignaturesQuery()
   const [saveDrawnSignature, { isLoading: isSavingDrawnSignature }] =
     useSaveDrawnSignatureMutation()
   const [uploadSignature, { isLoading: isUploadingSignature }] = useUploadSignatureMutation()
+  const [setDefaultSignature, { isLoading: isSettingDefault }] = useSetDefaultSignatureMutation()
+  const [deleteSignature, { isLoading: isDeleting }] = useDeleteSignatureMutation()
 
-  const defaultSignature = signatureResponse?.data || null
-  const defaultSignatureSrc = resolveMediaSrc(defaultSignature?.signatureData)
+  const signatures = signaturesResponse?.data || []
   const signatureCanvasRef = useRef<SignatureCanvas | null>(null)
   const signatureFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -160,6 +171,8 @@ export function DefaultSignaturePage() {
   const [signatureFile, setSignatureFile] = useState<File | null>(null)
   const [penColor, setPenColor] = useState('#0f172a')
   const [canvasKey, setCanvasKey] = useState(0)
+  const [signatureNameInput, setSignatureNameInput] = useState('')
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
 
   const isSignatureSaving = isSavingDrawnSignature || isUploadingSignature
   const signaturePreview = useMemo(
@@ -210,7 +223,10 @@ export function DefaultSignaturePage() {
         toast.error('Signature is too detailed. Please draw a simpler signature and try again.')
         return
       }
-      const result = await saveDrawnSignature(dataUrl)
+      const result = await saveDrawnSignature({
+        signaturePngDataUrl: dataUrl,
+        name: signatureNameInput.trim() || undefined,
+      })
       if ('error' in result) {
         const message = getErrorMessage(result.error, '')
         const errorCode = getErrorCodeLabel(result.error)
@@ -222,7 +238,8 @@ export function DefaultSignaturePage() {
         return
       }
       signatureCanvasRef.current.clear()
-      toast.success('Default signature saved.')
+      setSignatureNameInput('')
+      toast.success('Signature saved.')
     } catch (err: unknown) {
       const message = getErrorMessage(err, '')
       const errorCode = getErrorCodeLabel(err)
@@ -240,29 +257,78 @@ export function DefaultSignaturePage() {
         toast.error('Choose a signature image before saving.')
         return
       }
-      await uploadSignature(signatureFile).unwrap()
+      await uploadSignature({
+        file: signatureFile,
+        name: signatureNameInput.trim() || undefined,
+      }).unwrap()
       setSignatureFile(null)
+      setSignatureNameInput('')
       if (signatureFileInputRef.current) {
         signatureFileInputRef.current.value = ''
       }
-      toast.success('Default signature uploaded.')
+      toast.success('Signature uploaded.')
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to upload signature.'))
     }
   }
 
-  const formattedDate = defaultSignature?.createdAt
-    ? new Date(defaultSignature.createdAt).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null
+  const handleSetDefault = async (id: number) => {
+    try {
+      await setDefaultSignature(id).unwrap()
+      toast.success('Default signature updated.')
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to set default signature.'))
+    }
+  }
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteSignature(id).unwrap()
+      setDeleteConfirmId(null)
+      toast.success('Signature deleted.')
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to delete signature.'))
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
+      {deleteConfirmId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-8 max-w-sm mx-4 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center">
+                <Trash2 size={20} />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                Delete Signature
+              </h3>
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-6 leading-relaxed">
+              Are you sure you want to delete this signature? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-black shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(deleteConfirmId)}
+                disabled={isDeleting}
+                className="px-5 py-2.5 bg-red-600 text-white rounded-xl text-xs font-black shadow-lg shadow-red-600/30 hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-10">
         <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
           Signature Settings
@@ -275,67 +341,101 @@ export function DefaultSignaturePage() {
       <div className="space-y-8">
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-all hover:shadow-xl hover:border-blue-50 dark:hover:border-blue-900/30">
           <div className="p-8 sm:p-10 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-br from-slate-50/80 to-blue-50/30 dark:from-slate-800/10 dark:to-blue-900/5">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-              <div className="space-y-4 flex-1">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center">
-                    <FileCheck2 size={20} />
-                  </div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                    Current Signature
-                  </h2>
-                </div>
-                {defaultSignatureSrc ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
-                        Active Signature
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                      This signature will be applied to all documents requiring your approval.
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    No default signature set. Draw or upload one below.
-                  </p>
-                )}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center">
+                <FileCheck2 size={20} />
               </div>
-
-              <div className="w-full lg:w-80 shrink-0">
-                <div className="rounded-[1.75rem] border-2 border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-950 p-6 flex flex-col items-center justify-center min-h-[140px] relative shadow-sm">
-                  <div className="absolute top-3 left-4 text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 dark:text-slate-600">
-                    Preview
-                  </div>
-                  {isLoading ? (
-                    <Loader2 className="animate-spin text-blue-600 dark:text-blue-400" size={28} />
-                  ) : defaultSignatureSrc ? (
-                    <img
-                      src={defaultSignatureSrc}
-                      alt="Current default signature"
-                      className="max-h-24 max-w-full object-contain"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 py-2">
-                      <PenLine size={24} className="text-slate-200 dark:text-slate-700" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-600">
-                        No signature
-                      </span>
-                    </div>
-                  )}
-                  {formattedDate && (
-                    <div className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 font-bold">
-                      <Clock size={10} />
-                      Last updated {formattedDate}
-                    </div>
-                  )}
-                </div>
+              <div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                  My Signatures
+                </h2>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                  Manage your saved signatures
+                </p>
               </div>
             </div>
           </div>
 
+          <div className="p-8 sm:p-10">
+            {isLoadingSignatures ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin text-blue-600 dark:text-blue-400" size={28} />
+              </div>
+            ) : signatures.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <PenLine size={32} className="text-slate-200 dark:text-slate-700" />
+                <span className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                  No signatures yet
+                </span>
+                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                  Create your first signature below
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {signatures.map((sig) => (
+                  <div
+                    key={sig.id}
+                    className={`rounded-2xl border-2 overflow-hidden transition-all hover:shadow-md ${
+                      sig.isDefault
+                        ? 'border-blue-300 dark:border-blue-700 bg-blue-50/30 dark:bg-blue-900/10'
+                        : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950'
+                    }`}
+                  >
+                    <div className="p-4 flex flex-col items-center">
+                      <div className="w-full rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-950 p-3 flex items-center justify-center min-h-[80px] mb-3">
+                        <img
+                          src={resolveMediaSrc(sig.signatureData)}
+                          alt={sig.name || 'Signature'}
+                          className="max-h-16 max-w-full object-contain"
+                        />
+                      </div>
+                      <div className="w-full flex items-center justify-between gap-2 mb-3">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate">
+                          {sig.name || 'Untitled'}
+                        </span>
+                        {sig.isDefault && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] font-black uppercase tracking-wider">
+                            <Star size={10} />
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      <div className="w-full flex items-center gap-2">
+                        {sig.isDefault ? (
+                          <div className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-wider">
+                            <CheckCircle2 size={12} />
+                            Active
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSetDefault(sig.id)}
+                            disabled={isSettingDefault}
+                            className="flex-1 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-black uppercase tracking-wider hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-all disabled:opacity-50"
+                          >
+                            Set as Default
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmId(sig.id)}
+                          disabled={isDeleting || signatures.length <= 1}
+                          title={signatures.length <= 1 ? 'Cannot delete the last signature' : 'Delete signature'}
+                          className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-all hover:shadow-xl hover:border-blue-50 dark:hover:border-blue-900/30">
           <div className="p-8 sm:p-10 space-y-8">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl flex items-center justify-center">
@@ -343,7 +443,7 @@ export function DefaultSignaturePage() {
               </div>
               <div>
                 <h3 className="text-sm font-black text-slate-900 dark:text-slate-200 uppercase tracking-widest">
-                  Create Signature
+                  Create New Signature
                 </h3>
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
                   Choose your preferred method
@@ -420,6 +520,20 @@ export function DefaultSignaturePage() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1 mb-2">
+                    Signature name (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={signatureNameInput}
+                    onChange={(e) => setSignatureNameInput(e.target.value.slice(0, 50))}
+                    placeholder="e.g. Formal, Quick sign..."
+                    maxLength={50}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                  />
+                </div>
+
                 <div className="flex flex-wrap justify-end gap-3">
                   <button
                     type="button"
@@ -441,7 +555,7 @@ export function DefaultSignaturePage() {
                     ) : (
                       <Save size={16} />
                     )}
-                    Save as Default
+                    Save Signature
                   </button>
                 </div>
               </div>
@@ -486,6 +600,20 @@ export function DefaultSignaturePage() {
                   )}
                 </button>
 
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1 mb-2">
+                    Signature name (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={signatureNameInput}
+                    onChange={(e) => setSignatureNameInput(e.target.value.slice(0, 50))}
+                    placeholder="e.g. Formal, Quick sign..."
+                    maxLength={50}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+                  />
+                </div>
+
                 <div className="flex flex-wrap justify-end gap-3">
                   <button
                     type="button"
@@ -510,7 +638,7 @@ export function DefaultSignaturePage() {
                     ) : (
                       <Save size={16} />
                     )}
-                    Save as Default
+                    Save Signature
                   </button>
                 </div>
               </div>
