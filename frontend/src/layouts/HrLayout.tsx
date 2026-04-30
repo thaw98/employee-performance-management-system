@@ -118,7 +118,7 @@ const HrLayout: React.FC = () => {
   return (
     <div className="flex h-screen bg-transparent font-sans transition-colors duration-300">
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-colors duration-300">
+      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-colors duration-300 print:hidden">
         {/* Brand Header */}
         <div className="p-6 bg-[#115e59] text-white">
           <div className="flex items-center gap-3">
@@ -262,7 +262,7 @@ const HrLayout: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden bg-transparent transition-colors duration-300">
         {/* Top Header */}
-        <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between transition-colors duration-300">
+        <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between transition-colors duration-300 print:hidden">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Dashboard</h2>
             <p className="text-xs font-bold text-slate-400 dark:text-slate-500">

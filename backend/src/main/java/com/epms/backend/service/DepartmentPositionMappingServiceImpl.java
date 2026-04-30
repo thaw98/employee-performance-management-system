@@ -234,6 +234,8 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 				.positionId(mapping.getPosition().getId())
 				.positionCode(mapping.getPosition().getCode())
 				.positionName(mapping.getPosition().getName())
+				.levelCodeId(mapping.getPosition().getLevelCode() != null ? mapping.getPosition().getLevelCode().getId() : null)
+				.levelCodeName(mapping.getPosition().getLevelCode() != null ? mapping.getPosition().getLevelCode().getCode() : null)
 				.status(mapping.getStatus() == null ? null : mapping.getStatus().toUpperCase())
 				.createdOn(mapping.getCreatedOn())
 				.updatedOn(mapping.getUpdatedOn())
