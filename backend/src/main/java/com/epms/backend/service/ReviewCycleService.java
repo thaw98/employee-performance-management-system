@@ -227,10 +227,10 @@ public class ReviewCycleService {
             TimeSetting created = new TimeSetting();
             LocalDate start = getCurrentYearStart("Budget Year");
             created.setYearType("Budget Year");
-            created.setDuration("6 Months");
-            created.setPeriodType(TimeSetting.PeriodType.SEMI_ANNUAL);
+            created.setDuration("1 Year");
+            created.setPeriodType(TimeSetting.PeriodType.ANNUAL);
             created.setStartDate(start);
-            created.setEndDate(calculateEndDate(start, "6 Months"));
+            created.setEndDate(calculateEndDate(start, "1 Year"));
             return timeSettingRepository.save(created);
         });
         applyPendingYearTypeIfNextCycleDue(setting);

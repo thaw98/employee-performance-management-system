@@ -160,7 +160,31 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
                 sequenceNo
         );
         if (!ids.isEmpty()) {
-            return ids.get(0);
+            Long existingId = ids.get(0);
+            jdbc.update("""
+                            UPDATE review_cycles
+                            SET time_setting_id = ?,
+                                parent_cycle_id = ?,
+                                name = ?,
+                                code = ?,
+                                start_date = ?,
+                                end_date = ?,
+                                requires_employee_submission = ?,
+                                rollup_method = ?,
+                                updated_at = NOW(6)
+                            WHERE id = ?
+                            """,
+                    timeSettingId,
+                    parentCycleId,
+                    name,
+                    code,
+                    startDate,
+                    endDate,
+                    requiresEmployeeSubmission,
+                    rollupMethod,
+                    existingId
+            );
+            return existingId;
         }
         jdbc.update("""
                         INSERT INTO review_cycles

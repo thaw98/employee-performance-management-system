@@ -124,9 +124,9 @@ public class TimeSettingService {
 
     private TimeSettingDto defaultSettings() {
         LocalDate start = getYearStart("Budget Year");
-        LocalDate end = calculateEndDate(start, "6 Months");
-        Period period = buildPeriod("Semi-annual 1", start, end, Period.PeriodType.SEMI_ANNUAL, null);
-        return new TimeSettingDto("Budget Year", null, start, end, "6 Months", TimeSetting.PeriodType.SEMI_ANNUAL.name(), List.of(toPeriodDto(period)));
+        LocalDate end = calculateEndDate(start, "1 Year");
+        Period period = buildPeriod("Annual", start, end, Period.PeriodType.ANNUAL, null);
+        return new TimeSettingDto("Budget Year", null, start, end, "1 Year", TimeSetting.PeriodType.ANNUAL.name(), List.of(toPeriodDto(period)));
     }
 
     private void replacePeriods(TimeSetting setting) {
