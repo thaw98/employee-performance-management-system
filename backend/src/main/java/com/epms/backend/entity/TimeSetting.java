@@ -20,6 +20,9 @@ public class TimeSetting {
     @Column(name = "year_type", nullable = false)
     private String yearType;
 
+    @Column(name = "pending_year_type")
+    private String pendingYearType;
+
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 

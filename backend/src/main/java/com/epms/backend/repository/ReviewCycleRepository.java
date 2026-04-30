@@ -16,6 +16,8 @@ public interface ReviewCycleRepository extends JpaRepository<ReviewCycle, Long> 
             Integer sequenceNo
     );
 
+    List<ReviewCycle> findByYearLabelAndSequenceNoOrderByIdAsc(String yearLabel, Integer sequenceNo);
+
     List<ReviewCycle> findByYearLabelOrderByStartDateAscSequenceNoAsc(String yearLabel);
 
     List<ReviewCycle> findByStartDateLessThanEqualAndEndDateGreaterThanEqualOrderByRequiresEmployeeSubmissionDescStartDateDesc(

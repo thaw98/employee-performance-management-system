@@ -93,22 +93,64 @@ public class ReviewCycleService {
     }
 
     private ReviewCycle saveOrGet(ReviewCycle desired, TimeSetting setting, ReviewCycle parentCycle) {
-        Optional<ReviewCycle> existing = reviewCycleRepository.findByYearLabelAndCycleTypeAndSequenceNo(
+        Optional<ReviewCycle> existing = reviewCycleRepository.findByYearLabelAndSequenceNoOrderByIdAsc(
                 desired.getYearLabel(),
-                desired.getCycleType(),
                 desired.getSequenceNo()
-        );
+        ).stream().findFirst();
         if (existing.isPresent()) {
-            return existing.get();
+            ReviewCycle cycle = existing.get();
+            applyDesired(cycle, desired, setting, parentCycle);
+            return reviewCycleRepository.save(cycle);
         }
         desired.setTimeSetting(setting);
         desired.setParentCycle(parentCycle);
         return reviewCycleRepository.save(desired);
     }
 
+    @Transactional
+    public List<ReviewCycleDto> syncCurrentCycles(TimeSetting setting) {
+        List<ReviewCycle> desiredCycles = buildCycles(setting);
+        ReviewCycle annualParent = null;
+        List<ReviewCycle> savedCycles = new ArrayList<>();
+
+        for (ReviewCycle desired : desiredCycles) {
+            if (desired.getCycleType() == ReviewCycle.CycleType.ANNUAL) {
+                annualParent = saveOrGet(desired, setting, null);
+                savedCycles.add(annualParent);
+                break;
+            }
+        }
+
+        for (ReviewCycle desired : desiredCycles) {
+            if (desired.getCycleType() == ReviewCycle.CycleType.ANNUAL) {
+                continue;
+            }
+            savedCycles.add(saveOrGet(desired, setting, annualParent));
+        }
+
+        return savedCycles.stream()
+                .sorted(Comparator.comparing(ReviewCycle::getStartDate).thenComparing(ReviewCycle::getSequenceNo))
+                .map(this::toDto)
+                .toList();
+    }
+
+    private void applyDesired(ReviewCycle target, ReviewCycle desired, TimeSetting setting, ReviewCycle parentCycle) {
+        target.setTimeSetting(setting);
+        target.setParentCycle(parentCycle);
+        target.setName(desired.getName());
+        target.setCode(desired.getCode());
+        target.setCycleType(desired.getCycleType());
+        target.setYearLabel(desired.getYearLabel());
+        target.setSequenceNo(desired.getSequenceNo());
+        target.setStartDate(desired.getStartDate());
+        target.setEndDate(desired.getEndDate());
+        target.setRequiresEmployeeSubmission(desired.isRequiresEmployeeSubmission());
+        target.setRollupMethod(desired.getRollupMethod());
+    }
+
     private List<ReviewCycle> buildCycles(TimeSetting setting) {
-        LocalDate start = getCurrentYearStart(setting.getYearType());
-        LocalDate end = start.plusYears(1).minusDays(1);
+        LocalDate start = setting.getStartDate() != null ? setting.getStartDate() : getCurrentYearStart(setting.getYearType());
+        LocalDate end = setting.getEndDate() != null ? setting.getEndDate() : calculateEndDate(start, setting.getDuration());
         String yearLabel = yearLabel(setting.getYearType(), start);
         String duration = setting.getDuration();
         int months = duration != null && duration.contains("Months") ? parseMonths(duration) : 12;
@@ -122,7 +164,8 @@ public class ReviewCycleService {
         }
 
         int childMonths = "Both".equals(duration) ? 6 : months;
-        int childCount = Math.max(1, (int) Math.ceil(12.0 / childMonths));
+        int totalMonths = Math.max(1, (int) Math.ceil((end.toEpochDay() - start.toEpochDay() + 1) / 31.0));
+        int childCount = Math.max(1, (int) Math.ceil((double) totalMonths / childMonths));
         for (int i = 0; i < childCount; i++) {
             LocalDate childStart = start.plusMonths((long) i * childMonths);
             LocalDate childEnd = childStart.plusMonths(childMonths).minusDays(1);
@@ -180,7 +223,7 @@ public class ReviewCycleService {
     }
 
     private TimeSetting currentSetting() {
-        return timeSettingRepository.findFirstByOrderByIdAsc().orElseGet(() -> {
+        TimeSetting setting = timeSettingRepository.findFirstByOrderByIdAsc().orElseGet(() -> {
             TimeSetting setting = new TimeSetting();
             LocalDate start = LocalDate.now().withMonth(1).withDayOfMonth(1);
             setting.setYearType("Calendar Year");
@@ -190,6 +233,24 @@ public class ReviewCycleService {
             setting.setEndDate(start.plusYears(1).minusDays(1));
             return timeSettingRepository.save(setting);
         });
+        applyPendingYearTypeIfNextCycleDue(setting);
+        return setting;
+    }
+
+    private void applyPendingYearTypeIfNextCycleDue(TimeSetting setting) {
+        if (setting.getPendingYearType() == null || setting.getPendingYearType().isBlank() || setting.getEndDate() == null) {
+            return;
+        }
+        LocalDate today = LocalDate.now();
+        if (!today.isAfter(setting.getEndDate())) {
+            return;
+        }
+        setting.setYearType(setting.getPendingYearType());
+        setting.setPendingYearType(null);
+        LocalDate start = getCurrentYearStart(setting.getYearType());
+        setting.setStartDate(start);
+        setting.setEndDate(calculateEndDate(start, setting.getDuration()));
+        timeSettingRepository.save(setting);
     }
 
     private LocalDate getCurrentYearStart(String yearType) {
@@ -214,6 +275,13 @@ public class ReviewCycleService {
         } catch (Exception e) {
             return 12;
         }
+    }
+
+    private LocalDate calculateEndDate(LocalDate start, String duration) {
+        if (duration != null && duration.contains("Months")) {
+            return start.plusMonths(parseMonths(duration)).minusDays(1);
+        }
+        return start.plusYears(1).minusDays(1);
     }
 
     private ReviewCycleDto toDto(ReviewCycle cycle) {

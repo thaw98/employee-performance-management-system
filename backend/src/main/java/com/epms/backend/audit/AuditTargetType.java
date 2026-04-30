@@ -6,6 +6,7 @@ public final class AuditTargetType {
 
 	public static final String EMPLOYEE = "EMPLOYEE";
 	public static final String USER_ACCOUNT = "USER_ACCOUNT";
+	public static final String TIME_SETTING = "TIME_SETTING";
 	public static final String SELF_ASSESSMENT_FORM = "SELF_ASSESSMENT_FORM";
 	public static final String SELF_ASSESSMENT_FORM_TEMPLATE = "SELF_ASSESSMENT_FORM_TEMPLATE";
 }

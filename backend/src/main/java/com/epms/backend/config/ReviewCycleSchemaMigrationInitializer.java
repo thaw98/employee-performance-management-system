@@ -79,7 +79,7 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
         String yearType = String.valueOf(setting.get("year_type"));
         String duration = String.valueOf(setting.get("duration"));
         LocalDate start = currentYearStart(yearType);
-        LocalDate end = start.plusYears(1).minusDays(1);
+        LocalDate end = calculateEndDate(start, duration);
         String yearLabel = yearLabel(yearType, start);
         boolean hasChildren = !"1 Year".equals(duration);
 
@@ -103,7 +103,8 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
         }
 
         int childMonths = "Both".equals(duration) ? 6 : parseMonths(duration);
-        int childCount = Math.max(1, (int) Math.ceil(12.0 / childMonths));
+        int totalMonths = Math.max(1, (int) Math.ceil((end.toEpochDay() - start.toEpochDay() + 1) / 31.0));
+        int childCount = Math.max(1, (int) Math.ceil((double) totalMonths / childMonths));
         for (int i = 0; i < childCount; i++) {
             LocalDate childStart = start.plusMonths((long) i * childMonths);
             LocalDate childEnd = childStart.plusMonths(childMonths).minusDays(1);
@@ -278,6 +279,13 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
         } catch (Exception e) {
             return 12;
         }
+    }
+
+    private LocalDate calculateEndDate(LocalDate start, String duration) {
+        if (duration != null && duration.contains("Months")) {
+            return start.plusMonths(parseMonths(duration)).minusDays(1);
+        }
+        return start.plusYears(1).minusDays(1);
     }
 
     private String code(String prefix, String yearLabel, int sequenceNo) {

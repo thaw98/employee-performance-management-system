@@ -11,6 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 public class TimeSettingDto {
     private String yearType;
+    private String pendingYearType;
     private LocalDate startDate;
     private LocalDate endDate;
     private String duration;

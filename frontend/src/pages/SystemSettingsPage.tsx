@@ -35,9 +35,13 @@ export function SystemSettingsPage() {
 
   // Global Time Configuration States (HR Only)
   const [yearType, setYearType] = useState('Calendar Year')
+  const [appliedYearType, setAppliedYearType] = useState('Calendar Year')
+  const [pendingYearType, setPendingYearType] = useState<string | null>(null)
+  const [settingsStartDate, setSettingsStartDate] = useState<string | null>(null)
   const [duration, setDuration] = useState('1 Year')
   const [loadingGlobal, setLoadingGlobal] = useState(false)
   const [cyclePreview, setCyclePreview] = useState<ReviewCycle[]>([])
+  const [showSaveModal, setShowSaveModal] = useState(false)
   const isHR = profileResponse?.data?.role === 'HR'
 
   useEffect(() => {
@@ -62,6 +66,9 @@ export function SystemSettingsPage() {
       const resp = await axios.get('/feedback/time-settings')
       if (resp.data.success) {
         setYearType(resp.data.data.yearType)
+        setAppliedYearType(resp.data.data.yearType)
+        setPendingYearType(resp.data.data.pendingYearType ?? null)
+        setSettingsStartDate(resp.data.data.startDate ?? null)
         const savedDuration = resp.data.data.duration
         setDuration(savedDuration === 'Both' ? '6 Months' : savedDuration)
       }
@@ -123,17 +130,27 @@ export function SystemSettingsPage() {
       }
 
       if (isHR) {
-        await axios.post('/feedback/time-settings', { yearType, duration, periodType: getPeriodType() })
+        const resp = await axios.post('/feedback/time-settings', { yearType, duration, periodType: getPeriodType() })
+        if (resp.data.success) {
+          setYearType(resp.data.data.yearType)
+          setAppliedYearType(resp.data.data.yearType)
+          setPendingYearType(resp.data.data.pendingYearType ?? null)
+          setSettingsStartDate(resp.data.data.startDate ?? null)
+          const savedDuration = resp.data.data.duration
+          setDuration(savedDuration === 'Both' ? '6 Months' : savedDuration)
+        }
         await fetchCyclePreview()
       }
 
       setPendingWallpaper(null)
-      toast.success('Changes saved!')
-    } catch (err) {
+      toast.success(isHR ? 'Settings saved. Current duration is applied and future year type is queued when needed.' : 'Changes saved!')
+    } catch (err: any) {
       console.error("Failed to save system settings", err)
-      toast.error('Failed to save settings.')
+      const message = err?.response?.data?.message || 'Failed to save settings.'
+      toast.error(message)
     } finally {
       setIsSaving(false)
+      setShowSaveModal(false)
     }
   }
 
@@ -147,8 +164,16 @@ export function SystemSettingsPage() {
     const today = new Date()
     const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
 
+    const currentCycleStarted = settingsStartDate
+      ? todayDateOnly >= new Date(`${settingsStartDate}T00:00:00`)
+      : true
+    const previewYearType = currentCycleStarted ? appliedYearType : selectedYearType
+
     const getCurrentYearStart = () => {
-      if (selectedYearType === 'Budget Year') {
+      if (currentCycleStarted && settingsStartDate) {
+        return new Date(`${settingsStartDate}T00:00:00`)
+      }
+      if (previewYearType === 'Budget Year') {
         const aprFirst = new Date(todayDateOnly.getFullYear(), 3, 1)
         return todayDateOnly < aprFirst
           ? new Date(todayDateOnly.getFullYear() - 1, 3, 1)
@@ -158,8 +183,13 @@ export function SystemSettingsPage() {
     }
 
     const start = getCurrentYearStart()
-    const end = new Date(start.getFullYear() + 1, start.getMonth(), start.getDate() - 1)
-    const yearLabel = selectedYearType === 'Budget Year'
+    const monthsForEnd = selectedDuration.includes('Months')
+      ? Math.max(1, Math.min(12, Number.parseInt(selectedDuration.split(' ')[0] ?? '12', 10) || 12))
+      : 12
+    const end = selectedDuration.includes('Months')
+      ? new Date(start.getFullYear(), start.getMonth() + monthsForEnd, start.getDate() - 1)
+      : new Date(start.getFullYear() + 1, start.getMonth(), start.getDate() - 1)
+    const yearLabel = previewYearType === 'Budget Year'
       ? `${start.getFullYear()}-${start.getFullYear() + 1}`
       : `${start.getFullYear()}`
 
@@ -244,7 +274,12 @@ export function SystemSettingsPage() {
       return cyclePreview
     }
     return buildLocalCyclePreview(yearType, duration)
-  }, [yearType, duration, loadingGlobal, cyclePreview])
+  }, [yearType, duration, loadingGlobal, cyclePreview, appliedYearType, settingsStartDate])
+
+  const savedCycleStarted = settingsStartDate
+    ? new Date() >= new Date(`${settingsStartDate}T00:00:00`)
+    : true
+  const yearTypeWillBePending = isHR && yearType !== appliedYearType && savedCycleStarted
 
   const handleReset = async () => {
     setIsResetting(true)
@@ -416,6 +451,11 @@ export function SystemSettingsPage() {
                         </button>
                       ))}
                     </div>
+                    {(yearTypeWillBePending || pendingYearType) && (
+                      <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 pl-1">
+                        Pending for next cycle: {yearTypeWillBePending ? yearType : pendingYearType}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -543,7 +583,7 @@ export function SystemSettingsPage() {
               Reset to Defaults
            </button>
            <button 
-             onClick={handleSave}
+             onClick={() => isHR ? setShowSaveModal(true) : handleSave()}
              disabled={isSaving}
              className="px-8 py-3 bg-blue-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-600/30 hover:shadow-xl hover:shadow-blue-600/40 hover:-translate-y-0.5 transition-all flex items-center gap-2 transform active:scale-95 disabled:opacity-50 disabled:hover:translate-y-0"
            >
@@ -595,6 +635,46 @@ export function SystemSettingsPage() {
            >
               <X size={20} />
            </button>
+        </div>
+      </div>
+    )}
+
+    {showSaveModal && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => !isSaving && setShowSaveModal(false)} />
+        <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-white/20 relative z-10 overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="p-8 pb-4 text-center">
+            <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-6 scale-110 shadow-inner">
+              <Calendar size={40} strokeWidth={2.5} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Save Time Settings?</h3>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed mb-6">
+              Duration changes apply to the current cycle after save. {yearTypeWillBePending ? `${yearType} will be queued for the next generated cycle.` : 'The selected year type will be saved with the current rules.'}
+            </p>
+          </div>
+          <div className="p-8 pt-4 flex flex-col gap-3">
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm transition-all shadow-lg shadow-emerald-600/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              Confirm Save
+            </button>
+            <button
+              onClick={() => setShowSaveModal(false)}
+              disabled={isSaving}
+              className="w-full py-4 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-95 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+          <button
+            onClick={() => !isSaving && setShowSaveModal(false)}
+            className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          >
+            <X size={20} />
+          </button>
         </div>
       </div>
     )}
