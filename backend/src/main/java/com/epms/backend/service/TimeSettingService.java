@@ -64,7 +64,7 @@ public class TimeSettingService {
 
         LocalDate today = LocalDate.now();
         LocalDate currentStart = setting.getStartDate() != null ? setting.getStartDate() : getYearStart(oldYearType);
-        LocalDate currentEnd = calculateEndDate(currentStart, requestedDuration);
+        LocalDate currentEnd = calculateAnnualEndDate(currentStart);
         if (isShortening(oldEnd, currentEnd)) {
             validateNoRecordsBeyondNewEnd(currentStart, currentEnd, oldYearType);
         }
@@ -77,7 +77,7 @@ public class TimeSettingService {
                 setting.setYearType(requestedYearType);
                 setting.setPendingYearType(null);
                 currentStart = getYearStart(requestedYearType);
-                currentEnd = calculateEndDate(currentStart, requestedDuration);
+                currentEnd = calculateAnnualEndDate(currentStart);
             }
         }
 
@@ -124,7 +124,7 @@ public class TimeSettingService {
 
     private TimeSettingDto defaultSettings() {
         LocalDate start = getYearStart("Budget Year");
-        LocalDate end = calculateEndDate(start, "1 Year");
+        LocalDate end = calculateAnnualEndDate(start);
         Period period = buildPeriod("Annual", start, end, Period.PeriodType.ANNUAL, null);
         return new TimeSettingDto("Budget Year", null, start, end, "1 Year", TimeSetting.PeriodType.ANNUAL.name(), List.of(toPeriodDto(period)));
     }
@@ -138,7 +138,7 @@ public class TimeSettingService {
         List<Period> periods = new ArrayList<>();
         TimeSetting.PeriodType periodType = setting.getPeriodType() != null ? setting.getPeriodType() : resolvePeriodType(setting.getDuration());
         LocalDate start = setting.getStartDate();
-        LocalDate annualEnd = setting.getEndDate() != null ? setting.getEndDate() : calculateEndDate(start, setting.getDuration());
+        LocalDate annualEnd = setting.getEndDate() != null ? setting.getEndDate() : calculateAnnualEndDate(start);
 
         if (periodType == TimeSetting.PeriodType.BOTH || periodType == TimeSetting.PeriodType.ANNUAL) {
             periods.add(buildPeriod("Annual", start, annualEnd, Period.PeriodType.ANNUAL, setting.getId()));
@@ -209,6 +209,10 @@ public class TimeSettingService {
         if (duration != null && duration.contains("Months")) {
             return start.plusMonths(parseMonths(duration)).minusDays(1);
         }
+        return start.plusYears(1).minusDays(1);
+    }
+
+    LocalDate calculateAnnualEndDate(LocalDate start) {
         return start.plusYears(1).minusDays(1);
     }
 

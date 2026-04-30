@@ -79,7 +79,7 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
         String yearType = String.valueOf(setting.get("year_type"));
         String duration = String.valueOf(setting.get("duration"));
         LocalDate start = currentYearStart(yearType);
-        LocalDate end = calculateEndDate(start, duration);
+        LocalDate end = calculateAnnualEndDate(start);
         String yearLabel = yearLabel(yearType, start);
         boolean hasChildren = !"1 Year".equals(duration);
 
@@ -309,6 +309,10 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
         if (duration != null && duration.contains("Months")) {
             return start.plusMonths(parseMonths(duration)).minusDays(1);
         }
+        return start.plusYears(1).minusDays(1);
+    }
+
+    private LocalDate calculateAnnualEndDate(LocalDate start) {
         return start.plusYears(1).minusDays(1);
     }
 
