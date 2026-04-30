@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Users,
   Target,
-  FileText,
   Award,
   Calendar,
   BarChart,
@@ -53,19 +52,6 @@ const ManagerLayout: React.FC = () => {
       : []),
     { icon: <Target size={20} />, label: 'KPIs', path: '/manager/kpis' },
     { icon: <Target size={20} />, label: 'My KPIs', path: '/manager/my-kpis' },
-    { icon: <FileText size={20} />, label: 'Self Assessments', path: '/manager/assessments' },
-    {
-      icon: <FileText size={20} />,
-      label: 'Self Assessments',
-      path: '/manager/assessments',
-      subItems: [
-        { label: 'Assessment List', path: '/manager/assessments', icon: <FileText size={16} className="shrink-0" /> },
-        ...(authUser?.roleId === 2
-          ? [{ label: 'Assessment Questions', path: '/manager/assessment-subitems', icon: <FileText size={16} className="shrink-0" /> }]
-          : []),
-      ],
-    },
-    { icon: <ShieldCheck size={20} />, label: 'My Self Assessments', path: '/manager/my-assessment' },
     { icon: <Zap size={20} />, label: 'Team PIPs', path: '/manager/pip' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/manager/appraisals' },
     {

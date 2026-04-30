@@ -29,9 +29,6 @@ import { SystemSettingsPage } from './pages/SystemSettingsPage';
 import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 
 // Performance Modules
-import { SelfAssessmentPage } from './pages/SelfAssessmentPage';
-import { SelfAssessmentReviewListPage } from './pages/SelfAssessmentReviewListPage';
-import { SelfAssessmentSubitemPage } from './pages/SelfAssessmentSubjectPage';
 import PipMonitoringPage from './pages/PipMonitoringPage';
 import PipCreatePage from './pages/PipCreatePage';
 import PipDetailPage from './pages/PipDetailPage';
@@ -76,8 +73,6 @@ function App() {
             <Route path="positions" element={<PositionListPage />} />
             <Route path="level-codes" element={<LevelCodeListPage />} />
 
-            <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
-            <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
             <Route path="pip-monitoring" element={<PipMonitoringPage />} />
             <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
             <Route path="360-feedback/criteria" element={<CriteriaPage />} />
@@ -102,11 +97,8 @@ function App() {
           <Route path="/manager" element={<ManagerLayout />}>
             <Route path="dashboard" element={<ManagerDashboardPage />} />
             <Route path="employees" element={<EmployeeListPage />} />
-            <Route path="my-assessment" element={<SelfAssessmentPage />} />
-            <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
             <Route path="kpis" element={<ManagerKpisPage />} />
             <Route path="my-kpis" element={<MyKpisPage />} />
-            <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
             <Route path="pip" element={<PipMonitoringPage />} />
             <Route path="pip/create" element={<PipCreatePage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />
@@ -125,7 +117,6 @@ function App() {
           <Route path="/employee" element={<EmployeeLayout />}>
             <Route path="dashboard" element={<EmployeeDashboardPage />} />
             <Route path="kpis" element={<MyKpisPage />} />
-            <Route path="assessment" element={<SelfAssessmentPage />} />
             <Route path="pip" element={<PipMonitoringPage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />

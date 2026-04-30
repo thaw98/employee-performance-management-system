@@ -11,15 +11,12 @@ import {
   Search,
   RefreshCcw,
   Zap,
-  ClipboardList,
   Building2,
   Briefcase,
   List,
   UserPlus,
   SlidersHorizontal,
   ListChecks,
-  ClipboardCheck,
-  MessageCircleQuestionMark,
   LayoutGrid,
   Inbox,
   ListFilter,
@@ -78,16 +75,6 @@ const HrLayout: React.FC = () => {
       subItems: [
         { label: 'KPI Modeler', path: '/hr/kpi-management', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
         { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} className="shrink-0" /> }
-      ]
-    },
-    {
-      icon: <ClipboardList size={20} />,
-      label: 'Self Assessments',
-      path: '/hr/assessments',
-      subItems: [
-        { label: 'My Assessment', path: '/hr/my-assessment', icon: <ClipboardCheck size={16} className="shrink-0" /> },
-        { label: 'Compliance Review', path: '/hr/assessments', icon: <ShieldCheck size={16} className="shrink-0" /> },
-        { label: 'Question', path: '/hr/assessment-subitems', icon: <MessageCircleQuestionMark size={16} className="shrink-0" /> }
       ]
     },
     {

@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Target,
-  FileText,
   Calendar,
   LayoutDashboard,
   ChevronDown,
@@ -55,7 +54,6 @@ const EmployeeLayout: React.FC = () => {
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/employee/dashboard' },
     { icon: <Target size={20} />, label: 'My KPIs', path: '/employee/kpis' },
-    { icon: <FileText size={20} />, label: 'Self Assessment', path: '/employee/my-assessment' },
     { icon: <TrendingUp size={20} />, label: 'My PIPs', path: '/employee/pip' },
     {
       icon: <RefreshCcw size={20} />,
