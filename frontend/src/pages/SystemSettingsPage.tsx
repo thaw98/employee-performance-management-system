@@ -78,6 +78,7 @@ export function SystemSettingsPage() {
 
   const getAllCycles = () => {
     const isBudget = yearType === 'Budget Year'
+    const isBoth = duration === 'Both'
     const durationMonths = duration.includes('Months') ? parseInt(duration.split(' ')[0]) : 12
     const startMonth = isBudget ? 3 : 0 // April is 3, Jan is 0
     
@@ -93,6 +94,45 @@ export function SystemSettingsPage() {
     if (isBudget && today < orgYearStart) {
       orgYearStart.setFullYear(currentYear - 1)
     }
+
+    if (isBoth) {
+      const annualStart = new Date(orgYearStart)
+      const annualEnd = new Date(orgYearStart)
+      annualEnd.setFullYear(orgYearStart.getFullYear() + 1)
+      annualEnd.setDate(0)
+
+      const firstHalfStart = new Date(orgYearStart)
+      const firstHalfEnd = new Date(firstHalfStart)
+      firstHalfEnd.setMonth(firstHalfStart.getMonth() + 6)
+      firstHalfEnd.setDate(0)
+
+      const secondHalfStart = new Date(orgYearStart)
+      secondHalfStart.setMonth(orgYearStart.getMonth() + 6)
+      const secondHalfEnd = new Date(secondHalfStart)
+      secondHalfEnd.setMonth(secondHalfStart.getMonth() + 6)
+      secondHalfEnd.setDate(0)
+
+      return [
+        {
+          name: 'Annual',
+          start: annualStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          end: annualEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          isCurrent: today >= annualStart && today <= annualEnd
+        },
+        {
+          name: 'Semi-annual 1',
+          start: firstHalfStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          end: firstHalfEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          isCurrent: today >= firstHalfStart && today <= firstHalfEnd
+        },
+        {
+          name: 'Semi-annual 2',
+          start: secondHalfStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          end: secondHalfEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          isCurrent: today >= secondHalfStart && today <= secondHalfEnd
+        }
+      ]
+    }
     
     for (let i = 0; i < 12; i += durationMonths) {
       const cycleStart = new Date(orgYearStart)
@@ -105,6 +145,7 @@ export function SystemSettingsPage() {
       const isCurrent = today >= cycleStart && today <= cycleEnd
       
       cycles.push({
+        name: `Cycle ${cycles.length + 1}`,
         start: cycleStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         end: cycleEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         isCurrent
@@ -117,6 +158,13 @@ export function SystemSettingsPage() {
   }
 
   const cycles = getAllCycles()
+
+  const getPeriodType = () => {
+    if (duration === 'Both') return 'BOTH'
+    if (duration === '6 Months') return 'SEMI_ANNUAL'
+    if (duration === '1 Year') return 'ANNUAL'
+    return null
+  }
 
   const handleThemeChange = (newTheme: 'light' | 'dark' | 'wallpaper') => {
     setTheme(newTheme)
@@ -154,7 +202,7 @@ export function SystemSettingsPage() {
       }
 
       if (isHR) {
-        await axios.post('/feedback/time-settings', { yearType, duration })
+        await axios.post('/feedback/time-settings', { yearType, duration, periodType: getPeriodType() })
       }
 
       setPendingWallpaper(null)
@@ -344,8 +392,8 @@ export function SystemSettingsPage() {
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Duration Cycle</label>
-                    <div className="grid grid-cols-3 gap-3">
-                      {['6 Months', '1 Year', 'Custom'].map((dur) => (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {['6 Months', '1 Year', 'Custom', 'Both'].map((dur) => (
                         <button
                           key={dur}
                           onClick={() => {
@@ -356,18 +404,18 @@ export function SystemSettingsPage() {
                             }
                           }}
                           className={`py-3 rounded-xl border-2 font-bold text-xs transition-all ${
-                            (dur === 'Custom' && duration !== '6 Months' && duration !== '1 Year') || (duration === dur)
+                            (dur === 'Custom' && duration !== '6 Months' && duration !== '1 Year' && duration !== 'Both') || (duration === dur)
                               ? 'border-emerald-600 bg-emerald-600 text-white shadow-lg shadow-emerald-100 dark:shadow-none' 
                               : 'border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800'
                           }`}
                         >
-                          {dur}
+                          {dur === 'Both' ? 'Annual with Semi-annual periods' : dur}
                         </button>
                       ))}
                     </div>
 
                     {/* Custom input visible only when Custom is chosen */}
-                    {(duration !== '6 Months' && duration !== '1 Year') && (
+                    {(duration !== '6 Months' && duration !== '1 Year' && duration !== 'Both') && (
                       <div className="mt-3 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                         <input 
                           type="number" 
@@ -428,7 +476,7 @@ export function SystemSettingsPage() {
                            >
                               <div className="flex flex-col">
                                  <span className={`text-[10px] font-black uppercase tracking-tighter ${c.isCurrent ? 'text-emerald-600' : 'text-emerald-400/50'}`}>
-                                    Cycle {idx + 1}
+                                    {c.name}
                                  </span>
                                  <span className="text-sm font-black tracking-tight">{c.start} — {c.end}</span>
                               </div>
