@@ -10,4 +10,6 @@ public class PipCloseRequest {
 
     @NotBlank(message = "Closing remarks are required")
     private String closingRemarks;
+
+    private String signature;
 }

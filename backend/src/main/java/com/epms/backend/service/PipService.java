@@ -1,7 +1,14 @@
 package com.epms.backend.service;
 
 import com.epms.backend.StaffTypes;
-import com.epms.backend.dto.pip.*;
+import com.epms.backend.dto.pip.PipCreateRequest;
+import com.epms.backend.dto.pip.EligibleEmployeeDTO;
+import com.epms.backend.dto.pip.ProgressUpdateRequest;
+import com.epms.backend.dto.pip.MeetingScheduleRequest;
+import com.epms.backend.dto.pip.PipCloseRequest;
+import com.epms.backend.dto.pip.PipReopenRequest;
+import com.epms.backend.dto.pip.PipSignatureRequest;
+import com.epms.backend.dto.pip.PipReviewRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -324,13 +331,16 @@ public class PipService {
         if (request.getClosingRemarks() == null || request.getClosingRemarks().trim().isEmpty()) {
             throw new RuntimeException("Manager comments are required");
         }
-        pip.setStatus(STATUS_CLOSED);
         if (pip.getFinalCloseDate() == null) {
             pip.setFinalCloseDate(LocalDate.now());
         }
         pip.setActualEndDate(pip.getFinalCloseDate());
         pip.setClosingRemarks(request.getClosingRemarks().trim());
         pip.setFinalOutcome(outcome);
+        if (request.getSignature() != null && !request.getSignature().isBlank()) {
+            pip.setManagerSignature(request.getSignature().trim());
+            pip.setManagerSignatureDate(Instant.now());
+        }
         pip.setReviewReason(null);
         pip.setClosedBy(actor.getEmployee());
         pip.setClosedDate(Instant.now());
@@ -357,6 +367,28 @@ public class PipService {
     }
 
     @Transactional
+    public Pip employeeSign(Long pipId, PipSignatureRequest request, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!isPipEmployee(pip, actor)) {
+            throw new RuntimeException("Only the employee assigned to this PIP can sign it");
+        }
+        if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus())) || pip.getFinalOutcome() == null
+                || pip.getFinalOutcome().isBlank()) {
+            throw new RuntimeException("Only automatically closed PIPs with a final result can be signed");
+        }
+        if (pip.getEmployeeSignatureDate() != null) {
+            throw new RuntimeException("This PIP has already been signed by the employee");
+        }
+        if (request.getSignature() == null || request.getSignature().trim().isEmpty()) {
+            throw new RuntimeException("Signature is required");
+        }
+        pip.setEmployeeSignature(request.getSignature().trim());
+        pip.setEmployeeSignatureDate(Instant.now());
+        pip.setUpdatedDate(Instant.now());
+        return pipRepository.save(pip);
+    }
+
+    @Transactional
     public Pip reopenPip(Long pipId, PipReopenRequest request, User actor) {
         Pip pip = getPipById(pipId, actor);
         if (!isPipEmployee(pip, actor)) {
@@ -367,6 +399,9 @@ public class PipService {
         }
         if (hasReopenBeenUsed(pip)) {
             throw new RuntimeException("A PIP can only be reopened one time");
+        }
+        if (pip.getEmployeeSignatureDate() != null) {
+            throw new RuntimeException("A PIP cannot be reopened after employee acknowledgement");
         }
         if (pip.getFinalOutcome() != null && !pip.getFinalOutcome().isBlank()) {
             throw new RuntimeException("A PIP cannot be reopened after the final result is marked");
@@ -381,6 +416,8 @@ public class PipService {
         pip.setReopenedDate(null);
         pip.setReopenDecision(null);
         pip.setReopenDecisionDate(null);
+        pip.setEmployeeSignature(null);
+        pip.setEmployeeSignatureDate(null);
         pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
     }
@@ -419,6 +456,8 @@ public class PipService {
             pip.setReopenDecision(DECISION_APPROVED);
             pip.setReopenDecisionDate(Instant.now());
             pip.setReviewReason(null);
+            pip.setEmployeeSignature(null);
+            pip.setEmployeeSignatureDate(null);
         } else if ("DENIED".equals(action)) {
             pip.setStatus(STATUS_AUTO_CLOSED);
             pip.setReopenDecision(DECISION_REJECTED);

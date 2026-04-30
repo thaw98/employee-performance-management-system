@@ -1,7 +1,14 @@
 package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
-import com.epms.backend.dto.pip.*;
+import com.epms.backend.dto.pip.PipSignatureRequest;
+import com.epms.backend.dto.pip.PipCreateRequest;
+import com.epms.backend.dto.pip.EligibleEmployeeDTO;
+import com.epms.backend.dto.pip.ProgressUpdateRequest;
+import com.epms.backend.dto.pip.MeetingScheduleRequest;
+import com.epms.backend.dto.pip.PipCloseRequest;
+import com.epms.backend.dto.pip.PipReopenRequest;
+import com.epms.backend.dto.pip.PipReviewRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.PipService;
@@ -117,6 +124,17 @@ public class PipController {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         Pip pip = pipService.reopenPip(id, request, user);
         return ResponseEntity.ok(ApiResponse.ok("PIP reopened successfully", pip));
+    }
+
+    @PostMapping("/{id}/employee-sign")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<ApiResponse<Pip>> employeeSign(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @Valid @RequestBody PipSignatureRequest request) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pip pip = pipService.employeeSign(id, request, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP signed successfully", pip));
     }
 
     @PutMapping("/{id}/review")
