@@ -28,7 +28,7 @@ public class SelfAssessmentFormService {
     private final DepartmentRepository departmentRepository;
     private final PositionRepository positionRepository;
     private final SignatureRepository signatureRepository;
-    private final TimeSettingRepository timeSettingRepository;
+    private final ReviewCycleService reviewCycleService;
     private final NotificationService notificationService;
     private final AuditService auditService;
     private final UserRepository userRepository;
@@ -42,7 +42,7 @@ public class SelfAssessmentFormService {
             DepartmentRepository departmentRepository,
             PositionRepository positionRepository,
             SignatureRepository signatureRepository,
-            TimeSettingRepository timeSettingRepository,
+            ReviewCycleService reviewCycleService,
             NotificationService notificationService,
             AuditService auditService,
             UserRepository userRepository,
@@ -54,7 +54,7 @@ public class SelfAssessmentFormService {
         this.departmentRepository = departmentRepository;
         this.positionRepository = positionRepository;
         this.signatureRepository = signatureRepository;
-        this.timeSettingRepository = timeSettingRepository;
+        this.reviewCycleService = reviewCycleService;
         this.notificationService = notificationService;
         this.auditService = auditService;
         this.userRepository = userRepository;
@@ -185,7 +185,7 @@ public class SelfAssessmentFormService {
             return new FormStatusDto(null, false, false, false, "You are not eligible for self-assessment. Only permanent employees can participate.");
         }
 
-        TimeSetting activeCycle = getActiveCycle();
+        ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) {
             return new FormStatusDto(null, true, false, false, "No active cycle found in system settings.");
         }
@@ -221,7 +221,7 @@ public class SelfAssessmentFormService {
 
     @Transactional(readOnly = true)
     public Optional<SelfAssessmentFormDto> getEmployeeCurrentForm(Employee employee) {
-        TimeSetting activeCycle = getActiveCycle();
+        ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) {
             throw new RuntimeException("No active cycle found");
         }
@@ -354,7 +354,7 @@ public class SelfAssessmentFormService {
 
     @Transactional(readOnly = true)
     public List<FormListDto> getManagerReviewForms(Employee manager) {
-        TimeSetting activeCycle = getActiveCycle();
+        ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) {
             return List.of();
         }
@@ -368,7 +368,7 @@ public class SelfAssessmentFormService {
 
     @Transactional(readOnly = true)
     public List<FormListDto> getHrReviewForms() {
-        TimeSetting activeCycle = getActiveCycle();
+        ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) {
             return List.of();
         }
@@ -382,7 +382,7 @@ public class SelfAssessmentFormService {
 
     @Transactional(readOnly = true)
     public List<FormListDto> getAllFormsForHr() {
-        TimeSetting activeCycle = getActiveCycle();
+        ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) {
             return List.of();
         }
@@ -626,7 +626,7 @@ public class SelfAssessmentFormService {
 
     @Transactional
     public void createDueTomorrowNotifications() {
-        TimeSetting activeCycle = getActiveCycle();
+        ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) return;
 
         LocalDate tomorrow = LocalDate.now().plusDays(1);
@@ -661,7 +661,7 @@ public class SelfAssessmentFormService {
     }
 
     private SelfAssessmentForm getOrCreateForm(Employee employee) {
-        TimeSetting activeCycle = getActiveCycle();
+        ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) {
             throw new RuntimeException("No active cycle found");
         }
@@ -803,12 +803,17 @@ public class SelfAssessmentFormService {
         return "Unsatisfactory";
     }
 
-    private boolean isDeadlinePassed(TimeSetting cycle) {
+    private boolean isDeadlinePassed(ReviewCycle cycle) {
         return LocalDate.now().isAfter(cycle.getEndDate());
     }
 
-    private TimeSetting getActiveCycle() {
-        return timeSettingRepository.findFirstByOrderByIdAsc().orElse(null);
+    private ReviewCycle getActiveCycle() {
+        ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
+        if (activeCycle != null) {
+            return activeCycle;
+        }
+        reviewCycleService.generateCurrentYear();
+        return reviewCycleService.getActiveSubmissionCycle();
     }
 
     private boolean isPermanentEmployee(Employee employee) {
@@ -891,7 +896,7 @@ public class SelfAssessmentFormService {
                 form.getId(),
                 form.getTemplate().getId(),
                 form.getCycle() != null ? form.getCycle().getId() : null,
-                form.getCycle() != null ? form.getCycle().getYearType() : null,
+                form.getCycle() != null ? form.getCycle().getName() : null,
                 form.getStatus().name(),
                 form.getTotalScore(),
                 form.getRatingCategory(),

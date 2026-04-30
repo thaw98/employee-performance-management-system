@@ -55,7 +55,6 @@ public class TimeSettingService {
         }
         
         TimeSetting saved = repository.save(setting);
-        replacePeriods(saved);
         return toDto(saved);
     }
 

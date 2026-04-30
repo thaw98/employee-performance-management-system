@@ -32,7 +32,7 @@ public class SelfAssessmentForm {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cycle_id")
-    private TimeSetting cycle;
+    private ReviewCycle cycle;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)

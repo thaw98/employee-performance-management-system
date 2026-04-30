@@ -1,8 +1,22 @@
 import { useState, useEffect, useRef } from 'react'
-import { Monitor, Moon, Sun, Globe, Accessibility, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, Clock, AlertTriangle, X, Calendar, Info, CheckCircle2 } from 'lucide-react'
+import { Moon, Sun, Globe, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, Clock, AlertTriangle, X, Calendar, PlayCircle } from 'lucide-react'
 import axios from '../app/axiosInstance'
 import { toast } from 'react-hot-toast'
 import { useGetProfileQuery, useUpdateProfileMutation, useUpdateWallpaperMutation, useDeleteWallpaperMutation } from '../features/user/userApi'
+
+type ReviewCycle = {
+  id: number | null
+  name: string
+  cycleType: string
+  yearLabel: string
+  sequenceNo: number
+  startDate: string
+  endDate: string
+  requiresEmployeeSubmission: boolean
+  rollupMethod: string | null
+  status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED'
+  isActive: boolean
+}
 
 export function SystemSettingsPage() {
   const { data: profileResponse } = useGetProfileQuery()
@@ -14,35 +28,19 @@ export function SystemSettingsPage() {
   const [theme, setTheme] = useState<'light' | 'dark' | 'wallpaper'>('light')
   const [timezone, setTimezone] = useState('UTC+06:30 (Yangon)')
   const [timeFormat, setTimeFormat] = useState('12h')
-  const [compactMode, setCompactMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [pendingWallpaper, setPendingWallpaper] = useState<File | 'remove' | null>(null)
-  const [currentTime, setCurrentTime] = useState(new Date())
   const [showResetModal, setShowResetModal] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
 
   // Global Time Configuration States (HR Only)
   const [yearType, setYearType] = useState('Calendar Year')
   const [duration, setDuration] = useState('1 Year')
-  const [customMonths, setCustomMonths] = useState(3)
   const [loadingGlobal, setLoadingGlobal] = useState(false)
+  const [cyclePreview, setCyclePreview] = useState<ReviewCycle[]>([])
+  const [generatedCycles, setGeneratedCycles] = useState<ReviewCycle[]>([])
+  const [isGeneratingCycles, setIsGeneratingCycles] = useState(false)
   const isHR = profileResponse?.data?.role === 'HR'
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const formatTime = (date: Date, offsetHours: number, offsetMinutes: number = 0) => {
-    const utc = date.getTime() + (date.getTimezoneOffset() * 60000)
-    const newDate = new Date(utc + (3600000 * offsetHours) + (60000 * offsetMinutes))
-    return newDate.toLocaleTimeString('en-US', { 
-        hour12: timeFormat === '12h', 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
-    })
-  }
 
   useEffect(() => {
     if (profileResponse?.data?.theme) {
@@ -68,6 +66,7 @@ export function SystemSettingsPage() {
         setYearType(resp.data.data.yearType)
         setDuration(resp.data.data.duration)
       }
+      await Promise.all([fetchCyclePreview(), fetchGeneratedCycles()])
     } catch (err) {
       console.error("Failed to load global time settings", err)
     } finally {
@@ -75,88 +74,19 @@ export function SystemSettingsPage() {
     }
   }
 
-  const getAllCycles = () => {
-    const isBudget = yearType === 'Budget Year'
-    const isBoth = duration === 'Both'
-    const durationMonths = duration.includes('Months') ? parseInt(duration.split(' ')[0]) : 12
-    const startMonth = isBudget ? 3 : 0 // April is 3, Jan is 0
-    
-    const cycles = []
-    const today = new Date()
-    const currentYear = today.getFullYear()
-    
-    // We treat the "Year" as starting from startMonth of currentYear
-    // For Budget Year, if today is Jan-Mar, the "Cycle Year" started April last year.
-    // However, for simplicity in "Preview", we show cycles for the organizational year that contains today.
-    
-    let orgYearStart = new Date(currentYear, startMonth, 1)
-    if (isBudget && today < orgYearStart) {
-      orgYearStart.setFullYear(currentYear - 1)
+  const fetchCyclePreview = async () => {
+    const resp = await axios.get('/review-cycles/current-year/preview')
+    if (resp.data.success) {
+      setCyclePreview(resp.data.data)
     }
-
-    if (isBoth) {
-      const annualStart = new Date(orgYearStart)
-      const annualEnd = new Date(orgYearStart)
-      annualEnd.setFullYear(orgYearStart.getFullYear() + 1)
-      annualEnd.setDate(0)
-
-      const firstHalfStart = new Date(orgYearStart)
-      const firstHalfEnd = new Date(firstHalfStart)
-      firstHalfEnd.setMonth(firstHalfStart.getMonth() + 6)
-      firstHalfEnd.setDate(0)
-
-      const secondHalfStart = new Date(orgYearStart)
-      secondHalfStart.setMonth(orgYearStart.getMonth() + 6)
-      const secondHalfEnd = new Date(secondHalfStart)
-      secondHalfEnd.setMonth(secondHalfStart.getMonth() + 6)
-      secondHalfEnd.setDate(0)
-
-      return [
-        {
-          name: 'Annual',
-          start: annualStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          end: annualEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          isCurrent: today >= annualStart && today <= annualEnd
-        },
-        {
-          name: 'Semi-annual 1',
-          start: firstHalfStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          end: firstHalfEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          isCurrent: today >= firstHalfStart && today <= firstHalfEnd
-        },
-        {
-          name: 'Semi-annual 2',
-          start: secondHalfStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          end: secondHalfEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          isCurrent: today >= secondHalfStart && today <= secondHalfEnd
-        }
-      ]
-    }
-    
-    for (let i = 0; i < 12; i += durationMonths) {
-      const cycleStart = new Date(orgYearStart)
-      cycleStart.setMonth(orgYearStart.getMonth() + i)
-      
-      const cycleEnd = new Date(cycleStart)
-      cycleEnd.setMonth(cycleStart.getMonth() + durationMonths)
-      cycleEnd.setDate(0)
-      
-      const isCurrent = today >= cycleStart && today <= cycleEnd
-      
-      cycles.push({
-        name: `Cycle ${cycles.length + 1}`,
-        start: cycleStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        end: cycleEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        isCurrent
-      })
-      
-      if (durationMonths >= 12) break
-    }
-    
-    return cycles
   }
 
-  const cycles = getAllCycles()
+  const fetchGeneratedCycles = async () => {
+    const resp = await axios.get('/review-cycles')
+    if (resp.data.success) {
+      setGeneratedCycles(resp.data.data)
+    }
+  }
 
   const getPeriodType = () => {
     if (duration === 'Both') return 'BOTH'
@@ -202,6 +132,7 @@ export function SystemSettingsPage() {
 
       if (isHR) {
         await axios.post('/feedback/time-settings', { yearType, duration, periodType: getPeriodType() })
+        await fetchCyclePreview()
       }
 
       setPendingWallpaper(null)
@@ -213,6 +144,32 @@ export function SystemSettingsPage() {
       setIsSaving(false)
     }
   }
+
+  const handleGenerateCycles = async () => {
+    setIsGeneratingCycles(true)
+    try {
+      await axios.post('/feedback/time-settings', { yearType, duration, periodType: getPeriodType() })
+      const resp = await axios.post('/review-cycles/generate')
+      if (resp.data.success) {
+        setGeneratedCycles(resp.data.data)
+        await fetchCyclePreview()
+        toast.success('Review cycles generated.')
+      }
+    } catch (err) {
+      console.error("Failed to generate review cycles", err)
+      toast.error('Failed to generate review cycles.')
+    } finally {
+      setIsGeneratingCycles(false)
+    }
+  }
+
+  const formatDate = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+
+  const cycles = generatedCycles.length > 0 ? generatedCycles : cyclePreview
 
   const handleReset = async () => {
     setIsResetting(true)
@@ -357,7 +314,7 @@ export function SystemSettingsPage() {
             <div className="p-8">
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
-                  <Calendar size={20} />
+                  {loadingGlobal ? <Loader2 size={20} className="animate-spin" /> : <Calendar size={20} />}
                 </div>
                 <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Time Settings Configuration <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-400 px-2 py-0.5 rounded-full uppercase tracking-tighter">Global</span></h2>
               </div>
@@ -394,7 +351,7 @@ export function SystemSettingsPage() {
                           key={dur}
                           onClick={() => {
                             if (dur === 'Custom') {
-                              setDuration(`${customMonths} Months`)
+                              setDuration('3 Months')
                             } else {
                               setDuration(dur)
                             }
@@ -453,11 +410,16 @@ export function SystemSettingsPage() {
                             <div className="p-2 bg-white/20 rounded-xl">
                                <Clock size={16} />
                             </div>
-                            <div className="text-[10px] font-black uppercase tracking-widest">Active Cycle Summary</div>
+                            <div className="text-[10px] font-black uppercase tracking-widest">Review Cycles</div>
                          </div>
-                         <div className="text-[10px] bg-emerald-400/20 text-emerald-200 px-2 py-1 rounded-lg font-bold border border-emerald-400/20">
-                            {yearType}
-                         </div>
+                         <button
+                           onClick={handleGenerateCycles}
+                           disabled={isGeneratingCycles}
+                           className="text-[10px] bg-emerald-400/20 text-emerald-50 px-2 py-1 rounded-lg font-bold border border-emerald-400/20 flex items-center gap-1 disabled:opacity-60"
+                         >
+                            {isGeneratingCycles ? <Loader2 size={12} className="animate-spin" /> : <PlayCircle size={12} />}
+                            Generate
+                         </button>
                       </div>
 
                       <div className="space-y-3 relative z-10">
@@ -465,25 +427,37 @@ export function SystemSettingsPage() {
                            <div 
                              key={idx} 
                              className={`p-4 rounded-2xl transition-all duration-300 flex items-center justify-between border ${
-                               c.isCurrent 
+                               c.isActive 
                                ? 'bg-white text-emerald-900 border-white shadow-lg scale-[1.02]' 
                                : 'bg-emerald-800/40 border-emerald-700/50 text-emerald-100/60'
                              }`}
                            >
                               <div className="flex flex-col">
-                                 <span className={`text-[10px] font-black uppercase tracking-tighter ${c.isCurrent ? 'text-emerald-600' : 'text-emerald-400/50'}`}>
+                                 <span className={`text-[10px] font-black uppercase tracking-tighter ${c.isActive ? 'text-emerald-600' : 'text-emerald-400/50'}`}>
                                     {c.name}
                                  </span>
-                                 <span className="text-sm font-black tracking-tight">{c.start} — {c.end}</span>
+                                 <span className="text-sm font-black tracking-tight">{formatDate(c.startDate)} - {formatDate(c.endDate)}</span>
+                                 <span className="text-[9px] font-black uppercase tracking-widest opacity-70">
+                                   {c.requiresEmployeeSubmission ? 'Employee submission' : 'Annual roll-up'} - {c.cycleType}
+                                 </span>
                               </div>
-                              {c.isCurrent && (
-                                <div className="flex items-center gap-1.5 bg-emerald-100 text-emerald-600 px-2.5 py-1 rounded-full animate-pulse">
-                                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                                   <span className="text-[9px] font-black uppercase tracking-widest">Active Now</span>
-                                </div>
-                              )}
+                              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${
+                                c.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-600 animate-pulse' :
+                                c.status === 'UPCOMING' ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-500'
+                              }`}>
+                                 <div className={`w-1.5 h-1.5 rounded-full ${
+                                   c.status === 'ACTIVE' ? 'bg-emerald-500' :
+                                   c.status === 'UPCOMING' ? 'bg-sky-500' : 'bg-slate-400'
+                                 }`} />
+                                 <span className="text-[9px] font-black uppercase tracking-widest">{c.status}</span>
+                              </div>
                            </div>
                          ))}
+                         {cycles.length === 0 && (
+                           <div className="p-4 rounded-2xl bg-emerald-800/40 border border-emerald-700/50 text-emerald-100/70 text-xs font-bold">
+                             Save time settings to refresh the API preview, then generate cycles.
+                           </div>
+                         )}
                       </div>
                     </div>
                   </div>
