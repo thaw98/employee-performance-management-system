@@ -10,7 +10,7 @@ const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-blue-100 text-blue-700',
   AUTO_CLOSED: 'bg-amber-100 text-amber-700',
   REOPEN_REQUESTED: 'bg-orange-100 text-orange-700',
-  COMPLETED: 'bg-green-100 text-green-700',
+  COMPLETED: 'bg-emerald-100 text-emerald-700',
   CLOSED: 'bg-slate-100 text-slate-700',
   DENIED: 'bg-red-100 text-red-700',
 }
@@ -365,7 +365,7 @@ export default function PipMonitoringPage() {
                           style={{ width: `${pip.overallProgressPercentage}%` }}
                         />
                       </div>
-                      <span className="text-[10px] font-extrabold text-slate-400">{pip.overallProgressPercentage}% COMPLETE</span>
+                      <span className="text-[10px] font-extrabold text-slate-400">{pip.overallProgressPercentage}% COMPLETED</span>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-right">

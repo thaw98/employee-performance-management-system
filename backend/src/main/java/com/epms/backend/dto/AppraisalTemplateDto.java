@@ -12,4 +12,5 @@ public class AppraisalTemplateDto {
     private LocalDate effectiveDate;
     private Boolean isActive;
     private List<Long> categoryIds;
+    private List<Long> positionIds;
 }

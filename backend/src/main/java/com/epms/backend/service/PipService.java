@@ -27,6 +27,7 @@ public class PipService {
     private static final String STATUS_AUTO_CLOSED = "AUTO_CLOSED";
     private static final String STATUS_REOPEN_REQUESTED = "REOPEN_REQUESTED";
     private static final String STATUS_CLOSED = "CLOSED";
+    private static final String STATUS_COMPLETED = "COMPLETED";
     private static final String STATUS_DENIED = "DENIED";
     private static final String STATUS_SCHEDULED = "SCHEDULED";
     private static final String DECISION_APPROVED = "APPROVED";
@@ -103,6 +104,8 @@ public class PipService {
         pip.setCompletedHours(0);
         pip.setCreatedDate(Instant.now());
         pip.setUpdatedDate(Instant.now());
+        pip.setExpectedImprovements(request.getExpectedImprovements());
+        pip.setReasonForPlan(request.getReasonForPlan());
 
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();
@@ -326,6 +329,24 @@ public class PipService {
         pip.setReviewReason(null);
         pip.setClosedBy(actor.getEmployee());
         pip.setClosedDate(Instant.now());
+        pip.setUpdatedDate(Instant.now());
+        return pipRepository.save(pip);
+    }
+
+    @Transactional
+    public Pip markPipCompleted(Long pipId, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!isDirectManager(pip, actor)) {
+            throw new RuntimeException("Only the assigned manager can mark the PIP completed");
+        }
+        if (!STATUS_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Only CLOSED PIPs can be marked COMPLETED");
+        }
+        if (pip.getOverallProgressPercentage() == null
+                || pip.getOverallProgressPercentage().compareTo(BigDecimal.valueOf(100)) < 0) {
+            throw new RuntimeException("PIP progress must be 100% before it can be marked COMPLETED");
+        }
+        pip.setStatus(STATUS_COMPLETED);
         pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
     }

@@ -19,6 +19,8 @@ import EmployeeLayout from './layouts/EmployeeLayout';
 // Dashboard Pages - Using the correct file names from your project
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
+import { ManagerKpisPage } from './pages/manager/ManagerKpisPage';
+import { MyKpisPage } from './pages/employee/MyKpisPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
@@ -102,6 +104,8 @@ function App() {
             <Route path="employees" element={<EmployeeListPage />} />
             <Route path="my-assessment" element={<SelfAssessmentPage />} />
             <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
+            <Route path="kpis" element={<ManagerKpisPage />} />
+            <Route path="my-kpis" element={<MyKpisPage />} />
             <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
             <Route path="pip" element={<PipMonitoringPage />} />
             <Route path="pip/create" element={<PipCreatePage />} />
@@ -120,6 +124,7 @@ function App() {
         <Route element={<ProtectedRoute allowedRoleGroups={['EMPLOYEE']} />}>
           <Route path="/employee" element={<EmployeeLayout />}>
             <Route path="dashboard" element={<EmployeeDashboardPage />} />
+            <Route path="kpis" element={<MyKpisPage />} />
             <Route path="assessment" element={<SelfAssessmentPage />} />
             <Route path="pip" element={<PipMonitoringPage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />

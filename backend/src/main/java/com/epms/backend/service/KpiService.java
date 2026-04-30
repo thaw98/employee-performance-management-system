@@ -12,12 +12,16 @@ import com.epms.backend.repository.KpiRepository;
 import com.epms.backend.repository.PositionKpiRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.PositionRepository;
+import com.epms.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import com.epms.backend.entity.User;
 
 @Service
 public class KpiService {
@@ -27,17 +31,23 @@ public class KpiService {
     private final PositionKpiRepository positionKpiRepository;
     private final DepartmentRepository departmentRepository;
     private final PositionRepository positionRepository;
+    private final UserRepository userRepository;
+    private final AuditService auditService;
 
     public KpiService(KpiRepository kpiRepository, 
                       EmployeeRepository employeeRepository,
                       PositionKpiRepository positionKpiRepository,
                       DepartmentRepository departmentRepository,
-                      PositionRepository positionRepository) {
+                      PositionRepository positionRepository,
+                      UserRepository userRepository,
+                      AuditService auditService) {
         this.kpiRepository = kpiRepository;
         this.employeeRepository = employeeRepository;
         this.positionKpiRepository = positionKpiRepository;
         this.departmentRepository = departmentRepository;
         this.positionRepository = positionRepository;
+        this.userRepository = userRepository;
+        this.auditService = auditService;
     }
 
     public List<KpiDto> getKpisByEmployeeAndPeriod(Long employeeId, String period) {
@@ -55,6 +65,12 @@ public class KpiService {
         return kpiRepository.findLatestPeriodByEmployee_Id(employeeId)
                 .map(period -> getKpisByEmployeeAndPeriod(employeeId, period))
                 .orElse(List.of());
+    }
+
+    public List<KpiDto> getMyLatestKpis(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        if (user.getEmployee() == null) return List.of();
+        return getLatestKpisByEmployee(user.getEmployee().getId());
     }
 
     public java.time.Instant getLatestUpdatedDate(Long employeeId) {
@@ -103,6 +119,88 @@ public class KpiService {
         kpiRepository.saveAll(kpis);
 
         return getKpisByEmployeeAndPeriod(employeeId, period);
+    }
+
+    @Transactional
+    public List<KpiDto> updateKpiActualsByManager(Long managerUserId, Long employeeId, List<KpiDto> kpiUpdates) {
+        if (kpiUpdates == null || kpiUpdates.isEmpty()) return List.of();
+
+        User managerUser = userRepository.findById(managerUserId)
+                .orElseThrow(() -> new RuntimeException("Manager user not found"));
+        Employee manager = managerUser.getEmployee();
+        if (manager == null) throw new RuntimeException("Manager employee not found");
+
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        if (manager.getDepartment() == null || employee.getDepartment() == null ||
+            !manager.getDepartment().getId().equals(employee.getDepartment().getId())) {
+            throw new IllegalArgumentException("Manager can only update KPIs for employees in the same department");
+        }
+
+        List<EmployeeKpi> updatedKpis = new ArrayList<>();
+        String status = kpiUpdates.get(0).getStatus();
+        if (status == null || status.isBlank()) {
+            status = "SUBMITTED";
+        }
+
+        for (KpiDto update : kpiUpdates) {
+            if (update.getId() == null) continue;
+            
+            EmployeeKpi kpi = kpiRepository.findById(update.getId())
+                    .orElseThrow(() -> new RuntimeException("KPI not found"));
+            
+            if (!kpi.getEmployee().getId().equals(employeeId)) {
+                throw new IllegalArgumentException("KPI does not belong to the specified employee");
+            }
+            
+            kpi.setActual(update.getActual());
+            if (update.getScore() != null) {
+                kpi.setScore(update.getScore());
+            }
+            if (update.getWeightedScore() != null) {
+                kpi.setWeightedScore(update.getWeightedScore());
+            }
+            kpi.setStatus(status);
+            
+            updatedKpis.add(kpi);
+        }
+
+        kpiRepository.saveAll(updatedKpis);
+
+        String action = "DRAFT".equals(status) ? "KPI_DRAFT_SAVED" : "KPI_SUBMITTED";
+        auditService.record(action, "EMPLOYEE_KPI", employeeId, managerUserId, managerUser.getRole().getId(), 
+            "Manager " + manager.getEmployeeName() + " " + (action.equals("KPI_DRAFT_SAVED") ? "saved draft" : "submitted") + " KPI actuals for " + employee.getEmployeeName(), null);
+
+        return kpiRepository.findByEmployee_IdAndPeriod(employeeId, kpiUpdates.get(0).getPeriod())
+                .stream().map(this::convertToDto).collect(Collectors.toList());
+    }
+
+    public List<java.util.Map<String, Object>> getManagerTeam(Long managerUserId) {
+        User managerUser = userRepository.findById(managerUserId).orElseThrow();
+        Employee manager = managerUser.getEmployee();
+        if (manager == null || manager.getDepartment() == null) {
+            return List.of();
+        }
+        
+        List<Employee> team = employeeRepository.findByDepartmentId(manager.getDepartment().getId());
+        return team.stream()
+            .filter(e -> !e.getId().equals(manager.getId()))
+            .map(e -> {
+                java.util.Map<String, Object> map = new java.util.HashMap<>();
+                map.put("id", e.getId());
+                map.put("name", e.getEmployeeName());
+                map.put("role", e.getPosition() != null ? e.getPosition().getName() : "");
+                
+                // Get status from latest KPI if exists
+                String status = kpiRepository.findLatestPeriodByEmployee_Id(e.getId())
+                    .flatMap(period -> kpiRepository.findByEmployee_IdAndPeriod(e.getId(), period).stream().findFirst())
+                    .map(k -> k.getStatus())
+                    .orElse("PENDING");
+                
+                map.put("status", status);
+                return map;
+            }).collect(Collectors.toList());
     }
 
     public List<PositionKpiDto> getPositionKpis(Long departmentId, Long positionId, String period) {

@@ -52,6 +52,8 @@ const ManagerLayout: React.FC = () => {
       ? [{ icon: <Users size={20} />, label: 'Employees', path: '/manager/employees' }]
       : []),
     { icon: <Target size={20} />, label: 'KPIs', path: '/manager/kpis' },
+    { icon: <Target size={20} />, label: 'My KPIs', path: '/manager/my-kpis' },
+    { icon: <FileText size={20} />, label: 'Self Assessments', path: '/manager/assessments' },
     {
       icon: <FileText size={20} />,
       label: 'Self Assessments',

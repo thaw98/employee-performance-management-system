@@ -122,6 +122,28 @@ public class AppraisalAssignmentService {
         return saved;
     }
 
+    @Transactional
+    public AppraisalAssignment unlock(Long id, String comments, Long userId, Long roleId) {
+        AppraisalAssignment assignment = getById(id);
+
+        if (assignment.getStatus() != AppraisalStatus.LOCKED) {
+            throw new RuntimeException("Only locked appraisals can be unlocked.");
+        }
+
+        assignment.setStatus(AppraisalStatus.HR_APPROVED);
+        if (comments != null && !comments.isBlank()) {
+            assignment.setHrComments(comments);
+        }
+        assignment.setUpdatedAt(Instant.now());
+
+        AppraisalAssignment saved = appraisalAssignmentRepository.save(assignment);
+
+        auditService.record("UNLOCK", "AppraisalAssignment", id, userId, roleId, 
+                "HR Unlocked appraisal for employee ID: " + assignment.getEmployee().getId(), null);
+
+        return saved;
+    }
+
     private boolean isProbationEmployee(AppraisalAssignment assignment) {
         return assignment != null
                 && assignment.getEmployee() != null

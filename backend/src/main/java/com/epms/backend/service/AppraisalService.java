@@ -6,9 +6,11 @@ import com.epms.backend.dto.AppraisalTemplateDto;
 import com.epms.backend.entity.AppraisalCategory;
 import com.epms.backend.entity.AppraisalQuestion;
 import com.epms.backend.entity.AppraisalTemplate;
+import com.epms.backend.entity.Position;
 import com.epms.backend.repository.AppraisalCategoryRepository;
 import com.epms.backend.repository.AppraisalQuestionRepository;
 import com.epms.backend.repository.AppraisalTemplateRepository;
+import com.epms.backend.repository.PositionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ public class AppraisalService {
     private final AppraisalCategoryRepository categoryRepository;
     private final AppraisalQuestionRepository questionRepository;
     private final AppraisalTemplateRepository templateRepository;
+    private final PositionRepository positionRepository;
 
     // Category CRUD
     public List<AppraisalCategoryDto> getAllCategories() {
@@ -130,6 +133,11 @@ public class AppraisalService {
         selected.forEach(c -> c.setIsFinalized(true));
         template.setCategories(selected);
 
+        if (dto.getPositionIds() != null && !dto.getPositionIds().isEmpty()) {
+            List<Position> positions = positionRepository.findAllById(dto.getPositionIds());
+            template.setTargetPositions(positions);
+        }
+
         templateRepository.save(template);
     }
 
@@ -153,6 +161,9 @@ public class AppraisalService {
         dto.setEffectiveDate(t.getEffectiveDate());
         dto.setIsActive(t.getIsActive());
         dto.setCategoryIds(t.getCategories().stream().map(AppraisalCategory::getId).collect(Collectors.toList()));
+        if (t.getTargetPositions() != null) {
+            dto.setPositionIds(t.getTargetPositions().stream().map(Position::getId).collect(Collectors.toList()));
+        }
         return dto;
     }
 
