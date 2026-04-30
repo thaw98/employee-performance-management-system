@@ -48,11 +48,16 @@ public class TimeSettingPendingYearTypeMigrationInitializer implements BeanPostP
         }
 
         LocalDate start = currentBudgetYearStart();
-        LocalDate end = start.plusMonths(6).minusDays(1);
+        LocalDate end = start.plusYears(1).minusDays(1);
         for (Map<String, Object> row : settings) {
             String yearType = String.valueOf(row.get("year_type"));
             String duration = String.valueOf(row.get("duration"));
-            if (!"Calendar Year".equals(yearType) || !"1 Year".equals(duration)) {
+            String periodType = String.valueOf(row.get("period_type"));
+            boolean legacyCalendarDefault = "Calendar Year".equals(yearType) && "1 Year".equals(duration);
+            boolean legacyBudgetSixMonthDefault = "Budget Year".equals(yearType)
+                    && "6 Months".equals(duration)
+                    && "SEMI_ANNUAL".equals(periodType);
+            if (!legacyCalendarDefault && !legacyBudgetSixMonthDefault) {
                 continue;
             }
             jdbc.update(
@@ -62,8 +67,8 @@ public class TimeSettingPendingYearTypeMigrationInitializer implements BeanPostP
                             WHERE id = ?
                             """,
                     "Budget Year",
-                    "6 Months",
-                    "SEMI_ANNUAL",
+                    "1 Year",
+                    "ANNUAL",
                     Date.valueOf(start),
                     Date.valueOf(end),
                     row.get("id"));

@@ -199,12 +199,7 @@ export function SystemSettingsPage() {
     }
 
     const start = getCurrentYearStart()
-    const monthsForEnd = selectedDuration.includes('Months')
-      ? Math.max(1, Math.min(12, Number.parseInt(selectedDuration.split(' ')[0] ?? '12', 10) || 12))
-      : 12
-    const end = selectedDuration.includes('Months')
-      ? new Date(start.getFullYear(), start.getMonth() + monthsForEnd, start.getDate() - 1)
-      : new Date(start.getFullYear() + 1, start.getMonth(), start.getDate() - 1)
+    const end = new Date(start.getFullYear() + 1, start.getMonth(), start.getDate() - 1)
     const yearLabel = previewYearType === 'Budget Year'
       ? `${start.getFullYear()}-${start.getFullYear() + 1}`
       : `${start.getFullYear()}`

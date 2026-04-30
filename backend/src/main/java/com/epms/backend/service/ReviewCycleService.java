@@ -150,7 +150,7 @@ public class ReviewCycleService {
 
     private List<ReviewCycle> buildCycles(TimeSetting setting) {
         LocalDate start = setting.getStartDate() != null ? setting.getStartDate() : getCurrentYearStart(setting.getYearType());
-        LocalDate end = setting.getEndDate() != null ? setting.getEndDate() : calculateEndDate(start, setting.getDuration());
+        LocalDate end = calculateAnnualEndDate(start);
         String yearLabel = yearLabel(setting.getYearType(), start);
         String duration = setting.getDuration();
         int months = duration != null && duration.contains("Months") ? parseMonths(duration) : 12;
@@ -227,10 +227,10 @@ public class ReviewCycleService {
             TimeSetting created = new TimeSetting();
             LocalDate start = getCurrentYearStart("Budget Year");
             created.setYearType("Budget Year");
-            created.setDuration("6 Months");
-            created.setPeriodType(TimeSetting.PeriodType.SEMI_ANNUAL);
+            created.setDuration("1 Year");
+            created.setPeriodType(TimeSetting.PeriodType.ANNUAL);
             created.setStartDate(start);
-            created.setEndDate(calculateEndDate(start, "6 Months"));
+            created.setEndDate(calculateEndDate(start, "1 Year"));
             return timeSettingRepository.save(created);
         });
         applyPendingYearTypeIfNextCycleDue(setting);
@@ -249,7 +249,7 @@ public class ReviewCycleService {
         setting.setPendingYearType(null);
         LocalDate start = getCurrentYearStart(setting.getYearType());
         setting.setStartDate(start);
-        setting.setEndDate(calculateEndDate(start, setting.getDuration()));
+        setting.setEndDate(calculateAnnualEndDate(start));
         timeSettingRepository.save(setting);
     }
 
@@ -281,6 +281,10 @@ public class ReviewCycleService {
         if (duration != null && duration.contains("Months")) {
             return start.plusMonths(parseMonths(duration)).minusDays(1);
         }
+        return start.plusYears(1).minusDays(1);
+    }
+
+    private LocalDate calculateAnnualEndDate(LocalDate start) {
         return start.plusYears(1).minusDays(1);
     }
 

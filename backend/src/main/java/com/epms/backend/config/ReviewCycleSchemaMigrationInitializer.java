@@ -79,7 +79,7 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
         String yearType = String.valueOf(setting.get("year_type"));
         String duration = String.valueOf(setting.get("duration"));
         LocalDate start = currentYearStart(yearType);
-        LocalDate end = calculateEndDate(start, duration);
+        LocalDate end = calculateAnnualEndDate(start);
         String yearLabel = yearLabel(yearType, start);
         boolean hasChildren = !"1 Year".equals(duration);
 
@@ -160,7 +160,31 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
                 sequenceNo
         );
         if (!ids.isEmpty()) {
-            return ids.get(0);
+            Long existingId = ids.get(0);
+            jdbc.update("""
+                            UPDATE review_cycles
+                            SET time_setting_id = ?,
+                                parent_cycle_id = ?,
+                                name = ?,
+                                code = ?,
+                                start_date = ?,
+                                end_date = ?,
+                                requires_employee_submission = ?,
+                                rollup_method = ?,
+                                updated_at = NOW(6)
+                            WHERE id = ?
+                            """,
+                    timeSettingId,
+                    parentCycleId,
+                    name,
+                    code,
+                    startDate,
+                    endDate,
+                    requiresEmployeeSubmission,
+                    rollupMethod,
+                    existingId
+            );
+            return existingId;
         }
         jdbc.update("""
                         INSERT INTO review_cycles
@@ -285,6 +309,10 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
         if (duration != null && duration.contains("Months")) {
             return start.plusMonths(parseMonths(duration)).minusDays(1);
         }
+        return start.plusYears(1).minusDays(1);
+    }
+
+    private LocalDate calculateAnnualEndDate(LocalDate start) {
         return start.plusYears(1).minusDays(1);
     }
 
