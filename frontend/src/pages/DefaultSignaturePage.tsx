@@ -163,6 +163,7 @@ export function DefaultSignaturePage() {
   const [deleteSignature, { isLoading: isDeleting }] = useDeleteSignatureMutation()
 
   const signatures = signaturesResponse?.data || []
+  const defaultSignature = useMemo(() => signatures.find((sig) => sig.isDefault) ?? null, [signatures])
   const signatureCanvasRef = useRef<SignatureCanvas | null>(null)
   const signatureFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -172,7 +173,6 @@ export function DefaultSignaturePage() {
   const [canvasKey, setCanvasKey] = useState(0)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [showSignaturesModal, setShowSignaturesModal] = useState(false)
-  const [drawnPreviewUrl, setDrawnPreviewUrl] = useState<string | null>(null)
   const [justSaved, setJustSaved] = useState(false)
 
   const isSignatureSaving = isSavingDrawnSignature || isUploadingSignature
@@ -202,7 +202,6 @@ export function DefaultSignaturePage() {
 
   const handleClearSignatureCanvas = () => {
     signatureCanvasRef.current?.clear()
-    setDrawnPreviewUrl(null)
   }
 
   const handlePenColorChange = (color: string) => {
@@ -210,18 +209,11 @@ export function DefaultSignaturePage() {
     setPenColor(color)
     if (hasContent) {
       setCanvasKey((k) => k + 1)
-      setDrawnPreviewUrl(null)
     }
   }
 
   const handleCanvasEnd = useCallback(() => {
-    if (signatureCanvasRef.current && !signatureCanvasRef.current.isEmpty()) {
-      const canvas = signatureCanvasRef.current.getCanvas()
-      const trimmed = trimSignatureCanvas(canvas)
-      setDrawnPreviewUrl(trimmed.toDataURL('image/png'))
-    } else {
-      setDrawnPreviewUrl(null)
-    }
+    // no-op: preview removed
   }, [])
 
   const handleSaveDrawnSignature = async () => {
@@ -249,11 +241,16 @@ export function DefaultSignaturePage() {
         )
         return
       }
+      const savedSignatureId = result.data?.data?.id
+      if (!savedSignatureId) {
+        toast.error('Signature saved, but setting default failed: missing signature id.')
+        return
+      }
+      await setDefaultSignature(savedSignatureId).unwrap()
       signatureCanvasRef.current.clear()
-      setDrawnPreviewUrl(null)
       setJustSaved(true)
       setTimeout(() => setJustSaved(false), 1500)
-      toast.success('Signature saved.')
+      toast.success('Signature saved and set as default.')
     } catch (err: unknown) {
       const message = getErrorMessage(err, '')
       const errorCode = getErrorCodeLabel(err)
@@ -271,16 +268,22 @@ export function DefaultSignaturePage() {
         toast.error('Choose a signature image before saving.')
         return
       }
-      await uploadSignature({
+      const response = await uploadSignature({
         file: signatureFile,
       }).unwrap()
+      const savedSignatureId = response.data?.id
+      if (!savedSignatureId) {
+        toast.error('Signature uploaded, but setting default failed: missing signature id.')
+        return
+      }
+      await setDefaultSignature(savedSignatureId).unwrap()
       setSignatureFile(null)
       if (signatureFileInputRef.current) {
         signatureFileInputRef.current.value = ''
       }
       setJustSaved(true)
       setTimeout(() => setJustSaved(false), 1500)
-      toast.success('Signature uploaded.')
+      toast.success('Signature uploaded and set as default.')
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to upload signature.'))
     }
@@ -358,7 +361,7 @@ export function DefaultSignaturePage() {
                   <FileCheck2 size={20} />
                 </div>
                 <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
-                  My Signatures
+                  Saved Signatures
                 </h3>
                 {signatures.length > 0 && (
                   <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] font-black">
@@ -408,13 +411,13 @@ export function DefaultSignaturePage() {
                         <div className="w-full rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-950 p-3 flex items-center justify-center min-h-[80px] mb-3">
                           <img
                             src={resolveMediaSrc(sig.signatureData)}
-                            alt={sig.name || 'Signature'}
+                            alt="Signature"
                             className="max-h-16 max-w-full object-contain"
                           />
                         </div>
                         <div className="w-full flex items-center justify-between gap-2 mb-3">
                           <span className="text-xs font-black text-slate-800 dark:text-slate-200 truncate">
-                            {sig.name || 'Untitled'}
+                            Signature #{sig.id}
                           </span>
                           {sig.isDefault && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] font-black uppercase tracking-wider">
@@ -469,55 +472,69 @@ export function DefaultSignaturePage() {
       </div>
 
       <div className="space-y-8">
-        <button
-          type="button"
-          onClick={() => setShowSignaturesModal(true)}
-          className="w-full text-left bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-all hover:shadow-xl hover:border-blue-50 dark:hover:border-blue-900/30 group"
-        >
-          <div className="p-8 sm:p-10 bg-gradient-to-br from-slate-50/80 to-blue-50/30 dark:from-slate-800/10 dark:to-blue-900/5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center">
-                  <FileCheck2 size={20} />
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-all hover:shadow-xl hover:border-emerald-50 dark:hover:border-emerald-900/30">
+          <div className="p-8 sm:p-10 bg-linear-to-br from-slate-50/80 to-emerald-50/30 dark:from-slate-800/10 dark:to-emerald-900/5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center shrink-0">
+                  <PenLine size={20} />
                 </div>
                 <div>
                   <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                    My Signatures
+                    Default Signature
                   </h2>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
-                    Manage your saved signatures
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1 max-w-md leading-relaxed">
+                    Save the signature that will be used for reviews, approvals, and exports.
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                {signatures.length > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-black">
-                    {signatures.length}
+
+              <div className="sm:w-[320px] w-full rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 min-h-[120px] p-4 flex items-center justify-center">
+                {defaultSignature ? (
+                  <img
+                    src={resolveMediaSrc(defaultSignature.signatureData)}
+                    alt="Default signature"
+                    className="max-h-20 max-w-full object-contain"
+                  />
+                ) : (
+                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                    No default signature
                   </span>
                 )}
-                <ChevronRight
-                  size={20}
-                  className="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors"
-                />
               </div>
             </div>
           </div>
-        </button>
+        </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-all hover:shadow-xl hover:border-blue-50 dark:hover:border-blue-900/30">
+<div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-all hover:shadow-xl hover:border-blue-50 dark:hover:border-blue-900/30">
           <div className="p-8 sm:p-10 space-y-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl flex items-center justify-center">
-                <PenTool size={20} />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl flex items-center justify-center">
+                  <PenTool size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-200 uppercase tracking-widest">
+                    Create New Signature
+                  </h3>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+                    Choose your preferred method
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-slate-200 uppercase tracking-widest">
-                  Create New Signature
-                </h3>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
-                  Choose your preferred method
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowSignaturesModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 dark:bg-blue-600 border border-blue-600 dark:border-blue-600 rounded-xl text-xs font-black text-white shadow-sm hover:bg-blue-700 dark:hover:bg-blue-700 transition-all"
+              >
+                <FileCheck2 size={14} />
+                View Saved Signatures
+                {signatures.length > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[10px] font-black">
+                    {signatures.length}
+                  </span>
+                )}
+              </button>
             </div>
 
             <div className="inline-flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1.5">
@@ -589,21 +606,6 @@ export function DefaultSignaturePage() {
                     }}
                   />
                 </div>
-
-                {drawnPreviewUrl && (
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest shrink-0">
-                      Preview
-                    </span>
-                    <div className="flex-1 flex items-center justify-center rounded-lg border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-950 p-2 min-h-[40px]">
-                      <img
-                        src={drawnPreviewUrl}
-                        alt="Signature preview"
-                        className="max-h-10 max-w-full object-contain"
-                      />
-                    </div>
-                  </div>
-                )}
 
                 <div className="flex flex-wrap justify-end gap-3">
                   <button

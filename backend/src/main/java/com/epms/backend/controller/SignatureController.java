@@ -53,7 +53,7 @@ public class SignatureController {
             @Valid @RequestBody SaveDrawnSignatureRequestDto request) {
         try {
             User user = getUser(principal);
-            Signature saved = signatureService.saveDrawnSignature(user, request.getSignaturePngDataUrl(), request.getName());
+            Signature saved = signatureService.saveDrawnSignature(user, request.getSignaturePngDataUrl());
             return ResponseEntity.ok(ApiResponse.ok("Signature saved", SignatureDto.from(saved)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
@@ -63,11 +63,10 @@ public class SignatureController {
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<SignatureDto>> uploadSignature(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "name", required = false) String name) {
+            @RequestParam("file") MultipartFile file) {
         try {
             User user = getUser(principal);
-            Signature saved = signatureService.saveUploadedSignature(user, file, name);
+            Signature saved = signatureService.saveUploadedSignature(user, file);
             return ResponseEntity.ok(ApiResponse.ok("Signature uploaded", SignatureDto.from(saved)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));

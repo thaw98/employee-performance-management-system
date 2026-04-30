@@ -31,7 +31,6 @@ export interface SignatureDto {
   id: number
   signatureData: string
   signatureType: string
-  name?: string
   isDefault: boolean
   createdAt: string
 }
@@ -116,7 +115,7 @@ export const userApi = baseApi.injectEndpoints({
       query: () => '/signatures',
       providesTags: ['Signature'],
     }),
-    saveDrawnSignature: builder.mutation<ApiResponse<SignatureDto>, { signaturePngDataUrl: string; name?: string }>({
+    saveDrawnSignature: builder.mutation<ApiResponse<SignatureDto>, { signaturePngDataUrl: string }>({
       query: (body) => ({
         url: '/signatures/drawn',
         method: 'POST',
@@ -124,11 +123,10 @@ export const userApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Signature'],
     }),
-    uploadSignature: builder.mutation<ApiResponse<SignatureDto>, { file: File; name?: string }>({
-      query: ({ file, name }) => {
+    uploadSignature: builder.mutation<ApiResponse<SignatureDto>, { file: File }>({
+      query: ({ file }) => {
         const body = new FormData()
         body.append('file', file)
-        if (name) body.append('name', name)
         return {
           url: '/signatures/upload',
           method: 'POST',

@@ -29,23 +29,22 @@ public class SignatureService {
     }
 
     @Transactional
-    public Signature saveDrawnSignature(User user, String signaturePngDataUrl, String name) {
+    public Signature saveDrawnSignature(User user, String signaturePngDataUrl) {
         String path = signatureStorageService.storeDrawnPng(signaturePngDataUrl);
-        return saveSignature(user, path, "DRAWN_PNG", name);
+        return saveSignature(user, path, "DRAWN_PNG");
     }
 
     @Transactional
-    public Signature saveUploadedSignature(User user, MultipartFile file, String name) {
+    public Signature saveUploadedSignature(User user, MultipartFile file) {
         String path = signatureStorageService.storeUploadedImage(file);
-        return saveSignature(user, path, "UPLOADED_IMAGE", name);
+        return saveSignature(user, path, "UPLOADED_IMAGE");
     }
 
-    private Signature saveSignature(User user, String path, String type, String name) {
+    private Signature saveSignature(User user, String path, String type) {
         Signature signature = new Signature();
         signature.setUser(user);
         signature.setSignatureData(path);
         signature.setSignatureType(type);
-        signature.setName(name);
         long count = signatureRepository.countByUser(user);
         if (count == 0) {
             signature.setDefault(true);
