@@ -14,7 +14,7 @@ type ReviewCycle = {
   endDate: string
   requiresEmployeeSubmission: boolean
   rollupMethod: string | null
-  status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED'
+  status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED' | string
   isActive: boolean
 }
 
@@ -160,6 +160,22 @@ export function SystemSettingsPage() {
     year: 'numeric',
   }).replace(',', '')
 
+  const getDisplayStatus = (cycle: ReviewCycle): 'UPCOMING' | 'ACTIVE' | 'COMPLETED' => {
+    const rawStatus = String(cycle.status ?? '').toUpperCase()
+    if (rawStatus === 'UPCOMING' || rawStatus === 'ACTIVE' || rawStatus === 'COMPLETED') {
+      return rawStatus
+    }
+
+    const today = new Date()
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const start = new Date(`${cycle.startDate}T00:00:00`)
+    const end = new Date(`${cycle.endDate}T00:00:00`)
+
+    if (todayDateOnly < start) return 'UPCOMING'
+    if (todayDateOnly > end) return 'COMPLETED'
+    return 'ACTIVE'
+  }
+
   const buildLocalCyclePreview = (selectedYearType: string, selectedDuration: string): ReviewCycle[] => {
     const today = new Date()
     const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
@@ -275,6 +291,49 @@ export function SystemSettingsPage() {
     }
     return buildLocalCyclePreview(yearType, duration)
   }, [yearType, duration, loadingGlobal, cyclePreview, appliedYearType, settingsStartDate])
+
+  const displayCycles = useMemo(() => {
+    if (cycles.length === 0) return cycles
+    if (cycles.some((cycle) => getDisplayStatus(cycle) === 'UPCOMING')) return cycles
+
+    const sorted = [...cycles].sort((a, b) => {
+      const aEnd = new Date(`${a.endDate}T00:00:00`).getTime()
+      const bEnd = new Date(`${b.endDate}T00:00:00`).getTime()
+      return aEnd - bEnd
+    })
+
+    const baseCycle =
+      [...sorted].reverse().find((c) => c.requiresEmployeeSubmission) ??
+      sorted[sorted.length - 1]
+
+    if (!baseCycle) return cycles
+
+    const baseStart = new Date(`${baseCycle.startDate}T00:00:00`)
+    const baseEnd = new Date(`${baseCycle.endDate}T00:00:00`)
+    const oneDayMs = 24 * 60 * 60 * 1000
+    const spanMs = Math.max(oneDayMs, baseEnd.getTime() - baseStart.getTime() + oneDayMs)
+    const nextStart = new Date(baseEnd.getTime() + oneDayMs)
+    const nextEnd = new Date(nextStart.getTime() + spanMs - oneDayMs)
+    const toISODate = (d: Date) => d.toISOString().slice(0, 10)
+
+    const qMatch = baseCycle.name.match(/^Q(\d+)\s+(.+)$/i)
+    const nextName = qMatch
+      ? `Q${Number(qMatch[1]) + 1} ${qMatch[2]}`
+      : `Next ${baseCycle.name}`
+
+    const syntheticUpcoming: ReviewCycle = {
+      ...baseCycle,
+      id: null,
+      sequenceNo: (baseCycle.sequenceNo ?? 0) + 1,
+      name: nextName,
+      startDate: toISODate(nextStart),
+      endDate: toISODate(nextEnd),
+      status: 'UPCOMING',
+      isActive: false,
+    }
+
+    return [...cycles, syntheticUpcoming]
+  }, [cycles])
 
   const savedCycleStarted = settingsStartDate
     ? new Date() >= new Date(`${settingsStartDate}T00:00:00`)
@@ -530,37 +589,50 @@ export function SystemSettingsPage() {
                       </div>
 
                       <div className="space-y-3 relative z-10">
-                         {cycles.map((c, idx) => (
-                           <div 
+                         {displayCycles.map((c, idx) => {
+                           const displayStatus = getDisplayStatus(c)
+
+                           return (
+                           <div
                              key={idx} 
                              className={`p-4 rounded-2xl transition-all duration-300 flex items-center justify-between border ${
-                               c.isActive 
-                               ? 'bg-white text-emerald-900 border-white shadow-lg scale-[1.02]' 
+                               displayStatus === 'ACTIVE'
+                               ? 'bg-white text-emerald-900 border-white shadow-lg scale-[1.02]'
+                               : displayStatus === 'UPCOMING'
+                               ? 'bg-emerald-950/35 border-emerald-500/20 text-emerald-100/75 backdrop-blur-[1px]'
                                : 'bg-emerald-800/40 border-emerald-700/50 text-emerald-100/60'
                              }`}
                            >
                               <div className="flex flex-col">
-                                 <span className={`text-[10px] font-black uppercase tracking-tighter ${c.isActive ? 'text-emerald-600' : 'text-emerald-400/50'}`}>
+                                 <span className={`text-[10px] font-black uppercase tracking-tighter ${
+                                   displayStatus === 'ACTIVE'
+                                     ? 'text-emerald-600'
+                                     : displayStatus === 'UPCOMING'
+                                     ? 'text-emerald-300/55'
+                                     : 'text-emerald-400/50'
+                                 }`}>
                                     {c.name}
                                  </span>
-                                 <span className="text-sm font-black tracking-tight">{formatDate(c.startDate)} - {formatDate(c.endDate)}</span>
-                                 <span className="text-[9px] font-black uppercase tracking-widest opacity-70">
+                                 <span className={`text-sm font-black tracking-tight ${displayStatus === 'UPCOMING' ? 'text-emerald-100/75' : ''}`}>
+                                   {formatDate(c.startDate)} - {formatDate(c.endDate)}
+                                 </span>
+                                 <span className={`text-[9px] font-black uppercase tracking-widest ${displayStatus === 'UPCOMING' ? 'text-emerald-200/45' : 'opacity-70'}`}>
                                    {c.requiresEmployeeSubmission ? 'Employee submission' : 'Annual roll-up'} - {c.cycleType}
                                  </span>
                               </div>
                               <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${
-                                c.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-600 animate-pulse' :
-                                c.status === 'UPCOMING' ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-500'
+                                displayStatus === 'ACTIVE' ? 'bg-emerald-100 text-emerald-600' :
+                                displayStatus === 'UPCOMING' ? 'bg-sky-50 text-sky-700 shadow-sm' : 'bg-slate-100 text-slate-500'
                               }`}>
                                  <div className={`w-1.5 h-1.5 rounded-full ${
-                                   c.status === 'ACTIVE' ? 'bg-emerald-500' :
-                                   c.status === 'UPCOMING' ? 'bg-sky-500' : 'bg-slate-400'
+                                   displayStatus === 'ACTIVE' ? 'bg-emerald-500' :
+                                   displayStatus === 'UPCOMING' ? 'bg-sky-500' : 'bg-slate-400'
                                  }`} />
-                                 <span className="text-[9px] font-black uppercase tracking-widest">{c.status}</span>
+                                 <span className="text-[9px] font-black uppercase tracking-widest">{displayStatus}</span>
                               </div>
                            </div>
-                         ))}
-                         {cycles.length === 0 && (
+                         )})}
+                         {displayCycles.length === 0 && (
                            <div className="p-4 rounded-2xl bg-emerald-800/40 border border-emerald-700/50 text-emerald-100/70 text-xs font-bold">
                              Save time settings to refresh the API preview.
                            </div>
