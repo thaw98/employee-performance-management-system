@@ -13,7 +13,9 @@ import {
   RefreshCcw,
   Send,
   Inbox,
-  History
+  History,
+  FileText,
+  ListChecks
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -54,6 +56,14 @@ const ManagerLayout: React.FC = () => {
     { icon: <Target size={20} />, label: 'My KPIs', path: '/manager/my-kpis' },
     { icon: <Zap size={20} />, label: 'Team PIPs', path: '/manager/pip' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/manager/appraisals' },
+    {
+      icon: <FileText size={20} />,
+      label: 'Self Assessment Forms',
+      path: '/manager/self-assessment-forms/reviews',
+      subItems: [
+        { label: 'Review Forms', path: '/manager/self-assessment-forms/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
+      ]
+    },
     {
       icon: <RefreshCcw size={20} />,
       label: '360 Feedback',

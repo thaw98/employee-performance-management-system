@@ -11,7 +11,8 @@ import {
   TrendingUp,
   Send,
   Inbox,
-  History
+  History,
+  FileText
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -66,6 +67,7 @@ const EmployeeLayout: React.FC = () => {
       ]
     },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/employee/meetings' },
+    { icon: <FileText size={20} />, label: 'Self Assessment Form', path: '/employee/self-assessment-forms/my-form' },
     { icon: <BellRing size={20} />, label: 'Notifications', path: '/employee/notifications' },
   ];
 
