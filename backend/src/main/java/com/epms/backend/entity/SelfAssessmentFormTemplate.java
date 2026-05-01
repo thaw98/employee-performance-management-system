@@ -29,6 +29,9 @@ public class SelfAssessmentFormTemplate {
     @JoinColumn(name = "position_id", nullable = false)
     private Position position;
 
+    @Column(name = "title", length = 255)
+    private String title;
+
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 

@@ -54,6 +54,16 @@ export interface ApiResponse<T> {
   data: T
 }
 
+export interface TimeSettingDto {
+  yearType: string
+  pendingYearType?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  duration: string
+  periodType?: string | null
+  periods?: unknown[]
+}
+
 export const feedbackApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getFeedbackRoles: builder.query<ApiResponse<DepartmentPositionDto[]>, void>({
@@ -75,7 +85,26 @@ export const feedbackApi = baseApi.injectEndpoints({
     getFeedbackHistory: builder.query<ApiResponse<FeedbackHistoryDto[]>, void>({
       query: () => '/feedback/history',
     }),
+    getTimeSettings: builder.query<TimeSettingDto, void>({
+      query: () => '/feedback/time-settings',
+      transformResponse: (response: unknown): TimeSettingDto => {
+        const body = response as ApiResponse<TimeSettingDto>
+        return (
+          body?.data ?? {
+            yearType: '',
+            duration: '',
+          }
+        )
+      },
+    }),
   }),
 })
 
-export const { useGetFeedbackRolesQuery, useGetMyDepartmentQuery, useGetMeQuery, useSubmitFeedbackMutation, useGetFeedbackHistoryQuery } = feedbackApi
+export const {
+  useGetFeedbackRolesQuery,
+  useGetMyDepartmentQuery,
+  useGetMeQuery,
+  useSubmitFeedbackMutation,
+  useGetFeedbackHistoryQuery,
+  useGetTimeSettingsQuery,
+} = feedbackApi

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { Plus, Trash2, Save, X } from 'lucide-react';
+import { Plus, Trash2, Save, X, CalendarRange } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
+import { useGetTimeSettingsQuery } from '../../features/feedback/api/feedbackApi';
+import { useGetActiveReviewCyclesQuery, useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import {
   useCreateTemplateMutation,
   useUpdateTemplateMutation,
@@ -13,7 +15,43 @@ import {
 import { toast } from 'react-hot-toast';
 
 interface QuestionFormData {
+  title: string;
   questions: { questionText: string }[];
+}
+
+function formatCycleDate(iso: string) {
+  const parts = iso.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return iso;
+  const [y, m, d] = parts;
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function cycleTypeLabel(type: string) {
+  const t = type.replace(/_/g, ' ').toLowerCase();
+  return t.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function cycleStatusLabel(status: string) {
+  const normalized = status.toUpperCase();
+  if (normalized === 'ACTIVE') return 'Active';
+  if (normalized === 'UPCOMING') return 'Upcoming';
+  if (normalized === 'CLOSED') return 'Closed';
+  return cycleTypeLabel(status);
+}
+
+function cycleStatusClass(status: string) {
+  const normalized = status.toUpperCase();
+  if (normalized === 'ACTIVE') {
+    return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
+  }
+  if (normalized === 'UPCOMING') {
+    return 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
+  }
+  return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
 }
 
 export const SelfAssessmentFormTemplatePage: React.FC = () => {
@@ -35,6 +73,22 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   }));
 
   const { data: allTemplates } = useGetAllTemplatesQuery();
+  const { data: timeSettings, isLoading: timeSettingsLoading } = useGetTimeSettingsQuery();
+  const { data: activeCycles = [], isLoading: cyclesLoading } = useGetActiveReviewCyclesQuery();
+  const { data: reviewCycles = [], isLoading: allCyclesLoading } = useGetReviewCyclesQuery({
+    requiresEmployeeSubmission: true,
+  });
+
+  const submissionCycle =
+    activeCycles.find((c) => c.requiresEmployeeSubmission) ??
+    reviewCycles.find((c) => c.status?.toUpperCase() === 'UPCOMING') ??
+    [...reviewCycles].reverse().find((c) => c.status?.toUpperCase() === 'CLOSED') ??
+    activeCycles[0] ??
+    null;
+
+  const displayDuration =
+    timeSettings?.duration === 'Both' ? '6 Months & 1 Year (combined)' : timeSettings?.duration;
+
   const { data: editingTemplate, refetch: refetchTemplate } = useGetTemplateByIdQuery(editingTemplateId!, {
     skip: !editingTemplateId,
   });
@@ -42,8 +96,9 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
   const [updateTemplate, { isLoading: isUpdating }] = useUpdateTemplateMutation();
 
-  const { register, control, handleSubmit, reset, setValue, watch } = useForm<QuestionFormData>({
+  const { register, control, handleSubmit, reset } = useForm<QuestionFormData>({
     defaultValues: {
+      title: '',
       questions: [{ questionText: '' }],
     },
   });
@@ -54,6 +109,11 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   });
 
   const onSubmit = async (data: QuestionFormData) => {
+    if (!data.title.trim()) {
+      toast.error('Please enter a title');
+      return;
+    }
+
     if (!selectedDepartmentId || !selectedPositionId) {
       toast.error('Please select department and position');
       return;
@@ -76,6 +136,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
         await updateTemplate({
           id: editingTemplateId,
           request: {
+            title: data.title.trim(),
             departmentId: selectedDepartmentId,
             positionId: selectedPositionId,
             isActive,
@@ -85,6 +146,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
         toast.success('Template updated successfully');
       } else {
         await createTemplate({
+          title: data.title.trim(),
           departmentId: selectedDepartmentId,
           positionId: selectedPositionId,
           questions,
@@ -92,7 +154,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
         toast.success('Template created successfully');
       }
 
-      reset({ questions: [{ questionText: '' }] });
+      reset({ title: '', questions: [{ questionText: '' }] });
       setSelectedDepartmentId(null);
       setSelectedPositionId(null);
       setEditingTemplateId(null);
@@ -113,6 +175,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
       setSelectedPositionId(editingTemplate.positionId);
       setIsActive(editingTemplate.isActive);
       reset({
+        title: editingTemplate.title || '',
         questions: editingTemplate.questions.map(q => ({ questionText: q.questionText })),
       });
     }
@@ -120,7 +183,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
 
   const handleCancelEdit = () => {
     setEditingTemplateId(null);
-    reset({ questions: [{ questionText: '' }] });
+    reset({ title: '', questions: [{ questionText: '' }] });
     setSelectedDepartmentId(null);
     setSelectedPositionId(null);
     setIsActive(true);
@@ -157,6 +220,58 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
             Create New Form
           </button>
         </div>
+
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-6">
+            <div className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
+              <CalendarRange className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              <div>
+                <span className="font-semibold text-slate-900 dark:text-white">Review duration setting</span>
+                <span className="mx-1.5 text-slate-400">·</span>
+                {timeSettingsLoading ? (
+                  <span className="text-slate-500">Loading…</span>
+                ) : displayDuration ? (
+                  <span>{displayDuration}</span>
+                ) : (
+                  <span className="text-slate-500">Not configured</span>
+                )}
+                {timeSettings?.yearType ? (
+                  <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Year type: {timeSettings.yearType}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            <div className="hidden sm:block sm:h-10 sm:w-px sm:shrink-0 sm:bg-slate-200 dark:sm:bg-slate-600" />
+            <div className="flex-1 text-sm text-slate-700 dark:text-slate-200 sm:min-w-0">
+              <span className="font-semibold text-slate-900 dark:text-white">Current review cycle</span>
+              <span className="mx-1.5 text-slate-400">·</span>
+              {cyclesLoading || allCyclesLoading ? (
+                <span className="text-slate-500">Loading…</span>
+              ) : submissionCycle ? (
+                <>
+                  <span className="text-slate-900 dark:text-white">{submissionCycle.name}</span>
+                  <span className="text-slate-500 dark:text-slate-400">
+                    {' '}
+                    ({submissionCycle.yearLabel}, {cycleTypeLabel(submissionCycle.cycleType)})
+                  </span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    {formatCycleDate(submissionCycle.startDate)} – {formatCycleDate(submissionCycle.endDate)}
+                    {submissionCycle.status ? (
+                      <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${cycleStatusClass(submissionCycle.status)}`}>
+                        {cycleStatusLabel(submissionCycle.status)}
+                      </span>
+                    ) : null}
+                  </span>
+                </>
+              ) : (
+                <span className="text-slate-500">
+                  No active, upcoming, or closed submission cycle is available. Generate cycles in System Settings if needed.
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
@@ -165,38 +280,62 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
             Existing Forms
           </h2>
 
-          <div className="space-y-3">
+          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
             {allTemplates && allTemplates.length > 0 ? (
-              allTemplates.map((template: any) => (
-                <div
-                  key={template.id}
-                  className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-emerald-300 dark:hover:border-emerald-600 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-medium text-slate-900 dark:text-white">
-                        {template.departmentName} - {template.positionName}
-                      </h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        {template.questions?.length || 0} questions
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${template.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}>
+              <table className="min-w-full text-sm text-left">
+                <thead className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
+                      Title
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
+                      Department
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
+                      Position
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
+                      Questions
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
+                      Status
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200 text-right">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
+                  {allTemplates.map((template: any) => (
+                    <tr key={template.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40">
+                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                        {template.title?.trim() ? template.title : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{template.departmentName}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{template.positionName}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{template.questions?.length ?? 0}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex text-xs px-2 py-0.5 rounded-full ${template.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}
+                        >
                           {template.isActive ? 'Active' : 'Inactive'}
                         </span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleEdit(template.id)}
-                      className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
-                    >
-                      Edit
-                    </button>
-                  </div>
-                </div>
-              ))
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(template.id)}
+                          className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : (
-              <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+              <div className="text-center py-8 text-slate-500 dark:text-slate-400 px-4">
                 No templates created yet
               </div>
             )}
@@ -221,7 +360,20 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
               </button>
             </div>
 
+            <form onSubmit={handleSubmit(onSubmit)}>
             <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Title
+                </label>
+                <input
+                  {...register('title')}
+                  type="text"
+                  placeholder="Form title"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Department
@@ -275,7 +427,6 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)}>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Questions

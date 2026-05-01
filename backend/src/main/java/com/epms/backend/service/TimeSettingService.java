@@ -264,10 +264,6 @@ public class TimeSettingService {
                 && count("SELECT COUNT(*) FROM appraisal_assignments aa JOIN appraisal_cycle ac ON ac.cycle_id = aa.period_id WHERE ac.end_date > :newEnd", newEnd, null) > 0) {
             blockers.add("appraisals");
         }
-        if (tableExists("self_assessment")
-                && count("SELECT COUNT(*) FROM self_assessment sa JOIN appraisal_cycle ac ON ac.cycle_id = sa.cycle_id WHERE ac.end_date > :newEnd", newEnd, null) > 0) {
-            blockers.add("self-assessments");
-        }
         if (tableExists("self_assessment_form")
                 && count("SELECT COUNT(*) FROM self_assessment_form f JOIN review_cycles rc ON rc.id = f.cycle_id WHERE rc.end_date > :newEnd", newEnd, null) > 0) {
             blockers.add("self-assessment forms");

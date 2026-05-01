@@ -14,7 +14,7 @@ type ReviewCycle = {
   endDate: string
   requiresEmployeeSubmission: boolean
   rollupMethod: string | null
-  status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED' | string
+  status: 'UPCOMING' | 'ACTIVE' | 'CLOSED' | string
   isActive: boolean
 }
 
@@ -160,9 +160,9 @@ export function SystemSettingsPage() {
     year: 'numeric',
   }).replace(',', '')
 
-  const getDisplayStatus = (cycle: ReviewCycle): 'UPCOMING' | 'ACTIVE' | 'COMPLETED' => {
+  const getDisplayStatus = (cycle: ReviewCycle): 'UPCOMING' | 'ACTIVE' | 'CLOSED' => {
     const rawStatus = String(cycle.status ?? '').toUpperCase()
-    if (rawStatus === 'UPCOMING' || rawStatus === 'ACTIVE' || rawStatus === 'COMPLETED') {
+    if (rawStatus === 'UPCOMING' || rawStatus === 'ACTIVE' || rawStatus === 'CLOSED') {
       return rawStatus
     }
 
@@ -172,7 +172,7 @@ export function SystemSettingsPage() {
     const end = new Date(`${cycle.endDate}T00:00:00`)
 
     if (todayDateOnly < start) return 'UPCOMING'
-    if (todayDateOnly > end) return 'COMPLETED'
+    if (todayDateOnly > end) return 'CLOSED'
     return 'ACTIVE'
   }
 
@@ -213,7 +213,7 @@ export function SystemSettingsPage() {
 
     const getStatus = (s: Date, e: Date): ReviewCycle['status'] => {
       if (todayDateOnly < s) return 'UPCOMING'
-      if (todayDateOnly > e) return 'COMPLETED'
+      if (todayDateOnly > e) return 'CLOSED'
       return 'ACTIVE'
     }
 
@@ -623,7 +623,9 @@ export function SystemSettingsPage() {
                                    displayStatus === 'ACTIVE' ? 'bg-emerald-500' :
                                    displayStatus === 'UPCOMING' ? 'bg-sky-500' : 'bg-slate-400'
                                  }`} />
-                                 <span className="text-[9px] font-black uppercase tracking-widest">{displayStatus}</span>
+                                 <span className="text-[9px] font-black uppercase tracking-widest">
+                                   {displayStatus === 'ACTIVE' ? 'Active' : displayStatus === 'UPCOMING' ? 'Upcoming' : 'Closed'}
+                                 </span>
                               </div>
                            </div>
                          )})}

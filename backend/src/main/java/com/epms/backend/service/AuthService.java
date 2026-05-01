@@ -50,6 +50,7 @@ public class AuthService {
         LoginResponseDto response = new LoginResponseDto();
         response.setToken(token);
         response.setTokenType("Bearer");
+        response.setExpiresAt(jwtService.calculateExpirationInstant());
         response.setUser(toAuthUserDto(user));
         return response;
     }

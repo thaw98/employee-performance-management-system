@@ -8,6 +8,7 @@ import { useGetPositionsByDepartmentQuery } from '../../features/position/api/po
 import { useCreateTemplateMutation } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 
 interface QuestionFormData {
+  title: string;
   questions: { questionText: string }[];
 }
 
@@ -32,6 +33,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
   const { register, control, handleSubmit } = useForm<QuestionFormData>({
     defaultValues: {
+      title: '',
       questions: [{ questionText: '' }],
     },
   });
@@ -54,13 +56,18 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   };
 
   const onSubmit = async (data: QuestionFormData) => {
+    if (!data.title.trim()) {
+      toast.error('Please enter a title');
+      return;
+    }
+
     if (!selectedDepartmentId || !selectedPositionId) {
       toast.error('Please select department and position');
       return;
     }
 
     if (data.questions.length === 0 || data.questions.every(q => !q.questionText.trim())) {
-      toast.error('Please add at least one question');
+      toast.error('Please add at least one assessment subject');
       return;
     }
 
@@ -73,6 +80,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
     try {
       await createTemplate({
+        title: data.title.trim(),
         departmentId: selectedDepartmentId,
         positionId: selectedPositionId,
         questions,
@@ -106,6 +114,18 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Title
+              </label>
+              <input
+                {...register('title')}
+                type="text"
+                placeholder="Form title"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+              />
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Department
@@ -148,7 +168,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              Questions
+              Assessment Subject
             </label>
 
             <div className="space-y-2">
@@ -172,7 +192,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   </button>
                   <input
                     {...register(`questions.${index}.questionText` as const)}
-                    placeholder={`Question ${index + 1}`}
+                    placeholder={`Assessment Subject ${index + 1}`}
                     className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
                   />
                   {fields.length > 1 && (
@@ -194,7 +214,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
               className="mt-3 flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
             >
               <Plus size={16} />
-              Add Question
+              Add Assessment Subject
             </button>
           </div>
 

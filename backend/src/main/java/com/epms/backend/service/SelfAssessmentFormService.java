@@ -75,6 +75,7 @@ public class SelfAssessmentFormService {
         }
 
         SelfAssessmentFormTemplate template = new SelfAssessmentFormTemplate();
+        template.setTitle(request.title().trim());
         template.setDepartment(department);
         template.setPosition(position);
         template.setActive(true);
@@ -124,6 +125,7 @@ public class SelfAssessmentFormService {
         Position position = positionRepository.findById(request.positionId())
                 .orElseThrow(() -> new RuntimeException("Position not found"));
 
+        template.setTitle(request.title().trim());
         template.setDepartment(department);
         template.setPosition(position);
         template.setActive(request.isActive());
@@ -834,6 +836,7 @@ public class SelfAssessmentFormService {
 
         return new SelfAssessmentFormTemplateDto(
                 template.getId(),
+                template.getTitle(),
                 template.getDepartment().getId(),
                 template.getDepartment().getName(),
                 template.getPosition().getId(),
