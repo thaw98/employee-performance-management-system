@@ -58,6 +58,10 @@ import com.epms.backend.validation.ProfilePictureUrlValidator;
 
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
+import com.epms.backend.entity.EmployeeKpi;
+import com.epms.backend.repository.KpiRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 
@@ -75,6 +79,7 @@ public class HrEmployeeService {
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final AuditService auditService;
+    private final KpiRepository kpiRepository;
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
@@ -161,6 +166,80 @@ public class HrEmployeeService {
                 .totalElements(employeePage.getTotalElements())
                 .totalPages(employeePage.getTotalPages())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public EmployeeListResponseDto getEmployeesWithKpiStatus(int page, int size, String search, Long departmentId, Long positionId, String kpiStatus, String period, String sortBy, String sortDir, UserPrincipal principal) {
+        validateCanAccessEmployeeList(principal);
+        Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort = resolveEmployeeSort(sortBy, direction);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Long managerDepartmentId = isDepartmentManager(principal) ? resolveCurrentDepartmentId(principal) : null;
+
+        Specification<Employee> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (search != null && !search.isBlank()) {
+                String[] keywords = search.toLowerCase().split("\\s+");
+                for (String keyword : keywords) {
+                    if (keyword.isEmpty()) continue;
+                    String pattern = "%" + keyword + "%";
+                    predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("employeeId")), pattern),
+                        cb.like(cb.lower(root.get("employeeName")), pattern),
+                        cb.like(cb.lower(root.get("email")), pattern),
+                        cb.like(cb.lower(root.get("department").get("name")), pattern),
+                        cb.like(cb.lower(root.get("position").get("name")), pattern)
+                    ));
+                }
+            }
+
+            if (departmentId != null) predicates.add(cb.equal(root.get("department").get("id"), departmentId));
+            if (managerDepartmentId != null) predicates.add(cb.equal(root.get("department").get("id"), managerDepartmentId));
+            if (positionId != null) predicates.add(cb.equal(root.get("position").get("id"), positionId));
+
+            if (kpiStatus != null && !kpiStatus.isBlank() && period != null) {
+                Subquery<Long> kpiSubquery = query.subquery(Long.class);
+                Root<EmployeeKpi> kpiRoot = kpiSubquery.from(EmployeeKpi.class);
+                kpiSubquery.select(cb.count(kpiRoot));
+                kpiSubquery.where(
+                    cb.equal(kpiRoot.get("employee").get("id"), root.get("id")),
+                    cb.equal(kpiRoot.get("period"), period),
+                    cb.equal(kpiRoot.get("recordStatus"), "Active")
+                );
+
+                if ("DEFINED".equalsIgnoreCase(kpiStatus)) {
+                    predicates.add(cb.greaterThan(kpiSubquery, 0L));
+                } else if ("NOT_DEFINED".equalsIgnoreCase(kpiStatus)) {
+                    predicates.add(cb.equal(kpiSubquery, 0L));
+                }
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Employee> employeePage = employeeRepository.findAll(spec, pageable);
+        Map<Long, Boolean> kpiStatusMap = checkKpisForEmployees(employeePage.getContent(), period);
+        Map<Long, String> currentTransferTypes = loadCurrentTransferTypes(employeePage.getContent());
+
+        List<EmployeeListItemResponseDto> content = employeePage.getContent().stream()
+                .map(employee -> toListItemDto(employee, currentTransferTypes.get(employee.getId()), kpiStatusMap.getOrDefault(employee.getId(), false)))
+                .collect(Collectors.toList());
+
+        return EmployeeListResponseDto.builder()
+                .content(content)
+                .page(employeePage.getNumber())
+                .size(employeePage.getSize())
+                .totalElements(employeePage.getTotalElements())
+                .totalPages(employeePage.getTotalPages())
+                .build();
+    }
+
+    private Map<Long, Boolean> checkKpisForEmployees(List<Employee> employees, String period) {
+        if (employees.isEmpty() || period == null) return Map.of();
+        List<Long> ids = employees.stream().map(Employee::getId).collect(Collectors.toList());
+        List<Long> idsWithKpis = kpiRepository.findEmployeeIdsWithActiveKpis(ids, period);
+        return ids.stream().collect(Collectors.toMap(id -> id, idsWithKpis::contains));
     }
 
     @Transactional(readOnly = true)
@@ -627,7 +706,7 @@ public class HrEmployeeService {
                         (existing, replacement) -> existing));
     }
 
-    private EmployeeListItemResponseDto toListItemDto(Employee employee, String currentTransferType) {
+    private EmployeeListItemResponseDto toListItemDto(Employee employee, String currentTransferType, Boolean hasKpis) {
         User user = employee.getUserAccount();
         String employmentStatus = determineEmploymentStatus(employee);
         EmployeeStatus activeStatus = employee.getEmploymentStatus() != null
@@ -650,7 +729,12 @@ public class HrEmployeeService {
                 .employmentStatus(employmentStatus)
                 .employeeActiveStatus(activeStatus.name())
                 .currentTransferType(currentTransferType)
+                .hasKpis(hasKpis)
                 .build();
+    }
+
+    private EmployeeListItemResponseDto toListItemDto(Employee employee, String currentTransferType) {
+        return toListItemDto(employee, currentTransferType, null);
     }
 
     private String determineEmploymentStatus(Employee employee) {

@@ -15,6 +15,7 @@ public class PositionKpiDto {
     private String unit;
     private BigDecimal weight;
     private String period;
+    private String recordStatus;
     private Instant createdDate;
     private Instant updatedDate;
 }

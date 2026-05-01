@@ -1,18 +1,26 @@
 package com.epms.backend.service;
 
-import com.epms.backend.dto.KpiDto;
-import com.epms.backend.dto.PositionKpiDto;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeKpi;
 import com.epms.backend.entity.PositionKpi;
+import com.epms.backend.entity.DepartmentKpi;
+import com.epms.backend.dto.KpiDto;
+import com.epms.backend.dto.PositionKpiDto;
+import com.epms.backend.dto.DepartmentKpiDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Position;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.KpiRepository;
 import com.epms.backend.repository.PositionKpiRepository;
+import com.epms.backend.repository.DepartmentKpiRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.UserRepository;
+import com.epms.backend.repository.DepartmentPositionRepository;
+import com.epms.backend.dto.hr.PositionKpiStatusDto;
+import com.epms.backend.dto.hr.DepartmentKpiStatusDto;
+import com.epms.backend.entity.DepartmentPosition;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,24 +37,30 @@ public class KpiService {
     private final KpiRepository kpiRepository;
     private final EmployeeRepository employeeRepository;
     private final PositionKpiRepository positionKpiRepository;
+    private final DepartmentKpiRepository departmentKpiRepository;
     private final DepartmentRepository departmentRepository;
     private final PositionRepository positionRepository;
     private final UserRepository userRepository;
+    private final DepartmentPositionRepository departmentPositionRepository;
     private final AuditService auditService;
 
-    public KpiService(KpiRepository kpiRepository, 
-                      EmployeeRepository employeeRepository,
-                      PositionKpiRepository positionKpiRepository,
-                      DepartmentRepository departmentRepository,
-                      PositionRepository positionRepository,
-                      UserRepository userRepository,
-                      AuditService auditService) {
+    public KpiService(KpiRepository kpiRepository,
+            EmployeeRepository employeeRepository,
+            PositionKpiRepository positionKpiRepository,
+            DepartmentKpiRepository departmentKpiRepository,
+            DepartmentRepository departmentRepository,
+            PositionRepository positionRepository,
+            UserRepository userRepository,
+            DepartmentPositionRepository departmentPositionRepository,
+            AuditService auditService) {
         this.kpiRepository = kpiRepository;
         this.employeeRepository = employeeRepository;
         this.positionKpiRepository = positionKpiRepository;
+        this.departmentKpiRepository = departmentKpiRepository;
         this.departmentRepository = departmentRepository;
         this.positionRepository = positionRepository;
         this.userRepository = userRepository;
+        this.departmentPositionRepository = departmentPositionRepository;
         this.auditService = auditService;
     }
 
@@ -69,7 +83,8 @@ public class KpiService {
 
     public List<KpiDto> getMyLatestKpis(Long userId) {
         User user = userRepository.findById(userId).orElseThrow();
-        if (user.getEmployee() == null) return List.of();
+        if (user.getEmployee() == null)
+            return List.of();
         return getLatestKpisByEmployee(user.getEmployee().getId());
     }
 
@@ -96,9 +111,14 @@ public class KpiService {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        // Only update this specific employee
-        List<EmployeeKpi> existing = kpiRepository.findByEmployee_IdAndPeriod(employeeId, period);
-        kpiRepository.deleteAll(existing);
+        // Soft delete: Archive existing active KPIs for this specific employee and
+        // period
+        List<EmployeeKpi> existingActive = kpiRepository.findByEmployee_IdAndPeriodAndRecordStatus(employeeId, period,
+                "Active");
+        for (EmployeeKpi k : existingActive) {
+            k.setRecordStatus("Archived");
+        }
+        kpiRepository.saveAll(existingActive);
 
         List<EmployeeKpi> kpis = kpiDtos.stream().map(dto -> {
             EmployeeKpi kpi = new EmployeeKpi();
@@ -113,6 +133,7 @@ public class KpiService {
             kpi.setWeightedScore(dto.getWeightedScore());
             kpi.setPeriod(dto.getPeriod());
             kpi.setStatus(dto.getStatus() != null ? dto.getStatus() : "SUBMITTED");
+            kpi.setRecordStatus("Active");
             return kpi;
         }).collect(Collectors.toList());
 
@@ -123,18 +144,20 @@ public class KpiService {
 
     @Transactional
     public List<KpiDto> updateKpiActualsByManager(Long managerUserId, Long employeeId, List<KpiDto> kpiUpdates) {
-        if (kpiUpdates == null || kpiUpdates.isEmpty()) return List.of();
+        if (kpiUpdates == null || kpiUpdates.isEmpty())
+            return List.of();
 
         User managerUser = userRepository.findById(managerUserId)
                 .orElseThrow(() -> new RuntimeException("Manager user not found"));
         Employee manager = managerUser.getEmployee();
-        if (manager == null) throw new RuntimeException("Manager employee not found");
+        if (manager == null)
+            throw new RuntimeException("Manager employee not found");
 
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         if (manager.getDepartment() == null || employee.getDepartment() == null ||
-            !manager.getDepartment().getId().equals(employee.getDepartment().getId())) {
+                !manager.getDepartment().getId().equals(employee.getDepartment().getId())) {
             throw new IllegalArgumentException("Manager can only update KPIs for employees in the same department");
         }
 
@@ -145,15 +168,16 @@ public class KpiService {
         }
 
         for (KpiDto update : kpiUpdates) {
-            if (update.getId() == null) continue;
-            
+            if (update.getId() == null)
+                continue;
+
             EmployeeKpi kpi = kpiRepository.findById(update.getId())
                     .orElseThrow(() -> new RuntimeException("KPI not found"));
-            
+
             if (!kpi.getEmployee().getId().equals(employeeId)) {
                 throw new IllegalArgumentException("KPI does not belong to the specified employee");
             }
-            
+
             kpi.setActual(update.getActual());
             if (update.getScore() != null) {
                 kpi.setScore(update.getScore());
@@ -162,15 +186,18 @@ public class KpiService {
                 kpi.setWeightedScore(update.getWeightedScore());
             }
             kpi.setStatus(status);
-            
+
             updatedKpis.add(kpi);
         }
 
         kpiRepository.saveAll(updatedKpis);
 
         String action = "DRAFT".equals(status) ? "KPI_DRAFT_SAVED" : "KPI_SUBMITTED";
-        auditService.record(action, "EMPLOYEE_KPI", employeeId, managerUserId, managerUser.getRole().getId(), 
-            "Manager " + manager.getEmployeeName() + " " + (action.equals("KPI_DRAFT_SAVED") ? "saved draft" : "submitted") + " KPI actuals for " + employee.getEmployeeName(), null);
+        auditService.record(action, "EMPLOYEE_KPI", employeeId, managerUserId, managerUser.getRole().getId(),
+                "Manager " + manager.getEmployeeName() + " "
+                        + (action.equals("KPI_DRAFT_SAVED") ? "saved draft" : "submitted") + " KPI actuals for "
+                        + employee.getEmployeeName(),
+                null);
 
         return kpiRepository.findByEmployee_IdAndPeriod(employeeId, kpiUpdates.get(0).getPeriod())
                 .stream().map(this::convertToDto).collect(Collectors.toList());
@@ -182,25 +209,26 @@ public class KpiService {
         if (manager == null || manager.getDepartment() == null) {
             return List.of();
         }
-        
+
         List<Employee> team = employeeRepository.findByDepartmentId(manager.getDepartment().getId());
         return team.stream()
-            .filter(e -> !e.getId().equals(manager.getId()))
-            .map(e -> {
-                java.util.Map<String, Object> map = new java.util.HashMap<>();
-                map.put("id", e.getId());
-                map.put("name", e.getEmployeeName());
-                map.put("role", e.getPosition() != null ? e.getPosition().getName() : "");
-                
-                // Get status from latest KPI if exists
-                String status = kpiRepository.findLatestPeriodByEmployee_Id(e.getId())
-                    .flatMap(period -> kpiRepository.findByEmployee_IdAndPeriod(e.getId(), period).stream().findFirst())
-                    .map(k -> k.getStatus())
-                    .orElse("PENDING");
-                
-                map.put("status", status);
-                return map;
-            }).collect(Collectors.toList());
+                .filter(e -> !e.getId().equals(manager.getId()))
+                .map(e -> {
+                    java.util.Map<String, Object> map = new java.util.HashMap<>();
+                    map.put("id", e.getId());
+                    map.put("name", e.getEmployeeName());
+                    map.put("role", e.getPosition() != null ? e.getPosition().getName() : "");
+
+                    // Get status from latest KPI if exists
+                    String status = kpiRepository.findLatestPeriodByEmployee_Id(e.getId())
+                            .flatMap(period -> kpiRepository.findByEmployee_IdAndPeriod(e.getId(), period).stream()
+                                    .findFirst())
+                            .map(k -> k.getStatus())
+                            .orElse("PENDING");
+
+                    map.put("status", status);
+                    return map;
+                }).collect(Collectors.toList());
     }
 
     public List<PositionKpiDto> getPositionKpis(Long departmentId, Long positionId, String period) {
@@ -210,9 +238,17 @@ public class KpiService {
                 .collect(Collectors.toList());
     }
 
+    public List<DepartmentKpiDto> getDepartmentKpis(Long departmentId, String period) {
+        return departmentKpiRepository.findByDepartmentIdAndPeriod(departmentId, period)
+                .stream()
+                .map(this::convertToDepartmentDto)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public List<PositionKpiDto> savePositionKpis(List<PositionKpiDto> dtoList) {
-        if (dtoList.isEmpty()) return List.of();
+        if (dtoList.isEmpty())
+            return List.of();
 
         BigDecimal totalWeight = dtoList.stream()
                 .map(PositionKpiDto::getWeight)
@@ -226,8 +262,13 @@ public class KpiService {
         Long posId = dtoList.get(0).getPositionId();
         String period = dtoList.get(0).getPeriod();
 
-        List<PositionKpi> existing = positionKpiRepository.findByDepartment_IdAndPosition_IdAndPeriod(deptId, posId, period);
-        positionKpiRepository.deleteAll(existing);
+        // Soft delete: Archive existing active position KPIs
+        List<PositionKpi> existingActive = positionKpiRepository
+                .findByDepartmentIdAndPositionIdAndPeriodAndRecordStatus(deptId, posId, period, "Active");
+        for (PositionKpi k : existingActive) {
+            k.setRecordStatus("Archived");
+        }
+        positionKpiRepository.saveAll(existingActive);
 
         Department dept = departmentRepository.findById(deptId).orElseThrow();
         Position pos = positionRepository.findById(posId).orElseThrow();
@@ -242,24 +283,74 @@ public class KpiService {
             entity.setUnit(dto.getUnit());
             entity.setWeight(dto.getWeight());
             entity.setPeriod(dto.getPeriod());
+            entity.setRecordStatus("Active");
             return entity;
         }).collect(Collectors.toList());
 
         List<PositionKpi> saved = positionKpiRepository.saveAll(entities);
 
-        // After saving the template, apply it to all employees in this department and position
+        // After saving the template, apply it to all employees in this department and
+        // position
         applyToEmployees(deptId, posId, period, saved);
 
         return saved.stream().map(this::convertToPositionDto).collect(Collectors.toList());
     }
 
+    @Transactional
+    public List<DepartmentKpiDto> saveDepartmentKpis(List<DepartmentKpiDto> dtoList) {
+        if (dtoList.isEmpty())
+            return List.of();
+
+        BigDecimal totalWeight = dtoList.stream()
+                .map(DepartmentKpiDto::getWeight)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalWeight.compareTo(new BigDecimal("100")) != 0) {
+            throw new IllegalArgumentException("Total weight must equal 100%");
+        }
+
+        Long deptId = dtoList.get(0).getDepartmentId();
+        String period = dtoList.get(0).getPeriod();
+
+        // Soft delete: Archive existing active department KPIs
+        List<DepartmentKpi> existingActive = departmentKpiRepository.findByDepartmentIdAndPeriodAndRecordStatus(deptId,
+                period, "Active");
+        for (DepartmentKpi k : existingActive) {
+            k.setRecordStatus("Archived");
+        }
+        departmentKpiRepository.saveAll(existingActive);
+
+        Department dept = departmentRepository.findById(deptId).orElseThrow();
+
+        List<DepartmentKpi> entities = dtoList.stream().map(dto -> {
+            DepartmentKpi entity = new DepartmentKpi();
+            entity.setDepartment(dept);
+            entity.setName(dto.getName());
+            entity.setCategory(dto.getCategory());
+            entity.setTarget(dto.getTarget());
+            entity.setUnit(dto.getUnit());
+            entity.setWeight(dto.getWeight());
+            entity.setPeriod(dto.getPeriod());
+            entity.setRecordStatus("Active");
+            return entity;
+        }).collect(Collectors.toList());
+
+        List<DepartmentKpi> saved = departmentKpiRepository.saveAll(entities);
+
+        return saved.stream().map(this::convertToDepartmentDto).collect(Collectors.toList());
+    }
+
     private void applyToEmployees(Long deptId, Long posId, String period, List<PositionKpi> templates) {
         List<Employee> employees = employeeRepository.findByDepartment_IdAndPosition_Id(deptId, posId);
-        
+
         for (Employee emp : employees) {
-            // Delete existing KPIs for this employee and period
-            List<EmployeeKpi> existing = kpiRepository.findByEmployee_IdAndPeriod(emp.getId(), period);
-            kpiRepository.deleteAll(existing);
+            // Soft delete: Archive existing active KPIs for this employee and period
+            List<EmployeeKpi> existingActive = kpiRepository.findByEmployee_IdAndPeriodAndRecordStatus(emp.getId(),
+                    period, "Active");
+            for (EmployeeKpi k : existingActive) {
+                k.setRecordStatus("Archived");
+            }
+            kpiRepository.saveAll(existingActive);
 
             List<EmployeeKpi> newKpis = templates.stream().map(t -> {
                 EmployeeKpi kpi = new EmployeeKpi();
@@ -271,11 +362,47 @@ public class KpiService {
                 kpi.setWeight(t.getWeight());
                 kpi.setPeriod(t.getPeriod());
                 kpi.setStatus("SUBMITTED");
+                kpi.setRecordStatus("Active");
                 return kpi;
             }).collect(Collectors.toList());
 
             kpiRepository.saveAll(newKpis);
         }
+    }
+
+    public List<PositionKpiStatusDto> getPositionsKpiStatus(Long departmentId, String period) {
+        List<DepartmentPosition> activeMappings = departmentId != null
+                ? departmentPositionRepository.findActiveByDepartmentIdWithPosition(departmentId)
+                : departmentPositionRepository.findAllActiveWithPosition();
+
+        Set<String> keysWithKpis = positionKpiRepository.findDistinctDeptAndPosWithActiveKpis(period);
+
+        return activeMappings.stream().map(dp -> {
+            String key = dp.getDepartment().getId() + "-" + dp.getPosition().getId();
+            return PositionKpiStatusDto.builder()
+                    .departmentId(dp.getDepartment().getId())
+                    .departmentName(dp.getDepartment().getName())
+                    .positionId(dp.getPosition().getId())
+                    .positionName(dp.getPosition().getName())
+                    .hasKpis(keysWithKpis.contains(key))
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    public List<DepartmentKpiStatusDto> getDepartmentsKpiStatus(String period) {
+        List<Department> activeDepartments = departmentRepository.findAll().stream()
+                .filter(d -> d.getStatus() == null || "active".equalsIgnoreCase(d.getStatus().trim()))
+                .collect(Collectors.toList());
+
+        Set<Long> idsWithKpis = departmentKpiRepository.findDistinctDeptWithActiveKpis(period);
+
+        return activeDepartments.stream().map(d -> {
+            return DepartmentKpiStatusDto.builder()
+                    .departmentId(d.getId())
+                    .departmentName(d.getName())
+                    .hasKpis(idsWithKpis.contains(d.getId()))
+                    .build();
+        }).collect(Collectors.toList());
     }
 
     private KpiDto convertToDto(EmployeeKpi kpi) {
@@ -293,6 +420,7 @@ public class KpiService {
         dto.setWeightedScore(kpi.getWeightedScore());
         dto.setPeriod(kpi.getPeriod());
         dto.setStatus(kpi.getStatus());
+        dto.setRecordStatus(kpi.getRecordStatus());
         dto.setCreatedDate(kpi.getCreatedDate());
         dto.setUpdatedDate(kpi.getUpdatedDate());
         return dto;
@@ -309,6 +437,23 @@ public class KpiService {
         dto.setUnit(entity.getUnit());
         dto.setWeight(entity.getWeight());
         dto.setPeriod(entity.getPeriod());
+        dto.setRecordStatus(entity.getRecordStatus());
+        dto.setCreatedDate(entity.getCreatedDate());
+        dto.setUpdatedDate(entity.getUpdatedDate());
+        return dto;
+    }
+
+    private DepartmentKpiDto convertToDepartmentDto(DepartmentKpi entity) {
+        DepartmentKpiDto dto = new DepartmentKpiDto();
+        dto.setId(entity.getId());
+        dto.setDepartmentId(entity.getDepartment().getId());
+        dto.setName(entity.getName());
+        dto.setCategory(entity.getCategory());
+        dto.setTarget(entity.getTarget());
+        dto.setUnit(entity.getUnit());
+        dto.setWeight(entity.getWeight());
+        dto.setPeriod(entity.getPeriod());
+        dto.setRecordStatus(entity.getRecordStatus());
         dto.setCreatedDate(entity.getCreatedDate());
         dto.setUpdatedDate(entity.getUpdatedDate());
         return dto;

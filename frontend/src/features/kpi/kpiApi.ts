@@ -14,6 +14,7 @@ export interface Kpi {
   weightedScore?: number
   period: string
   status: string
+  recordStatus?: string
   createdDate?: string
   updatedDate?: string
 }
@@ -28,6 +29,33 @@ export interface PositionKpi {
   unit: string
   weight: number
   period: string
+  recordStatus?: string
+}
+
+export interface DepartmentKpi {
+  id?: number
+  departmentId: number
+  name: string
+  category: string
+  target: string
+  unit: string
+  weight: number
+  period: string
+  recordStatus?: string
+}
+
+export interface PositionKpiStatus {
+  departmentId: number
+  departmentName: string
+  positionId: number
+  positionName: string
+  hasKpis: boolean
+}
+
+export interface DepartmentKpiStatus {
+  departmentId: number
+  departmentName: string
+  hasKpis: boolean
 }
 
 export const kpiApi = baseApi.injectEndpoints({
@@ -81,6 +109,21 @@ export const kpiApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['KPI'],
     }),
+    getDepartmentKpis: builder.query<DepartmentKpi[], { departmentId: number; period: string }>({
+      query: (params) => ({
+        url: '/kpis/department',
+        params,
+      }),
+      providesTags: ['KPI'],
+    }),
+    setupDepartmentKpis: builder.mutation<DepartmentKpi[], DepartmentKpi[]>({
+      query: (body) => ({
+        url: '/kpis/department/setup',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['KPI'],
+    }),
     updateManagerKpiActuals: builder.mutation<Kpi[], { employeeId: number; kpis: Kpi[] }>({
       query: ({ employeeId, kpis }) => ({
         url: `/kpis/manager/employee/${employeeId}/actuals`,
@@ -91,6 +134,20 @@ export const kpiApi = baseApi.injectEndpoints({
     }),
     getManagerTeam: builder.query<{ id: number; name: string; role: string; status: string }[], void>({
       query: () => '/kpis/manager/team',
+      providesTags: ['KPI'],
+    }),
+    getPositionsKpiStatus: builder.query<PositionKpiStatus[], { departmentId?: number; period: string }>({
+      query: (params) => ({
+        url: '/kpis/positions/status',
+        params,
+      }),
+      providesTags: ['KPI'],
+    }),
+    getDepartmentsKpiStatus: builder.query<DepartmentKpiStatus[], { period: string }>({
+      query: (params) => ({
+        url: '/kpis/departments/status',
+        params,
+      }),
       providesTags: ['KPI'],
     }),
   }),
@@ -104,7 +161,11 @@ export const {
   useSetupKpisMutation,
   useGetPositionKpisQuery,
   useSetupPositionKpisMutation,
+  useGetDepartmentKpisQuery,
+  useSetupDepartmentKpisMutation,
   useUpdateManagerKpiActualsMutation,
   useGetManagerTeamQuery,
   useGetMyLatestKpisQuery,
+  useGetPositionsKpiStatusQuery,
+  useGetDepartmentsKpiStatusQuery,
 } = kpiApi
