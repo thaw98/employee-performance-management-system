@@ -5,6 +5,7 @@ import {
   BookOpen,
   BriefcaseBusiness,
   Building2,
+  ChartColumn,
   ChevronDown,
   ChevronUp,
   Layers3,
@@ -15,6 +16,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { skipToken } from '@reduxjs/toolkit/query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
@@ -48,6 +50,18 @@ type TargetPair = {
   positionId: number;
   positionName: string;
 };
+
+type HybridRule = {
+  id: string;
+  departmentId: number | null;
+  /** `null` = all positions in the selected department */
+  positionId: number | null;
+};
+
+const createHybridRuleId = () =>
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `hr-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -84,6 +98,8 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const normalizeLookupKey = (value: unknown) => (typeof value === 'string' ? value.trim().toLowerCase() : '');
+
 const employeeIsActive = (employee: EmployeeListItem) => {
   if (employee.employeeActiveStatus) {
     return employee.employeeActiveStatus === 'ACTIVE';
@@ -94,11 +110,12 @@ const employeeIsActive = (employee: EmployeeListItem) => {
 
 const formatEmployeeCount = (count: number) => `${count} ${count === 1 ? 'employee' : 'employees'}`;
 
-const createCountBadge = (count: number) => (
-  <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-    {formatEmployeeCount(count)}
-  </span>
-);
+const createCountBadge = (count: number): React.ReactNode =>
+  count > 0 ? (
+    <span className="shrink-0 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-blue-900 dark:bg-sky-950/50 dark:text-sky-200">
+      {formatEmployeeCount(count)}
+    </span>
+  ) : null;
 
 interface AudienceCardProps {
   value: AudienceType;
@@ -122,89 +139,136 @@ const AudienceCard: React.FC<AudienceCardProps> = ({
   <button
     type="button"
     onClick={() => onSelect(value)}
-    className={`w-full rounded-lg border p-4 text-left transition ${
+    className={`w-full rounded-xl border p-4 text-left transition ${
       selected
-        ? 'border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-500/20 dark:border-emerald-400 dark:bg-emerald-500/10'
-        : 'border-slate-200 bg-white hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-emerald-500/70'
+        ? 'border-2 border-[#5D5FEF] bg-[#5D5FEF]/[0.07] shadow-sm dark:border-[#7C7EF5] dark:bg-[#5D5FEF]/15'
+        : 'border border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600'
     }`}
   >
     <div className="flex items-start gap-3">
       <span
-        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-          selected ? 'border-emerald-500' : 'border-slate-300 dark:border-slate-500'
+        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+          selected ? 'border-[#5D5FEF]' : 'border-slate-300 dark:border-slate-500'
         }`}
+        aria-hidden
       >
-        <span className={`h-2.5 w-2.5 rounded-full ${selected ? 'bg-emerald-500' : 'bg-transparent'}`} />
+        <span
+          className={`h-2.5 w-2.5 rounded-full ${selected ? 'bg-[#5D5FEF]' : 'bg-transparent'}`}
+        />
       </span>
       <div className="flex min-w-0 flex-1 gap-3">
-        <div className="flex min-w-0 flex-1 gap-3">
-          <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-              selected
-                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
-                : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'
-            }`}
-          >
-            {icon}
-          </span>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h3>
-              {title.startsWith('Hybrid') && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
-                  Recommended
-                </span>
-              )}
-            </div>
-            <div className="mt-1 space-y-0.5">
-              {description.map((line) => (
-                <p key={line} className="text-xs text-slate-500 dark:text-slate-400">
-                  {line}
-                </p>
-              ))}
-            </div>
+        <span
+          className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+            selected
+              ? 'bg-[#5D5FEF]/15 text-[#4F52D9] dark:bg-[#5D5FEF]/25 dark:text-[#A5A7FA]'
+              : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'
+          }`}
+        >
+          {icon}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h3
+              className={`text-sm font-bold ${selected ? 'text-blue-950 dark:text-white' : 'text-slate-900 dark:text-white'}`}
+            >
+              {title}
+            </h3>
+            {badge ? (
+              <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+                {badge}
+              </div>
+            ) : null}
           </div>
+          <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs marker:text-slate-300 dark:marker:text-slate-600">
+            {description.map((line) => (
+              <li key={line} className="text-slate-500 dark:text-slate-400">
+                {line}
+              </li>
+            ))}
+          </ul>
         </div>
-        {badge}
       </div>
     </div>
   </button>
 );
 
-interface HybridPositionSelectorProps {
-  departmentId: number;
-  departmentName: string;
-  selectedPositionId: number | null;
-  onChange: (departmentId: number, positionId: number | null) => void;
+interface HybridRuleRowProps {
+  rule: HybridRule;
+  departments: DepartmentOption[];
+  onDepartmentChange: (ruleId: string, departmentId: number | null) => void;
+  onPositionChange: (ruleId: string, positionId: number | null) => void;
+  onRemove: (ruleId: string) => void;
+  canRemove: boolean;
 }
 
-const HybridPositionSelector: React.FC<HybridPositionSelectorProps> = ({
-  departmentId,
-  departmentName,
-  selectedPositionId,
-  onChange,
+const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
+  rule,
+  departments,
+  onDepartmentChange,
+  onPositionChange,
+  onRemove,
+  canRemove,
 }) => {
-  const { data: positionsResponse } = useGetPositionsByDepartmentQuery(departmentId);
-  const positions = (positionsResponse?.data || []).map(normalizePosition).filter((position) => position.id && position.name);
+  const deptQueryArg =
+    rule.departmentId != null && rule.departmentId > 0 ? rule.departmentId : skipToken;
+  const { data: positionsResponse } = useGetPositionsByDepartmentQuery(deptQueryArg);
+  const rowPositions = useMemo(
+    () => (positionsResponse?.data || []).map(normalizePosition).filter((p) => p.id && p.name),
+    [positionsResponse?.data]
+  );
+
+  const selectFocus =
+    'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/25 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF] dark:disabled:bg-slate-900';
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/30">
-      <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">
-        {departmentName}
-      </label>
+    <div className="flex flex-wrap items-center gap-2">
       <select
-        value={selectedPositionId || ''}
-        onChange={(event) => onChange(departmentId, event.target.value ? Number(event.target.value) : null)}
-        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+        aria-label="Department"
+        value={rule.departmentId ?? ''}
+        onChange={(event) => {
+          const value = event.target.value;
+          onDepartmentChange(rule.id, value ? Number(value) : null);
+        }}
+        className={`min-w-[140px] flex-1 ${selectFocus}`}
       >
-        <option value="">Select Position</option>
-        {positions.length === 0 && (
-          <option value="" disabled>No active positions for this department</option>
-        )}
-        {positions.map((position) => (
-          <option key={position.id} value={position.id}>{position.name}</option>
+        <option value="">Select department</option>
+        {departments.map((department) => (
+          <option key={department.id} value={department.id}>
+            {department.name}
+          </option>
         ))}
       </select>
+      <select
+        aria-label="Position"
+        value={rule.positionId === null || rule.positionId === undefined ? '' : String(rule.positionId)}
+        disabled={!rule.departmentId}
+        onChange={(event) => {
+          const value = event.target.value;
+          onPositionChange(rule.id, value ? Number(value) : null);
+        }}
+        className={`min-w-[160px] flex-1 ${selectFocus}`}
+      >
+        <option value="">All Positions</option>
+        {rowPositions.length === 0 && rule.departmentId ? (
+          <option value="" disabled>
+            No active positions for this department
+          </option>
+        ) : null}
+        {rowPositions.map((position) => (
+          <option key={position.id} value={position.id}>
+            {position.name}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={() => onRemove(rule.id)}
+        disabled={!canRemove}
+        className="shrink-0 rounded-lg p-2 text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-red-950/40"
+        aria-label="Remove rule"
+      >
+        <Trash2 size={18} />
+      </button>
     </div>
   );
 };
@@ -214,10 +278,12 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const [audienceType, setAudienceType] = useState<AudienceType>('hybrid');
   const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<number[]>([]);
   const [selectedGlobalPositionIds, setSelectedGlobalPositionIds] = useState<number[]>([]);
-  const [hybridDepartmentIds, setHybridDepartmentIds] = useState<number[]>([]);
-  const [hybridPositionByDepartment, setHybridPositionByDepartment] = useState<Record<number, number | null>>({});
+  const [hybridRules, setHybridRules] = useState<HybridRule[]>(() => [
+    { id: createHybridRuleId(), departmentId: null, positionId: null },
+  ]);
   const [isQuestionBankOpen, setIsQuestionBankOpen] = useState(false);
   const [questionBankSearch, setQuestionBankSearch] = useState('');
+  const [positionAudienceSearch, setPositionAudienceSearch] = useState('');
 
   const { data: departmentsResponse } = useGetDepartmentsQuery();
   const departments = useMemo(
@@ -245,21 +311,85 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
   const departmentById = useMemo(() => new Map(departments.map((department) => [department.id, department])), [departments]);
   const departmentIdByName = useMemo(
-    () => new Map(departments.map((department) => [department.name.toLowerCase(), department.id])),
+    () =>
+      new Map(
+        departments
+          .map((department) => [normalizeLookupKey(department.name), department.id] as const)
+          .filter(([name]) => name)
+      ),
     [departments]
   );
   const positionById = useMemo(() => new Map(positions.map((position) => [position.id, position])), [positions]);
   const positionIdByName = useMemo(
-    () => new Map(positions.map((position) => [position.name.toLowerCase(), position.id])),
+    () =>
+      new Map(
+        positions
+          .map((position) => [normalizeLookupKey(position.name), position.id] as const)
+          .filter(([name]) => name)
+      ),
     [positions]
   );
+
+  const employeeCountByDepartmentId = useMemo(() => {
+    const counts = new Map<number, number>();
+    departments.forEach((department) => counts.set(department.id, 0));
+    activeEmployees.forEach((employee) => {
+      const departmentId = departmentIdByName.get(normalizeLookupKey(employee.departmentName));
+      if (departmentId) {
+        counts.set(departmentId, (counts.get(departmentId) ?? 0) + 1);
+      }
+    });
+    return counts;
+  }, [activeEmployees, departmentIdByName, departments]);
+
+  /** Active employees per global position id + distinct department names (for position-only audience UI). */
+  const positionAudienceStats = useMemo(() => {
+    const map = new Map<number, { count: number; departments: Set<string> }>();
+    positions.forEach((position) => map.set(position.id, { count: 0, departments: new Set<string>() }));
+
+    activeEmployees.forEach((employee) => {
+      const positionId = positionIdByName.get(normalizeLookupKey(employee.positionName));
+      if (!positionId || !map.has(positionId)) {
+        return;
+      }
+      const entry = map.get(positionId)!;
+      entry.count += 1;
+      const deptName = typeof employee.departmentName === 'string' ? employee.departmentName.trim() : '';
+      if (deptName) {
+        entry.departments.add(deptName);
+      }
+    });
+
+    const result = new Map<number, { count: number; departmentNames: string[] }>();
+    map.forEach((entry, positionId) => {
+      result.set(positionId, {
+        count: entry.count,
+        departmentNames: Array.from(entry.departments).sort((a, b) => a.localeCompare(b)),
+      });
+    });
+    return result;
+  }, [activeEmployees, positionIdByName, positions]);
+
+  const filteredPositionsForAudience = useMemo(() => {
+    const query = positionAudienceSearch.trim().toLowerCase();
+    if (!query) {
+      return positions;
+    }
+    return positions.filter((position) => position.name.toLowerCase().includes(query));
+  }, [positions, positionAudienceSearch]);
 
   const activeEmployeePairs = useMemo(() => {
     const pairs = new Map<string, TargetPair>();
 
     activeEmployees.forEach((employee) => {
-      const departmentId = departmentIdByName.get(employee.departmentName.toLowerCase());
-      const positionId = positionIdByName.get(employee.positionName.toLowerCase());
+      const departmentName = normalizeLookupKey(employee.departmentName);
+      const positionName = normalizeLookupKey(employee.positionName);
+      if (!departmentName || !positionName) {
+        return;
+      }
+
+      const departmentId = departmentIdByName.get(departmentName);
+      const positionId = positionIdByName.get(positionName);
       if (!departmentId || !positionId) {
         return;
       }
@@ -282,16 +412,134 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const departmentCount = countEmployees((employee) =>
     selectedDepartmentIds.some((departmentId) => departmentById.get(departmentId)?.name === employee.departmentName)
   );
+
+  const selectedDepartmentEmployeeTotal = useMemo(
+    () =>
+      selectedDepartmentIds.reduce((sum, id) => sum + (employeeCountByDepartmentId.get(id) ?? 0), 0),
+    [selectedDepartmentIds, employeeCountByDepartmentId]
+  );
+
+  const selectedGlobalPositionEmployeeTotal = useMemo(
+    () =>
+      selectedGlobalPositionIds.reduce((sum, id) => sum + (positionAudienceStats.get(id)?.count ?? 0), 0),
+    [selectedGlobalPositionIds, positionAudienceStats]
+  );
+
   const positionCount = countEmployees((employee) =>
     selectedGlobalPositionIds.some((positionId) => positionById.get(positionId)?.name === employee.positionName)
   );
-  const hybridCount = countEmployees((employee) =>
-    hybridDepartmentIds.some((departmentId) => {
-      const department = departmentById.get(departmentId);
-      const position = positionById.get(hybridPositionByDepartment[departmentId] || 0);
-      return department?.name === employee.departmentName && position?.name === employee.positionName;
-    })
+
+  const hybridPairsDeduped = useMemo(() => {
+    const merged: TargetPair[] = [];
+    const seen = new Set<string>();
+
+    for (const rule of hybridRules) {
+      if (!rule.departmentId) {
+        continue;
+      }
+
+      if (rule.positionId == null) {
+        activeEmployeePairs.forEach((pair) => {
+          if (pair.departmentId !== rule.departmentId) {
+            return;
+          }
+          const key = `${pair.departmentId}-${pair.positionId}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(pair);
+          }
+        });
+      } else {
+        const pair = activeEmployeePairs.find(
+          (p) => p.departmentId === rule.departmentId && p.positionId === rule.positionId
+        );
+        if (pair) {
+          const key = `${pair.departmentId}-${pair.positionId}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            merged.push(pair);
+          }
+        }
+      }
+    }
+
+    return merged;
+  }, [hybridRules, activeEmployeePairs]);
+
+  const hybridPairKeySet = useMemo(
+    () => new Set(hybridPairsDeduped.map((p) => `${p.departmentId}-${p.positionId}`)),
+    [hybridPairsDeduped]
   );
+
+  const hybridCount = useMemo(
+    () =>
+      activeEmployees.filter((employee) => {
+        const did = departmentIdByName.get(normalizeLookupKey(employee.departmentName));
+        const pid = positionIdByName.get(normalizeLookupKey(employee.positionName));
+        if (!did || !pid) {
+          return false;
+        }
+        return hybridPairKeySet.has(`${did}-${pid}`);
+      }).length,
+    [activeEmployees, departmentIdByName, hybridPairKeySet, positionIdByName]
+  );
+
+  const hybridSummary = useMemo(() => {
+    const cumulative = new Set<number>();
+    const lines: { label: string; rawCount: number; newCount: number; showDedupe: boolean }[] = [];
+
+    for (const rule of hybridRules) {
+      if (!rule.departmentId) {
+        continue;
+      }
+
+      const department = departmentById.get(rule.departmentId);
+      if (!department) {
+        continue;
+      }
+
+      const ids = new Set<number>();
+      activeEmployees.forEach((employee) => {
+        const did = departmentIdByName.get(normalizeLookupKey(employee.departmentName));
+        const pid = positionIdByName.get(normalizeLookupKey(employee.positionName));
+        if (!did || !pid || did !== rule.departmentId) {
+          return;
+        }
+        if (rule.positionId != null && pid !== rule.positionId) {
+          return;
+        }
+        ids.add(employee.employeeId);
+      });
+
+      const rawCount = ids.size;
+      let newCount = 0;
+      ids.forEach((employeeId) => {
+        if (!cumulative.has(employeeId)) {
+          newCount += 1;
+        }
+      });
+      ids.forEach((employeeId) => cumulative.add(employeeId));
+
+      const positionLabel =
+        rule.positionId == null ? 'All Positions' : positionById.get(rule.positionId)?.name ?? '—';
+
+      lines.push({
+        label: `${department.name} -> ${positionLabel}`,
+        rawCount,
+        newCount,
+        showDedupe: rawCount > newCount && rawCount > 0,
+      });
+    }
+
+    return { lines, totalUnique: cumulative.size };
+  }, [
+    activeEmployees,
+    departmentById,
+    departmentIdByName,
+    hybridRules,
+    positionById,
+    positionIdByName,
+  ]);
 
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
   const { data: questionBank = [], isLoading: isQuestionBankLoading } = useGetQuestionBankQuery(
@@ -327,17 +575,27 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     );
   };
 
-  const toggleHybridDepartment = (departmentId: number) => {
-    setHybridDepartmentIds((current) =>
-      current.includes(departmentId) ? current.filter((id) => id !== departmentId) : [...current, departmentId]
+  const updateHybridRuleDepartment = (ruleId: string, departmentId: number | null) => {
+    setHybridRules((rules) =>
+      rules.map((rule) => (rule.id === ruleId ? { ...rule, departmentId, positionId: null } : rule))
     );
   };
 
-  const handleHybridPositionChange = (departmentId: number, positionId: number | null) => {
-    setHybridPositionByDepartment((current) => ({
-      ...current,
-      [departmentId]: positionId,
-    }));
+  const updateHybridRulePosition = (ruleId: string, positionId: number | null) => {
+    setHybridRules((rules) =>
+      rules.map((rule) => (rule.id === ruleId ? { ...rule, positionId } : rule))
+    );
+  };
+
+  const addHybridRule = () => {
+    setHybridRules((rules) => [...rules, { id: createHybridRuleId(), departmentId: null, positionId: null }]);
+  };
+
+  const removeHybridRule = (ruleId: string) => {
+    setHybridRules((rules) => {
+      const next = rules.filter((rule) => rule.id !== ruleId);
+      return next.length > 0 ? next : [{ id: createHybridRuleId(), departmentId: null, positionId: null }];
+    });
   };
 
   const getTargetPairs = (): TargetPair[] => {
@@ -353,22 +611,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
       return activeEmployeePairs.filter((pair) => selectedGlobalPositionIds.includes(pair.positionId));
     }
 
-    return hybridDepartmentIds
-      .map((departmentId) => {
-        const department = departmentById.get(departmentId);
-        const positionId = hybridPositionByDepartment[departmentId];
-        const position = positionId ? positionById.get(positionId) : undefined;
-        if (!department || !position) {
-          return null;
-        }
-        return {
-          departmentId: department.id,
-          departmentName: department.name,
-          positionId: position.id,
-          positionName: position.name,
-        };
-      })
-      .filter((pair): pair is TargetPair => pair !== null);
+    return hybridPairsDeduped;
   };
 
   const validateAudience = () => {
@@ -383,9 +626,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     }
 
     if (audienceType === 'hybrid') {
-      const selectedPairs = hybridDepartmentIds.filter((departmentId) => hybridPositionByDepartment[departmentId]);
-      if (selectedPairs.length === 0) {
-        toast.error('Please select at least one department-position pair');
+      const hasCompleteRule = hybridRules.some((rule) => rule.departmentId != null);
+      if (!hasCompleteRule) {
+        toast.error('Please add at least one hybrid rule with a department');
         return false;
       }
     }
@@ -523,14 +766,14 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="grid w-full grid-cols-1 gap-3">
                 <AudienceCard
                   value="all"
                   selected={audienceType === 'all'}
                   title="All Employees (Company-wide)"
                   description={[
                     'All active employees in the company will receive this form',
-                    `Total: ${formatEmployeeCount(allCount)}`,
+                    ...(allCount > 0 ? [`Total: ${formatEmployeeCount(allCount)}`] : []),
                   ]}
                   icon={<Users size={18} />}
                   badge={createCountBadge(allCount)}
@@ -575,97 +818,239 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
               </div>
 
               {audienceType === 'departments' && (
-                <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Departments
-                  </label>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {departments.map((department) => (
-                      <label
-                        key={department.id}
-                        className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200"
+                <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="h-5 w-1 shrink-0 rounded-full bg-[#5D5FEF]" aria-hidden />
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200">
+                      Select Departments
+                    </h3>
+                  </div>
+
+                  <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-600">
+                    {departments.length === 0 ? (
+                      <p className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                        No departments available
+                      </p>
+                    ) : (
+                      <ul
+                        className={`divide-y divide-slate-200 dark:divide-slate-600 ${
+                          departments.length > 5
+                            ? 'max-h-55 overflow-y-auto overscroll-y-contain'
+                            : ''
+                        }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={selectedDepartmentIds.includes(department.id)}
-                          onChange={() => toggleDepartment(department.id)}
-                          className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                        />
-                        {department.name}
-                      </label>
-                    ))}
+                        {departments.map((department) => {
+                          const empCount = employeeCountByDepartmentId.get(department.id) ?? 0;
+                          const checked = selectedDepartmentIds.includes(department.id);
+                          return (
+                            <li key={department.id}>
+                              <label className="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleDepartment(department.id)}
+                                  className="h-4 w-4 shrink-0 rounded border-slate-400 accent-[#5D5FEF] focus:ring-2 focus:ring-[#5D5FEF]/40 focus:ring-offset-0 dark:border-slate-500"
+                                />
+                                <span className="min-w-0 flex-1 text-sm font-medium text-slate-800 dark:text-slate-100">
+                                  {department.name}
+                                </span>
+                                {empCount > 0 ? (
+                                  <span className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                    {formatEmployeeCount(empCount)}
+                                  </span>
+                                ) : null}
+                              </label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+
+                  <p className="mt-3 flex items-center gap-2 text-sm font-medium text-[#5D5FEF]">
+                    <ChartColumn size={18} strokeWidth={2} className="shrink-0 opacity-90" aria-hidden />
+                    <span>
+                      Selected:{' '}
+                      <span className="font-semibold tabular-nums">{selectedDepartmentIds.length}</span> departments /{' '}
+                      <span className="font-semibold tabular-nums">{selectedDepartmentEmployeeTotal}</span> employees
+                    </span>
+                  </p>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDepartmentIds(departments.map((d) => d.id))}
+                      disabled={departments.length === 0}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDepartmentIds([])}
+                      disabled={selectedDepartmentIds.length === 0}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    >
+                      Clear All
+                    </button>
                   </div>
                 </div>
               )}
 
               {audienceType === 'positions' && (
-                <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Positions
-                  </label>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {positions.map((position) => (
-                      <label
-                        key={position.id}
-                        className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedGlobalPositionIds.includes(position.id)}
-                          onChange={() => toggleGlobalPosition(position.id)}
-                          className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                        />
-                        {position.name}
-                      </label>
-                    ))}
+                <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="h-5 w-1 shrink-0 rounded-full bg-[#5D5FEF]" aria-hidden />
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200">
+                      Select Positions (Across All Departments)
+                    </h3>
                   </div>
+
+                  <div className="relative mb-3">
+                    <Search
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                      aria-hidden
+                    />
+                    <input
+                      type="search"
+                      value={positionAudienceSearch}
+                      onChange={(event) => setPositionAudienceSearch(event.target.value)}
+                      placeholder="Search positions..."
+                      className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/25 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500"
+                    />
+                  </div>
+
+                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-900/40">
+                    {filteredPositionsForAudience.length === 0 ? (
+                      <p className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                        {positions.length === 0 ? 'No positions available' : 'No positions match your search'}
+                      </p>
+                    ) : (
+                      <ul
+                        className={`divide-y divide-slate-200 dark:divide-slate-600 dark:bg-slate-900/20 ${
+                          filteredPositionsForAudience.length > 5
+                            ? 'max-h-55 overflow-y-auto overscroll-y-contain'
+                            : ''
+                        }`}
+                      >
+                        {filteredPositionsForAudience.map((position) => {
+                          const stats = positionAudienceStats.get(position.id);
+                          const empCount = stats?.count ?? 0;
+                          const deptNames = stats?.departmentNames ?? [];
+                          const checked = selectedGlobalPositionIds.includes(position.id);
+                          const acrossLabel =
+                            deptNames.length > 0
+                              ? empCount > 0
+                                ? `(${empCount} ${empCount === 1 ? 'employee' : 'employees'} across ${deptNames.join(', ')})`
+                                : ''
+                              : empCount > 0
+                                ? `(${formatEmployeeCount(empCount)})`
+                                : '';
+
+                          return (
+                            <li key={position.id}>
+                              <label className="flex cursor-pointer items-start gap-3 bg-white px-4 py-3 transition hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700/50">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleGlobalPosition(position.id)}
+                                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-400 accent-[#5D5FEF] focus:ring-2 focus:ring-[#5D5FEF]/40 focus:ring-offset-0 dark:border-slate-500"
+                                />
+                                <span className="min-w-0 flex-1 text-sm leading-snug">
+                                  <span className="font-medium text-slate-900 dark:text-slate-100">{position.name}</span>
+                                  {checked && acrossLabel ? (
+                                    <span className="text-slate-500 dark:text-slate-400"> {acrossLabel}</span>
+                                  ) : null}
+                                </span>
+                                {!checked && empCount > 0 ? (
+                                  <span className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                    {formatEmployeeCount(empCount)}
+                                  </span>
+                                ) : null}
+                              </label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+
+                  <p className="mt-3 flex items-center gap-2 text-sm font-medium text-[#5D5FEF]">
+                    <ChartColumn size={18} strokeWidth={2} className="shrink-0 opacity-90" aria-hidden />
+                    <span>
+                      Selected:{' '}
+                      <span className="font-semibold tabular-nums">{selectedGlobalPositionIds.length}</span> positions /{' '}
+                      <span className="font-semibold tabular-nums">{selectedGlobalPositionEmployeeTotal}</span>{' '}
+                      employees
+                    </span>
+                  </p>
                 </div>
               )}
 
               {audienceType === 'hybrid' && (
-                <div className="mt-4 space-y-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                      Departments
-                    </label>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {departments.map((department) => (
-                        <label
-                          key={department.id}
-                          className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-200"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={hybridDepartmentIds.includes(department.id)}
-                            onChange={() => toggleHybridDepartment(department.id)}
-                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                          />
-                          {department.name}
-                        </label>
-                      ))}
+                <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                  <div className="mb-4 flex flex-wrap items-baseline gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="h-5 w-1 shrink-0 rounded-full bg-[#5D5FEF]" aria-hidden />
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-slate-800 dark:text-slate-100">
+                        Hybrid Rules
+                      </h3>
                     </div>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">(Most Flexible)</span>
                   </div>
 
-                  {hybridDepartmentIds.length > 0 && (
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {hybridDepartmentIds.map((departmentId) => {
-                        const department = departmentById.get(departmentId);
-                        if (!department) {
-                          return null;
-                        }
-
-                        return (
-                          <HybridPositionSelector
-                            key={department.id}
-                            departmentId={department.id}
-                            departmentName={department.name}
-                            selectedPositionId={hybridPositionByDepartment[department.id] || null}
-                            onChange={handleHybridPositionChange}
-                          />
-                        );
-                      })}
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-900/30">
+                    <div className="space-y-3">
+                      {hybridRules.map((rule) => (
+                        <HybridRuleRow
+                          key={rule.id}
+                          rule={rule}
+                          departments={departments}
+                          onDepartmentChange={updateHybridRuleDepartment}
+                          onPositionChange={updateHybridRulePosition}
+                          onRemove={removeHybridRule}
+                          canRemove={hybridRules.length > 1}
+                        />
+                      ))}
                     </div>
-                  )}
+                    <button
+                      type="button"
+                      onClick={addHybridRule}
+                      className="mt-4 text-sm font-semibold text-[#5D5FEF] hover:text-[#4d50e0] dark:text-[#8b8ef7] dark:hover:text-[#a5a7fa]"
+                    >
+                      + Add Rule
+                    </button>
+                  </div>
+
+                  <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/60 dark:bg-sky-950/40">
+                    <h4 className="text-xs font-bold uppercase tracking-wide text-[#5D5FEF] dark:text-[#8b8ef7]">
+                      Summary
+                    </h4>
+                    {hybridSummary.lines.length === 0 ? (
+                      <p className="mt-2 font-mono text-sm text-slate-600 dark:text-slate-400">
+                        Add rules above to preview matched employees.
+                      </p>
+                    ) : (
+                      <ul className="mt-3 space-y-2 font-mono text-sm text-slate-800 dark:text-slate-200">
+                        {hybridSummary.lines.map((line, index) => (
+                          <li key={`${line.label}-${index}`}>
+                            <span>{line.label}</span>
+                            <span className="text-slate-600 dark:text-slate-400">
+                              {' '}
+                              : {line.rawCount} {line.rawCount === 1 ? 'employee' : 'employees'}
+                              {line.showDedupe ? (
+                                <span> (but minus duplicates = {line.newCount} new)</span>
+                              ) : null}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="mt-4 border-t border-sky-200 pt-3 text-sm font-semibold text-slate-900 dark:border-sky-800 dark:text-slate-100">
+                      Total unique employees:{' '}
+                      <span className="tabular-nums">{hybridSummary.totalUnique}</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </section>
