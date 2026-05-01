@@ -226,18 +226,18 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
       <div className="mb-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Self Assessment Form</h1>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Self Assessment Template</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Create and manage self-assessment forms for each department and position
+              Create and manage self-assessment templates for each department and position
             </p>
           </div>
           <button
             type="button"
-            onClick={() => navigate('/hr/self-assessment/forms/create')}
+            onClick={() => navigate('/hr/self-assessment/templates/create')}
             className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
           >
             <Plus size={16} />
-            Create New Form
+            Create New Template
           </button>
         </div>
 
@@ -297,7 +297,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
       <div className="grid grid-cols-1 gap-6">
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-            Existing Forms
+            Existing Templates
           </h2>
 
           <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
@@ -368,7 +368,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
           <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                {editingTemplateId ? 'Edit Form' : 'Create New Form'}
+                {editingTemplateId ? 'Edit Template' : 'Create New Template'}
               </h2>
               <button
                 type="button"
@@ -409,7 +409,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                 <input
                   {...register('title')}
                   type="text"
-                  placeholder="Form title"
+                  placeholder="Template title"
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                 />
               </div>

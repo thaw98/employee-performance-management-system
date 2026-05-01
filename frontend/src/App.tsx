@@ -48,7 +48,7 @@ import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
 import PositionListPage from './features/position/pages/PositionListPage';
 import LevelCodeListPage from './features/levelCode/pages/LevelCodeListPage';
 
-// Self Assessment Forms
+// Self Assessment (HR templates & employee flows)
 import { SelfAssessmentFormTemplatePage } from './pages/self-assessment-form/SelfAssessmentFormTemplatePage';
 import { CreateSelfAssessmentTemplatePage } from './pages/self-assessment-form/CreateSelfAssessmentTemplatePage';
 import { MySelfAssessmentFormPage } from './pages/self-assessment-form/MySelfAssessmentFormPage';
@@ -99,8 +99,16 @@ function App() {
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
-            <Route path="self-assessment/forms" element={<SelfAssessmentFormTemplatePage />} />
-            <Route path="self-assessment/forms/create" element={<CreateSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
+            <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
+            <Route
+              path="self-assessment/forms"
+              element={<Navigate to="/hr/self-assessment/templates" replace />}
+            />
+            <Route
+              path="self-assessment/forms/create"
+              element={<Navigate to="/hr/self-assessment/templates/create" replace />}
+            />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
