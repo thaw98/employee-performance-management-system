@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
 import { useGetTimeSettingsQuery } from '../../features/feedback/api/feedbackApi';
-import { useGetActiveReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
+import { useGetActiveReviewCyclesQuery, useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import {
   useCreateTemplateMutation,
   useUpdateTemplateMutation,
@@ -35,6 +35,25 @@ function cycleTypeLabel(type: string) {
   return t.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function cycleStatusLabel(status: string) {
+  const normalized = status.toUpperCase();
+  if (normalized === 'ACTIVE') return 'Active';
+  if (normalized === 'UPCOMING') return 'Upcoming';
+  if (normalized === 'CLOSED') return 'Closed';
+  return cycleTypeLabel(status);
+}
+
+function cycleStatusClass(status: string) {
+  const normalized = status.toUpperCase();
+  if (normalized === 'ACTIVE') {
+    return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
+  }
+  if (normalized === 'UPCOMING') {
+    return 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
+  }
+  return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
+}
+
 export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const navigate = useNavigate();
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
@@ -56,9 +75,16 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const { data: allTemplates } = useGetAllTemplatesQuery();
   const { data: timeSettings, isLoading: timeSettingsLoading } = useGetTimeSettingsQuery();
   const { data: activeCycles = [], isLoading: cyclesLoading } = useGetActiveReviewCyclesQuery();
+  const { data: reviewCycles = [], isLoading: allCyclesLoading } = useGetReviewCyclesQuery({
+    requiresEmployeeSubmission: true,
+  });
 
   const submissionCycle =
-    activeCycles.find((c) => c.requiresEmployeeSubmission) ?? activeCycles[0] ?? null;
+    activeCycles.find((c) => c.requiresEmployeeSubmission) ??
+    reviewCycles.find((c) => c.status?.toUpperCase() === 'UPCOMING') ??
+    [...reviewCycles].reverse().find((c) => c.status?.toUpperCase() === 'CLOSED') ??
+    activeCycles[0] ??
+    null;
 
   const displayDuration =
     timeSettings?.duration === 'Both' ? '6 Months & 1 Year (combined)' : timeSettings?.duration;
@@ -220,7 +246,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
             <div className="flex-1 text-sm text-slate-700 dark:text-slate-200 sm:min-w-0">
               <span className="font-semibold text-slate-900 dark:text-white">Current review cycle</span>
               <span className="mx-1.5 text-slate-400">·</span>
-              {cyclesLoading ? (
+              {cyclesLoading || allCyclesLoading ? (
                 <span className="text-slate-500">Loading…</span>
               ) : submissionCycle ? (
                 <>
@@ -232,15 +258,15 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                   <span className="block text-xs text-slate-500 dark:text-slate-400 mt-1">
                     {formatCycleDate(submissionCycle.startDate)} – {formatCycleDate(submissionCycle.endDate)}
                     {submissionCycle.status ? (
-                      <span className="ml-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                        {submissionCycle.status}
+                      <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${cycleStatusClass(submissionCycle.status)}`}>
+                        {cycleStatusLabel(submissionCycle.status)}
                       </span>
                     ) : null}
                   </span>
                 </>
               ) : (
                 <span className="text-slate-500">
-                  No active cycle overlaps today. Generate cycles in System Settings if needed.
+                  No active, upcoming, or closed submission cycle is available. Generate cycles in System Settings if needed.
                 </span>
               )}
             </div>

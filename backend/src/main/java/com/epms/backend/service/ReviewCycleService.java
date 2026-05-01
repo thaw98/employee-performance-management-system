@@ -319,7 +319,7 @@ public class ReviewCycleService {
             return "UPCOMING";
         }
         if (today.isAfter(cycle.getEndDate())) {
-            return "COMPLETED";
+            return "CLOSED";
         }
         return "ACTIVE";
     }
