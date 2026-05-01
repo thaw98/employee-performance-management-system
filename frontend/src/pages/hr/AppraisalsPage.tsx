@@ -18,7 +18,7 @@ import {
     sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, HelpCircle, GripVertical, Download, RotateCcw, Calendar, ArrowRight, Clock, Users, Filter, FileSpreadsheet, FileText, Send } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, HelpCircle, GripVertical, Download, RotateCcw, Calendar, ArrowRight, Clock, Users, Filter, FileSpreadsheet, FileText, Send, Building2, Check, RefreshCcw } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const PRIMARY = '#0855BF';
@@ -99,7 +99,7 @@ function SortableCategoryRow({ category, index, isConfirmed, onConfirm, onEdit, 
                 <div className="flex items-center justify-center gap-2">
                     <button
                         onClick={() => onConfirm(category.id!)}
-                        className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${isConfirmed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-50 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                        className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${isConfirmed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200'}`}
                         title={isConfirmed ? "Confirmed" : "Add to Appraisal"}
                     >
                         <CheckCircle2 size={18} />
@@ -258,7 +258,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                         <div className="relative flex-1 md:w-64">
                             <button
                                 onClick={() => setShowPicker(!showPicker)}
-                                className="w-full flex items-center justify-between px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-[10px] text-slate-400 uppercase tracking-widest hover:border-blue-400 hover:bg-white hover:text-blue-500 transition-all group"
+                                className="w-full flex items-center justify-between px-5 py-3.5 bg-white border-2 border-slate-200 rounded-2xl font-black text-[10px] text-slate-700 uppercase tracking-widest hover:border-blue-400 hover:bg-blue-50/30 hover:text-blue-600 transition-all group shadow-sm"
                             >
                                 <span>Pick a Category...</span>
                                 <Plus size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
@@ -273,9 +273,10 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                             <button
                                                 key={ac.id}
                                                 onClick={() => { onAdd(ac.id!); setShowPicker(false); }}
-                                                className="w-full text-left p-4 hover:bg-blue-600 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all mb-1 last:mb-0"
+                                                className="w-full text-left p-4 bg-slate-50/50 hover:bg-blue-600 text-slate-700 hover:text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all mb-2 last:mb-0 border border-transparent hover:border-blue-400 hover:shadow-lg hover:shadow-blue-100 flex items-center justify-between group/item"
                                             >
-                                                {ac.name}
+                                                <span>{ac.name}</span>
+                                                <Plus size={14} className="text-slate-300 group-hover/item:text-white transition-colors" />
                                             </button>
                                         ))
                                     )}
@@ -520,6 +521,7 @@ export function AppraisalsPage() {
     // Target Audience State
     const [allPositions, setAllPositions] = useState<DepartmentPositionMapping[]>([]);
     const [selectedPositionIds, setSelectedPositionIds] = useState<number[]>([]);
+    const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -911,63 +913,157 @@ export function AppraisalsPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-6 max-h-96 overflow-y-auto p-4 border border-slate-50 rounded-2xl">
-                            {Object.entries(
-                                allPositions.reduce((acc, pos) => {
-                                    const dept = pos.departmentName || 'General';
-                                    if (!acc[dept]) acc[dept] = [];
-                                    acc[dept].push(pos);
-                                    return acc;
-                                }, {} as Record<string, DepartmentPositionMapping[]>)
-                            ).map(([deptName, deptPositions]) => (
-                                <div key={deptName} className="space-y-3">
-                                    <div className="flex items-center gap-2 px-2">
-                                        <div className="h-px bg-slate-100 flex-1" />
-                                        <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">{deptName}</span>
-                                        <div className="h-px bg-slate-100 flex-1" />
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                        {deptPositions.map(pos => (
-                                            <label 
-                                                key={pos.id}
-                                                className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedPositionIds.includes(pos.id) ? 'border-blue-500 bg-blue-50/50' : 'border-slate-50 hover:border-slate-100'}`}
+                        <div className="flex flex-col lg:flex-row gap-0 bg-slate-50/50 rounded-[32px] border border-slate-100 overflow-hidden min-h-[500px]">
+                            {/* Left Side: Departments List */}
+                            <div className="w-full lg:w-1/3 bg-white border-r border-slate-100 flex flex-col">
+                                <div className="p-6 border-b border-slate-50 bg-slate-50/30">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">1. Choose Department</h4>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                                    {Array.from(new Set(allPositions.map(p => p.departmentId))).map(deptId => {
+                                        const deptName = allPositions.find(p => p.departmentId === deptId)?.departmentName || 'General';
+                                        const isSelected = selectedDeptId === deptId;
+                                        const deptPositions = allPositions.filter(p => p.departmentId === deptId);
+                                        const selectedCount = deptPositions.filter(p => selectedPositionIds.includes(p.id)).length;
+                                        const isAllSelected = selectedCount === deptPositions.length && deptPositions.length > 0;
+
+                                        return (
+                                            <button
+                                                key={deptId}
+                                                onClick={() => setSelectedDeptId(deptId)}
+                                                className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-100 scale-[1.02] z-10' : 'hover:bg-slate-50 text-slate-600'}`}
                                             >
-                                                <input 
-                                                    type="checkbox"
-                                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                                    checked={selectedPositionIds.includes(pos.id)}
-                                                    onChange={() => {
-                                                        setSelectedPositionIds(prev => 
-                                                            prev.includes(pos.id) ? prev.filter(id => id !== pos.id) : [...prev, pos.id]
-                                                        );
-                                                    }}
-                                                />
-                                                <div className="flex-1">
-                                                    <div className="text-[11px] font-black text-slate-700 leading-tight mb-1">{pos.positionName}</div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded uppercase">{pos.levelCodeName}</span>
-                                                        <span className="text-[8px] font-bold text-slate-400">ID: {pos.id}</span>
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isSelected ? 'bg-white/20' : 'bg-slate-100 group-hover:bg-white shadow-sm'}`}>
+                                                        <Building2 size={16} className={isSelected ? 'text-white' : 'text-slate-400'} />
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <div className={`text-[11px] font-black uppercase tracking-tight ${isSelected ? 'text-white' : 'text-slate-700'}`}>{deptName}</div>
+                                                        <div className={`text-[9px] font-bold ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>{deptPositions.length} Positions</div>
                                                     </div>
                                                 </div>
-                                            </label>
-                                        ))}
-                                    </div>
+                                                {selectedCount > 0 && (
+                                                    <div className={`px-2 py-1 rounded-lg text-[9px] font-black border transition-colors ${isSelected ? 'bg-white text-blue-600 border-white' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                                                        {isAllSelected ? 'ALL' : selectedCount}
+                                                    </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                            ))}
+                            </div>
+
+                            {/* Right Side: Position Selection */}
+                            <div className="flex-1 flex flex-col bg-slate-50/30">
+                                {selectedDeptId ? (
+                                    <>
+                                        <div className="p-6 border-b border-slate-100 bg-white flex items-center justify-between">
+                                            <div>
+                                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">2. Select Positions</h4>
+                                                <div className="text-sm font-black text-slate-800 uppercase mt-1">
+                                                    {allPositions.find(p => p.departmentId === selectedDeptId)?.departmentName}
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Select All in this Department */}
+                                            <button 
+                                                onClick={() => {
+                                                    const deptPosIds = allPositions.filter(p => p.departmentId === selectedDeptId).map(p => p.id);
+                                                    const allCurrentlySelected = deptPosIds.every(id => selectedPositionIds.includes(id));
+                                                    
+                                                    if (allCurrentlySelected) {
+                                                        setSelectedPositionIds(prev => prev.filter(id => !deptPosIds.includes(id)));
+                                                    } else {
+                                                        setSelectedPositionIds(prev => Array.from(new Set([...prev, ...deptPosIds])));
+                                                    }
+                                                }}
+                                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                            >
+                                                {allPositions.filter(p => p.departmentId === selectedDeptId).every(id => selectedPositionIds.includes(id.id)) 
+                                                    ? 'Deselect All' : 'Select All Department'}
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="flex-1 overflow-y-auto p-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {allPositions
+                                                    .filter(p => p.departmentId === selectedDeptId)
+                                                    .map(pos => (
+                                                        <label 
+                                                            key={pos.id}
+                                                            className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all bg-white group ${selectedPositionIds.includes(pos.id) ? 'border-blue-500 shadow-md translate-y-[-2px]' : 'border-transparent hover:border-slate-200 hover:shadow-sm'}`}
+                                                        >
+                                                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selectedPositionIds.includes(pos.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-200 group-hover:border-blue-300'}`}>
+                                                                {selectedPositionIds.includes(pos.id) && <Check size={12} className="text-white" strokeWidth={4} />}
+                                                                <input 
+                                                                    type="checkbox"
+                                                                    className="hidden"
+                                                                    checked={selectedPositionIds.includes(pos.id)}
+                                                                    onChange={() => {
+                                                                        setSelectedPositionIds(prev => 
+                                                                            prev.includes(pos.id) ? prev.filter(id => id !== pos.id) : [...prev, pos.id]
+                                                                        );
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <div className="text-[11px] font-black text-slate-700 leading-tight mb-1 uppercase group-hover:text-blue-600 transition-colors">{pos.positionName}</div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-wider">{pos.levelCodeName}</span>
+                                                                    <span className="text-[8px] font-bold text-slate-400">ID: {pos.id}</span>
+                                                                </div>
+                                                            </div>
+                                                        </label>
+                                                    ))
+                                                }
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-4">
+                                        <div className="w-20 h-20 bg-white rounded-[28px] flex items-center justify-center shadow-sm text-slate-200">
+                                            <Building2 size={40} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-slate-400 font-black uppercase tracking-widest text-[11px]">No Department Selected</h4>
+                                            <p className="text-slate-300 font-bold text-[10px] mt-1 max-w-[200px] mx-auto">Please pick a department from the left list to manage its positions</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Filter size={14} className="text-blue-500" />
-                                <p className="text-[10px] font-bold text-slate-500 italic">
-                                    {selectedPositionIds.length} positions currently selected.
-                                </p>
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Filter size={14} className="text-blue-500" />
+                                    <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                                        Total Selected: {selectedPositionIds.length}
+                                    </p>
+                                </div>
+                                {selectedPositionIds.length > 0 && (
+                                    <div className="flex -space-x-2">
+                                        {Array.from(new Set(allPositions.filter(p => selectedPositionIds.includes(p.id)).map(p => p.departmentId))).slice(0, 3).map(deptId => (
+                                            <div key={deptId} className="w-6 h-6 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-blue-600 uppercase" title={allPositions.find(p => p.departmentId === deptId)?.departmentName}>
+                                                {allPositions.find(p => p.departmentId === deptId)?.departmentName?.charAt(0)}
+                                            </div>
+                                        ))}
+                                        {Array.from(new Set(allPositions.filter(p => selectedPositionIds.includes(p.id)).map(p => p.departmentId))).length > 3 && (
+                                            <div className="w-6 h-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-slate-400">
+                                                +{Array.from(new Set(allPositions.filter(p => selectedPositionIds.includes(p.id)).map(p => p.departmentId))).length - 3}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <button 
-                                onClick={() => setSelectedPositionIds([])}
-                                className="text-[10px] font-black text-red-400 hover:text-red-600 uppercase tracking-widest transition-colors"
+                                onClick={() => {
+                                    setSelectedPositionIds([]);
+                                    setSelectedDeptId(null);
+                                }}
+                                className="text-[10px] font-black text-red-400 hover:text-red-600 uppercase tracking-widest transition-colors flex items-center gap-2"
                             >
-                                Clear Selection
+                                <RefreshCcw size={12} /> Reset Selection
                             </button>
                         </div>
                     </div>
