@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
-import { AlertCircle, CheckCircle2, Clock, FileText, AlertTriangle } from 'lucide-react';
+import { Clock, FileText, AlertTriangle } from 'lucide-react';
 import {
   useGetMyFormStatusQuery,
   useGetMyCurrentFormQuery,
@@ -24,12 +24,15 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   const { data: formStatus, isLoading: statusLoading } = useGetMyFormStatusQuery();
-  const { data: formData, isLoading: formLoading, refetch } = useGetMyCurrentFormQuery();
+  const shouldLoadForm = Boolean(formStatus?.isEligible && formStatus?.hasActiveTemplate && formStatus?.status !== 'NOT_ASSIGNED');
+  const { data: formData, isLoading: formLoading, refetch } = useGetMyCurrentFormQuery(undefined, {
+    skip: !shouldLoadForm,
+  });
 
   const [saveDraft, { isLoading: isSaving }] = useSaveDraftMutation();
   const [submitForm, { isLoading: isSubmitting }] = useSubmitFormMutation();
 
-  const { register, handleSubmit, setValue, watch, formState: { errors, isDirty } } = useForm<AnswerFormData>({
+  const { register, handleSubmit, setValue, watch, reset, formState: { isDirty } } = useForm<AnswerFormData>({
     defaultValues: {
       answers: [],
       employeeRemarks: '',
@@ -39,7 +42,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   useEffect(() => {
     if (formData?.answers) {
-      const defaultValues = {
+      reset({
         answers: formData.answers.map(a => ({
           id: a.id,
           yesNoAnswer: a.yesNoAnswer,
@@ -48,9 +51,9 @@ export const MySelfAssessmentFormPage: React.FC = () => {
         })),
         employeeRemarks: formData.employeeRemarks || '',
         overallRemarks: formData.overallRemarks || '',
-      };
+      });
     }
-  }, [formData]);
+  }, [formData, reset]);
 
   const watchAnswers = watch('answers');
 
@@ -185,6 +188,18 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     );
   }
 
+  if (formStatus?.status === 'NOT_ASSIGNED') {
+    return (
+      <div className="p-6">
+        <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center">
+          <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+          <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">No Assigned Form</h2>
+          <p className="text-slate-500 dark:text-slate-400 mt-2">{formStatus?.message}</p>
+        </div>
+      </div>
+    );
+  }
+
   if (formLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -199,6 +214,9 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">My Self Assessment Form</h1>
+        {formData?.title && (
+          <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-300">{formData.title}</p>
+        )}
         <div className="flex items-center gap-4 mt-2">
           <span className={`text-sm px-3 py-1 rounded-full ${
             formData?.status === 'DRAFT' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
@@ -214,7 +232,12 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               Cycle: {formData.cycleName}
             </span>
           )}
-          {formData?.totalScore !== null && (
+          {formData?.deadlineDate && (
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              Deadline: {new Date(`${formData.deadlineDate}T00:00:00`).toLocaleDateString()}
+            </span>
+          )}
+          {formData?.totalScore != null && (
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Score: {formData.totalScore.toFixed(1)}% ({formData.ratingCategory})
             </span>

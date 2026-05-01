@@ -106,13 +106,22 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @GetMapping("/hr/active-cycle")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<ActiveCycleFormsDto>> getActiveCycleFormsForHr(@AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            ActiveCycleFormsDto forms = selfAssessmentFormService.getActiveCycleFormsForHr();
+            return ResponseEntity.ok(ApiResponse.ok("Active cycle forms retrieved", forms));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> getFormById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            Employee employee = getEmployeeFromPrincipal(principal);
-            SelfAssessmentFormDto form = selfAssessmentFormService.getEmployeeCurrentForm(employee)
-                    .orElseThrow(() -> new RuntimeException("Form not found"));
+            SelfAssessmentFormDto form = selfAssessmentFormService.getFormById(id);
             return ResponseEntity.ok(ApiResponse.ok("Form retrieved", form));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
@@ -248,6 +257,20 @@ public class SelfAssessmentFormController {
         try {
             SelfAssessmentFormTemplateDto template = selfAssessmentFormService.updateTemplate(id, request, principal.getId());
             return ResponseEntity.ok(ApiResponse.ok("Template updated", template));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/templates/{templateId}/set-deadline")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SetTemplateDeadlineResponse>> setTemplateDeadline(
+            @PathVariable Long templateId,
+            @Valid @RequestBody SetTemplateDeadlineRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SetTemplateDeadlineResponse response = selfAssessmentFormService.setTemplateDeadline(templateId, request, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Deadline set and forms assigned", response));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }

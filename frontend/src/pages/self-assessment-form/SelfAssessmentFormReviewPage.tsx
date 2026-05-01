@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { FileText, CheckCircle2, XCircle, AlertCircle, Eye } from 'lucide-react';
+import { FileText, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import {
   useGetReviewFormsQuery,
   useGetHrReviewFormsQuery,
@@ -13,6 +13,7 @@ import {
   useHrReopenFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { useSelector } from 'react-redux';
+import { useLocation } from 'react-router-dom';
 import type { RootState } from '../../app/store';
 
 interface ManagerAdjustment {
@@ -24,9 +25,16 @@ interface ManagerAdjustment {
 
 export const SelfAssessmentFormReviewPage: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
+  const location = useLocation();
   const isHr = user?.roleId === 1;
 
-  const [selectedFormId, setSelectedFormId] = useState<number | null>(null);
+  const initialFormId = typeof location.state === 'object'
+    && location.state !== null
+    && 'formId' in location.state
+    && typeof location.state.formId === 'number'
+    ? location.state.formId
+    : null;
+  const [selectedFormId, setSelectedFormId] = useState<number | null>(initialFormId);
   const [showAdjustments, setShowAdjustments] = useState(false);
   const [managerComments, setManagerComments] = useState('');
   const [adjustments, setAdjustments] = useState<ManagerAdjustment[]>([]);
@@ -48,6 +56,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [approvalMode, setApprovalMode] = useState<'adjustment' | 'final'>('final');
 
   const forms = isHr ? (selectedFormId ? allForms : hrForms) : managerForms;
   const isLoading = isHr ? (selectedFormId ? allFormsLoading : hrFormsLoading) : managerFormsLoading;
@@ -130,6 +139,14 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to reject adjustments');
     }
+  };
+
+  const handleConfirmApproval = () => {
+    if (approvalMode === 'adjustment') {
+      handleHrApproveAdjustment();
+      return;
+    }
+    handleHrApproveForm();
   };
 
   const handleHrApproveForm = async () => {
@@ -444,7 +461,10 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                       </p>
                       <div className="flex gap-3">
                         <button
-                          onClick={() => setShowApprovalModal(true)}
+                          onClick={() => {
+                            setApprovalMode('adjustment');
+                            setShowApprovalModal(true);
+                          }}
                           className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
                         >
                           <CheckCircle2 size={16} />
@@ -463,7 +483,10 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
                   <div className="flex gap-3">
                     <button
-                      onClick={() => setShowApprovalModal(true)}
+                      onClick={() => {
+                        setApprovalMode('final');
+                        setShowApprovalModal(true);
+                      }}
                       className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
                     >
                       <CheckCircle2 size={16} />
@@ -529,8 +552,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={handleHrApproveForm}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                onClick={handleConfirmApproval}
+                disabled={isHrApproving || isApproving}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
               >
                 Confirm Approval
               </button>
@@ -577,7 +601,8 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
               </button>
               <button
                 onClick={handleHrRejectAdjustment}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                disabled={isHrRejecting}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
                 Reject Adjustments
               </button>

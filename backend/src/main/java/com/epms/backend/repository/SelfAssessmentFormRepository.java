@@ -29,6 +29,8 @@ public interface SelfAssessmentFormRepository extends JpaRepository<SelfAssessme
     @Query("SELECT f FROM SelfAssessmentForm f WHERE f.status = :status AND f.cycle = :cycle")
     List<SelfAssessmentForm> findByStatusAndCycle(@Param("status") SelfAssessmentFormStatus status, @Param("cycle") ReviewCycle cycle);
 
+    List<SelfAssessmentForm> findByCycleOrderByCreatedDateDesc(ReviewCycle cycle);
+
     List<SelfAssessmentForm> findByTemplate(SelfAssessmentFormTemplate template);
 
     boolean existsByEmployeeAndCycle(Employee employee, ReviewCycle cycle);

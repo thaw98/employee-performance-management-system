@@ -101,6 +101,10 @@ export interface SelfAssessmentFormDto {
   templateId: number
   cycleId: number | null
   cycleName: string | null
+  title: string
+  deadlineDate: string | null
+  assignedAt: string | null
+  assignedBy: number | null
   status: string
   totalScore: number | null
   ratingCategory: string | null
@@ -128,12 +132,50 @@ export interface SelfAssessmentFormDto {
 
 export interface FormListDto {
   id: number
+  title: string
+  cycleId: number | null
+  cycleName: string | null
+  deadlineDate: string | null
+  assignedAt: string | null
+  assignedBy: number | null
   employee: EmployeeInfoDto
   status: string
   totalScore: number | null
   ratingCategory: string | null
   submittedDate: string | null
   createdDate: string
+}
+
+export interface CycleInfoDto {
+  id: number
+  name: string
+  code: string
+  startDate: string
+  endDate: string
+}
+
+export interface SetTemplateDeadlineRequest {
+  title: string
+  deadlineDate: string
+}
+
+export interface SetTemplateDeadlineResponse {
+  templateId: number
+  templateTitle: string
+  departmentId: number
+  departmentName: string
+  positionId: number
+  positionName: string
+  title: string
+  deadlineDate: string
+  activeCycle: CycleInfoDto
+  createdCount: number
+  skippedCount: number
+}
+
+export interface ActiveCycleFormsDto {
+  activeCycle: CycleInfoDto | null
+  forms: FormListDto[]
 }
 
 export interface FormStatusDto {
@@ -284,6 +326,10 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     templateId: getNumber(source.templateId),
     cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
     cycleName: getOptionalString(source.cycleName) ?? null,
+    title: getString(source.title, 'Self Assessment Form'),
+    deadlineDate: getOptionalString(source.deadlineDate) ?? null,
+    assignedAt: getOptionalString(source.assignedAt) ?? null,
+    assignedBy: source.assignedBy != null ? getNumber(source.assignedBy) : null,
     status: getString(source.status),
     totalScore: source.totalScore != null ? getNumber(source.totalScore) : null,
     ratingCategory: getOptionalString(source.ratingCategory) ?? null,
@@ -315,12 +361,46 @@ const normalizeFormList = (form: unknown): FormListDto => {
 
   return {
     id: getNumber(source.id),
+    title: getString(source.title, 'Self Assessment Form'),
+    cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
+    cycleName: getOptionalString(source.cycleName) ?? null,
+    deadlineDate: getOptionalString(source.deadlineDate) ?? null,
+    assignedAt: getOptionalString(source.assignedAt) ?? null,
+    assignedBy: source.assignedBy != null ? getNumber(source.assignedBy) : null,
     employee: normalizeEmployeeInfo(isRecord(source.employee) ? source.employee : {}),
     status: getString(source.status),
     totalScore: source.totalScore != null ? getNumber(source.totalScore) : null,
     ratingCategory: getOptionalString(source.ratingCategory) ?? null,
     submittedDate: getOptionalString(source.submittedDate) ?? null,
     createdDate: getString(source.createdDate),
+  }
+}
+
+const normalizeCycleInfo = (cycle: unknown): CycleInfoDto | null => {
+  if (!isRecord(cycle)) return null
+  return {
+    id: getNumber(cycle.id),
+    name: getString(cycle.name),
+    code: getString(cycle.code),
+    startDate: getString(cycle.startDate),
+    endDate: getString(cycle.endDate),
+  }
+}
+
+const normalizeSetDeadlineResponse = (response: unknown): SetTemplateDeadlineResponse => {
+  const source = isRecord(response) ? response : {}
+  return {
+    templateId: getNumber(source.templateId),
+    templateTitle: getString(source.templateTitle),
+    departmentId: getNumber(source.departmentId),
+    departmentName: getString(source.departmentName),
+    positionId: getNumber(source.positionId),
+    positionName: getString(source.positionName),
+    title: getString(source.title),
+    deadlineDate: getString(source.deadlineDate),
+    activeCycle: normalizeCycleInfo(source.activeCycle) ?? { id: 0, name: '', code: '', startDate: '', endDate: '' },
+    createdCount: getNumber(source.createdCount),
+    skippedCount: getNumber(source.skippedCount),
   }
 }
 
@@ -422,6 +502,19 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeFormList),
     }),
 
+    getActiveCycleFormsForHr: builder.query<ActiveCycleFormsDto, void>({
+      query: () => '/self-assessment-forms/hr/active-cycle',
+      providesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => {
+        const data = getResponseData(response)
+        const source = isRecord(data) ? data : {}
+        return {
+          activeCycle: normalizeCycleInfo(source.activeCycle),
+          forms: getArray(source.forms).map(normalizeFormList),
+        }
+      },
+    }),
+
     getFormById: builder.query<SelfAssessmentFormDto, number>({
       query: (id) => `/self-assessment-forms/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'SelfAssessmentForm', id }],
@@ -517,6 +610,16 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeTemplate(getResponseData(response)),
     }),
 
+    setTemplateDeadline: builder.mutation<SetTemplateDeadlineResponse, { templateId: number; request: SetTemplateDeadlineRequest }>({
+      query: ({ templateId, request }) => ({
+        url: `/self-assessment-forms/templates/${templateId}/set-deadline`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeSetDeadlineResponse(getResponseData(response)),
+    }),
+
     getQuestionBank: builder.query<QuestionBankDto[], { includeInactive?: boolean } | void>({
       query: (arg) => {
         const includeInactive = typeof arg === 'object' ? arg.includeInactive === true : false
@@ -566,6 +669,7 @@ export const {
   useGetReviewFormsQuery,
   useGetHrReviewFormsQuery,
   useGetAllFormsForHrQuery,
+  useGetActiveCycleFormsForHrQuery,
   useGetFormByIdQuery,
   useManagerReviewMutation,
   useHrApproveManagerReviewMutation,
@@ -577,6 +681,7 @@ export const {
   useGetActiveTemplateQuery,
   useCreateTemplateMutation,
   useUpdateTemplateMutation,
+  useSetTemplateDeadlineMutation,
   useGetQuestionBankQuery,
   useCreateQuestionBankItemMutation,
   useUpdateQuestionBankItemMutation,
