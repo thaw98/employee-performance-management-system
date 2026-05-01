@@ -87,7 +87,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     }
 
     if (data.questions.length === 0 || data.questions.every(q => !q.questionText.trim())) {
-      toast.error('Please add at least one assessment subject');
+      toast.error('Please add at least one question');
       return;
     }
 
@@ -189,7 +189,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           <div className="mb-4">
             <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Assessment Subject
+                Question
               </label>
               <button
                 type="button"
@@ -222,7 +222,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   </button>
                   <input
                     {...register(`questions.${index}.questionText` as const)}
-                    placeholder={`Assessment Subject ${index + 1}`}
+                    placeholder={`Question ${index + 1}`}
                     className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
                   />
                   {fields.length > 1 && (
@@ -244,7 +244,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
               className="mt-3 flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
             >
               <Plus size={16} />
-              Add Assessment Subject
+              Add Question
             </button>
           </div>
 
