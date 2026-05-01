@@ -5,6 +5,7 @@ import java.util.List;
 
 public record SelfAssessmentFormTemplateDto(
         Long id,
+        String title,
         Long departmentId,
         String departmentName,
         Long positionId,

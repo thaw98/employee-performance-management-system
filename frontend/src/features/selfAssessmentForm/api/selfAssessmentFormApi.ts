@@ -10,6 +10,7 @@ export interface QuestionDto {
 
 export interface SelfAssessmentFormTemplateDto {
   id: number
+  title: string
   departmentId: number
   departmentName: string
   positionId: number
@@ -27,12 +28,14 @@ export interface QuestionRequest {
 }
 
 export interface CreateTemplateRequest {
+  title: string
   departmentId: number
   positionId: number
   questions: QuestionRequest[]
 }
 
 export interface UpdateTemplateRequest {
+  title: string
   departmentId: number
   positionId: number
   isActive: boolean
@@ -311,6 +314,7 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
 
   return {
     id: getNumber(source.id),
+    title: getString(source.title),
     departmentId: getNumber(source.departmentId),
     departmentName: getString(source.departmentName),
     positionId: getNumber(source.positionId),
