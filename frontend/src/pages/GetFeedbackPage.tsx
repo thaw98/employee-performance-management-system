@@ -146,7 +146,7 @@ export function GetFeedbackPage() {
     const filteredItems = received.filter(item => 
         item.remark.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.evaluatorName.toLowerCase().includes(searchTerm.toLowerCase())
+        item.evaluatorName.toLowerCase().startsWith(searchTerm.toLowerCase().charAt(0))
     );
 
     return (

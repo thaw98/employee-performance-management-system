@@ -107,7 +107,7 @@ public class HrEmployeeService {
                     String pattern = "%" + keyword + "%";
                     predicates.add(cb.or(
                         cb.like(cb.lower(root.get("employeeId")), pattern),
-                        cb.like(cb.lower(root.get("employeeName")), pattern),
+                        cb.like(cb.lower(root.get("employeeName")), keyword.substring(0, 1) + "%"),
                         cb.like(cb.lower(root.get("email")), pattern),
                         cb.like(cb.lower(root.get("department").get("name")), pattern),
                         cb.like(cb.lower(root.get("position").get("name")), pattern)
@@ -186,7 +186,7 @@ public class HrEmployeeService {
                     String pattern = "%" + keyword + "%";
                     predicates.add(cb.or(
                         cb.like(cb.lower(root.get("employeeId")), pattern),
-                        cb.like(cb.lower(root.get("employeeName")), pattern),
+                        cb.like(cb.lower(root.get("employeeName")), keyword.substring(0, 1) + "%"),
                         cb.like(cb.lower(root.get("email")), pattern),
                         cb.like(cb.lower(root.get("department").get("name")), pattern),
                         cb.like(cb.lower(root.get("position").get("name")), pattern)
@@ -257,7 +257,7 @@ public class HrEmployeeService {
                     String pattern = "%" + keyword + "%";
                     predicates.add(cb.or(
                         cb.like(cb.lower(root.get("employeeId")), pattern),
-                        cb.like(cb.lower(root.get("employeeName")), pattern),
+                        cb.like(cb.lower(root.get("employeeName")), keyword.substring(0, 1) + "%"),
                         cb.like(cb.lower(root.get("email")), pattern),
                         cb.like(cb.lower(root.get("department").get("name")), pattern),
                         cb.like(cb.lower(root.get("position").get("name")), pattern)

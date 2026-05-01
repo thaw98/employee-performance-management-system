@@ -76,7 +76,8 @@ const HrLayout: React.FC = () => {
       subItems: [
         { label: 'KPI Modeler', path: '/hr/kpi-management', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
         { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} className="shrink-0" /> },
-        { label: 'Category List', path: '/hr/kpi-categories', icon: <LayoutGrid size={16} className="shrink-0" /> }
+        { label: 'Category List', path: '/hr/kpi-categories', icon: <LayoutGrid size={16} className="shrink-0" /> },
+        { label: 'History', path: '/hr/kpi-history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
     {

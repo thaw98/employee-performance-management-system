@@ -129,4 +129,31 @@ public class KpiController {
             @RequestParam String period) {
         return ResponseEntity.ok(kpiService.getDepartmentsKpiStatus(period));
     }
+
+    @GetMapping("/history/employee/{employeeId}")
+    public ResponseEntity<List<KpiDto>> getEmployeeKpiHistory(
+            @PathVariable Long employeeId,
+            @RequestParam(required = false) String period) {
+        return ResponseEntity.ok(kpiService.getEmployeeKpiHistory(employeeId, period));
+    }
+
+    @GetMapping("/history/position")
+    public ResponseEntity<List<PositionKpiDto>> getPositionKpiHistory(
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) String period) {
+        return ResponseEntity.ok(kpiService.getPositionKpiHistory(departmentId, positionId, period));
+    }
+
+    @GetMapping("/history/department")
+    public ResponseEntity<List<DepartmentKpiDto>> getDepartmentKpiHistory(
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String period) {
+        return ResponseEntity.ok(kpiService.getDepartmentKpiHistory(departmentId, period));
+    }
+
+    @GetMapping("/history/summary")
+    public ResponseEntity<List<com.epms.backend.dto.KpiHistorySummaryDto>> getAllHistorySummary() {
+        return ResponseEntity.ok(kpiService.getAllKpiHistorySummary());
+    }
 }

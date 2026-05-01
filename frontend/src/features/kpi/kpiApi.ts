@@ -58,6 +58,16 @@ export interface DepartmentKpiStatus {
   hasKpis: boolean
 }
 
+export interface KpiHistorySummary {
+  employeeId: number;
+  employeeName: string;
+  departmentName: string;
+  positionName: string;
+  totalKpis: number;
+  period: string;
+  createdDate: string;
+}
+
 export const kpiApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getKpisByEmployee: builder.query<Kpi[], { employeeId: number; period: string }>({
@@ -150,6 +160,31 @@ export const kpiApi = baseApi.injectEndpoints({
       }),
       providesTags: ['KPI'],
     }),
+    getEmployeeKpiHistory: builder.query<Kpi[], { employeeId: number; period?: string }>({
+      query: ({ employeeId, period }) => ({
+        url: `/kpis/history/employee/${employeeId}`,
+        params: { period },
+      }),
+      providesTags: ['KPI'],
+    }),
+    getPositionKpiHistory: builder.query<PositionKpi[], { departmentId?: number; positionId?: number; period?: string }>({
+      query: (params) => ({
+        url: '/kpis/history/position',
+        params,
+      }),
+      providesTags: ['KPI'],
+    }),
+    getDepartmentKpiHistory: builder.query<DepartmentKpi[], { departmentId?: number; period?: string }>({
+      query: (params) => ({
+        url: '/kpis/history/department',
+        params,
+      }),
+      providesTags: ['KPI'],
+    }),
+    getKpiHistorySummary: builder.query<KpiHistorySummary[], void>({
+      query: () => '/kpis/history/summary',
+      providesTags: ['KPI'],
+    }),
   }),
 })
 
@@ -168,4 +203,8 @@ export const {
   useGetMyLatestKpisQuery,
   useGetPositionsKpiStatusQuery,
   useGetDepartmentsKpiStatusQuery,
+  useGetEmployeeKpiHistoryQuery,
+  useGetPositionKpiHistoryQuery,
+  useGetDepartmentKpiHistoryQuery,
+  useGetKpiHistorySummaryQuery,
 } = kpiApi

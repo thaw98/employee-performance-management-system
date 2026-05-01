@@ -118,7 +118,8 @@ public class EmployeeService {
 		if (query.matches("^[0-9]+$")) {
 			return employeeRepository.findById(Long.parseLong(query)).map(this::toDto).stream().toList();
 		}
-		return employeeRepository.findTop10ByEmployeeNameContainingIgnoreCaseOrderByIdDesc(query).stream()
+		String firstChar = query.substring(0, 1);
+		return employeeRepository.findTop10ByEmployeeNameStartingWithIgnoreCaseOrderByIdDesc(firstChar).stream()
 				.map(this::toDto)
 				.toList();
 	}

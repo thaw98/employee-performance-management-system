@@ -16,4 +16,7 @@ public interface PositionKpiRepository extends JpaRepository<PositionKpi, Long> 
 
     @Query("SELECT DISTINCT CONCAT(p.department.id, '-', p.position.id) FROM PositionKpi p WHERE p.period = :period AND p.recordStatus = 'Active'")
     java.util.Set<String> findDistinctDeptAndPosWithActiveKpis(String period);
+
+    @Query("SELECT k FROM PositionKpi k WHERE (:departmentId IS NULL OR k.department.id = :departmentId) AND (:positionId IS NULL OR k.position.id = :positionId) AND (:period IS NULL OR k.period = :period) ORDER BY k.createdDate DESC")
+    List<PositionKpi> findHistory(Long departmentId, Long positionId, String period);
 }

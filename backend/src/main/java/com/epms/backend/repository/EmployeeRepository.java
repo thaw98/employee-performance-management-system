@@ -24,7 +24,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 			""", nativeQuery = true)
 	Optional<Long> findMaxNumericStaffNo();
 
-	List<Employee> findTop10ByEmployeeNameContainingIgnoreCaseOrderByIdDesc(String employeeName);
+	List<Employee> findTop10ByEmployeeNameStartingWithIgnoreCaseOrderByIdDesc(String employeeName);
 
 	Optional<Employee> findByEmployeeId(String employeeId);
 

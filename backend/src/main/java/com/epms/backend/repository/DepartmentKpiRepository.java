@@ -16,4 +16,7 @@ public interface DepartmentKpiRepository extends JpaRepository<DepartmentKpi, Lo
 
     @Query("SELECT DISTINCT k.department.id FROM DepartmentKpi k WHERE k.period = :period AND k.recordStatus = 'Active'")
     java.util.Set<Long> findDistinctDeptWithActiveKpis(String period);
+
+    @Query("SELECT k FROM DepartmentKpi k WHERE (:departmentId IS NULL OR k.department.id = :departmentId) AND (:period IS NULL OR k.period = :period) ORDER BY k.createdDate DESC")
+    List<DepartmentKpi> findHistory(Long departmentId, String period);
 }
