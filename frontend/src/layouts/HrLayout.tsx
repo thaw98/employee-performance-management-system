@@ -23,7 +23,8 @@ import {
   Send,
   History,
   Layers,
-  FileText
+  FileText,
+  BookOpen
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -106,6 +107,7 @@ const HrLayout: React.FC = () => {
       path: '/hr/self-assessment/forms',
       subItems: [
         { label: 'Form Management', path: '/hr/self-assessment/forms', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
+        { label: 'Question Bank', path: '/hr/self-assessment/question-bank', icon: <BookOpen size={16} className="shrink-0" /> },
         { label: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
       ]
     },

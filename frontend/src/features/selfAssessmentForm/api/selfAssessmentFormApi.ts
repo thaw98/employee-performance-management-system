@@ -27,6 +27,21 @@ export interface QuestionRequest {
   sortOrder: number
 }
 
+export interface QuestionBankDto {
+  id: number
+  questionText: string
+  isActive: boolean
+  createdBy: number
+  createdOn: string
+  updatedBy: number | null
+  updatedOn: string | null
+}
+
+export interface QuestionBankRequest {
+  questionText: string
+  isActive: boolean
+}
+
 export interface CreateTemplateRequest {
   title: string
   departmentId: number
@@ -335,18 +350,33 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
   }
 }
 
+const normalizeQuestionBankItem = (question: unknown): QuestionBankDto => {
+  const source = isRecord(question) ? question : {}
+
+  return {
+    id: getNumber(source.id),
+    questionText: getString(source.questionText),
+    isActive: getBoolean(source.isActive),
+    createdBy: getNumber(source.createdBy),
+    createdOn: getString(source.createdOn),
+    updatedBy: source.updatedBy != null ? getNumber(source.updatedBy) : null,
+    updatedOn: getOptionalString(source.updatedOn) ?? null,
+  }
+}
+
 export const selfAssessmentFormApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getMyFormStatus: builder.query<FormStatusDto, void>({
       query: () => '/self-assessment-forms/me/status',
       transformResponse: (response: unknown) => {
-        const data = getResponseData(response)
+        const responseData = getResponseData(response)
+        const data = isRecord(responseData) ? responseData : {}
         return {
-          status: data?.status ?? null,
-          isEligible: data?.isEligible ?? false,
-          hasActiveTemplate: data?.hasActiveTemplate ?? false,
-          deadlinePassed: data?.deadlinePassed ?? false,
-          message: data?.message ?? null,
+          status: getOptionalString(data.status) ?? null,
+          isEligible: getBoolean(data.isEligible),
+          hasActiveTemplate: getBoolean(data.hasActiveTemplate),
+          deadlinePassed: getBoolean(data.deadlinePassed),
+          message: getOptionalString(data.message) ?? null,
         }
       },
     }),
@@ -486,6 +516,45 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       invalidatesTags: ['SelfAssessmentForm'],
       transformResponse: (response: unknown) => normalizeTemplate(getResponseData(response)),
     }),
+
+    getQuestionBank: builder.query<QuestionBankDto[], { includeInactive?: boolean } | void>({
+      query: (arg) => {
+        const includeInactive = typeof arg === 'object' ? arg.includeInactive === true : false
+        return `/self-assessment-forms/question-bank?includeInactive=${includeInactive}`
+      },
+      providesTags: ['QuestionBank'],
+      transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeQuestionBankItem),
+    }),
+
+    createQuestionBankItem: builder.mutation<QuestionBankDto, QuestionBankRequest>({
+      query: (body) => ({
+        url: '/self-assessment-forms/question-bank',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['QuestionBank'],
+      transformResponse: (response: unknown) => normalizeQuestionBankItem(getResponseData(response)),
+    }),
+
+    updateQuestionBankItem: builder.mutation<QuestionBankDto, { id: number; request: QuestionBankRequest }>({
+      query: ({ id, request }) => ({
+        url: `/self-assessment-forms/question-bank/${id}`,
+        method: 'PUT',
+        body: request,
+      }),
+      invalidatesTags: ['QuestionBank'],
+      transformResponse: (response: unknown) => normalizeQuestionBankItem(getResponseData(response)),
+    }),
+
+    updateQuestionBankItemStatus: builder.mutation<QuestionBankDto, { id: number; isActive: boolean }>({
+      query: ({ id, isActive }) => ({
+        url: `/self-assessment-forms/question-bank/${id}/active`,
+        method: 'PATCH',
+        body: { isActive },
+      }),
+      invalidatesTags: ['QuestionBank'],
+      transformResponse: (response: unknown) => normalizeQuestionBankItem(getResponseData(response)),
+    }),
   }),
 })
 
@@ -508,4 +577,8 @@ export const {
   useGetActiveTemplateQuery,
   useCreateTemplateMutation,
   useUpdateTemplateMutation,
+  useGetQuestionBankQuery,
+  useCreateQuestionBankItemMutation,
+  useUpdateQuestionBankItemMutation,
+  useUpdateQuestionBankItemStatusMutation,
 } = selfAssessmentFormApi
