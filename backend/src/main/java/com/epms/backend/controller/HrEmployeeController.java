@@ -65,6 +65,28 @@ public class HrEmployeeController {
         }
     }
 
+    @GetMapping("/kpi-status")
+    public ResponseEntity<ApiResponse<EmployeeListResponseDto>> getEmployeesKpiStatus(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) String kpiStatus,
+            @RequestParam String period,
+            @RequestParam(defaultValue = "employeeId") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            EmployeeListResponseDto result = hrEmployeeService.getEmployeesWithKpiStatus(page, size, search, departmentId, positionId, kpiStatus, period, sortBy, sortDir, principal);
+            return ResponseEntity.ok(ApiResponse.ok("Employee KPI status list retrieved", result));
+        } catch (ResponseStatusException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @GetMapping("/{employeeId}")
     public ResponseEntity<ApiResponse<EmployeeDetailResponseDto>> getEmployee(
             @PathVariable Long employeeId,

@@ -9,11 +9,11 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "position_kpis")
+@Table(name = "department_kpis")
 @Getter
 @Setter
 @NoArgsConstructor
-public class PositionKpi {
+public class DepartmentKpi {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,10 +22,6 @@ public class PositionKpi {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "position_id", nullable = false)
-    private Position position;
 
     @Column(nullable = false)
     private String name;

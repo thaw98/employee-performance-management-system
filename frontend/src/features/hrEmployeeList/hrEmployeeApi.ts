@@ -18,6 +18,7 @@ export interface EmployeeListItem {
   employmentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated'
   employeeActiveStatus: 'ACTIVE' | 'RESIGNED' | 'TERMINATED'
   currentTransferType: 'INITIAL' | 'TEMPORARY' | 'PERMANENT_TRANSFER' | 'RETURN' | null
+  hasKpis?: boolean
 }
 
 export interface EmployeeListResponse {
@@ -107,6 +108,8 @@ export interface GetEmployeesParams {
   employmentStatus?: string
   sortBy?: string
   sortDir?: string
+  kpiStatus?: 'DEFINED' | 'NOT_DEFINED' | ''
+  period?: string
 }
 
 export interface EmployeeViewDepartment {
@@ -202,6 +205,13 @@ export const hrEmployeeApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Employee'],
     }),
+    getEmployeesKpiStatus: builder.query<ApiResponse<EmployeeListResponse>, GetEmployeesParams>({
+      query: (params) => ({
+        url: '/hr/employees/kpi-status',
+        params,
+      }),
+      providesTags: ['Employee'],
+    }),
     getEmployeeById: builder.query<ApiResponse<EmployeeDetail>, number>({
       query: (id) => `/hr/employees/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'Employee', id }],
@@ -256,6 +266,7 @@ export const hrEmployeeApi = baseApi.injectEndpoints({
 
 export const {
   useGetEmployeesQuery,
+  useGetEmployeesKpiStatusQuery,
   useGetEmployeeByIdQuery,
   useUpdateEmployeeMutation,
   useResendPasswordMutation,
