@@ -51,6 +51,9 @@ public class EmployeeKpi {
     @Column(nullable = false)
     private String status; // DRAFT, SUBMITTED, LOCKED
 
+    @Column(name = "record_status", nullable = false)
+    private String recordStatus = "Active"; // Active, Archived
+
     @Column(name = "created_date")
     private Instant createdDate;
 

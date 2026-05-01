@@ -40,6 +40,7 @@ import { GetFeedbackPage } from './pages/GetFeedbackPage';
 import { KpiManagementPage } from './pages/hr/KpiManagementPage';
 import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { KpiDetailPage } from './pages/hr/KpiDetailPage';
+import { KpiCategoryPage } from './pages/hr/KpiCategoryPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
 import DepartmentDetailPage from './pages/hr/departments/DepartmentDetailPage';
 import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
@@ -90,6 +91,7 @@ function App() {
             <Route path="kpi-management" element={<KpiManagementPage />} />
             <Route path="kpi-assigned" element={<KpiAssignedPage />} />
             <Route path="kpi-detail" element={<KpiDetailPage />} />
+            <Route path="kpi-categories" element={<KpiCategoryPage />} />
             <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />

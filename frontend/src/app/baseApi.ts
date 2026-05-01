@@ -33,6 +33,7 @@ export const baseApi = createApi({
     'Notification',
     'Signature',
     'SelfAssessmentForm',
+    'KpiCategory',
   ],
   endpoints: () => ({}),
 });
