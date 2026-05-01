@@ -13,9 +13,13 @@ import {
   useSetupDepartmentKpisMutation
 } from '../../features/kpi/kpiApi';
 import { useGetDepartmentByIdQuery } from '../../features/department/api/departmentApi';
-import { useGetCategoriesQuery } from '../../features/kpi/kpiCategoryApi';
-
+import { useGetCategoriesQuery, useAddCategoryMutation } from '../../features/kpi/kpiCategoryApi';
+import {
+  useGetKpiTemplatesQuery,
+  useCreateKpiTemplateMutation
+} from '../../features/kpi/kpiTemplateApi';
 import { toast } from 'react-hot-toast';
+import { ClipboardList, Download, FolderOpen } from 'lucide-react';
 
 export const KpiManagementPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -68,6 +72,95 @@ export const KpiManagementPage: React.FC = () => {
   const [setupPosKpis, { isLoading: isSavingPos }] = useSetupPositionKpisMutation();
   const [setupDeptKpis, { isLoading: isSavingDept }] = useSetupDepartmentKpisMutation();
   const { data: categories = [] } = useGetCategoriesQuery();
+  const [addCategory] = useAddCategoryMutation();
+
+  // Manual Category Logic
+  const [newCategoryRows, setNewCategoryRows] = useState<Record<number, boolean>>({});
+  const [tempCategoryValues, setTempCategoryValues] = useState<Record<number, string>>({});
+
+  const handleAddNewCategory = async (idx: number) => {
+    const name = tempCategoryValues[idx];
+    if (!name || !name.trim()) {
+      toast.error('Category name cannot be empty');
+      return;
+    }
+
+    try {
+      await addCategory({ name: name.trim() }).unwrap();
+      handleInputChange(idx, 'category', name.trim());
+      setNewCategoryRows(prev => ({ ...prev, [idx]: false }));
+      toast.success(`Category "${name}" added and selected`);
+    } catch (err) {
+      toast.error('Failed to add category');
+    }
+  };
+
+  // Template Logic
+  const { data: templates = [] } = useGetKpiTemplatesQuery({
+    type: mode === 'individual' ? 'INDIVIDUAL' : mode === 'position' ? 'POSITION' : 'DEPARTMENT',
+    departmentId: selectedDeptId || undefined,
+    positionId: selectedPosId || undefined
+  });
+  const [createTemplate] = useCreateKpiTemplateMutation();
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  const loadTemplate = (template: any) => {
+    const templateKpis = template.items.map((item: any) => {
+      const base = mode === 'individual' ? {
+        employeeId: selectedEmployeeId!,
+        actual: '',
+        score: 0,
+        weightedScore: 0,
+        status: 'DRAFT'
+      } : mode === 'position' ? {
+        departmentId: selectedDeptId!,
+        positionId: selectedPosId!
+      } : {
+        departmentId: selectedDeptId!
+      };
+
+      return {
+        ...base,
+        name: item.name,
+        category: item.category,
+        target: item.target,
+        unit: item.unit,
+        weight: item.weight,
+        period
+      };
+    });
+    setKpis(templateKpis);
+    setShowTemplates(false);
+    toast.success(`Loaded template: ${template.name}`);
+  };
+
+  const saveAsTemplate = async () => {
+    if (kpis.length === 0) {
+      toast.error('No KPIs to save as template');
+      return;
+    }
+    const templateName = window.prompt('Enter a name for this template:');
+    if (!templateName) return;
+
+    try {
+      await createTemplate({
+        name: templateName,
+        type: mode === 'individual' ? 'INDIVIDUAL' : mode === 'position' ? 'POSITION' : 'DEPARTMENT',
+        departmentId: selectedDeptId || undefined,
+        positionId: selectedPosId || undefined,
+        items: kpis.map(k => ({
+          name: k.name,
+          category: k.category,
+          target: k.target,
+          unit: k.unit,
+          weight: k.weight
+        }))
+      }).unwrap();
+      toast.success('Template saved successfully');
+    } catch (err) {
+      toast.error('Failed to save template');
+    }
+  };
 
   const isSaving = isSavingInd || isSavingPos || isSavingDept;
 
@@ -347,12 +440,47 @@ export const KpiManagementPage: React.FC = () => {
               </span>
             )}
           </div>
-          <button
-            onClick={addKpiRow}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-200 uppercase tracking-widest"
-          >
-            <Plus size={16} /> Add KPI Item
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                onClick={() => setShowTemplates(!showTemplates)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black transition-all hover:bg-slate-50 uppercase tracking-widest shadow-sm"
+              >
+                <ClipboardList size={16} /> Load Template
+              </button>
+              
+              {showTemplates && (
+                <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  <div className="p-3 bg-slate-50 border-b border-slate-100">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available Templates</span>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {templates.length === 0 ? (
+                      <div className="p-4 text-center text-slate-400 text-xs font-bold">No templates found for this selection.</div>
+                    ) : (
+                      templates.map((t: any) => (
+                        <button
+                          key={t.id}
+                          onClick={() => loadTemplate(t)}
+                          className="w-full text-left p-4 hover:bg-indigo-50 border-b border-slate-50 last:border-0 transition-colors group"
+                        >
+                          <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-600">{t.name}</p>
+                          <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase">{t.items.length} KPI Items</p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={addKpiRow}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-200 uppercase tracking-widest"
+            >
+              <Plus size={16} /> Add KPI Item
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -383,16 +511,50 @@ export const KpiManagementPage: React.FC = () => {
                     />
                   </td>
                   <td className="py-3 px-6">
-                    <select
-                      className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none"
-                      value={kpi.category}
-                      onChange={(e) => handleInputChange(idx, 'category', e.target.value)}
-                    >
-                      <option value="">Category</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.name}>{cat.name}</option>
-                      ))}
-                    </select>
+                    {newCategoryRows[idx] ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          className="flex-1 bg-white border border-indigo-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100"
+                          placeholder="New category..."
+                          value={tempCategoryValues[idx] || ''}
+                          onChange={(e) => setTempCategoryValues({ ...tempCategoryValues, [idx]: e.target.value })}
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleAddNewCategory(idx)}
+                          className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                          title="Save Category"
+                        >
+                          <Save size={14} />
+                        </button>
+                        <button
+                          onClick={() => setNewCategoryRows({ ...newCategoryRows, [idx]: false })}
+                          className="p-1.5 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors"
+                          title="Cancel"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none"
+                        value={kpi.category}
+                        onChange={(e) => {
+                          if (e.target.value === 'ADD_NEW') {
+                            setNewCategoryRows({ ...newCategoryRows, [idx]: true });
+                          } else {
+                            handleInputChange(idx, 'category', e.target.value);
+                          }
+                        }}
+                      >
+                        <option value="">Category</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.name}>{cat.name}</option>
+                        ))}
+                        <option value="ADD_NEW" className="text-indigo-600 font-black">+ Add New Category...</option>
+                      </select>
+                    )}
                   </td>
                   <td className="py-3 px-6">
                     <input
@@ -504,6 +666,12 @@ export const KpiManagementPage: React.FC = () => {
           className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-xs font-black hover:bg-slate-50 transition-all uppercase tracking-widest"
         >
           Reset Setup
+        </button>
+        <button
+          onClick={saveAsTemplate}
+          className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 text-indigo-600 rounded-2xl text-xs font-black hover:bg-indigo-50 transition-all uppercase tracking-widest"
+        >
+          <FolderOpen size={18} /> Save as Template
         </button>
         <button
           onClick={handleSave}

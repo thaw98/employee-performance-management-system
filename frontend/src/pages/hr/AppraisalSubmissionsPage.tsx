@@ -156,7 +156,7 @@ export function AppraisalSubmissionsPage() {
     };
 
     const filteredSubmissions = submissions.filter(s =>
-        s.employee.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.employee.employeeName.toLowerCase().startsWith(searchTerm.toLowerCase().charAt(0)) ||
         s.employee.employeeId?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 

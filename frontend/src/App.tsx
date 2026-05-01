@@ -41,6 +41,7 @@ import { KpiManagementPage } from './pages/hr/KpiManagementPage';
 import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { KpiDetailPage } from './pages/hr/KpiDetailPage';
 import { KpiCategoryPage } from './pages/hr/KpiCategoryPage';
+import { KpiHistoryPage } from './pages/hr/KpiHistoryPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
 import DepartmentDetailPage from './pages/hr/departments/DepartmentDetailPage';
 import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
@@ -92,6 +93,7 @@ function App() {
             <Route path="kpi-assigned" element={<KpiAssignedPage />} />
             <Route path="kpi-detail" element={<KpiDetailPage />} />
             <Route path="kpi-categories" element={<KpiCategoryPage />} />
+            <Route path="kpi-history" element={<KpiHistoryPage />} />
             <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
@@ -109,6 +111,7 @@ function App() {
             <Route path="dashboard" element={<ManagerDashboardPage />} />
             <Route path="employees" element={<EmployeeListPage />} />
             <Route path="kpis" element={<ManagerKpisPage />} />
+            <Route path="kpi-history" element={<KpiHistoryPage />} />
             <Route path="my-kpis" element={<MyKpisPage />} />
             <Route path="pip" element={<PipMonitoringPage />} />
             <Route path="pip/create" element={<PipCreatePage />} />

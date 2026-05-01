@@ -53,6 +53,7 @@ const ManagerLayout: React.FC = () => {
       ? [{ icon: <Users size={20} />, label: 'Employees', path: '/manager/employees' }]
       : []),
     { icon: <Target size={20} />, label: 'KPIs', path: '/manager/kpis' },
+    { icon: <History size={20} />, label: 'KPI History', path: '/manager/kpi-history' },
     { icon: <Target size={20} />, label: 'My KPIs', path: '/manager/my-kpis' },
     { icon: <Zap size={20} />, label: 'Team PIPs', path: '/manager/pip' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/manager/appraisals' },

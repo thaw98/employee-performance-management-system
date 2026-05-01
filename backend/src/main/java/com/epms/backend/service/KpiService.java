@@ -405,6 +405,32 @@ public class KpiService {
         }).collect(Collectors.toList());
     }
 
+    public List<KpiDto> getEmployeeKpiHistory(Long employeeId, String period) {
+        return kpiRepository.findHistory(employeeId, period)
+                .stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<PositionKpiDto> getPositionKpiHistory(Long departmentId, Long positionId, String period) {
+        return positionKpiRepository.findHistory(departmentId, positionId, period)
+                .stream()
+                .map(this::convertToPositionDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<DepartmentKpiDto> getDepartmentKpiHistory(Long departmentId, String period) {
+        return departmentKpiRepository.findHistory(departmentId, period)
+                .stream()
+                .map(this::convertToDepartmentDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<com.epms.backend.dto.KpiHistorySummaryDto> getAllKpiHistorySummary() {
+        return kpiRepository.findHistorySummary();
+    }
+
+
     private KpiDto convertToDto(EmployeeKpi kpi) {
         KpiDto dto = new KpiDto();
         dto.setId(kpi.getId());
