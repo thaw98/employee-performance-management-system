@@ -89,9 +89,26 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const displayDuration =
     timeSettings?.duration === 'Both' ? '6 Months & 1 Year (combined)' : timeSettings?.duration;
 
-  const { data: editingTemplate, refetch: refetchTemplate } = useGetTemplateByIdQuery(editingTemplateId!, {
+  const {
+    currentData: loadedTemplate,
+    refetch: refetchTemplate,
+    isLoading: isTemplateLoading,
+    isFetching: isTemplateFetching,
+    isError: isTemplateError,
+    error: templateQueryError,
+  } = useGetTemplateByIdQuery(editingTemplateId!, {
     skip: !editingTemplateId,
   });
+
+  const templateReady =
+    editingTemplateId != null &&
+    loadedTemplate != null &&
+    loadedTemplate.id === editingTemplateId;
+  const showTemplateLoader =
+    editingTemplateId != null &&
+    !templateReady &&
+    (isTemplateLoading || isTemplateFetching) &&
+    !isTemplateError;
 
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
   const [updateTemplate, { isLoading: isUpdating }] = useUpdateTemplateMutation();
@@ -166,20 +183,23 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
 
   const handleEdit = (templateId: number) => {
     setEditingTemplateId(templateId);
-    refetchTemplate();
   };
 
   React.useEffect(() => {
-    if (editingTemplate) {
-      setSelectedDepartmentId(editingTemplate.departmentId);
-      setSelectedPositionId(editingTemplate.positionId);
-      setIsActive(editingTemplate.isActive);
-      reset({
-        title: editingTemplate.title || '',
-        questions: editingTemplate.questions.map(q => ({ questionText: q.questionText })),
-      });
+    if (!templateReady || !loadedTemplate) {
+      return;
     }
-  }, [editingTemplate, reset]);
+    const qs = loadedTemplate.questions?.length
+      ? loadedTemplate.questions.map((q) => ({ questionText: q.questionText }))
+      : [{ questionText: '' }];
+    setSelectedDepartmentId(loadedTemplate.departmentId);
+    setSelectedPositionId(loadedTemplate.positionId);
+    setIsActive(loadedTemplate.isActive);
+    reset({
+      title: loadedTemplate.title || '',
+      questions: qs,
+    });
+  }, [templateReady, loadedTemplate, reset]);
 
   const handleCancelEdit = () => {
     setEditingTemplateId(null);
@@ -360,6 +380,26 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
               </button>
             </div>
 
+            {showTemplateLoader ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500 dark:text-slate-400">
+                <div className="h-10 w-10 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+                <p className="text-sm">Loading template…</p>
+              </div>
+            ) : isTemplateError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-6 text-center dark:border-red-900/50 dark:bg-red-950/30">
+                <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                  {(templateQueryError as { data?: { message?: string } })?.data?.message ??
+                    'Could not load this template. Please try again.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => refetchTemplate()}
+                  className="mt-4 inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit(onSubmit)}>
             <div className="space-y-4 mb-6">
               <div>
@@ -497,6 +537,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

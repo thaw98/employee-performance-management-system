@@ -53,6 +53,7 @@ import { SelfAssessmentFormTemplatePage } from './pages/self-assessment-form/Sel
 import { CreateSelfAssessmentTemplatePage } from './pages/self-assessment-form/CreateSelfAssessmentTemplatePage';
 import { MySelfAssessmentFormPage } from './pages/self-assessment-form/MySelfAssessmentFormPage';
 import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfAssessmentFormReviewPage';
+import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage';
 
 function App() {
   return (
@@ -100,6 +101,7 @@ function App() {
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment/forms" element={<SelfAssessmentFormTemplatePage />} />
             <Route path="self-assessment/forms/create" element={<CreateSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
