@@ -17,6 +17,8 @@ export interface SelfAssessmentFormTemplateDto {
   positionName: string
   isActive: boolean
   questions: QuestionDto[]
+  /** Latest published revision; increments when HR saves template question changes. */
+  latestVersionNumber: number | null
   createdOn: string
   createdBy: number
 }
@@ -99,6 +101,8 @@ export interface AdjustmentDto {
 export interface SelfAssessmentFormDto {
   id: number
   templateId: number
+  templateVersionId: number | null
+  templateVersionNumber: number | null
   cycleId: number | null
   cycleName: string | null
   title: string
@@ -200,6 +204,7 @@ export interface SaveDraftRequest {
 }
 
 export interface SubmitFormRequest {
+  title: string
   answers: AnswerRequest[]
   employeeRemarks: string | null
   overallRemarks: string | null
@@ -324,6 +329,8 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
   return {
     id: getNumber(source.id),
     templateId: getNumber(source.templateId),
+    templateVersionId: source.templateVersionId != null ? getNumber(source.templateVersionId) : null,
+    templateVersionNumber: source.templateVersionNumber != null ? getNumber(source.templateVersionNumber) : null,
     cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
     cycleName: getOptionalString(source.cycleName) ?? null,
     title: getString(source.title, 'Self Assessment Form'),
@@ -425,6 +432,7 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
         createdOn: getString(qs.createdOn),
       }
     }),
+    latestVersionNumber: source.latestVersionNumber != null ? getNumber(source.latestVersionNumber) : null,
     createdOn: getString(source.createdOn),
     createdBy: getNumber(source.createdBy),
   }

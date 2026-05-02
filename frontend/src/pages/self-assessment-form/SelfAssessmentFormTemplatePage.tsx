@@ -368,6 +368,9 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                       Questions
                     </th>
                     <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
+                      Version
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
                       Status
                     </th>
                     <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200 text-right">
@@ -384,6 +387,9 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{template.departmentName}</td>
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{template.positionName}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{template.questions?.length ?? 0}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400 tabular-nums">
+                        {template.latestVersionNumber != null ? `v${template.latestVersionNumber}` : '—'}
+                      </td>
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex text-xs px-2 py-0.5 rounded-full ${template.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}
@@ -513,9 +519,17 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
           <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                {editingTemplateId ? 'Edit Template' : 'Create New Template'}
-              </h2>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  {editingTemplateId ? 'Edit Template' : 'Create New Template'}
+                </h2>
+                {templateReady && loadedTemplate?.latestVersionNumber != null ? (
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Current revision v{loadedTemplate.latestVersionNumber}. Saving creates a new revision; assigned forms
+                    keep their original questions.
+                  </p>
+                ) : null}
+              </div>
               <button
                 type="button"
                 onClick={handleCancelEdit}

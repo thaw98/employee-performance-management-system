@@ -20,8 +20,8 @@ public class SelfAssessmentFormTemplateQuestion {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "template_id", nullable = false)
-    private SelfAssessmentFormTemplate template;
+    @JoinColumn(name = "template_version_id", nullable = false)
+    private SelfAssessmentFormTemplateVersion templateVersion;
 
     @Column(name = "question_text", columnDefinition = "TEXT", nullable = false)
     private String questionText;

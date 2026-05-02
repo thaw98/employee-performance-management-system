@@ -121,8 +121,11 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       return;
     }
 
+    const submissionTitle = formData?.title?.trim() || 'Self Assessment Form';
+
     try {
       await submitForm({
+        title: submissionTitle,
         answers: data.answers.map(a => ({
           id: a.id,
           yesNoAnswer: a.yesNoAnswer,

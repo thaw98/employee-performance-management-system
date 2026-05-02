@@ -47,22 +47,12 @@ public class SelfAssessmentFormTemplate {
     @Column(name = "updated_on")
     private Instant updatedOn;
 
-    @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("sortOrder ASC")
-    private List<SelfAssessmentFormTemplateQuestion> questions = new ArrayList<>();
+    @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = false)
+    @OrderBy("versionNumber ASC")
+    private List<SelfAssessmentFormTemplateVersion> versions = new ArrayList<>();
 
-    public void addQuestion(SelfAssessmentFormTemplateQuestion question) {
-        questions.add(question);
-        question.setTemplate(this);
-    }
-
-    public void removeQuestion(SelfAssessmentFormTemplateQuestion question) {
-        questions.remove(question);
-        question.setTemplate(null);
-    }
-
-    public void clearQuestions() {
-        questions.forEach(q -> q.setTemplate(null));
-        questions.clear();
+    public void addVersion(SelfAssessmentFormTemplateVersion version) {
+        versions.add(version);
+        version.setTemplate(this);
     }
 }
