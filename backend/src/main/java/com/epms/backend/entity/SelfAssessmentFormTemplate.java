@@ -48,11 +48,11 @@ public class SelfAssessmentFormTemplate {
     private Instant updatedOn;
 
     @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = false)
-    @OrderBy("versionNumber ASC")
-    private List<SelfAssessmentFormTemplateVersion> versions = new ArrayList<>();
+    @OrderBy("sortOrder ASC")
+    private List<SelfAssessmentFormTemplateQuestion> questions = new ArrayList<>();
 
-    public void addVersion(SelfAssessmentFormTemplateVersion version) {
-        versions.add(version);
-        version.setTemplate(this);
+    public void addQuestion(SelfAssessmentFormTemplateQuestion question) {
+        questions.add(question);
+        question.setTemplate(this);
     }
 }

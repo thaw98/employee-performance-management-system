@@ -31,10 +31,6 @@ public class SelfAssessmentForm {
     private SelfAssessmentFormTemplate template;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "template_version_id", nullable = false)
-    private SelfAssessmentFormTemplateVersion templateVersion;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cycle_id")
     private ReviewCycle cycle;
 

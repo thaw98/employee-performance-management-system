@@ -12,7 +12,7 @@ public record SelfAssessmentFormTemplateDto(
         String positionName,
         boolean isActive,
         List<QuestionDto> questions,
-        Integer latestVersionNumber,
+        List<QuestionDto> deletedQuestions,
         Instant createdOn,
         Long createdBy
 ) {}

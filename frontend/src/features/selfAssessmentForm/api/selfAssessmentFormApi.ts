@@ -6,6 +6,8 @@ export interface QuestionDto {
   sortOrder: number
   createdBy: number
   createdOn: string
+  deletedAt?: string | null
+  deletedBy?: number | null
 }
 
 export interface SelfAssessmentFormTemplateDto {
@@ -17,8 +19,8 @@ export interface SelfAssessmentFormTemplateDto {
   positionName: string
   isActive: boolean
   questions: QuestionDto[]
-  /** Latest published revision; increments when HR saves template question changes. */
-  latestVersionNumber: number | null
+  /** Questions soft-deleted from the template; still visible for restore until cleared server-side. */
+  deletedQuestions: QuestionDto[]
   createdOn: string
   createdBy: number
 }
@@ -101,8 +103,6 @@ export interface AdjustmentDto {
 export interface SelfAssessmentFormDto {
   id: number
   templateId: number
-  templateVersionId: number | null
-  templateVersionNumber: number | null
   cycleId: number | null
   cycleName: string | null
   title: string
@@ -329,8 +329,6 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
   return {
     id: getNumber(source.id),
     templateId: getNumber(source.templateId),
-    templateVersionId: source.templateVersionId != null ? getNumber(source.templateVersionId) : null,
-    templateVersionNumber: source.templateVersionNumber != null ? getNumber(source.templateVersionNumber) : null,
     cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
     cycleName: getOptionalString(source.cycleName) ?? null,
     title: getString(source.title, 'Self Assessment Form'),
@@ -411,6 +409,19 @@ const normalizeSetDeadlineResponse = (response: unknown): SetTemplateDeadlineRes
   }
 }
 
+const normalizeTemplateQuestion = (q: unknown): QuestionDto => {
+  const qs = isRecord(q) ? q : {}
+  return {
+    id: getNumber(qs.id),
+    questionText: getString(qs.questionText),
+    sortOrder: getNumber(qs.sortOrder),
+    createdBy: getNumber(qs.createdBy),
+    createdOn: getString(qs.createdOn),
+    deletedAt: getOptionalString(qs.deletedAt) ?? null,
+    deletedBy: qs.deletedBy != null ? getNumber(qs.deletedBy) : null,
+  }
+}
+
 const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => {
   const source = isRecord(template) ? template : {}
 
@@ -422,17 +433,8 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
     positionId: getNumber(source.positionId),
     positionName: getString(source.positionName),
     isActive: getBoolean(source.isActive),
-    questions: getArray(source.questions).map(q => {
-      const qs = isRecord(q) ? q : {}
-      return {
-        id: getNumber(qs.id),
-        questionText: getString(qs.questionText),
-        sortOrder: getNumber(qs.sortOrder),
-        createdBy: getNumber(qs.createdBy),
-        createdOn: getString(qs.createdOn),
-      }
-    }),
-    latestVersionNumber: source.latestVersionNumber != null ? getNumber(source.latestVersionNumber) : null,
+    questions: getArray(source.questions).map(normalizeTemplateQuestion),
+    deletedQuestions: getArray(source.deletedQuestions).map(normalizeTemplateQuestion),
     createdOn: getString(source.createdOn),
     createdBy: getNumber(source.createdBy),
   }
@@ -581,6 +583,7 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
 
     getAllTemplates: builder.query<SelfAssessmentFormTemplateDto[], void>({
       query: () => '/self-assessment-forms/templates',
+      providesTags: ['SelfAssessmentTemplates'],
       transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeTemplate),
     }),
 
@@ -604,7 +607,7 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['SelfAssessmentForm'],
+      invalidatesTags: ['SelfAssessmentForm', 'SelfAssessmentTemplates'],
       transformResponse: (response: unknown) => normalizeTemplate(getResponseData(response)),
     }),
 
@@ -614,7 +617,7 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
         method: 'PUT',
         body: request,
       }),
-      invalidatesTags: ['SelfAssessmentForm'],
+      invalidatesTags: ['SelfAssessmentForm', 'SelfAssessmentTemplates'],
       transformResponse: (response: unknown) => normalizeTemplate(getResponseData(response)),
     }),
 
@@ -624,7 +627,7 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
         method: 'POST',
         body: request,
       }),
-      invalidatesTags: ['SelfAssessmentForm'],
+      invalidatesTags: ['SelfAssessmentForm', 'SelfAssessmentTemplates'],
       transformResponse: (response: unknown) => normalizeSetDeadlineResponse(getResponseData(response)),
     }),
 

@@ -17,7 +17,6 @@ interface AnswerFormData {
     remarks: string | null;
   }[];
   employeeRemarks: string | null;
-  overallRemarks: string | null;
 }
 
 export const MySelfAssessmentFormPage: React.FC = () => {
@@ -36,7 +35,6 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     defaultValues: {
       answers: [],
       employeeRemarks: '',
-      overallRemarks: '',
     },
   });
 
@@ -50,7 +48,6 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           remarks: a.remarks || '',
         })),
         employeeRemarks: formData.employeeRemarks || '',
-        overallRemarks: formData.overallRemarks || '',
       });
     }
   }, [formData, reset]);
@@ -105,7 +102,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           remarks: a.remarks,
         })),
         employeeRemarks: data.employeeRemarks,
-        overallRemarks: data.overallRemarks,
+        overallRemarks: formData?.overallRemarks ?? null,
       }).unwrap();
       toast.success('Draft saved successfully');
       refetch();
@@ -115,12 +112,6 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   };
 
   const onSubmitForm = async (data: AnswerFormData) => {
-    const unanswered = data.answers.filter(a => !a.yesNoAnswer || a.rating === null);
-    if (unanswered.length > 0) {
-      toast.error('Please answer all questions before submitting');
-      return;
-    }
-
     const submissionTitle = formData?.title?.trim() || 'Self Assessment Form';
 
     try {
@@ -133,7 +124,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           remarks: a.remarks,
         })),
         employeeRemarks: data.employeeRemarks,
-        overallRemarks: data.overallRemarks,
+        overallRemarks: formData?.overallRemarks ?? null,
       }).unwrap();
       toast.success('Form submitted successfully');
       setShowSubmitConfirm(false);
@@ -374,18 +365,6 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   rows={3}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50"
                   placeholder="Add any additional remarks..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Overall Remarks
-                </label>
-                <textarea
-                  {...register('overallRemarks')}
-                  disabled={isReadOnly}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50"
-                  placeholder="Add overall remarks..."
                 />
               </div>
             </div>

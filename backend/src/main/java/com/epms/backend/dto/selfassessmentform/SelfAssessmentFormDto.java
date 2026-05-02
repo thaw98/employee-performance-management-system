@@ -7,8 +7,6 @@ import java.util.List;
 public record SelfAssessmentFormDto(
         Long id,
         Long templateId,
-        Long templateVersionId,
-        Integer templateVersionNumber,
         Long cycleId,
         String cycleName,
         String title,

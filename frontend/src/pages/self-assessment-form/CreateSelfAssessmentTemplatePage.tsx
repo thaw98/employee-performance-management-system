@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import {
   ArrowLeft,
+  BookMarked,
   BookOpen,
   BriefcaseBusiness,
   Building2,
@@ -23,6 +24,7 @@ import { useGetDepartmentsQuery } from '../../features/department/api/department
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
 import { useGetEmployeesQuery, type EmployeeListItem } from '../../features/hrEmployeeList/hrEmployeeApi';
 import {
+  useCreateQuestionBankItemMutation,
   useCreateTemplateMutation,
   useGetQuestionBankQuery,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
@@ -542,6 +544,8 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   ]);
 
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
+  const [createQuestionBankItem, { isLoading: isSavingToQuestionBank }] =
+    useCreateQuestionBankItemMutation();
   const { data: questionBank = [], isLoading: isQuestionBankLoading } = useGetQuestionBankQuery(
     { includeInactive: false },
     { skip: !isQuestionBankOpen }
@@ -551,7 +555,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     question.questionText.toLowerCase().includes(questionBankSearch.trim().toLowerCase())
   );
 
-  const { register, control, handleSubmit } = useForm<QuestionFormData>({
+  const { register, control, handleSubmit, getValues } = useForm<QuestionFormData>({
     defaultValues: {
       title: '',
       questions: [{ questionText: '' }],
@@ -653,6 +657,20 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     setIsQuestionBankOpen(false);
     setQuestionBankSearch('');
     toast.success('Question added to form');
+  };
+
+  const handleSaveQuestionToBank = async (index: number) => {
+    const text = getValues(`questions.${index}.questionText`).trim();
+    if (!text) {
+      toast.error('Enter question text before saving to the Question Bank');
+      return;
+    }
+    try {
+      await createQuestionBankItem({ questionText: text, isActive: true }).unwrap();
+      toast.success('Question saved to Question Bank');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Could not save to Question Bank'));
+    }
   };
 
   const onSubmit = async (data: QuestionFormData) => {
@@ -1073,7 +1091,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
             <div className="space-y-2">
               {fields.map((field, index) => (
-                <div key={field.id} className="flex items-center gap-2">
+                <div key={field.id} className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => handleMoveUp(index)}
@@ -1095,8 +1113,18 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   <input
                     {...register(`questions.${index}.questionText` as const)}
                     placeholder={`Question ${index + 1}`}
-                    className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    className="min-w-48 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                   />
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveQuestionToBank(index)}
+                    disabled={isSavingToQuestionBank}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/70"
+                    title="Save this question text to the Question Bank"
+                  >
+                    <BookMarked size={14} />
+                    Save to Question Bank
+                  </button>
                   {fields.length > 1 && (
                     <button
                       type="button"

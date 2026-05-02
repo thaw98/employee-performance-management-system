@@ -20,8 +20,8 @@ public class SelfAssessmentFormTemplateQuestion {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "template_version_id", nullable = false)
-    private SelfAssessmentFormTemplateVersion templateVersion;
+    @JoinColumn(name = "template_id", nullable = false)
+    private SelfAssessmentFormTemplate template;
 
     @Column(name = "question_text", columnDefinition = "TEXT", nullable = false)
     private String questionText;
@@ -34,4 +34,14 @@ public class SelfAssessmentFormTemplateQuestion {
 
     @Column(name = "created_on")
     private Instant createdOn;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
 }

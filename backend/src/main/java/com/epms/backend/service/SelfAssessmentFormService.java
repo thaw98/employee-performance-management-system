@@ -11,15 +11,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class SelfAssessmentFormService {
 
     private final SelfAssessmentFormTemplateRepository templateRepository;
-    private final SelfAssessmentFormTemplateVersionRepository templateVersionRepository;
     private final SelfAssessmentFormRepository formRepository;
     private final SelfAssessmentFormAdjustmentRepository adjustmentRepository;
     private final EmployeeRepository employeeRepository;
@@ -34,7 +39,6 @@ public class SelfAssessmentFormService {
 
     public SelfAssessmentFormService(
             SelfAssessmentFormTemplateRepository templateRepository,
-            SelfAssessmentFormTemplateVersionRepository templateVersionRepository,
             SelfAssessmentFormRepository formRepository,
             SelfAssessmentFormAdjustmentRepository adjustmentRepository,
             EmployeeRepository employeeRepository,
@@ -47,7 +51,6 @@ public class SelfAssessmentFormService {
             UserRepository userRepository,
             NotificationRepository notificationRepository) {
         this.templateRepository = templateRepository;
-        this.templateVersionRepository = templateVersionRepository;
         this.formRepository = formRepository;
         this.adjustmentRepository = adjustmentRepository;
         this.employeeRepository = employeeRepository;
@@ -84,11 +87,6 @@ public class SelfAssessmentFormService {
 
         SelfAssessmentFormTemplate saved = templateRepository.saveAndFlush(template);
 
-        SelfAssessmentFormTemplateVersion version = new SelfAssessmentFormTemplateVersion();
-        version.setTemplate(saved);
-        version.setVersionNumber(1);
-        version.setCreatedBy(userId);
-        version.setCreatedOn(Instant.now());
         for (int i = 0; i < request.questions().size(); i++) {
             QuestionRequest qr = request.questions().get(i);
             SelfAssessmentFormTemplateQuestion question = new SelfAssessmentFormTemplateQuestion();
@@ -96,9 +94,9 @@ public class SelfAssessmentFormService {
             question.setSortOrder(i);
             question.setCreatedBy(userId);
             question.setCreatedOn(Instant.now());
-            version.addQuestion(question);
+            saved.addQuestion(question);
         }
-        templateVersionRepository.save(version);
+        templateRepository.save(saved);
 
         auditService.record(
                 AuditActionType.SELF_ASSESSMENT_FORM_TEMPLATE_CREATED,
@@ -135,26 +133,49 @@ public class SelfAssessmentFormService {
         template.setUpdatedBy(userId);
         template.setUpdatedOn(Instant.now());
 
-        SelfAssessmentFormTemplateVersion previousLatest = templateVersionRepository
-                .findTopByTemplate_IdOrderByVersionNumberDesc(template.getId())
-                .orElseThrow(() -> new RuntimeException("Template has no version; data may be corrupted"));
-        int nextVersionNumber = previousLatest.getVersionNumber() + 1;
-
-        SelfAssessmentFormTemplateVersion newVersion = new SelfAssessmentFormTemplateVersion();
-        newVersion.setTemplate(template);
-        newVersion.setVersionNumber(nextVersionNumber);
-        newVersion.setCreatedBy(userId);
-        newVersion.setCreatedOn(Instant.now());
-        for (int i = 0; i < request.questions().size(); i++) {
-            QuestionRequest qr = request.questions().get(i);
-            SelfAssessmentFormTemplateQuestion question = new SelfAssessmentFormTemplateQuestion();
-            question.setQuestionText(qr.questionText());
-            question.setSortOrder(i);
-            question.setCreatedBy(userId);
-            question.setCreatedOn(Instant.now());
-            newVersion.addQuestion(question);
+        Set<Long> incomingIds = new HashSet<>();
+        for (QuestionRequest qr : request.questions()) {
+            if (qr.id() != null && !incomingIds.add(qr.id())) {
+                throw new RuntimeException("Duplicate question id in request");
+            }
         }
-        templateVersionRepository.save(newVersion);
+
+        Instant now = Instant.now();
+        Map<Long, SelfAssessmentFormTemplateQuestion> existingById = new HashMap<>();
+        for (SelfAssessmentFormTemplateQuestion q : template.getQuestions()) {
+            existingById.put(q.getId(), q);
+        }
+
+        int sortIndex = 0;
+        for (QuestionRequest qr : request.questions()) {
+            if (qr.id() != null) {
+                SelfAssessmentFormTemplateQuestion q = existingById.get(qr.id());
+                if (q == null) {
+                    throw new RuntimeException("Question not found: " + qr.id());
+                }
+                if (!q.getTemplate().getId().equals(template.getId())) {
+                    throw new RuntimeException("Question does not belong to this template");
+                }
+                q.setQuestionText(qr.questionText().trim());
+                q.setSortOrder(sortIndex++);
+                q.setDeletedAt(null);
+                q.setDeletedBy(null);
+            } else {
+                SelfAssessmentFormTemplateQuestion question = new SelfAssessmentFormTemplateQuestion();
+                question.setQuestionText(qr.questionText().trim());
+                question.setSortOrder(sortIndex++);
+                question.setCreatedBy(userId);
+                question.setCreatedOn(now);
+                template.addQuestion(question);
+            }
+        }
+
+        for (SelfAssessmentFormTemplateQuestion q : new ArrayList<>(template.getQuestions())) {
+            if (q.getId() != null && !incomingIds.contains(q.getId()) && q.getDeletedAt() == null) {
+                q.setDeletedAt(now);
+                q.setDeletedBy(userId);
+            }
+        }
 
         SelfAssessmentFormTemplate saved = templateRepository.save(template);
 
@@ -373,8 +394,6 @@ public class SelfAssessmentFormService {
         updateAnswers(form, request.answers());
         form.setEmployeeRemarks(request.employeeRemarks());
         form.setOverallRemarks(request.overallRemarks());
-
-        validateAllAnswersAnswered(form);
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(employee.getUserAccount())
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before submitting."));
@@ -753,12 +772,11 @@ public class SelfAssessmentFormService {
         form.setStatus(SelfAssessmentFormStatus.DRAFT);
         form.setCreatedDate(assignedAt);
 
-        SelfAssessmentFormTemplateVersion version = templateVersionRepository
-                .findTopByTemplate_IdOrderByVersionNumberDesc(template.getId())
-                .orElseThrow(() -> new RuntimeException("Template has no published version"));
-        form.setTemplateVersion(version);
-
-        for (SelfAssessmentFormTemplateQuestion templateQuestion : version.getQuestions()) {
+        List<SelfAssessmentFormTemplateQuestion> activeQuestions = template.getQuestions().stream()
+                .filter(q -> q.getDeletedAt() == null)
+                .sorted(Comparator.comparing(SelfAssessmentFormTemplateQuestion::getSortOrder))
+                .collect(Collectors.toList());
+        for (SelfAssessmentFormTemplateQuestion templateQuestion : activeQuestions) {
             SelfAssessmentFormAnswer answer = new SelfAssessmentFormAnswer();
             answer.setQuestionText(templateQuestion.getQuestionText());
             answer.setSortOrder(templateQuestion.getSortOrder());
@@ -794,14 +812,6 @@ public class SelfAssessmentFormService {
                     }
                     break;
                 }
-            }
-        }
-    }
-
-    private void validateAllAnswersAnswered(SelfAssessmentForm form) {
-        for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
-            if (answer.getYesNoAnswer() == null || answer.getRating() == null) {
-                throw new RuntimeException("All questions must be answered before submission. Missing answer for: " + answer.getQuestionText());
             }
         }
     }
@@ -871,16 +881,31 @@ public class SelfAssessmentFormService {
                 && form.getEmployee().getDepartment().getManagerId().equals(manager.getId());
     }
 
+    private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q) {
+        return new QuestionDto(
+                q.getId(),
+                q.getQuestionText(),
+                q.getSortOrder(),
+                q.getCreatedBy(),
+                q.getCreatedOn(),
+                q.getDeletedAt(),
+                q.getDeletedBy());
+    }
+
     private SelfAssessmentFormTemplateDto toTemplateDto(SelfAssessmentFormTemplate template) {
-        SelfAssessmentFormTemplateVersion latest = templateVersionRepository
-                .findTopByTemplate_IdOrderByVersionNumberDesc(template.getId())
-                .orElse(null);
-        List<QuestionDto> questions = latest == null
-                ? List.of()
-                : latest.getQuestions().stream()
-                        .map(q -> new QuestionDto(q.getId(), q.getQuestionText(), q.getSortOrder(), q.getCreatedBy(), q.getCreatedOn()))
-                        .collect(Collectors.toList());
-        Integer latestVersionNumber = latest != null ? latest.getVersionNumber() : null;
+        List<QuestionDto> questions = template.getQuestions().stream()
+                .filter(q -> q.getDeletedAt() == null)
+                .sorted(Comparator.comparing(SelfAssessmentFormTemplateQuestion::getSortOrder))
+                .map(this::mapTemplateQuestionToDto)
+                .collect(Collectors.toList());
+        List<QuestionDto> deletedQuestions = template.getQuestions().stream()
+                .filter(q -> q.getDeletedAt() != null)
+                .sorted(Comparator
+                        .comparing(SelfAssessmentFormTemplateQuestion::getDeletedAt)
+                        .reversed()
+                        .thenComparing(SelfAssessmentFormTemplateQuestion::getSortOrder))
+                .map(this::mapTemplateQuestionToDto)
+                .collect(Collectors.toList());
 
         return new SelfAssessmentFormTemplateDto(
                 template.getId(),
@@ -891,7 +916,7 @@ public class SelfAssessmentFormService {
                 template.getPosition().getName(),
                 template.isActive(),
                 questions,
-                latestVersionNumber,
+                deletedQuestions,
                 template.getCreatedOn(),
                 template.getCreatedBy()
         );
@@ -947,8 +972,6 @@ public class SelfAssessmentFormService {
         return new SelfAssessmentFormDto(
                 form.getId(),
                 form.getTemplate().getId(),
-                form.getTemplateVersion().getId(),
-                form.getTemplateVersion().getVersionNumber(),
                 form.getCycle() != null ? form.getCycle().getId() : null,
                 form.getCycle() != null ? form.getCycle().getName() : null,
                 form.getTitle() != null ? form.getTitle() : form.getTemplate().getTitle(),

@@ -11,12 +11,11 @@ import javax.sql.DataSource;
 import java.util.List;
 
 /**
- * Introduces {@code self_assessment_form_template_version}, moves template questions to reference
- * {@code template_version_id}, and pins {@code self_assessment_form} rows to a version for audit.
- * Runs before Hibernate aligns schema on legacy databases that still had {@code template_id} on questions.
+ * Removes {@code self_assessment_form_template_version}: template questions reference {@code template_id} directly,
+ * and assigned forms no longer store {@code template_version_id}.
  */
 @Component
-public class SelfAssessmentTemplateVersioningMigrationInitializer implements BeanPostProcessor, Ordered {
+public class SelfAssessmentTemplateVersionRemovalMigrationInitializer implements BeanPostProcessor, Ordered {
 
     @Override
     public int getOrder() {
@@ -31,7 +30,7 @@ public class SelfAssessmentTemplateVersioningMigrationInitializer implements Bea
         try {
             migrate(new JdbcTemplate(dataSource));
         } catch (Exception e) {
-            throw new BeanCreationException("self-assessment template versioning migration failed", e);
+            throw new BeanCreationException("self-assessment template version removal migration failed", e);
         }
         return bean;
     }
@@ -41,97 +40,59 @@ public class SelfAssessmentTemplateVersioningMigrationInitializer implements Bea
             return;
         }
 
-        jdbc.execute("""
-                CREATE TABLE IF NOT EXISTS self_assessment_form_template_version (
-                    id BIGINT NOT NULL AUTO_INCREMENT,
-                    template_id BIGINT NOT NULL,
-                    version_number INT NOT NULL,
-                    created_by BIGINT NULL,
-                    created_on DATETIME(6) NULL,
-                    PRIMARY KEY (id),
-                    UNIQUE KEY uk_saftv_template_version_no (template_id, version_number)
-                )
-                """);
+        addColumnIfMissing(jdbc, "self_assessment_form_template_question", "template_id", "BIGINT NULL");
+        addColumnIfMissing(jdbc, "self_assessment_form_template_question", "deleted_at", "DATETIME(6) NULL");
+        addColumnIfMissing(jdbc, "self_assessment_form_template_question", "deleted_by", "BIGINT NULL");
 
-        addForeignKeyIfMissing(
-                jdbc,
-                "self_assessment_form_template_version",
-                "fk_saftv_template",
-                "template_id",
-                "self_assessment_form_template",
-                "id");
-
-        addColumnIfMissing(jdbc, "self_assessment_form_template_question", "template_version_id", "BIGINT NULL");
-        addColumnIfMissing(jdbc, "self_assessment_form", "template_version_id", "BIGINT NULL");
-
-        jdbc.update("""
-                INSERT INTO self_assessment_form_template_version (template_id, version_number, created_by, created_on)
-                SELECT t.id, 1, t.created_by, COALESCE(t.created_on, CURRENT_TIMESTAMP(6))
-                FROM self_assessment_form_template t
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM self_assessment_form_template_version v WHERE v.template_id = t.id
-                )
-                """);
-
-        if (columnExists(jdbc, "self_assessment_form_template_question", "template_id")) {
+        boolean hadVersionOnQuestions = columnExists(jdbc, "self_assessment_form_template_question", "template_version_id");
+        if (hadVersionOnQuestions && tableExists(jdbc, "self_assessment_form_template_version")) {
             jdbc.update("""
                     UPDATE self_assessment_form_template_question q
-                    INNER JOIN self_assessment_form_template_version v
-                        ON v.template_id = q.template_id AND v.version_number = 1
-                    SET q.template_version_id = v.id
-                    WHERE q.template_version_id IS NULL
-                      AND q.template_id IS NOT NULL
+                    INNER JOIN self_assessment_form_template_version v ON v.id = q.template_version_id
+                    INNER JOIN (
+                        SELECT template_id AS tid, MAX(version_number) AS mx
+                        FROM self_assessment_form_template_version
+                        GROUP BY template_id
+                    ) latest ON latest.tid = v.template_id AND latest.mx = v.version_number
+                    SET q.template_id = v.template_id
+                    WHERE q.template_id IS NULL
+                    """);
+            jdbc.update("""
+                    DELETE FROM self_assessment_form_template_question
+                    WHERE template_id IS NULL
                     """);
         }
 
-        dropForeignKeysOnColumn(jdbc, "self_assessment_form_template_question", "template_id");
-        if (columnExists(jdbc, "self_assessment_form_template_question", "template_id")) {
-            jdbc.execute("ALTER TABLE self_assessment_form_template_question DROP COLUMN template_id");
+        dropForeignKeysOnColumn(jdbc, "self_assessment_form_template_question", "template_version_id");
+        if (columnExists(jdbc, "self_assessment_form_template_question", "template_version_id")) {
+            jdbc.execute("ALTER TABLE self_assessment_form_template_question DROP COLUMN template_version_id");
         }
 
-        if (columnExists(jdbc, "self_assessment_form_template_question", "template_version_id")) {
-            Integer nullQuestions = jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM self_assessment_form_template_question WHERE template_version_id IS NULL",
+        if (columnExists(jdbc, "self_assessment_form_template_question", "template_id")) {
+            Integer nullTemplates = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM self_assessment_form_template_question WHERE template_id IS NULL",
                     Integer.class);
-            if (nullQuestions != null && nullQuestions == 0) {
-                jdbc.execute("ALTER TABLE self_assessment_form_template_question MODIFY template_version_id BIGINT NOT NULL");
+            if (nullTemplates != null && nullTemplates == 0) {
+                jdbc.execute("ALTER TABLE self_assessment_form_template_question MODIFY template_id BIGINT NOT NULL");
             }
         }
 
         addForeignKeyIfMissing(
                 jdbc,
                 "self_assessment_form_template_question",
-                "fk_saftq_template_version",
-                "template_version_id",
-                "self_assessment_form_template_version",
+                "fk_saftq_template",
+                "template_id",
+                "self_assessment_form_template",
                 "id");
 
-        if (columnExists(jdbc, "self_assessment_form", "template_id")) {
-            jdbc.update("""
-                    UPDATE self_assessment_form f
-                    INNER JOIN self_assessment_form_template_version v
-                        ON v.template_id = f.template_id AND v.version_number = 1
-                    SET f.template_version_id = v.id
-                    WHERE f.template_version_id IS NULL AND f.template_id IS NOT NULL
-                    """);
-        }
-
+        dropForeignKeysOnColumn(jdbc, "self_assessment_form", "template_version_id");
         if (columnExists(jdbc, "self_assessment_form", "template_version_id")) {
-            Integer nullForms = jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM self_assessment_form WHERE template_version_id IS NULL",
-                    Integer.class);
-            if (nullForms != null && nullForms == 0) {
-                jdbc.execute("ALTER TABLE self_assessment_form MODIFY template_version_id BIGINT NOT NULL");
-            }
+            jdbc.execute("ALTER TABLE self_assessment_form DROP COLUMN template_version_id");
         }
 
-        addForeignKeyIfMissing(
-                jdbc,
-                "self_assessment_form",
-                "fk_saff_template_version",
-                "template_version_id",
-                "self_assessment_form_template_version",
-                "id");
+        if (tableExists(jdbc, "self_assessment_form_template_version")) {
+            jdbc.execute("DROP TABLE IF EXISTS self_assessment_form_template_version");
+        }
     }
 
     private static void addForeignKeyIfMissing(

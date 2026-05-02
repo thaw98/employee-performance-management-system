@@ -51,6 +51,7 @@ import LevelCodeListPage from './features/levelCode/pages/LevelCodeListPage';
 // Self Assessment (HR templates & employee flows)
 import { SelfAssessmentFormTemplatePage } from './pages/self-assessment-form/SelfAssessmentFormTemplatePage';
 import { CreateSelfAssessmentTemplatePage } from './pages/self-assessment-form/CreateSelfAssessmentTemplatePage';
+import { EditSelfAssessmentTemplatePage } from './pages/self-assessment-form/EditSelfAssessmentTemplatePage';
 import { MySelfAssessmentFormPage } from './pages/self-assessment-form/MySelfAssessmentFormPage';
 import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfAssessmentFormReviewPage';
 import { SelfAssessmentActiveFormsPage } from './pages/self-assessment-form/SelfAssessmentActiveFormsPage';
@@ -102,6 +103,7 @@ function App() {
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
             <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
             <Route
               path="self-assessment/forms/create"

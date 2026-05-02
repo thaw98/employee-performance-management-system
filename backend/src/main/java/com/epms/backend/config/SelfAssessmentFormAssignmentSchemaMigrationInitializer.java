@@ -38,6 +38,7 @@ public class SelfAssessmentFormAssignmentSchemaMigrationInitializer implements B
         addColumnIfMissing(jdbc, "self_assessment_form", "deadline_date", "DATE NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "assigned_at", "DATETIME(6) NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "assigned_by", "BIGINT NULL");
+        addColumnIfMissing(jdbc, "self_assessment_form", "employee_remarks", "TEXT NULL");
         jdbc.update("""
                 UPDATE self_assessment_form f
                 LEFT JOIN self_assessment_form_template t ON t.id = f.template_id

@@ -337,13 +337,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                   </div>
                 )}
 
-                {selectedForm.overallRemarks && (
-                  <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                    <h4 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Overall Remarks</h4>
-                    <p className="text-slate-700 dark:text-slate-200">{selectedForm.overallRemarks}</p>
-                  </div>
-                )}
-
                 {selectedForm.managerComments && (
                   <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
                     <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">Manager Comments</h4>
