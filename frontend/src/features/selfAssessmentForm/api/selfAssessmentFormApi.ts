@@ -62,6 +62,8 @@ export interface CreateTemplateRequest {
   departmentId: number
   positionId: number
   questions: QuestionRequest[]
+  /** Omit or null to use the active employee-submission cycle on the server. */
+  reviewCycleId?: number | null
 }
 
 export interface UpdateTemplateRequest {

@@ -9,5 +9,7 @@ public record CreateTemplateRequest(
         @NotBlank String title,
         @NotNull Long departmentId,
         @NotNull Long positionId,
-        @NotEmpty List<QuestionRequest> questions
+        @NotEmpty List<QuestionRequest> questions,
+        /** When null, the active employee-submission cycle is used (existing behavior). */
+        Long reviewCycleId
 ) {}

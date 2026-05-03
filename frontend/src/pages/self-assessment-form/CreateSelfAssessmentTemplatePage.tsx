@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import {
   ArrowLeft,
@@ -28,7 +28,8 @@ import {
   useCreateTemplateMutation,
   useGetQuestionBankQuery,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
-import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
+import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
+import { formatCycleDate, SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 
 interface QuestionFormData {
   title: string;
@@ -276,6 +277,13 @@ const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
   );
 };
 
+function reviewCycleOptionSuffix(status: string | undefined) {
+  const s = status?.toUpperCase() ?? '';
+  if (s === 'ACTIVE') return 'Active';
+  if (s === 'UPCOMING') return 'Upcoming';
+  return s ? status : '';
+}
+
 export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const navigate = useNavigate();
   const [audienceType, setAudienceType] = useState<AudienceType>('hybrid');
@@ -287,6 +295,30 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const [isQuestionBankOpen, setIsQuestionBankOpen] = useState(false);
   const [questionBankSearch, setQuestionBankSearch] = useState('');
   const [positionAudienceSearch, setPositionAudienceSearch] = useState('');
+  const [selectedReviewCycleId, setSelectedReviewCycleId] = useState<number | null>(null);
+
+  const { data: reviewCycles = [], isLoading: reviewCyclesLoading } = useGetReviewCyclesQuery({
+    requiresEmployeeSubmission: true,
+  });
+
+  const selectableReviewCycles = useMemo(() => {
+    return reviewCycles
+      .filter((c) => {
+        const st = c.status?.toUpperCase();
+        return st === 'ACTIVE' || st === 'UPCOMING';
+      })
+      .slice()
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  }, [reviewCycles]);
+
+  useEffect(() => {
+    if (selectedReviewCycleId != null || selectableReviewCycles.length === 0) {
+      return;
+    }
+    const activeFirst =
+      selectableReviewCycles.find((c) => c.status?.toUpperCase() === 'ACTIVE') ?? selectableReviewCycles[0];
+    setSelectedReviewCycleId(activeFirst.id);
+  }, [selectableReviewCycles, selectedReviewCycleId]);
 
   const { data: departmentsResponse } = useGetDepartmentsQuery();
   const departments = useMemo(
@@ -684,6 +716,15 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
       return;
     }
 
+    if (selectedReviewCycleId == null) {
+      toast.error(
+        selectableReviewCycles.length === 0
+          ? 'No active or upcoming employee-submission review cycle is available'
+          : 'Please select a review cycle'
+      );
+      return;
+    }
+
     if (data.questions.length === 0 || data.questions.every(q => !q.questionText.trim())) {
       toast.error('Please add at least one question');
       return;
@@ -717,6 +758,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             departmentId: pair.departmentId,
             positionId: pair.positionId,
             questions,
+            reviewCycleId: selectedReviewCycleId,
           }).unwrap();
           createdCount += 1;
         } catch (error: unknown) {
@@ -763,6 +805,46 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="mb-6 space-y-4">
+            <div>
+              <label
+                htmlFor="create-template-review-cycle"
+                className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+              >
+                Review cycle
+              </label>
+              <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                Templates are stored per cycle. Choose the active cycle or an upcoming one to prepare ahead.
+              </p>
+              {reviewCyclesLoading ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">Loading review cycles…</p>
+              ) : selectableReviewCycles.length === 0 ? (
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  No active or upcoming employee-submission cycles found. Generate or adjust cycles in System Settings.
+                </p>
+              ) : (
+                <select
+                  id="create-template-review-cycle"
+                  value={selectedReviewCycleId ?? ''}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setSelectedReviewCycleId(value ? Number(value) : null);
+                  }}
+                  className="w-full max-w-xl rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/25 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#5D5FEF]"
+                >
+                  {selectableReviewCycles.map((cycle) => {
+                    const suffix = reviewCycleOptionSuffix(cycle.status);
+                    return (
+                      <option key={cycle.id} value={cycle.id}>
+                        {cycle.name} ({cycle.yearLabel}) — {formatCycleDate(cycle.startDate)} –{' '}
+                        {formatCycleDate(cycle.endDate)}
+                        {suffix ? ` · ${suffix}` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
+            </div>
+
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                 Title
@@ -1155,7 +1237,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           <div className="flex gap-3">
             <button
               type="submit"
-              disabled={isCreating}
+              disabled={isCreating || selectableReviewCycles.length === 0 || selectedReviewCycleId == null}
               className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               <Save size={16} />

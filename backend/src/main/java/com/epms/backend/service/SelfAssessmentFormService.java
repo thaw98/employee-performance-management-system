@@ -66,7 +66,7 @@ public class SelfAssessmentFormService {
 
     @Transactional
     public SelfAssessmentFormTemplateDto createTemplate(CreateTemplateRequest request, Long userId) {
-        ReviewCycle cycle = requireActiveCycle();
+        ReviewCycle cycle = reviewCycleService.resolveCycleForSelfAssessmentTemplate(request.reviewCycleId());
         Department department = departmentRepository.findById(request.departmentId())
                 .orElseThrow(() -> new RuntimeException("Department not found"));
         Position position = positionRepository.findById(request.positionId())
