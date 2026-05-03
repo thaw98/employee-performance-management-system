@@ -36,6 +36,14 @@ function getSelfAssessmentPath() {
   return '/employee/self-assessment-forms/my-form';
 }
 
+/** Legacy notifications stored the deadline as yyyy-mm-dd; normalize to dd-mm-yyyy for display. */
+function formatSelfAssessmentNotificationMessage(message: string): string {
+  return message.replace(
+    /Deadline:\s*(\d{4})-(\d{2})-(\d{2})\s*$/u,
+    (_match, year, month, day) => `Deadline: ${day}-${month}-${year}`,
+  );
+}
+
 function formatCreatedAt(value: string) {
   const elapsedSeconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
   const units = [
@@ -272,7 +280,7 @@ export function NotificationBell() {
                       overflowWrap: 'anywhere',
                     }}
                   >
-                    {notification.message}
+                    {formatSelfAssessmentNotificationMessage(notification.message)}
                   </Box>
                   <Box
                     component="p"

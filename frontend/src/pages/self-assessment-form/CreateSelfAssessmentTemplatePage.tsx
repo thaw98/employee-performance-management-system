@@ -686,7 +686,17 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   };
 
   const handleUseBankQuestion = (questionText: string) => {
-    append({ questionText });
+    const trimmed = questionText.trim();
+    if (!trimmed) {
+      return;
+    }
+    const existing = getValues('questions') ?? [];
+    const key = trimmed.toLowerCase();
+    if (existing.some((q) => q.questionText.trim().toLowerCase() === key)) {
+      toast.error('This question is already in the form');
+      return;
+    }
+    append({ questionText: trimmed });
     setIsQuestionBankOpen(false);
     setQuestionBankSearch('');
     toast.success('Question added to form');

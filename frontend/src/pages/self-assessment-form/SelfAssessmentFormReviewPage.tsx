@@ -14,6 +14,7 @@ import {
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
+import { formatDateTimeWithSeconds } from '../../utils/dateUtils';
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
 import type { RootState } from '../../app/store';
@@ -346,7 +347,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     <p className="text-slate-700 dark:text-slate-200">{selectedForm.managerComments}</p>
                     {selectedForm.managerSignatureDate && (
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                        Signed on {new Date(selectedForm.managerSignatureDate).toLocaleString()}
+                        Signed on {formatDateTimeWithSeconds(selectedForm.managerSignatureDate)}
                       </p>
                     )}
                   </div>

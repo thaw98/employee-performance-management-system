@@ -8,6 +8,7 @@ import {
   useSaveDraftMutation,
   useSubmitFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { formatDateDayMonthYear } from '../../utils/dateUtils';
 
 interface AnswerFormData {
   answers: {
@@ -175,7 +176,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       <div className="p-6">
         <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center">
           <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-          <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">No Template Available</h2>
+          <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">No Form Available</h2>
           <p className="text-slate-500 dark:text-slate-400 mt-2">{formStatus?.message}</p>
         </div>
       </div>
@@ -228,7 +229,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           )}
           {formData?.deadlineDate && (
             <span className="text-sm text-slate-500 dark:text-slate-400">
-              Deadline: {new Date(`${formData.deadlineDate}T00:00:00`).toLocaleDateString()}
+              Deadline: {formatDateDayMonthYear(formData.deadlineDate)}
             </span>
           )}
           {formData?.totalScore != null && (

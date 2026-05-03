@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -23,6 +24,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class SelfAssessmentFormService {
+
+    private static final DateTimeFormatter NOTIFICATION_DEADLINE_FORMAT =
+            DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     private final SelfAssessmentFormTemplateRepository templateRepository;
     private final SelfAssessmentFormRepository formRepository;
@@ -445,7 +449,8 @@ public class SelfAssessmentFormService {
             notificationService.send(
                     employee.getUserAccount(),
                     "Self-Assessment Assigned",
-                    "A self-assessment form has been assigned to you. Deadline: " + deadlineDate,
+                    "A self-assessment form has been assigned to you. Deadline: "
+                            + deadlineDate.format(NOTIFICATION_DEADLINE_FORMAT),
                     "SELF_ASSESSMENT_FORM");
         }
 
@@ -541,7 +546,8 @@ public class SelfAssessmentFormService {
             notificationService.send(
                     employee.getUserAccount(),
                     "Self-Assessment Assigned",
-                    "A self-assessment form has been assigned to you. Deadline: " + request.deadlineDate(),
+                    "A self-assessment form has been assigned to you. Deadline: "
+                            + request.deadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
                     "SELF_ASSESSMENT_FORM");
         }
 
@@ -596,7 +602,7 @@ public class SelfAssessmentFormService {
                 dp.getDepartment().getId(), dp.getPosition().getId(), activeCycle);
 
         if (templateOpt.isEmpty()) {
-            return new FormStatusDto(null, true, false, false, "No active self-assessment template available for your department and position.");
+            return new FormStatusDto(null, true, false, false, "No active self-assessment Form available for your department and position.");
         }
 
         return new FormStatusDto("NOT_ASSIGNED", true, true, false, "No self-assessment form has been assigned to you for the active cycle.");

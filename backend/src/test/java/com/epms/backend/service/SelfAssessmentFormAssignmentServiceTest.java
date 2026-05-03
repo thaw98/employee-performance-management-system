@@ -120,7 +120,7 @@ class SelfAssessmentFormAssignmentServiceTest {
         verify(notificationService).send(
                 eq(employee.getUserAccount()),
                 eq("Self-Assessment Assigned"),
-                eq("A self-assessment form has been assigned to you. Deadline: 2026-05-10"),
+                eq("A self-assessment form has been assigned to you. Deadline: 10-05-2026"),
                 eq("SELF_ASSESSMENT_FORM"));
     }
 
