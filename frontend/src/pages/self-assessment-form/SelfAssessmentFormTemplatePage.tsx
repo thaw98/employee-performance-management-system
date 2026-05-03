@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, X, CalendarRange, CalendarCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../app/store';
 import { useGetTimeSettingsQuery } from '../../features/feedback/api/feedbackApi';
 import { useGetActiveReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import { formatCycleDate, SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
@@ -13,6 +15,9 @@ import { toast } from 'react-hot-toast';
 
 export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isManager = user?.roleId === 2;
+  const routeBase = isManager ? '/manager/self-assessment/templates' : '/hr/self-assessment/templates';
   const [deadlineTemplate, setDeadlineTemplate] = useState<SelfAssessmentFormTemplateDto | null>(null);
   const [deadlineTitle, setDeadlineTitle] = useState('');
   const [deadlineDate, setDeadlineDate] = useState('');
@@ -78,17 +83,21 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Self Assessment Template</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Create and manage self-assessment templates for each department and position
+              {isManager
+                ? 'Review HR templates for your department and manage your added questions'
+                : 'Create and manage self-assessment templates for each department and position'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/hr/self-assessment/templates/create')}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-          >
-            <Plus size={16} />
-            Create New Template
-          </button>
+          {!isManager && (
+            <button
+              type="button"
+              onClick={() => navigate('/hr/self-assessment/templates/create')}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+            >
+              <Plus size={16} />
+              Create New Template
+            </button>
+          )}
         </div>
 
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50">
@@ -185,19 +194,21 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-3">
+                          {!isManager && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDeadline(template)}
+                              disabled={setDeadlineDisabled}
+                              className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400 dark:text-blue-400 dark:hover:text-blue-300"
+                              title={setDeadlineTitle}
+                            >
+                              <CalendarCheck size={15} />
+                              Set Deadline
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => handleOpenDeadline(template)}
-                            disabled={setDeadlineDisabled}
-                            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400 dark:text-blue-400 dark:hover:text-blue-300"
-                            title={setDeadlineTitle}
-                          >
-                            <CalendarCheck size={15} />
-                            Set Deadline
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/hr/self-assessment/templates/${template.id}/edit`)}
+                            onClick={() => navigate(`${routeBase}/${template.id}/edit`)}
                             className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
                           >
                             Edit

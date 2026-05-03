@@ -5,6 +5,11 @@ export interface QuestionDto {
   questionText: string
   sortOrder: number
   createdBy: number
+  createdByRoleId: number | null
+  isManagerAdded: boolean
+  canEdit: boolean
+  canDeactivate: boolean
+  canHighlight: boolean
   createdOn: string
   deletedAt?: string | null
   deletedBy?: number | null
@@ -418,6 +423,11 @@ const normalizeTemplateQuestion = (q: unknown): QuestionDto => {
     questionText: getString(qs.questionText),
     sortOrder: getNumber(qs.sortOrder),
     createdBy: getNumber(qs.createdBy),
+    createdByRoleId: qs.createdByRoleId != null ? getNumber(qs.createdByRoleId) : null,
+    isManagerAdded: getBoolean(qs.isManagerAdded),
+    canEdit: getBoolean(qs.canEdit, true),
+    canDeactivate: getBoolean(qs.canDeactivate, true),
+    canHighlight: getBoolean(qs.canHighlight),
     createdOn: getString(qs.createdOn),
     deletedAt: getOptionalString(qs.deletedAt) ?? null,
     deletedBy: qs.deletedBy != null ? getNumber(qs.deletedBy) : null,

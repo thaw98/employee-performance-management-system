@@ -3,6 +3,8 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { ArrowLeft, BookMarked, BookOpen, CalendarRange, Plus, Save, Search, Trash2, Undo2, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../app/store';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
 import {
@@ -14,11 +16,21 @@ import {
 
 interface QuestionFormData {
   title: string;
-  questions: { questionId?: number; questionText: string }[];
+  questions: {
+    questionId?: number;
+    questionText: string;
+    canEdit?: boolean;
+    canDeactivate?: boolean;
+    canHighlight?: boolean;
+    isManagerAdded?: boolean;
+  }[];
 }
 
 export const EditSelfAssessmentTemplatePage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isManager = user?.roleId === 2;
+  const routeBase = isManager ? '/manager/self-assessment/templates' : '/hr/self-assessment/templates';
   const { templateId: templateIdParam } = useParams<{ templateId: string }>();
   const templateId = templateIdParam ? Number(templateIdParam) : NaN;
   const idValid = Number.isFinite(templateId) && templateId > 0;
@@ -35,10 +47,12 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
   const { data: positionsResponse } = useGetPositionsByDepartmentQuery(selectedDepartmentId!, {
     skip: !selectedDepartmentId,
   });
-  const positions = (positionsResponse?.data || []).map((pos: { id?: number; positionId?: number; name?: string; positionName?: string }) => ({
-    id: pos.id ?? pos.positionId,
-    name: pos.name ?? pos.positionName,
-  }));
+  const positions = (positionsResponse?.data || [])
+    .map((pos: { id?: number; positionId?: number; name?: string; positionName?: string }) => ({
+      id: pos.id ?? pos.positionId,
+      name: pos.name ?? pos.positionName,
+    }))
+    .filter((pos): pos is { id: number; name: string } => pos.id != null && !!pos.name);
 
   const {
     currentData: loadedTemplate,
@@ -88,7 +102,14 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
       return;
     }
     const qs = loadedTemplate.questions?.length
-      ? loadedTemplate.questions.map((q) => ({ questionId: q.id, questionText: q.questionText }))
+      ? loadedTemplate.questions.map((q) => ({
+          questionId: q.id,
+          questionText: q.questionText,
+          canEdit: q.canEdit,
+          canDeactivate: q.canDeactivate,
+          canHighlight: q.canHighlight,
+          isManagerAdded: q.isManagerAdded,
+        }))
       : [{ questionText: '' }];
     setSelectedDepartmentId(loadedTemplate.departmentId);
     setSelectedPositionId(loadedTemplate.positionId);
@@ -102,12 +123,12 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
   const onSubmit = async (data: QuestionFormData) => {
     if (!idValid) return;
 
-    if (!data.title.trim()) {
+    if (!isManager && !data.title.trim()) {
       toast.error('Please enter a title');
       return;
     }
 
-    if (!selectedDepartmentId || !selectedPositionId) {
+    if (!isManager && (!selectedDepartmentId || !selectedPositionId)) {
       toast.error('Please select department and position');
       return;
     }
@@ -129,15 +150,15 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
       await updateTemplate({
         id: templateId,
         request: {
-          title: data.title.trim(),
-          departmentId: selectedDepartmentId,
-          positionId: selectedPositionId,
-          isActive,
+          title: isManager && loadedTemplate ? loadedTemplate.title : data.title.trim(),
+          departmentId: isManager && loadedTemplate ? loadedTemplate.departmentId : selectedDepartmentId!,
+          positionId: isManager && loadedTemplate ? loadedTemplate.positionId : selectedPositionId!,
+          isActive: isManager && loadedTemplate ? loadedTemplate.isActive : isActive,
           questions,
         },
       }).unwrap();
       toast.success('Template updated successfully');
-      navigate('/hr/self-assessment/templates');
+      navigate(routeBase);
     } catch (error: unknown) {
       const message =
         error && typeof error === 'object' && 'data' in error
@@ -148,19 +169,19 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
   };
 
   const handleMoveUp = (index: number) => {
-    if (index > 0) {
+    if (index > 0 && (!isManager || (fields[index]?.canEdit && fields[index - 1]?.canEdit))) {
       move(index, index - 1);
     }
   };
 
   const handleMoveDown = (index: number) => {
-    if (index < fields.length - 1) {
+    if (index < fields.length - 1 && (!isManager || (fields[index]?.canEdit && fields[index + 1]?.canEdit))) {
       move(index, index + 1);
     }
   };
 
   const handleUseBankQuestion = (questionText: string) => {
-    append({ questionText });
+    append({ questionText, canEdit: true, canDeactivate: true });
     setIsQuestionBankOpen(false);
     setQuestionBankSearch('');
     toast.success('Question added to form');
@@ -184,7 +205,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
     }
   };
 
-  const goBack = () => navigate('/hr/self-assessment/templates');
+  const goBack = () => navigate(routeBase);
 
   if (!idValid) {
     return (
@@ -216,12 +237,14 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
       </div>
 
       <div className="max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Edit Template</h1>
-        {templateReady ? (
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Removing a question soft-deletes it for new assignments; forms already set with a deadline keep their snapshot.
-          </p>
-        ) : null}
+	        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Edit Template</h1>
+	        {templateReady ? (
+	          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+	            {isManager
+	              ? 'HR-created template fields and HR questions are read-only; you can manage only the questions you add.'
+	              : 'Removing a question soft-deletes it for new assignments; forms already set with a deadline keep their snapshot.'}
+	          </p>
+	        ) : null}
 
         {templateReady && loadedTemplate ? (
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50">
@@ -263,28 +286,30 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
             <div className="mb-6 space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Title</label>
-                <input
-                  {...register('title')}
-                  type="text"
-                  placeholder="Template title"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                />
+	                <input
+	                  {...register('title')}
+	                  type="text"
+	                  placeholder="Template title"
+	                  readOnly={isManager}
+	                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 read-only:bg-slate-100 read-only:text-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:read-only:bg-slate-900/50 dark:read-only:text-slate-400"
+	                />
               </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Department</label>
                 <select
-                  value={selectedDepartmentId || ''}
-                  onChange={(e) => {
-                    setSelectedDepartmentId(e.target.value ? Number(e.target.value) : null);
-                    setSelectedPositionId(null);
-                  }}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+	                  value={selectedDepartmentId || ''}
+	                  onChange={(e) => {
+	                    setSelectedDepartmentId(e.target.value ? Number(e.target.value) : null);
+	                    setSelectedPositionId(null);
+	                  }}
+	                  disabled={isManager}
+	                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 >
                   <option value="">Select Department</option>
-                  {departments.map((dept: { id: number; name: string }) => (
-                    <option key={dept.id} value={dept.id}>
-                      {dept.name}
+                  {departments.map((dept) => (
+                    <option key={dept.departmentId} value={dept.departmentId}>
+                      {dept.departmentName}
                     </option>
                   ))}
                 </select>
@@ -293,10 +318,10 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Position</label>
                 <select
-                  value={selectedPositionId || ''}
-                  onChange={(e) => setSelectedPositionId(e.target.value ? Number(e.target.value) : null)}
-                  disabled={!selectedDepartmentId}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+	                  value={selectedPositionId || ''}
+	                  onChange={(e) => setSelectedPositionId(e.target.value ? Number(e.target.value) : null)}
+	                  disabled={!selectedDepartmentId || isManager}
+	                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 >
                   <option value="">Select Position</option>
                   {selectedDepartmentId && positions.length === 0 && (
@@ -304,7 +329,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                       No active positions for this department
                     </option>
                   )}
-                  {positions.map((pos: { id: number; name: string }) => (
+                  {positions.map((pos) => (
                     <option key={pos.id} value={pos.id}>
                       {pos.name}
                     </option>
@@ -315,10 +340,11 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  id="isActive"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300"
+	                  id="isActive"
+	                  checked={isActive}
+	                  onChange={(e) => setIsActive(e.target.checked)}
+	                  disabled={isManager}
+	                  className="h-4 w-4 rounded border-slate-300"
                 />
                 <label htmlFor="isActive" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Active Template
@@ -329,66 +355,89 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
             <div className="mb-4">
               <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Questions</label>
-                <button
-                  type="button"
-                  onClick={() => setIsQuestionBankOpen(true)}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
-                >
-                  <BookOpen size={16} />
-                  Use from Question Bank
-                </button>
+	                {!isManager && (
+	                  <button
+	                    type="button"
+	                    onClick={() => setIsQuestionBankOpen(true)}
+	                    className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+	                  >
+	                    <BookOpen size={16} />
+	                    Use from Question Bank
+	                  </button>
+	                )}
               </div>
 
               <div className="space-y-2">
-                {fields.map((field, index) => (
-                  <div key={field.id} className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
-                      className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30"
+	                {fields.map((field, index) => {
+	                  const canEditRow = field.canEdit !== false;
+	                  const canDeactivateRow = field.canDeactivate !== false;
+	                  const canMoveUp = index > 0 && (!isManager || (canEditRow && fields[index - 1]?.canEdit));
+	                  const canMoveDown = index < fields.length - 1 && (!isManager || (canEditRow && fields[index + 1]?.canEdit));
+	                  return (
+	                  <div
+	                    key={field.id}
+	                    className={`flex flex-wrap items-center gap-2 rounded-lg border px-2 py-2 ${
+	                      field.canHighlight
+	                        ? 'border-amber-300 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/20'
+	                        : 'border-transparent'
+	                    }`}
+	                  >
+	                    <button
+	                      type="button"
+	                      onClick={() => handleMoveUp(index)}
+	                      disabled={!canMoveUp}
+	                      className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30"
                     >
                       <span className="text-xs">▲</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={index === fields.length - 1}
-                      className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30"
+	                    <button
+	                      type="button"
+	                      onClick={() => handleMoveDown(index)}
+	                      disabled={!canMoveDown}
+	                      className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30"
                     >
                       <span className="text-xs">▼</span>
                     </button>
                     <input
-                      {...register(`questions.${index}.questionText` as const)}
-                      placeholder={`Question ${index + 1}`}
-                      className="min-w-48 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleSaveQuestionToBank(index)}
-                      disabled={isSavingToQuestionBank}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/70"
-                      title="Save this question text to the Question Bank"
-                    >
-                      <BookMarked size={14} />
-                      Save to Question Bank
-                    </button>
-                    {fields.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => remove(index)}
+	                      {...register(`questions.${index}.questionText` as const)}
+	                      placeholder={`Question ${index + 1}`}
+	                      readOnly={!canEditRow}
+	                      className="min-w-48 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 read-only:bg-slate-100 read-only:text-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:read-only:bg-slate-900/50 dark:read-only:text-slate-400"
+	                    />
+	                    {field.canHighlight || field.isManagerAdded ? (
+	                      <span className="inline-flex shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+	                        Manager added
+	                      </span>
+	                    ) : null}
+	                    {!isManager && (
+	                      <button
+	                        type="button"
+	                        onClick={() => void handleSaveQuestionToBank(index)}
+	                        disabled={isSavingToQuestionBank}
+	                        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/70"
+	                        title="Save this question text to the Question Bank"
+	                      >
+	                        <BookMarked size={14} />
+	                        Save to Question Bank
+	                      </button>
+	                    )}
+	                    {fields.length > 1 && canDeactivateRow && (
+	                      <button
+	                        type="button"
+	                        onClick={() => remove(index)}
                         className="rounded p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                       >
                         <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                ))}
+	                      </button>
+	                    )}
+	                  </div>
+	                  );
+	                })}
               </div>
 
               <button
                 type="button"
-                onClick={() => append({ questionText: '' })}
+	                onClick={() => append({ questionText: '', canEdit: true, canDeactivate: true, isManagerAdded: isManager })}
                 className="mt-3 flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
               >
                 <Plus size={16} />
@@ -403,7 +452,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                     .map((row) => row.questionId)
                     .filter((id): id is number => typeof id === 'number'),
                 );
-                const pendingRestore = (loadedTemplate.deletedQuestions ?? []).filter((d) => !restoredIds.has(d.id));
+	                const pendingRestore = (loadedTemplate.deletedQuestions ?? []).filter((d) => !restoredIds.has(d.id) && d.canEdit);
                 if (pendingRestore.length === 0) return null;
                 return (
                   <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
@@ -420,7 +469,14 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                           <span className="text-slate-800 dark:text-slate-200">{q.questionText}</span>
                           <button
                             type="button"
-                            onClick={() => append({ questionId: q.id, questionText: q.questionText })}
+	                            onClick={() => append({
+	                              questionId: q.id,
+	                              questionText: q.questionText,
+	                              canEdit: q.canEdit,
+	                              canDeactivate: q.canDeactivate,
+	                              canHighlight: q.canHighlight,
+	                              isManagerAdded: q.isManagerAdded,
+	                            })}
                             className="inline-flex shrink-0 items-center gap-1 rounded-md border border-emerald-600 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                           >
                             <Undo2 size={14} />

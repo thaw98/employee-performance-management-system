@@ -132,6 +132,8 @@ function App() {
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
+            <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>

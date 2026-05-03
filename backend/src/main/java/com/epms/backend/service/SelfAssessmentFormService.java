@@ -198,6 +198,144 @@ public class SelfAssessmentFormService {
         return toTemplateDto(saved);
     }
 
+    @Transactional
+    public SelfAssessmentFormTemplateDto updateTemplateForRole(
+            Long id,
+            UpdateTemplateRequest request,
+            Long userId,
+            Long roleId,
+            Employee employee) {
+        if (roleId != null && roleId == 1L) {
+            return updateTemplate(id, request, userId);
+        }
+        if (roleId != null && roleId == 2L) {
+            return updateTemplateAsManager(id, request, userId, employee);
+        }
+        throw new RuntimeException("Unauthorized");
+    }
+
+    @Transactional
+    public SelfAssessmentFormTemplateDto updateTemplateAsManager(
+            Long id,
+            UpdateTemplateRequest request,
+            Long userId,
+            Employee manager) {
+        SelfAssessmentFormTemplate template = templateRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Template not found"));
+        requireManagerTemplateAccess(template, manager);
+
+        Set<Long> incomingIds = new HashSet<>();
+        for (QuestionRequest qr : request.questions()) {
+            if (qr.id() != null && !incomingIds.add(qr.id())) {
+                throw new RuntimeException("Duplicate question id in request");
+            }
+        }
+
+        Map<Long, SelfAssessmentFormTemplateQuestion> existingById = new HashMap<>();
+        for (SelfAssessmentFormTemplateQuestion q : template.getQuestions()) {
+            if (q.getId() != null) {
+                existingById.put(q.getId(), q);
+            }
+        }
+
+        for (SelfAssessmentFormTemplateQuestion q : template.getQuestions()) {
+            if (q.getId() == null || q.getCreatedBy() == null || q.getCreatedBy().equals(userId)) {
+                continue;
+            }
+            boolean isActiveOtherQuestion = q.getDeletedAt() == null;
+            boolean isIncoming = incomingIds.contains(q.getId());
+            if (isActiveOtherQuestion && !isIncoming) {
+                throw new RuntimeException("Managers cannot remove questions created by HR or other users");
+            }
+        }
+
+        Instant now = Instant.now();
+        List<QuestionRequest> managerRows = new ArrayList<>();
+
+        for (QuestionRequest qr : request.questions()) {
+            if (qr.id() == null) {
+                managerRows.add(qr);
+                continue;
+            }
+
+            SelfAssessmentFormTemplateQuestion q = existingById.get(qr.id());
+            if (q == null) {
+                throw new RuntimeException("Question not found: " + qr.id());
+            }
+            if (!q.getTemplate().getId().equals(template.getId())) {
+                throw new RuntimeException("Question does not belong to this template");
+            }
+            if (userId.equals(q.getCreatedBy())) {
+                managerRows.add(qr);
+                continue;
+            }
+            if (q.getDeletedAt() != null) {
+                throw new RuntimeException("Managers cannot restore questions created by HR or other users");
+            }
+            if (!q.getQuestionText().trim().equals(qr.questionText().trim())) {
+                throw new RuntimeException("Managers cannot edit questions created by HR or other users");
+            }
+        }
+
+        int nextSortOrder = template.getQuestions().stream()
+                .filter(q -> q.getDeletedAt() == null)
+                .filter(q -> !userId.equals(q.getCreatedBy()))
+                .map(SelfAssessmentFormTemplateQuestion::getSortOrder)
+                .max(Integer::compareTo)
+                .orElse(-1) + 1;
+
+        Set<Long> activeManagerIds = new HashSet<>();
+        for (QuestionRequest qr : managerRows) {
+            String text = qr.questionText() == null ? "" : qr.questionText().trim();
+            if (text.isBlank()) {
+                continue;
+            }
+            if (qr.id() != null) {
+                SelfAssessmentFormTemplateQuestion q = existingById.get(qr.id());
+                if (!userId.equals(q.getCreatedBy())) {
+                    throw new RuntimeException("Managers can only update questions they added");
+                }
+                q.setQuestionText(text);
+                q.setSortOrder(nextSortOrder++);
+                q.setDeletedAt(null);
+                q.setDeletedBy(null);
+                activeManagerIds.add(q.getId());
+            } else {
+                SelfAssessmentFormTemplateQuestion question = new SelfAssessmentFormTemplateQuestion();
+                question.setQuestionText(text);
+                question.setSortOrder(nextSortOrder++);
+                question.setCreatedBy(userId);
+                question.setCreatedOn(now);
+                template.addQuestion(question);
+            }
+        }
+
+        for (SelfAssessmentFormTemplateQuestion q : template.getQuestions()) {
+            if (q.getId() != null
+                    && userId.equals(q.getCreatedBy())
+                    && q.getDeletedAt() == null
+                    && !activeManagerIds.contains(q.getId())) {
+                q.setDeletedAt(now);
+                q.setDeletedBy(userId);
+            }
+        }
+
+        template.setUpdatedBy(userId);
+        template.setUpdatedOn(now);
+        SelfAssessmentFormTemplate saved = templateRepository.save(template);
+
+        auditService.record(
+                AuditActionType.SELF_ASSESSMENT_FORM_TEMPLATE_UPDATED,
+                AuditTargetType.SELF_ASSESSMENT_FORM_TEMPLATE,
+                saved.getId(),
+                userId,
+                null,
+                "Updated manager-added self-assessment template questions",
+                null);
+
+        return toTemplateDto(saved, userId, 2L);
+    }
+
     @Transactional(readOnly = true)
     public List<SelfAssessmentFormTemplateDto> getAllTemplates() {
         return templateRepository.findAll().stream()
@@ -206,10 +344,47 @@ public class SelfAssessmentFormService {
     }
 
     @Transactional(readOnly = true)
+    public List<SelfAssessmentFormTemplateDto> getAllTemplatesForRole(Long userId, Long roleId, Employee employee) {
+        if (roleId != null && roleId == 1L) {
+            return templateRepository.findAll().stream()
+                    .map(template -> toTemplateDto(template, userId, roleId))
+                    .collect(Collectors.toList());
+        }
+        if (roleId != null && roleId == 2L) {
+            Long departmentId = getEmployeeDepartmentId(employee);
+            if (departmentId == null) {
+                throw new RuntimeException("Manager department not found");
+            }
+            return templateRepository.findAll().stream()
+                    .filter(SelfAssessmentFormTemplate::isActive)
+                    .filter(template -> template.getDepartment() != null
+                            && departmentId.equals(template.getDepartment().getId()))
+                    .filter(this::isHrCreatedTemplate)
+                    .map(template -> toTemplateDto(template, userId, roleId))
+                    .collect(Collectors.toList());
+        }
+        throw new RuntimeException("Unauthorized");
+    }
+
+    @Transactional(readOnly = true)
     public SelfAssessmentFormTemplateDto getTemplateById(Long id) {
         SelfAssessmentFormTemplate template = templateRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Template not found"));
         return toTemplateDto(template);
+    }
+
+    @Transactional(readOnly = true)
+    public SelfAssessmentFormTemplateDto getTemplateByIdForRole(Long id, Long userId, Long roleId, Employee employee) {
+        SelfAssessmentFormTemplate template = templateRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Template not found"));
+        if (roleId != null && roleId == 1L) {
+            return toTemplateDto(template, userId, roleId);
+        }
+        if (roleId != null && roleId == 2L) {
+            requireManagerTemplateAccess(template, employee);
+            return toTemplateDto(template, userId, roleId);
+        }
+        throw new RuntimeException("Unauthorized");
     }
 
     @Transactional(readOnly = true)
@@ -913,21 +1088,45 @@ public class SelfAssessmentFormService {
     }
 
     private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q) {
+        return mapTemplateQuestionToDto(q, null, null);
+    }
+
+    private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q, Long currentUserId, Long currentRoleId) {
+        Long createdByRoleId = getUserRoleId(q.getCreatedBy());
+        boolean isManagerAdded = createdByRoleId != null && createdByRoleId == 2L;
+        boolean isHr = currentRoleId != null && currentRoleId == 1L;
+        boolean isManagerOwner = currentRoleId != null
+                && currentRoleId == 2L
+                && currentUserId != null
+                && currentUserId.equals(q.getCreatedBy());
+        boolean canEdit = isHr || isManagerOwner;
+        boolean canDeactivate = isHr || isManagerOwner;
+        boolean canHighlight = isHr && isManagerAdded && q.getDeletedAt() == null;
+
         return new QuestionDto(
                 q.getId(),
                 q.getQuestionText(),
                 q.getSortOrder(),
                 q.getCreatedBy(),
+                createdByRoleId,
+                isManagerAdded,
+                canEdit,
+                canDeactivate,
+                canHighlight,
                 q.getCreatedOn(),
                 q.getDeletedAt(),
                 q.getDeletedBy());
     }
 
     private SelfAssessmentFormTemplateDto toTemplateDto(SelfAssessmentFormTemplate template) {
+        return toTemplateDto(template, null, null);
+    }
+
+    private SelfAssessmentFormTemplateDto toTemplateDto(SelfAssessmentFormTemplate template, Long currentUserId, Long currentRoleId) {
         List<QuestionDto> questions = template.getQuestions().stream()
                 .filter(q -> q.getDeletedAt() == null)
                 .sorted(Comparator.comparing(SelfAssessmentFormTemplateQuestion::getSortOrder))
-                .map(this::mapTemplateQuestionToDto)
+                .map(q -> mapTemplateQuestionToDto(q, currentUserId, currentRoleId))
                 .collect(Collectors.toList());
         List<QuestionDto> deletedQuestions = template.getQuestions().stream()
                 .filter(q -> q.getDeletedAt() != null)
@@ -935,7 +1134,7 @@ public class SelfAssessmentFormService {
                         .comparing(SelfAssessmentFormTemplateQuestion::getDeletedAt)
                         .reversed()
                         .thenComparing(SelfAssessmentFormTemplateQuestion::getSortOrder))
-                .map(this::mapTemplateQuestionToDto)
+                .map(q -> mapTemplateQuestionToDto(q, currentUserId, currentRoleId))
                 .collect(Collectors.toList());
 
         return new SelfAssessmentFormTemplateDto(
@@ -953,6 +1152,50 @@ public class SelfAssessmentFormService {
                 template.getCreatedOn(),
                 template.getCreatedBy()
         );
+    }
+
+    private Long getUserRoleId(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return userRepository.findById(userId)
+                .map(User::getRole)
+                .map(Role::getId)
+                .orElse(null);
+    }
+
+    private boolean isHrCreatedTemplate(SelfAssessmentFormTemplate template) {
+        Long creatorRoleId = getUserRoleId(template.getCreatedBy());
+        return creatorRoleId != null && creatorRoleId == 1L;
+    }
+
+    private void requireManagerTemplateAccess(SelfAssessmentFormTemplate template, Employee manager) {
+        Long departmentId = getEmployeeDepartmentId(manager);
+        if (departmentId == null) {
+            throw new RuntimeException("Manager department not found");
+        }
+        if (!template.isActive()) {
+            throw new RuntimeException("Template not found");
+        }
+        if (template.getDepartment() == null || !departmentId.equals(template.getDepartment().getId())) {
+            throw new RuntimeException("Template not found");
+        }
+        if (!isHrCreatedTemplate(template)) {
+            throw new RuntimeException("Template not found");
+        }
+    }
+
+    private Long getEmployeeDepartmentId(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        if (employee.getDepartment() != null) {
+            return employee.getDepartment().getId();
+        }
+        if (employee.getDepartmentPosition() != null && employee.getDepartmentPosition().getDepartment() != null) {
+            return employee.getDepartmentPosition().getDepartment().getId();
+        }
+        return null;
     }
 
     private SelfAssessmentFormDto toFormDto(SelfAssessmentForm form) {

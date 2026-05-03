@@ -15,7 +15,8 @@ import {
   Inbox,
   History,
   FileText,
-  ListChecks
+  ListChecks,
+  SlidersHorizontal
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -60,8 +61,9 @@ const ManagerLayout: React.FC = () => {
     {
       icon: <FileText size={20} />,
       label: 'Self-Assessment',
-      path: '/manager/self-assessment-forms/reviews',
+      path: '/manager/self-assessment/templates',
       subItems: [
+        { label: 'Templates', path: '/manager/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
         { label: 'Review Forms', path: '/manager/self-assessment-forms/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
       ]
     },
