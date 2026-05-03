@@ -12,6 +12,7 @@ import {
   useHrApproveFormMutation,
   useHrReopenFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { getRatingOptions, isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { formatDateTimeWithSeconds } from '../../utils/dateUtils';
@@ -72,10 +73,22 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const handleManagerAdjustmentChange = (answerId: number, field: keyof ManagerAdjustment, value: string | number) => {
     setAdjustments(prev => {
       const existing = prev.find(a => a.answerId === answerId);
+      const nextValue: Partial<ManagerAdjustment> =
+        field === 'proposedYesNo'
+          ? {
+              proposedYesNo: String(value),
+              ...(existing?.proposedRating
+                && !isRatingValidForAnswer(selectedForm?.ratingSystem, String(value), existing.proposedRating)
+                ? { proposedRating: 0 }
+                : {}),
+            }
+          : field === 'proposedRating'
+            ? { proposedRating: Number(value) }
+            : { comment: String(value) };
       if (existing) {
-        return prev.map(a => a.answerId === answerId ? { ...a, [field]: value } : a);
+        return prev.map(a => a.answerId === answerId ? { ...a, ...nextValue } : a);
       } else {
-        return [...prev, { answerId, proposedYesNo: '', proposedRating: 0, comment: '', [field]: value } as ManagerAdjustment];
+        return [...prev, { answerId, proposedYesNo: '', proposedRating: 0, comment: '', ...nextValue } as ManagerAdjustment];
       }
     });
   };
@@ -87,6 +100,13 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
       const missingComments = adjustments.filter(a => !a.comment.trim());
       if (missingComments.length > 0) {
         toast.error('All adjustments must have a comment');
+        return;
+      }
+      const invalidRatings = adjustments.filter(
+        a => a.proposedYesNo && a.proposedRating && !isRatingValidForAnswer(selectedForm?.ratingSystem, a.proposedYesNo, a.proposedRating)
+      );
+      if (invalidRatings.length > 0) {
+        toast.error('One or more proposed ratings do not match the selected response');
         return;
       }
     }
@@ -392,12 +412,17 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                       </p>
                       {selectedForm.answers?.map((answer: any, index: number) => (
                         <div key={answer.id} className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
+                          {(() => {
+                            const currentAdjustment = adjustments.find(a => a.answerId === answer.id);
+                            const proposedYesNo = currentAdjustment?.proposedYesNo || '';
+                            return (
+                            <>
                           <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Q{index + 1}: {answer.questionText}</p>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
                               <label className="block text-xs text-slate-500 mb-1">Proposed Yes/No</label>
                               <select
-                                value={adjustments.find(a => a.answerId === answer.id)?.proposedYesNo || ''}
+                                value={proposedYesNo}
                                 onChange={(e) => handleManagerAdjustmentChange(answer.id, 'proposedYesNo', e.target.value)}
                                 className="w-full px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded text-sm"
                               >
@@ -409,16 +434,15 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                             <div>
                               <label className="block text-xs text-slate-500 mb-1">Proposed Rating</label>
                               <select
-                                value={adjustments.find(a => a.answerId === answer.id)?.proposedRating || ''}
+                                value={currentAdjustment?.proposedRating || ''}
                                 onChange={(e) => handleManagerAdjustmentChange(answer.id, 'proposedRating', parseInt(e.target.value))}
+                                disabled={!proposedYesNo}
                                 className="w-full px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded text-sm"
                               >
                                 <option value="">Select</option>
-                                <option value="5">5</option>
-                                <option value="4">4</option>
-                                <option value="3">3</option>
-                                <option value="2">2</option>
-                                <option value="1">1</option>
+                                {getRatingOptions(selectedForm.ratingSystem, proposedYesNo).map((rating) => (
+                                  <option key={rating} value={rating}>{rating}</option>
+                                ))}
                               </select>
                             </div>
                             <div>
@@ -432,6 +456,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                               />
                             </div>
                           </div>
+                          </>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>

@@ -11,6 +11,7 @@ import com.epms.backend.entity.ReviewCycle;
 import com.epms.backend.entity.SelfAssessmentForm;
 import com.epms.backend.entity.SelfAssessmentFormTemplate;
 import com.epms.backend.entity.SelfAssessmentFormTemplateQuestion;
+import com.epms.backend.entity.SelfAssessmentRatingSystem;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeRepository;
@@ -115,6 +116,7 @@ class SelfAssessmentFormAssignmentServiceTest {
         assertEquals(LocalDate.of(2026, 5, 10), savedForm.getDeadlineDate());
         assertEquals(LocalDate.of(2026, 5, 15), savedForm.getManagerReviewDeadlineDate());
         assertEquals(LocalDate.of(2026, 5, 20), savedForm.getFinalApprovalDeadlineDate());
+        assertEquals(SelfAssessmentRatingSystem.FIVE_POINT, savedForm.getRatingSystem());
         assertEquals(1, savedForm.getAnswers().size());
 
         verify(notificationService).send(
@@ -122,6 +124,27 @@ class SelfAssessmentFormAssignmentServiceTest {
                 eq("Self-Assessment Assigned"),
                 eq("A self-assessment form has been assigned to you. Deadline: 10-05-2026"),
                 eq("SELF_ASSESSMENT_FORM"));
+    }
+
+    @Test
+    void assignSelfAssessmentForms_snapshotsTemplateRatingSystem() {
+        ReviewCycle cycle = cycle();
+        Employee employee = employee(1L, 10L, 20L);
+        SelfAssessmentFormTemplate template = template(100L, 10L, 20L, cycle);
+        template.setRatingSystem(SelfAssessmentRatingSystem.TEN_POINT);
+
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(employeeRepository.findEligibleSelfAssessmentAssignees(EmployeeStatus.ACTIVE, StaffTypes.PROBATION))
+                .thenReturn(List.of(employee));
+        when(formRepository.existsByEmployeeAndCycle(employee, cycle)).thenReturn(false);
+        when(templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(10L, 20L, 7L))
+                .thenReturn(Optional.of(template));
+
+        service.assignSelfAssessmentForms(request("ALL_EMPLOYEES"), 99L);
+
+        ArgumentCaptor<SelfAssessmentForm> formCaptor = ArgumentCaptor.forClass(SelfAssessmentForm.class);
+        verify(formRepository).save(formCaptor.capture());
+        assertEquals(SelfAssessmentRatingSystem.TEN_POINT, formCaptor.getValue().getRatingSystem());
     }
 
     @Test

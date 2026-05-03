@@ -11,6 +11,7 @@ import {
   useSetTemplateDeadlineMutation,
   type SelfAssessmentFormTemplateDto,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { ratingSystemLabels } from '../../features/selfAssessmentForm/ratingSystem';
 import { toast } from 'react-hot-toast';
 
 export const SelfAssessmentFormTemplatePage: React.FC = () => {
@@ -154,6 +155,9 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                       Questions
                     </th>
                     <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
+                      Rating
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
                       Status
                     </th>
                     <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200 text-right">
@@ -168,7 +172,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                       template.reviewCycleId != null &&
                       template.reviewCycleId !== activeSubmissionCycle.id;
                     const setDeadlineDisabled =
-                      !template.isActive || !activeSubmissionCycle || wrongCycleForDeadline;
+                      template.isLocked || !template.isActive || !activeSubmissionCycle || wrongCycleForDeadline;
                     const setDeadlineTitle = !activeSubmissionCycle
                       ? 'No active submission cycle'
                       : wrongCycleForDeadline
@@ -185,12 +189,22 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                         {template.reviewCycleName?.trim() ? template.reviewCycleName : '—'}
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{template.questions?.length ?? 0}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                        {ratingSystemLabels[template.ratingSystem]}
+                      </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex text-xs px-2 py-0.5 rounded-full ${template.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}
-                        >
-                          {template.isActive ? 'Active' : 'Inactive'}
-                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          <span
+                            className={`inline-flex text-xs px-2 py-0.5 rounded-full ${template.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}`}
+                          >
+                            {template.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                          {template.isLocked ? (
+                            <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                              Read-only
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-3">
@@ -200,7 +214,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                               onClick={() => handleOpenDeadline(template)}
                               disabled={setDeadlineDisabled}
                               className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400 dark:text-blue-400 dark:hover:text-blue-300"
-                              title={setDeadlineTitle}
+                              title={template.isLocked ? 'Template already has assigned forms' : setDeadlineTitle}
                             >
                               <CalendarCheck size={15} />
                               Set Deadline
@@ -211,7 +225,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                             onClick={() => navigate(`${routeBase}/${template.id}/edit`)}
                             className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
                           >
-                            Edit
+                            {template.isLocked || isManager ? 'View' : 'Edit'}
                           </button>
                         </div>
                       </td>

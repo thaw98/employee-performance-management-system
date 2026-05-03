@@ -12,7 +12,9 @@ import {
   useGetTemplateByIdQuery,
   useGetQuestionBankQuery,
   useUpdateTemplateMutation,
+  type SelfAssessmentRatingSystem,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { ratingSystemLabels } from '../../features/selfAssessmentForm/ratingSystem';
 
 interface QuestionFormData {
   title: string;
@@ -38,6 +40,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
   const [selectedDepartmentId, setSelectedDepartmentId] = React.useState<number | null>(null);
   const [selectedPositionId, setSelectedPositionId] = React.useState<number | null>(null);
   const [isActive, setIsActive] = React.useState(true);
+  const [ratingSystem, setRatingSystem] = React.useState<SelfAssessmentRatingSystem>('FIVE_POINT');
   const [isQuestionBankOpen, setIsQuestionBankOpen] = React.useState(false);
   const [questionBankSearch, setQuestionBankSearch] = React.useState('');
 
@@ -67,6 +70,8 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
 
   const templateReady =
     idValid && loadedTemplate != null && loadedTemplate.id === templateId;
+  const isLocked = loadedTemplate?.isLocked === true;
+  const isReadOnlyTemplate = isLocked || isManager;
   const showTemplateLoader =
     idValid && !templateReady && (isTemplateLoading || isTemplateFetching) && !isTemplateError;
 
@@ -114,6 +119,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
     setSelectedDepartmentId(loadedTemplate.departmentId);
     setSelectedPositionId(loadedTemplate.positionId);
     setIsActive(loadedTemplate.isActive);
+    setRatingSystem(loadedTemplate.ratingSystem);
     reset({
       title: loadedTemplate.title || '',
       questions: qs,
@@ -122,6 +128,10 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
 
   const onSubmit = async (data: QuestionFormData) => {
     if (!idValid) return;
+    if (isReadOnlyTemplate) {
+      toast.error(isLocked ? 'This template is locked because forms have been assigned' : 'Managers cannot edit templates');
+      return;
+    }
 
     if (!isManager && !data.title.trim()) {
       toast.error('Please enter a title');
@@ -155,6 +165,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
           positionId: isManager && loadedTemplate ? loadedTemplate.positionId : selectedPositionId!,
           isActive: isManager && loadedTemplate ? loadedTemplate.isActive : isActive,
           questions,
+          ratingSystem,
         },
       }).unwrap();
       toast.success('Template updated successfully');
@@ -251,8 +262,10 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
 	        {templateReady ? (
 	          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
 	            {isManager
-	              ? 'HR-created template fields and HR questions are read-only; you can manage only the questions you add.'
-	              : 'Removing a question soft-deletes it for new assignments; forms already set with a deadline keep their snapshot.'}
+	              ? 'Manager access is read-only.'
+	              : isLocked
+	                ? 'This template has assigned forms and is read-only.'
+	                : 'Removing a question soft-deletes it for new assignments; forms already set with a deadline keep their snapshot.'}
 	          </p>
 	        ) : null}
 
@@ -300,9 +313,22 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
 	                  {...register('title')}
 	                  type="text"
 	                  placeholder="Template title"
-	                  readOnly={isManager}
+	                  readOnly={isReadOnlyTemplate}
 	                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 read-only:bg-slate-100 read-only:text-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:read-only:bg-slate-900/50 dark:read-only:text-slate-400"
 	                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Rating system</label>
+                <select
+                  value={ratingSystem}
+                  onChange={(e) => setRatingSystem(e.target.value as SelfAssessmentRatingSystem)}
+                  disabled={isReadOnlyTemplate}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                >
+                  <option value="FIVE_POINT">{ratingSystemLabels.FIVE_POINT}</option>
+                  <option value="TEN_POINT">{ratingSystemLabels.TEN_POINT}</option>
+                </select>
               </div>
 
               <div>
@@ -313,7 +339,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
 	                    setSelectedDepartmentId(e.target.value ? Number(e.target.value) : null);
 	                    setSelectedPositionId(null);
 	                  }}
-	                  disabled={isManager}
+	                  disabled={isReadOnlyTemplate}
 	                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 >
                   <option value="">Select Department</option>
@@ -330,7 +356,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                 <select
 	                  value={selectedPositionId || ''}
 	                  onChange={(e) => setSelectedPositionId(e.target.value ? Number(e.target.value) : null)}
-	                  disabled={!selectedDepartmentId || isManager}
+	                  disabled={!selectedDepartmentId || isReadOnlyTemplate}
 	                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                 >
                   <option value="">Select Position</option>
@@ -353,7 +379,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
 	                  id="isActive"
 	                  checked={isActive}
 	                  onChange={(e) => setIsActive(e.target.checked)}
-	                  disabled={isManager}
+	                  disabled={isReadOnlyTemplate}
 	                  className="h-4 w-4 rounded border-slate-300"
                 />
                 <label htmlFor="isActive" className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -365,7 +391,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
             <div className="mb-4">
               <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Questions</label>
-	                {!isManager && (
+	                {!isReadOnlyTemplate && (
 	                  <button
 	                    type="button"
 	                    onClick={() => setIsQuestionBankOpen(true)}
@@ -379,10 +405,10 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
 
               <div className="space-y-2">
 	                {fields.map((field, index) => {
-	                  const canEditRow = field.canEdit !== false;
-	                  const canDeactivateRow = field.canDeactivate !== false;
-	                  const canMoveUp = index > 0 && (!isManager || (canEditRow && fields[index - 1]?.canEdit));
-	                  const canMoveDown = index < fields.length - 1 && (!isManager || (canEditRow && fields[index + 1]?.canEdit));
+	                  const canEditRow = !isReadOnlyTemplate && field.canEdit !== false;
+	                  const canDeactivateRow = !isReadOnlyTemplate && field.canDeactivate !== false;
+	                  const canMoveUp = !isReadOnlyTemplate && index > 0 && (!isManager || (canEditRow && fields[index - 1]?.canEdit));
+	                  const canMoveDown = !isReadOnlyTemplate && index < fields.length - 1 && (!isManager || (canEditRow && fields[index + 1]?.canEdit));
 	                  return (
 	                  <div
 	                    key={field.id}
@@ -419,7 +445,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
 	                        Manager added
 	                      </span>
 	                    ) : null}
-	                    {!isManager && (
+	                    {!isReadOnlyTemplate && (
 	                      <button
 	                        type="button"
 	                        onClick={() => void handleSaveQuestionToBank(index)}
@@ -445,6 +471,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
 	                })}
               </div>
 
+              {!isReadOnlyTemplate && (
               <button
                 type="button"
 	                onClick={() => append({ questionText: '', canEdit: true, canDeactivate: true, isManagerAdded: isManager })}
@@ -453,6 +480,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                 <Plus size={16} />
                 Add Question
               </button>
+              )}
             </div>
 
             {templateReady && loadedTemplate ? (
@@ -462,7 +490,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                     .map((row) => row.questionId)
                     .filter((id): id is number => typeof id === 'number'),
                 );
-	                const pendingRestore = (loadedTemplate.deletedQuestions ?? []).filter((d) => !restoredIds.has(d.id) && d.canEdit);
+                const pendingRestore = isReadOnlyTemplate ? [] : (loadedTemplate.deletedQuestions ?? []).filter((d) => !restoredIds.has(d.id) && d.canEdit);
                 if (pendingRestore.length === 0) return null;
                 return (
                   <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
@@ -503,7 +531,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
             <div className="flex gap-3">
               <button
                 type="submit"
-                disabled={isUpdating}
+                disabled={isUpdating || isReadOnlyTemplate}
                 className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-50"
               >
                 <Save size={16} />

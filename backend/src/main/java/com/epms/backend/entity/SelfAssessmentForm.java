@@ -37,6 +37,10 @@ public class SelfAssessmentForm {
     @Column(name = "title", nullable = false)
     private String title;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rating_system", nullable = false)
+    private SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.FIVE_POINT;
+
     @Column(name = "deadline_date")
     private LocalDate deadlineDate;
 

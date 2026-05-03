@@ -8,6 +8,7 @@ import {
   useSaveDraftMutation,
   useSubmitFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { getRatingOptions, isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { formatDateDayMonthYear } from '../../utils/dateUtils';
 
 interface AnswerFormData {
@@ -54,27 +55,12 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   }, [formData, reset]);
 
   const watchAnswers = watch('answers');
+  const ratingSystem = formData?.ratingSystem ?? 'FIVE_POINT';
 
   const handleYesNoChange = (index: number, value: string, currentRating: number | null) => {
-    let validRating: number | null = null;
-
-    if (value === 'Yes' && currentRating !== null) {
-      if (currentRating >= 3 && currentRating <= 5) {
-        validRating = currentRating;
-      } else {
-        validRating = null;
-      }
-    } else if (value === 'No' && currentRating !== null) {
-      if (currentRating >= 1 && currentRating <= 2) {
-        validRating = currentRating;
-      } else {
-        validRating = null;
-      }
-    }
-
     setValue(`answers.${index}.yesNoAnswer`, value);
-    if (validRating !== null) {
-      setValue(`answers.${index}.rating`, validRating);
+    if (isRatingValidForAnswer(ratingSystem, value, currentRating)) {
+      setValue(`answers.${index}.rating`, currentRating);
     } else {
       setValue(`answers.${index}.rating`, null as any);
     }
@@ -82,12 +68,8 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const handleRatingChange = (index: number, value: string, yesNoAnswer: string | null) => {
     const rating = parseInt(value);
-    if (yesNoAnswer === 'Yes' && (rating < 3 || rating > 5)) {
-      toast.error('For "Yes" answers, rating must be 3, 4, or 5');
-      return;
-    }
-    if (yesNoAnswer === 'No' && (rating < 1 || rating > 2)) {
-      toast.error('For "No" answers, rating must be 1 or 2');
+    if (!isRatingValidForAnswer(ratingSystem, yesNoAnswer, rating)) {
+      toast.error('Rating does not match the selected response');
       return;
     }
     setValue(`answers.${index}.rating`, rating);
@@ -292,7 +274,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Rating {watchAnswers?.[index]?.yesNoAnswer === 'Yes' ? '(3-5)' : watchAnswers?.[index]?.yesNoAnswer === 'No' ? '(1-2)' : ''}
+                    Rating
                   </label>
                   <select
                     {...register(`answers.${index}.rating` as const)}
@@ -302,19 +284,9 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50"
                   >
                     <option value="">Select Rating</option>
-                    {watchAnswers?.[index]?.yesNoAnswer === 'Yes' && (
-                      <>
-                        <option value="5">5 - Excellent</option>
-                        <option value="4">4 - Good</option>
-                        <option value="3">3 - Satisfactory</option>
-                      </>
-                    )}
-                    {watchAnswers?.[index]?.yesNoAnswer === 'No' && (
-                      <>
-                        <option value="2">2 - Needs Improvement</option>
-                        <option value="1">1 - Unsatisfactory</option>
-                      </>
-                    )}
+                    {getRatingOptions(ratingSystem, watchAnswers?.[index]?.yesNoAnswer).map((rating) => (
+                      <option key={rating} value={rating}>{rating}</option>
+                    ))}
                   </select>
                 </div>
 

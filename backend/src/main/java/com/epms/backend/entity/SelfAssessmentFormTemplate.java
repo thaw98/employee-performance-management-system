@@ -39,6 +39,10 @@ public class SelfAssessmentFormTemplate {
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rating_system", nullable = false)
+    private SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.FIVE_POINT;
+
     @Column(name = "created_by")
     private Long createdBy;
 

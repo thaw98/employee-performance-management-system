@@ -1,5 +1,7 @@
 import { baseApi } from '../../../app/baseApi'
 
+export type SelfAssessmentRatingSystem = 'FIVE_POINT' | 'TEN_POINT'
+
 export interface QuestionDto {
   id: number
   questionText: string
@@ -25,6 +27,8 @@ export interface SelfAssessmentFormTemplateDto {
   reviewCycleId: number | null
   reviewCycleName: string | null
   isActive: boolean
+  ratingSystem: SelfAssessmentRatingSystem
+  isLocked: boolean
   questions: QuestionDto[]
   /** Questions soft-deleted from the template; still visible for restore until cleared server-side. */
   deletedQuestions: QuestionDto[]
@@ -64,6 +68,7 @@ export interface CreateTemplateRequest {
   questions: QuestionRequest[]
   /** Omit or null to use the active employee-submission cycle on the server. */
   reviewCycleId?: number | null
+  ratingSystem?: SelfAssessmentRatingSystem
 }
 
 export interface UpdateTemplateRequest {
@@ -72,6 +77,7 @@ export interface UpdateTemplateRequest {
   positionId: number
   isActive: boolean
   questions: QuestionRequest[]
+  ratingSystem?: SelfAssessmentRatingSystem
 }
 
 export interface EmployeeInfoDto {
@@ -119,6 +125,7 @@ export interface SelfAssessmentFormDto {
   cycleId: number | null
   cycleName: string | null
   title: string
+  ratingSystem: SelfAssessmentRatingSystem
   deadlineDate: string | null
   managerReviewDeadlineDate: string | null
   finalApprovalDeadlineDate: string | null
@@ -309,6 +316,10 @@ const getOptionalString = (value: unknown) => {
   return typeof value === 'string' ? value : undefined
 }
 
+const normalizeRatingSystem = (value: unknown): SelfAssessmentRatingSystem => {
+  return value === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT'
+}
+
 const getResponseData = (response: unknown) => {
   return isRecord(response) ? response.data : undefined
 }
@@ -370,6 +381,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
     cycleName: getOptionalString(source.cycleName) ?? null,
     title: getString(source.title, 'Self Assessment Form'),
+    ratingSystem: normalizeRatingSystem(source.ratingSystem),
     deadlineDate: getOptionalString(source.deadlineDate) ?? null,
     managerReviewDeadlineDate: getOptionalString(source.managerReviewDeadlineDate) ?? null,
     finalApprovalDeadlineDate: getOptionalString(source.finalApprovalDeadlineDate) ?? null,
@@ -493,6 +505,8 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
     reviewCycleId: source.reviewCycleId != null ? getNumber(source.reviewCycleId) : null,
     reviewCycleName: getOptionalString(source.reviewCycleName) ?? null,
     isActive: getBoolean(source.isActive),
+    ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    isLocked: getBoolean(source.isLocked),
     questions: getArray(source.questions).map(normalizeTemplateQuestion),
     deletedQuestions: getArray(source.deletedQuestions).map(normalizeTemplateQuestion),
     createdOn: getString(source.createdOn),

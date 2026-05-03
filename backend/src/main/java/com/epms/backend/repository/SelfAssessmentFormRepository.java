@@ -33,5 +33,7 @@ public interface SelfAssessmentFormRepository extends JpaRepository<SelfAssessme
 
     List<SelfAssessmentForm> findByTemplate(SelfAssessmentFormTemplate template);
 
+    boolean existsByTemplate(SelfAssessmentFormTemplate template);
+
     boolean existsByEmployeeAndCycle(Employee employee, ReviewCycle cycle);
 }

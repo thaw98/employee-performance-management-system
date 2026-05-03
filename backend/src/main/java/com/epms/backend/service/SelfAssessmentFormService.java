@@ -88,6 +88,7 @@ public class SelfAssessmentFormService {
         template.setDepartment(department);
         template.setPosition(position);
         template.setReviewCycle(cycle);
+        template.setRatingSystem(parseRatingSystem(request.ratingSystem()));
         template.setActive(true);
         template.setCreatedBy(userId);
         template.setCreatedOn(Instant.now());
@@ -121,6 +122,7 @@ public class SelfAssessmentFormService {
     public SelfAssessmentFormTemplateDto updateTemplate(Long id, UpdateTemplateRequest request, Long userId) {
         SelfAssessmentFormTemplate template = templateRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Template not found"));
+        assertTemplateEditable(template);
 
         Long rcId = template.getReviewCycle() != null ? template.getReviewCycle().getId() : null;
         Optional<SelfAssessmentFormTemplate> existing = rcId != null
@@ -140,6 +142,7 @@ public class SelfAssessmentFormService {
         template.setTitle(request.title().trim());
         template.setDepartment(department);
         template.setPosition(position);
+        template.setRatingSystem(parseRatingSystem(request.ratingSystem()));
         template.setActive(request.isActive());
         template.setUpdatedBy(userId);
         template.setUpdatedOn(Instant.now());
@@ -227,6 +230,7 @@ public class SelfAssessmentFormService {
         SelfAssessmentFormTemplate template = templateRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Template not found"));
         requireManagerTemplateAccess(template, manager);
+        assertTemplateEditable(template);
 
         Set<Long> incomingIds = new HashSet<>();
         for (QuestionRequest qr : request.questions()) {
@@ -789,7 +793,12 @@ public class SelfAssessmentFormService {
         boolean hasAdjustments = false;
         if (request.adjustments() != null && !request.adjustments().isEmpty()) {
             hasAdjustments = true;
+            SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
             for (ManagerAdjustmentRequest adj : request.adjustments()) {
+                if (!ratingSystem.isValidYesNo(adj.proposedYesNo()) || adj.proposedRating() == null
+                        || !ratingSystem.isValidRating(adj.proposedYesNo(), adj.proposedRating())) {
+                    throw new RuntimeException("Proposed rating does not match the form rating system");
+                }
                 for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
                     if (answer.getId().equals(adj.answerId())) {
                         answer.setManagerProposedYesNo(adj.proposedYesNo());
@@ -1076,6 +1085,7 @@ public class SelfAssessmentFormService {
         form.setTemplate(template);
         form.setCycle(activeCycle);
         form.setTitle(title);
+        form.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()));
         form.setDeadlineDate(deadlineDate);
         form.setManagerReviewDeadlineDate(managerReviewDeadlineDate);
         form.setFinalApprovalDeadlineDate(finalApprovalDeadlineDate);
@@ -1113,6 +1123,23 @@ public class SelfAssessmentFormService {
             case "HYBRID" -> AssignmentMode.HYBRID;
             default -> throw new RuntimeException("Invalid assignment mode");
         };
+    }
+
+    private SelfAssessmentRatingSystem parseRatingSystem(String value) {
+        if (value == null || value.trim().isBlank()) {
+            return SelfAssessmentRatingSystem.FIVE_POINT;
+        }
+        try {
+            return SelfAssessmentRatingSystem.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new RuntimeException("Invalid rating system");
+        }
+    }
+
+    private void assertTemplateEditable(SelfAssessmentFormTemplate template) {
+        if (formRepository.existsByTemplate(template)) {
+            throw new RuntimeException("Template cannot be edited after forms have been assigned");
+        }
     }
 
     private void validateAssignmentSelections(AssignmentMode mode, List<Long> departmentIds, List<Long> positionIds) {
@@ -1177,24 +1204,22 @@ public class SelfAssessmentFormService {
     private void updateAnswers(SelfAssessmentForm form, List<AnswerRequest> answerRequests) {
         if (answerRequests == null) return;
 
+        SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
         for (AnswerRequest ar : answerRequests) {
             for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
                 if (answer.getId().equals(ar.id())) {
+                    String effectiveYesNo = ar.yesNoAnswer() != null ? ar.yesNoAnswer() : answer.getYesNoAnswer();
+                    Integer effectiveRating = ar.rating() != null ? ar.rating() : answer.getRating();
+                    if ((effectiveRating != null && effectiveYesNo == null)
+                            || !ratingSystem.isValidYesNo(effectiveYesNo)
+                            || !ratingSystem.isValidRating(effectiveYesNo, effectiveRating)) {
+                        throw new RuntimeException("Rating does not match the form rating system");
+                    }
                     if (ar.yesNoAnswer() != null) {
                         answer.setYesNoAnswer(ar.yesNoAnswer());
-                        if (ar.yesNoAnswer().equals("Yes") && ar.rating() != null) {
-                            if (ar.rating() < 3 || ar.rating() > 5) {
-                                answer.setRating(null);
-                            } else {
-                                answer.setRating(ar.rating());
-                            }
-                        } else if (ar.yesNoAnswer().equals("No") && ar.rating() != null) {
-                            if (ar.rating() < 1 || ar.rating() > 2) {
-                                answer.setRating(null);
-                            } else {
-                                answer.setRating(ar.rating());
-                            }
-                        }
+                    }
+                    if (ar.rating() != null || ar.yesNoAnswer() != null) {
+                        answer.setRating(ar.rating());
                     }
                     if (ar.remarks() != null) {
                         answer.setRemarks(ar.remarks());
@@ -1211,7 +1236,8 @@ public class SelfAssessmentFormService {
                 .mapToInt(SelfAssessmentFormAnswer::getRating)
                 .sum();
         int numQuestions = form.getAnswers().size();
-        double score = numQuestions > 0 ? ((double) totalPoints / (numQuestions * 5)) * 100 : 0.0;
+        int maxRating = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem()).getMaxRating();
+        double score = numQuestions > 0 ? ((double) totalPoints / (numQuestions * maxRating)) * 100 : 0.0;
 
         form.setTotalScore(score);
         form.setRatingCategory(getRatingCategory(score));
@@ -1346,6 +1372,8 @@ public class SelfAssessmentFormService {
                 template.getReviewCycle() != null ? template.getReviewCycle().getId() : null,
                 template.getReviewCycle() != null ? template.getReviewCycle().getName() : null,
                 template.isActive(),
+                SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()).name(),
+                formRepository.existsByTemplate(template),
                 questions,
                 deletedQuestions,
                 template.getCreatedOn(),
@@ -1463,6 +1491,7 @@ public class SelfAssessmentFormService {
                 form.getCycle() != null ? form.getCycle().getId() : null,
                 form.getCycle() != null ? form.getCycle().getName() : null,
                 form.getTitle() != null ? form.getTitle() : form.getTemplate().getTitle(),
+                SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem()).name(),
                 form.getDeadlineDate(),
                 form.getManagerReviewDeadlineDate(),
                 form.getFinalApprovalDeadlineDate(),

@@ -11,5 +11,6 @@ public record CreateTemplateRequest(
         @NotNull Long positionId,
         @NotEmpty List<QuestionRequest> questions,
         /** When null, the active employee-submission cycle is used (existing behavior). */
-        Long reviewCycleId
+        Long reviewCycleId,
+        String ratingSystem
 ) {}
