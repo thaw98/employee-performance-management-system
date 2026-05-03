@@ -29,6 +29,10 @@ public class SelfAssessmentFormTemplate {
     @JoinColumn(name = "position_id", nullable = false)
     private Position position;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "review_cycle_id")
+    private ReviewCycle reviewCycle;
+
     @Column(name = "title", length = 255)
     private String title;
 

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { ArrowLeft, BookMarked, BookOpen, Plus, Save, Search, Trash2, Undo2, X } from 'lucide-react';
+import { ArrowLeft, BookMarked, BookOpen, CalendarRange, Plus, Save, Search, Trash2, Undo2, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
@@ -221,6 +221,22 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             Removing a question soft-deletes it for new assignments; forms already set with a deadline keep their snapshot.
           </p>
+        ) : null}
+
+        {templateReady && loadedTemplate ? (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50">
+            <div className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
+              <CalendarRange className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              <div>
+                <span className="font-semibold text-slate-900 dark:text-white">Review cycle</span>
+                <p className="mt-1 text-slate-700 dark:text-slate-300">
+                  {loadedTemplate.reviewCycleName?.trim()
+                    ? loadedTemplate.reviewCycleName
+                    : 'Not set (legacy template created before review cycle was stored)'}
+                </p>
+              </div>
+            </div>
+          </div>
         ) : null}
 
         {showTemplateLoader ? (

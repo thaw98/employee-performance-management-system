@@ -28,6 +28,7 @@ import {
   useCreateTemplateMutation,
   useGetQuestionBankQuery,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 
 interface QuestionFormData {
   title: string;
@@ -751,6 +752,8 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           Back to Templates
         </button>
       </div>
+
+      <SelfAssessmentReviewCycleInfo className="mb-6 max-w-5xl" />
 
       <div className="max-w-5xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Create New Template</h1>

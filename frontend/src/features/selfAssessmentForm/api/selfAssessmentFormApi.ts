@@ -17,6 +17,8 @@ export interface SelfAssessmentFormTemplateDto {
   departmentName: string
   positionId: number
   positionName: string
+  reviewCycleId: number | null
+  reviewCycleName: string | null
   isActive: boolean
   questions: QuestionDto[]
   /** Questions soft-deleted from the template; still visible for restore until cleared server-side. */
@@ -432,6 +434,8 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
     departmentName: getString(source.departmentName),
     positionId: getNumber(source.positionId),
     positionName: getString(source.positionName),
+    reviewCycleId: source.reviewCycleId != null ? getNumber(source.reviewCycleId) : null,
+    reviewCycleName: getOptionalString(source.reviewCycleName) ?? null,
     isActive: getBoolean(source.isActive),
     questions: getArray(source.questions).map(normalizeTemplateQuestion),
     deletedQuestions: getArray(source.deletedQuestions).map(normalizeTemplateQuestion),

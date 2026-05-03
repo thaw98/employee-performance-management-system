@@ -66,21 +66,24 @@ public class SelfAssessmentFormService {
 
     @Transactional
     public SelfAssessmentFormTemplateDto createTemplate(CreateTemplateRequest request, Long userId) {
+        ReviewCycle cycle = requireActiveCycle();
         Department department = departmentRepository.findById(request.departmentId())
                 .orElseThrow(() -> new RuntimeException("Department not found"));
         Position position = positionRepository.findById(request.positionId())
                 .orElseThrow(() -> new RuntimeException("Position not found"));
 
         Optional<SelfAssessmentFormTemplate> existing = templateRepository
-                .findActiveByDepartmentAndPosition(request.departmentId(), request.positionId());
+                .findActiveByDepartmentAndPositionAndReviewCycleId(
+                        request.departmentId(), request.positionId(), cycle.getId());
         if (existing.isPresent()) {
-            throw new RuntimeException("An active template already exists for this department and position");
+            throw new RuntimeException("An active template already exists for this department, position, and review cycle");
         }
 
         SelfAssessmentFormTemplate template = new SelfAssessmentFormTemplate();
         template.setTitle(request.title().trim());
         template.setDepartment(department);
         template.setPosition(position);
+        template.setReviewCycle(cycle);
         template.setActive(true);
         template.setCreatedBy(userId);
         template.setCreatedOn(Instant.now());
@@ -115,10 +118,14 @@ public class SelfAssessmentFormService {
         SelfAssessmentFormTemplate template = templateRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Template not found"));
 
-        Optional<SelfAssessmentFormTemplate> existing = templateRepository
-                .findActiveByDepartmentAndPositionExcluding(request.departmentId(), request.positionId(), id);
+        Long rcId = template.getReviewCycle() != null ? template.getReviewCycle().getId() : null;
+        Optional<SelfAssessmentFormTemplate> existing = rcId != null
+                ? templateRepository.findActiveByDepartmentAndPositionAndReviewCycleIdExcluding(
+                        request.departmentId(), request.positionId(), rcId, id)
+                : templateRepository.findActiveByDepartmentAndPositionWithNullReviewCycleExcluding(
+                        request.departmentId(), request.positionId(), id);
         if (existing.isPresent() && request.isActive()) {
-            throw new RuntimeException("An active template already exists for this department and position");
+            throw new RuntimeException("An active template already exists for this department, position, and review cycle");
         }
 
         Department department = departmentRepository.findById(request.departmentId())
@@ -207,8 +214,11 @@ public class SelfAssessmentFormService {
 
     @Transactional(readOnly = true)
     public Optional<SelfAssessmentFormTemplateDto> getActiveTemplate(Long departmentId, Long positionId) {
-        return templateRepository.findActiveByDepartmentAndPosition(departmentId, positionId)
-                .map(this::toTemplateDto);
+        ReviewCycle cycle = reviewCycleService.getActiveSubmissionCycle();
+        if (cycle == null) {
+            return Optional.empty();
+        }
+        return findActiveTemplateForDepartmentPositionAndCycle(departmentId, positionId, cycle).map(this::toTemplateDto);
     }
 
     @Transactional
@@ -225,6 +235,11 @@ public class SelfAssessmentFormService {
         }
 
         ReviewCycle activeCycle = requireActiveCycle();
+        if (template.getReviewCycle() != null
+                && !template.getReviewCycle().getId().equals(activeCycle.getId())) {
+            throw new RuntimeException(
+                    "This template belongs to a different review cycle than the active submission cycle. Use a template created for the current cycle.");
+        }
         LocalDate deadlineDate = request.deadlineDate();
         if (deadlineDate.isBefore(activeCycle.getStartDate())) {
             throw new RuntimeException("Deadline cannot be before the active cycle start date");
@@ -310,8 +325,8 @@ public class SelfAssessmentFormService {
             return new FormStatusDto(null, true, false, false, "No department-position mapping found for you.");
         }
 
-        Optional<SelfAssessmentFormTemplate> templateOpt = templateRepository
-                .findActiveByDepartmentAndPosition(dp.getDepartment().getId(), dp.getPosition().getId());
+        Optional<SelfAssessmentFormTemplate> templateOpt = findActiveTemplateForDepartmentPositionAndCycle(
+                dp.getDepartment().getId(), dp.getPosition().getId(), activeCycle);
 
         if (templateOpt.isEmpty()) {
             return new FormStatusDto(null, true, false, false, "No active self-assessment template available for your department and position.");
@@ -861,6 +876,22 @@ public class SelfAssessmentFormService {
         return activeCycle;
     }
 
+    /**
+     * Prefer a template scoped to the given cycle; fall back to legacy templates with no review cycle.
+     */
+    private Optional<SelfAssessmentFormTemplate> findActiveTemplateForDepartmentPositionAndCycle(
+            Long departmentId, Long positionId, ReviewCycle cycle) {
+        if (cycle == null) {
+            return Optional.empty();
+        }
+        Optional<SelfAssessmentFormTemplate> forCycle = templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
+                departmentId, positionId, cycle.getId());
+        if (forCycle.isPresent()) {
+            return forCycle;
+        }
+        return templateRepository.findActiveByDepartmentAndPositionWithNullReviewCycle(departmentId, positionId);
+    }
+
     private CycleInfoDto toCycleInfo(ReviewCycle cycle) {
         return new CycleInfoDto(
                 cycle.getId(),
@@ -914,6 +945,8 @@ public class SelfAssessmentFormService {
                 template.getDepartment().getName(),
                 template.getPosition().getId(),
                 template.getPosition().getName(),
+                template.getReviewCycle() != null ? template.getReviewCycle().getId() : null,
+                template.getReviewCycle() != null ? template.getReviewCycle().getName() : null,
                 template.isActive(),
                 questions,
                 deletedQuestions,

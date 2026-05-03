@@ -2,48 +2,14 @@ import React, { useState } from 'react';
 import { Plus, X, CalendarRange, CalendarCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useGetTimeSettingsQuery } from '../../features/feedback/api/feedbackApi';
-import { useGetActiveReviewCyclesQuery, useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
+import { useGetActiveReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
+import { formatCycleDate, SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 import {
   useGetAllTemplatesQuery,
   useSetTemplateDeadlineMutation,
   type SelfAssessmentFormTemplateDto,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { toast } from 'react-hot-toast';
-
-function formatCycleDate(iso: string) {
-  const parts = iso.split('-').map(Number);
-  if (parts.length !== 3 || parts.some(Number.isNaN)) return iso;
-  const [y, m, d] = parts;
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-function cycleTypeLabel(type: string) {
-  const t = type.replace(/_/g, ' ').toLowerCase();
-  return t.replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function cycleStatusLabel(status: string) {
-  const normalized = status.toUpperCase();
-  if (normalized === 'ACTIVE') return 'Active';
-  if (normalized === 'UPCOMING') return 'Upcoming';
-  if (normalized === 'CLOSED') return 'Closed';
-  return cycleTypeLabel(status);
-}
-
-function cycleStatusClass(status: string) {
-  const normalized = status.toUpperCase();
-  if (normalized === 'ACTIVE') {
-    return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
-  }
-  if (normalized === 'UPCOMING') {
-    return 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
-  }
-  return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
-}
 
 export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const navigate = useNavigate();
@@ -53,18 +19,9 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
 
   const { data: allTemplates, refetch: refetchTemplates } = useGetAllTemplatesQuery();
   const { data: timeSettings, isLoading: timeSettingsLoading } = useGetTimeSettingsQuery();
-  const { data: activeCycles = [], isLoading: cyclesLoading } = useGetActiveReviewCyclesQuery();
-  const { data: reviewCycles = [], isLoading: allCyclesLoading } = useGetReviewCyclesQuery({
-    requiresEmployeeSubmission: true,
-  });
+  const { data: activeCycles = [] } = useGetActiveReviewCyclesQuery();
 
   const activeSubmissionCycle = activeCycles.find((c) => c.requiresEmployeeSubmission) ?? null;
-  const submissionCycle =
-    activeSubmissionCycle ??
-    reviewCycles.find((c) => c.status?.toUpperCase() === 'UPCOMING') ??
-    [...reviewCycles].reverse().find((c) => c.status?.toUpperCase() === 'CLOSED') ??
-    activeCycles[0] ??
-    null;
 
   const displayDuration =
     timeSettings?.duration === 'Both' ? '6 Months & 1 Year (combined)' : timeSettings?.duration;
@@ -156,33 +113,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
               </div>
             </div>
             <div className="hidden sm:block sm:h-10 sm:w-px sm:shrink-0 sm:bg-slate-200 dark:sm:bg-slate-600" />
-            <div className="flex-1 text-sm text-slate-700 dark:text-slate-200 sm:min-w-0">
-              <span className="font-semibold text-slate-900 dark:text-white">Current review cycle</span>
-              <span className="mx-1.5 text-slate-400">·</span>
-              {cyclesLoading || allCyclesLoading ? (
-                <span className="text-slate-500">Loading…</span>
-              ) : submissionCycle ? (
-                <>
-                  <span className="text-slate-900 dark:text-white">{submissionCycle.name}</span>
-                  <span className="text-slate-500 dark:text-slate-400">
-                    {' '}
-                    ({submissionCycle.yearLabel}, {cycleTypeLabel(submissionCycle.cycleType)})
-                  </span>
-                  <span className="block text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    {formatCycleDate(submissionCycle.startDate)} – {formatCycleDate(submissionCycle.endDate)}
-                    {submissionCycle.status ? (
-                      <span className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${cycleStatusClass(submissionCycle.status)}`}>
-                        {cycleStatusLabel(submissionCycle.status)}
-                      </span>
-                    ) : null}
-                  </span>
-                </>
-              ) : (
-                <span className="text-slate-500">
-                  No active, upcoming, or closed submission cycle is available. Generate cycles in System Settings if needed.
-                </span>
-              )}
-            </div>
+            <SelfAssessmentReviewCycleInfo variant="inline" />
           </div>
         </div>
       </div>
@@ -208,6 +139,9 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                       Position
                     </th>
                     <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
+                      Review cycle
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
                       Questions
                     </th>
                     <th scope="col" className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
@@ -219,13 +153,28 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
-                  {allTemplates.map((template: any) => (
+                  {allTemplates.map((template) => {
+                    const wrongCycleForDeadline =
+                      !!activeSubmissionCycle &&
+                      template.reviewCycleId != null &&
+                      template.reviewCycleId !== activeSubmissionCycle.id;
+                    const setDeadlineDisabled =
+                      !template.isActive || !activeSubmissionCycle || wrongCycleForDeadline;
+                    const setDeadlineTitle = !activeSubmissionCycle
+                      ? 'No active submission cycle'
+                      : wrongCycleForDeadline
+                        ? 'Template belongs to a different review cycle than the active one'
+                        : undefined;
+                    return (
                     <tr key={template.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/40">
                       <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                         {template.title?.trim() ? template.title : '—'}
                       </td>
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{template.departmentName}</td>
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{template.positionName}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400 max-w-[220px]">
+                        {template.reviewCycleName?.trim() ? template.reviewCycleName : '—'}
+                      </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{template.questions?.length ?? 0}</td>
                       <td className="px-4 py-3">
                         <span
@@ -239,9 +188,9 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleOpenDeadline(template)}
-                            disabled={!template.isActive || !activeSubmissionCycle}
+                            disabled={setDeadlineDisabled}
                             className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-slate-400 dark:text-blue-400 dark:hover:text-blue-300"
-                            title={!activeSubmissionCycle ? 'No active submission cycle' : undefined}
+                            title={setDeadlineTitle}
                           >
                             <CalendarCheck size={15} />
                             Set Deadline
@@ -256,7 +205,8 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (
