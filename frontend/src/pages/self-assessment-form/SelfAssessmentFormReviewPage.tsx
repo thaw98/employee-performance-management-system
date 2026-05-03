@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { FileText, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { FileText, CheckCircle2, XCircle, AlertCircle, PenLine, Loader2 } from 'lucide-react';
 import {
   useGetReviewFormsQuery,
   useGetHrReviewFormsQuery,
@@ -12,8 +12,10 @@ import {
   useHrApproveFormMutation,
   useHrReopenFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
+import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { useSelector } from 'react-redux';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import type { RootState } from '../../app/store';
 
 interface ManagerAdjustment {
@@ -39,7 +41,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [managerComments, setManagerComments] = useState('');
   const [adjustments, setAdjustments] = useState<ManagerAdjustment[]>([]);
   const [rejectReason, setRejectReason] = useState('');
-  const [signatureId, setSignatureId] = useState<number>(0);
 
   const { data: managerForms, isLoading: managerFormsLoading } = useGetReviewFormsQuery();
   const { data: hrForms, isLoading: hrFormsLoading } = useGetHrReviewFormsQuery();
@@ -57,6 +58,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [approvalMode, setApprovalMode] = useState<'adjustment' | 'final'>('final');
+
+  const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery(undefined, {
+    skip: !isHr,
+  });
+  const defaultSignature = defaultSigResponse?.data ?? null;
+  const hasDefaultSignature = Boolean(defaultSignature);
 
   const forms = isHr ? (selectedFormId ? allForms : hrForms) : managerForms;
   const isLoading = isHr ? (selectedFormId ? allFormsLoading : hrFormsLoading) : managerFormsLoading;
@@ -101,19 +108,18 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   };
 
   const handleHrApproveAdjustment = async () => {
-    if (!selectedFormId || !signatureId) {
-      toast.error('Please provide your signature');
+    if (!selectedFormId || !hasDefaultSignature) {
+      toast.error('Set a default signature in Signature Settings before approving.');
       return;
     }
 
     try {
       await hrApproveManagerReview({
         formId: selectedFormId,
-        request: { signatureId },
+        request: {},
       }).unwrap();
       toast.success('Manager adjustments approved');
       setShowApprovalModal(false);
-      setSignatureId(0);
       refetchForm();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to approve adjustments');
@@ -121,20 +127,19 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   };
 
   const handleHrRejectAdjustment = async () => {
-    if (!selectedFormId || !rejectReason.trim() || !signatureId) {
-      toast.error('Please provide rejection reason and signature');
+    if (!selectedFormId || !rejectReason.trim() || !hasDefaultSignature) {
+      toast.error('Enter a rejection reason and set a default signature in Signature Settings.');
       return;
     }
 
     try {
       await hrRejectManagerReview({
         formId: selectedFormId,
-        request: { rejectionReason: rejectReason, signatureId },
+        request: { rejectionReason: rejectReason },
       }).unwrap();
       toast.success('Manager adjustments rejected');
       setShowRejectModal(false);
       setRejectReason('');
-      setSignatureId(0);
       refetchForm();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to reject adjustments');
@@ -150,19 +155,18 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   };
 
   const handleHrApproveForm = async () => {
-    if (!selectedFormId || !signatureId) {
-      toast.error('Please provide your signature');
+    if (!selectedFormId || !hasDefaultSignature) {
+      toast.error('Set a default signature in Signature Settings before approving.');
       return;
     }
 
     try {
       await hrApproveForm({
         formId: selectedFormId,
-        request: { signatureId },
+        request: {},
       }).unwrap();
       toast.success('Form approved');
       setShowApprovalModal(false);
-      setSignatureId(0);
       refetchForm();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to approve form');
@@ -170,18 +174,17 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   };
 
   const handleHrReopenForm = async () => {
-    if (!selectedFormId || !signatureId) {
-      toast.error('Please provide your signature');
+    if (!selectedFormId || !hasDefaultSignature) {
+      toast.error('Set a default signature in Signature Settings before reopening.');
       return;
     }
 
     try {
       await hrReopenForm({
         formId: selectedFormId,
-        request: { signatureId },
+        request: {},
       }).unwrap();
       toast.success('Form reopened for employee revision');
-      setSignatureId(0);
       refetchForm();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to reopen form');
@@ -447,25 +450,62 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">HR Actions</h3>
 
+                  <div className="mb-6 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/40 p-4">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                          Signature for HR actions
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          Approvals and reopen use your default signature from Signature Settings.
+                        </p>
+                      </div>
+                      <Link
+                        to="/hr/settings/signature"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline shrink-0"
+                      >
+                        <PenLine size={14} />
+                        Signature Settings
+                      </Link>
+                    </div>
+                    <div className="mt-3 flex items-center justify-center min-h-[72px] rounded-md border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800/80 px-3 py-2">
+                      {isDefaultSigLoading ? (
+                        <Loader2 className="animate-spin text-slate-400" size={24} />
+                      ) : defaultSignature ? (
+                        <img
+                          src={resolveMediaSrc(defaultSignature.signatureData)}
+                          alt="Your default signature"
+                          className="max-h-14 max-w-full object-contain"
+                        />
+                      ) : (
+                        <p className="text-xs text-center text-slate-500 dark:text-slate-400">
+                          No default signature yet. Open Signature Settings to create one.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   {selectedForm.answers?.some((a: any) => a.managerProposedYesNo) && (
                     <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
                       <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-3">
                         Manager has proposed adjustments. Please approve or reject them.
                       </p>
-                      <div className="flex gap-3">
+                      <div className="flex gap-3 flex-wrap">
                         <button
                           onClick={() => {
                             setApprovalMode('adjustment');
                             setShowApprovalModal(true);
                           }}
-                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                          disabled={isDefaultSigLoading || !hasDefaultSignature}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
                         >
                           <CheckCircle2 size={16} />
                           Approve Adjustments
                         </button>
                         <button
                           onClick={() => setShowRejectModal(true)}
-                          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                          disabled={isDefaultSigLoading || !hasDefaultSignature}
+                          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                         >
                           <XCircle size={16} />
                           Reject Adjustments
@@ -474,38 +514,26 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 flex-wrap">
                     <button
                       onClick={() => {
                         setApprovalMode('final');
                         setShowApprovalModal(true);
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                      disabled={isDefaultSigLoading || !hasDefaultSignature}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
                     >
                       <CheckCircle2 size={16} />
                       Final Approval
                     </button>
                     <button
                       onClick={() => handleHrReopenForm()}
-                      disabled={isReopening || !signatureId}
+                      disabled={isReopening || isDefaultSigLoading || !hasDefaultSignature}
                       className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
                     >
                       <AlertCircle size={16} />
                       Reopen for Employee
                     </button>
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Your Signature ID (for authorization)
-                    </label>
-                    <input
-                      type="number"
-                      value={signatureId}
-                      onChange={(e) => setSignatureId(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-                      placeholder="Enter your signature ID"
-                    />
                   </div>
                 </div>
               )}
@@ -526,17 +554,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
             <p className="text-slate-600 dark:text-slate-400 mb-4">
               Are you sure you want to approve this form? This action will finalize the assessment.
             </p>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Your Signature ID
-              </label>
-              <input
-                type="number"
-                value={signatureId}
-                onChange={(e) => setSignatureId(parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-              />
-            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              Your default signature from Signature Settings will be recorded for this action.
+            </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowApprovalModal(false)}
@@ -546,7 +566,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
               </button>
               <button
                 onClick={handleConfirmApproval}
-                disabled={isHrApproving || isApproving}
+                disabled={isHrApproving || isApproving || isDefaultSigLoading || !hasDefaultSignature}
                 className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
               >
                 Confirm Approval
@@ -574,17 +594,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
               />
             </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Your Signature ID
-              </label>
-              <input
-                type="number"
-                value={signatureId}
-                onChange={(e) => setSignatureId(parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-              />
-            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              Your default signature from Signature Settings will be recorded for this action.
+            </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowRejectModal(false)}
@@ -594,7 +606,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
               </button>
               <button
                 onClick={handleHrRejectAdjustment}
-                disabled={isHrRejecting}
+                disabled={isHrRejecting || isDefaultSigLoading || !hasDefaultSignature}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
                 Reject Adjustments

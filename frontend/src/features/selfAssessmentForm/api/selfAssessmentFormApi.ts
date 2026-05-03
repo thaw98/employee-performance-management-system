@@ -260,20 +260,21 @@ export interface ManagerReviewRequest {
 }
 
 export interface HrApproveManagerReviewRequest {
-  signatureId: number
+  /** Optional; server uses the HR user's default signature from Signature Settings. */
+  signatureId?: number | null
 }
 
 export interface HrRejectManagerReviewRequest {
   rejectionReason: string
-  signatureId: number
+  signatureId?: number | null
 }
 
 export interface HrApproveFormRequest {
-  signatureId: number
+  signatureId?: number | null
 }
 
 export interface HrReopenFormRequest {
-  signatureId: number
+  signatureId?: number | null
 }
 
 type UnknownRecord = Record<string, unknown>
