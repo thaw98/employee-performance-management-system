@@ -230,6 +230,7 @@ export const employmentInformationSchema = z
     departmentId: z.number().nullable(),
     departmentPositionId: z.number().nullable(),
     positionId: z.number().nullable().optional(),
+    assignAsDepartmentManager: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.staffType === 'PROBATION') {

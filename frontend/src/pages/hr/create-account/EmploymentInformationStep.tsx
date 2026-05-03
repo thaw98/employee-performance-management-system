@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { addDays, format, parseISO } from 'date-fns'
 import { Controller, type Control, type FieldErrors, type UseFormRegister, type UseFormSetValue, useWatch } from 'react-hook-form'
-import { Shield, Clock, CalendarDays, Building2 } from 'lucide-react'
+import { AlertTriangle, Shield, Clock, CalendarDays, Building2, UserCog } from 'lucide-react'
 
 import type { DepartmentOptionDto, PositionOptionDto } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
 import type { CreateEmployeeAccountFormValues } from '../../../features/hrCreateEmployee/schemas/createEmployeeAccountSchema'
@@ -15,6 +15,7 @@ interface EmploymentInformationStepProps {
   setValue: UseFormSetValue<CreateEmployeeAccountFormValues>
   departments: DepartmentOptionDto[]
   positions: PositionOptionDto[]
+  selectedDepartment?: DepartmentOptionDto | null
   departmentLoading: boolean
   positionLoading: boolean
   disableProbationOption?: boolean
@@ -48,6 +49,7 @@ export function EmploymentInformationStep({
   setValue,
   departments,
   positions,
+  selectedDepartment,
   departmentLoading,
   positionLoading,
   disableProbationOption,
@@ -58,6 +60,10 @@ export function EmploymentInformationStep({
   const staffType = useWatch({ control, name: 'staffType' })
   const probationStart = useWatch({ control, name: 'probationStartDate' })
   const departmentId = useWatch({ control, name: 'departmentId' })
+  const departmentPositionId = useWatch({ control, name: 'departmentPositionId' })
+  const selectedPosition = positions.find((position) => position.id === departmentPositionId) ?? null
+  const selectedRoleIsDepartmentManager = selectedPosition?.roleId === 2
+  const departmentHasManager = selectedDepartment?.managerId != null
 
   useEffect(() => {
     if (staffType !== 'PROBATION') {
@@ -74,6 +80,12 @@ export function EmploymentInformationStep({
       /* ignore */
     }
   }, [staffType, probationStart, setValue])
+
+  useEffect(() => {
+    if (!selectedRoleIsDepartmentManager || departmentHasManager) {
+      setValue('assignAsDepartmentManager', false, { shouldValidate: false })
+    }
+  }, [departmentHasManager, selectedRoleIsDepartmentManager, setValue])
 
   return (
     <div className="space-y-6">
@@ -270,6 +282,7 @@ export function EmploymentInformationStep({
                 onChange={(id) => {
                   field.onChange(id)
                   setValue('departmentPositionId', null, { shouldValidate: true })
+                  setValue('assignAsDepartmentManager', false, { shouldValidate: false })
                 }}
                 disabled={departmentLoading || readOnlyDepartmentAndPosition}
                 error={errors.departmentId?.message ? String(errors.departmentId.message) : undefined}
@@ -294,13 +307,14 @@ export function EmploymentInformationStep({
               <PositionAutocomplete
                 positions={positions}
                 value={field.value}
-                onChange={(id) =>
+                onChange={(id) => {
                   setValue('departmentPositionId', id, {
                     shouldDirty: true,
                     shouldTouch: true,
                     shouldValidate: true,
                   })
-                }
+                  setValue('assignAsDepartmentManager', false, { shouldValidate: false })
+                }}
                 disabled={!departmentId || positionLoading || readOnlyDepartmentAndPosition}
                 error={errors.departmentPositionId?.message ? String(errors.departmentPositionId.message) : undefined}
                 placeholder={!departmentId ? 'Select a department first' : 'Search position…'}
@@ -308,6 +322,48 @@ export function EmploymentInformationStep({
             )}
           />
         </div>
+
+        {selectedRoleIsDepartmentManager ? (
+          <div className="md:col-span-2">
+            <label
+              className={`flex items-start gap-4 rounded-xl border p-4 transition ${
+                departmentHasManager
+                  ? 'cursor-not-allowed border-amber-200 bg-amber-50 text-amber-900'
+                  : 'cursor-pointer border-teal-200 bg-teal-50/60 text-teal-900 hover:border-teal-300'
+              }`}
+            >
+              <Controller
+                control={control}
+                name="assignAsDepartmentManager"
+                render={({ field }) => (
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                    checked={departmentHasManager ? false : Boolean(field.value)}
+                    disabled={departmentHasManager}
+                    onChange={(event) => field.onChange(event.target.checked)}
+                  />
+                )}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <UserCog size={16} />
+                  <span className="text-sm font-bold">Assign as department manager</span>
+                </div>
+                {departmentHasManager ? (
+                  <div className="mt-2 flex items-start gap-2 text-xs font-medium text-amber-800">
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                    <span>This department already has a manager. The account can still be created with manager access.</span>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-teal-800/80">
+                    The employee will become the department's current manager.
+                  </p>
+                )}
+              </div>
+            </label>
+          </div>
+        ) : null}
       </div>
     </div>
   )

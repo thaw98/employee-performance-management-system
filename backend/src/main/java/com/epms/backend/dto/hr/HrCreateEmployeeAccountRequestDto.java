@@ -110,5 +110,7 @@ public class HrCreateEmployeeAccountRequestDto {
 	@NotNull
 	private Long departmentPositionId;
 
+	private boolean assignAsDepartmentManager;
+
 	private String profilePictureUrl;
 }
