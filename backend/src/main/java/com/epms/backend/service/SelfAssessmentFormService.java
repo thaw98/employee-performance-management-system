@@ -473,6 +473,98 @@ public class SelfAssessmentFormService {
     }
 
     @Transactional
+    public SelfAssessmentAssignmentResponse assignSelfAssessmentForms(SelfAssessmentAssignmentRequest request, Long userId) {
+        String title = request.title() == null ? "" : request.title().trim();
+        if (title.isBlank()) {
+            throw new RuntimeException("Title is required");
+        }
+
+        AssignmentMode assignmentMode = parseAssignmentMode(request.assignmentMode());
+        validateAssignmentSelections(assignmentMode, request.departmentIds(), request.positionIds());
+
+        ReviewCycle activeCycle = requireActiveCycle();
+        validateAssignmentDeadlines(
+                request.deadlineDate(),
+                request.managerReviewDeadlineDate(),
+                request.finalApprovalDeadlineDate(),
+                activeCycle);
+
+        Set<Long> departmentIds = toIdSet(request.departmentIds());
+        Set<Long> positionIds = toIdSet(request.positionIds());
+        List<Employee> candidates = employeeRepository.findEligibleSelfAssessmentAssignees(
+                EmployeeStatus.ACTIVE,
+                StaffTypes.PROBATION);
+
+        int created = 0;
+        int skippedExisting = 0;
+        int skippedNoTemplate = 0;
+        Instant now = Instant.now();
+
+        for (Employee employee : candidates) {
+            if (!matchesAssignmentMode(employee, assignmentMode, departmentIds, positionIds)) {
+                continue;
+            }
+            if (formRepository.existsByEmployeeAndCycle(employee, activeCycle)) {
+                skippedExisting++;
+                continue;
+            }
+
+            Long departmentId = getEmployeeDepartmentId(employee);
+            Long positionId = getEmployeePositionId(employee);
+            if (departmentId == null || positionId == null) {
+                skippedNoTemplate++;
+                continue;
+            }
+
+            Optional<SelfAssessmentFormTemplate> templateOpt = templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
+                    departmentId,
+                    positionId,
+                    activeCycle.getId());
+            if (templateOpt.isEmpty()) {
+                skippedNoTemplate++;
+                continue;
+            }
+
+            SelfAssessmentForm form = createAssignedDraftForm(
+                    employee,
+                    templateOpt.get(),
+                    activeCycle,
+                    title,
+                    request.deadlineDate(),
+                    request.managerReviewDeadlineDate(),
+                    request.finalApprovalDeadlineDate(),
+                    now,
+                    userId);
+            formRepository.save(form);
+            created++;
+
+            notificationService.send(
+                    employee.getUserAccount(),
+                    "Self-Assessment Assigned",
+                    "A self-assessment form has been assigned to you. Deadline: " + request.deadlineDate(),
+                    "SELF_ASSESSMENT_FORM");
+        }
+
+        auditService.record(
+                AuditActionType.SELF_ASSESSMENT_FORM_TEMPLATE_UPDATED,
+                AuditTargetType.SELF_ASSESSMENT_FORM,
+                null,
+                userId,
+                null,
+                "Bulk assigned self-assessment forms: created " + created
+                        + ", skipped existing " + skippedExisting
+                        + ", skipped no template " + skippedNoTemplate,
+                null);
+
+        return new SelfAssessmentAssignmentResponse(
+                created,
+                skippedExisting,
+                skippedNoTemplate,
+                0,
+                toCycleInfo(activeCycle));
+    }
+
+    @Transactional
     public FormStatusDto getEmployeeFormStatus(Employee employee) {
         if (!isPermanentEmployee(employee)) {
             return new FormStatusDto(null, false, false, false, "You are not eligible for self-assessment. Only permanent employees can participate.");
@@ -951,12 +1043,36 @@ public class SelfAssessmentFormService {
             LocalDate deadlineDate,
             Instant assignedAt,
             Long assignedBy) {
+        return createAssignedDraftForm(
+                employee,
+                template,
+                activeCycle,
+                title,
+                deadlineDate,
+                null,
+                null,
+                assignedAt,
+                assignedBy);
+    }
+
+    private SelfAssessmentForm createAssignedDraftForm(
+            Employee employee,
+            SelfAssessmentFormTemplate template,
+            ReviewCycle activeCycle,
+            String title,
+            LocalDate deadlineDate,
+            LocalDate managerReviewDeadlineDate,
+            LocalDate finalApprovalDeadlineDate,
+            Instant assignedAt,
+            Long assignedBy) {
         SelfAssessmentForm form = new SelfAssessmentForm();
         form.setEmployee(employee);
         form.setTemplate(template);
         form.setCycle(activeCycle);
         form.setTitle(title);
         form.setDeadlineDate(deadlineDate);
+        form.setManagerReviewDeadlineDate(managerReviewDeadlineDate);
+        form.setFinalApprovalDeadlineDate(finalApprovalDeadlineDate);
         form.setAssignedAt(assignedAt);
         form.setAssignedBy(assignedBy);
         form.setStatus(SelfAssessmentFormStatus.DRAFT);
@@ -973,6 +1089,83 @@ public class SelfAssessmentFormService {
             form.addAnswer(answer);
         }
         return form;
+    }
+
+    private enum AssignmentMode {
+        ALL_EMPLOYEES,
+        DEPARTMENTS,
+        POSITIONS,
+        HYBRID
+    }
+
+    private AssignmentMode parseAssignmentMode(String value) {
+        String normalized = value == null ? "" : value.trim().toUpperCase().replace('-', '_');
+        return switch (normalized) {
+            case "ALL_EMPLOYEES", "ALL" -> AssignmentMode.ALL_EMPLOYEES;
+            case "SPECIFIC_DEPARTMENTS", "DEPARTMENTS", "DEPARTMENT" -> AssignmentMode.DEPARTMENTS;
+            case "SPECIFIC_POSITIONS", "POSITIONS", "POSITION" -> AssignmentMode.POSITIONS;
+            case "HYBRID" -> AssignmentMode.HYBRID;
+            default -> throw new RuntimeException("Invalid assignment mode");
+        };
+    }
+
+    private void validateAssignmentSelections(AssignmentMode mode, List<Long> departmentIds, List<Long> positionIds) {
+        boolean hasDepartments = departmentIds != null && departmentIds.stream().anyMatch(id -> id != null && id > 0);
+        boolean hasPositions = positionIds != null && positionIds.stream().anyMatch(id -> id != null && id > 0);
+        if ((mode == AssignmentMode.DEPARTMENTS || mode == AssignmentMode.HYBRID) && !hasDepartments) {
+            throw new RuntimeException("Please select at least one department");
+        }
+        if ((mode == AssignmentMode.POSITIONS || mode == AssignmentMode.HYBRID) && !hasPositions) {
+            throw new RuntimeException("Please select at least one position");
+        }
+    }
+
+    private void validateAssignmentDeadlines(
+            LocalDate employeeDeadline,
+            LocalDate managerDeadline,
+            LocalDate finalDeadline,
+            ReviewCycle activeCycle) {
+        if (employeeDeadline == null || managerDeadline == null || finalDeadline == null) {
+            throw new RuntimeException("All deadlines are required");
+        }
+        if (employeeDeadline.isAfter(managerDeadline) || managerDeadline.isAfter(finalDeadline)) {
+            throw new RuntimeException("Deadlines must be ordered: employee deadline, manager review deadline, final approval deadline");
+        }
+        validateDateWithinActiveCycle(employeeDeadline, "Employee deadline", activeCycle);
+        validateDateWithinActiveCycle(managerDeadline, "Manager review deadline", activeCycle);
+        validateDateWithinActiveCycle(finalDeadline, "Final approval deadline", activeCycle);
+    }
+
+    private void validateDateWithinActiveCycle(LocalDate date, String label, ReviewCycle activeCycle) {
+        if (date.isBefore(activeCycle.getStartDate()) || date.isAfter(activeCycle.getEndDate())) {
+            throw new RuntimeException(label + " must be within the active cycle");
+        }
+    }
+
+    private Set<Long> toIdSet(List<Long> ids) {
+        if (ids == null) {
+            return Set.of();
+        }
+        return ids.stream()
+                .filter(id -> id != null && id > 0)
+                .collect(Collectors.toSet());
+    }
+
+    private boolean matchesAssignmentMode(
+            Employee employee,
+            AssignmentMode mode,
+            Set<Long> departmentIds,
+            Set<Long> positionIds) {
+        Long departmentId = getEmployeeDepartmentId(employee);
+        Long positionId = getEmployeePositionId(employee);
+        return switch (mode) {
+            case ALL_EMPLOYEES -> true;
+            case DEPARTMENTS -> departmentId != null && departmentIds.contains(departmentId);
+            case POSITIONS -> positionId != null && positionIds.contains(positionId);
+            case HYBRID -> departmentId != null && positionId != null
+                    && departmentIds.contains(departmentId)
+                    && positionIds.contains(positionId);
+        };
     }
 
     private void updateAnswers(SelfAssessmentForm form, List<AnswerRequest> answerRequests) {
@@ -1198,6 +1391,19 @@ public class SelfAssessmentFormService {
         return null;
     }
 
+    private Long getEmployeePositionId(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        if (employee.getPosition() != null) {
+            return employee.getPosition().getId();
+        }
+        if (employee.getDepartmentPosition() != null && employee.getDepartmentPosition().getPosition() != null) {
+            return employee.getDepartmentPosition().getPosition().getId();
+        }
+        return null;
+    }
+
     private SelfAssessmentFormDto toFormDto(SelfAssessmentForm form) {
         Employee emp = form.getEmployee();
         EmployeeInfoDto employeeInfo = new EmployeeInfoDto(
@@ -1252,6 +1458,8 @@ public class SelfAssessmentFormService {
                 form.getCycle() != null ? form.getCycle().getName() : null,
                 form.getTitle() != null ? form.getTitle() : form.getTemplate().getTitle(),
                 form.getDeadlineDate(),
+                form.getManagerReviewDeadlineDate(),
+                form.getFinalApprovalDeadlineDate(),
                 form.getAssignedAt(),
                 form.getAssignedBy(),
                 form.getStatus().name(),
@@ -1299,6 +1507,8 @@ public class SelfAssessmentFormService {
                 form.getCycle() != null ? form.getCycle().getId() : null,
                 form.getCycle() != null ? form.getCycle().getName() : null,
                 form.getDeadlineDate(),
+                form.getManagerReviewDeadlineDate(),
+                form.getFinalApprovalDeadlineDate(),
                 form.getAssignedAt(),
                 form.getAssignedBy(),
                 employeeInfo,

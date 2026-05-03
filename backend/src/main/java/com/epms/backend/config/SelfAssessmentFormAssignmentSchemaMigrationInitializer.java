@@ -36,6 +36,8 @@ public class SelfAssessmentFormAssignmentSchemaMigrationInitializer implements B
         }
         addColumnIfMissing(jdbc, "self_assessment_form", "title", "VARCHAR(255) NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "deadline_date", "DATE NULL");
+        addColumnIfMissing(jdbc, "self_assessment_form", "manager_review_deadline_date", "DATE NULL");
+        addColumnIfMissing(jdbc, "self_assessment_form", "final_approval_deadline_date", "DATE NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "assigned_at", "DATETIME(6) NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "assigned_by", "BIGINT NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "employee_remarks", "TEXT NULL");

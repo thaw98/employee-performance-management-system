@@ -117,6 +117,19 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @PostMapping("/hr/assignments")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SelfAssessmentAssignmentResponse>> assignSelfAssessmentForms(
+            @Valid @RequestBody SelfAssessmentAssignmentRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SelfAssessmentAssignmentResponse response = selfAssessmentFormService.assignSelfAssessmentForms(request, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Self-assessment forms assigned", response));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> getFormById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {

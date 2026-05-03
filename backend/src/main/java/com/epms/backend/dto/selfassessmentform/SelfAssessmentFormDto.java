@@ -11,6 +11,8 @@ public record SelfAssessmentFormDto(
         String cycleName,
         String title,
         LocalDate deadlineDate,
+        LocalDate managerReviewDeadlineDate,
+        LocalDate finalApprovalDeadlineDate,
         Instant assignedAt,
         Long assignedBy,
         String status,

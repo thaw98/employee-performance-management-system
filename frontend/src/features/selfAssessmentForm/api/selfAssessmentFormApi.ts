@@ -120,6 +120,8 @@ export interface SelfAssessmentFormDto {
   cycleName: string | null
   title: string
   deadlineDate: string | null
+  managerReviewDeadlineDate: string | null
+  finalApprovalDeadlineDate: string | null
   assignedAt: string | null
   assignedBy: number | null
   status: string
@@ -153,6 +155,8 @@ export interface FormListDto {
   cycleId: number | null
   cycleName: string | null
   deadlineDate: string | null
+  managerReviewDeadlineDate: string | null
+  finalApprovalDeadlineDate: string | null
   assignedAt: string | null
   assignedBy: number | null
   employee: EmployeeInfoDto
@@ -188,6 +192,26 @@ export interface SetTemplateDeadlineResponse {
   activeCycle: CycleInfoDto
   createdCount: number
   skippedCount: number
+}
+
+export type SelfAssessmentAssignmentMode = 'ALL_EMPLOYEES' | 'DEPARTMENTS' | 'POSITIONS' | 'HYBRID'
+
+export interface SelfAssessmentAssignmentRequest {
+  title: string
+  assignmentMode: SelfAssessmentAssignmentMode
+  departmentIds: number[]
+  positionIds: number[]
+  deadlineDate: string
+  managerReviewDeadlineDate: string
+  finalApprovalDeadlineDate: string
+}
+
+export interface SelfAssessmentAssignmentResponse {
+  createdCount: number
+  skippedExistingCount: number
+  skippedNoTemplateCount: number
+  skippedIneligibleCount: number
+  activeCycle: CycleInfoDto
 }
 
 export interface ActiveCycleFormsDto {
@@ -346,6 +370,8 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     cycleName: getOptionalString(source.cycleName) ?? null,
     title: getString(source.title, 'Self Assessment Form'),
     deadlineDate: getOptionalString(source.deadlineDate) ?? null,
+    managerReviewDeadlineDate: getOptionalString(source.managerReviewDeadlineDate) ?? null,
+    finalApprovalDeadlineDate: getOptionalString(source.finalApprovalDeadlineDate) ?? null,
     assignedAt: getOptionalString(source.assignedAt) ?? null,
     assignedBy: source.assignedBy != null ? getNumber(source.assignedBy) : null,
     status: getString(source.status),
@@ -383,6 +409,8 @@ const normalizeFormList = (form: unknown): FormListDto => {
     cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
     cycleName: getOptionalString(source.cycleName) ?? null,
     deadlineDate: getOptionalString(source.deadlineDate) ?? null,
+    managerReviewDeadlineDate: getOptionalString(source.managerReviewDeadlineDate) ?? null,
+    finalApprovalDeadlineDate: getOptionalString(source.finalApprovalDeadlineDate) ?? null,
     assignedAt: getOptionalString(source.assignedAt) ?? null,
     assignedBy: source.assignedBy != null ? getNumber(source.assignedBy) : null,
     employee: normalizeEmployeeInfo(isRecord(source.employee) ? source.employee : {}),
@@ -419,6 +447,17 @@ const normalizeSetDeadlineResponse = (response: unknown): SetTemplateDeadlineRes
     activeCycle: normalizeCycleInfo(source.activeCycle) ?? { id: 0, name: '', code: '', startDate: '', endDate: '' },
     createdCount: getNumber(source.createdCount),
     skippedCount: getNumber(source.skippedCount),
+  }
+}
+
+const normalizeAssignmentResponse = (response: unknown): SelfAssessmentAssignmentResponse => {
+  const source = isRecord(response) ? response : {}
+  return {
+    createdCount: getNumber(source.createdCount),
+    skippedExistingCount: getNumber(source.skippedExistingCount),
+    skippedNoTemplateCount: getNumber(source.skippedNoTemplateCount),
+    skippedIneligibleCount: getNumber(source.skippedIneligibleCount),
+    activeCycle: normalizeCycleInfo(source.activeCycle) ?? { id: 0, name: '', code: '', startDate: '', endDate: '' },
   }
 }
 
@@ -655,6 +694,16 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeSetDeadlineResponse(getResponseData(response)),
     }),
 
+    assignSelfAssessmentForms: builder.mutation<SelfAssessmentAssignmentResponse, SelfAssessmentAssignmentRequest>({
+      query: (body) => ({
+        url: '/self-assessment-forms/hr/assignments',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['SelfAssessmentForm', 'SelfAssessmentTemplates'],
+      transformResponse: (response: unknown) => normalizeAssignmentResponse(getResponseData(response)),
+    }),
+
     getQuestionBank: builder.query<QuestionBankDto[], { includeInactive?: boolean } | void>({
       query: (arg) => {
         const includeInactive = typeof arg === 'object' ? arg.includeInactive === true : false
@@ -717,6 +766,7 @@ export const {
   useCreateTemplateMutation,
   useUpdateTemplateMutation,
   useSetTemplateDeadlineMutation,
+  useAssignSelfAssessmentFormsMutation,
   useGetQuestionBankQuery,
   useCreateQuestionBankItemMutation,
   useUpdateQuestionBankItemMutation,

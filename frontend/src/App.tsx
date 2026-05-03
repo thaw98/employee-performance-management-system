@@ -56,6 +56,7 @@ import { MySelfAssessmentFormPage } from './pages/self-assessment-form/MySelfAss
 import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfAssessmentFormReviewPage';
 import { SelfAssessmentActiveFormsPage } from './pages/self-assessment-form/SelfAssessmentActiveFormsPage';
 import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage';
+import { SelfAssessmentAssignmentsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentsPage';
 
 function App() {
   return (
@@ -104,6 +105,7 @@ function App() {
             <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
             <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/assignments" element={<SelfAssessmentAssignmentsPage />} />
             <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
             <Route
               path="self-assessment/forms/create"

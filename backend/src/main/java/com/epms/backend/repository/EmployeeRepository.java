@@ -81,6 +81,22 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 			@Param("employmentStatus") EmployeeStatus employmentStatus,
 			@Param("staffTypeId") Long staffTypeId);
 
+	@Query("""
+			select e
+			from Employee e
+			join e.userAccount u
+			left join fetch e.department
+			left join fetch e.position
+			left join fetch e.staffType
+			where e.employmentStatus = :employmentStatus
+			  and (e.staffType is null or e.staffType.id <> :excludedStaffTypeId)
+			  and u.active = true
+			order by e.employeeName asc
+			""")
+	java.util.List<Employee> findEligibleSelfAssessmentAssignees(
+			@Param("employmentStatus") EmployeeStatus employmentStatus,
+			@Param("excludedStaffTypeId") Long excludedStaffTypeId);
+
 	boolean existsByDepartment_IdAndPosition_Id(Long departmentId, Long positionId);
 
 	@Query("""

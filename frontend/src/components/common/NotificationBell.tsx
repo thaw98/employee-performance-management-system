@@ -32,6 +32,10 @@ function getFeedbackPath(pathname: string) {
   return `/${prefix}/360-feedback/received`;
 }
 
+function getSelfAssessmentPath() {
+  return '/employee/self-assessment-forms/my-form';
+}
+
 function formatCreatedAt(value: string) {
   const elapsedSeconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
   const units = [
@@ -108,7 +112,7 @@ export function NotificationBell() {
         dispatch(setUnreadCount(unreadCount));
       }
     }
-    navigate(getFeedbackPath(location.pathname));
+    navigate(notification.source === 'SELF_ASSESSMENT_FORM' ? getSelfAssessmentPath() : getFeedbackPath(location.pathname));
   };
 
   const handleReadAll = async () => {

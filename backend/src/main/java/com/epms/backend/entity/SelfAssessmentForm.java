@@ -40,6 +40,12 @@ public class SelfAssessmentForm {
     @Column(name = "deadline_date")
     private LocalDate deadlineDate;
 
+    @Column(name = "manager_review_deadline_date")
+    private LocalDate managerReviewDeadlineDate;
+
+    @Column(name = "final_approval_deadline_date")
+    private LocalDate finalApprovalDeadlineDate;
+
     @Column(name = "assigned_at")
     private Instant assignedAt;
 

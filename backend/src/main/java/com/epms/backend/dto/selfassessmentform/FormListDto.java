@@ -9,6 +9,8 @@ public record FormListDto(
         Long cycleId,
         String cycleName,
         LocalDate deadlineDate,
+        LocalDate managerReviewDeadlineDate,
+        LocalDate finalApprovalDeadlineDate,
         Instant assignedAt,
         Long assignedBy,
         EmployeeInfoDto employee,

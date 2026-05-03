@@ -66,7 +66,9 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Employee</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Department</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Position</th>
-                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Deadline</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Employee Deadline</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Manager Review</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Final Approval</th>
                 <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
                 <th className="px-4 py-3 text-right font-semibold text-slate-700 dark:text-slate-200">Actions</th>
               </tr>
@@ -79,6 +81,8 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{form.employee.departmentName}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{form.employee.positionName}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatDate(form.deadlineDate)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatDate(form.managerReviewDeadlineDate)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatDate(form.finalApprovalDeadlineDate)}</td>
                   <td className="px-4 py-3">
                     <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
                       {form.status}
