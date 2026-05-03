@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { CalendarCheck, CalendarRange, Send, Users, X } from 'lucide-react';
+import { CalendarCheck, CalendarRange, ChevronRight, ClipboardList, Send, Users, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsQuery } from '../../features/position/api/positionApi';
 import { useGetActiveReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import {
   useAssignSelfAssessmentFormsMutation,
+  useGetAllTemplatesQuery,
   type SelfAssessmentAssignmentMode,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { formatCycleDate, SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
@@ -49,11 +51,28 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
   const [finalApprovalDeadlineDate, setFinalApprovalDeadlineDate] = useState('');
 
   const { data: activeCycles = [] } = useGetActiveReviewCyclesQuery();
+  const {
+    data: allTemplates = [],
+    isLoading: templatesLoading,
+    isError: templatesError,
+  } = useGetAllTemplatesQuery();
   const { data: departmentsResponse } = useGetDepartmentsQuery();
   const { data: positionsResponse } = useGetPositionsQuery({ page: 0, size: 500, status: 'Active' });
   const [assignForms, { isLoading: isAssigning }] = useAssignSelfAssessmentFormsMutation();
 
   const activeSubmissionCycle = activeCycles.find((cycle) => cycle.requiresEmployeeSubmission) ?? null;
+
+  const existingTemplatesForActiveCycle = useMemo(() => {
+    if (!activeSubmissionCycle) return [];
+    return allTemplates
+      .filter((t) => t.isActive && t.reviewCycleId === activeSubmissionCycle.id)
+      .slice()
+      .sort((a, b) => {
+        const byDept = a.departmentName.localeCompare(b.departmentName);
+        if (byDept !== 0) return byDept;
+        return a.positionName.localeCompare(b.positionName);
+      });
+  }, [allTemplates, activeSubmissionCycle]);
   const departments = departmentsResponse?.data ?? [];
   const positions = positionsResponse?.data?.content ?? [];
 
@@ -171,6 +190,81 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
           <div className="hidden sm:block sm:h-10 sm:w-px sm:shrink-0 sm:bg-slate-200 dark:sm:bg-slate-600" />
           <SelfAssessmentReviewCycleInfo variant="inline" />
         </div>
+      </div>
+
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-slate-100 p-2 text-slate-700 dark:bg-slate-700/60 dark:text-slate-200">
+              <ClipboardList size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Existing templates for this cycle</h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-500 dark:text-slate-400">
+                Active templates created for the current employee-submission review cycle. Bulk assignment only creates forms where a matching department and position template exists for this cycle (legacy templates without a cycle are handled separately on the server).
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/hr/self-assessment/templates"
+            className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+          >
+            Manage templates
+            <ChevronRight size={16} aria-hidden />
+          </Link>
+        </div>
+
+        {!activeSubmissionCycle ? (
+          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+            No active employee-submission review cycle. Templates for this page are listed once a cycle is active.
+          </p>
+        ) : templatesLoading ? (
+          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Loading templates…</p>
+        ) : templatesError ? (
+          <p className="mt-4 text-sm text-red-600 dark:text-red-400">Could not load templates. Try refreshing the page.</p>
+        ) : existingTemplatesForActiveCycle.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">
+            No active templates are linked to{' '}
+            <span className="font-medium text-slate-900 dark:text-white">{activeSubmissionCycle.name}</span>. Create a template
+            for this cycle under{' '}
+            <Link to="/hr/self-assessment/templates/create" className="font-medium text-emerald-600 hover:underline dark:text-emerald-400">
+              Create template
+            </Link>
+            , selecting this review cycle.
+          </p>
+        ) : (
+          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-600">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-400">
+                <tr>
+                  <th className="px-4 py-3">Template</th>
+                  <th className="px-4 py-3">Department</th>
+                  <th className="px-4 py-3">Position</th>
+                  <th className="px-4 py-3">Questions</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
+                {existingTemplatesForActiveCycle.map((template) => (
+                  <tr key={template.id} className="text-slate-700 dark:text-slate-200">
+                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{template.title}</td>
+                    <td className="px-4 py-3">{template.departmentName}</td>
+                    <td className="px-4 py-3">{template.positionName}</td>
+                    <td className="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-400">{template.questions.length}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        to={`/hr/self-assessment/templates/${template.id}/edit`}
+                        className="font-medium text-emerald-600 hover:underline dark:text-emerald-400"
+                      >
+                        Edit
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">

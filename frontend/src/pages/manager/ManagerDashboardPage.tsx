@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Users,
   Calendar,
@@ -8,7 +9,9 @@ import {
   ExternalLink,
   Zap,
   X,
-  Save
+  Save,
+  PenLine,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   BarChart,
@@ -20,6 +23,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { useGetManagerTeamQuery, useGetLatestKpisByEmployeeQuery, useUpdateManagerKpiActualsMutation, type Kpi } from '../../features/kpi/kpiApi';
+import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import toast from 'react-hot-toast';
 
 interface PerformanceData {
@@ -208,7 +212,9 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
 
 export function ManagerDashboardPage() {
   const { data: teamData, isLoading: isTeamLoading } = useGetManagerTeamQuery();
+  const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery();
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const hasDefaultSignature = Boolean(defaultSigResponse?.data);
 
   const teamMembers: TeamMember[] = teamData ? teamData.map((emp, idx) => ({
     id: emp.id,
@@ -230,13 +236,43 @@ export function ManagerDashboardPage() {
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Manager Dashboard</h1>
           <p className="text-slate-500 font-medium">Monitor and manage your team's performance</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3 justify-end">
+          <Link
+            to="/manager/settings/signature"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 hover:border-amber-300 hover:bg-amber-50/80 transition-all"
+          >
+            <PenLine size={14} className="text-amber-600" />
+            Signature settings
+          </Link>
           <a href="/manager/pip" className="flex items-center gap-2 px-4 py-2 bg-slate-900 rounded-xl text-xs font-black text-white hover:shadow-lg transition-all">
             <Zap size={14} className="text-amber-400" />
             Team PIPs
           </a>
         </div>
       </div>
+
+      {!isDefaultSigLoading && !hasDefaultSignature && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 rounded-[24px] border border-amber-200 bg-amber-50/90 dark:bg-amber-950/30 dark:border-amber-900/50">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0 text-amber-700 dark:text-amber-400">
+              <AlertTriangle size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-black text-slate-900 dark:text-slate-100">Set up your signature</p>
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-1 max-w-xl">
+                A default signature is required for self-assessment reviews and other approvals. Configure it in signature settings.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/manager/settings/signature"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-xs font-black hover:opacity-90 transition-opacity shrink-0"
+          >
+            <PenLine size={14} />
+            Open signature settings
+          </Link>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

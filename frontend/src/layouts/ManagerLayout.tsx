@@ -17,7 +17,10 @@ import {
   FileText,
   ListChecks,
   SlidersHorizontal,
-  BookOpen
+  BookOpen,
+  Settings,
+  User,
+  PenLine,
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -81,6 +84,16 @@ const ManagerLayout: React.FC = () => {
         { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
+    {
+      icon: <Settings size={20} />,
+      label: 'Settings',
+      path: '/manager/settings/profile',
+      subItems: [
+        { label: 'Profile', path: '/manager/settings/profile', icon: <User size={16} className="shrink-0" /> },
+        { label: 'Signature', path: '/manager/settings/signature', icon: <PenLine size={16} className="shrink-0" /> },
+        { label: 'System', path: '/manager/settings/system', icon: <Settings size={16} className="shrink-0" /> },
+      ]
+    },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/manager/meetings' },
     { icon: <BarChart size={20} />, label: 'Reports', path: '/manager/reports' },
   ];
@@ -127,7 +140,11 @@ const ManagerLayout: React.FC = () => {
           {menuItems.map((item) => {
             const isActive =
               location.pathname === item.path ||
-              (item.subItems && item.subItems.some((sub) => location.pathname.startsWith(sub.path)));
+              (item.subItems &&
+                item.subItems.some(
+                  (sub) =>
+                    location.pathname === sub.path || location.pathname.startsWith(`${sub.path}/`),
+                ));
 
             if (item.subItems) {
               const isExpanded =
@@ -167,7 +184,9 @@ const ManagerLayout: React.FC = () => {
                   {isExpanded && (
                     <div className="pl-7 pr-3 space-y-1 mt-1">
                       {item.subItems.map((subItem) => {
-                        const isSubActive = location.pathname === subItem.path;
+                        const isSubActive =
+                          location.pathname === subItem.path ||
+                          location.pathname.startsWith(`${subItem.path}/`);
 
                         return (
                           <Link
