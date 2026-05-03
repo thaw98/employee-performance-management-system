@@ -23,6 +23,10 @@ public class AppraisalAssignmentService {
                 .toList();
     }
 
+    public List<AppraisalAssignment> getAssignmentsForEvaluator(Long evaluatorId) {
+        return appraisalAssignmentRepository.findByEvaluator_Id(evaluatorId);
+    }
+
     public AppraisalAssignment getById(Long id) {
         AppraisalAssignment assignment = appraisalAssignmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Appraisal not found"));

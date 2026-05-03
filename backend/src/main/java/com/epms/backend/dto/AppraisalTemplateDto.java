@@ -13,4 +13,5 @@ public class AppraisalTemplateDto {
     private Boolean isActive;
     private List<Long> categoryIds;
     private List<Long> positionIds;
+    private Integer maxRating;
 }

@@ -7,5 +7,5 @@ import java.util.Optional;
 
 @Repository
 public interface AppraisalTemplateRepository extends JpaRepository<AppraisalTemplate, Long> {
-    Optional<AppraisalTemplate> findByIsActiveTrue();
+    java.util.List<AppraisalTemplate> findAllByIsActiveTrue();
 }
