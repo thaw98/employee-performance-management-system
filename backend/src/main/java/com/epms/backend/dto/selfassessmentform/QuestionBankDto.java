@@ -6,7 +6,11 @@ public record QuestionBankDto(
         Long id,
         String questionText,
         boolean isActive,
+        Long ownerRoleId,
         Long createdBy,
+        Long createdByRoleId,
+        Long departmentId,
+        String departmentName,
         Instant createdOn,
         Long updatedBy,
         Instant updatedOn

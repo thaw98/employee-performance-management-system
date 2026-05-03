@@ -42,7 +42,11 @@ export interface QuestionBankDto {
   id: number
   questionText: string
   isActive: boolean
+  ownerRoleId: number
   createdBy: number
+  createdByRoleId: number | null
+  departmentId: number | null
+  departmentName: string | null
   createdOn: string
   updatedBy: number | null
   updatedOn: string | null
@@ -461,7 +465,11 @@ const normalizeQuestionBankItem = (question: unknown): QuestionBankDto => {
     id: getNumber(source.id),
     questionText: getString(source.questionText),
     isActive: getBoolean(source.isActive),
+    ownerRoleId: getNumber(source.ownerRoleId),
     createdBy: getNumber(source.createdBy),
+    createdByRoleId: source.createdByRoleId != null ? getNumber(source.createdByRoleId) : null,
+    departmentId: source.departmentId != null ? getNumber(source.departmentId) : null,
+    departmentName: getOptionalString(source.departmentName) ?? null,
     createdOn: getString(source.createdOn),
     updatedBy: source.updatedBy != null ? getNumber(source.updatedBy) : null,
     updatedOn: getOptionalString(source.updatedOn) ?? null,

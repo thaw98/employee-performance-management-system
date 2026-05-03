@@ -4,9 +4,12 @@ import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,8 +33,18 @@ public class QuestionBank {
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
+    @Column(name = "owner_role_id", nullable = false)
+    private Long ownerRoleId = 1L;
+
     @Column(name = "created_by")
     private Long createdBy;
+
+    @Column(name = "created_by_role_id")
+    private Long createdByRoleId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
 
     @Column(name = "created_on")
     private Instant createdOn;
