@@ -1,5 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, type UseFormRegister } from 'react-hook-form';
+import {
+  DndContext,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   ArrowLeft,
   BookMarked,
@@ -7,8 +23,6 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarCheck,
-  ChevronDown,
-  ChevronUp,
   ClipboardList,
   Crown,
   GripVertical,
@@ -42,6 +56,87 @@ interface QuestionFormData {
   title: string;
   questions: { questionText: string }[];
 }
+
+interface SortableQuestionRowProps {
+  fieldId: string;
+  index: number;
+  register: UseFormRegister<QuestionFormData>;
+  fieldsLength: number;
+  onRemove: (index: number) => void;
+  onSaveToBank: (index: number) => void;
+  isSavingToBank: boolean;
+}
+
+const SortableQuestionRow: React.FC<SortableQuestionRowProps> = ({
+  fieldId,
+  index,
+  register,
+  fieldsLength,
+  onRemove,
+  onSaveToBank,
+  isSavingToBank,
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: fieldId,
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 transition-all hover:border-slate-200 hover:bg-white hover:shadow-sm dark:border-slate-700/50 dark:bg-slate-900/30 dark:hover:border-slate-600 dark:hover:bg-slate-800/60 ${
+        isDragging ? 'opacity-90 shadow-lg ring-2 ring-[#5D5FEF]/25 dark:ring-[#5D5FEF]/20' : ''
+      }`}
+    >
+      <button
+        type="button"
+        className="shrink-0 touch-none cursor-grab rounded-md p-1 text-slate-400 transition-all hover:bg-slate-200 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-700 dark:hover:text-slate-300"
+        {...attributes}
+        {...listeners}
+        aria-label="Drag to reorder question"
+      >
+        <GripVertical size={18} />
+      </button>
+
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-200/80 text-[11px] font-bold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+        {index + 1}
+      </span>
+
+      <input
+        {...register(`questions.${index}.questionText` as const)}
+        placeholder={`Question ${index + 1}`}
+        className="min-w-0 flex-1 rounded-lg border-0 bg-transparent px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:text-white dark:placeholder:text-slate-500"
+      />
+
+      <button
+        type="button"
+        onClick={() => void onSaveToBank(index)}
+        disabled={isSavingToBank}
+        className="shrink-0 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-emerald-50 hover:text-emerald-600 group-hover:opacity-100 disabled:opacity-30 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+        title="Save to Question Bank"
+      >
+        <BookMarked size={15} />
+      </button>
+
+      {fieldsLength > 1 && (
+        <button
+          type="button"
+          onClick={() => onRemove(index)}
+          className="shrink-0 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+          aria-label="Remove question"
+        >
+          <Trash2 size={15} />
+        </button>
+      )}
+    </div>
+  );
+};
 
 type AudienceType = 'all' | 'departments' | 'positions' | 'hybrid';
 
@@ -550,6 +645,24 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     name: 'questions',
   });
 
+  const questionDragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleQuestionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) {
+      return;
+    }
+    const oldIndex = fields.findIndex((f) => f.id === active.id);
+    const newIndex = fields.findIndex((f) => f.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+    move(oldIndex, newIndex);
+  };
+
   const toggleDepartment = (departmentId: number) => {
     setSelectedDepartmentIds((current) =>
       current.includes(departmentId) ? current.filter((id) => id !== departmentId) : [...current, departmentId]
@@ -621,18 +734,6 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     }
 
     return true;
-  };
-
-  const handleMoveUp = (index: number) => {
-    if (index > 0) {
-      move(index, index - 1);
-    }
-  };
-
-  const handleMoveDown = (index: number) => {
-    if (index < fields.length - 1) {
-      move(index, index + 1);
-    }
   };
 
   const handleUseBankQuestion = (questionText: string) => {
@@ -1258,67 +1359,28 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-2.5">
-              {fields.map((field, index) => (
-                <div
-                  key={field.id}
-                  className="group flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 transition-all hover:border-slate-200 hover:bg-white hover:shadow-sm dark:border-slate-700/50 dark:bg-slate-900/30 dark:hover:border-slate-600 dark:hover:bg-slate-800/60"
-                >
-                  <div className="flex shrink-0 flex-col items-center gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
-                      className="rounded p-0.5 text-slate-300 transition-all hover:bg-slate-200 hover:text-slate-600 disabled:opacity-30 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-                      aria-label="Move question up"
-                    >
-                      <ChevronUp size={13} />
-                    </button>
-                    <GripVertical size={14} className="text-slate-300 dark:text-slate-600" />
-                    <button
-                      type="button"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={index === fields.length - 1}
-                      className="rounded p-0.5 text-slate-300 transition-all hover:bg-slate-200 hover:text-slate-600 disabled:opacity-30 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-                      aria-label="Move question down"
-                    >
-                      <ChevronDown size={13} />
-                    </button>
-                  </div>
-
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-200/80 text-[11px] font-bold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
-                    {index + 1}
-                  </span>
-
-                  <input
-                    {...register(`questions.${index}.questionText` as const)}
-                    placeholder={`Question ${index + 1}`}
-                    className="min-w-0 flex-1 rounded-lg border-0 bg-transparent px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:text-white dark:placeholder:text-slate-500"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveQuestionToBank(index)}
-                    disabled={isSavingToQuestionBank}
-                    className="shrink-0 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-emerald-50 hover:text-emerald-600 group-hover:opacity-100 disabled:opacity-30 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
-                    title="Save to Question Bank"
-                  >
-                    <BookMarked size={15} />
-                  </button>
-
-                  {fields.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => remove(index)}
-                      className="shrink-0 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:hover:bg-red-950/30 dark:hover:text-red-400"
-                      aria-label="Remove question"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  )}
+            <DndContext
+              sensors={questionDragSensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleQuestionDragEnd}
+            >
+              <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2.5">
+                  {fields.map((field, index) => (
+                    <SortableQuestionRow
+                      key={field.id}
+                      fieldId={field.id}
+                      index={index}
+                      register={register}
+                      fieldsLength={fields.length}
+                      onRemove={remove}
+                      onSaveToBank={handleSaveQuestionToBank}
+                      isSavingToBank={isSavingToQuestionBank}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
+            </DndContext>
 
             <button
               type="button"
