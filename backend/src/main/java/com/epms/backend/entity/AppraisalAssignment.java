@@ -31,6 +31,10 @@ public class AppraisalAssignment {
     @JoinColumn(name = "period_id")
     private AppraisalCycle period;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "evaluator_id")
+    private Employee evaluator;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AppraisalStatus status = AppraisalStatus.DRAFT;

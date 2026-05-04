@@ -127,4 +127,10 @@ public class Pip {
 
     @Column(name = "final_outcome", length = 50)
     private String finalOutcome;
+
+    @Column(name = "expected_improvements", columnDefinition = "text")
+    private String expectedImprovements;
+
+    @Column(name = "reason_for_plan", columnDefinition = "text")
+    private String reasonForPlan;
 }

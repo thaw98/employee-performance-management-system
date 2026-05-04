@@ -18,7 +18,8 @@ import {
     sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, HelpCircle, GripVertical, Download, RotateCcw } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, ChevronDown, HelpCircle, GripVertical, Download, RotateCcw, Calendar, ArrowRight, Clock, Users, Filter, FileSpreadsheet, FileText, Send, Building2, Check, RefreshCcw, History } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const PRIMARY = '#0855BF';
 
@@ -28,6 +29,17 @@ interface Category {
     description: string;
     status: boolean;
     sortOrder: number;
+}
+
+interface DepartmentPositionMapping {
+    id: number;
+    departmentId: number;
+    departmentName: string;
+    positionId: number;
+    positionCode: string;
+    positionName: string;
+    levelCodeId: number;
+    levelCodeName: string;
 }
 
 interface Question {
@@ -47,6 +59,8 @@ interface AppraisalTemplateDto {
     effectiveDate: string;
     isActive: boolean;
     categoryIds: number[];
+    positionIds: number[];
+    maxRating: number;
 }
 
 interface SortableCategoryRowProps {
@@ -86,7 +100,7 @@ function SortableCategoryRow({ category, index, isConfirmed, onConfirm, onEdit, 
                 <div className="flex items-center justify-center gap-2">
                     <button
                         onClick={() => onConfirm(category.id!)}
-                        className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${isConfirmed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-50 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                        className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${isConfirmed ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200'}`}
                         title={isConfirmed ? "Confirmed" : "Add to Appraisal"}
                     >
                         <CheckCircle2 size={18} />
@@ -150,9 +164,12 @@ interface ConfirmedAppraisalViewProps {
     onReset?: () => void;
     assessmentDate: string;
     effectiveDate: string;
+    maxRating: number;
+    selectedPositionIds: number[];
+    allPositions: DepartmentPositionMapping[];
 }
 
-function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onRemove, onConfirm, onReset, assessmentDate, effectiveDate, isFinalizedView = false }: ConfirmedAppraisalViewProps) {
+function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onRemove, onConfirm, onReset, assessmentDate, effectiveDate, maxRating, selectedPositionIds, allPositions, isFinalizedView = false }: ConfirmedAppraisalViewProps) {
     const [allQuestions, setAllQuestions] = useState<Record<number, Question[]>>({});
     const [showPicker, setShowPicker] = useState(false);
 
@@ -175,6 +192,42 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
             }
         });
     }, [categories]);
+
+    const handleExportExcel = () => {
+        const data: any[] = [];
+        
+        // Form Info
+        data.push(['PERFORMANCE APPRAISAL FORM']);
+        data.push(['Assessment Date:', assessmentDate]);
+        data.push(['Effective Date:', effectiveDate]);
+        data.push([]); // Spacer
+
+        // Table Headers
+        const ratingHeaders = Array.from({ length: maxRating }, (_, i) => `Rating: ${maxRating - i}`);
+        data.push(['Category', 'No.', 'Evaluation Criteria & Performance Indicators', ...ratingHeaders]);
+        
+        let localGlobalIndex = 1;
+        categories.forEach(cat => {
+            const qList = allQuestions[cat.id!] || [];
+            qList.forEach((q, idx) => {
+                data.push([
+                    idx === 0 ? cat.name : '',
+                    (localGlobalIndex++).toString().padStart(2, '0'),
+                    q.questionText,
+                    ...Array(maxRating).fill('')
+                ]);
+            });
+        });
+        
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        
+        // Basic styling/merging could be done here if using a more advanced library, 
+        // but simple AOA is good for basic Excel.
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Appraisal");
+        XLSX.writeFile(wb, `Appraisal_Form_${assessmentDate}.xlsx`);
+        toast.success('Excel file generated successfully');
+    };
 
     let globalIndex = 1;
 
@@ -200,6 +253,34 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                             <div className="flex gap-4 mt-2">
                                 <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tight">ASMT: {assessmentDate}</span>
                                 <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md uppercase tracking-tight">EFF: {effectiveDate}</span>
+                                <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md uppercase tracking-tight">SCALE: 1-{maxRating}</span>
+                            </div>
+                        )}
+                        {/* Target Audience Summary */}
+                        {selectedPositionIds.length > 0 && (
+                            <div className="mt-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col gap-2">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <Users size={12} /> Target Audience
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {Array.from(new Set(allPositions.filter(p => selectedPositionIds.includes(p.id)).map(p => p.departmentName))).map(deptName => (
+                                        <div key={deptName} className="flex flex-col gap-1">
+                                            <div className="text-[10px] font-bold text-slate-600 bg-white px-2 py-1 rounded-lg border border-slate-100 shadow-sm">
+                                                {deptName}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1 pl-1">
+                                                {allPositions
+                                                    .filter(p => selectedPositionIds.includes(p.id) && p.departmentName === deptName)
+                                                    .map(pos => (
+                                                        <span key={pos.id} className="text-[8px] font-black text-blue-500 bg-blue-50/50 px-1.5 py-0.5 rounded border border-blue-100/30 whitespace-nowrap">
+                                                            {pos.positionName} ({pos.levelCodeName})
+                                                        </span>
+                                                    ))
+                                                }
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -210,7 +291,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                         <div className="relative flex-1 md:w-64">
                             <button
                                 onClick={() => setShowPicker(!showPicker)}
-                                className="w-full flex items-center justify-between px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-[10px] text-slate-400 uppercase tracking-widest hover:border-blue-400 hover:bg-white hover:text-blue-500 transition-all group"
+                                className="w-full flex items-center justify-between px-5 py-3.5 bg-white border-2 border-slate-200 rounded-2xl font-black text-[10px] text-slate-700 uppercase tracking-widest hover:border-blue-400 hover:bg-blue-50/30 hover:text-blue-600 transition-all group shadow-sm"
                             >
                                 <span>Pick a Category...</span>
                                 <Plus size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
@@ -225,9 +306,10 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                             <button
                                                 key={ac.id}
                                                 onClick={() => { onAdd(ac.id!); setShowPicker(false); }}
-                                                className="w-full text-left p-4 hover:bg-blue-600 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all mb-1 last:mb-0"
+                                                className="w-full text-left p-4 bg-slate-50/50 hover:bg-blue-600 text-slate-700 hover:text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all mb-2 last:mb-0 border border-transparent hover:border-blue-400 hover:shadow-lg hover:shadow-blue-100 flex items-center justify-between group/item"
                                             >
-                                                {ac.name}
+                                                <span>{ac.name}</span>
+                                                <Plus size={14} className="text-slate-300 group-hover/item:text-white transition-colors" />
                                             </button>
                                         ))
                                     )}
@@ -255,9 +337,29 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                             </button>
                             <button
                                 onClick={() => window.print()}
-                                className="flex items-center gap-3 px-8 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 hover:shadow-[0_20px_40px_rgba(15,23,42,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-slate-100 whitespace-nowrap"
+                                className="flex items-center gap-3 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 hover:shadow-[0_20px_40px_rgba(15,23,42,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-slate-100 whitespace-nowrap"
                             >
-                                <Download size={18} /> <span>Export PDF</span>
+                                <FileText size={18} /> <span>PDF</span>
+                            </button>
+                            <button
+                                onClick={handleExportExcel}
+                                className="flex items-center gap-3 px-6 py-3.5 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 hover:shadow-[0_20px_40px_rgba(16,185,129,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 whitespace-nowrap"
+                            >
+                                <FileSpreadsheet size={18} /> <span>Excel</span>
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await axios.post('/appraisal-categories/distribute', {});
+                                        toast.success('Sent to Managers successfully');
+                                    } catch (err: any) {
+                                        const msg = err.response?.data?.message || 'Failed to send to managers';
+                                        toast.error(msg);
+                                    }
+                                }}
+                                className="flex items-center gap-3 px-6 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 hover:shadow-[0_20px_40px_rgba(37,99,235,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-blue-100 whitespace-nowrap"
+                            >
+                                <Send size={18} /> <span>To Manager</span>
                             </button>
                         </div>
                     )}
@@ -265,19 +367,17 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
             </div>
 
             {/* Premium Table Container */}
-            <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-[0_20px_50px_rgba(8,117,191,0.05)] print:border-slate-800 print:rounded-none print:shadow-none print:border-2">
-                <table className="w-full border-separate border-spacing-0">
+            <div className="bg-white rounded-[2rem] border border-slate-200 overflow-x-auto shadow-[0_20px_50px_rgba(8,117,191,0.05)] print:border-slate-800 print:rounded-none print:shadow-none print:border-2 custom-scrollbar">
+                <table className="w-full border-separate border-spacing-0 min-w-[1000px]">
                     <thead>
                         <tr className="bg-gradient-to-r from-[#0855BF] to-[#0a66e6] print:from-white print:to-white print:text-black">
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-28 border-b border-blue-400/20 print:text-slate-900 print:border-slate-800 print:border-b-2">Category</th>
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-16 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">No.</th>
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-left border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">Evaluation Criteria & Performance Indicators</th>
-                            {/* RATING COLUMNS */}
-                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-12 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">5</th>
-                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-12 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">4</th>
-                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-12 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">3</th>
-                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-12 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">2</th>
-                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-12 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">1</th>
+                            {/* DYNAMIC RATING COLUMNS */}
+                            {Array.from({ length: maxRating }, (_, i) => maxRating - i).map(num => (
+                                <th key={num} className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-12 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">{num}</th>
+                            ))}
                             {!isFinalizedView && (
                                 <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-24 border-b border-blue-400/20 border-l border-blue-400/10">Action</th>
                             )}
@@ -332,8 +432,8 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                                                 {q.questionText}
                                                             </div>
                                                         </td>
-                                                        {/* RATING BOXES */}
-                                                        {[5, 4, 3, 2, 1].map(num => (
+                                                        {/* DYNAMIC RATING BOXES */}
+                                                        {Array.from({ length: maxRating }, (_, i) => maxRating - i).map(num => (
                                                             <td key={num} className="p-6 text-center border-l border-slate-50 border-b border-slate-50 group-hover:bg-blue-50/20 transition-all print:border-slate-800 print:border-l-2 print:border-b-2">
                                                                 <div className="w-6 h-6 rounded-lg border-2 border-slate-200 mx-auto transition-all group-hover:border-blue-200 print:border-slate-900 print:w-5 print:h-5 print:rounded-sm" />
                                                             </td>
@@ -402,7 +502,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                             <div className="text-3xl font-black text-slate-800 italic">
                                 {Object.values(allQuestions).flat().length > 0 ? "Sum" : "0"}
                                 <span className="text-slate-300 mx-2 text-xl font-normal">/</span>
-                                <span className="text-slate-400 text-2xl">{Object.values(allQuestions).flat().length * 5}</span>
+                                <span className="text-slate-400 text-2xl">{Object.values(allQuestions).flat().length * maxRating}</span>
                             </div>
                         </div>
 
@@ -454,8 +554,23 @@ export function AppraisalsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [assessmentDate, setAssessmentDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [effectiveDate, setEffectiveDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [maxRating, setMaxRating] = useState(10);
+    const [selectedPositionIds, setSelectedPositionIds] = useState<number[]>([]);
+    
+    // Finalized (History) View States - Separate from Review states
+    const [historyAssessmentDate, setHistoryAssessmentDate] = useState('');
+    const [historyEffectiveDate, setHistoryEffectiveDate] = useState('');
+    const [historyMaxRating, setHistoryMaxRating] = useState(10);
+    const [historyPositionIds, setHistoryPositionIds] = useState<number[]>([]);
+    const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
+    const [historySearchTerm, setHistorySearchTerm] = useState('');
+    const [historyYearFilter, setHistoryYearFilter] = useState('All');
+
     const [isReorderingCat, setIsReorderingCat] = useState(false);
     const [isReorderingQue, setIsReorderingQue] = useState(false);
+
+    // Target Audience State
+    const [allPositions, setAllPositions] = useState<DepartmentPositionMapping[]>([]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -497,7 +612,9 @@ export function AppraisalsPage() {
             const payload = {
                 assessmentDate: assessmentDate,
                 effectiveDate: effectiveDate,
-                categoryIds: confirmedCategories
+                categoryIds: confirmedCategories,
+                positionIds: selectedPositionIds,
+                maxRating: maxRating
             };
             await axios.post('/appraisal-categories/finalize', payload);
             setFinalizedCategories([...confirmedCategories]);
@@ -525,15 +642,26 @@ export function AppraisalsPage() {
                 setFinalizedCategories(toSelect.categoryIds);
                 setAssessmentDate(toSelect.assessmentDate);
                 setEffectiveDate(toSelect.effectiveDate);
+                setMaxRating(toSelect.maxRating || 10);
             }
         } catch (err) {
             console.error('Failed to load all templates');
         }
     };
 
+    const fetchPositionsAndLevels = async () => {
+        try {
+            const posResp = await axios.get('/lookups/department-positions/active');
+            setAllPositions(posResp.data.data || []);
+        } catch (err) {
+            console.error('Failed to fetch criteria');
+        }
+    };
+
     useEffect(() => {
         fetchCategories();
         fetchAllTemplates();
+        fetchPositionsAndLevels();
     }, []);
 
     useEffect(() => {
@@ -713,101 +841,401 @@ export function AppraisalsPage() {
             </div>
 
             {activeTab === 'finalized' ? (
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    {/* Sidebar: All Finalized Templates */}
-                    <div className="lg:col-span-1 space-y-4">
-                        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] px-2">History</h3>
-                            <div className="space-y-2">
-                                {allTemplates.length === 0 ? (
-                                    <div className="p-8 text-center text-slate-300 italic text-xs">No records found</div>
-                                ) : (
-                                    allTemplates.map(t => (
-                                        <button
-                                            key={t.id}
-                                            onClick={() => {
-                                                setSelectedTemplateId(t.id);
-                                                setFinalizedCategories(t.categoryIds);
-                                                setAssessmentDate(t.assessmentDate);
-                                                setEffectiveDate(t.effectiveDate);
-                                            }}
-                                            className={`w-full group text-left p-5 rounded-2xl border-2 transition-all relative overflow-hidden ${selectedTemplateId === t.id ? 'border-blue-600 bg-blue-50/50 shadow-md translate-x-1' : 'border-slate-50 hover:border-slate-200'}`}
-                                        >
-                                            <div className="relative z-10">
-                                                <div className={`text-[11px] font-black uppercase tracking-tight mb-1 ${selectedTemplateId === t.id ? 'text-blue-600' : 'text-slate-700'}`}>{t.name}</div>
-                                                <div className="text-[9px] font-bold text-slate-400">Created: {t.assessmentDate}</div>
-                                                {t.isActive && (
-                                                    <span className="absolute top-0 right-0 px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black uppercase rounded-md shadow-sm shadow-emerald-100">Active</span>
-                                                )}
-                                            </div>
-                                            {selectedTemplateId === t.id && (
-                                                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600" />
-                                            )}
-                                        </button>
-                                    ))
-                                )}
+                <div className="space-y-8 animate-in fade-in duration-500">
+                    {/* History Explorer Header */}
+                    <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm space-y-6">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="flex items-center gap-5">
+                                <div className="w-14 h-14 bg-blue-600 text-white rounded-[22px] flex items-center justify-center shadow-lg shadow-blue-100">
+                                    <History size={28} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Appraisal Archive</h3>
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Explore and reuse historical performance frameworks</p>
+                                </div>
                             </div>
+
+                            {selectedTemplateId && (
+                                <button 
+                                    onClick={() => setSelectedTemplateId(null)}
+                                    className="flex items-center gap-2 px-6 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black text-[11px] hover:bg-slate-200 transition-all uppercase tracking-widest"
+                                >
+                                    <ChevronRight size={16} className="rotate-180" /> Back to Archive
+                                </button>
+                            )}
                         </div>
+
+                        {!selectedTemplateId && (
+                            <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-slate-50">
+                                <div className="flex-1 min-w-[300px] relative">
+                                    <input 
+                                        type="text"
+                                        placeholder="SEARCH TEMPLATES BY NAME..."
+                                        value={historySearchTerm}
+                                        onChange={(e) => setHistorySearchTerm(e.target.value)}
+                                        className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-6 py-4 text-xs font-black text-slate-700 focus:bg-white focus:border-blue-500 transition-all outline-none uppercase tracking-widest"
+                                    />
+                                    <Filter className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                                </div>
+                                <select 
+                                    value={historyYearFilter}
+                                    onChange={(e) => setHistoryYearFilter(e.target.value)}
+                                    className="bg-slate-50 border-2 border-slate-50 rounded-2xl px-6 py-4 text-xs font-black text-slate-700 outline-none focus:border-blue-500 transition-all uppercase tracking-widest"
+                                >
+                                    <option value="All">All Years</option>
+                                    {Array.from(new Set(allTemplates.map(t => t.assessmentDate.split('-')[0]))).sort().reverse().map(year => (
+                                        <option key={year} value={year}>{year}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Main Content: Template Detail View */}
-                    <div className="lg:col-span-3">
-                        {selectedTemplateId ? (
+                    {!selectedTemplateId ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {allTemplates
+                                .filter(t => {
+                                    const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
+                                    const matchesYear = historyYearFilter === 'All' || t.assessmentDate.startsWith(historyYearFilter);
+                                    return matchesSearch && matchesYear;
+                                })
+                                .map(t => (
+                                    <div 
+                                        key={t.id}
+                                        className="group bg-white rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 hover:translate-y-[-4px] transition-all overflow-hidden relative"
+                                    >
+                                        <div className="p-7 space-y-6">
+                                            <div className="flex items-start justify-between">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{t.assessmentDate.split('-')[0]}</span>
+                                                        {t.isActive && <span className="text-[10px] font-black text-white bg-emerald-500 px-2 py-0.5 rounded uppercase animate-pulse">Active</span>}
+                                                    </div>
+                                                    <h4 className="text-sm font-black text-slate-800 uppercase leading-tight group-hover:text-blue-600 transition-colors">{t.name}</h4>
+                                                </div>
+                                                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-400 transition-all">
+                                                    <FileText size={20} />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="p-3 bg-slate-50/50 rounded-2xl border border-transparent group-hover:border-slate-100 transition-all">
+                                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Categories</div>
+                                                    <div className="text-lg font-black text-slate-700">{t.categoryIds.length}</div>
+                                                </div>
+                                                <div className="p-3 bg-slate-50/50 rounded-2xl border border-transparent group-hover:border-slate-100 transition-all">
+                                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Rating Scale</div>
+                                                    <div className="text-lg font-black text-slate-700">1-{t.maxRating || 5}</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 pt-2">
+                                                <button 
+                                                    onClick={() => {
+                                                        setSelectedTemplateId(t.id);
+                                                        setFinalizedCategories(t.categoryIds);
+                                                        setHistoryAssessmentDate(t.assessmentDate);
+                                                        setHistoryEffectiveDate(t.effectiveDate);
+                                                        setHistoryPositionIds(t.positionIds || []);
+                                                        setHistoryMaxRating(t.maxRating || 10);
+                                                    }}
+                                                    className="flex-1 py-3.5 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-blue-600 transition-all shadow-md shadow-slate-200"
+                                                >
+                                                    View Details
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        setConfirmedCategories([...t.categoryIds]);
+                                                        setAssessmentDate(t.assessmentDate);
+                                                        setEffectiveDate(t.effectiveDate);
+                                                        setMaxRating(t.maxRating || 10);
+                                                        setSelectedPositionIds(t.positionIds || []);
+                                                        setActiveTab('confirmed');
+                                                        toast.success('Template cloned as draft!');
+                                                    }}
+                                                    className="w-12 h-12 bg-white border-2 border-slate-100 text-slate-400 rounded-2xl flex items-center justify-center hover:border-blue-200 hover:text-blue-500 transition-all group/btn"
+                                                    title="Use as Draft"
+                                                >
+                                                    <RefreshCcw size={18} className="group-hover/btn:rotate-180 transition-transform duration-500" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            }
+                            {allTemplates.length === 0 && (
+                                <div className="lg:col-span-3 p-20 text-center bg-slate-50/50 border-2 border-dashed border-slate-100 rounded-[48px]">
+                                    <HelpCircle size={48} className="mx-auto text-slate-200 mb-4" />
+                                    <p className="text-slate-400 font-black uppercase tracking-widest">No history records found</p>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
                              <ConfirmedAppraisalView
                                 categories={categories.filter(c => finalizedCategories.includes(c.id!))}
                                 allAvailableCategories={categories}
-                                assessmentDate={assessmentDate}
-                                effectiveDate={effectiveDate}
+                                assessmentDate={historyAssessmentDate}
+                                effectiveDate={historyEffectiveDate}
                                 onAdd={() => {}}
                                 onRemove={() => {}}
                                 onConfirm={() => {}}
                                 onReset={() => {
                                     setConfirmedCategories([...finalizedCategories]);
                                     setFinalizedCategories([]);
+                                    setAssessmentDate(historyAssessmentDate);
+                                    setEffectiveDate(historyEffectiveDate);
+                                    setMaxRating(historyMaxRating);
+                                    setSelectedPositionIds(historyPositionIds);
                                     setActiveTab('confirmed');
                                 }}
+                                maxRating={historyMaxRating}
                                 isFinalizedView={true}
+                                selectedPositionIds={historyPositionIds}
+                                allPositions={allPositions}
                             />
-                        ) : (
-                            <div className="bg-white p-20 rounded-[32px] border border-slate-100 text-center space-y-4">
-                                <HelpCircle size={48} className="mx-auto text-slate-200" />
-                                <p className="text-slate-400 font-bold uppercase tracking-widest">Select a template from the list to view</p>
-                            </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             ) : activeTab === 'confirmed' ? (
                 <div className="space-y-6">
-                    {/* Date Config Bar */}
-                    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-wrap items-center gap-8 px-10 animate-in fade-in slide-in-from-top-4">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                                <HelpCircle size={20} />
+                    <div className="bg-white p-2 rounded-[28px] border border-slate-100 shadow-sm flex flex-wrap items-center gap-2 px-2 animate-in fade-in slide-in-from-top-4 print:hidden">
+                        {/* Assessment Date Card */}
+                        <div className="flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border border-transparent hover:border-blue-100 hover:bg-white transition-all group">
+                            <div className="w-12 h-12 bg-white text-blue-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                <Calendar size={22} />
                             </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assessment Date</p>
-                                <input 
-                                    type="date" 
-                                    value={assessmentDate}
-                                    onChange={(e) => setAssessmentDate(e.target.value)}
-                                    className="text-sm font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 cursor-pointer hover:text-blue-600 transition-colors"
-                                />
+                            <div className="flex-1">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Assessment Date</p>
+                                <div className="relative">
+                                    <input 
+                                        type="date" 
+                                        value={assessmentDate}
+                                        onChange={(e) => setAssessmentDate(e.target.value)}
+                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                                    />
+                                </div>
                             </div>
                         </div>
-                        <div className="w-px h-10 bg-slate-100 hidden md:block" />
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-                                <CheckCircle2 size={20} />
+
+                        {/* Connection Arrow/Line */}
+                        <div className="hidden lg:flex items-center justify-center w-10 text-slate-200">
+                            <ArrowRight size={20} strokeWidth={3} />
+                        </div>
+
+                        {/* Effective Date Card */}
+                        <div className="flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border border-transparent hover:border-emerald-100 hover:bg-white transition-all group">
+                            <div className="w-12 h-12 bg-white text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                <Clock size={22} />
                             </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Effective Date</p>
-                                <input 
-                                    type="date" 
-                                    value={effectiveDate}
-                                    onChange={(e) => setEffectiveDate(e.target.value)}
-                                    className="text-sm font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 cursor-pointer hover:text-emerald-600 transition-colors"
-                                />
+                            <div className="flex-1">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Effective Date</p>
+                                <div className="relative">
+                                    <input 
+                                        type="date" 
+                                        value={effectiveDate}
+                                        min={assessmentDate}
+                                        onChange={(e) => setEffectiveDate(e.target.value)}
+                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                                    />
+                                </div>
                             </div>
+                        </div>
+
+                        {/* Connection Arrow/Line */}
+                        <div className="hidden lg:flex items-center justify-center w-10 text-slate-200">
+                            <ArrowRight size={20} strokeWidth={3} />
+                        </div>
+
+                        {/* Rating Scale Selection */}
+                        <div className="flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border border-transparent hover:border-blue-100 hover:bg-white transition-all group">
+                            <div className="w-12 h-12 bg-white text-[#0855BF] rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                <FileSpreadsheet size={22} />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Rating Scale (1 to ?)</p>
+                                <div className="relative">
+                                    <select 
+                                        value={maxRating}
+                                        onChange={(e) => setMaxRating(Number(e.target.value))}
+                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer appearance-none"
+                                    >
+                                        <option value={10}>1 to 10 Scale</option>
+                                        <option value={5}>1 to 5 Scale</option>
+                                        <option value={4}>1 to 4 Scale</option>
+                                        <option value={3}>1 to 3 Scale</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* TARGET AUDIENCE SELECTION - Premium UI */}
+                    <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                                    <Users size={24} />
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="font-black text-slate-800 uppercase tracking-tight">Target Audience</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assign this form to specific organizational positions</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col lg:flex-row gap-0 bg-slate-50/50 rounded-[32px] border border-slate-100 overflow-hidden min-h-[500px]">
+                            {/* Left Side: Departments List */}
+                            <div className="w-full lg:w-1/3 bg-white border-r border-slate-100 flex flex-col">
+                                <div className="p-6 border-b border-slate-50 bg-slate-50/30">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">1. Choose Department</h4>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                                    {Array.from(new Set(allPositions.map(p => p.departmentId))).map(deptId => {
+                                        const deptName = allPositions.find(p => p.departmentId === deptId)?.departmentName || 'General';
+                                        const isSelected = selectedDeptId === deptId;
+                                        const deptPositions = allPositions.filter(p => p.departmentId === deptId);
+                                        const selectedCount = deptPositions.filter(p => selectedPositionIds.includes(p.id)).length;
+                                        const isAllSelected = selectedCount === deptPositions.length && deptPositions.length > 0;
+
+                                        return (
+                                            <button
+                                                key={deptId}
+                                                onClick={() => setSelectedDeptId(deptId)}
+                                                className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-100 scale-[1.02] z-10' : 'hover:bg-slate-50 text-slate-600'}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isSelected ? 'bg-white/20' : 'bg-slate-100 group-hover:bg-white shadow-sm'}`}>
+                                                        <Building2 size={16} className={isSelected ? 'text-white' : 'text-slate-400'} />
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <div className={`text-[11px] font-black uppercase tracking-tight ${isSelected ? 'text-white' : 'text-slate-700'}`}>{deptName}</div>
+                                                        <div className={`text-[9px] font-bold ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>{deptPositions.length} Positions</div>
+                                                    </div>
+                                                </div>
+                                                {selectedCount > 0 && (
+                                                    <div className={`px-2 py-1 rounded-lg text-[9px] font-black border transition-colors ${isSelected ? 'bg-white text-blue-600 border-white' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                                                        {isAllSelected ? 'ALL' : selectedCount}
+                                                    </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Right Side: Position Selection */}
+                            <div className="flex-1 flex flex-col bg-slate-50/30">
+                                {selectedDeptId ? (
+                                    <>
+                                        <div className="p-6 border-b border-slate-100 bg-white flex items-center justify-between">
+                                            <div>
+                                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">2. Select Positions</h4>
+                                                <div className="text-sm font-black text-slate-800 uppercase mt-1">
+                                                    {allPositions.find(p => p.departmentId === selectedDeptId)?.departmentName}
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Select All Position */}
+                                            <button 
+                                                onClick={() => {
+                                                    const deptPosIds = allPositions.filter(p => p.departmentId === selectedDeptId).map(p => p.id);
+                                                    const allCurrentlySelected = deptPosIds.every(id => selectedPositionIds.includes(id));
+                                                    
+                                                    if (allCurrentlySelected) {
+                                                        setSelectedPositionIds(prev => prev.filter(id => !deptPosIds.includes(id)));
+                                                    } else {
+                                                        setSelectedPositionIds(prev => Array.from(new Set([...prev, ...deptPosIds])));
+                                                    }
+                                                }}
+                                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                            >
+                                                {allPositions.filter(p => p.departmentId === selectedDeptId).every(pos => selectedPositionIds.includes(pos.id)) 
+                                                    ? 'Deselect All' : 'Select All Position'}
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="flex-1 overflow-y-auto p-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {allPositions
+                                                    .filter(p => p.departmentId === selectedDeptId)
+                                                    .map(pos => (
+                                                        <label 
+                                                            key={pos.id}
+                                                            className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all bg-white group ${selectedPositionIds.includes(pos.id) ? 'border-blue-500 shadow-md translate-y-[-2px]' : 'border-transparent hover:border-slate-200 hover:shadow-sm'}`}
+                                                        >
+                                                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selectedPositionIds.includes(pos.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-200 group-hover:border-blue-300'}`}>
+                                                                {selectedPositionIds.includes(pos.id) && <Check size={12} className="text-white" strokeWidth={4} />}
+                                                                <input 
+                                                                    type="checkbox"
+                                                                    className="hidden"
+                                                                    checked={selectedPositionIds.includes(pos.id)}
+                                                                    onChange={() => {
+                                                                        setSelectedPositionIds(prev => 
+                                                                            prev.includes(pos.id) ? prev.filter(id => id !== pos.id) : [...prev, pos.id]
+                                                                        );
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <div className="text-[11px] font-black text-slate-700 leading-tight mb-1 uppercase group-hover:text-blue-600 transition-colors">{pos.positionName}</div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-wider">{pos.levelCodeName}</span>
+                                                                    <span className="text-[8px] font-bold text-slate-400">ID: {pos.id}</span>
+                                                                </div>
+                                                            </div>
+                                                        </label>
+                                                    ))
+                                                }
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-4">
+                                        <div className="w-20 h-20 bg-white rounded-[28px] flex items-center justify-center shadow-sm text-slate-200">
+                                            <Building2 size={40} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-slate-400 font-black uppercase tracking-widest text-[11px]">No Department Selected</h4>
+                                            <p className="text-slate-300 font-bold text-[10px] mt-1 max-w-[200px] mx-auto">Please pick a department from the left list to manage its positions</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <Filter size={14} className="text-blue-500" />
+                                    <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                                        Total Selected: {selectedPositionIds.length}
+                                    </p>
+                                </div>
+                                {selectedPositionIds.length > 0 && (
+                                    <div className="flex -space-x-2">
+                                        {Array.from(new Set(allPositions.filter(p => selectedPositionIds.includes(p.id)).map(p => p.departmentId))).slice(0, 3).map(deptId => (
+                                            <div key={deptId} className="w-6 h-6 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-blue-600 uppercase" title={allPositions.find(p => p.departmentId === deptId)?.departmentName}>
+                                                {allPositions.find(p => p.departmentId === deptId)?.departmentName?.charAt(0)}
+                                            </div>
+                                        ))}
+                                        {Array.from(new Set(allPositions.filter(p => selectedPositionIds.includes(p.id)).map(p => p.departmentId))).length > 3 && (
+                                            <div className="w-6 h-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-slate-400">
+                                                +{Array.from(new Set(allPositions.filter(p => selectedPositionIds.includes(p.id)).map(p => p.departmentId))).length - 3}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    setSelectedPositionIds([]);
+                                    setSelectedDeptId(null);
+                                }}
+                                className="text-[10px] font-black text-red-400 hover:text-red-600 uppercase tracking-widest transition-colors flex items-center gap-2"
+                            >
+                                <RefreshCcw size={12} /> Reset Selection
+                            </button>
                         </div>
                     </div>
 
@@ -820,6 +1248,9 @@ export function AppraisalsPage() {
                         onRemove={(id) => setConfirmedCategories(prev => prev.filter(cid => cid !== id))}
                         onConfirm={handleFinalize}
                         onReset={() => setActiveTab('confirmed')}
+                        maxRating={maxRating}
+                        selectedPositionIds={selectedPositionIds}
+                        allPositions={allPositions}
                     />
                 </div>
             ) : activeTab === 'category' ? (

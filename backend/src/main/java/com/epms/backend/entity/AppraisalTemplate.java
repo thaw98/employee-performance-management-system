@@ -38,6 +38,17 @@ public class AppraisalTemplate {
     )
     private List<AppraisalCategory> categories;
 
+    @ManyToMany
+    @JoinTable(
+        name = "template_department_positions",
+        joinColumns = @JoinColumn(name = "template_id"),
+        inverseJoinColumns = @JoinColumn(name = "department_position_id")
+    )
+    private List<DepartmentPosition> targetDepartmentPositions;
+
+    @Column(name = "max_rating")
+    private Integer maxRating = 5;
+
     @Column(name = "created_at")
     private LocalDate createdAt = LocalDate.now();
 }

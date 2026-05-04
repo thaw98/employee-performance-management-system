@@ -4,14 +4,15 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import { logout } from '../../features/auth/authSlice'
 import { useGetProfileQuery } from '../../features/user/userApi'
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
-import { ChevronDown, User, Settings, LogOut, Shield } from 'lucide-react'
+import { getRoleGroup } from '../../utils/dashboardRedirect'
+import { ChevronDown, User, Settings, LogOut, Shield, PenLine } from 'lucide-react'
 
 export function ProfileDropdown() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const tokenUser = useAppSelector((s) => s.auth.user)
   const { data: profileResponse } = useGetProfileQuery()
-  
+
   const user = profileResponse?.data || tokenUser
   const avatarSrc = resolveProfilePictureSrc(user?.profilePictureUrl)
 
@@ -33,20 +34,12 @@ export function ProfileDropdown() {
     navigate('/login')
   }
 
-  // Determine settings path based on role with robust detection
-  const userRoleStr = (user?.role || '').toUpperCase()
-  const userRoleId = user?.roleId
-  
-  const isHR = userRoleStr === 'HR' || userRoleId === 1
-  const isManager = 
-    userRoleId === 2 || 
-    userRoleId === 3 || 
-    userRoleStr.includes('HEAD') || 
-    userRoleStr.includes('MANAGER') || 
-    userRoleStr.includes('LEAD')
-  
-  const rolePrefix = isHR ? '/hr' : (isManager ? '/manager' : '/employee')
+  // Profile role name may be a position title (e.g. Department Head); use roleId like ProtectedRoute.
+  const roleGroup = tokenUser ? getRoleGroup(tokenUser) : null
+  const rolePrefix =
+    roleGroup === 'HR' ? '/hr' : roleGroup === 'MANAGER' ? '/manager' : '/employee'
   const profileSettingsPath = `${rolePrefix}/settings/profile`
+  const signatureSettingsPath = `${rolePrefix}/settings/signature`
   const systemSettingsPath = `${rolePrefix}/settings/system`
 
   return (
@@ -96,6 +89,17 @@ export function ProfileDropdown() {
                 <User size={18} />
               </div>
               User Settings
+            </Link>
+
+            <Link
+              to={signatureSettingsPath}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-all group"
+              onClick={() => setIsOpen(false)}
+            >
+              <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <PenLine size={18} />
+              </div>
+              Signature Settings
             </Link>
 
             <Link

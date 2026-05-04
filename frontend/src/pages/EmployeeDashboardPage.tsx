@@ -1,5 +1,4 @@
 import { useAppSelector } from '../app/hooks'
-import { SelfAssessmentWarning } from '../components/SelfAssessmentWarning'
 import { useNavigate } from 'react-router-dom'
 
 export function EmployeeDashboardPage() {
@@ -48,8 +47,6 @@ export function EmployeeDashboardPage() {
 
   return (
     <div className="px-6 py-8 md:px-10 bg-slate-50 min-h-screen text-slate-800">
-      <SelfAssessmentWarning />
-      
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 mb-2 block">Employee Experience</span>
@@ -61,12 +58,6 @@ export function EmployeeDashboardPage() {
           </p>
         </div>
         <div className="flex gap-3">
-           <button 
-             onClick={() => navigate('/hr/self-assessment')}
-             className="px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-sm font-black text-slate-700 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all transform active:scale-95"
-           >
-              Update Self Assessment
-           </button>
            <button 
              onClick={() => navigate('/hr/my-performance')}
              className="px-6 py-3 bg-blue-600 rounded-2xl text-sm font-black text-white shadow-[0_8px_20px_-4px_rgba(37,99,235,0.4)] hover:bg-blue-700 hover:shadow-blue-500/40 transition-all transform active:scale-95"

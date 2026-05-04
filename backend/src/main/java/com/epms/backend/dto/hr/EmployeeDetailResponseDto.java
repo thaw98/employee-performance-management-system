@@ -24,7 +24,7 @@ public class EmployeeDetailResponseDto {
     private LocalDate dateOfBirth;
     private String phoneNo;
     private String address;
-    private String nationality;
+    private String race;
     private String status;
     private Long departmentId;
     private String departmentName;
@@ -45,4 +45,10 @@ public class EmployeeDetailResponseDto {
     private String emergencyPhone;
     private String emergencyRelation;
     private String profilePictureUrl;
+
+    /** {@code Single} or {@code Married}, or null if unset. */
+    private String maritalStatus;
+    private Long spouseId;
+    private String spouseName;
+    private String spouseNrc;
 }

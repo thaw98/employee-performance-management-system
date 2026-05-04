@@ -45,6 +45,9 @@ public class PositionKpi {
     @Column(nullable = false)
     private String period;
 
+    @Column(name = "record_status", nullable = false)
+    private String recordStatus = "Active"; // Active, Archived
+
     @Column(name = "created_date")
     private Instant createdDate;
 

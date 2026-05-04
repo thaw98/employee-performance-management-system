@@ -28,6 +28,14 @@ export interface ChangePasswordRequestDto {
   confirmPassword: string
 }
 
+export interface SignatureDto {
+  id: number
+  signatureData: string
+  signatureType: string
+  isDefault: boolean
+  createdAt: string
+}
+
 export const userApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getProfile: builder.query<ApiResponse<UserProfileDto>, void>({
@@ -100,6 +108,48 @@ export const userApi = baseApi.injectEndpoints({
         body,
       }),
     }),
+    getDefaultSignature: builder.query<ApiResponse<SignatureDto | null>, void>({
+      query: () => '/signatures/default',
+      providesTags: ['Signature'],
+    }),
+    getAllSignatures: builder.query<ApiResponse<SignatureDto[]>, void>({
+      query: () => '/signatures',
+      providesTags: ['Signature'],
+    }),
+    saveDrawnSignature: builder.mutation<ApiResponse<SignatureDto>, { signaturePngDataUrl: string }>({
+      query: (body) => ({
+        url: '/signatures/drawn',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Signature'],
+    }),
+    uploadSignature: builder.mutation<ApiResponse<SignatureDto>, { file: File }>({
+      query: ({ file }) => {
+        const body = new FormData()
+        body.append('file', file)
+        return {
+          url: '/signatures/upload',
+          method: 'POST',
+          body,
+        }
+      },
+      invalidatesTags: ['Signature'],
+    }),
+    setDefaultSignature: builder.mutation<ApiResponse<SignatureDto>, number>({
+      query: (signatureId) => ({
+        url: `/signatures/${signatureId}/default`,
+        method: 'PATCH',
+      }),
+      invalidatesTags: ['Signature'],
+    }),
+    deleteSignature: builder.mutation<ApiResponse<null>, number>({
+      query: (signatureId) => ({
+        url: `/signatures/${signatureId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Signature'],
+    }),
   }),
 })
 
@@ -112,4 +162,10 @@ export const {
   useUploadProfilePictureMutation,
   useUpdateProfileMutation,
   useChangePasswordMutation,
+  useGetDefaultSignatureQuery,
+  useGetAllSignaturesQuery,
+  useSaveDrawnSignatureMutation,
+  useUploadSignatureMutation,
+  useSetDefaultSignatureMutation,
+  useDeleteSignatureMutation,
 } = userApi

@@ -118,7 +118,8 @@ public class EmployeeService {
 		if (query.matches("^[0-9]+$")) {
 			return employeeRepository.findById(Long.parseLong(query)).map(this::toDto).stream().toList();
 		}
-		return employeeRepository.findTop10ByEmployeeNameContainingIgnoreCaseOrderByIdDesc(query).stream()
+		String firstChar = query.substring(0, 1);
+		return employeeRepository.findTop10ByEmployeeNameStartingWithIgnoreCaseOrderByIdDesc(firstChar).stream()
 				.map(this::toDto)
 				.toList();
 	}
@@ -158,7 +159,6 @@ public class EmployeeService {
 		employee.setReligion(firstNonNull(normalizeReligion(request.getReligion()), employee.getReligion()));
 
 		applyDepartmentAndPosition(employee, request.getDepartmentId(), request.getPositionId(), false);
-		applyManager(employee, request.getManagerId(), false);
 		applyStaffType(employee, request.getStaffTypeId(), false);
 		applyProbation(employee, request.getProbationDays(), request.getProbationEndDate());
 		applyFather(employee, request.getFatherName(), request.getFatherNrcNo(), request.getFatherOccupation());
@@ -179,7 +179,6 @@ public class EmployeeService {
 		}
 
 		applyDepartmentAndPosition(employee, request.getDepartmentId(), request.getPositionId(), true);
-		applyManager(employee, request.getManagerId(), true);
 		applyStaffType(employee, request.getStaffTypeId(), true);
 		applyProbation(employee, request.getProbationDays(), request.getProbationEndDate());
 		applyFather(employee, request.getFatherName(), request.getFatherNrcNo(), request.getFatherOccupation());
@@ -211,21 +210,6 @@ public class EmployeeService {
 		} else {
 			employee.setPosition(null);
 		}
-	}
-
-	private void applyManager(Employee employee, Long managerId, boolean required) {
-		if (managerId == null) {
-			if (required) {
-				employee.setManager(null);
-			}
-			return;
-		}
-		if (employee.getId() != null && employee.getId().equals(managerId)) {
-			throw new IllegalArgumentException("Employee cannot be their own manager");
-		}
-		Employee manager = employeeRepository.findById(managerId)
-				.orElseThrow(() -> new IllegalArgumentException("Invalid manager"));
-		employee.setManager(manager);
 	}
 
 	private void applyStaffType(Employee employee, Long staffTypeId, boolean required) {
@@ -436,6 +420,7 @@ public class EmployeeService {
 	}
 
 	private EmployeeInfoResponseDto toDto(Employee employee) {
+		Employee manager = resolveDepartmentManager(employee);
 		return EmployeeInfoResponseDto.builder()
 				.id(employee.getId())
 				.employeeId(employee.getEmployeeId())
@@ -448,8 +433,8 @@ public class EmployeeService {
 				.departmentName(employee.getDepartment() == null ? null : employee.getDepartment().getName())
 				.positionId(employee.getPosition() == null ? null : employee.getPosition().getId())
 				.positionName(employee.getPosition() == null ? null : employee.getPosition().getName())
-				.managerId(employee.getManager() == null ? null : employee.getManager().getId())
-				.managerName(employee.getManager() == null ? null : employee.getManager().getEmployeeName())
+				.managerId(manager == null ? null : manager.getId())
+				.managerName(manager == null ? null : manager.getEmployeeName())
 				.staffTypeId(employee.getStaffType() == null ? null : employee.getStaffType().getId())
 				.staffTypeName(employee.getStaffType() == null ? null : employee.getStaffType().getName())
 				.dateOfJoining(employee.getDateOfJoining())
@@ -462,5 +447,16 @@ public class EmployeeService {
 				.emergencyRelation(employee.getEmergencyContact() == null ? null : employee.getEmergencyContact().getRelation())
 				.profilePictureUrl(employee.getProfilePictureUrl())
 				.build();
+	}
+
+	private Employee resolveDepartmentManager(Employee employee) {
+		if (employee.getDepartment() == null || employee.getDepartment().getManagerId() == null) {
+			return null;
+		}
+		Long managerId = employee.getDepartment().getManagerId();
+		if (employee.getId() != null && employee.getId().equals(managerId)) {
+			return null;
+		}
+		return employeeRepository.findById(managerId).orElse(null);
 	}
 }

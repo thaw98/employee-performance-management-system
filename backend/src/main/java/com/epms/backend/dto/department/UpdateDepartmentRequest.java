@@ -13,6 +13,8 @@ public class UpdateDepartmentRequest {
     @NotBlank(message = "Department name is required.")
     private String departmentName;
 
+    private Long managerId;
+
     @NotBlank(message = "Status is required.")
     @Pattern(regexp = "^(?i)(Active|Inactive)$", message = "Status must be Active or Inactive.")
     private String status;

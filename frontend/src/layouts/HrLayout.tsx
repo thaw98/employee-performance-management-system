@@ -11,21 +11,20 @@ import {
   Search,
   RefreshCcw,
   Zap,
-  ClipboardList,
   Building2,
   Briefcase,
   List,
   UserPlus,
   SlidersHorizontal,
   ListChecks,
-  ClipboardCheck,
-  MessageCircleQuestionMark,
   LayoutGrid,
   Inbox,
   ListFilter,
   Send,
   History,
-  Layers
+  Layers,
+  FileText,
+  BookOpen
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -77,17 +76,9 @@ const HrLayout: React.FC = () => {
       path: '/hr/kpi-management',
       subItems: [
         { label: 'KPI Modeler', path: '/hr/kpi-management', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
-        { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} className="shrink-0" /> }
-      ]
-    },
-    {
-      icon: <ClipboardList size={20} />,
-      label: 'Self Assessments',
-      path: '/hr/assessments',
-      subItems: [
-        { label: 'My Assessment', path: '/hr/my-assessment', icon: <ClipboardCheck size={16} className="shrink-0" /> },
-        { label: 'Compliance Review', path: '/hr/assessments', icon: <ShieldCheck size={16} className="shrink-0" /> },
-        { label: 'Question', path: '/hr/assessment-subitems', icon: <MessageCircleQuestionMark size={16} className="shrink-0" /> }
+        { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} className="shrink-0" /> },
+        { label: 'Category List', path: '/hr/kpi-categories', icon: <LayoutGrid size={16} className="shrink-0" /> },
+        { label: 'History', path: '/hr/kpi-history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
     {
@@ -111,6 +102,18 @@ const HrLayout: React.FC = () => {
       ]
     },
     { icon: <Zap size={20} />, label: 'PIP Management', path: '/hr/pip-monitoring' },
+    {
+      icon: <FileText size={20} />,
+      label: 'Self-Assessment',
+      path: '/hr/self-assessment/templates',
+      subItems: [
+        { label: 'Template Management', path: '/hr/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
+        { label: 'Bulk Assignment', path: '/hr/self-assessment/assignments', icon: <Send size={16} className="shrink-0" /> },
+        { label: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: <Inbox size={16} className="shrink-0" /> },
+        { label: 'Question Bank', path: '/hr/self-assessment/question-bank', icon: <BookOpen size={16} className="shrink-0" /> },
+        { label: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
+      ]
+    },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/hr/meetings' },
     { icon: <BarChart size={20} />, label: 'Reports', path: '/hr/reports' }
   ];
@@ -118,7 +121,7 @@ const HrLayout: React.FC = () => {
   return (
     <div className="flex h-screen bg-transparent font-sans transition-colors duration-300">
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-colors duration-300">
+      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-colors duration-300 print:hidden">
         {/* Brand Header */}
         <div className="p-6 bg-[#115e59] text-white">
           <div className="flex items-center gap-3">
@@ -262,7 +265,7 @@ const HrLayout: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden bg-transparent transition-colors duration-300">
         {/* Top Header */}
-        <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between transition-colors duration-300">
+        <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between transition-colors duration-300 print:hidden">
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Dashboard</h2>
             <p className="text-xs font-bold text-slate-400 dark:text-slate-500">

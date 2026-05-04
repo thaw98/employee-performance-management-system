@@ -1,0 +1,42 @@
+package com.epms.backend.dto.selfassessmentform;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+
+public record SelfAssessmentFormDto(
+        Long id,
+        Long templateId,
+        Long cycleId,
+        String cycleName,
+        String title,
+        String ratingSystem,
+        LocalDate deadlineDate,
+        LocalDate managerReviewDeadlineDate,
+        LocalDate finalApprovalDeadlineDate,
+        Instant assignedAt,
+        Long assignedBy,
+        String status,
+        Double totalScore,
+        String ratingCategory,
+        String employeeRemarks,
+        Long employeeSignatureId,
+        Instant employeeSignatureDate,
+        String overallRemarks,
+        Long managerId,
+        String managerName,
+        Long managerSignatureId,
+        Instant managerSignatureDate,
+        String managerComments,
+        Long hrSignatureId,
+        Instant hrSignatureDate,
+        Long hrFinalSignatureId,
+        Instant hrFinalSignatureDate,
+        Long hrAdjustmentSignatureId,
+        Instant hrAdjustmentSignatureDate,
+        Instant createdDate,
+        Instant submittedDate,
+        EmployeeInfoDto employee,
+        List<AnswerDto> answers,
+        List<AdjustmentDto> adjustments
+) {}

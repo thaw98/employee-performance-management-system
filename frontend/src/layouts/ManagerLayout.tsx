@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Users,
   Target,
-  FileText,
   Award,
   Calendar,
   BarChart,
@@ -14,7 +13,14 @@ import {
   RefreshCcw,
   Send,
   Inbox,
-  History
+  History,
+  FileText,
+  ListChecks,
+  SlidersHorizontal,
+  BookOpen,
+  Settings,
+  User,
+  PenLine,
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -52,10 +58,22 @@ const ManagerLayout: React.FC = () => {
       ? [{ icon: <Users size={20} />, label: 'Employees', path: '/manager/employees' }]
       : []),
     { icon: <Target size={20} />, label: 'KPIs', path: '/manager/kpis' },
-    { icon: <FileText size={20} />, label: 'Self Assessments', path: '/manager/assessments' },
-    { icon: <ShieldCheck size={20} />, label: 'My Self Assessments', path: '/manager/my-assessment' },
+    { icon: <History size={20} />, label: 'KPI History', path: '/manager/kpi-history' },
+    { icon: <Target size={20} />, label: 'My KPIs', path: '/manager/my-kpis' },
     { icon: <Zap size={20} />, label: 'Team PIPs', path: '/manager/pip' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/manager/appraisals' },
+    {
+      icon: <FileText size={20} />,
+      label: 'Self-Assessment',
+      path: '/manager/self-assessment/templates',
+      subItems: [
+        { label: 'Templates', path: '/manager/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
+        ...(authUser?.roleId === 2
+          ? [{ label: 'Question Bank', path: '/manager/self-assessment/question-bank', icon: <BookOpen size={16} className="shrink-0" /> }]
+          : []),
+        { label: 'Review Forms', path: '/manager/self-assessment-forms/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
+      ]
+    },
     {
       icon: <RefreshCcw size={20} />,
       label: '360 Feedback',
@@ -64,6 +82,16 @@ const ManagerLayout: React.FC = () => {
         { label: 'Give Feedback', path: '/manager/360-feedback/give', icon: <Send size={16} className="shrink-0" /> },
         { label: 'Get Feedback', path: '/manager/360-feedback/received', icon: <Inbox size={16} className="shrink-0" /> },
         { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} className="shrink-0" /> }
+      ]
+    },
+    {
+      icon: <Settings size={20} />,
+      label: 'Settings',
+      path: '/manager/settings/profile',
+      subItems: [
+        { label: 'Profile', path: '/manager/settings/profile', icon: <User size={16} className="shrink-0" /> },
+        { label: 'Signature', path: '/manager/settings/signature', icon: <PenLine size={16} className="shrink-0" /> },
+        { label: 'System', path: '/manager/settings/system', icon: <Settings size={16} className="shrink-0" /> },
       ]
     },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/manager/meetings' },
@@ -90,7 +118,7 @@ const ManagerLayout: React.FC = () => {
         {/* User Profile Card */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner flex-shrink-0">
+            <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner shrink-0">
               {user?.profilePictureUrl ? (
                  <img src={resolveProfilePictureSrc(user.profilePictureUrl)} className="w-full h-full object-cover" alt="Profile" />
               ) : (
@@ -112,7 +140,11 @@ const ManagerLayout: React.FC = () => {
           {menuItems.map((item) => {
             const isActive =
               location.pathname === item.path ||
-              (item.subItems && item.subItems.some((sub) => location.pathname.startsWith(sub.path)));
+              (item.subItems &&
+                item.subItems.some(
+                  (sub) =>
+                    location.pathname === sub.path || location.pathname.startsWith(`${sub.path}/`),
+                ));
 
             if (item.subItems) {
               const isExpanded =
@@ -152,7 +184,9 @@ const ManagerLayout: React.FC = () => {
                   {isExpanded && (
                     <div className="pl-7 pr-3 space-y-1 mt-1">
                       {item.subItems.map((subItem) => {
-                        const isSubActive = location.pathname === subItem.path;
+                        const isSubActive =
+                          location.pathname === subItem.path ||
+                          location.pathname.startsWith(`${subItem.path}/`);
 
                         return (
                           <Link

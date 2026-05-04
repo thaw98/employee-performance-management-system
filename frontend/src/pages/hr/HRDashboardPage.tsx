@@ -1,12 +1,9 @@
-import React from 'react';
 import {
   Users,
-  RefreshCcw,
   Zap,
   TrendingUp,
   Clock,
-  AlertCircle,
-  ClipboardList
+  AlertCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -19,8 +16,7 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell,
-  Legend
+  Cell
 } from 'recharts';
 
 interface DeptData {
@@ -47,10 +43,6 @@ export function HRDashboardPage() {
           <p className="text-slate-500 font-medium text-xs">Overview of organizational performance and activities</p>
         </div>
         <div className="flex gap-3">
-          <Link to="/hr/assessments" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-700 hover:shadow-md transition-all">
-            <ClipboardList size={14} className="text-emerald-600" />
-            Compliance Review
-          </Link>
           <Link to="/hr/pip-monitoring" className="flex items-center gap-2 px-4 py-2 bg-[#115e59] rounded-xl text-xs font-black text-white hover:shadow-lg transition-all">
             <Zap size={14} />
             PIP Monitoring

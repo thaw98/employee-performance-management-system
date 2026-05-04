@@ -29,11 +29,12 @@ import {
   Search,
   Shield,
   Trash2,
+  User,
   XCircle,
 } from 'lucide-react'
 import { useGetDepartmentByIdQuery } from '../../../features/department/api/departmentApi'
 import {
-  useGetPositionsByDepartmentQuery,
+  useGetDepartmentPositionMappingsByDepartmentQuery,
   useRemoveDepartmentPositionMutation,
   type DepartmentPositionMappingDto,
 } from '../../../features/departmentPositions/api/departmentPositionsApi'
@@ -64,7 +65,7 @@ export default function DepartmentDetailPage() {
     isLoading: isPositionsLoading,
     isError: isPositionsError,
     refetch: refetchPositions,
-  } = useGetPositionsByDepartmentQuery(departmentId, { skip: !isValidDepartmentId })
+  } = useGetDepartmentPositionMappingsByDepartmentQuery(departmentId, { skip: !isValidDepartmentId })
   const [removePosition, { isLoading: isRemoving }] = useRemoveDepartmentPositionMutation()
 
   const department = departmentResponse?.data
@@ -163,6 +164,34 @@ export default function DepartmentDetailPage() {
   }
 
   const filteredCount = table.getFilteredRowModel().rows.length
+  const pageIndex = table.getState().pagination.pageIndex
+  const pageCount = table.getPageCount()
+  const paginationItems: (number | 'ellipsis')[] = useMemo(() => {
+    if (pageCount <= 7) {
+      return Array.from({ length: pageCount }, (_, index) => index)
+    }
+
+    const candidatePages = new Set<number>([
+      0, 1, 2,
+      pageCount - 3, pageCount - 2, pageCount - 1,
+      pageIndex - 1, pageIndex, pageIndex + 1,
+    ])
+
+    const normalizedPages = [...candidatePages]
+      .filter((value) => value >= 0 && value < pageCount)
+      .sort((left, right) => left - right)
+
+    const items: (number | 'ellipsis')[] = []
+    let previous: number | null = null
+    for (const pageNumber of normalizedPages) {
+      if (previous !== null && pageNumber - previous > 1) {
+        items.push('ellipsis')
+      }
+      items.push(pageNumber)
+      previous = pageNumber
+    }
+    return items
+  }, [pageCount, pageIndex])
 
   if (isError) {
     return (
@@ -264,6 +293,22 @@ export default function DepartmentDetailPage() {
               ) : (
                 <p className={`text-lg font-bold leading-tight ${isActive(department?.status) ? 'text-emerald-600' : 'text-amber-600'}`}>
                   {isActive(department?.status) ? 'Active Dept' : 'Inactive Dept'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 flex items-center justify-center flex-shrink-0 shadow-md">
+              <User size={22} className="text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Manager</p>
+              {isDepartmentLoading ? (
+                <div className="h-8 w-32 bg-slate-100 rounded animate-pulse" />
+              ) : (
+                <p className="text-lg font-bold leading-tight text-slate-800 truncate">
+                  {department?.managerName || '-'}
                 </p>
               )}
             </div>
@@ -387,9 +432,24 @@ export default function DepartmentDetailPage() {
                 <button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all" title="Previous page">
                   <ChevronLeft size={15} />
                 </button>
-                <span className="px-3 text-xs font-bold text-slate-600">
-                  Page {table.getState().pagination.pageIndex + 1} of {Math.max(table.getPageCount(), 1)}
-                </span>
+                {paginationItems.map((item, index) =>
+                  item === 'ellipsis' ? (
+                    <span key={`ellipsis-${index}`} className="px-1.5 text-slate-400 text-xs select-none">...</span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => table.setPageIndex(item)}
+                      className={`min-w-[32px] h-8 text-xs font-bold rounded-lg border transition-all ${
+                        item === pageIndex
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
+                      }`}
+                    >
+                      {item + 1}
+                    </button>
+                  )
+                )}
                 <button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all" title="Next page">
                   <ChevronRight size={15} />
                 </button>

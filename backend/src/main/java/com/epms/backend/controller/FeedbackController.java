@@ -150,7 +150,11 @@ public class FeedbackController {
             if (dto.getYearType() == null || dto.getDuration() == null) {
                 return ResponseEntity.badRequest().body(new ApiResponse<>(false, "Required fields cannot be empty", null));
             }
-            return ResponseEntity.ok(new ApiResponse<>(true, "Settings saved successfully", timeSettingService.saveSettings(dto)));
+            User user = getCurrentUser();
+            Long roleId = user.getRole() != null ? user.getRole().getId() : null;
+            return ResponseEntity.ok(new ApiResponse<>(true, "Settings saved successfully", timeSettingService.saveSettings(dto, user.getId(), roleId)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Error saving settings: " + e.getMessage(), null));
         }

@@ -15,6 +15,7 @@ public class UserPrincipal implements UserDetails {
 	private final Long id;
 	private final String email;
 	private final String employeeId;
+	private final Long employeeDbId;
 	private final Long roleId;
 	private final String roleName;
 	private final String name;
@@ -26,6 +27,7 @@ public class UserPrincipal implements UserDetails {
 		Long id = user.getId();
 		String email = user.getEmail();
 		String employeeId = resolveBusinessEmployeeId(user.getEmployee());
+		Long employeeDbId = (user.getEmployee() != null) ? user.getEmployee().getId() : null;
 		Long roleId = (user.getRole() != null) ? user.getRole().getId() : 0L;
 		String roleName = (user.getRole() != null) ? user.getRole().getName() : "GUEST";
 		String name = (user.getEmployee() != null) ? user.getEmployee().getEmployeeName() : "User";
@@ -36,6 +38,7 @@ public class UserPrincipal implements UserDetails {
 		this.id = id;
 		this.email = email;
 		this.employeeId = employeeId;
+		this.employeeDbId = employeeDbId;
 		this.roleId = roleId;
 		this.roleName = roleName;
 		this.name = name;
@@ -54,6 +57,10 @@ public class UserPrincipal implements UserDetails {
 
 	public String getEmployeeId() {
 		return employeeId;
+	}
+
+	public Long getEmployeeDbId() {
+		return employeeDbId;
 	}
 
 	public String getRoleName() {

@@ -30,19 +30,26 @@ import com.epms.backend.dto.hr.EmployeeViewResponseDto;
 import com.epms.backend.dto.hr.EmployeeListItemResponseDto;
 import com.epms.backend.dto.hr.EmployeeListResponseDto;
 import com.epms.backend.dto.hr.EmployeeUpdateRequestDto;
+import com.epms.backend.dto.hr.EmploymentStatusHistoryResponseDto;
 import com.epms.backend.dto.hr.PasswordActionResponseDto;
 import com.epms.backend.dto.hr.UpdateEmploymentStatusRequestDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.EmergencyContact;
+import com.epms.backend.entity.EmployeeFather;
 import com.epms.backend.entity.EmployeeProbation;
 import com.epms.backend.entity.EmployeeReligion;
+import com.epms.backend.entity.EmployeeSpouse;
 import com.epms.backend.entity.EmployeeStatus;
+import com.epms.backend.entity.EmploymentStatusHistory;
+import com.epms.backend.entity.MaritalStatus;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
 import com.epms.backend.repository.EmployeeRepository;
+import com.epms.backend.repository.EmploymentStatusHistoryRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.UserPrincipal;
@@ -51,6 +58,10 @@ import com.epms.backend.validation.ProfilePictureUrlValidator;
 
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
+import com.epms.backend.entity.EmployeeKpi;
+import com.epms.backend.repository.KpiRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 
@@ -63,10 +74,12 @@ public class HrEmployeeService {
     private final UserRepository userRepository;
     private final StaffTypeRepository staffTypeRepository;
     private final DepartmentPositionRepository departmentPositionRepository;
+    private final EmploymentStatusHistoryRepository employmentStatusHistoryRepository;
     private final PositionRoleResolutionService positionRoleResolutionService;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
     private final AuditService auditService;
+    private final KpiRepository kpiRepository;
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
@@ -94,7 +107,7 @@ public class HrEmployeeService {
                     String pattern = "%" + keyword + "%";
                     predicates.add(cb.or(
                         cb.like(cb.lower(root.get("employeeId")), pattern),
-                        cb.like(cb.lower(root.get("employeeName")), pattern),
+                        cb.like(cb.lower(root.get("employeeName")), keyword.substring(0, 1) + "%"),
                         cb.like(cb.lower(root.get("email")), pattern),
                         cb.like(cb.lower(root.get("department").get("name")), pattern),
                         cb.like(cb.lower(root.get("position").get("name")), pattern)
@@ -156,6 +169,80 @@ public class HrEmployeeService {
     }
 
     @Transactional(readOnly = true)
+    public EmployeeListResponseDto getEmployeesWithKpiStatus(int page, int size, String search, Long departmentId, Long positionId, String kpiStatus, String period, String sortBy, String sortDir, UserPrincipal principal) {
+        validateCanAccessEmployeeList(principal);
+        Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort = resolveEmployeeSort(sortBy, direction);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Long managerDepartmentId = isDepartmentManager(principal) ? resolveCurrentDepartmentId(principal) : null;
+
+        Specification<Employee> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (search != null && !search.isBlank()) {
+                String[] keywords = search.toLowerCase().split("\\s+");
+                for (String keyword : keywords) {
+                    if (keyword.isEmpty()) continue;
+                    String pattern = "%" + keyword + "%";
+                    predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("employeeId")), pattern),
+                        cb.like(cb.lower(root.get("employeeName")), keyword.substring(0, 1) + "%"),
+                        cb.like(cb.lower(root.get("email")), pattern),
+                        cb.like(cb.lower(root.get("department").get("name")), pattern),
+                        cb.like(cb.lower(root.get("position").get("name")), pattern)
+                    ));
+                }
+            }
+
+            if (departmentId != null) predicates.add(cb.equal(root.get("department").get("id"), departmentId));
+            if (managerDepartmentId != null) predicates.add(cb.equal(root.get("department").get("id"), managerDepartmentId));
+            if (positionId != null) predicates.add(cb.equal(root.get("position").get("id"), positionId));
+
+            if (kpiStatus != null && !kpiStatus.isBlank() && period != null) {
+                Subquery<Long> kpiSubquery = query.subquery(Long.class);
+                Root<EmployeeKpi> kpiRoot = kpiSubquery.from(EmployeeKpi.class);
+                kpiSubquery.select(cb.count(kpiRoot));
+                kpiSubquery.where(
+                    cb.equal(kpiRoot.get("employee").get("id"), root.get("id")),
+                    cb.equal(kpiRoot.get("period"), period),
+                    cb.equal(kpiRoot.get("recordStatus"), "Active")
+                );
+
+                if ("DEFINED".equalsIgnoreCase(kpiStatus)) {
+                    predicates.add(cb.greaterThan(kpiSubquery, 0L));
+                } else if ("NOT_DEFINED".equalsIgnoreCase(kpiStatus)) {
+                    predicates.add(cb.equal(kpiSubquery, 0L));
+                }
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Employee> employeePage = employeeRepository.findAll(spec, pageable);
+        Map<Long, Boolean> kpiStatusMap = checkKpisForEmployees(employeePage.getContent(), period);
+        Map<Long, String> currentTransferTypes = loadCurrentTransferTypes(employeePage.getContent());
+
+        List<EmployeeListItemResponseDto> content = employeePage.getContent().stream()
+                .map(employee -> toListItemDto(employee, currentTransferTypes.get(employee.getId()), kpiStatusMap.getOrDefault(employee.getId(), false)))
+                .collect(Collectors.toList());
+
+        return EmployeeListResponseDto.builder()
+                .content(content)
+                .page(employeePage.getNumber())
+                .size(employeePage.getSize())
+                .totalElements(employeePage.getTotalElements())
+                .totalPages(employeePage.getTotalPages())
+                .build();
+    }
+
+    private Map<Long, Boolean> checkKpisForEmployees(List<Employee> employees, String period) {
+        if (employees.isEmpty() || period == null) return Map.of();
+        List<Long> ids = employees.stream().map(Employee::getId).collect(Collectors.toList());
+        List<Long> idsWithKpis = kpiRepository.findEmployeeIdsWithActiveKpis(ids, period);
+        return ids.stream().collect(Collectors.toMap(id -> id, idsWithKpis::contains));
+    }
+
+    @Transactional(readOnly = true)
     public EmployeeListResponseDto getEmployees(int page, int size, String search, Long departmentId, Long positionId, String employmentStatus, String sortBy, String sortDir) {
         Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
         Pageable pageable = PageRequest.of(page, size, resolveEmployeeSort(sortBy, direction));
@@ -170,7 +257,7 @@ public class HrEmployeeService {
                     String pattern = "%" + keyword + "%";
                     predicates.add(cb.or(
                         cb.like(cb.lower(root.get("employeeId")), pattern),
-                        cb.like(cb.lower(root.get("employeeName")), pattern),
+                        cb.like(cb.lower(root.get("employeeName")), keyword.substring(0, 1) + "%"),
                         cb.like(cb.lower(root.get("email")), pattern),
                         cb.like(cb.lower(root.get("department").get("name")), pattern),
                         cb.like(cb.lower(root.get("position").get("name")), pattern)
@@ -238,6 +325,36 @@ public class HrEmployeeService {
         employee.setReligion(parseReligion(request.getReligion()));
         employee.setDateOfJoining(request.getDateOfJoining());
         employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
+        employee.setMaritalStatus(parseMaritalStatus(request.getMaritalStatus()));
+
+        EmployeeFather father = employee.getFather();
+        if (father == null) {
+            father = new EmployeeFather();
+            employee.setFather(father);
+        }
+        father.setFatherName(request.getFatherName());
+        father.setFatherNrcNo(request.getFatherNrcNo());
+        father.setFatherOccupation(request.getFatherOccupation());
+
+        EmergencyContact emergencyContact = employee.getEmergencyContact();
+        if (emergencyContact == null) {
+            emergencyContact = new EmergencyContact();
+            employee.setEmergencyContact(emergencyContact);
+        }
+        emergencyContact.setEmergencyPhone(request.getEmergencyPhone());
+        emergencyContact.setRelation(request.getEmergencyRelation());
+
+        if (employee.getMaritalStatus() == MaritalStatus.Married) {
+            EmployeeSpouse spouse = employee.getSpouse();
+            if (spouse == null) {
+                spouse = new EmployeeSpouse();
+                employee.setSpouse(spouse);
+            }
+            spouse.setSpouseName(request.getSpouseName());
+            spouse.setSpouseNrc(request.getSpouseNrc());
+        } else {
+            employee.setSpouse(null);
+        }
 
         // Department and position must only change via transfer APIs.
         if (request.getDepartmentId() != null && employee.getDepartment() != null
@@ -274,14 +391,6 @@ public class HrEmployeeService {
             StaffType st = staffTypeRepository.findById(request.getStaffTypeId())
                     .orElseThrow(() -> new IllegalArgumentException("Staff type not found"));
             employee.setStaffType(st);
-        }
-
-        if (request.getManagerId() != null) {
-            Employee manager = employeeRepository.findById(request.getManagerId())
-                    .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
-            employee.setManager(manager);
-        } else {
-            employee.setManager(null);
         }
 
         employee.setUpdatedBy(principal.getId());
@@ -392,6 +501,8 @@ public class HrEmployeeService {
 
         String currentStatus = determineEmploymentStatus(employee);
         String targetStatus = request.getTargetStatus();
+        LocalDate statusEffectiveDate = request.getEffectiveDate() != null ? request.getEffectiveDate() : LocalDate.now();
+        String newStatus = normalizeTargetDisplayStatus(targetStatus);
 
         boolean shouldDeactivateUserAccount = false;
         if ("PERMANENT".equalsIgnoreCase(targetStatus)) {
@@ -406,7 +517,13 @@ public class HrEmployeeService {
 
             EmployeeProbation probation = employee.getProbation();
             if (probation == null) {
-                throw new IllegalArgumentException("No probation record found for this employee");
+                // Backfill missing probation rows for legacy/incomplete data so Probation -> Permanent can proceed.
+                probation = new EmployeeProbation();
+                probation.setEmployee(employee);
+                probation.setProbationStartDate(employee.getDateOfJoining() != null ? employee.getDateOfJoining() : LocalDate.now());
+                probation.setCreatedOn(LocalDateTime.now());
+                probation.setCreatedBy(principal.getId());
+                employee.setProbation(probation);
             }
 
             if ("NOW".equalsIgnoreCase(mode)) {
@@ -463,6 +580,9 @@ public class HrEmployeeService {
             throw new IllegalArgumentException("Invalid target status: " + targetStatus + ". Must be PERMANENT, RESIGNED, or TERMINATED");
         }
 
+        recordEmploymentStatusHistory(employee, currentStatus, newStatus, statusEffectiveDate, principal.getId(), request.getReason());
+        employee.setStatusEffectiveFrom(statusEffectiveDate);
+        employee.setEmploymentStatusReason(normalizeReason(request.getReason()));
         employee.setUpdatedBy(principal.getId());
         employee.setUpdatedDate(Instant.now());
         employeeRepository.save(employee);
@@ -484,6 +604,69 @@ public class HrEmployeeService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public List<EmploymentStatusHistoryResponseDto> getEmploymentStatusHistory(Long employeeId, UserPrincipal principal) {
+        validateHrOnlyAction(principal);
+        if (!employeeRepository.existsById(employeeId)) {
+            throw new IllegalArgumentException("Employee not found");
+        }
+        return employmentStatusHistoryRepository.findByEmployee_IdOrderByEffectiveDateDescChangedAtDesc(employeeId)
+                .stream()
+                .map(this::toEmploymentStatusHistoryDto)
+                .collect(Collectors.toList());
+    }
+
+    private void recordEmploymentStatusHistory(
+            Employee employee,
+            String previousStatus,
+            String newStatus,
+            LocalDate effectiveDate,
+            Long changedByUserId,
+            String reason) {
+        EmploymentStatusHistory history = new EmploymentStatusHistory();
+        history.setEmployee(employee);
+        history.setPreviousStatus(previousStatus);
+        history.setNewStatus(newStatus);
+        history.setEffectiveDate(effectiveDate);
+        history.setChangedByUserId(changedByUserId);
+        history.setChangedAt(LocalDateTime.now());
+        history.setReason(normalizeReason(reason));
+        employmentStatusHistoryRepository.save(history);
+    }
+
+    private String normalizeTargetDisplayStatus(String targetStatus) {
+        if ("PERMANENT".equalsIgnoreCase(targetStatus)) {
+            return "Permanent";
+        }
+        if ("RESIGNED".equalsIgnoreCase(targetStatus)) {
+            return "Resigned";
+        }
+        if ("TERMINATED".equalsIgnoreCase(targetStatus)) {
+            return "Terminated";
+        }
+        throw new IllegalArgumentException("Invalid target status: " + targetStatus + ". Must be PERMANENT, RESIGNED, or TERMINATED");
+    }
+
+    private String normalizeReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return null;
+        }
+        return reason.trim();
+    }
+
+    private EmploymentStatusHistoryResponseDto toEmploymentStatusHistoryDto(EmploymentStatusHistory history) {
+        return EmploymentStatusHistoryResponseDto.builder()
+                .id(history.getId())
+                .employeeId(history.getEmployee().getId())
+                .previousStatus(history.getPreviousStatus())
+                .newStatus(history.getNewStatus())
+                .effectiveDate(history.getEffectiveDate())
+                .changedByUserId(history.getChangedByUserId())
+                .changedAt(history.getChangedAt())
+                .reason(history.getReason())
+                .build();
+    }
+
     private String generateTemporaryPassword() {
         StringBuilder sb = new StringBuilder(TEMP_PASSWORD_LENGTH);
         for (int i = 0; i < TEMP_PASSWORD_LENGTH; i++) {
@@ -497,6 +680,13 @@ public class HrEmployeeService {
             return null;
         }
         return EmployeeReligion.fromValue(value);
+    }
+
+    private MaritalStatus parseMaritalStatus(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return MaritalStatus.valueOf(value.trim());
     }
 
     private Map<Long, String> loadCurrentTransferTypes(Collection<Employee> employees) {
@@ -516,7 +706,7 @@ public class HrEmployeeService {
                         (existing, replacement) -> existing));
     }
 
-    private EmployeeListItemResponseDto toListItemDto(Employee employee, String currentTransferType) {
+    private EmployeeListItemResponseDto toListItemDto(Employee employee, String currentTransferType, Boolean hasKpis) {
         User user = employee.getUserAccount();
         String employmentStatus = determineEmploymentStatus(employee);
         EmployeeStatus activeStatus = employee.getEmploymentStatus() != null
@@ -539,7 +729,12 @@ public class HrEmployeeService {
                 .employmentStatus(employmentStatus)
                 .employeeActiveStatus(activeStatus.name())
                 .currentTransferType(currentTransferType)
+                .hasKpis(hasKpis)
                 .build();
+    }
+
+    private EmployeeListItemResponseDto toListItemDto(Employee employee, String currentTransferType) {
+        return toListItemDto(employee, currentTransferType, null);
     }
 
     private String determineEmploymentStatus(Employee employee) {
@@ -561,6 +756,7 @@ public class HrEmployeeService {
     }
 
     private EmployeeDetailResponseDto toDetailDto(Employee employee) {
+        Employee manager = resolveDepartmentManager(employee);
         return EmployeeDetailResponseDto.builder()
                 .id(employee.getId())
                 .employeeId(employee.getEmployeeId())
@@ -572,22 +768,42 @@ public class HrEmployeeService {
                 .dateOfBirth(employee.getDateOfBirth())
                 .phoneNo(employee.getPhoneNo())
                 .address(employee.getAddress())
-                .nationality(employee.getNationality())
+                .race(employee.getRace())
                 .status(employee.getEmploymentStatus() == null ? "ACTIVE" : employee.getEmploymentStatus().name())
                 .departmentId(employee.getDepartment() != null ? employee.getDepartment().getId() : null)
                 .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
                 .departmentPositionId(employee.getDepartmentPosition() != null ? employee.getDepartmentPosition().getId() : null)
                 .positionId(employee.getPosition() != null ? employee.getPosition().getId() : null)
                 .positionName(employee.getPosition() != null ? employee.getPosition().getName() : null)
-                .managerId(employee.getManager() != null ? employee.getManager().getId() : null)
-                .managerName(employee.getManager() != null ? employee.getManager().getEmployeeName() : null)
+                .managerId(manager != null ? manager.getId() : null)
+                .managerName(manager != null ? manager.getEmployeeName() : null)
                 .staffTypeId(employee.getStaffType() != null ? employee.getStaffType().getId() : null)
                 .staffTypeName(employee.getStaffType() != null ? employee.getStaffType().getName() : null)
                 .dateOfJoining(employee.getDateOfJoining())
                 .probationStartDate(employee.getProbation() != null ? employee.getProbation().getProbationStartDate() : null)
                 .probationEndDate(employee.getProbation() != null ? employee.getProbation().getProbationEndDate() : null)
+                .fatherName(employee.getFather() != null ? employee.getFather().getFatherName() : null)
+                .fatherNrcNo(employee.getFather() != null ? employee.getFather().getFatherNrcNo() : null)
+                .fatherOccupation(employee.getFather() != null ? employee.getFather().getFatherOccupation() : null)
+                .emergencyPhone(employee.getEmergencyContact() != null ? employee.getEmergencyContact().getEmergencyPhone() : null)
+                .emergencyRelation(employee.getEmergencyContact() != null ? employee.getEmergencyContact().getRelation() : null)
                 .profilePictureUrl(employee.getProfilePictureUrl())
+                .maritalStatus(employee.getMaritalStatus() == null ? null : employee.getMaritalStatus().name())
+                .spouseId(employee.getSpouse() != null ? employee.getSpouse().getSpouseId() : null)
+                .spouseName(employee.getSpouse() != null ? employee.getSpouse().getSpouseName() : null)
+                .spouseNrc(employee.getSpouse() != null ? employee.getSpouse().getSpouseNrc() : null)
                 .build();
+    }
+
+    private Employee resolveDepartmentManager(Employee employee) {
+        if (employee.getDepartment() == null || employee.getDepartment().getManagerId() == null) {
+            return null;
+        }
+        Long managerId = employee.getDepartment().getManagerId();
+        if (employee.getId() != null && employee.getId().equals(managerId)) {
+            return null;
+        }
+        return employeeRepository.findById(managerId).orElse(null);
     }
 
     private boolean isActiveEntity(String status) {
@@ -740,6 +956,15 @@ public class HrEmployeeService {
                     .build();
         }
 
+        EmployeeViewResponseDto.SpouseInfo spouseInfo = null;
+        if (employee.getSpouse() != null) {
+            spouseInfo = EmployeeViewResponseDto.SpouseInfo.builder()
+                    .spouseId(employee.getSpouse().getSpouseId())
+                    .spouseName(employee.getSpouse().getSpouseName())
+                    .spouseNrc(employee.getSpouse().getSpouseNrc())
+                    .build();
+        }
+
         // Build probation info
         EmployeeViewResponseDto.ProbationInfo probationInfo = null;
         EmployeeProbation probation = employee.getProbation();
@@ -770,13 +995,17 @@ public class HrEmployeeService {
                 .profilePictureUrl(employee.getProfilePictureUrl())
                 .staffNrcNumber(employee.getStaffNrcNo())
                 .address(employee.getAddress())
-                .nationality(employee.getNationality())
+                .race(employee.getRace())
                 .employmentStatus(determineEmploymentStatus(employee))
+                .statusEffectiveFrom(employee.getStatusEffectiveFrom())
+                .employmentStatusReason(employee.getEmploymentStatusReason())
+                .maritalStatus(employee.getMaritalStatus() == null ? null : employee.getMaritalStatus().name())
                 .department(deptInfo)
                 .position(posInfo)
                 .staffType(staffTypeInfo)
                 .emergencyContact(emergencyInfo)
                 .father(fatherInfo)
+                .spouse(spouseInfo)
                 .probationInfo(probationInfo)
                 .build();
     }

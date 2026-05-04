@@ -53,7 +53,6 @@ export function buildEmployeeDraftPayload(values: Partial<EmployeeInfoFormValues
     emergencyRelation: trimStr(values.emergencyRelation),
     departmentId: positiveId(values.departmentId),
     positionId: positiveId(values.positionId),
-    nationality: trimStr(values.nationality),
     dateOfJoining: trimStr(values.dateOfJoining),
     staffTypeId: positiveId(values.staffTypeId),
     probationStartDate: trimStr(values.probationStartDate),

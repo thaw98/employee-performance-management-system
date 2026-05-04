@@ -10,7 +10,7 @@ const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-blue-100 text-blue-700',
   AUTO_CLOSED: 'bg-amber-100 text-amber-700',
   REOPEN_REQUESTED: 'bg-orange-100 text-orange-700',
-  COMPLETED: 'bg-green-100 text-green-700',
+  COMPLETED: 'bg-emerald-100 text-emerald-700',
   CLOSED: 'bg-slate-100 text-slate-700',
   DENIED: 'bg-red-100 text-red-700',
 }
@@ -341,8 +341,14 @@ export default function PipMonitoringPage() {
                     </td>
                   )}
                   <td className="px-6 py-5 text-center">
-                    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${STATUS_COLORS[pip.status]}`}>
-                      {pip.status.replace(/_/g, ' ')}
+                    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                      pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-100 text-green-700' :
+                      pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-100 text-red-700' :
+                      (STATUS_COLORS[pip.status] || 'bg-slate-100 text-slate-700')
+                    }`}>
+                      {pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'Close - Successful' :
+                       pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'Close - Fail' :
+                       pip.status.replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td className="px-6 py-5 text-sm text-slate-600 font-medium">
@@ -359,7 +365,7 @@ export default function PipMonitoringPage() {
                           style={{ width: `${pip.overallProgressPercentage}%` }}
                         />
                       </div>
-                      <span className="text-[10px] font-extrabold text-slate-400">{pip.overallProgressPercentage}% COMPLETE</span>
+                      <span className="text-[10px] font-extrabold text-slate-400">{pip.overallProgressPercentage}% COMPLETED</span>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-right">

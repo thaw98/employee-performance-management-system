@@ -19,11 +19,30 @@ export interface CreateDepartmentPositionRequest {
   status: string
 }
 
+type DepartmentPositionsByDepartmentResponse =
+  | ApiResponse<DepartmentPositionMappingDto[]>
+  | DepartmentPositionMappingDto[]
+  | { content?: DepartmentPositionMappingDto[] }
+
+const normalizeDepartmentPositions = (
+  response: DepartmentPositionsByDepartmentResponse
+): DepartmentPositionMappingDto[] => {
+  if (Array.isArray(response)) {
+    return response
+  }
+
+  if ('data' in response) {
+    return Array.isArray(response.data) ? response.data : []
+  }
+
+  return Array.isArray(response.content) ? response.content : []
+}
+
 export const departmentPositionsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getPositionsByDepartment: builder.query<DepartmentPositionMappingDto[], number>({
+    getDepartmentPositionMappingsByDepartment: builder.query<DepartmentPositionMappingDto[], number>({
       query: (id) => `/departments/${id}/positions`,
-      transformResponse: (response: ApiResponse<DepartmentPositionMappingDto[]>) => response.data ?? [],
+      transformResponse: (response: DepartmentPositionsByDepartmentResponse) => normalizeDepartmentPositions(response),
       providesTags: (_result, _error, id) => [{ type: 'DepartmentPositions', id }],
     }),
     addPositionToDepartment: builder.mutation<DepartmentPositionMappingDto, CreateDepartmentPositionRequest>({
@@ -54,7 +73,7 @@ export const departmentPositionsApi = baseApi.injectEndpoints({
 })
 
 export const {
-  useGetPositionsByDepartmentQuery,
+  useGetDepartmentPositionMappingsByDepartmentQuery,
   useAddPositionToDepartmentMutation,
   useToggleDepartmentPositionStatusMutation,
   useRemoveDepartmentPositionMutation,

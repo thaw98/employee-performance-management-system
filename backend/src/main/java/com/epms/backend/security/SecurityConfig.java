@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
     private static final String UNAUTH_JSON = "{\"success\":false,\"message\":\"Invalid credentials\",\"data\":null}";
+    private static final String SESSION_EXPIRED_JSON = "{\"success\":false,\"message\":\"Session expired. Please login again.\",\"data\":null}";
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -64,12 +65,14 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/forgot-password/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public/profile-pictures/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/uploads/signatures/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint((request, response, authException) -> {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                response.getWriter().write(UNAUTH_JSON);
+                boolean jwtExpired = Boolean.TRUE.equals(request.getAttribute("jwt_expired"));
+                response.getWriter().write(jwtExpired ? SESSION_EXPIRED_JSON : UNAUTH_JSON);
             }))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

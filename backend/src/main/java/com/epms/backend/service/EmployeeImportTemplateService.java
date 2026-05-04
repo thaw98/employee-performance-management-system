@@ -2,6 +2,8 @@ package com.epms.backend.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
@@ -39,6 +41,7 @@ public class EmployeeImportTemplateService {
     private final DepartmentRepository departmentRepository;
     private final PositionRepository positionRepository;
     private final StaffTypeRepository staffTypeRepository;
+    private static final DateTimeFormatter DD_MM_YYYY = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     /**
      * Column layout (0-indexed):
@@ -56,7 +59,7 @@ public class EmployeeImportTemplateService {
      * 11  probation_start_date      (required if staff_type=Probation)  ← Text format
      * 12  probation_end_date        (required if staff_type=Probation)  ← Text format
      * 13  address
-     * 14  nationality
+     * 14  race
      * 15  employment_status
      * 16  religion
      * 17  emergency_contact_relationship
@@ -64,25 +67,30 @@ public class EmployeeImportTemplateService {
      * 19  father_name
      * 20  father_nrc_no
      * 21  father_occupation
-     * 22  profile_picture_url       (optional)
+     * 22  marital_status            (required: Single|Married)
+     * 23  spouse_name               (required if marital_status=Married)
+     * 24  spouse_nrc                (required if marital_status=Married)
+     * 25  profile_picture_url       (optional)
      */
     private static final String[] HEADERS = {
             "staff_no", "full_name", "staff_nrc_no", "email", "department", "position",
             "phone_number", "gender", "date_of_birth", "hire_date", "staff_type",
             "probation_start_date", "probation_end_date",
-            "address", "nationality", "employment_status", "religion",
+            "address", "race", "employment_status", "religion",
             "emergency_contact_relationship", "emergency_contact_phone",
             "father_name", "father_nrc_no", "father_occupation",
-            "profile_picture_url"
+            "marital_status", "spouse_name", "spouse_nrc", "profile_picture_url"
     };
 
     private static final String[] GENDERS = { "Male", "Female" };
+    private static final String[] MARITAL_STATUSES = { "Single", "Married" };
     private static final String[] EMPLOYMENT_STATUSES = { "ACTIVE" };
     private static final String[] RELIGIONS = java.util.Arrays.stream(EmployeeReligion.values())
             .map(EmployeeReligion::toApiLabel).toArray(String[]::new);
 
-    /** Columns that must be Text format: phone numbers + date columns (to preserve dd-mm-yyyy strings) */
-    private static final int[] TEXT_FORMAT_COLS = { 6, 8, 9, 11, 12, 18 };
+    /** Columns that must be Text format to preserve leading zeros. */
+    private static final int[] TEXT_FORMAT_COLS = { 6, 18 };
+    private static final int[] DATE_FORMAT_COLS = { 8, 9, 11, 12 };
 
     @Transactional(readOnly = true)
     public byte[] generateTemplate() {
@@ -107,6 +115,10 @@ public class EmployeeImportTemplateService {
             short textFmt = wb.createDataFormat().getFormat("@");
             CellStyle textStyle = wb.createCellStyle();
             textStyle.setDataFormat(textFmt);
+
+            short dateFmt = wb.createDataFormat().getFormat("dd-mm-yyyy");
+            CellStyle dateStyle = wb.createCellStyle();
+            dateStyle.setDataFormat(dateFmt);
 
             // ─── 1. Instructions sheet ────────────────────────────────────────────
             Sheet instrSheet = wb.createSheet("Instructions");
@@ -137,7 +149,7 @@ public class EmployeeImportTemplateService {
                     "01-01-2024",                     // probation_start_date
                     "31-03-2024",                     // probation_end_date
                     "No.123, Main Street, Yangon",   // address
-                    "Myanmar",                        // nationality
+                    "Bamar",                          // race
                     "ACTIVE",                         // employment_status
                     relSample,                        // religion
                     "Sister",                         // emergency_contact_relationship
@@ -145,6 +157,9 @@ public class EmployeeImportTemplateService {
                     "U Maung Maung",                  // father_name
                     "12/TAMANA(N)654321",             // father_nrc_no
                     "Farmer",                         // father_occupation
+                    "Married",                        // marital_status
+                    "Daw Mya Mya",                    // spouse_name
+                    "12/TAMANA(N)111222",             // spouse_nrc
                     ""                                // profile_picture_url
             };
 
@@ -164,7 +179,7 @@ public class EmployeeImportTemplateService {
                     "",                               // probation_start_date (blank)
                     "",                               // probation_end_date   (blank)
                     "No.789, 3rd Street, Mandalay",  // address
-                    "Myanmar",                        // nationality
+                    "Bamar",                          // race
                     "ACTIVE",                         // employment_status
                     relSample,                        // religion
                     "Brother",                        // emergency_contact_relationship
@@ -172,6 +187,9 @@ public class EmployeeImportTemplateService {
                     "U Min Min",                      // father_name
                     "12/KAMAYA(N)345678",             // father_nrc_no
                     "Teacher",                        // father_occupation
+                    "Single",                         // marital_status
+                    "",                               // spouse_name
+                    "",                               // spouse_nrc
                     ""                                // profile_picture_url
             };
 
@@ -182,26 +200,30 @@ public class EmployeeImportTemplateService {
             sampleStyle.setBorderTop(BorderStyle.THIN);
             sampleStyle.setBorderLeft(BorderStyle.THIN);
             sampleStyle.setBorderRight(BorderStyle.THIN);
+            CellStyle dateSampleStyle = wb.createCellStyle();
+            dateSampleStyle.cloneStyleFrom(sampleStyle);
+            dateSampleStyle.setDataFormat(dateFmt);
 
             // Write row 1 (Probation)
             Row dataRow1 = sampleSheet.createRow(1);
             for (int i = 0; i < sampleRow1.length; i++) {
                 Cell cell = dataRow1.createCell(i);
-                cell.setCellValue(sampleRow1[i]);
-                cell.setCellStyle(isTextCol(i) ? textStyle : sampleStyle);
+                setSampleCell(cell, sampleRow1[i], i, textStyle, dateSampleStyle, sampleStyle);
             }
 
             // Write row 2 (Permanent)
             Row dataRow2 = sampleSheet.createRow(2);
             for (int i = 0; i < sampleRow2.length; i++) {
                 Cell cell = dataRow2.createCell(i);
-                cell.setCellValue(sampleRow2[i]);
-                cell.setCellStyle(isTextCol(i) ? textStyle : sampleStyle);
+                setSampleCell(cell, sampleRow2[i], i, textStyle, dateSampleStyle, sampleStyle);
             }
 
-            // Apply text format to phone columns on sample sheet
+            // Apply formats to sample sheet
             for (int col : TEXT_FORMAT_COLS) {
                 sampleSheet.setDefaultColumnStyle(col, textStyle);
+            }
+            for (int col : DATE_FORMAT_COLS) {
+                sampleSheet.setDefaultColumnStyle(col, dateStyle);
             }
 
             Row noteRow = sampleSheet.createRow(5);
@@ -220,9 +242,12 @@ public class EmployeeImportTemplateService {
             buildHeaderRow(empSheet, headerStyle, textStyle);
             empSheet.createFreezePane(0, 1);
 
-            // Apply text format to phone columns on employees sheet
+            // Apply text/date formats on employees sheet
             for (int col : TEXT_FORMAT_COLS) {
                 empSheet.setDefaultColumnStyle(col, textStyle);
+            }
+            for (int col : DATE_FORMAT_COLS) {
+                empSheet.setDefaultColumnStyle(col, dateStyle);
             }
 
             // ─── 4. Lookups sheet (hidden) ────────────────────────────────────────
@@ -268,6 +293,12 @@ public class EmployeeImportTemplateService {
                 if (row == null) row = lookupSheet.createRow(i);
                 row.createCell(5).setCellValue(RELIGIONS[i]);
             }
+            // col 6 = marital statuses
+            for (int i = 0; i < MARITAL_STATUSES.length; i++) {
+                Row row = lookupSheet.getRow(i);
+                if (row == null) row = lookupSheet.createRow(i);
+                row.createCell(6).setCellValue(MARITAL_STATUSES[i]);
+            }
 
             wb.setSheetHidden(wb.getSheetIndex("Lookups"), true);
 
@@ -278,6 +309,7 @@ public class EmployeeImportTemplateService {
             createNamedRange(wb, "GenderList",     "Lookups", 0, 3, GENDERS.length - 1,     3);
             createNamedRange(wb, "StatusList",     "Lookups", 0, 4, EMPLOYMENT_STATUSES.length - 1, 4);
             createNamedRange(wb, "ReligionList",   "Lookups", 0, 5, RELIGIONS.length - 1,   5);
+            createNamedRange(wb, "MaritalStatusList", "Lookups", 0, 6, MARITAL_STATUSES.length - 1, 6);
 
             // ─── Dropdown validations on Employees sheet ──────────────────────────
             addDropdown(empSheet, "DeptList",      1, 1000, 4,  4);   // department
@@ -286,6 +318,10 @@ public class EmployeeImportTemplateService {
             addDropdown(empSheet, "StaffTypeList", 1, 1000, 10, 10);  // staff_type
             addDropdown(empSheet, "StatusList",    1, 1000, 15, 15);  // employment_status
             addDropdown(empSheet, "ReligionList",  1, 1000, 16, 16);  // religion
+            addDropdown(empSheet, "MaritalStatusList", 1, 1000, 22, 22); // marital_status
+            for (int col : DATE_FORMAT_COLS) {
+                addDateValidation(empSheet, 1, 1000, col, col);
+            }
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             wb.write(baos);
@@ -305,7 +341,7 @@ public class EmployeeImportTemplateService {
             cell.setCellStyle(headerStyle);
             // wider for address/address-like columns
             int width = (i == 0 || i == 1 || i == 2 || i == 3) ? 4200
-                    : i == 22 ? 9000
+                    : i == 25 ? 9000
                     : (i == 14 || i == 20) ? 8000
                     : 5500;
             sheet.setColumnWidth(i, width);
@@ -317,6 +353,24 @@ public class EmployeeImportTemplateService {
             if (c == col) return true;
         }
         return false;
+    }
+
+    private boolean isDateCol(int col) {
+        for (int c : DATE_FORMAT_COLS) {
+            if (c == col) return true;
+        }
+        return false;
+    }
+
+    private void setSampleCell(Cell cell, String value, int col,
+            CellStyle textStyle, CellStyle dateStyle, CellStyle defaultStyle) {
+        if (isDateCol(col) && !value.isBlank()) {
+            cell.setCellValue(java.sql.Date.valueOf(LocalDate.parse(value, DD_MM_YYYY)));
+            cell.setCellStyle(dateStyle);
+            return;
+        }
+        cell.setCellValue(value);
+        cell.setCellStyle(isTextCol(col) ? textStyle : defaultStyle);
     }
 
     private void addInstructions(Workbook wb, Sheet sheet,
@@ -355,13 +409,13 @@ public class EmployeeImportTemplateService {
             { "  Col F  position               Required. Select from dropdown.", "normal" },
             { "  Col G  phone_number           Required. Format: 09XXXXXXXXX or +95XXXXXXXXX.", "normal" },
             { "  Col H  gender                 Required. Select from dropdown: Male | Female.", "normal" },
-            { "  Col I  date_of_birth          Required. Format: dd-mm-yyyy  e.g. 25-12-1990. Pre-formatted as Text.", "normal" },
-            { "  Col J  hire_date              Required. Format: dd-mm-yyyy  e.g. 01-01-2024. Pre-formatted as Text.", "normal" },
+            { "  Col I  date_of_birth          Required. Use Excel Date Picker or enter a valid date. Display format: dd-mm-yyyy.", "normal" },
+            { "  Col J  hire_date              Required. Use Excel Date Picker or enter a valid date. Display format: dd-mm-yyyy.", "normal" },
             { "  Col K  staff_type             Required. Select from dropdown.", "normal" },
-            { "  Col L  probation_start_date   Required if staff_type=Probation. Format: dd-mm-yyyy. Pre-formatted as Text.", "normal" },
-            { "  Col M  probation_end_date     Required if staff_type=Probation. Format: dd-mm-yyyy. Pre-formatted as Text.", "normal" },
+            { "  Col L  probation_start_date   Required if staff_type=Probation. Use Excel Date Picker. Display format: dd-mm-yyyy.", "normal" },
+            { "  Col M  probation_end_date     Required if staff_type=Probation. Use Excel Date Picker. Display format: dd-mm-yyyy.", "normal" },
             { "  Col N  address                Required. Current residential address.", "normal" },
-            { "  Col O  nationality            Required. e.g. Myanmar.", "normal" },
+            { "  Col O  race                   Required. e.g. Bamar.", "normal" },
             { "  Col P  employment_status      Required. Select from dropdown (ACTIVE).", "normal" },
             { "  Col Q  religion               Required. Select from dropdown.", "normal" },
             { "  Col R  emergency_contact_relationship  Required. e.g. Sister, Mother.", "normal" },
@@ -369,21 +423,23 @@ public class EmployeeImportTemplateService {
             { "  Col T  father_name            Required.", "normal" },
             { "  Col U  father_nrc_no          Required. Father NRC number.", "normal" },
             { "  Col V  father_occupation      Required. Father occupation (e.g. Farmer, Teacher).", "normal" },
-            { "  Col W  profile_picture_url     Optional. Public or system profile picture URL.", "normal" },
+            { "  Col W  marital_status          Required. Single or Married.", "normal" },
+            { "  Col X  spouse_name             Required if marital_status=Married.", "normal" },
+            { "  Col Y  spouse_nrc              Required if marital_status=Married.", "normal" },
+            { "  Col Z  profile_picture_url     Optional. Public or system profile picture URL.", "normal" },
             { "", "normal" },
             { "STEP 3 — PROBATION FIELDS", "bold" },
             { "  If staff_type is 'Probation', you MUST fill cols L, M (start/end dates).", "normal" },
             { "  If staff_type is 'Permanent', leave cols L, M blank (they will be ignored).", "normal" },
             { "", "normal" },
             { "STEP 4 — DROPDOWN COLUMNS", "bold" },
-            { "  Use the dropdown arrows in columns E, F, H, K, P, Q to pick valid values.", "normal" },
+            { "  Use the dropdown arrows in columns E, F, H, K, P, Q, W to pick valid values.", "normal" },
             { "  Typing a value not in the list will cause that row to fail validation.", "normal" },
             { "", "normal" },
             { "STEP 5 — DATE FORMAT", "bold" },
-            { "  All dates must use the format:  dd-mm-yyyy", "normal" },
-            { "  Example:  15-06-1995  (15 June 1995)", "normal" },
-            { "  Columns I, J, L, M are pre-formatted as Text so Excel will NOT convert your dates.", "normal" },
-            { "  Type the date directly as text (e.g. 15-06-1995). Do NOT use Excel date picker.", "normal" },
+            { "  Columns I, J, L, M are formatted as Excel Date cells.", "normal" },
+            { "  Use Excel Date Picker for these columns, or type a valid date and let Excel store it as a date.", "normal" },
+            { "  Dates will display as dd-mm-yyyy. Example: 15-06-1995 (15 June 1995).", "normal" },
             { "", "normal" },
             { "STEP 6 — PHONE NUMBER FORMAT", "bold" },
             { "  Columns G, S are pre-formatted as Text so leading zeros are preserved.", "normal" },
@@ -399,6 +455,8 @@ public class EmployeeImportTemplateService {
             { "", "normal" },
             { "NOTES", "bold" },
             { "  • Duplicate staff_no, staff_nrc_no, or email (within the file or already in the system) will fail.", "normal" },
+            { "  • If marital_status is Married, spouse_name and spouse_nrc are mandatory.", "normal" },
+            { "  • If marital_status is Single, spouse_name and spouse_nrc are optional and ignored.", "normal" },
             { "  • A temporary password is auto-generated and emailed to each imported employee.", "normal" },
             { "  • Employees must change their password on first login.", "normal" },
         };
@@ -439,6 +497,8 @@ public class EmployeeImportTemplateService {
         appendListSection(sheet, wb, startRow, "Employment Status", List.of(EMPLOYMENT_STATUSES));
         startRow += EMPLOYMENT_STATUSES.length + 2;
         appendListSection(sheet, wb, startRow, "Religion", List.of(RELIGIONS));
+        startRow += RELIGIONS.length + 2;
+        appendListSection(sheet, wb, startRow, "Marital Status", List.of(MARITAL_STATUSES));
     }
 
     private void appendListSection(Sheet sheet, Workbook wb, int startRow, String sectionName, List<String> values) {
@@ -474,6 +534,22 @@ public class EmployeeImportTemplateService {
         DataValidation dv = dvh.createValidation(dvc,
                 new CellRangeAddressList(firstRow, lastRow, firstCol, lastCol));
         dv.setShowErrorBox(true);
+        sheet.addValidationData(dv);
+    }
+
+    private void addDateValidation(Sheet sheet,
+            int firstRow, int lastRow, int firstCol, int lastCol) {
+        DataValidationHelper dvh = sheet.getDataValidationHelper();
+        DataValidationConstraint dvc = dvh.createDateConstraint(
+                DataValidationConstraint.OperatorType.BETWEEN,
+                "01-01-1900",
+                "31-12-9999",
+                "dd-mm-yyyy");
+        DataValidation dv = dvh.createValidation(dvc,
+                new CellRangeAddressList(firstRow, lastRow, firstCol, lastCol));
+        dv.setEmptyCellAllowed(true);
+        dv.setShowErrorBox(true);
+        dv.createErrorBox("Invalid date", "Use Excel Date Picker or enter a valid date.");
         sheet.addValidationData(dv);
     }
 

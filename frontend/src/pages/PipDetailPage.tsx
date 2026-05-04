@@ -5,6 +5,7 @@ import {
   useUpdateProgressMutation,
   useScheduleMeetingMutation,
   useClosePipMutation,
+  useMarkPipCompletedMutation,
   useReopenPipMutation,
   useReviewPipMutation,
   useGetTrainingHistoryQuery,
@@ -22,10 +23,11 @@ export default function PipDetailPage() {
   const [updateProgress] = useUpdateProgressMutation()
   const [scheduleMeeting] = useScheduleMeetingMutation()
   const [closePip] = useClosePipMutation()
+  const [markPipCompleted, { isLoading: isMarkingCompleted }] = useMarkPipCompletedMutation()
   const [reopenPip] = useReopenPipMutation()
   const [reviewPip] = useReviewPipMutation()
 
-  const employeeRecordId = pip?.employee?.employee?.id
+  const employeeRecordId = pip?.employee?.id
   const { data: trainingHistory } = useGetTrainingHistoryQuery(
     employeeRecordId != null ? String(employeeRecordId) : '',
     {
@@ -62,6 +64,34 @@ export default function PipDetailPage() {
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
   const isAdmin = userRole === 'HR'
   const isEmployee = userRole === 'EMPLOYEE'
+  const getStatusLabel = (status: string) => {
+    if (status === 'COMPLETED') return 'Completed'
+    if (status === 'AUTO_CLOSED') return 'Auto Closed'
+    if (status === 'REOPEN_REQUESTED') return 'Reopen Requested'
+    return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
+  }
+  const getStatusClass = (status: string) => {
+    if (status === 'COMPLETED') return 'bg-emerald-100 text-emerald-700'
+    if (status === 'CLOSED') return 'bg-slate-100 text-slate-700'
+    if (status === 'AUTO_CLOSED') return 'bg-amber-100 text-amber-700'
+    if (status === 'REOPEN_REQUESTED') return 'bg-orange-100 text-orange-700'
+    if (status === 'DENIED') return 'bg-red-100 text-red-700'
+    return 'bg-blue-100 text-blue-700'
+  }
+  const getLocalDateString = (dateString?: string | Date) => {
+    if (!dateString) return undefined;
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return undefined;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const minMeetingDate = pip?.startDate ? getLocalDateString(pip.startDate) : getLocalDateString(new Date());
+  const applicableEndDate = pip?.extendedEndDate ? pip.extendedEndDate : (pip?.originalEndDate || pip?.endDate);
+  const maxMeetingDate = applicableEndDate ? getLocalDateString(applicableEndDate) : undefined;
+
   const isDirectManager = Boolean(
     isManager &&
     pip &&
@@ -74,6 +104,9 @@ export default function PipDetailPage() {
   const routeBase = isAdmin ? '/hr/pip-monitoring' : isEmployee ? '/employee/pip' : '/manager/pip'
 
   if (isLoading || !pip) return <div className="p-8">Loading PIP details...</div>
+
+  const isAverageProgressComplete = Number(pip.overallProgressPercentage) >= 100
+  const canMarkCompleted = isDirectManager && pip.status === 'CLOSED' && isAverageProgressComplete
 
   const handleUpdateProgress = async () => {
     if (showUpdateModal.objectiveId) {
@@ -136,6 +169,16 @@ export default function PipDetailPage() {
     } catch (error: any) {
       console.error('[PIP Detail] Close PIP failed:', error)
       setActionError(error?.data?.message || error?.error || 'Failed to close PIP.')
+    }
+  }
+
+  const handleMarkPipCompleted = async () => {
+    try {
+      setActionError(null)
+      await markPipCompleted(pipId).unwrap()
+    } catch (error: any) {
+      console.error('[PIP Detail] Mark PIP completed failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to mark PIP completed.')
     }
   }
 
@@ -211,7 +254,7 @@ export default function PipDetailPage() {
               Dept: {pip.employee.employee?.department?.departmentName || '—'} |
               Position: {pip.employee.employee?.position?.positionName || '—'} |
               Duration: {formatDate(pip.startDate)} – {formatDate(pip.endDate)} |
-              Status: <span className="font-semibold uppercase">{pip.status.replace(/_/g, ' ')}</span>
+              Status: <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold uppercase ${getStatusClass(pip.status)}`}>{getStatusLabel(pip.status)}</span>
             </p>
           </div>
         </div>
@@ -233,6 +276,15 @@ export default function PipDetailPage() {
               className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               <i className="bi bi-check-circle" /> Mark Result
+            </button>
+          )}
+          {canMarkCompleted && (
+            <button
+              onClick={handleMarkPipCompleted}
+              disabled={isMarkingCompleted}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+            >
+              <i className="bi bi-check2-circle" /> {isMarkingCompleted ? 'Marking...' : 'Mark Completed'}
             </button>
           )}
           {isEmployee && pip.status === 'AUTO_CLOSED' && !pip.finalOutcome && !pip.reopenReason && (
@@ -304,6 +356,26 @@ export default function PipDetailPage() {
             </div>
           </section>
 
+          {(pip.expectedImprovements || pip.reasonForPlan) && (
+            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 text-lg font-bold text-slate-900">PIP Details</h2>
+              <div className="space-y-4">
+                {pip.expectedImprovements && (
+                  <div>
+                    <p className="mb-1 text-xs font-semibold uppercase text-slate-400">Expected Improvements</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.expectedImprovements}</p>
+                  </div>
+                )}
+                {pip.reasonForPlan && (
+                  <div>
+                    <p className="mb-1 text-xs font-semibold uppercase text-slate-400">Reason for Plan</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.reasonForPlan}</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
           {/* Follow-up Meetings Section */}
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-lg font-bold text-slate-900">Follow-Up Meetings</h2>
@@ -359,6 +431,12 @@ export default function PipDetailPage() {
             <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">PIP Summary</h2>
             <div className="space-y-4">
               <div>
+                <p className="text-xs text-slate-500">Current Status</p>
+                <span className={`mt-1 inline-flex rounded-md px-2.5 py-1 text-xs font-bold uppercase ${getStatusClass(pip.status)}`}>
+                  {getStatusLabel(pip.status)}
+                </span>
+              </div>
+              <div>
                 <p className="text-xs text-slate-500">Assigned Manager</p>
                 <p className="font-medium text-slate-800">{pip.manager.employee?.employeeName}</p>
               </div>
@@ -404,7 +482,7 @@ export default function PipDetailPage() {
                   <p className="text-lg font-bold text-blue-600">{pip.completedHours}</p>
                 </div>
               </div>
-              {pip.status === 'CLOSED' && (
+              {(pip.status === 'CLOSED' || pip.status === 'COMPLETED') && (
                 <>
                   <div className="pt-4 border-t border-slate-100">
                     <p className="text-xs text-slate-500">Final Outcome</p>
@@ -501,7 +579,8 @@ export default function PipDetailPage() {
                 <input
                   type="date"
                   required
-                  min={new Date().toISOString().split('T')[0]}
+                  min={minMeetingDate}
+                  max={maxMeetingDate}
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
                   value={meetingDate}
                   onChange={(e) => setMeetingDate(e.target.value)}

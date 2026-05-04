@@ -1,5 +1,6 @@
 package com.epms.backend.service;
 
+import com.epms.backend.StaffTypes;
 import com.epms.backend.dto.pip.*;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
@@ -26,6 +27,7 @@ public class PipService {
     private static final String STATUS_AUTO_CLOSED = "AUTO_CLOSED";
     private static final String STATUS_REOPEN_REQUESTED = "REOPEN_REQUESTED";
     private static final String STATUS_CLOSED = "CLOSED";
+    private static final String STATUS_COMPLETED = "COMPLETED";
     private static final String STATUS_DENIED = "DENIED";
     private static final String STATUS_SCHEDULED = "SCHEDULED";
     private static final String DECISION_APPROVED = "APPROVED";
@@ -44,8 +46,8 @@ public class PipService {
             return new ArrayList<>();
         }
         return employeeRepository.findAll().stream()
-                .filter(employee -> employee.getManager() != null
-                        && employee.getManager().getId().equals(manager.getEmployee().getId()))
+                .filter(employee -> isManagedBy(employee, manager.getEmployee().getId()))
+                .filter(employee -> !isProbationEmployee(employee))
                 .map(employee -> new EligibleEmployeeDTO(
                         employee.getId(),
                         employee.getEmployeeId(),
@@ -73,8 +75,11 @@ public class PipService {
         Employee employee = employeeRepository.findById(request.getEmployeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        if (employee.getManager() == null || !employee.getManager().getId().equals(managerEmployee.getId())) {
+        if (!isManagedBy(employee, managerEmployee.getId())) {
             throw new RuntimeException("You can only create PIPs for employees under your supervision");
+        }
+        if (isProbationEmployee(employee)) {
+            throw new RuntimeException("Probation employees cannot be assigned to PIP");
         }
 
         boolean hasOpenPip = pipRepository.findByEmployeeAndStatusIn(employee,
@@ -99,6 +104,8 @@ public class PipService {
         pip.setCompletedHours(0);
         pip.setCreatedDate(Instant.now());
         pip.setUpdatedDate(Instant.now());
+        pip.setExpectedImprovements(request.getExpectedImprovements());
+        pip.setReasonForPlan(request.getReasonForPlan());
 
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();
@@ -327,6 +334,24 @@ public class PipService {
     }
 
     @Transactional
+    public Pip markPipCompleted(Long pipId, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!isDirectManager(pip, actor)) {
+            throw new RuntimeException("Only the assigned manager can mark the PIP completed");
+        }
+        if (!STATUS_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Only CLOSED PIPs can be marked COMPLETED");
+        }
+        if (pip.getOverallProgressPercentage() == null
+                || pip.getOverallProgressPercentage().compareTo(BigDecimal.valueOf(100)) < 0) {
+            throw new RuntimeException("PIP progress must be 100% before it can be marked COMPLETED");
+        }
+        pip.setStatus(STATUS_COMPLETED);
+        pip.setUpdatedDate(Instant.now());
+        return pipRepository.save(pip);
+    }
+
+    @Transactional
     public Pip reopenPip(Long pipId, PipReopenRequest request, User actor) {
         Pip pip = getPipById(pipId, actor);
         if (!isPipEmployee(pip, actor)) {
@@ -536,6 +561,20 @@ public class PipService {
 
     private boolean isHr(User actor) {
         return actor.getRole() != null && "HR".equalsIgnoreCase(actor.getRole().getName());
+    }
+
+    private boolean isManagedBy(Employee employee, Long managerEmployeeId) {
+        if (employee == null || managerEmployeeId == null || employee.getDepartment() == null) {
+            return false;
+        }
+        Long departmentManagerId = employee.getDepartment().getManagerId();
+        return departmentManagerId != null && departmentManagerId.equals(managerEmployeeId);
+    }
+
+    private boolean isProbationEmployee(Employee employee) {
+        return employee != null
+                && employee.getStaffType() != null
+                && employee.getStaffType().getId() == StaffTypes.PROBATION;
     }
 
     private String normalizeStatus(String status) {

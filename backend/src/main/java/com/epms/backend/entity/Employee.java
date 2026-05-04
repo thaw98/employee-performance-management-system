@@ -30,10 +30,11 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @JsonIgnoreProperties({
-    "hibernateLazyInitializer", "handler", "manager",
+    "hibernateLazyInitializer", "handler",
     "position",
     "staffType",
     "father",
+    "spouse",
     "probation",
     "emergencyContact",
     "createdBy",
@@ -69,16 +70,18 @@ public class Employee {
     @JoinColumn(name = "department_position_id")
     private DepartmentPosition departmentPosition;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_id")
-    private Employee manager;
-
     @Column(name = "hire_date")
     private LocalDate dateOfJoining;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "employment_status", length = 20)
     private EmployeeStatus employmentStatus = EmployeeStatus.ACTIVE;
+
+    @Column(name = "status_effective_from")
+    private LocalDate statusEffectiveFrom;
+
+    @Column(name = "employment_status_reason", length = 255)
+    private String employmentStatusReason;
 
     @Column(name = "staff_nrc_no", length = 100)
     private String staffNrcNo;
@@ -105,6 +108,10 @@ public class Employee {
     @JoinColumn(name = "father_id")
     private EmployeeFather father;
 
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "employee_spouse_id")
+    private EmployeeSpouse spouse;
+
     @OneToOne(mappedBy = "employee", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private EmployeeProbation probation;
 
@@ -120,9 +127,6 @@ public class Employee {
 
     @Transient
     private String otherName;
-
-    @Transient
-    private String race;
 
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
@@ -155,11 +159,15 @@ public class Employee {
         return position.getName();
     }
 
-    @Transient
+    @Enumerated(EnumType.STRING)
+    @Column(
+        name = "marital_status",
+        columnDefinition = "ENUM('Single', 'Married')"
+    )
     private MaritalStatus maritalStatus;
 
-    @Column(name = "nationality", length = 100)
-    private String nationality;
+    @Column(name = "race", length = 100)
+    private String race;
 
     @Transient
     private LocalDate dateOfDemotion;

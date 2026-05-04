@@ -19,16 +19,17 @@ import EmployeeLayout from './layouts/EmployeeLayout';
 // Dashboard Pages - Using the correct file names from your project
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
+import { ManagerKpisPage } from './pages/manager/ManagerKpisPage';
+import { ManagerAppraisalsPage } from './pages/manager/ManagerAppraisalsPage';
+import { MyKpisPage } from './pages/employee/MyKpisPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
+import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 
 // Performance Modules
-import { SelfAssessmentPage } from './pages/SelfAssessmentPage';
-import { SelfAssessmentReviewListPage } from './pages/SelfAssessmentReviewListPage';
-import { SelfAssessmentSubitemPage } from './pages/SelfAssessmentSubjectPage';
 import PipMonitoringPage from './pages/PipMonitoringPage';
 import PipCreatePage from './pages/PipCreatePage';
 import PipDetailPage from './pages/PipDetailPage';
@@ -40,11 +41,23 @@ import { GetFeedbackPage } from './pages/GetFeedbackPage';
 import { KpiManagementPage } from './pages/hr/KpiManagementPage';
 import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { KpiDetailPage } from './pages/hr/KpiDetailPage';
+import { KpiCategoryPage } from './pages/hr/KpiCategoryPage';
+import { KpiHistoryPage } from './pages/hr/KpiHistoryPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
 import DepartmentDetailPage from './pages/hr/departments/DepartmentDetailPage';
 import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
 import PositionListPage from './features/position/pages/PositionListPage';
 import LevelCodeListPage from './features/levelCode/pages/LevelCodeListPage';
+
+// Self Assessment (HR templates & employee flows)
+import { SelfAssessmentFormTemplatePage } from './pages/self-assessment-form/SelfAssessmentFormTemplatePage';
+import { CreateSelfAssessmentTemplatePage } from './pages/self-assessment-form/CreateSelfAssessmentTemplatePage';
+import { EditSelfAssessmentTemplatePage } from './pages/self-assessment-form/EditSelfAssessmentTemplatePage';
+import { MySelfAssessmentFormPage } from './pages/self-assessment-form/MySelfAssessmentFormPage';
+import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfAssessmentFormReviewPage';
+import { SelfAssessmentActiveFormsPage } from './pages/self-assessment-form/SelfAssessmentActiveFormsPage';
+import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage';
+import { SelfAssessmentAssignmentsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentsPage';
 
 function App() {
   return (
@@ -73,8 +86,6 @@ function App() {
             <Route path="positions" element={<PositionListPage />} />
             <Route path="level-codes" element={<LevelCodeListPage />} />
 
-            <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
-            <Route path="assessment-subitems" element={<SelfAssessmentSubitemPage />} />
             <Route path="pip-monitoring" element={<PipMonitoringPage />} />
             <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
             <Route path="360-feedback/criteria" element={<CriteriaPage />} />
@@ -86,9 +97,23 @@ function App() {
             <Route path="kpi-management" element={<KpiManagementPage />} />
             <Route path="kpi-assigned" element={<KpiAssignedPage />} />
             <Route path="kpi-detail" element={<KpiDetailPage />} />
+            <Route path="kpi-categories" element={<KpiCategoryPage />} />
+            <Route path="kpi-history" element={<KpiHistoryPage />} />
             <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
+            <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/assignments" element={<SelfAssessmentAssignmentsPage />} />
+            <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
+            <Route
+              path="self-assessment/forms/create"
+              element={<Navigate to="/hr/self-assessment/templates/create" replace />}
+            />
+            <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
+            <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -98,16 +123,23 @@ function App() {
           <Route path="/manager" element={<ManagerLayout />}>
             <Route path="dashboard" element={<ManagerDashboardPage />} />
             <Route path="employees" element={<EmployeeListPage />} />
-            <Route path="my-assessment" element={<SelfAssessmentPage />} />
-            <Route path="assessments" element={<SelfAssessmentReviewListPage />} />
+            <Route path="kpis" element={<ManagerKpisPage />} />
+            <Route path="kpi-history" element={<KpiHistoryPage />} />
+            <Route path="my-kpis" element={<MyKpisPage />} />
             <Route path="pip" element={<PipMonitoringPage />} />
             <Route path="pip/create" element={<PipCreatePage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />
+            <Route path="appraisals" element={<ManagerAppraisalsPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
+            <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
+            <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>
@@ -116,14 +148,16 @@ function App() {
         <Route element={<ProtectedRoute allowedRoleGroups={['EMPLOYEE']} />}>
           <Route path="/employee" element={<EmployeeLayout />}>
             <Route path="dashboard" element={<EmployeeDashboardPage />} />
-            <Route path="assessment" element={<SelfAssessmentPage />} />
+            <Route path="kpis" element={<MyKpisPage />} />
             <Route path="pip" element={<PipMonitoringPage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>

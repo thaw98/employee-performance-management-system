@@ -58,6 +58,44 @@ function nrcPartsRefine(
   }
 }
 
+function spouseNrcTownshipRefine(val: { spouseNrcStateCode?: string; spouseNrcTownshipCode?: string }, ctx: z.RefinementCtx) {
+  const stateCode = String(val.spouseNrcStateCode ?? '').trim()
+  const townshipCode = String(val.spouseNrcTownshipCode ?? '').trim()
+  if (!stateCode || !townshipCode) return
+  const tw = townships.find((t) => t.short.en === townshipCode && t.stateCode === stateCode)
+  if (!tw) {
+    ctx.addIssue({ code: 'custom', message: 'Select a valid township for the state', path: ['spouseNrcTownshipCode'] })
+  }
+}
+
+function spouseNrcPartsRefine(
+  val: {
+    spouseNrcStateCode?: string
+    spouseNrcTownshipCode?: string
+    spouseNrcType?: string
+    spouseNrcNumber?: string
+  },
+  ctx: z.RefinementCtx,
+) {
+  const parts = [
+    String(val.spouseNrcStateCode ?? '').trim(),
+    String(val.spouseNrcTownshipCode ?? '').trim(),
+    String(val.spouseNrcType ?? '').trim(),
+    String(val.spouseNrcNumber ?? '').trim(),
+  ]
+  const filled = parts.filter((p) => p.length > 0).length
+  if (filled < 4) {
+    if (!parts[0]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['spouseNrcStateCode'] })
+    if (!parts[1]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['spouseNrcTownshipCode'] })
+    if (!parts[2]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['spouseNrcType'] })
+    if (!parts[3]) ctx.addIssue({ code: 'custom', message: 'Required', path: ['spouseNrcNumber'] })
+    return
+  }
+  if (!/^[0-9]{6}$/.test(parts[3])) {
+    ctx.addIssue({ code: 'custom', message: 'NRC number must be 6 digits', path: ['spouseNrcNumber'] })
+  }
+}
+
 function fatherNrcTownshipRefine(val: { fatherNrcStateCode?: string; fatherNrcTownshipCode?: string }, ctx: z.RefinementCtx) {
   const stateCode = String(val.fatherNrcStateCode ?? '').trim()
   const townshipCode = String(val.fatherNrcTownshipCode ?? '').trim()
@@ -126,7 +164,7 @@ export const employeeInformationSchema = z
       .refine((val) => ['Buddhist', 'Christian', 'Muslim', 'Hindu'].includes(val), {
         message: 'Invalid religion',
       }),
-    nationality: z.string().trim().min(1, 'Nationality is required').max(100),
+    race: z.string().trim().min(1, 'Race is required').max(100),
     nrcStateCode: z.string().optional(),
     nrcTownshipCode: z.string().optional(),
     nrcType: z.string().optional(),
@@ -144,6 +182,12 @@ export const employeeInformationSchema = z
 /** Father table plus emergency_contact. */
 export const familyEmergencyInformationSchema = z
   .object({
+    maritalStatus: z.enum(['Single', 'Married'], { message: 'Marital status is required' }),
+    spouseName: z.string().optional(),
+    spouseNrcStateCode: z.string().optional(),
+    spouseNrcTownshipCode: z.string().optional(),
+    spouseNrcType: z.string().optional(),
+    spouseNrcNumber: z.string().optional(),
     fatherName: z
       .string()
       .trim()
@@ -165,6 +209,16 @@ export const familyEmergencyInformationSchema = z
   .superRefine((val, ctx) => {
     fatherNrcPartsRefine(val, ctx)
     fatherNrcTownshipRefine(val, ctx)
+    if (val.maritalStatus === 'Married') {
+      const sn = String(val.spouseName ?? '').trim()
+      if (!sn) {
+        ctx.addIssue({ code: 'custom', message: 'Spouse name is required', path: ['spouseName'] })
+      } else if (sn.length > 100) {
+        ctx.addIssue({ code: 'custom', message: 'Max 100 characters', path: ['spouseName'] })
+      }
+      spouseNrcPartsRefine(val, ctx)
+      spouseNrcTownshipRefine(val, ctx)
+    }
   })
 
 export const employmentInformationSchema = z
@@ -176,6 +230,7 @@ export const employmentInformationSchema = z
     departmentId: z.number().nullable(),
     departmentPositionId: z.number().nullable(),
     positionId: z.number().nullable().optional(),
+    assignAsDepartmentManager: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.staffType === 'PROBATION') {
@@ -231,7 +286,7 @@ export const editEmployeeSchema = z
     dateOfBirth: z.string().optional(),
     phoneNo:     z.string().trim().optional(),
     address:     z.string().trim().max(2000).optional(),
-    nationality: z.string().trim().max(100).optional(),
+    race: z.string().trim().max(100).optional(),
     religion:    z.string().optional(),
 
     // ── NRC — all optional (validated together below) ───────────────────────
@@ -249,6 +304,12 @@ export const editEmployeeSchema = z
     fatherOccupation:     z.string().trim().max(100).optional(),
     emergencyPhone:       z.string().trim().optional(),
     emergencyRelation:    z.string().trim().max(50).optional(),
+    maritalStatus: z.enum(['Single', 'Married']).optional(),
+    spouseName: z.string().trim().max(100).optional(),
+    spouseNrcStateCode: z.string().optional(),
+    spouseNrcTownshipCode: z.string().optional(),
+    spouseNrcType: z.string().optional(),
+    spouseNrcNumber: z.string().optional(),
 
     // ── employment — required ───────────────────────────────────────────────
     staffType:  z.enum(['PERMANENT', 'PROBATION']),
@@ -299,6 +360,16 @@ export const editEmployeeSchema = z
       ctx.addIssue({ code: 'custom', message: 'NRC number must be 6 digits', path: ['fatherNrcNumber'] })
     }
     fatherNrcTownshipRefine(val, ctx)
+
+    // Spouse fields: if married, require spouse name and full spouse NRC parts.
+    if (val.maritalStatus === 'Married') {
+      const spouseName = String(val.spouseName ?? '').trim()
+      if (!spouseName) {
+        ctx.addIssue({ code: 'custom', message: 'Spouse name is required', path: ['spouseName'] })
+      }
+      spouseNrcPartsRefine(val, ctx)
+      spouseNrcTownshipRefine(val, ctx)
+    }
 
     // Department & position mapping still required
     if (val.departmentId == null) {

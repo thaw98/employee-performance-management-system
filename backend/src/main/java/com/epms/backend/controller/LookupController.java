@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.epms.backend.common.ApiResponse;
+import com.epms.backend.dto.mapping.DepartmentPositionMappingDto;
 import com.epms.backend.dto.mapping.DepartmentPositionMappingOptionDto;
 import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.repository.DepartmentPositionRepository;
@@ -57,7 +58,7 @@ public class LookupController {
 	public ResponseEntity<ApiResponse<List<DepartmentOptionDto>>> getActiveDepartments() {
 		List<DepartmentOptionDto> departments = departmentRepository.findAll().stream()
 				.filter(d -> d.getStatus() == null || "active".equalsIgnoreCase(d.getStatus().trim()))
-				.map(d -> new DepartmentOptionDto(d.getId(), d.getName()))
+				.map(d -> new DepartmentOptionDto(d.getId(), d.getName(), d.getManagerId()))
 				.collect(Collectors.toList());
 		return ResponseEntity.ok(ApiResponse.ok("Departments fetched successfully.", departments));
 	}
@@ -69,17 +70,40 @@ public class LookupController {
 		List<DepartmentPosition> activeMappings = departmentPositionRepository
 				.findActiveByDepartmentIdWithPosition(departmentId);
 		List<DepartmentPositionMappingOptionDto> options = activeMappings.stream()
-				.map(m -> DepartmentPositionMappingOptionDto.builder()
-						.id(m.getId())
-						.positionId(m.getPosition().getId())
-						.positionName(m.getPosition().getName())
-						.positionCode(m.getPosition().getCode())
-						.levelCodeName(m.getPosition().getLevelCode() != null
-								? m.getPosition().getLevelCode().getCode()
-								: null)
-						.build())
-				.collect(Collectors.toList());
+					.map(m -> DepartmentPositionMappingOptionDto.builder()
+							.id(m.getId())
+							.positionId(m.getPosition().getId())
+							.positionName(m.getPosition().getName())
+							.positionCode(m.getPosition().getCode())
+							.levelCodeName(m.getPosition().getLevelCode() != null
+									? m.getPosition().getLevelCode().getCode()
+									: null)
+							.roleId(m.getPosition().getRole() != null ? m.getPosition().getRole().getId() : null)
+							.roleName(m.getPosition().getRole() != null ? m.getPosition().getRole().getName() : null)
+							.build())
+					.collect(Collectors.toList());
 		return ResponseEntity.ok(ApiResponse.ok("Positions for department fetched successfully.", options));
+	}
+
+	@GetMapping("/department-positions/active")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+	public ResponseEntity<ApiResponse<List<DepartmentPositionMappingDto>>> getAllActiveDepartmentPositions() {
+		List<DepartmentPositionMappingDto> options = departmentPositionRepository.findAll().stream()
+				.filter(m -> "active".equalsIgnoreCase(m.getStatus()))
+				.map(m -> DepartmentPositionMappingDto.builder()
+						.id(m.getId())
+						.departmentId(m.getDepartment().getId())
+							.departmentName(m.getDepartment().getName())
+							.positionId(m.getPosition().getId())
+							.positionCode(m.getPosition().getCode())
+							.positionName(m.getPosition().getName())
+							.levelCodeId(m.getPosition().getLevelCode() != null ? m.getPosition().getLevelCode().getId() : null)
+							.levelCodeName(m.getPosition().getLevelCode() != null ? m.getPosition().getLevelCode().getCode() : null)
+							.roleId(m.getPosition().getRole() != null ? m.getPosition().getRole().getId() : null)
+							.roleName(m.getPosition().getRole() != null ? m.getPosition().getRole().getName() : null)
+							.build())
+					.collect(Collectors.toList());
+		return ResponseEntity.ok(ApiResponse.ok("All active department positions fetched successfully.", options));
 	}
 
 	@GetMapping("/positions/active")
@@ -97,7 +121,7 @@ public class LookupController {
 	public record RoleOptionDto(Long id, String name, String description) {
 	}
 
-	public record DepartmentOptionDto(Long id, String name) {
+	public record DepartmentOptionDto(Long id, String name, Long managerId) {
 	}
 
 	public record PositionOptionDto(Long id, String name, String code) {
