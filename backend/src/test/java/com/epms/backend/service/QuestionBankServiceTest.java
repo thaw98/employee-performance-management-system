@@ -16,7 +16,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -28,11 +27,13 @@ class QuestionBankServiceTest {
     private final QuestionBankRepository questionBankRepository = mock(QuestionBankRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final AuditService auditService = mock(AuditService.class);
-    private final QuestionBankService service = new QuestionBankService(questionBankRepository, userRepository, auditService);
+    private final QuestionBankService service = new QuestionBankService(questionBankRepository, userRepository,
+            auditService);
 
     @Test
     void createQuestionTrimsTextAndStoresActiveQuestion() {
-        when(questionBankRepository.findByNormalizedQuestionTextInScope("lead effectively", 1L, null)).thenReturn(Optional.empty());
+        when(questionBankRepository.findByNormalizedQuestionTextInScope("lead effectively", 1L, null))
+                .thenReturn(Optional.empty());
         when(questionBankRepository.save(any(QuestionBank.class))).thenAnswer(invocation -> {
             QuestionBank question = invocation.getArgument(0);
             question.setId(10L);
@@ -54,7 +55,8 @@ class QuestionBankServiceTest {
         existing.setId(5L);
         existing.setQuestionText("Lead effectively");
         existing.setOwnerRoleId(1L);
-        when(questionBankRepository.findByNormalizedQuestionTextInScope("lead effectively", 1L, null)).thenReturn(Optional.of(existing));
+        when(questionBankRepository.findByNormalizedQuestionTextInScope("lead effectively", 1L, null))
+                .thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> service.createQuestion(new QuestionBankRequest("  LEAD EFFECTIVELY  ", true), 1L, 1L))
                 .isInstanceOf(RuntimeException.class)
@@ -77,7 +79,8 @@ class QuestionBankServiceTest {
         duplicate.setOwnerRoleId(1L);
 
         when(questionBankRepository.findById(5L)).thenReturn(Optional.of(current));
-        when(questionBankRepository.findByNormalizedQuestionTextInScope("updated", 1L, null)).thenReturn(Optional.of(duplicate));
+        when(questionBankRepository.findByNormalizedQuestionTextInScope("updated", 1L, null))
+                .thenReturn(Optional.of(duplicate));
 
         assertThatThrownBy(() -> service.updateQuestion(5L, new QuestionBankRequest("Updated", true), 1L, 1L))
                 .isInstanceOf(RuntimeException.class)
