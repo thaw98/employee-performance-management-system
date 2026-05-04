@@ -7,7 +7,6 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record SelfAssessmentAssignmentRequest(
-        @NotBlank String title,
         @NotBlank String assignmentMode,
         List<Long> departmentIds,
         List<Long> positionIds,

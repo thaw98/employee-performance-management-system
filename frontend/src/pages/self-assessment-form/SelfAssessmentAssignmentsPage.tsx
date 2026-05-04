@@ -42,7 +42,6 @@ function toggleId(values: number[], id: number) {
 
 export const SelfAssessmentAssignmentsPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [title, setTitle] = useState('');
   const [assignmentMode, setAssignmentMode] = useState<SelfAssessmentAssignmentMode>('ALL_EMPLOYEES');
   const [departmentIds, setDepartmentIds] = useState<number[]>([]);
   const [positionIds, setPositionIds] = useState<number[]>([]);
@@ -84,7 +83,6 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
   }, [assignmentMode, departmentIds.length, positionIds.length]);
 
   const openModal = () => {
-    setTitle('Self Assessment Form');
     setAssignmentMode('ALL_EMPLOYEES');
     setDepartmentIds([]);
     setPositionIds([]);
@@ -102,7 +100,6 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
 
   const validate = () => {
     if (!activeSubmissionCycle) return 'No active employee-submission review cycle is available';
-    if (!title.trim()) return 'Please enter a title';
     if (assignmentMode === 'DEPARTMENTS' && departmentIds.length === 0) return 'Please select at least one department';
     if (assignmentMode === 'POSITIONS' && positionIds.length === 0) return 'Please select at least one position';
     if (assignmentMode === 'HYBRID' && (departmentIds.length === 0 || positionIds.length === 0)) {
@@ -128,7 +125,6 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
 
     try {
       const result = await assignForms({
-        title: title.trim(),
         assignmentMode,
         departmentIds,
         positionIds,
@@ -307,17 +303,6 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                     {formatCycleDate(activeSubmissionCycle.startDate)} - {formatCycleDate(activeSubmissionCycle.endDate)}
                   </p>
                 ) : null}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Title</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  placeholder="Assigned form title"
-                />
               </div>
 
               <div>

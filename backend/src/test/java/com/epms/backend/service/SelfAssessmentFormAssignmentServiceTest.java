@@ -185,7 +185,6 @@ class SelfAssessmentFormAssignmentServiceTest {
                 .thenReturn(Optional.of(template));
 
         SelfAssessmentAssignmentRequest request = new SelfAssessmentAssignmentRequest(
-                "Cycle Form",
                 "HYBRID",
                 List.of(10L),
                 List.of(20L),
@@ -204,7 +203,6 @@ class SelfAssessmentFormAssignmentServiceTest {
         when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle());
 
         SelfAssessmentAssignmentRequest request = new SelfAssessmentAssignmentRequest(
-                "Cycle Form",
                 "ALL_EMPLOYEES",
                 List.of(),
                 List.of(),
@@ -220,7 +218,6 @@ class SelfAssessmentFormAssignmentServiceTest {
 
     private static SelfAssessmentAssignmentRequest request(String mode) {
         return new SelfAssessmentAssignmentRequest(
-                "Cycle Form",
                 mode,
                 List.of(),
                 List.of(),

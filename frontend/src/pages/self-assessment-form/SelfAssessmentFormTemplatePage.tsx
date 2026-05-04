@@ -20,7 +20,6 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const isManager = user?.roleId === 2;
   const routeBase = isManager ? '/manager/self-assessment/templates' : '/hr/self-assessment/templates';
   const [deadlineTemplate, setDeadlineTemplate] = useState<SelfAssessmentFormTemplateDto | null>(null);
-  const [deadlineTitle, setDeadlineTitle] = useState('');
   const [deadlineDate, setDeadlineDate] = useState('');
 
   const { data: allTemplates, refetch: refetchTemplates } = useGetAllTemplatesQuery();
@@ -36,13 +35,11 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
 
   const handleOpenDeadline = (template: SelfAssessmentFormTemplateDto) => {
     setDeadlineTemplate(template);
-    setDeadlineTitle(template.title || '');
     setDeadlineDate(activeSubmissionCycle?.endDate || '');
   };
 
   const handleCloseDeadline = () => {
     setDeadlineTemplate(null);
-    setDeadlineTitle('');
     setDeadlineDate('');
   };
 
@@ -50,10 +47,6 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
     if (!deadlineTemplate) return;
     if (!activeSubmissionCycle) {
       toast.error('No active employee-submission review cycle is available');
-      return;
-    }
-    if (!deadlineTitle.trim()) {
-      toast.error('Please enter a title');
       return;
     }
     if (!deadlineDate) {
@@ -65,7 +58,6 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
       const result = await setTemplateDeadline({
         templateId: deadlineTemplate.id,
         request: {
-          title: deadlineTitle.trim(),
           deadlineDate,
         },
       }).unwrap();
@@ -270,6 +262,13 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                 ) : null}
               </div>
 
+              <div>
+                <p className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Template</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                  {deadlineTemplate.title?.trim() ? deadlineTemplate.title : '—'}
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Department</p>
@@ -279,17 +278,6 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                   <p className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Position</p>
                   <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{deadlineTemplate.positionName}</p>
                 </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Title</label>
-                <input
-                  type="text"
-                  value={deadlineTitle}
-                  onChange={(event) => setDeadlineTitle(event.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-                  placeholder="Assigned form title"
-                />
               </div>
 
               <div>

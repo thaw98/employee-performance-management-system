@@ -34,20 +34,19 @@ public class SelfAssessmentFormAssignmentSchemaMigrationInitializer implements B
         if (!tableExists(jdbc, "self_assessment_form")) {
             return;
         }
-        addColumnIfMissing(jdbc, "self_assessment_form", "title", "VARCHAR(255) NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "deadline_date", "DATE NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "manager_review_deadline_date", "DATE NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "final_approval_deadline_date", "DATE NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "assigned_at", "DATETIME(6) NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "assigned_by", "BIGINT NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "employee_remarks", "TEXT NULL");
-        jdbc.update("""
-                UPDATE self_assessment_form f
-                LEFT JOIN self_assessment_form_template t ON t.id = f.template_id
-                SET f.title = COALESCE(NULLIF(f.title, ''), t.title, 'Self Assessment Form')
-                WHERE f.title IS NULL OR TRIM(f.title) = ''
-                """);
-        jdbc.execute("ALTER TABLE self_assessment_form MODIFY title VARCHAR(255) NOT NULL");
+        dropColumnIfExists(jdbc, "self_assessment_form", "title");
+    }
+
+    private static void dropColumnIfExists(JdbcTemplate jdbc, String tableName, String columnName) {
+        if (columnExists(jdbc, tableName, columnName)) {
+            jdbc.execute("ALTER TABLE `" + tableName + "` DROP COLUMN `" + columnName + "`");
+        }
     }
 
     private static void addColumnIfMissing(JdbcTemplate jdbc, String tableName, String columnName, String definition) {

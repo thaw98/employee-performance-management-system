@@ -183,7 +183,6 @@ export interface CycleInfoDto {
 }
 
 export interface SetTemplateDeadlineRequest {
-  title: string
   deadlineDate: string
 }
 
@@ -204,7 +203,6 @@ export interface SetTemplateDeadlineResponse {
 export type SelfAssessmentAssignmentMode = 'ALL_EMPLOYEES' | 'DEPARTMENTS' | 'POSITIONS' | 'HYBRID'
 
 export interface SelfAssessmentAssignmentRequest {
-  title: string
   assignmentMode: SelfAssessmentAssignmentMode
   departmentIds: number[]
   positionIds: number[]
@@ -248,7 +246,6 @@ export interface SaveDraftRequest {
 }
 
 export interface SubmitFormRequest {
-  title: string
   answers: AnswerRequest[]
   employeeRemarks: string | null
   overallRemarks: string | null
