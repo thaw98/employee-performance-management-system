@@ -6,6 +6,9 @@ interface ReviewConfirmStepProps {
   values: CreateEmployeeAccountFormValues
   nrcPreview: string
   fatherNrcPreview: string
+  spouseNrcPreview: string
+  /** Role name from selected position (API); account role is always derived on the server from position. */
+  linkedRoleName?: string | null
 }
 
 function formatLongDate(dateValue?: string): string {
@@ -30,13 +33,14 @@ function ReviewRow({ label, value, mono }: { label: string; value: string; mono?
   )
 }
 
-export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview }: ReviewConfirmStepProps) {
+export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview, spouseNrcPreview, linkedRoleName }: ReviewConfirmStepProps) {
   const perm = values.staffType === 'PERMANENT'
+  const roleLabel = linkedRoleName?.trim() || 'the role linked to the selected position'
   return (
     <div className="space-y-6">
       {/* ── Employee Information ── */}
       <section className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-4">
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-linear-to-r from-slate-50 to-white px-6 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
             <UserCheck size={18} />
           </div>
@@ -50,7 +54,7 @@ export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview }: Revi
             <ReviewRow label="Gender" value={values.gender || '—'} />
             <ReviewRow label="Date of Birth" value={formatLongDate(values.dateOfBirth)} />
             <ReviewRow label="Phone" value={values.phoneNo} />
-            <ReviewRow label="Nationality" value={values.nationality} />
+            <ReviewRow label="Race" value={values.race} />
             <div className="sm:col-span-2">
               <ReviewRow label="Address" value={values.address?.trim() || '—'} />
             </div>
@@ -64,7 +68,7 @@ export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview }: Revi
 
       {/* ── Father Information & emergency contact ── */}
       <section className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-4">
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-linear-to-r from-slate-50 to-white px-6 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
             <HeartHandshake size={18} />
           </div>
@@ -72,6 +76,18 @@ export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview }: Revi
         </div>
         <div className="p-4">
           <dl className="grid gap-1 sm:grid-cols-2">
+            <ReviewRow
+              label="Marital status"
+              value={values.maritalStatus === 'Married' ? 'Married' : values.maritalStatus === 'Single' ? 'Single' : '—'}
+            />
+            {values.maritalStatus === 'Married' ? (
+              <>
+                <ReviewRow label="Spouse's name" value={toTitleCasePersonName(values.spouseName ?? '') || '—'} />
+                <div className="sm:col-span-2">
+                  <ReviewRow label="Spouse's NRC" value={spouseNrcPreview || '—'} mono />
+                </div>
+              </>
+            ) : null}
             <ReviewRow label="Father's name" value={toTitleCasePersonName(values.fatherName ?? '') || '—'} />
             <ReviewRow label="Father's occupation" value={values.fatherOccupation?.trim() || '—'} />
             <div className="sm:col-span-2">
@@ -85,7 +101,7 @@ export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview }: Revi
 
       {/* ── Employment Information ── */}
       <section className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-4">
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-linear-to-r from-slate-50 to-white px-6 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
             <Briefcase size={18} />
           </div>
@@ -113,7 +129,7 @@ export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview }: Revi
       </section>
 
       {/* ── Account Summary ── */}
-      <section className="overflow-hidden rounded-xl border border-teal-200/60 bg-gradient-to-r from-teal-50 to-emerald-50 shadow-sm">
+      <section className="overflow-hidden rounded-xl border border-teal-200/60 bg-linear-to-r from-teal-50 to-emerald-50 shadow-sm">
         <div className="flex items-start gap-4 px-6 py-5">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500 text-white shadow-md shadow-teal-500/25">
             <ShieldCheck size={20} />
@@ -122,7 +138,8 @@ export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview }: Revi
             <h3 className="text-base font-bold text-teal-900">Account Summary</h3>
             <p className="mt-1.5 text-sm leading-relaxed text-teal-800/80">
               A new login will be created for <strong className="text-teal-900">{values.email}</strong> with
-              role <strong className="text-teal-900">Employee</strong>.
+              the access role for this position: <strong className="text-teal-900">{roleLabel}</strong> (set from the
+              position; not editable here).
             </p>
             <p className="mt-1 text-sm leading-relaxed text-teal-800/80">
               A temporary password will be generated and emailed — it is not shown on this screen.

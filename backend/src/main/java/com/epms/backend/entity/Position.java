@@ -1,6 +1,11 @@
 package com.epms.backend.entity;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,6 +15,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -20,7 +26,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Position {
 
     @Id
@@ -31,16 +37,16 @@ public class Position {
     @Column(name = "position_code", unique = true, length = 20)
     private String code;
 
-    @Column(name = "position_name", length = 100)
+    @Column(name = "position_name", unique = true, length = 100)	
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "level_code_id")
+    @JoinColumn(name = "level_code_id", nullable = false)
     private LevelCode levelCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id")
-    private Department department;
+    @JoinColumn(name = "role_id", nullable = false)
+    private Role role;
 
     @Column(name = "status", length = 20)
     private String status;
@@ -50,4 +56,8 @@ public class Position {
 
     @Column(name = "updated_date")
     private Instant updatedDate;
+
+    @OneToMany(mappedBy = "position", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<DepartmentPosition> departmentPositions = new ArrayList<>();
 }

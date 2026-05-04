@@ -3,6 +3,7 @@ package com.epms.backend.service;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -18,19 +19,27 @@ import com.epms.backend.dto.hr.HrCreateEmployeeAccountResponseDto;
 import com.epms.backend.dto.hr.MessageResponseDto;
 import com.epms.backend.dto.hr.NextStaffNoResponseDto;
 import com.epms.backend.entity.Department;
+import com.epms.backend.entity.DepartmentManagerHistory;
+import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.EmergencyContact;
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.EmployeeDepartmentHistory;
 import com.epms.backend.entity.EmployeeFather;
 import com.epms.backend.entity.EmployeeProbation;
+import com.epms.backend.entity.EmployeeReligion;
+import com.epms.backend.entity.EmployeeSpouse;
 import com.epms.backend.entity.Gender;
+import com.epms.backend.entity.MaritalStatus;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.Role;
 import com.epms.backend.entity.StaffType;
+import com.epms.backend.entity.TransferType;
 import com.epms.backend.entity.User;
+import com.epms.backend.repository.DepartmentManagerHistoryRepository;
+import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
+import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
 import com.epms.backend.repository.EmployeeRepository;
-import com.epms.backend.repository.PositionRepository;
-import com.epms.backend.repository.RoleRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.UserPrincipal;
@@ -49,25 +58,29 @@ public class HrEmployeeAccountService {
 	private static final int TEMP_PASSWORD_LENGTH = 8;
 	private static final Pattern STAFF_NO_PATTERN = Pattern.compile("^[0-9]+$");
 	private static final long HR_ROLE_ID = 1L;
+	private static final long DEPARTMENT_MANAGER_ROLE_ID = 2L;
 	/** When no numeric staff numbers exist, start at 0001. */
 	private static final long STAFF_NO_SEQUENCE_START = 0L;
-	private static final long EMPLOYEE_ROLE_ID = 4L;
 	private static final long STAFF_TYPE_PERMANENT_ID = 1L;
 	private static final long STAFF_TYPE_PROBATION_ID = 2L;
+	private static final int DEFAULT_PROBATION_DAYS = 90;
 	private static final Set<String> RELIGIONS = Set.of("Buddhist", "Christian", "Muslim", "Hindu");
 
 	private final EmployeeRepository employeeRepository;
 	private final UserRepository userRepository;
 	private final DepartmentRepository departmentRepository;
-	private final PositionRepository positionRepository;
+	private final DepartmentManagerHistoryRepository departmentManagerHistoryRepository;
 	private final StaffTypeRepository staffTypeRepository;
-	private final RoleRepository roleRepository;
+	private final EmployeeDepartmentHistoryRepository departmentHistoryRepository;
+	private final DepartmentPositionRepository departmentPositionRepository;
+	private final PositionRoleResolutionService positionRoleResolutionService;
 	private final PasswordEncoder passwordEncoder;
 	private final MailService mailService;
 	private final AuditService auditService;
 
 	@Transactional
-	public HrCreateEmployeeAccountResponseDto createAccount(HrCreateEmployeeAccountRequestDto request, UserPrincipal principal) {
+	public HrCreateEmployeeAccountResponseDto createAccount(HrCreateEmployeeAccountRequestDto request,
+			UserPrincipal principal) {
 		if (principal.getRoleId() == null || !principal.getRoleId().equals(HR_ROLE_ID)) {
 			throw new IllegalArgumentException("Only HR can create employee accounts");
 		}
@@ -99,24 +112,48 @@ public class HrEmployeeAccountService {
 			throw new IllegalArgumentException("Staff number is already in use");
 		}
 
-		Department department = departmentRepository.findById(request.getDepartmentId())
-				.orElseThrow(() -> new IllegalArgumentException("Department not found"));
+		Department department = request.isAssignAsDepartmentManager()
+				? departmentRepository.findWithLockById(request.getDepartmentId())
+						.orElseThrow(() -> new IllegalArgumentException("Department not found"))
+				: departmentRepository.findById(request.getDepartmentId())
+						.orElseThrow(() -> new IllegalArgumentException("Department not found"));
 		if (!isActiveEntity(department.getStatus())) {
 			throw new IllegalArgumentException("Department is not active");
 		}
 
-		Position position = positionRepository.findById(request.getPositionId())
-				.orElseThrow(() -> new IllegalArgumentException("Position not found"));
-		if (!isActiveEntity(position.getStatus())) {
-			throw new IllegalArgumentException("Position is not active");
+		// Use department_position_id mapping instead of direct position_id
+		DepartmentPosition deptPosition = departmentPositionRepository.findById(request.getDepartmentPositionId())
+				.orElseThrow(() -> new IllegalArgumentException("Department-position mapping not found"));
+
+		// Validate the mapping belongs to the selected department
+		if (!deptPosition.getDepartment().getId().equals(department.getId())) {
+			throw new IllegalArgumentException("Selected position mapping does not belong to the selected department");
 		}
-		if (position.getDepartment() == null || position.getDepartment().getId() == null
-				|| !position.getDepartment().getId().equals(department.getId())) {
-			throw new IllegalArgumentException("Position does not belong to the selected department");
+
+		// Validate mapping is active
+		if (!"Active".equalsIgnoreCase(deptPosition.getStatus())) {
+			throw new IllegalArgumentException("Selected position mapping is not active");
+		}
+
+		Position position = deptPosition.getPosition();
+		// Validate position is active
+		if (!isActiveEntity(position.getStatus())) {
+			throw new IllegalArgumentException("Selected position is not active");
+		}
+
+		Role accountRole = positionRoleResolutionService.resolveRoleFromLoadedPosition(position);
+		boolean requestedManagerAssignment = request.isAssignAsDepartmentManager();
+		boolean roleAllowsManagerAssignment = DEPARTMENT_MANAGER_ROLE_ID == accountRole.getId();
+		String managerAssignmentWarning = null;
+		if (requestedManagerAssignment && !roleAllowsManagerAssignment) {
+			managerAssignmentWarning = "Manager assignment was ignored because the selected position is not a department manager role.";
+		} else if (requestedManagerAssignment && department.getManagerId() != null) {
+			managerAssignmentWarning = "Manager assignment was ignored because the selected department already has a manager.";
 		}
 
 		boolean probation = "PROBATION".equals(request.getStaffType());
-		StaffType staffTypeEntity = staffTypeRepository.findById(probation ? STAFF_TYPE_PROBATION_ID : STAFF_TYPE_PERMANENT_ID)
+		StaffType staffTypeEntity = staffTypeRepository
+				.findById(probation ? STAFF_TYPE_PROBATION_ID : STAFF_TYPE_PERMANENT_ID)
 				.orElseThrow(() -> new IllegalStateException("Staff type master data is missing"));
 		EmployeeProbation probationEntity = null;
 		if (probation) {
@@ -124,20 +161,17 @@ public class HrEmployeeAccountService {
 				throw new IllegalArgumentException("Probation start date is required for probationary staff");
 			}
 			LocalDate start = request.getProbationStartDate();
-			LocalDate expectedEnd = start.plusMonths(3);
+			LocalDate expectedEnd = start.plusDays(DEFAULT_PROBATION_DAYS);
 			if (request.getProbationEndDate() == null || !request.getProbationEndDate().equals(expectedEnd)) {
-				throw new IllegalArgumentException("Probation end date must be exactly 3 months after start date");
+				throw new IllegalArgumentException("Probation end date must be exactly 90 days after start date");
 			}
 			probationEntity = new EmployeeProbation();
 			probationEntity.setProbationStartDate(start);
 			probationEntity.setProbationEndDate(expectedEnd);
-			probationEntity.setProbationMonth(3);
+			probationEntity.setProbationDays(DEFAULT_PROBATION_DAYS);
 		} else if (request.getProbationStartDate() != null || request.getProbationEndDate() != null) {
 			throw new IllegalArgumentException("Probation dates must be empty for permanent staff");
 		}
-
-		Role employeeRole = roleRepository.findById(EMPLOYEE_ROLE_ID)
-				.orElseThrow(() -> new IllegalStateException("Employee role (id 4) is not configured"));
 
 		Employee employee = new Employee();
 		employee.setEmployeeId(staffNo);
@@ -147,16 +181,20 @@ public class HrEmployeeAccountService {
 		employee.setDateOfBirth(request.getDateOfBirth());
 		employee.setPhoneNo(request.getPhoneNo().trim());
 		employee.setAddress(address);
-		employee.setReligion(religion);
-		employee.setNationality(request.getNationality().trim());
+		employee.setReligion(EmployeeReligion.fromValue(religion));
+		employee.setRace(request.getRace().trim());
 		employee.setStaffNrcNo(trimToNull(request.getNrc()));
 		employee.setDepartment(department);
-		employee.setParentDepartment(department);
 		employee.setPosition(position);
+		employee.setDepartmentPosition(deptPosition);
 		employee.setStaffType(staffTypeEntity);
 		employee.setProbation(probationEntity);
+		if (probationEntity != null) {
+			probationEntity.setEmployee(employee);
+			probationEntity.setCreatedOn(LocalDateTime.now());
+			probationEntity.setCreatedBy(principal.getId());
+		}
 		employee.setDateOfJoining(request.getHireDate());
-		employee.setStatus("Active");
 		employee.setCreatedBy(principal.getId());
 		employee.setUpdatedBy(principal.getId());
 		employee.setCreatedDate(Instant.now());
@@ -176,6 +214,35 @@ public class HrEmployeeAccountService {
 		father.setFatherOccupation(trimToNull(request.getFatherOccupation()));
 		employee.setFather(father);
 
+		MaritalStatus maritalStatus;
+		try {
+			maritalStatus = MaritalStatus.valueOf(requireTrimmed(request.getMaritalStatus(), "Marital status is required"));
+		} catch (IllegalArgumentException ex) {
+			throw new IllegalArgumentException("Marital status must be Single or Married");
+		}
+		employee.setMaritalStatus(maritalStatus);
+
+		if (maritalStatus == MaritalStatus.Married) {
+			String spouseNameNorm = PersonNameNormalizer.normalize(request.getSpouseName());
+			if (spouseNameNorm.isEmpty()) {
+				throw new IllegalArgumentException("Spouse name is required when marital status is Married");
+			}
+			if (spouseNameNorm.length() > 100) {
+				throw new IllegalArgumentException("Spouse name must be at most 100 characters");
+			}
+			String spouseNrcNorm = trimToNull(request.getSpouseNrc());
+			if (spouseNrcNorm == null) {
+				throw new IllegalArgumentException("Spouse NRC is required when marital status is Married");
+			}
+			validateStaffNrc(spouseNrcNorm);
+			EmployeeSpouse spouse = new EmployeeSpouse();
+			spouse.setSpouseName(spouseNameNorm);
+			spouse.setSpouseNrc(spouseNrcNorm);
+			employee.setSpouse(spouse);
+		} else {
+			employee.setSpouse(null);
+		}
+
 		EmergencyContact emergencyContact = new EmergencyContact();
 		emergencyContact.setEmergencyPhone(request.getEmergencyPhone().trim());
 		emergencyContact.setRelation(request.getEmergencyRelation().trim());
@@ -183,18 +250,67 @@ public class HrEmployeeAccountService {
 
 		Employee savedEmployee = employeeRepository.save(employee);
 
+		// Auto-create INITIAL department/position history row
+		EmployeeDepartmentHistory initialHistory = new EmployeeDepartmentHistory();
+		initialHistory.setEmployee(savedEmployee);
+		initialHistory.setToDepartment(department);
+		initialHistory.setToPosition(position);
+		initialHistory.setTransferType(TransferType.INITIAL);
+		initialHistory.setEffectiveStartDate(request.getHireDate());
+		initialHistory.setCurrent(true);
+		initialHistory.setCreatedBy(principal.getId());
+		initialHistory.setCreatedOn(java.time.LocalDateTime.now());
+		EmployeeDepartmentHistory savedHistory = departmentHistoryRepository.save(initialHistory);
+
+		auditService.record(
+				AuditActionType.EMPLOYEE_INITIAL_TRANSFER,
+				AuditTargetType.EMPLOYEE,
+				savedEmployee.getId(),
+				principal.getId(),
+				principal.getRoleId(),
+				"Initial transfer history created for employee_id " + savedEmployee.getId(),
+				("{\"transferHistoryId\":%d,\"toDepartmentId\":%d,\"toPositionId\":%d}")
+						.formatted(savedHistory.getId(), department.getId(), position.getId()));
+
 		String temporaryPassword = generateTemporaryPassword();
 		User user = new User();
 		user.setEmployee(savedEmployee);
 		user.setPassword(passwordEncoder.encode(temporaryPassword));
-		user.setRole(employeeRole);
+		user.setRole(accountRole);
 		user.setActive(true);
 		user.setMustChangePassword(true);
 		user.setCreatedDate(Instant.now());
 		User savedUser = userRepository.save(user);
 
+		boolean assignedAsDepartmentManager = false;
+		if (requestedManagerAssignment && roleAllowsManagerAssignment && department.getManagerId() == null) {
+			department.setManagerId(savedEmployee.getId());
+			department.setUpdatedDate(Instant.now());
+
+			DepartmentManagerHistory managerHistory = new DepartmentManagerHistory();
+			managerHistory.setDepartment(department);
+			managerHistory.setManager(savedEmployee);
+			managerHistory.setStartDate(request.getHireDate() != null ? request.getHireDate() : LocalDate.now());
+			managerHistory.setEndDate(null);
+			managerHistory.setCreatedBy(principal.getId());
+			managerHistory.setCreatedOn(LocalDateTime.now());
+			departmentManagerHistoryRepository.save(managerHistory);
+			assignedAsDepartmentManager = true;
+
+			auditService.record(
+					AuditActionType.MANAGER_ASSIGNED,
+					AuditTargetType.DEPARTMENT,
+					department.getId(),
+					principal.getId(),
+					principal.getRoleId(),
+					"HR user %d assigned employee_id %d as manager for department_id %d"
+							.formatted(principal.getId(), savedEmployee.getId(), department.getId()),
+					("{\"departmentId\":%d,\"managerEmployeeId\":%d,\"employeeAccountId\":%d,\"roleId\":%d}")
+							.formatted(department.getId(), savedEmployee.getId(), savedUser.getId(), accountRole.getId()));
+		}
+
 		String description = "HR user %d created employee account for employee_id %d with role_id %d"
-				.formatted(principal.getId(), savedEmployee.getId(), EMPLOYEE_ROLE_ID);
+				.formatted(principal.getId(), savedEmployee.getId(), accountRole.getId());
 		String metadata = "{\"userAccountId\":%d,\"employeeId\":%d}"
 				.formatted(savedUser.getId(), savedEmployee.getId());
 		auditService.record(
@@ -214,9 +330,11 @@ public class HrEmployeeAccountService {
 				savedUser.getId(),
 				employeeName,
 				email,
-				EMPLOYEE_ROLE_ID,
+				accountRole.getId(),
 				true,
-				"Employee account created successfully.");
+				"Employee account created successfully.",
+				assignedAsDepartmentManager,
+				managerAssignmentWarning);
 	}
 
 	@Transactional(readOnly = true)

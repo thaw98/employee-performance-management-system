@@ -2,38 +2,40 @@ import React from 'react';
 import {
   Users,
   Target,
-  FileText,
   Award,
-  MessageSquare,
   Calendar,
   BarChart,
   LayoutDashboard,
-  Bell,
   ChevronDown,
   ShieldCheck,
   Search,
-  AlertTriangle,
   Zap,
-  Inbox
+  RefreshCcw,
+  Send,
+  Inbox,
+  History,
+  FileText,
+  ListChecks,
+  SlidersHorizontal,
+  BookOpen,
+  Settings,
+  User,
+  PenLine,
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import type { RootState } from '../store/store';
-import { logout } from '../store/authSlice';
+import type { RootState } from '../app/store';
+import { logout } from '../features/auth/authSlice';
+import { resolveProfilePictureSrc } from '../utils/mediaUrl';
+import { useGetProfileQuery } from '../features/user/userApi';
 import { pipApi } from '../features/pip/pipApi';
-
-function initialsFromName(name: string | undefined) {
-  if (!name) return '?'
-  return name
-    .split(/\s+/)
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
+import { ProfileDropdown } from '../components/layout/ProfileDropdown';
+import { NotificationBell } from '../components/common/NotificationBell';
 
 const ManagerLayout: React.FC = () => {
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user: authUser } = useSelector((state: RootState) => state.auth);
+  const { data: profileResponse } = useGetProfileQuery();
+  const user = profileResponse?.data || authUser;
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -44,27 +46,62 @@ const ManagerLayout: React.FC = () => {
     navigate('/login');
   };
 
+  const [expandedMenus, setExpandedMenus] = React.useState<Record<string, boolean>>({});
+
+  const toggleExpand = (label: string) => {
+    setExpandedMenus((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/manager/dashboard' },
-    { icon: <Users size={20} />, label: 'My Team', path: '/manager/team' },
+    ...(authUser?.roleId === 2
+      ? [{ icon: <Users size={20} />, label: 'Employees', path: '/manager/employees' }]
+      : []),
     { icon: <Target size={20} />, label: 'KPIs', path: '/manager/kpis' },
-    { icon: <FileText size={20} />, label: 'Self Assessments', path: '/manager/assessments' },
-    { icon: <ShieldCheck size={20} />, label: 'My Self Assessments', path: '/manager/my-assessment' },
+    { icon: <History size={20} />, label: 'KPI History', path: '/manager/kpi-history' },
+    { icon: <Target size={20} />, label: 'My KPIs', path: '/manager/my-kpis' },
     { icon: <Zap size={20} />, label: 'Team PIPs', path: '/manager/pip' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/manager/appraisals' },
-    { icon: <MessageSquare size={20} />, label: 'Feedback', path: '/manager/feedback' },
-    { icon: <AlertTriangle size={20} />, label: 'PIP Management', path: '/manager/pip' },
-    { icon: <MessageSquare size={20} />, label: 'Give Feedback', path: '/manager/feedback/give' },
-    { icon: <Inbox size={20} />, label: 'Get Feedback', path: '/manager/feedback/received' },
-    { icon: <FileText size={20} />, label: 'Feedback History', path: '/manager/feedback/history' },
+    {
+      icon: <FileText size={20} />,
+      label: 'Self-Assessment',
+      path: '/manager/self-assessment/templates',
+      subItems: [
+        { label: 'Templates', path: '/manager/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
+        ...(authUser?.roleId === 2
+          ? [{ label: 'Question Bank', path: '/manager/self-assessment/question-bank', icon: <BookOpen size={16} className="shrink-0" /> }]
+          : []),
+        { label: 'Review Forms', path: '/manager/self-assessment-forms/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
+      ]
+    },
+    {
+      icon: <RefreshCcw size={20} />,
+      label: '360 Feedback',
+      path: '/manager/360-feedback/give',
+      subItems: [
+        { label: 'Give Feedback', path: '/manager/360-feedback/give', icon: <Send size={16} className="shrink-0" /> },
+        { label: 'Get Feedback', path: '/manager/360-feedback/received', icon: <Inbox size={16} className="shrink-0" /> },
+        { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} className="shrink-0" /> }
+      ]
+    },
+    {
+      icon: <Settings size={20} />,
+      label: 'Settings',
+      path: '/manager/settings/profile',
+      subItems: [
+        { label: 'Profile', path: '/manager/settings/profile', icon: <User size={16} className="shrink-0" /> },
+        { label: 'Signature', path: '/manager/settings/signature', icon: <PenLine size={16} className="shrink-0" /> },
+        { label: 'System', path: '/manager/settings/system', icon: <Settings size={16} className="shrink-0" /> },
+      ]
+    },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/manager/meetings' },
     { icon: <BarChart size={20} />, label: 'Reports', path: '/manager/reports' },
   ];
 
   return (
-    <div className="flex h-screen bg-[#f8fafc]">
+    <div className="flex h-screen bg-transparent font-sans transition-colors duration-300">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col">
+      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-colors duration-300">
         {/* Brand Header */}
         <div className="p-6 bg-[#9a3412] text-white">
           <div className="flex items-center gap-3">
@@ -79,25 +116,100 @@ const ManagerLayout: React.FC = () => {
         </div>
 
         {/* User Profile Card */}
-        <div className="p-6 border-b border-slate-100">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold overflow-hidden">
-              {user?.name?.charAt(0)}
+            <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner shrink-0">
+              {user?.profilePictureUrl ? (
+                 <img src={resolveProfilePictureSrc(user.profilePictureUrl)} className="w-full h-full object-cover" alt="Profile" />
+              ) : (
+                 user?.name?.charAt(0)
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</h4>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate uppercase mt-1">{user?.name}</h4>
               <div className="flex items-center gap-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase truncate">SALES HEAD</p>
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[8px] font-black uppercase">MANAGER</span>
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase truncate">SALES HEAD</p>
+                <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-[8px] font-black uppercase">MANAGER</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1 dark:bg-slate-900 transition-colors duration-300">
           {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive =
+              location.pathname === item.path ||
+              (item.subItems &&
+                item.subItems.some(
+                  (sub) =>
+                    location.pathname === sub.path || location.pathname.startsWith(`${sub.path}/`),
+                ));
+
+            if (item.subItems) {
+              const isExpanded =
+                expandedMenus[item.label] !== undefined ? expandedMenus[item.label] : isActive;
+
+              return (
+                <div key={item.label} className="space-y-1">
+                  <div
+                    className={`w-full flex items-center justify-between gap-2 rounded-xl text-sm font-bold transition-all ${isActive
+                      ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+                      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
+                      }`}
+                  >
+                    <Link to={item.path || '#'} className="flex-1 flex items-center gap-3 px-4 py-3">
+                      <span className={isActive ? 'text-amber-700' : 'text-slate-400'}>
+                        {item.icon}
+                      </span>
+                      {item.label}
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleExpand(item.label);
+                      }}
+                      className="p-3 text-slate-400 hover:text-amber-600 transition-colors"
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="pl-7 pr-3 space-y-1 mt-1">
+                      {item.subItems.map((subItem) => {
+                        const isSubActive =
+                          location.pathname === subItem.path ||
+                          location.pathname.startsWith(`${subItem.path}/`);
+
+                        return (
+                          <Link
+                            key={subItem.label}
+                            to={subItem.path}
+                            className={`flex items-center gap-2.5 pl-2 pr-2.5 py-2 text-sm font-semibold rounded-lg transition-colors ${isSubActive
+                              ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 font-bold'
+                              : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
+                              }`}
+                          >
+                            <span className={isSubActive ? 'text-amber-800 dark:text-amber-300' : 'text-slate-400'}>
+                              {subItem.icon}
+                            </span>
+                            {subItem.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={item.label}
@@ -105,8 +217,8 @@ const ManagerLayout: React.FC = () => {
                 onMouseEnter={item.path === '/manager/pip' ? () => prefetchPips() : undefined}
                 onFocus={item.path === '/manager/pip' ? () => prefetchPips() : undefined}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${isActive
-                  ? 'bg-amber-50 text-amber-700'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                   }`}
               >
                 <span className={isActive ? 'text-amber-700' : 'text-slate-400'}>{item.icon}</span>
@@ -117,50 +229,38 @@ const ManagerLayout: React.FC = () => {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-100">
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors duration-300">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-400 hover:text-red-500 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
           >
             <LayoutDashboard size={20} className="rotate-180" />
             Sign Out
           </button>
-          <div className="mt-4 px-4 text-[9px] font-bold text-slate-300 uppercase letter-spacing-widest">
+          <div className="mt-4 px-4 text-[9px] font-bold text-slate-300 dark:text-slate-600 uppercase transition-colors">
             EPMS v1.0 • 2026
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden bg-transparent transition-colors duration-300">
         {/* Top Header */}
-        <header className="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between">
+        <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between transition-colors duration-300">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Dashboard</h2>
-            <p className="text-xs font-bold text-slate-400 text-slate-400">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Dashboard</h2>
+            <p className="text-xs font-bold text-slate-400 dark:text-slate-500">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
 
           <div className="flex items-center gap-6">
-            <div className="relative group flex items-center bg-slate-100 rounded-full px-4 py-2 border border-transparent focus-within:border-amber-200 focus-within:bg-white transition-all">
-              <Search size={18} className="text-slate-400" />
-              <input type="text" placeholder="Quick find..." className="bg-transparent border-none focus:ring-0 text-sm font-medium ml-2 w-48" />
+            <div className="relative group flex items-center bg-slate-100 dark:bg-slate-800 rounded-full px-4 py-2 border border-transparent focus-within:border-amber-200 dark:focus-within:border-amber-900/50 focus-within:bg-white dark:focus-within:bg-slate-900 transition-all">
+              <Search size={18} className="text-slate-400 dark:text-slate-500" />
+              <input type="text" placeholder="Quick find..." className="bg-transparent border-none focus:ring-0 text-sm font-medium ml-2 w-48 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600" />
             </div>
 
-            <button className="relative w-10 h-10 flex items-center justify-center text-slate-400 hover:text-amber-600 transition-colors">
-              <Bell size={22} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+            <NotificationBell />
 
-            <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
-              <div className="text-right">
-                <p className="text-xs font-bold text-slate-900 truncate uppercase mt-1">{user?.name}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase">SALES HEAD</p>
-              </div>
-              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
-                {user?.name?.charAt(0)}
-              </div>
-              <ChevronDown size={16} className="text-slate-400" />
-            </div>
+            <ProfileDropdown />
           </div>
         </header>
 

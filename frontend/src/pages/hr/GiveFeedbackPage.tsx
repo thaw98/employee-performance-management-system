@@ -138,7 +138,7 @@ export function GiveFeedbackPage() {
                         <MessageSquare size={32} />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black tracking-tight text-slate-800 uppercase">Give 360° Feedback</h1>
+                        <h1 className="text-3xl font-black tracking-tight text-slate-800 uppercase">Give 360 Feedback</h1>
                         <p className="text-slate-500 font-medium mt-1">Provide anonymous and constructive feedback to your colleagues.</p>
                     </div>
                 </div>

@@ -1,5 +1,6 @@
 package com.epms.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.Instant;
 
 import jakarta.persistence.Column;
@@ -17,7 +18,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Department {
 
     @Id
@@ -31,8 +32,11 @@ public class Department {
     @Column(name = "department_name", length = 100)
     private String name;
 
-    @Column(name = "status", length = 20)
+    @Column(name = "status", nullable = false, columnDefinition = "ENUM('Active','Inactive')")
     private String status;
+
+    @Column(name = "manager_id")
+    private Long managerId;
 
     @Column(name = "created_date")
     private Instant createdDate;

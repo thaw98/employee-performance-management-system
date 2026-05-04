@@ -5,10 +5,12 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.EmployeeStatus;
 
 public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSpecificationExecutor<Employee> {
 
@@ -24,7 +26,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 			""", nativeQuery = true)
 	Optional<Long> findMaxNumericStaffNo();
 
-	List<Employee> findTop10ByEmployeeNameContainingIgnoreCaseOrderByIdDesc(String employeeName);
+	List<Employee> findTop10ByEmployeeNameStartingWithIgnoreCaseOrderByIdDesc(String employeeName);
 
 	Optional<Employee> findByEmployeeId(String employeeId);
 
@@ -36,5 +38,79 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 
 	boolean existsByEmailIgnoreCaseAndIdNot(String email, Long excludeId);
 
+	/**
+	 * Checks if an employee with the given normalized staff NRC number exists.
+	 * This checks for exact matches of the normalized NRC value.
+	 *
+	 * @param normalizedStaffNrcNo the normalized NRC number to check
+	 * @return true if an employee with the normalized NRC exists, false otherwise
+	 */
+	boolean existsByStaffNrcNo(String normalizedStaffNrcNo);
+
+	/**
+	 * Checks if an employee with the given normalized staff NRC number exists, excluding a specific employee ID.
+	 * Used during updates to prevent false positives when an employee is not changing their NRC.
+	 *
+	 * @param normalizedStaffNrcNo the normalized NRC number to check
+	 * @param excludeId the employee ID to exclude from the check
+	 * @return true if another employee with the normalized NRC exists, false otherwise
+	 */
+	boolean existsByStaffNrcNoAndIdNot(String normalizedStaffNrcNo, Long excludeId);
+
 	java.util.List<Employee> findByDepartmentId(Long departmentId);
+
+	java.util.List<Employee> findByDepartment_IdAndPosition_Id(Long departmentId, Long positionId);
+
+	java.util.List<Employee> findByDepartmentPosition_Id(Long departmentPositionId);
+	@Query("""
+			select e
+			from Employee e
+			join e.userAccount u
+			left join fetch e.department
+			left join fetch e.position
+			left join fetch e.staffType
+			where e.department.id = :departmentId
+			  and e.position.id = :positionId
+			  and e.employmentStatus = :employmentStatus
+			  and e.staffType.id = :staffTypeId
+			  and u.active = true
+			order by e.employeeName asc
+			""")
+	java.util.List<Employee> findEligibleSelfAssessmentAssignees(
+			@Param("departmentId") Long departmentId,
+			@Param("positionId") Long positionId,
+			@Param("employmentStatus") EmployeeStatus employmentStatus,
+			@Param("staffTypeId") Long staffTypeId);
+
+	@Query("""
+			select e
+			from Employee e
+			join e.userAccount u
+			left join fetch e.department
+			left join fetch e.position
+			left join fetch e.staffType
+			where e.employmentStatus = :employmentStatus
+			  and (e.staffType is null or e.staffType.id <> :excludedStaffTypeId)
+			  and u.active = true
+			order by e.employeeName asc
+			""")
+	java.util.List<Employee> findEligibleSelfAssessmentAssignees(
+			@Param("employmentStatus") EmployeeStatus employmentStatus,
+			@Param("excludedStaffTypeId") Long excludedStaffTypeId);
+
+	boolean existsByDepartment_IdAndPosition_Id(Long departmentId, Long positionId);
+
+	@Query("""
+			select e
+			from Employee e
+			left join fetch e.department
+			left join fetch e.position
+			left join fetch e.staffType
+			left join fetch e.probation
+			left join fetch e.emergencyContact
+			left join fetch e.father
+			left join fetch e.spouse
+			order by e.id asc
+			""")
+	List<Employee> findAllForExport();
 }

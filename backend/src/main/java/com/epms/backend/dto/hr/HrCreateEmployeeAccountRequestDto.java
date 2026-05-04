@@ -54,7 +54,7 @@ public class HrCreateEmployeeAccountRequestDto {
 
 	@NotBlank
 	@Size(max = 100)
-	private String nationality;
+	private String race;
 
 	@NotBlank(message = "NRC number is required")
 	@Size(max = 100)
@@ -70,6 +70,16 @@ public class HrCreateEmployeeAccountRequestDto {
 	@NotBlank(message = "Father occupation is required")
 	@Size(max = 100)
 	private String fatherOccupation;
+
+	@NotBlank(message = "Marital status is required")
+	@Pattern(regexp = "^(Single|Married)$", message = "Marital status must be Single or Married")
+	private String maritalStatus;
+
+	@Size(max = 100)
+	private String spouseName;
+
+	@Size(max = 100)
+	private String spouseNrc;
 
 	@NotBlank
 	@Pattern(
@@ -98,7 +108,9 @@ public class HrCreateEmployeeAccountRequestDto {
 	private Long departmentId;
 
 	@NotNull
-	private Long positionId;
+	private Long departmentPositionId;
+
+	private boolean assignAsDepartmentManager;
 
 	private String profilePictureUrl;
 }

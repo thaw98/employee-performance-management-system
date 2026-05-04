@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState, type FocusEvent, type ReactNode }
 import {
   employeeEmploymentSchema,
   employeeInfoSchema,
+  employeePersonalContactSchema,
   GENERIC_FIELD_VALIDATION_MESSAGE,
   type EmployeeInfoFormValues,
 } from '../schemas/employeeInfoSchema'
@@ -20,15 +21,18 @@ import {
   useCreateEmployeeAccountMutation,
   useCreateEmployeeMutation,
   useGetDepartmentsQuery,
-  useGetPositionsQuery,
+  useGetAutocompletePositionsQuery,
   useGetReligionsQuery,
   useLazyCheckUserEmailQuery,
+  useLazyCheckStaffNrcQuery,
 } from '../services/employeeApi'
 import { buildEmployeeCreatePayload } from '../utils/draftPayload'
 import { calculateProbationEnd, formatProbationEndDisplay } from '../utils/probation'
 import { STAFF_TYPE_PERMANENT, STAFF_TYPE_PROBATION } from '../utils/staffType'
+import { toTitleCasePersonName } from '../../../utils/personName'
 import { EmployeeStepper } from '../components/EmployeeStepper'
 import { NrcFields } from '../components/NrcFields'
+import { useUploadProfilePictureMutation } from '../../../features/user/userApi'
 
 const MAX_PHONE_INPUT_LENGTH = 16 // optional "+" plus up to 15 digits
 const EMPLOYEE_NAME_MAX_LENGTH = 50
@@ -44,7 +48,7 @@ const STEP1_FIELD_NAMES: FieldPath<EmployeeInfoFormValues>[] = [
   'race',
   'religionId',
   'dateOfBirth',
-  'nationality',
+  'race',
   'phoneNo',
   'contactAddress',
 ]
@@ -256,6 +260,7 @@ export function CreateEmployeeAccountPage() {
   const [employeePkId, setEmployeePkId] = useState<number | null>(null)
   const [loginEmail, setLoginEmail] = useState('')
   const [loginEmailError, setLoginEmailError] = useState('')
+  const [staffNrcError, setStaffNrcError] = useState('')
   const [savedValues, setSavedValues] = useState<EmployeeInfoFormValues | null>(null)
   const [accountSuccess, setAccountSuccess] = useState(false)
   const [accountEmailSent, setAccountEmailSent] = useState(true)
@@ -279,6 +284,8 @@ export function CreateEmployeeAccountPage() {
   const [createEmployee] = useCreateEmployeeMutation()
   const [createAccount] = useCreateEmployeeAccountMutation()
   const [checkEmailUsers] = useLazyCheckUserEmailQuery()
+  const [checkStaffNrc] = useLazyCheckStaffNrcQuery()
+  const [uploadProfilePicture] = useUploadProfilePictureMutation()
 
   const religions = useGetReligionsQuery()
   const departments = useGetDepartmentsQuery('')
@@ -303,7 +310,7 @@ export function CreateEmployeeAccountPage() {
       religionId: undefined,
       departmentId: undefined,
       positionId: undefined,
-      nationality: '',
+      race: '',
       nrcStateCode: '',
       nrcTownshipCode: '',
       nrcType: '',
@@ -318,7 +325,7 @@ export function CreateEmployeeAccountPage() {
   const { field: staffTypeField } = useController({ control, name: 'staffTypeId' })
 
   const departmentIdWatch = watch('departmentId')
-  const positions = useGetPositionsQuery(
+  const positions = useGetAutocompletePositionsQuery(
     { keyword: '', departmentId: departmentIdWatch },
     { skip: !departmentIdWatch, refetchOnMountOrArgChange: true },
   )
@@ -342,6 +349,39 @@ export function CreateEmployeeAccountPage() {
   const departmentsOptions = departments.data?.data ?? []
   const positionsOptions = positions.data?.data ?? []
 
+  function normalizeNrc(raw: string): string {
+    if (!raw) return ''
+    return raw.trim().replace(/\s+/g, '').toUpperCase()
+  }
+
+  async function handleStaffNrcBlur() {
+    const values = getValues()
+    const stateCode = values.nrcStateCode ?? ''
+    const townshipCode = values.nrcTownshipCode ?? ''
+    const type = values.nrcType ?? ''
+    const number = values.nrcNumber ?? ''
+
+    if (!stateCode || !townshipCode || !type || !number) {
+      if (staffNrcError === 'This NRC number already exists.') {
+        setStaffNrcError('')
+      }
+      return
+    }
+
+    const fullNrc = `${stateCode}/${townshipCode}(${type})${number}`
+    const normalized = normalizeNrc(fullNrc)
+
+    const result = await checkStaffNrc({ staffNrcNo: normalized }).unwrap()
+    if (result.success && result.data) {
+      setStaffNrcError('This NRC number already exists.')
+      return
+    }
+
+    if (staffNrcError === 'This NRC number already exists.') {
+      setStaffNrcError('')
+    }
+  }
+
   async function handleLoginEmailBlur(event: FocusEvent<HTMLInputElement>) {
     const raw = event.target.value.trim()
     if (!raw) {
@@ -363,6 +403,13 @@ export function CreateEmployeeAccountPage() {
   async function submitStep1Next() {
     setFormMessage('')
     clearErrors(STEP1_ALL_FIELD_NAMES)
+    const values = getValues()
+    const step1Parsed = employeePersonalContactSchema.safeParse(values)
+    if (!step1Parsed.success) {
+      applyZodIssues(step1Parsed.error.issues, setError)
+      return
+    }
+    
     const email = loginEmail.trim().toLowerCase()
     const emailParsed = z.string().email({ message: 'Enter a valid email address.' }).safeParse(email)
     if (!emailParsed.success) {
@@ -375,6 +422,11 @@ export function CreateEmployeeAccountPage() {
       setLoginEmailError('Email already exists')
       return
     }
+
+    if (staffNrcError === 'This NRC number already exists.') {
+      return
+    }
+
     setStep(2)
   }
 
@@ -455,6 +507,13 @@ export function CreateEmployeeAccountPage() {
       setLoginEmailError('Email already exists')
       return
     }
+
+    if (staffNrcError === 'This NRC number already exists.') {
+      setFormMessage('Staff NRC number already exists. Please use Back to edit Step 1.')
+      setFormMessageSeverity('error')
+      return
+    }
+
     const values = getValues()
     const fullParsed = employeeInfoSchema.safeParse(values)
     if (!fullParsed.success) {
@@ -647,13 +706,17 @@ export function CreateEmployeeAccountPage() {
                   />
                 </div>
               </div>
-              <NrcFields
-                control={control}
-                errors={errors}
-                setValue={setValue}
-                label="Staff NRC No."
-                required
-              />
+              <div className="space-y-1">
+                <NrcFields
+                  control={control}
+                  errors={errors}
+                  setValue={setValue}
+                  label="Staff NRC No."
+                  required
+                  onBlur={() => void handleStaffNrcBlur()}
+                />
+                {staffNrcError && <p className="text-xs text-red-600 mt-0.5">{staffNrcError}</p>}
+              </div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Controller
                   control={control}
@@ -715,11 +778,11 @@ export function CreateEmployeeAccountPage() {
                 />
                 <TextField
                   fullWidth
-                  label="Nationality *"
+                  label="Race *"
                   slotProps={{ htmlInput: { maxLength: 100 } }}
-                  {...register('nationality')}
-                  error={Boolean(errors.nationality)}
-                  helperText={errors.nationality?.message}
+                  {...register('race')}
+                  error={Boolean(errors.race)}
+                  helperText={errors.race?.message}
                 />
               </div>
             </div>
@@ -798,7 +861,7 @@ export function CreateEmployeeAccountPage() {
                 setValue={setValue}
                 prefix="father"
                 label="Father NRC"
-                required={false}
+                required
               />
             </div>
           </FormSection>

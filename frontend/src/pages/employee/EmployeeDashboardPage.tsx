@@ -1,7 +1,5 @@
-import React from 'react';
 import {
   Target,
-  FileText,
   MessageSquare,
   Calendar,
   ChevronRight,
@@ -25,13 +23,9 @@ export function EmployeeDashboardPage() {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">My Dashboard</h1>
-          <p className="text-slate-500 font-medium text-xs">Track your performance, assessments, and feedback</p>
+          <p className="text-slate-500 font-medium text-xs">Track your performance and feedback</p>
         </div>
         <div className="flex gap-3">
-          <a href="/employee/assessment" className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-700 hover:shadow-md transition-all">
-            <FileText size={14} className="text-blue-600" />
-            Self Assessment
-          </a>
           <a href="/employee/pip" className="flex items-center gap-2 px-4 py-2 bg-slate-900 rounded-xl text-xs font-black text-white hover:shadow-lg transition-all">
             <Zap size={14} className="text-amber-400" />
             My PIP Section
@@ -54,12 +48,12 @@ export function EmployeeDashboardPage() {
 
         <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Self Assessment</p>
-            <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Submitted</h3>
-            <p className="text-[10px] font-bold text-emerald-600 uppercase mt-1">✓ Submitted</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Current Focus</p>
+            <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">KPI Cycle</h3>
+            <p className="text-[10px] font-bold text-emerald-600 uppercase mt-1">On Track</p>
           </div>
           <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm">
-            <FileText size={24} />
+            <Target size={24} />
           </div>
         </div>
 

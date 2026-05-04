@@ -23,6 +23,9 @@ public class Notification {
     @Column(nullable = false)
     private String title;
 
+    @Column(nullable = false, length = 50)
+    private String source = "GENERAL";
+
     @Column(columnDefinition = "text", nullable = false)
     private String message;
 

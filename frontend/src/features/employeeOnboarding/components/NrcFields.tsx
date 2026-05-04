@@ -15,12 +15,13 @@ interface NrcFieldsProps {
   prefix?: 'father'
   label?: string
   required?: boolean
+  onBlur?: () => void
 }
 
 const selectBase =
   'h-full bg-transparent text-sm text-slate-800 focus:outline-none appearance-none cursor-pointer disabled:cursor-not-allowed disabled:text-slate-400 py-2 px-2'
 
-export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Number', required = true }: NrcFieldsProps) {
+export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Number', required = true, onBlur }: NrcFieldsProps) {
   const stateFieldName = (prefix ? `${prefix}NrcStateCode` : 'nrcStateCode') as any
   const townshipFieldName = (prefix ? `${prefix}NrcTownshipCode` : 'nrcTownshipCode') as any
   const typeFieldName = (prefix ? `${prefix}NrcType` : 'nrcType') as any
@@ -74,7 +75,10 @@ export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Numb
                   field.onChange(e.target.value)
                   setValue(townshipFieldName, '', { shouldValidate: false })
                 }}
-                onBlur={field.onBlur}
+                onBlur={(e) => {
+                  field.onBlur()
+                  onBlur?.()
+                }}
               >
                 <option value="">_</option>
                 {allStates.map((state) => (
@@ -101,7 +105,10 @@ export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Numb
                 className={selectBase}
                 value={field.value ?? ''}
                 onChange={field.onChange}
-                onBlur={field.onBlur}
+                onBlur={(e) => {
+                  field.onBlur()
+                  onBlur?.()
+                }}
                 disabled={!nrcStateCode}
               >
                 <option value="">_</option>
@@ -129,12 +136,15 @@ export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Numb
                 className={selectBase}
                 value={field.value ?? ''}
                 onChange={field.onChange}
-                onBlur={field.onBlur}
+                onBlur={(e) => {
+                  field.onBlur()
+                  onBlur?.()
+                }}
               >
                 <option value="">_</option>
                 {allTypes.map((type) => (
                   <option key={type.id} value={type.name.en}>
-                    {type.name.en}
+                    {type.name.mm ?? type.name.en} ({type.name.en})
                   </option>
                 ))}
               </select>
@@ -160,7 +170,10 @@ export function NrcFields({ control, errors, setValue, prefix, label = 'NRC Numb
                 className="bg-transparent text-sm text-slate-800 focus:outline-none py-2 w-full"
                 value={field.value ?? ''}
                 onChange={(e) => field.onChange(e.target.value.replace(/[^0-9]/g, ''))}
-                onBlur={field.onBlur}
+                onBlur={(e) => {
+                  field.onBlur()
+                  onBlur?.()
+                }}
                 placeholder="000000"
               />
             </div>

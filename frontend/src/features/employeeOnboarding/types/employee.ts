@@ -30,7 +30,6 @@ export interface EmployeeInfoPayload {
   emergencyRelation?: string
   departmentId: number
   positionId: number
-  nationality: string
   dateOfJoining: string
   passportNo?: string
   passportExpireDate?: string
@@ -40,8 +39,8 @@ export interface EmployeeInfoPayload {
   dateOfTransfer?: string
   staffTypeId: number
   probationStartDate?: string
-  /** 1, 3, or 6 for fixed periods; null for custom (use probationEndDate). */
-  probationMonth?: number | null
+  /** 30, 90, or 180 for fixed periods; null for custom (use probationEndDate). */
+  probationDays?: number | null
   probationEndDate?: string | null
   /** URL from POST /api/files/profile-pictures or http(s) */
   profilePictureUrl?: string
@@ -52,7 +51,7 @@ export interface EmployeeInfo extends EmployeeInfoPayload {
   /** Present when a login user is linked; comes from users.email. */
   emailAddress?: string | null
   staffTypeName?: string
-  probationMonth?: number | null
+  probationDays?: number | null
   probationEndDate?: string | null
   recordStatus: 'DRAFT' | 'COMPLETED'
 }

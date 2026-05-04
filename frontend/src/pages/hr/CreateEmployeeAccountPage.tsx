@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { skipToken } from '@reduxjs/toolkit/query'
 import { FormProvider, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format } from 'date-fns'
@@ -10,8 +11,9 @@ import {
   useCreateEmployeeAccountMutation,
   useGetDepartmentsQuery,
   useGetNextStaffNoQuery,
-  useGetPositionsQuery,
+  useGetDepartmentPositionsQuery,
   useLazyCheckEmailQuery,
+  useLazyCheckStaffNrcQuery,
   useLazyCheckStaffNoQuery,
   useResendTemporaryPasswordMutation,
 } from '../../features/hrCreateEmployee/hrEmployeeAccountApi'
@@ -20,7 +22,6 @@ import {
   type CreateEmployeeAccountFormValues,
 } from '../../features/hrCreateEmployee/schemas/createEmployeeAccountSchema'
 import { useAppSelector } from '../../app/hooks'
-import { getDashboardPath } from '../../utils/dashboardRedirect'
 import { toTitleCasePersonName } from '../../utils/personName'
 import { CreateEmployeeSuccessModal } from './create-account/CreateEmployeeSuccessModal'
 import { EmployeeInformationStep } from './create-account/EmployeeInformationStep'
@@ -28,6 +29,7 @@ import { EmploymentInformationStep } from './create-account/EmploymentInformatio
 import { FamilyEmergencyStep } from './create-account/FamilyEmergencyStep'
 import { ReviewConfirmStep } from './create-account/ReviewConfirmStep'
 import { useUploadProfilePictureMutation } from '../../features/user/userApi'
+import EmployeeImportModal from '../../features/hrEmployeeList/components/EmployeeImportModal'
 
 const STEPS = [
   { label: 'Personal Details', icon: User },
@@ -60,10 +62,24 @@ function buildFatherNrc(v: CreateEmployeeAccountFormValues): string | undefined 
   return undefined
 }
 
+function buildSpouseNrc(v: CreateEmployeeAccountFormValues): string | undefined {
+  const a = v.spouseNrcStateCode?.trim()
+  const b = v.spouseNrcTownshipCode?.trim()
+  const c = v.spouseNrcType?.trim()
+  const d = v.spouseNrcNumber?.trim()
+  if (!a && !b && !c && !d) return undefined
+  if (a && b && c && d) return `${a}/${b}(${c})${d}`
+  return undefined
+}
+
 const emailOk = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim())
 
 function staffDupBlocks(staffDup: Dup): boolean {
   return staffDup !== 'available'
+}
+
+function nrcDupBlocks(nrcDup: Dup): boolean {
+  return nrcDup !== 'available'
 }
 
 function emailDupBlocks(emailDup: Dup): boolean {
@@ -73,7 +89,9 @@ function emailDupBlocks(emailDup: Dup): boolean {
 export function CreateEmployeeAccountPage() {
   const navigate = useNavigate()
   const user = useAppSelector((s) => s.auth.user)
+  const token = useAppSelector((s) => s.auth.token)
   const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  const [importModalOpen, setImportModalOpen] = useState(false)
 
   const form = useForm<CreateEmployeeAccountFormValues>({
     resolver: zodResolver(createEmployeeAccountSchema) as never,
@@ -86,7 +104,7 @@ export function CreateEmployeeAccountPage() {
       phoneNo: '',
       address: '',
       religion: '',
-      nationality: '',
+      race: '',
       nrcStateCode: '',
       nrcTownshipCode: '',
       nrcType: '',
@@ -97,6 +115,12 @@ export function CreateEmployeeAccountPage() {
       fatherNrcType: '',
       fatherNrcNumber: '',
       fatherOccupation: '',
+      maritalStatus: 'Single',
+      spouseName: '',
+      spouseNrcStateCode: '',
+      spouseNrcTownshipCode: '',
+      spouseNrcType: '',
+      spouseNrcNumber: '',
       emergencyPhone: '',
       emergencyRelation: '',
       staffType: 'PERMANENT',
@@ -104,19 +128,21 @@ export function CreateEmployeeAccountPage() {
       probationEndDate: '',
       hireDate: today,
       departmentId: null,
-      positionId: null,
+      departmentPositionId: null,
+      assignAsDepartmentManager: false,
     },
     mode: 'onBlur',
   })
 
-  const { register, control, handleSubmit, formState, setValue, getValues, trigger, watch, reset } = form
+  const { register, control, handleSubmit, formState, setValue, getValues, trigger, watch, reset, setError, clearErrors } = form
   const { errors, isSubmitting } = formState
 
   const [step, setStep] = useState(1)
   const [emailDup, setEmailDup] = useState<Dup>('idle')
   const [staffDup, setStaffDup] = useState<Dup>('idle')
+  const [nrcDup, setNrcDup] = useState<Dup>('idle')
   const [successOpen, setSuccessOpen] = useState(false)
-  const [created, setCreated] = useState<{ employeeId: number; name: string; email: string } | null>(null)
+  const [created, setCreated] = useState<{ employeeId: number; staffNo: string; name: string; email: string } | null>(null)
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
   const profilePhotoPreviewUrl = useMemo(
     () => (profilePhotoFile ? URL.createObjectURL(profilePhotoFile) : null),
@@ -133,6 +159,7 @@ export function CreateEmployeeAccountPage() {
 
   const [checkEmail] = useLazyCheckEmailQuery()
   const [checkStaff] = useLazyCheckStaffNoQuery()
+  const [checkStaffNrc] = useLazyCheckStaffNrcQuery()
   const [createAccount, { isLoading: createLoading }] = useCreateEmployeeAccountMutation()
   const [uploadProfilePicture] = useUploadProfilePictureMutation()
   const [resendPw, { isLoading: resendLoading }] = useResendTemporaryPasswordMutation()
@@ -144,10 +171,19 @@ export function CreateEmployeeAccountPage() {
   const nextStaffNoFromApi = nextStaffPayload?.data?.nextStaffNo
 
   const departmentId = useWatch({ control, name: 'departmentId' })
-  const { data: posRes, isLoading: posLoading } = useGetPositionsQuery(departmentId as number, {
-    skip: departmentId == null,
-  })
+  const { data: posRes, isLoading: posLoading } = useGetDepartmentPositionsQuery(
+    typeof departmentId === 'number' ? departmentId : skipToken,
+  )
   const positions = posRes?.data ?? []
+  const departmentPositionId = useWatch({ control, name: 'departmentPositionId' })
+  const selectedDepartment = useMemo(
+    () => departments.find((department) => department.departmentId === departmentId) ?? null,
+    [departmentId, departments],
+  )
+  const selectedPosition = useMemo(
+    () => positions.find((position) => position.id === departmentPositionId) ?? null,
+    [departmentPositionId, positions],
+  )
 
   const emailVal = watch('email')
   const staffVal = watch('staffNo')
@@ -214,6 +250,34 @@ export function CreateEmployeeAccountPage() {
     return ''
   }, [nrcStateCode, nrcTownshipCode, nrcType, nrcNumber])
 
+  useEffect(() => {
+    if (!nrcPreview || String(nrcNumber ?? '').trim().length !== 6) {
+      setNrcDup('idle')
+      clearErrors('nrcNumber')
+      return
+    }
+    setNrcDup('checking')
+    const t = window.setTimeout(() => {
+      checkStaffNrc(nrcPreview)
+        .unwrap()
+        .then((res) => {
+          if (!res.success || typeof res.data !== 'boolean') {
+            setNrcDup('idle')
+            return
+          }
+          if (res.data) {
+            setNrcDup('exists')
+            setError('nrcNumber', { type: 'manual', message: 'This NRC number already exists.' })
+            return
+          }
+          setNrcDup('available')
+          clearErrors('nrcNumber')
+        })
+        .catch(() => setNrcDup('idle'))
+    }, DEBOUNCE_MS)
+    return () => window.clearTimeout(t)
+  }, [checkStaffNrc, clearErrors, nrcNumber, nrcPreview, setError])
+
   const fatherNrcStateCode = watch('fatherNrcStateCode')
   const fatherNrcTownshipCode = watch('fatherNrcTownshipCode')
   const fatherNrcType = watch('fatherNrcType')
@@ -224,6 +288,17 @@ export function CreateEmployeeAccountPage() {
     }
     return ''
   }, [fatherNrcStateCode, fatherNrcTownshipCode, fatherNrcType, fatherNrcNumber])
+
+  const spouseNrcStateCode = watch('spouseNrcStateCode')
+  const spouseNrcTownshipCode = watch('spouseNrcTownshipCode')
+  const spouseNrcType = watch('spouseNrcType')
+  const spouseNrcNumber = watch('spouseNrcNumber')
+  const spouseNrcPreview = useMemo(() => {
+    if (spouseNrcStateCode && spouseNrcTownshipCode && spouseNrcType && spouseNrcNumber) {
+      return `${spouseNrcStateCode}/${spouseNrcTownshipCode}(${spouseNrcType})${spouseNrcNumber}`
+    }
+    return ''
+  }, [spouseNrcStateCode, spouseNrcTownshipCode, spouseNrcType, spouseNrcNumber])
 
   const allValues = watch()
 
@@ -238,7 +313,7 @@ export function CreateEmployeeAccountPage() {
         'phoneNo',
         'address',
         'religion',
-        'nationality',
+        'race',
         'nrcStateCode',
         'nrcTownshipCode',
         'nrcType',
@@ -258,12 +333,29 @@ export function CreateEmployeeAccountPage() {
         else toast.error('Staff number must show as available before continuing.')
         return
       }
+      if (nrcDupBlocks(nrcDup)) {
+        if (nrcDup === 'exists') {
+          setError('nrcNumber', { type: 'manual', message: 'This NRC number already exists.' })
+          toast.error('This NRC number already exists.')
+        } else if (nrcDup === 'checking') {
+          toast.error('Wait for the NRC availability check to finish.')
+        } else {
+          toast.error('Complete NRC and wait until it shows as available.')
+        }
+        return
+      }
       setStep(2)
       setAnimKey((k) => k + 1)
       return
     }
     if (step === 2) {
       const ok = await trigger([
+        'maritalStatus',
+        'spouseName',
+        'spouseNrcStateCode',
+        'spouseNrcTownshipCode',
+        'spouseNrcType',
+        'spouseNrcNumber',
         'fatherName',
         'fatherNrcStateCode',
         'fatherNrcTownshipCode',
@@ -286,7 +378,7 @@ export function CreateEmployeeAccountPage() {
         'probationEndDate',
         'hireDate',
         'departmentId',
-        'positionId',
+        'departmentPositionId',
       ])
       if (!ok) return
       setStep(4)
@@ -303,12 +395,17 @@ export function CreateEmployeeAccountPage() {
 
   const onFinal = useCallback(
     async (v: CreateEmployeeAccountFormValues) => {
-      if (emailDupBlocks(emailDup) || staffDupBlocks(staffDup)) {
-        toast.error('Email and staff number must be verified as available before submitting.')
+      if (emailDupBlocks(emailDup) || staffDupBlocks(staffDup) || nrcDupBlocks(nrcDup)) {
+        toast.error('Email, staff number, and NRC must be verified as available before submitting.')
         return
       }
       const emailNorm = v.email.trim().toLowerCase()
       const staffNorm = v.staffNo.trim()
+      const nrc = buildNrc(v)
+      if (!nrc) {
+        toast.error('NRC number is required')
+        return
+      }
       try {
         const emailRecheck = await checkEmail(emailNorm).unwrap()
         if (emailRecheck.success && emailRecheck.data?.exists) {
@@ -320,13 +417,14 @@ export function CreateEmployeeAccountPage() {
           toast.error('This staff number is already in use.')
           return
         }
+        const nrcRecheck = await checkStaffNrc(nrc).unwrap()
+        if (nrcRecheck.success && nrcRecheck.data) {
+          setError('nrcNumber', { type: 'manual', message: 'This NRC number already exists.' })
+          toast.error('This NRC number already exists.')
+          return
+        }
       } catch {
-        toast.error('Could not verify email or staff number. Try again.')
-        return
-      }
-      const nrc = buildNrc(v)
-      if (!nrc) {
-        toast.error('NRC number is required')
+        toast.error('Could not verify email, staff number, or NRC. Try again.')
         return
       }
       try {
@@ -340,6 +438,7 @@ export function CreateEmployeeAccountPage() {
           profilePictureUrl = up.data.profilePictureUrl
         }
         const fatherNrc = buildFatherNrc(v)
+        const spouseNrcBuilt = buildSpouseNrc(v)
         const fatherOcc = v.fatherOccupation.trim()
         const res = await createAccount({
           staffNo: staffNorm,
@@ -350,11 +449,14 @@ export function CreateEmployeeAccountPage() {
           phoneNo: v.phoneNo.trim(),
           address: v.address.trim(),
           religion: v.religion.trim(),
-          nationality: v.nationality.trim(),
+          race: v.race.trim(),
           nrc,
           fatherName: v.fatherName.trim(),
           fatherNrc,
           fatherOccupation: fatherOcc,
+          maritalStatus: v.maritalStatus,
+          spouseName: v.maritalStatus === 'Married' ? (v.spouseName ?? '').trim() : undefined,
+          spouseNrc: v.maritalStatus === 'Married' ? spouseNrcBuilt : undefined,
           emergencyPhone: v.emergencyPhone.trim(),
           emergencyRelation: v.emergencyRelation.trim(),
           staffType: v.staffType,
@@ -362,7 +464,10 @@ export function CreateEmployeeAccountPage() {
           probationEndDate: v.staffType === 'PROBATION' ? v.probationEndDate : undefined,
           hireDate: v.hireDate,
           departmentId: v.departmentId!,
-          positionId: v.positionId!,
+          departmentPositionId: v.departmentPositionId!,
+          assignAsDepartmentManager: selectedPosition?.roleId === 2 && selectedDepartment?.managerId == null
+            ? Boolean(v.assignAsDepartmentManager)
+            : false,
           profilePictureUrl,
         }).unwrap()
         if (!res.success || !res.data) {
@@ -371,17 +476,21 @@ export function CreateEmployeeAccountPage() {
         }
         setCreated({
           employeeId: res.data.employeeId,
+          staffNo: res.data.staffNo,
           name: res.data.employeeName,
           email: res.data.email,
         })
         setSuccessOpen(true)
+        if (res.data.managerAssignmentWarning) {
+          toast(res.data.managerAssignmentWarning)
+        }
         toast.success(res.data.message || 'Employee account created')
       } catch (e: unknown) {
         const err = e as { data?: { message?: string } }
         toast.error(err.data?.message || 'Could not create account')
       }
     },
-    [createAccount, emailDup, staffDup, checkEmail, checkStaff, profilePhotoFile, uploadProfilePicture],
+    [createAccount, emailDup, staffDup, nrcDup, checkEmail, checkStaff, checkStaffNrc, profilePhotoFile, setError, uploadProfilePicture, selectedDepartment, selectedPosition],
   )
 
   const resetFlow = async () => {
@@ -395,7 +504,7 @@ export function CreateEmployeeAccountPage() {
       phoneNo: '',
       address: '',
       religion: '',
-      nationality: '',
+      race: '',
       nrcStateCode: '',
       nrcTownshipCode: '',
       nrcType: '',
@@ -406,6 +515,12 @@ export function CreateEmployeeAccountPage() {
       fatherNrcType: '',
       fatherNrcNumber: '',
       fatherOccupation: '',
+      maritalStatus: 'Single',
+      spouseName: '',
+      spouseNrcStateCode: '',
+      spouseNrcTownshipCode: '',
+      spouseNrcType: '',
+      spouseNrcNumber: '',
       emergencyPhone: '',
       emergencyRelation: '',
       staffType: 'PERMANENT',
@@ -413,11 +528,13 @@ export function CreateEmployeeAccountPage() {
       probationEndDate: '',
       hireDate: today,
       departmentId: null,
-      positionId: null,
+      departmentPositionId: null,
+      assignAsDepartmentManager: false,
     })
     setStep(1)
     setEmailDup('idle')
     setStaffDup('idle')
+    setNrcDup('idle')
     setCreated(null)
     setSuccessOpen(false)
     setProfilePhotoFile(null)
@@ -461,15 +578,27 @@ export function CreateEmployeeAccountPage() {
       <div className="mx-auto max-w-4xl">
         {/* ── Page Header ── */}
         <div className="mb-8">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/25">
-              <UserPlus size={24} />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/25">
+                <UserPlus size={24} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">Create Employee Account</h1>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  Register employee details and create a login account. Review carefully before submitting.
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Create Employee Account</h1>
-              <p className="mt-0.5 text-sm text-slate-500">
-                Register employee details and create a login account. Review carefully before submitting.
-              </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setImportModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition shadow-sm"
+              >
+                <i className="bi bi-file-earmark-arrow-up"></i>
+                Import Employees
+              </button>
             </div>
           </div>
         </div>
@@ -490,7 +619,7 @@ export function CreateEmployeeAccountPage() {
                         isDone
                           ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
                           : isActive
-                            ? 'bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md shadow-teal-500/25'
+                            ? 'bg-linear-to-br from-teal-500 to-emerald-600 text-white shadow-md shadow-teal-500/25'
                             : 'border border-slate-200 bg-slate-50 text-slate-400'
                       }`}
                     >
@@ -514,10 +643,10 @@ export function CreateEmployeeAccountPage() {
                     </div>
                   </div>
                   {num < STEPS.length ? (
-                    <div className="mx-4 flex-1">
-                      <div className="h-0.5 rounded-full bg-slate-100">
+                    <div className="mx-4 min-w-6 flex-1">
+                      <div className="h-0.5 rounded-full bg-slate-300">
                         <div
-                          className="h-0.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-500"
+                          className="h-0.5 rounded-full bg-linear-to-r from-emerald-400 to-teal-500 transition-all duration-500"
                           style={{ width: isDone ? '100%' : '0%' }}
                         />
                       </div>
@@ -534,7 +663,7 @@ export function CreateEmployeeAccountPage() {
           {/* Step indicator bar */}
           <div className="h-1 bg-slate-100">
             <div
-              className="h-1 rounded-r-full bg-gradient-to-r from-teal-400 to-emerald-500 transition-all duration-500 ease-out"
+              className="h-1 rounded-r-full bg-linear-to-r from-teal-400 to-emerald-500 transition-all duration-500 ease-out"
               style={{ width: `${(step / STEPS.length) * 100}%` }}
             />
           </div>
@@ -572,10 +701,17 @@ export function CreateEmployeeAccountPage() {
                   positions={positions}
                   departmentLoading={deptLoading}
                   positionLoading={posLoading}
+                  selectedDepartment={selectedDepartment}
                 />
               ) : null}
               {step === 4 ? (
-                <ReviewConfirmStep values={allValues} nrcPreview={nrcPreview} fatherNrcPreview={fatherNrcPreview} />
+                <ReviewConfirmStep
+                  values={allValues}
+                  nrcPreview={nrcPreview}
+                  fatherNrcPreview={fatherNrcPreview}
+                  spouseNrcPreview={spouseNrcPreview}
+                  linkedRoleName={selectedPosition?.roleName}
+                />
               ) : null}
             </div>
           </div>
@@ -598,7 +734,7 @@ export function CreateEmployeeAccountPage() {
                 <button
                   type="button"
                   onClick={() => void goNext()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/25 transition hover:shadow-lg hover:shadow-teal-500/30 active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-teal-500 to-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/25 transition hover:shadow-lg hover:shadow-teal-500/30 active:scale-[0.98]"
                 >
                   Next
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -610,7 +746,7 @@ export function CreateEmployeeAccountPage() {
                   type="button"
                   disabled={createLoading || isSubmitting}
                   onClick={() => void handleSubmit(onFinal)()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-500/25 transition hover:shadow-lg hover:shadow-emerald-500/30 active:scale-[0.98] disabled:opacity-60 disabled:shadow-none"
+                  className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-green-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-500/25 transition hover:shadow-lg hover:shadow-emerald-500/30 active:scale-[0.98] disabled:opacity-60 disabled:shadow-none"
                 >
                   {createLoading || isSubmitting ? (
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -628,16 +764,24 @@ export function CreateEmployeeAccountPage() {
       {created ? (
         <CreateEmployeeSuccessModal
           open={successOpen}
-          onClose={() => setSuccessOpen(false)}
+          onClose={() => navigate('/hr/employees')}
           employeeName={created.name}
           email={created.email}
-          employeeId={created.employeeId}
+          staffNo={created.staffNo}
           resendLoading={resendLoading}
           onResend={() => void handleResend()}
           onCreateAnother={() => resetFlow()}
-          onGoDashboard={() => navigate(user ? getDashboardPath(user) : '/hr/dashboard')}
+          onViewEmployeeList={() => navigate('/hr/employees')}
         />
       ) : null}
+
+      {/* Employee Import Modal */}
+      <EmployeeImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImportSuccess={() => { /* navigate to list or refresh */ }}
+        token={token}
+      />
     </FormProvider>
   )
 }

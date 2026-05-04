@@ -1,7 +1,11 @@
 package com.epms.backend.controller;
 
+import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,6 +23,7 @@ import com.epms.backend.dto.employee.EmployeeDraftRequestDto;
 import com.epms.backend.dto.employee.EmployeeInfoRequestDto;
 import com.epms.backend.dto.employee.EmployeeInfoResponseDto;
 import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.service.EmployeeExportService;
 import com.epms.backend.service.EmployeeService;
 
 import jakarta.validation.Valid;
@@ -27,9 +32,21 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('HR')")
+@PreAuthorize("principal.roleId == 1")
 public class EmployeeController {
 	private final EmployeeService employeeService;
+	private final EmployeeExportService employeeExportService;
+
+	@GetMapping("/export")
+	public ResponseEntity<byte[]> exportEmployees() {
+		byte[] bytes = employeeExportService.exportEmployees();
+		String filename = "employees_export_" + LocalDate.now() + ".xlsx";
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.parseMediaType(
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+		headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+		return ResponseEntity.ok().headers(headers).body(bytes);
+	}
 
 	@PostMapping
 	public ResponseEntity<ApiResponse<EmployeeInfoResponseDto>> createCompleted(
@@ -89,5 +106,17 @@ public class EmployeeController {
 	@GetMapping("/autocomplete")
 	public ResponseEntity<ApiResponse<List<EmployeeInfoResponseDto>>> autocomplete(@RequestParam(defaultValue = "") String keyword) {
 		return ResponseEntity.ok(ApiResponse.ok("Employees", employeeService.autocomplete(keyword)));
+	}
+
+	@GetMapping("/check-staff-nrc")
+	public ResponseEntity<ApiResponse<Boolean>> checkStaffNrc(
+			@RequestParam String staffNrcNo,
+			@RequestParam(required = false) Long excludeId) {
+		try {
+			boolean exists = employeeService.existsByStaffNrcNo(staffNrcNo, excludeId);
+			return ResponseEntity.ok(ApiResponse.ok("NRC check completed", exists));
+		} catch (RuntimeException ex) {
+			return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+		}
 	}
 }

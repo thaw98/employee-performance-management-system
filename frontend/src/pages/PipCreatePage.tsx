@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Alert, Autocomplete, Box, Button, IconButton, Stack, TextField, Typography } from '@mui/material'
-import { Controller, useFieldArray, useForm } from 'react-hook-form'
+import type { HTMLAttributes, Key } from 'react'
+import { Controller, useFieldArray, useForm, type Resolver } from 'react-hook-form'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { z } from 'zod'
 import { useCreatePipMutation, useGetEligibleEmployeesQuery, useGetPipsQuery } from '../features/pip/pipApi'
-import { getRoleGroup } from '../utils/dashboardRedirect'
 import type { RootState } from '../app/store'
 
 const pipCreateSchema = z
@@ -22,6 +22,12 @@ const pipCreateSchema = z
         }),
       )
       .min(1, 'At least one objective is required'),
+    expectedImprovements: z.array(
+      z.object({
+        value: z.string().optional(),
+      }),
+    ),
+    reasonForPlan: z.string().optional(),
   })
   .refine((v) => new Date(v.endDate) >= new Date(v.startDate), {
     path: ['endDate'],
@@ -30,6 +36,29 @@ const pipCreateSchema = z
 
 type PipCreateFormValues = z.infer<typeof pipCreateSchema>
 
+const getCreatePipErrorMessage = (error: unknown) => {
+  const fallback = 'Failed to create PIP. Please check the employee record ID and try again.'
+  if (typeof error !== 'object' || error === null) return fallback
+
+  const apiError = error as { data?: unknown; error?: unknown }
+  const data = apiError.data
+
+  if (typeof data === 'string') return data
+  if (typeof data === 'object' && data !== null) {
+    const record = data as Record<string, unknown>
+    const nestedData = record.data
+
+    if (typeof record.message === 'string') return record.message
+    if (typeof nestedData === 'object' && nestedData !== null) {
+      const nestedRecord = nestedData as Record<string, unknown>
+      if (typeof nestedRecord.message === 'string') return nestedRecord.message
+    }
+    if (typeof record.error === 'string') return record.error
+  }
+
+  return typeof apiError.error === 'string' ? apiError.error : fallback
+}
+
 export default function PipCreatePage() {
   const navigate = useNavigate()
   const { user } = useSelector((state: RootState) => state.auth)
@@ -37,7 +66,16 @@ export default function PipCreatePage() {
   const { data: existingPips } = useGetPipsQuery()
   const [createPip, { isLoading: isCreating }] = useCreatePipMutation()
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const routeBase = user ? (getRoleGroup(user as never) === 'HR' ? '/hr/pip-monitoring' : '/manager/pip') : '/manager/pip'
+  const userRole = user?.role?.toUpperCase().replace(/\s+/g, '_') || ''
+  const isHr = userRole === 'HR'
+  const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
+  const routeBase = isHr ? '/hr/pip-monitoring' : '/manager/pip'
+
+  useState(() => {
+    if (isHr && !isManager) {
+      navigate(routeBase, { replace: true })
+    }
+  })
 
   const {
     control,
@@ -45,51 +83,61 @@ export default function PipCreatePage() {
     handleSubmit,
     formState: { errors },
   } = useForm<PipCreateFormValues>({
-    resolver: zodResolver(pipCreateSchema) as never,
+    resolver: zodResolver(pipCreateSchema) as Resolver<PipCreateFormValues>,
     defaultValues: {
-      employeeId: '',
+      employeeId: 0,
       startDate: '',
       endDate: '',
       totalHours: 1,
       objectives: [{ value: '' }],
+      expectedImprovements: [{ value: '' }],
+      reasonForPlan: '',
     },
   })
 
   const { fields, append, remove } = useFieldArray({ control, name: 'objectives' })
+  const {
+    fields: expectedImprovementFields,
+    append: appendExpectedImprovement,
+    remove: removeExpectedImprovement,
+  } = useFieldArray({ control, name: 'expectedImprovements' })
 
   const onSubmit = async (values: PipCreateFormValues) => {
     setSubmitError(null)
+    const expectedImprovements = values.expectedImprovements
+      .map((item) => item.value?.trim())
+      .filter(Boolean)
+      .join('\n')
+
     console.log('[PIP Create] Submitting payload:', {
-      employeeId: Number(values.employeeId),
+      employeeId: values.employeeId,
       startDate: values.startDate,
       endDate: values.endDate,
       totalHours: values.totalHours,
       objectives: values.objectives.map((item) => item.value.trim()).filter(Boolean),
+      expectedImprovements: expectedImprovements || undefined,
+      reasonForPlan: values.reasonForPlan?.trim() || undefined,
     })
     try {
       await createPip({
-        employeeId: Number(values.employeeId),
+        employeeId: values.employeeId,
         startDate: values.startDate,
         endDate: values.endDate,
         totalHours: values.totalHours,
         objectives: values.objectives.map((item) => item.value.trim()).filter(Boolean),
+        expectedImprovements: expectedImprovements || undefined,
+        reasonForPlan: values.reasonForPlan?.trim() || undefined,
       }).unwrap()
       navigate(routeBase)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[PIP Create] Request failed:', error)
-      const message =
-        error?.data?.message ||
-        error?.data?.data?.message ||
-        error?.data?.error ||
-        (typeof error?.data === 'string' ? error.data : null) ||
-        error?.error ||
-        'Failed to create PIP. Please check the employee record ID and try again.'
+      const message = getCreatePipErrorMessage(error)
 
       if (message === 'An active PIP already exists for this employee') {
-        const employeeId = Number(values.employeeId)
+        const employeeId = values.employeeId
         const existingPip = existingPips?.find((pip) => {
           const pipEmployeeId = pip.employee?.employee?.id
-          return pipEmployeeId === employeeId && ['ACTIVE', 'PENDING_CREATION', 'PENDING_REOPEN'].includes(pip.status)
+          return pipEmployeeId === employeeId && ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(pip.status)
         })
 
         if (existingPip) {
@@ -124,8 +172,10 @@ export default function PipCreatePage() {
               <Autocomplete
                 loading={isLoadingEmployees}
                 options={eligibleEmployees || []}
-                getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}${option.staffId ? ` / ${option.staffId}` : ''}) - ${option.departmentName}`}
-                onChange={(_, data) => field.onChange(data?.employeeId != null ? String(data.employeeId) : '')}
+                value={eligibleEmployees?.find((e) => e.employeeId === field.value) || null}
+                isOptionEqualToValue={(option, value) => option.employeeId === (typeof value === 'number' ? value : value?.employeeId)}
+                getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}${option.staffId ? ` / ${option.staffId}` : ''}) - ${option.departmentName || 'No Department'}`}
+                onChange={(_, data) => field.onChange(data?.employeeId ?? 0)}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -136,7 +186,7 @@ export default function PipCreatePage() {
                   />
                 )}
                 renderOption={(props, option) => {
-                  const { key, ...rest } = props as any; // MUI 5/6 specific key handling
+                  const { key, ...rest } = props as HTMLAttributes<HTMLLIElement> & { key: Key }
                   return (
                     <li key={key} {...rest}>
                       <Box>
@@ -216,6 +266,47 @@ export default function PipCreatePage() {
               </Button>
             </Box>
           </Stack>
+          <Stack spacing={1.5}>
+            <Typography variant="subtitle2">Expected Improvements</Typography>
+            {expectedImprovementFields.map((field, index) => (
+              <Stack key={field.id} direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+                <Controller
+                  control={control}
+                  name={`expectedImprovements.${index}.value`}
+                  render={({ field: expectedImprovementField }) => (
+                    <TextField
+                      fullWidth
+                      label={`Objective ${index + 1}`}
+                      {...expectedImprovementField}
+                    />
+                  )}
+                />
+                {expectedImprovementFields.length > 1 ? (
+                  <IconButton
+                    type="button"
+                    color="error"
+                    onClick={() => removeExpectedImprovement(index)}
+                    aria-label={`Remove expected improvement ${index + 1}`}
+                  >
+                    <i className="bi bi-trash" />
+                  </IconButton>
+                ) : null}
+              </Stack>
+            ))}
+            <Box>
+              <Button type="button" variant="text" onClick={() => appendExpectedImprovement({ value: '' })}>
+                <i className="bi bi-plus-lg mr-2" /> Add Objective
+              </Button>
+            </Box>
+          </Stack>
+          <TextField
+            label="Reason for Plan"
+            fullWidth
+            multiline
+            rows={3}
+            {...register('reasonForPlan')}
+            helperText="Explain the reason for initiating this PIP."
+          />
         </Stack>
 
         <div className="flex justify-end gap-3 pt-4">

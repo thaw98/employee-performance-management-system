@@ -1,10 +1,16 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   body {
-    @apply antialiased bg-slate-50;
+    @apply antialiased bg-slate-50 transition-colors duration-300;
     color: theme('colors.slate.900');
     font-family: inherit;
+  }
+
+  .dark body {
+    @apply bg-slate-950;
+    color: theme('colors.slate.50');
   }
 }
 
@@ -14,7 +20,11 @@
   }
 
   .card {
-    @apply bg-white rounded-2xl border border-slate-100 shadow-sm p-6;
+    @apply bg-white rounded-2xl border border-slate-100 shadow-sm p-6 transition-all;
+  }
+
+  .dark .card {
+    @apply bg-slate-900 border-slate-800 shadow-none;
   }
 }
 
@@ -53,6 +63,7 @@
     opacity: 0;
     transform: translateY(16px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -64,6 +75,7 @@
     opacity: 0;
     transform: scale(0.7);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -74,6 +86,7 @@
   from {
     stroke-dashoffset: 24;
   }
+
   to {
     stroke-dashoffset: 0;
   }
@@ -83,6 +96,7 @@
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
@@ -90,6 +104,10 @@
 
 .animate-fade-in-up {
   animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.25s ease both;
 }
 
 .animate-scale-in {
@@ -103,7 +121,7 @@
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.5) 50%, transparent 75%);
+  background: linear-gradient(90deg, transparent 25%, rgba(255, 255, 255, 0.5) 50%, transparent 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

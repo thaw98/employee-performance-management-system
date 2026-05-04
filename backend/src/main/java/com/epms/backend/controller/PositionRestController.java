@@ -14,24 +14,52 @@ import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.hr.PositionOptionDto;
 import com.epms.backend.entity.Position;
 import com.epms.backend.repository.PositionRepository;
-
 import lombok.RequiredArgsConstructor;
+import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.repository.UserRepository;
+import com.epms.backend.entity.User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
 @RequestMapping("/api/positions")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('HR')")
+@PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
 public class PositionRestController {
 
 	private final PositionRepository positionRepository;
+	private final UserRepository userRepository;
 
-	@GetMapping
-	public ResponseEntity<ApiResponse<List<PositionOptionDto>>> byDepartment(@RequestParam Long departmentId) {
-		List<PositionOptionDto> rows = positionRepository.findByDepartmentIdOrderByNameAsc(departmentId).stream()
+	@GetMapping("/by-department")
+	public ResponseEntity<ApiResponse<List<PositionOptionDto>>> byDepartment(
+			@AuthenticationPrincipal UserPrincipal principal,
+			@RequestParam(required = false) Long departmentId) {
+		User user = userRepository.findById(principal.getId()).orElseThrow();
+		boolean isHr = user.getRole() != null && "HR".equalsIgnoreCase(user.getRole().getName());
+
+		Long effectiveDeptId = departmentId;
+		if (!isHr) {
+			if (user.getEmployee() != null && user.getEmployee().getDepartment() != null) {
+				effectiveDeptId = user.getEmployee().getDepartment().getId();
+			} else {
+				// Manager without department? Return empty.
+				return ResponseEntity.ok(ApiResponse.ok("Positions", List.of()));
+			}
+		}
+
+		List<Position> positions = effectiveDeptId == null
+				? positionRepository.findAll()
+				: positionRepository.findByDepartmentIdOrderByNameAsc(effectiveDeptId);
+
+		List<PositionOptionDto> rows = positions.stream()
 				.filter(this::isActive)
-				.filter(p -> p.getDepartment() != null && departmentId.equals(p.getDepartment().getId()))
-				.map(p -> new PositionOptionDto(p.getId(), p.getName()))
-				.sorted(Comparator.comparing(PositionOptionDto::getPositionName, String.CASE_INSENSITIVE_ORDER))
+				.map(p -> new PositionOptionDto(
+						p.getId(),
+						p.getName(),
+						p.getLevelCode() != null ? p.getLevelCode().getId() : null,
+						p.getRole() != null ? p.getRole().getId() : null,
+						p.getRole() != null ? p.getRole().getName() : null))
+				.sorted(Comparator.comparing(PositionOptionDto::getPositionName,
+						Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
 				.toList();
 		return ResponseEntity.ok(ApiResponse.ok("Positions", rows));
 	}

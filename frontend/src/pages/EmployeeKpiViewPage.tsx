@@ -1,31 +1,22 @@
 import React, { useState } from 'react';
-import { SelfAssessmentWarning } from '../components/SelfAssessmentWarning';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../app/store';
+import { useGetKpisByEmployeeQuery } from '../features/kpi/kpiApi';
 
 export const EmployeeKpiViewPage: React.FC = () => {
-  const [selectedYear, setSelectedYear] = useState('2026');
-  //MNA
-  // Sample data grouped by year 
-  const kpiData = {
-    '2026': [
-      { name: 'Sprint / task completion rate', category: 'Delivery Performance', target: '90%', weight: 25, actual: '92%', score: 100 },
-      { name: 'Code quality (bugs / PR feedback)', category: 'Code Quality', target: '90%', weight: 25, actual: '88%', score: 98 },
-      { name: 'System design contribution', category: 'System Design', target: '50%', weight: 20, actual: '60%', score: 110 },
-      { name: 'Mentorship sessions', category: 'Leadership', target: '20%', weight: 15, actual: '15%', score: 75 },
-      { name: 'Compliance Rate', category: 'Compliance Management', target: '100%', weight: 15, actual: '100%', score: 100 },
-    ],
-    '2025': [
-      { name: 'Sprint / task completion rate', category: 'Delivery Performance', target: '85%', weight: 30, actual: '87%', score: 102 },
-      { name: 'Bug count', category: 'Code Quality', target: '< 5 per month', weight: 40, actual: '3 per month', score: 120 },
-      { name: 'Technical Docs', category: 'Documentation', target: '5 items', weight: 30, actual: '4 items', score: 80 },
-    ]
-  };
+  const [selectedYear, setSelectedYear] = useState('2026-2027');
+  const { user } = useSelector((state: RootState) => state.auth);
 
-  const currentKpis = kpiData[selectedYear as keyof typeof kpiData] || [];
-  const totalScore = currentKpis.reduce((acc, kpi) => acc + (kpi.score * (kpi.weight / 100)), 0);
+  const { data: kpis = [] } = useGetKpisByEmployeeQuery(
+    { employeeId: user?.employeeId ? Number(user.employeeId) : 0, period: selectedYear },
+    { skip: !user?.employeeId }
+  );
+
+  const totalScore = kpis.reduce((acc, kpi) => acc + (Number(kpi.weightedScore) || 0), 0);
+  const currentKpis = kpis;
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 font-inter animate-in fade-in duration-500">
-      <SelfAssessmentWarning />
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -39,8 +30,8 @@ export const EmployeeKpiViewPage: React.FC = () => {
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
           >
-            <option value="2026">April 2026 - March 2027</option>
-            <option value="2025">April 2025 - March 2026</option>
+            <option value="2026-2027">April 2026 - March 2027</option>
+            <option value="2025-2026">April 2025 - March 2026</option>
           </select>
         </div>
       </div>
@@ -117,7 +108,7 @@ export const EmployeeKpiViewPage: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {currentKpis.map((kpi, idx) => {
-                const weightedScore = (kpi.score * (kpi.weight / 100));
+                const weightedScore = Number(kpi.weightedScore) || 0;
                 return (
                   <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-4 px-8 font-bold text-slate-800 text-sm">{kpi.name}</td>

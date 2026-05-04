@@ -5,6 +5,7 @@ import {
   useUpdateProgressMutation,
   useScheduleMeetingMutation,
   useClosePipMutation,
+  useMarkPipCompletedMutation,
   useReopenPipMutation,
   useReviewPipMutation,
   useGetTrainingHistoryQuery,
@@ -12,7 +13,6 @@ import {
 import { useSelector } from 'react-redux'
 import type { RootState } from '../app/store'
 import { formatDate, formatDateTime } from '../utils/dateUtils'
-import { getRoleGroup } from '../utils/dashboardRedirect'
 
 export default function PipDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -23,10 +23,11 @@ export default function PipDetailPage() {
   const [updateProgress] = useUpdateProgressMutation()
   const [scheduleMeeting] = useScheduleMeetingMutation()
   const [closePip] = useClosePipMutation()
+  const [markPipCompleted, { isLoading: isMarkingCompleted }] = useMarkPipCompletedMutation()
   const [reopenPip] = useReopenPipMutation()
   const [reviewPip] = useReviewPipMutation()
 
-  const employeeRecordId = pip?.employee?.employee?.id
+  const employeeRecordId = pip?.employee?.id
   const { data: trainingHistory } = useGetTrainingHistoryQuery(
     employeeRecordId != null ? String(employeeRecordId) : '',
     {
@@ -53,25 +54,59 @@ export default function PipDetailPage() {
   const [reopenReasonType, setReopenReasonType] = useState('Incomplete Goals')
   const [customReason, setCustomReason] = useState('')
   const [showReviewDenyModal, setShowReviewDenyModal] = useState(false)
+  const [showApproveReopenModal, setShowApproveReopenModal] = useState(false)
+  const [extendedEndDate, setExtendedEndDate] = useState('')
   const [reviewReasonType, setReviewReasonType] = useState('Policy Not Met')
   const [reviewCustomReason, setReviewCustomReason] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
 
-  const roleGroup = user ? getRoleGroup(user as never) : 'EMPLOYEE'
-  const isManager = roleGroup === 'MANAGER'
-  const isAdmin = roleGroup === 'HR'
+  const userRole = user?.role?.toUpperCase().replace(/\s+/g, '_') || ''
+  const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
+  const isAdmin = userRole === 'HR'
+  const isEmployee = userRole === 'EMPLOYEE'
+  const getStatusLabel = (status: string) => {
+    if (status === 'COMPLETED') return 'Completed'
+    if (status === 'AUTO_CLOSED') return 'Auto Closed'
+    if (status === 'REOPEN_REQUESTED') return 'Reopen Requested'
+    return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
+  }
+  const getStatusClass = (status: string) => {
+    if (status === 'COMPLETED') return 'bg-emerald-100 text-emerald-700'
+    if (status === 'CLOSED') return 'bg-slate-100 text-slate-700'
+    if (status === 'AUTO_CLOSED') return 'bg-amber-100 text-amber-700'
+    if (status === 'REOPEN_REQUESTED') return 'bg-orange-100 text-orange-700'
+    if (status === 'DENIED') return 'bg-red-100 text-red-700'
+    return 'bg-blue-100 text-blue-700'
+  }
+  const getLocalDateString = (dateString?: string | Date) => {
+    if (!dateString) return undefined;
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return undefined;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const minMeetingDate = pip?.startDate ? getLocalDateString(pip.startDate) : getLocalDateString(new Date());
+  const applicableEndDate = pip?.extendedEndDate ? pip.extendedEndDate : (pip?.originalEndDate || pip?.endDate);
+  const maxMeetingDate = applicableEndDate ? getLocalDateString(applicableEndDate) : undefined;
+
   const isDirectManager = Boolean(
     isManager &&
-      pip &&
-      (
-        (user?.id != null && user.id === pip.manager?.id) ||
-        (user?.email && pip.manager?.email && user.email.toLowerCase() === pip.manager.email.toLowerCase()) ||
-        (user?.employeeId && pip.manager?.employeeId && user.employeeId === pip.manager.employeeId)
-      )
+    pip &&
+    (
+      (user?.id != null && user.id === pip.manager?.id) ||
+      (user?.email && pip.manager?.email && user.email.toLowerCase() === pip.manager.email.toLowerCase()) ||
+      (user?.employeeId && pip.manager?.employeeId && user.employeeId === pip.manager.employeeId)
+    )
   )
-  const routeBase = roleGroup === 'HR' ? '/hr/pip-monitoring' : '/manager/pip'
+  const routeBase = isAdmin ? '/hr/pip-monitoring' : isEmployee ? '/employee/pip' : '/manager/pip'
 
   if (isLoading || !pip) return <div className="p-8">Loading PIP details...</div>
+
+  const isAverageProgressComplete = Number(pip.overallProgressPercentage) >= 100
+  const canMarkCompleted = isDirectManager && pip.status === 'CLOSED' && isAverageProgressComplete
 
   const handleUpdateProgress = async () => {
     if (showUpdateModal.objectiveId) {
@@ -102,7 +137,7 @@ export default function PipDetailPage() {
     let hour = parseInt(meetingHour)
     if (meetingPeriod === 'PM' && hour < 12) hour += 12
     if (meetingPeriod === 'AM' && hour === 12) hour = 0
-    
+
     const timeStr = `${hour.toString().padStart(2, '0')}:${meetingMinute}:00`
     const isoTime = `${meetingDate}T${timeStr}`
 
@@ -137,6 +172,16 @@ export default function PipDetailPage() {
     }
   }
 
+  const handleMarkPipCompleted = async () => {
+    try {
+      setActionError(null)
+      await markPipCompleted(pipId).unwrap()
+    } catch (error: any) {
+      console.error('[PIP Detail] Mark PIP completed failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to mark PIP completed.')
+    }
+  }
+
   const handleReopenPip = async () => {
     const finalReason = reopenReasonType === 'Other' ? customReason : reopenReasonType
     if (!finalReason.trim()) {
@@ -155,13 +200,19 @@ export default function PipDetailPage() {
     }
   }
 
-  const handleReview = async (action: 'CONFIRMED' | 'DENIED') => {
+  const handleApproveReopen = async () => {
+    if (!extendedEndDate) {
+      setActionError('Extended end date is required.')
+      return
+    }
     try {
       setActionError(null)
-      await reviewPip({ pipId, action }).unwrap()
+      await reviewPip({ pipId, action: 'CONFIRMED', extendedEndDate }).unwrap()
+      setShowApproveReopenModal(false)
+      setExtendedEndDate('')
     } catch (error: any) {
-      console.error('[PIP Detail] Review PIP failed:', error)
-      setActionError(error?.data?.message || error?.error || 'Failed to review PIP.')
+      console.error('[PIP Detail] Approve reopen failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to approve reopen request.')
     }
   }
 
@@ -197,8 +248,14 @@ export default function PipDetailPage() {
             <i className="bi bi-chevron-left" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">PIP Details: {pip.employee.email}</h1>
-            <p className="text-slate-500">Employee record ID: {pip.employee.employee?.id ?? '—'} | Status: <span className="font-semibold uppercase">{pip.status}</span></p>
+            <h1 className="text-2xl font-bold text-slate-900">PIP Details: {pip.employee.employee?.employeeName}</h1>
+            <p className="text-slate-500">
+              Employee ID: {pip.employee.employee?.id ?? '—'} |
+              Dept: {pip.employee.employee?.department?.departmentName || '—'} |
+              Position: {pip.employee.employee?.position?.positionName || '—'} |
+              Duration: {formatDate(pip.startDate)} – {formatDate(pip.endDate)} |
+              Status: <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold uppercase ${getStatusClass(pip.status)}`}>{getStatusLabel(pip.status)}</span>
+            </p>
           </div>
         </div>
 
@@ -211,39 +268,40 @@ export default function PipDetailPage() {
               >
                 <i className="bi bi-calendar-event" /> Schedule Meeting
               </button>
-              <button
-                onClick={() => setShowCloseModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                <i className="bi bi-check-circle" /> Close PIP
-              </button>
             </>
           )}
-          {isDirectManager && pip.status === 'PENDING_CLOSE' && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700">
-              Close request pending HR review
-            </div>
+          {isDirectManager && pip.status === 'AUTO_CLOSED' && !pip.finalOutcome && (
+            <button
+              onClick={() => setShowCloseModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <i className="bi bi-check-circle" /> Mark Result
+            </button>
           )}
-          {isDirectManager && pip.status === 'CLOSED' && (
+          {canMarkCompleted && (
+            <button
+              onClick={handleMarkPipCompleted}
+              disabled={isMarkingCompleted}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+            >
+              <i className="bi bi-check2-circle" /> {isMarkingCompleted ? 'Marking...' : 'Mark Completed'}
+            </button>
+          )}
+          {isEmployee && pip.status === 'AUTO_CLOSED' && !pip.finalOutcome && !pip.reopenReason && (
             <button
               onClick={() => setShowReopenModal(true)}
               className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
             >
-              <i className="bi bi-arrow-counterclockwise" /> Request Reopen
+              <i className="bi bi-arrow-counterclockwise" /> Request More Time
             </button>
           )}
-          {isDirectManager && pip.status === 'PENDING_REOPEN' && (
-            <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-700">
-              Reopen request pending HR review
-            </div>
-          )}
-          {isAdmin && (pip.status === 'PENDING_CREATION' || pip.status === 'PENDING_REOPEN' || pip.status === 'PENDING_CLOSE') && (
+          {isDirectManager && pip.status === 'REOPEN_REQUESTED' && (
             <>
               <button
-                onClick={() => handleReview('CONFIRMED')}
+                onClick={() => setShowApproveReopenModal(true)}
                 className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
               >
-                <i className="bi bi-check-lg" /> Confirm
+                <i className="bi bi-check-lg" /> Approve Reopen
               </button>
               <button
                 onClick={() => setShowReviewDenyModal(true)}
@@ -297,6 +355,26 @@ export default function PipDetailPage() {
               ))}
             </div>
           </section>
+
+          {(pip.expectedImprovements || pip.reasonForPlan) && (
+            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 text-lg font-bold text-slate-900">PIP Details</h2>
+              <div className="space-y-4">
+                {pip.expectedImprovements && (
+                  <div>
+                    <p className="mb-1 text-xs font-semibold uppercase text-slate-400">Expected Improvements</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.expectedImprovements}</p>
+                  </div>
+                )}
+                {pip.reasonForPlan && (
+                  <div>
+                    <p className="mb-1 text-xs font-semibold uppercase text-slate-400">Reason for Plan</p>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.reasonForPlan}</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Follow-up Meetings Section */}
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -353,9 +431,43 @@ export default function PipDetailPage() {
             <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">PIP Summary</h2>
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-slate-500">Assigned Manager</p>
-                <p className="font-medium text-slate-800">{pip.manager.email}</p>
+                <p className="text-xs text-slate-500">Current Status</p>
+                <span className={`mt-1 inline-flex rounded-md px-2.5 py-1 text-xs font-bold uppercase ${getStatusClass(pip.status)}`}>
+                  {getStatusLabel(pip.status)}
+                </span>
               </div>
+              <div>
+                <p className="text-xs text-slate-500">Assigned Manager</p>
+                <p className="font-medium text-slate-800">{pip.manager.employee?.employeeName}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">PIP Duration</p>
+                <p className="font-medium text-slate-800">
+                  {formatDate(pip.startDate)} — {formatDate(pip.endDate)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Original End Date</p>
+                <p className="font-medium text-slate-800">{formatDate(pip.originalEndDate || pip.endDate)}</p>
+              </div>
+              {pip.autoCloseDate && (
+                <div>
+                  <p className="text-xs text-slate-500">Auto-Close Date</p>
+                  <p className="font-medium text-amber-700">{formatDate(pip.autoCloseDate)}</p>
+                </div>
+              )}
+              {pip.extendedEndDate && (
+                <div>
+                  <p className="text-xs text-slate-500">Extended End Date</p>
+                  <p className="font-medium text-blue-700">{formatDate(pip.extendedEndDate)}</p>
+                </div>
+              )}
+              {pip.finalCloseDate && (
+                <div>
+                  <p className="text-xs text-slate-500">Final Close Date</p>
+                  <p className="font-medium text-slate-800">{formatDate(pip.finalCloseDate)}</p>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-slate-500">Created On</p>
                 <p className="font-medium text-slate-800">{formatDateTime(pip.createdAt)}</p>
@@ -370,7 +482,7 @@ export default function PipDetailPage() {
                   <p className="text-lg font-bold text-blue-600">{pip.completedHours}</p>
                 </div>
               </div>
-              {pip.status === 'CLOSED' && (
+              {(pip.status === 'CLOSED' || pip.status === 'COMPLETED') && (
                 <>
                   <div className="pt-4 border-t border-slate-100">
                     <p className="text-xs text-slate-500">Final Outcome</p>
@@ -384,13 +496,22 @@ export default function PipDetailPage() {
               )}
               {pip.reopenReason && (
                 <div className="pt-4 border-t border-slate-100">
-                  <p className="text-xs text-slate-500">Reopen Reason</p>
+                  <p className="text-xs text-slate-500">Employee Reopen Reason</p>
                   <p className="text-sm font-medium text-orange-600 whitespace-pre-wrap">{pip.reopenReason}</p>
+                </div>
+              )}
+              {pip.reopenDecision && (
+                <div className="pt-4 border-t border-slate-100">
+                  <p className="text-xs text-slate-500">Manager Reopen Decision</p>
+                  <p className="text-sm font-medium text-slate-800">
+                    {pip.reopenDecision}
+                    {pip.reopenDecisionDate ? ` on ${formatDateTime(pip.reopenDecisionDate)}` : ''}
+                  </p>
                 </div>
               )}
               {pip.reviewReason && (
                 <div className="pt-4 border-t border-slate-100">
-                  <p className="text-xs text-slate-500">HR Review Reason</p>
+                  <p className="text-xs text-slate-500">Manager Rejection Reason</p>
                   <p className="text-sm font-medium text-red-600 whitespace-pre-wrap">{pip.reviewReason}</p>
                 </div>
               )}
@@ -458,7 +579,8 @@ export default function PipDetailPage() {
                 <input
                   type="date"
                   required
-                  min={new Date().toISOString().split('T')[0]}
+                  min={minMeetingDate}
+                  max={maxMeetingDate}
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
                   value={meetingDate}
                   onChange={(e) => setMeetingDate(e.target.value)}
@@ -467,8 +589,8 @@ export default function PipDetailPage() {
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Hour</label>
-                  <select 
-                    value={meetingHour} 
+                  <select
+                    value={meetingHour}
                     onChange={e => setMeetingHour(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
                   >
@@ -479,8 +601,8 @@ export default function PipDetailPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Minute</label>
-                  <select 
-                    value={meetingMinute} 
+                  <select
+                    value={meetingMinute}
                     onChange={e => setMeetingMinute(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
                   >
@@ -491,8 +613,8 @@ export default function PipDetailPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1">AM/PM</label>
-                  <select 
-                    value={meetingPeriod} 
+                  <select
+                    value={meetingPeriod}
                     onChange={e => setMeetingPeriod(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
                   >
@@ -513,23 +635,22 @@ export default function PipDetailPage() {
       {showCloseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-bold">Close PIP</h3>
+            <h3 className="mb-4 text-lg font-bold">Mark PIP Result</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Final Outcome</label>
+                <label className="block text-sm font-medium text-slate-700">Result</label>
                 <select
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
                   value={closeData.finalOutcome}
                   onChange={(e) => setCloseData({ ...closeData, finalOutcome: e.target.value })}
                 >
                   <option value="">Select Outcome...</option>
-                  <option value="SUCCESSFUL">Improvement Achieved</option>
-                  <option value="UNSUCCESSFUL">Insufficient Progress</option>
-                  <option value="EXTENDED">PIP Extended</option>
+                  <option value="SUCCESSFUL">Successful</option>
+                  <option value="FAILED">Failed</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Closing Remarks</label>
+                <label className="block text-sm font-medium text-slate-700">Manager Comments</label>
                 <textarea
                   className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-500 focus:outline-none"
                   rows={4}
@@ -546,7 +667,7 @@ export default function PipDetailPage() {
                 disabled={!closeData.finalOutcome.trim() || !closeData.closingRemarks.trim()}
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
-                Submit Close Request
+                Save Result
               </button>
             </div>
           </div>
@@ -586,6 +707,34 @@ export default function PipDetailPage() {
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setShowReopenModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
               <button onClick={handleReopenPip} className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700">Submit Request</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showApproveReopenModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-bold">Approve Reopen Request</h3>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Extended End Date</label>
+              <input
+                type="date"
+                min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+                value={extendedEndDate}
+                onChange={(e) => setExtendedEndDate(e.target.value)}
+              />
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setShowApproveReopenModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+              <button
+                onClick={handleApproveReopen}
+                disabled={!extendedEndDate}
+                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-300"
+              >
+                Approve
+              </button>
             </div>
           </div>
         </div>

@@ -19,13 +19,17 @@ import com.epms.backend.entity.EmergencyContact;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeFather;
 import com.epms.backend.entity.EmployeeProbation;
+import com.epms.backend.entity.EmployeeReligion;
 import com.epms.backend.entity.Position;
+import com.epms.backend.entity.Role;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.StaffTypeRepository;
+import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.util.NrcNormalizer;
 import com.epms.backend.util.PersonNameNormalizer;
 import com.epms.backend.validation.ProfilePictureUrlValidator;
 
@@ -41,6 +45,8 @@ public class EmployeeService {
 	private final DepartmentRepository departmentRepository;
 	private final PositionRepository positionRepository;
 	private final StaffTypeRepository staffTypeRepository;
+	private final UserRepository userRepository;
+	private final PositionRoleResolutionService positionRoleResolutionService;
 
 	@Transactional
 	public EmployeeInfoResponseDto saveDraft(EmployeeDraftRequestDto request, UserPrincipal principal) {
@@ -52,10 +58,12 @@ public class EmployeeService {
 
 	@Transactional
 	public EmployeeInfoResponseDto saveCompleted(EmployeeInfoRequestDto request, UserPrincipal principal) {
-		validateRequiredBusinessRules(request, true);
+		validateRequiredBusinessRules(request, true, null);
 		Employee employee = new Employee();
 		applyCompleted(employee, request, principal, true);
-		return toDto(employeeRepository.save(employee));
+		Employee saved = employeeRepository.save(employee);
+		syncUserAccountRoleIfPresent(saved);
+		return toDto(saved);
 	}
 
 	@Transactional
@@ -68,10 +76,12 @@ public class EmployeeService {
 
 	@Transactional
 	public EmployeeInfoResponseDto updateCompleted(Long id, EmployeeInfoRequestDto request, UserPrincipal principal) {
-		validateRequiredBusinessRules(request, false);
+		validateRequiredBusinessRules(request, false, id);
 		Employee employee = employeeRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Employee not found"));
 		applyCompleted(employee, request, principal, false);
-		return toDto(employeeRepository.save(employee));
+		Employee saved = employeeRepository.save(employee);
+		syncUserAccountRoleIfPresent(saved);
+		return toDto(saved);
 	}
 
 	@Transactional(readOnly = true)
@@ -86,6 +96,20 @@ public class EmployeeService {
 	}
 
 	@Transactional(readOnly = true)
+	public boolean existsByStaffNrcNo(String staffNrcNo, Long excludeId) {
+		String normalized = NrcNormalizer.normalize(staffNrcNo);
+		if (normalized == null) {
+			return false;
+		}
+		
+		if (excludeId == null) {
+			return employeeRepository.existsByStaffNrcNo(normalized);
+		} else {
+			return employeeRepository.existsByStaffNrcNoAndIdNot(normalized, excludeId);
+		}
+	}
+
+	@Transactional(readOnly = true)
 	public List<EmployeeInfoResponseDto> autocomplete(String keyword) {
 		String query = keyword == null ? "" : keyword.trim();
 		if (query.isEmpty()) {
@@ -94,7 +118,8 @@ public class EmployeeService {
 		if (query.matches("^[0-9]+$")) {
 			return employeeRepository.findById(Long.parseLong(query)).map(this::toDto).stream().toList();
 		}
-		return employeeRepository.findTop10ByEmployeeNameContainingIgnoreCaseOrderByIdDesc(query).stream()
+		String firstChar = query.substring(0, 1);
+		return employeeRepository.findTop10ByEmployeeNameStartingWithIgnoreCaseOrderByIdDesc(firstChar).stream()
 				.map(this::toDto)
 				.toList();
 	}
@@ -106,7 +131,6 @@ public class EmployeeService {
 			employee.setEmployeeName(draftName.isEmpty() ? "Draft Employee" : draftName);
 			employee.setEmail(defaultIfBlank(trimToNull(request.getEmail()), generateDraftEmail()));
 			employee.setDateOfJoining(request.getDateOfJoining() != null ? request.getDateOfJoining() : LocalDate.now());
-			employee.setStatus(normalizeStatus(request.getStatus(), "Inactive"));
 		}
 
 		if (request.getEmployeeId() != null) {
@@ -124,9 +148,6 @@ public class EmployeeService {
 		if (request.getDateOfJoining() != null) {
 			employee.setDateOfJoining(request.getDateOfJoining());
 		}
-		if (request.getStatus() != null) {
-			employee.setStatus(normalizeStatus(request.getStatus(), employee.getStatus()));
-		}
 		if (request.getGender() != null) {
 			employee.setGender(request.getGender());
 		}
@@ -134,13 +155,12 @@ public class EmployeeService {
 			employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
 		}
 
-		employee.setStaffNrcNo(firstNonNull(trimToNull(request.getStaffNrcNo()), employee.getStaffNrcNo()));
+		employee.setStaffNrcNo(firstNonNull(NrcNormalizer.normalize(request.getStaffNrcNo()), employee.getStaffNrcNo()));
 		employee.setReligion(firstNonNull(normalizeReligion(request.getReligion()), employee.getReligion()));
 
 		applyDepartmentAndPosition(employee, request.getDepartmentId(), request.getPositionId(), false);
-		applyManager(employee, request.getManagerId(), false);
 		applyStaffType(employee, request.getStaffTypeId(), false);
-		applyProbation(employee, request.getProbationMonth(), request.getProbationEndDate());
+		applyProbation(employee, request.getProbationDays(), request.getProbationEndDate());
 		applyFather(employee, request.getFatherName(), request.getFatherNrcNo(), request.getFatherOccupation());
 		applyEmergencyContact(employee, request.getEmergencyPhone(), request.getEmergencyRelation());
 	}
@@ -149,20 +169,18 @@ public class EmployeeService {
 		employee.setEmployeeId(trimToNull(request.getEmployeeId()));
 		employee.setEmployeeName(PersonNameNormalizer.normalize(request.getEmployeeName()));
 		employee.setEmail(request.getEmail().trim().toLowerCase(Locale.ROOT));
-		employee.setStaffNrcNo(trimToNull(request.getStaffNrcNo()));
+		employee.setStaffNrcNo(NrcNormalizer.normalize(request.getStaffNrcNo()));
 		employee.setGender(request.getGender());
 		employee.setReligion(normalizeReligion(request.getReligion()));
 		employee.setDateOfJoining(request.getDateOfJoining());
-		employee.setStatus(normalizeStatus(request.getStatus(), "Active"));
 
 		if (request.getProfilePictureUrl() != null) {
 			employee.setProfilePictureUrl(ProfilePictureUrlValidator.normalizeOrNull(request.getProfilePictureUrl()));
 		}
 
 		applyDepartmentAndPosition(employee, request.getDepartmentId(), request.getPositionId(), true);
-		applyManager(employee, request.getManagerId(), true);
 		applyStaffType(employee, request.getStaffTypeId(), true);
-		applyProbation(employee, request.getProbationMonth(), request.getProbationEndDate());
+		applyProbation(employee, request.getProbationDays(), request.getProbationEndDate());
 		applyFather(employee, request.getFatherName(), request.getFatherNrcNo(), request.getFatherOccupation());
 		applyEmergencyContact(employee, request.getEmergencyPhone(), request.getEmergencyRelation());
 	}
@@ -173,42 +191,25 @@ public class EmployeeService {
 			department = departmentRepository.findById(departmentId)
 					.orElseThrow(() -> new IllegalArgumentException("Invalid department"));
 			employee.setDepartment(department);
-			employee.setParentDepartment(department);
 		} else if (required) {
 			throw new IllegalArgumentException("Department is required");
 		} else {
 			employee.setDepartment(null);
-			employee.setParentDepartment(null);
 		}
 
 		if (positionId != null) {
-			Position position = positionRepository.findById(positionId)
-					.orElseThrow(() -> new IllegalArgumentException("Invalid position"));
+			Position position = positionRepository.findByIdWithLevelCodeAndRole(positionId)
+					.orElseThrow(() -> new IllegalArgumentException("Selected position does not exist."));
 			if (department == null) {
 				throw new IllegalArgumentException("Position requires a department");
 			}
-			assertPositionBelongsToDepartment(position, department);
+			positionRoleResolutionService.resolveRoleFromLoadedPosition(position);
 			employee.setPosition(position);
 		} else if (required) {
 			throw new IllegalArgumentException("Position is required");
 		} else {
 			employee.setPosition(null);
 		}
-	}
-
-	private void applyManager(Employee employee, Long managerId, boolean required) {
-		if (managerId == null) {
-			if (required) {
-				employee.setManager(null);
-			}
-			return;
-		}
-		if (employee.getId() != null && employee.getId().equals(managerId)) {
-			throw new IllegalArgumentException("Employee cannot be their own manager");
-		}
-		Employee manager = employeeRepository.findById(managerId)
-				.orElseThrow(() -> new IllegalArgumentException("Invalid manager"));
-		employee.setManager(manager);
 	}
 
 	private void applyStaffType(Employee employee, Long staffTypeId, boolean required) {
@@ -224,9 +225,12 @@ public class EmployeeService {
 		employee.setStaffType(staffType);
 	}
 
-	private void applyProbation(Employee employee, Integer probationMonth, LocalDate probationEndDate) {
+	private void applyProbation(Employee employee, Integer probationDays, LocalDate probationEndDate) {
 		boolean onProbation = employee.getStaffType() != null && employee.getStaffType().getId() == StaffTypes.PROBATION;
 		if (!onProbation) {
+			if (employee.getProbation() != null) {
+				employee.getProbation().setEmployee(null);
+			}
 			employee.setProbation(null);
 			return;
 		}
@@ -236,21 +240,22 @@ public class EmployeeService {
 			throw new IllegalArgumentException("Date of joining is required for probation staff");
 		}
 
-		boolean fixed = probationMonth != null && (probationMonth == 1 || probationMonth == 3 || probationMonth == 6);
-		if (probationMonth != null && !fixed) {
-			throw new IllegalArgumentException("Probation duration must be 1, 3, or 6 months");
+		boolean fixed = probationDays != null && (probationDays == 30 || probationDays == 90 || probationDays == 180);
+		if (probationDays != null && !fixed) {
+			throw new IllegalArgumentException("Probation duration must be 30, 90, or 180 days");
 		}
 
 		EmployeeProbation probation = employee.getProbation();
 		if (probation == null) {
 			probation = new EmployeeProbation();
+			probation.setEmployee(employee);
 			employee.setProbation(probation);
 		}
 
 		probation.setProbationStartDate(startDate);
 		if (fixed) {
-			probation.setProbationMonth(probationMonth);
-			probation.setProbationEndDate(startDate.plusMonths(probationMonth));
+			probation.setProbationDays(probationDays);
+			probation.setProbationEndDate(startDate.plusDays(probationDays));
 			return;
 		}
 
@@ -260,7 +265,7 @@ public class EmployeeService {
 		if (probationEndDate.isBefore(startDate)) {
 			throw new IllegalArgumentException("Probation end date must be on or after joining date");
 		}
-		probation.setProbationMonth(null);
+		probation.setProbationDays(null);
 		probation.setProbationEndDate(probationEndDate);
 	}
 
@@ -301,14 +306,23 @@ public class EmployeeService {
 		contact.setRelation(normalizedRelation);
 	}
 
-	private static void assertPositionBelongsToDepartment(Position position, Department department) {
-		Department positionDepartment = position.getDepartment();
-		if (positionDepartment != null && !positionDepartment.getId().equals(department.getId())) {
-			throw new IllegalArgumentException("Position does not belong to the selected department");
+	private void syncUserAccountRoleIfPresent(Employee employee) {
+		if (employee.getId() == null) {
+			return;
 		}
+		userRepository.findByEmployee_Id(employee.getId()).ifPresent(user -> {
+			if (employee.getPosition() == null) {
+				return;
+			}
+			Role derived = positionRoleResolutionService.resolveRoleFromLoadedPosition(employee.getPosition());
+			if (user.getRole() == null || !derived.getId().equals(user.getRole().getId())) {
+				user.setRole(derived);
+				userRepository.save(user);
+			}
+		});
 	}
 
-	private void validateRequiredBusinessRules(EmployeeInfoRequestDto request, boolean isCreate) {
+	private void validateRequiredBusinessRules(EmployeeInfoRequestDto request, boolean isCreate, Long excludeId) {
 		String trimmedEmpId = trimToNull(request.getEmployeeId());
 		if (isCreate) {
 			if (trimmedEmpId == null) {
@@ -321,9 +335,15 @@ public class EmployeeService {
 
 		validateJoiningDate(request.getDateOfJoining());
 
-		if (request.getStaffTypeId() == StaffTypes.PROBATION && request.getProbationMonth() == null
+		if (request.getStaffTypeId() == StaffTypes.PROBATION && request.getProbationDays() == null
 				&& request.getProbationEndDate() == null) {
-			throw new IllegalArgumentException("Probation month or probation end date is required for probation staff");
+			throw new IllegalArgumentException("Probation days or probation end date is required for probation staff");
+		}
+
+		if (isCreate) {
+			validateStaffNrcNoUniqueness(request.getStaffNrcNo(), null);
+		} else {
+			validateStaffNrcNoUniqueness(request.getStaffNrcNo(), excludeId);
 		}
 	}
 
@@ -331,6 +351,24 @@ public class EmployeeService {
 		String value = trimToNull(raw);
 		if (value != null) {
 			validateBusinessEmployeeIdFormat(value);
+		}
+	}
+
+	private void validateStaffNrcNoUniqueness(String staffNrcNo, Long excludeId) {
+		String normalized = NrcNormalizer.normalize(staffNrcNo);
+		if (normalized == null) {
+			return;
+		}
+		
+		boolean exists;
+		if (excludeId == null) {
+			exists = employeeRepository.existsByStaffNrcNo(normalized);
+		} else {
+			exists = employeeRepository.existsByStaffNrcNoAndIdNot(normalized, excludeId);
+		}
+		
+		if (exists) {
+			throw new IllegalArgumentException("This NRC number already exists.");
 		}
 	}
 
@@ -349,30 +387,12 @@ public class EmployeeService {
 		}
 	}
 
-	private String normalizeReligion(String religion) {
+	private EmployeeReligion normalizeReligion(String religion) {
 		String value = trimToNull(religion);
 		if (value == null) {
 			return null;
 		}
-		List<String> allowed = List.of("Buddhist", "Christian", "Hindu", "Muslim");
-		return allowed.stream()
-				.filter(option -> option.equalsIgnoreCase(value))
-				.findFirst()
-				.orElseThrow(() -> new IllegalArgumentException("Religion must be Buddhist, Christian, Hindu, or Muslim"));
-	}
-
-	private String normalizeStatus(String status, String fallback) {
-		String value = trimToNull(status);
-		if (value == null) {
-			return fallback;
-		}
-		if ("active".equalsIgnoreCase(value)) {
-			return "Active";
-		}
-		if ("inactive".equalsIgnoreCase(value)) {
-			return "Inactive";
-		}
-		throw new IllegalArgumentException("Status must be Active or Inactive");
+		return EmployeeReligion.fromValue(value);
 	}
 
 	private static String trimToNull(String value) {
@@ -400,6 +420,7 @@ public class EmployeeService {
 	}
 
 	private EmployeeInfoResponseDto toDto(Employee employee) {
+		Employee manager = resolveDepartmentManager(employee);
 		return EmployeeInfoResponseDto.builder()
 				.id(employee.getId())
 				.employeeId(employee.getEmployeeId())
@@ -407,18 +428,17 @@ public class EmployeeService {
 				.email(employee.getEmail())
 				.staffNrcNo(employee.getStaffNrcNo())
 				.gender(employee.getGender())
-				.religion(employee.getReligion())
+				.religion(employee.getReligion() == null ? null : employee.getReligion().toApiLabel())
 				.departmentId(employee.getDepartment() == null ? null : employee.getDepartment().getId())
 				.departmentName(employee.getDepartment() == null ? null : employee.getDepartment().getName())
 				.positionId(employee.getPosition() == null ? null : employee.getPosition().getId())
 				.positionName(employee.getPosition() == null ? null : employee.getPosition().getName())
-				.managerId(employee.getManager() == null ? null : employee.getManager().getId())
-				.managerName(employee.getManager() == null ? null : employee.getManager().getEmployeeName())
+				.managerId(manager == null ? null : manager.getId())
+				.managerName(manager == null ? null : manager.getEmployeeName())
 				.staffTypeId(employee.getStaffType() == null ? null : employee.getStaffType().getId())
 				.staffTypeName(employee.getStaffType() == null ? null : employee.getStaffType().getName())
 				.dateOfJoining(employee.getDateOfJoining())
-				.status(employee.getStatus())
-				.probationMonth(employee.getProbation() == null ? null : employee.getProbation().getProbationMonth())
+				.probationDays(employee.getProbation() == null ? null : employee.getProbation().getProbationDays())
 				.probationEndDate(employee.getProbation() == null ? null : employee.getProbation().getProbationEndDate())
 				.fatherName(employee.getFather() == null ? null : employee.getFather().getFatherName())
 				.fatherNrcNo(employee.getFather() == null ? null : employee.getFather().getFatherNrcNo())
@@ -427,5 +447,16 @@ public class EmployeeService {
 				.emergencyRelation(employee.getEmergencyContact() == null ? null : employee.getEmergencyContact().getRelation())
 				.profilePictureUrl(employee.getProfilePictureUrl())
 				.build();
+	}
+
+	private Employee resolveDepartmentManager(Employee employee) {
+		if (employee.getDepartment() == null || employee.getDepartment().getManagerId() == null) {
+			return null;
+		}
+		Long managerId = employee.getDepartment().getManagerId();
+		if (employee.getId() != null && employee.getId().equals(managerId)) {
+			return null;
+		}
+		return employeeRepository.findById(managerId).orElse(null);
 	}
 }

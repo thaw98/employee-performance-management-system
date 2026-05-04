@@ -7,33 +7,40 @@ import {
   type ColumnDef,
   type OnChangeFn,
 } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
+import { ArrowLeftRight } from 'lucide-react'
 import EmployeeProfileCell from './EmployeeProfileCell'
+import { STAFF_TYPE_PROBATION } from '../../employeeOnboarding/utils/staffType'
 import type { EmployeeListItem } from '../hrEmployeeApi'
 
 interface EmployeeTableProps {
   data: EmployeeListItem[]
   isLoading: boolean
+  onView: (id: number) => void
   onEdit: (id: number) => void
+  onTransfer?: (id: number, employeeName: string) => void
   onResendPassword: (id: number) => void
-  onSendNewPassword: (id: number) => void
   onChangeStatus: (id: number, currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated') => void
   sorting: SortingState
   setSorting: OnChangeFn<SortingState>
+  isHR?: boolean
 }
 
-export default function EmployeeTable({
+function EmployeeTable({
   data,
   isLoading,
+  onView,
   onEdit,
+  onTransfer,
   onResendPassword,
-  onSendNewPassword,
   onChangeStatus,
   sorting,
   setSorting,
+  isHR = true,
 }: EmployeeTableProps) {
   const columns = useMemo<ColumnDef<EmployeeListItem>[]>(
-    () => [
+    () => {
+      const baseColumns: ColumnDef<EmployeeListItem>[] = [
       {
         accessorKey: 'staffNo',
         header: 'Staff No',
@@ -71,7 +78,7 @@ export default function EmployeeTable({
           }
 
           const bgColor = badgeStyles[status] || 'bg-gray-100 text-gray-600'
-          const isClickable = status === 'Probation' || status === 'Permanent'
+          const isClickable = isHR && (status === 'Probation' || status === 'Permanent')
 
           if (isClickable) {
             return (
@@ -95,11 +102,30 @@ export default function EmployeeTable({
           )
         },
       },
-      {
-        accessorKey: 'email',
-        header: 'Email',
-        cell: (info) => <span className="text-gray-600">{info.getValue() as string || '-'}</span>,
-      },
+      ]
+
+      if (isHR) {
+        baseColumns.push({
+          accessorKey: 'email',
+          header: 'Email',
+          cell: (info) => <span className="text-gray-600">{info.getValue() as string || '-'}</span>,
+        })
+      } else {
+        baseColumns.push(
+          {
+            accessorKey: 'staffTypeName',
+            header: 'Staff Type',
+            cell: (info) => <span className="text-gray-600">{info.getValue() as string || '-'}</span>,
+          },
+          {
+            accessorKey: 'phoneNumber',
+            header: 'Phone Number',
+            cell: (info) => <span className="text-gray-600">{info.getValue() as string || '-'}</span>,
+          }
+        )
+      }
+
+      baseColumns.push(
       {
         id: 'actions',
         header: 'Actions',
@@ -108,38 +134,58 @@ export default function EmployeeTable({
           return (
             <div className="flex items-center gap-2">
               <button
-                onClick={() => onEdit(row.employeeId)}
-                className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                title="Edit Employee"
+                onClick={() => onView(row.employeeId)}
+                className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                title="View Employee"
               >
-                <i className="bi bi-pencil-square text-lg"></i>
+                <i className="bi bi-eye text-lg"></i>
               </button>
-              
-              {row.hasUserAccount && row.mustChangePassword && (
-                <button
-                  onClick={() => onResendPassword(row.employeeId)}
-                  className="p-1 text-amber-600 hover:bg-amber-50 rounded transition-colors"
-                  title="Resend Temporary Password"
-                >
-                  <i className="bi bi-envelope-arrow-up text-lg"></i>
-                </button>
-              )}
 
-              {row.hasUserAccount && row.email && (
-                <button
-                  onClick={() => onSendNewPassword(row.employeeId)}
-                  className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                  title="Send New Temporary Password (Reset)"
-                >
-                  <i className="bi bi-key-fill text-lg"></i>
-                </button>
+              {isHR && (
+                <>
+                  <button
+                    onClick={() => onEdit(row.employeeId)}
+                    className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    title="Edit Employee"
+                  >
+                    <i className="bi bi-pencil-square text-lg"></i>
+                  </button>
+
+                  {row.staffTypeId !== STAFF_TYPE_PROBATION && (
+                    <button
+                      onClick={() => onTransfer?.(row.employeeId, row.employeeName)}
+                      disabled={row.currentTransferType === 'TEMPORARY'}
+                      className="p-1 text-amber-500 hover:bg-amber-50 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+                      title={
+                        row.currentTransferType === 'TEMPORARY'
+                          ? 'Already on temporary assignment — return first'
+                          : 'Temporary Transfer'
+                      }
+                    >
+                      <ArrowLeftRight size={18} />
+                    </button>
+                  )}
+
+                  {row.hasUserAccount && row.mustChangePassword && (
+                    <button
+                      onClick={() => onResendPassword(row.employeeId)}
+                      className="p-1 text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                      title="Resend Temporary Password"
+                    >
+                      <i className="bi bi-envelope-arrow-up text-lg"></i>
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )
         },
       },
-    ],
-    [onEdit, onResendPassword, onSendNewPassword, onChangeStatus]
+      )
+
+      return baseColumns
+    },
+    [isHR, onView, onEdit, onTransfer, onResendPassword, onChangeStatus]
   )
 
   const table = useReactTable({
@@ -212,3 +258,5 @@ export default function EmployeeTable({
     </div>
   )
 }
+
+export default memo(EmployeeTable)

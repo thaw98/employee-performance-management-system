@@ -1,22 +1,15 @@
 package com.epms.backend.entity;
 
-import java.time.Instant;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
-@Table(name = "kpi_template")
+@Table(name = "kpi_templates")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,30 +17,25 @@ public class KpiTemplate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "template_id")
     private Long id;
 
-    @Column(name = "template_name")
+    @Column(name = "template_name", nullable = false)
     private String name;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id")
-    private Department department;
+    @Column(name = "template_type", nullable = false)
+    private String type; // INDIVIDUAL, POSITION, DEPARTMENT
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "position_id")
-    private Position position;
+    @Column(name = "department_id")
+    private Long departmentId;
 
-    @Column(name = "is_active")
-    private Boolean active;
+    @Column(name = "position_id")
+    private Long positionId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
-    private Employee createdBy;
+    @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<KpiTemplateItem> items = new ArrayList<>();
 
-    @Column(name = "created_date")
-    private Instant createdDate;
-
-    @Column(name = "updated_date")
-    private Instant updatedDate;
+    public void addItem(KpiTemplateItem item) {
+        items.add(item);
+        item.setTemplate(this);
+    }
 }

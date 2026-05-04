@@ -1,3 +1,5 @@
+import { memo } from 'react'
+
 interface EmployeeFiltersProps {
   search: string
   onSearchChange: (value: string) => void
@@ -10,9 +12,10 @@ interface EmployeeFiltersProps {
   departments: { departmentId: number; departmentName: string }[]
   positions: { positionId: number; positionName: string }[]
   onReset: () => void
+  showDepartmentPositionFilters?: boolean
 }
 
-export default function EmployeeFilters({
+function EmployeeFilters({
   search,
   onSearchChange,
   departmentId,
@@ -24,10 +27,11 @@ export default function EmployeeFilters({
   departments,
   positions,
   onReset,
+  showDepartmentPositionFilters = true,
 }: EmployeeFiltersProps) {
   return (
     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${showDepartmentPositionFilters ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} gap-4`}>
         {/* Search */}
         <div className="relative">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
@@ -42,34 +46,37 @@ export default function EmployeeFilters({
           />
         </div>
 
-        {/* Department */}
-        <select
-          className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          value={departmentId || ''}
-          onChange={(e) => onDepartmentChange(e.target.value ? Number(e.target.value) : undefined)}
-        >
-          <option value="">All Departments</option>
-          {departments.map((d) => (
-            <option key={d.departmentId} value={d.departmentId}>
-              {d.departmentName}
-            </option>
-          ))}
-        </select>
+        {showDepartmentPositionFilters && (
+          <>
+            {/* Department */}
+            <select
+              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              value={departmentId || ''}
+              onChange={(e) => onDepartmentChange(e.target.value ? Number(e.target.value) : undefined)}
+            >
+              <option value="">All Departments</option>
+              {departments.map((d) => (
+                <option key={d.departmentId} value={d.departmentId}>
+                  {d.departmentName}
+                </option>
+              ))}
+            </select>
 
-        {/* Position */}
-        <select
-          className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          value={positionId || ''}
-          onChange={(e) => onPositionChange(e.target.value ? Number(e.target.value) : undefined)}
-          disabled={!departmentId}
-        >
-          <option value="">All Positions</option>
-          {positions.map((p) => (
-            <option key={p.positionId} value={p.positionId}>
-              {p.positionName}
-            </option>
-          ))}
-        </select>
+            {/* Position */}
+            <select
+              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              value={positionId || ''}
+              onChange={(e) => onPositionChange(e.target.value ? Number(e.target.value) : undefined)}
+            >
+              <option value="">All Positions</option>
+              {positions.map((p) => (
+                <option key={p.positionId} value={p.positionId}>
+                  {p.positionName}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
 
         {/* Employment Status */}
         <select
@@ -97,3 +104,5 @@ export default function EmployeeFilters({
     </div>
   )
 }
+
+export default memo(EmployeeFilters)

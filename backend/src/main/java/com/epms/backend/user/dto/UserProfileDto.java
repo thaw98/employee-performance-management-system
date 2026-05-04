@@ -13,5 +13,11 @@ public class UserProfileDto {
     private String name;
     private String email;
     private String role;
+    private Long roleId;
     private String profilePictureUrl;
+    private String theme;
+    private String wallpaperUrl;
+    private String language;
+    private String timezone;
+    private String timeFormat;
 }

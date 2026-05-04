@@ -21,8 +21,14 @@ public class EmployeeDetailResponseDto {
     private String staffNrcNo;
     private Gender gender;
     private String religion;
+    private LocalDate dateOfBirth;
+    private String phoneNo;
+    private String address;
+    private String race;
+    private String status;
     private Long departmentId;
     private String departmentName;
+    private Long departmentPositionId;
     private Long positionId;
     private String positionName;
     private Long managerId;
@@ -30,8 +36,8 @@ public class EmployeeDetailResponseDto {
     private Long staffTypeId;
     private String staffTypeName;
     private LocalDate dateOfJoining;
-    private String status;
-    private Integer probationMonth;
+    private LocalDate probationStartDate;
+    private Integer probationDays;
     private LocalDate probationEndDate;
     private String fatherName;
     private String fatherNrcNo;
@@ -39,4 +45,10 @@ public class EmployeeDetailResponseDto {
     private String emergencyPhone;
     private String emergencyRelation;
     private String profilePictureUrl;
+
+    /** {@code Single} or {@code Married}, or null if unset. */
+    private String maritalStatus;
+    private Long spouseId;
+    private String spouseName;
+    private String spouseNrc;
 }

@@ -46,8 +46,17 @@ public class MasterDataService {
 				? positionRepository.findTop20ByNameContainingIgnoreCaseOrderByNameAsc(kw)
 				: positionRepository.findForAutocompleteByDepartmentOrUnassigned(departmentId, kw, PageRequest.of(0, 20));
 		return positions.stream()
+				.filter(this::isActivePosition)
 				.filter(p -> EXCLUDED_POSITION_NAMES.stream().noneMatch(excluded -> excluded.equalsIgnoreCase(p.getName())))
 				.map(p -> new MasterOptionDto(p.getId(), p.getName()))
 				.toList();
+	}
+
+	private boolean isActivePosition(Position p) {
+		String s = p.getStatus();
+		if (s == null || s.isBlank()) {
+			return true;
+		}
+		return "active".equalsIgnoreCase(s.trim());
 	}
 }

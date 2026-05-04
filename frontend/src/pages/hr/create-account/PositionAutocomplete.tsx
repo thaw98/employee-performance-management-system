@@ -22,7 +22,7 @@ export function PositionAutocomplete({
 }: PositionAutocompleteProps) {
   const [query, setQuery] = useState('')
   const selected = useMemo(
-    () => positions.find((p) => p.positionId === value) ?? null,
+    () => positions.find((p) => p.id === value) ?? null,
     [positions, value],
   )
 
@@ -36,7 +36,7 @@ export function PositionAutocomplete({
     <div className="relative">
       <Combobox
         value={selected}
-        onChange={(p) => onChange(p ? p.positionId : null)}
+        onChange={(p) => onChange(p ? p.id : null)}
         disabled={disabled}
         nullable
       >
@@ -59,11 +59,11 @@ export function PositionAutocomplete({
             ) : (
               filtered.map((p) => (
                 <ComboboxOption
-                  key={p.positionId}
+                  key={p.id}
                   value={p}
                   className="cursor-pointer px-3 py-2 text-sm text-slate-800 data-focus:bg-blue-50 data-selected:font-semibold data-selected:text-blue-800"
                 >
-                  {p.positionName}
+                  {p.positionName} ({p.positionCode})
                 </ComboboxOption>
               ))
             )}

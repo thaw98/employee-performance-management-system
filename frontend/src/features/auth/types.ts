@@ -13,6 +13,7 @@ export interface AuthUser {
 export interface LoginResponseData {
   token: string
   tokenType: string
+  expiresAt: string
   user: AuthUser
 }
 

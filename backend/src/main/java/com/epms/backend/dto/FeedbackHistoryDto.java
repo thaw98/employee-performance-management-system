@@ -7,6 +7,7 @@ import java.time.Instant;
 public class FeedbackHistoryDto {
     private Long id;
     private Instant date;
+    private String evaluatorName;
     private String evaluateeName;
     private String evaluateeStaffNo;
     private String position;

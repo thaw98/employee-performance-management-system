@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useDispatch } from 'react-redux';
@@ -56,10 +56,10 @@ export function LoginForm() {
         return;
       }
 
-      const { token, user } = response.data;
+      const { token, user, expiresAt } = response.data;
 
       // Save credentials to Redux and storage
-      dispatch(setCredentials({ token, user, rememberMe: values.rememberMe }));
+      dispatch(setCredentials({ token, user, expiresAt, rememberMe: values.rememberMe }));
 
       toast.success(`Welcome back, ${user.name}!`);
 
@@ -152,6 +152,12 @@ export function LoginForm() {
           />
           <span className="text-sm font-medium text-slate-600">Remember me</span>
         </label>
+        <Link
+          to="/forgot-password"
+          className="text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+        >
+          Forgot Password?
+        </Link>
       </div>
 
       {/* Submit Button */}

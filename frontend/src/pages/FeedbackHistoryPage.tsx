@@ -19,6 +19,7 @@ import {
     Transition, 
     TransitionChild 
 } from '@headlessui/react';
+import { useGetProfileQuery } from '../features/user/userApi';
 
 interface HistoryItem {
     id: number;
@@ -42,12 +43,40 @@ export function FeedbackHistoryPage() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const { data: profileResponse } = useGetProfileQuery();
+    const timeFormat = profileResponse?.data?.timeFormat || '12h';
 
     // Modal state
     const [selectedFeedback, setSelectedFeedback] = useState<HistoryItem | null>(null);
     const [details, setDetails] = useState<FeedbackDetail[]>([]);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const getPageItems = (): (number | 'ellipsis')[] => {
+        if (totalPages <= 7) {
+            return Array.from({ length: totalPages }, (_, index) => index);
+        }
+
+        const candidatePages = new Set<number>([
+            0, 1, 2,
+            totalPages - 3, totalPages - 2, totalPages - 1,
+            page - 1, page, page + 1,
+        ]);
+
+        const normalizedPages = [...candidatePages]
+            .filter((value) => value >= 0 && value < totalPages)
+            .sort((left, right) => left - right);
+
+        const items: (number | 'ellipsis')[] = [];
+        let previous: number | null = null;
+        for (const pageNumber of normalizedPages) {
+            if (previous !== null && pageNumber - previous > 1) {
+                items.push('ellipsis');
+            }
+            items.push(pageNumber);
+            previous = pageNumber;
+        }
+        return items;
+    };
 
     useEffect(() => {
         fetchHistory();
@@ -218,8 +247,14 @@ export function FeedbackHistoryPage() {
                             history.map((item) => (
                                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="p-6">
-                                        <div className="text-sm font-bold text-slate-700">{new Date(item.date).toLocaleDateString()}</div>
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase">{new Date(item.date).toLocaleTimeString()}</div>
+                                        <div className="text-sm font-bold text-slate-700">{new Date(item.date).toLocaleDateString('en-GB')}</div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase">
+                                            {new Date(item.date).toLocaleTimeString('en-US', { 
+                                                hour12: timeFormat === '12h', 
+                                                hour: '2-digit', 
+                                                minute: '2-digit' 
+                                            })}
+                                        </div>
                                     </td>
                                     <td className="p-6">
                                         <div className="font-black text-slate-800">{item.evaluateeName}</div>
@@ -229,7 +264,9 @@ export function FeedbackHistoryPage() {
                                         <div className="text-sm font-bold text-slate-600">{item.position}</div>
                                     </td>
                                     <td className="p-6">
-                                        <span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">{item.role}</span>
+                                        <span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                            {item.role}
+                                        </span>
                                     </td>
                                     <td className="p-6 text-center">
                                         <div className="text-base font-black text-blue-600">{item.score.toFixed(1)}%</div>
@@ -352,7 +389,7 @@ export function FeedbackHistoryPage() {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-6 pt-4">
+                <div className="flex items-center justify-center gap-3 pt-4 flex-wrap">
                     <button 
                         disabled={page === 0}
                         onClick={() => setPage(p => p - 1)}
@@ -360,9 +397,23 @@ export function FeedbackHistoryPage() {
                     >
                         <ChevronLeft size={20} />
                     </button>
-                    <div className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                        Page <span className="text-slate-900">{page + 1}</span> of {totalPages}
-                    </div>
+                    {getPageItems().map((item, index) =>
+                        item === 'ellipsis' ? (
+                            <span key={`ellipsis-${index}`} className="px-1 text-slate-400 text-sm select-none">...</span>
+                        ) : (
+                            <button
+                                key={item}
+                                onClick={() => setPage(item)}
+                                className={`min-w-[42px] h-10 px-3 rounded-xl text-sm font-black border transition-all ${
+                                    item === page
+                                        ? 'bg-blue-600 border-blue-600 text-white'
+                                        : 'bg-white border-slate-100 text-slate-500 hover:text-slate-800'
+                                }`}
+                            >
+                                {item + 1}
+                            </button>
+                        )
+                    )}
                     <button 
                         disabled={page >= totalPages - 1}
                         onClick={() => setPage(p => p + 1)}

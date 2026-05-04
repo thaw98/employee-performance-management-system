@@ -8,6 +8,14 @@ import type {
   MasterOption,
 } from '../types/employee'
 
+export interface DepartmentPositionMappingOption {
+  id: number
+  positionId: number
+  positionName: string
+  positionCode: string
+  levelCodeName: string | null
+}
+
 export const employeeApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     createEmployee: builder.mutation<ApiResponse<EmployeeInfo>, EmployeeInfoPayload>({
@@ -31,7 +39,7 @@ export const employeeApi = baseApi.injectEndpoints({
     getDepartments: builder.query<ApiResponse<MasterOption[]>, string>({
       query: (keyword) => `/departments/autocomplete?keyword=${encodeURIComponent(keyword)}`,
     }),
-    getPositions: builder.query<
+    getAutocompletePositions: builder.query<
       ApiResponse<MasterOption[]>,
       { keyword: string; departmentId?: number }
     >({
@@ -44,6 +52,10 @@ export const employeeApi = baseApi.injectEndpoints({
         return `/positions/autocomplete?${params.toString()}`
       },
     }),
+    getDepartmentPositions: builder.query<ApiResponse<DepartmentPositionMappingOption[]>, number>({
+      query: (departmentId) => `/lookups/departments/${departmentId}/positions`,
+      providesTags: ['Lookup'],
+    }),
     createEmployeeAccount: builder.mutation<
       ApiResponse<CreateEmployeeAccountResponse>,
       { employeePkId: number; email: string; profilePictureUrl?: string }
@@ -52,6 +64,16 @@ export const employeeApi = baseApi.injectEndpoints({
     }),
     checkUserEmail: builder.query<ApiResponse<boolean>, string>({
       query: (email) => `/users/check-email?email=${encodeURIComponent(email)}`,
+    }),
+    checkStaffNrc: builder.query<ApiResponse<boolean>, { staffNrcNo: string; excludeId?: number }>({
+      query: ({ staffNrcNo, excludeId }) => {
+        const params = new URLSearchParams()
+        params.set('staffNrcNo', staffNrcNo)
+        if (excludeId != undefined) {
+          params.set('excludeId', String(excludeId))
+        }
+        return `/employees/check-staff-nrc?${params.toString()}`
+      },
     }),
   }),
 })
@@ -62,7 +84,9 @@ export const {
   useUpdateEmployeeMutation,
   useGetReligionsQuery,
   useGetDepartmentsQuery,
-  useGetPositionsQuery,
+  useGetAutocompletePositionsQuery,
+  useGetDepartmentPositionsQuery,
   useCreateEmployeeAccountMutation,
   useLazyCheckUserEmailQuery,
+  useLazyCheckStaffNrcQuery,
 } = employeeApi

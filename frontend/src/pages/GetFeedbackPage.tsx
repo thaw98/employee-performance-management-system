@@ -3,11 +3,9 @@ import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
     Search, 
-    Download, 
     Eye, 
     ChevronLeft, 
     ChevronRight,
-    Star,
     Calendar,
     User,
     Printer,
@@ -22,6 +20,7 @@ import {
     Transition, 
     TransitionChild 
 } from '@headlessui/react';
+import { useGetProfileQuery } from '../features/user/userApi';
 
 interface FeedbackItem {
     id: number;
@@ -44,12 +43,40 @@ export function GetFeedbackPage() {
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
+    const { data: profileResponse } = useGetProfileQuery();
+    const timeFormat = profileResponse?.data?.timeFormat || '12h';
 
     // Modal state
     const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
     const [details, setDetails] = useState<FeedbackDetail[]>([]);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const getPageItems = (): (number | 'ellipsis')[] => {
+        if (totalPages <= 7) {
+            return Array.from({ length: totalPages }, (_, index) => index);
+        }
+
+        const candidatePages = new Set<number>([
+            0, 1, 2,
+            totalPages - 3, totalPages - 2, totalPages - 1,
+            page - 1, page, page + 1,
+        ]);
+
+        const normalizedPages = [...candidatePages]
+            .filter((value) => value >= 0 && value < totalPages)
+            .sort((left, right) => left - right);
+
+        const items: (number | 'ellipsis')[] = [];
+        let previous: number | null = null;
+        for (const pageNumber of normalizedPages) {
+            if (previous !== null && pageNumber - previous > 1) {
+                items.push('ellipsis');
+            }
+            items.push(pageNumber);
+            previous = pageNumber;
+        }
+        return items;
+    };
 
     useEffect(() => {
         fetchReceived();
@@ -89,7 +116,7 @@ export function GetFeedbackPage() {
         doc.text('360-Degree Feedback Assessment Report', 105, 20, { align: 'center' });
         
         doc.setFontSize(10);
-        doc.text(`Date: ${item.date}`, 14, 35);
+        doc.text(`Date: ${new Date(item.date).toLocaleDateString('en-GB')} ${new Date(item.date).toLocaleTimeString('en-US', { hour12: timeFormat === '12h', hour: '2-digit', minute: '2-digit' })}`, 14, 35);
         doc.text(`Role of Evaluator: ${item.role}`, 14, 42);
         doc.text(`Overall Score: ${item.score.toFixed(1)}%`, 14, 49);
         doc.text(`Performance Remark: ${item.remark}`, 14, 56);
@@ -118,7 +145,8 @@ export function GetFeedbackPage() {
 
     const filteredItems = received.filter(item => 
         item.remark.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.role.toLowerCase().includes(searchTerm.toLowerCase())
+        item.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.evaluatorName.toLowerCase().startsWith(searchTerm.toLowerCase().charAt(0))
     );
 
     return (
@@ -152,6 +180,7 @@ export function GetFeedbackPage() {
                     <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-100">
                             <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400">Date Received</th>
+                            <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400">Evaluator</th>
                             <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400">Evaluator Role</th>
                             <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400 text-center">Score</th>
                             <th className="p-6 text-[11px] font-black uppercase tracking-widest text-slate-400">Performance Remark</th>
@@ -162,12 +191,12 @@ export function GetFeedbackPage() {
                         {loading ? (
                             Array.from({ length: 5 }).map((_, i) => (
                                 <tr key={i} className="animate-pulse">
-                                    <td colSpan={5} className="p-6 h-20 bg-slate-50/20" />
+                                    <td colSpan={6} className="p-6 h-20 bg-slate-50/20" />
                                 </tr>
                             ))
                         ) : filteredItems.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="p-20 text-center">
+                                <td colSpan={6} className="p-20 text-center">
                                     <div className="flex flex-col items-center gap-4 text-slate-400">
                                         <Inbox size={48} className="opacity-20" />
                                         <p className="font-bold underline decoration-slate-200 decoration-2 underline-offset-4 decoration-wavy">No feedback received yet.</p>
@@ -182,7 +211,24 @@ export function GetFeedbackPage() {
                                             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
                                                 <Calendar size={18} />
                                             </div>
-                                            <span className="font-bold text-slate-700">{item.date}</span>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-slate-700">{new Date(item.date).toLocaleDateString('en-GB')}</span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                                    {new Date(item.date).toLocaleTimeString('en-US', { 
+                                                        hour12: timeFormat === '12h', 
+                                                        hour: '2-digit', 
+                                                        minute: '2-digit' 
+                                                    })}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="p-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                                                <User size={18} />
+                                            </div>
+                                            <span className="font-bold text-slate-700">{item.evaluatorName}</span>
                                         </div>
                                     </td>
                                     <td className="p-6">
@@ -309,7 +355,7 @@ export function GetFeedbackPage() {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-6 pt-4">
+                <div className="flex items-center justify-center gap-3 pt-4 flex-wrap">
                     <button 
                         onClick={() => setPage(prev => Math.max(0, prev - 1))}
                         disabled={page === 0}
@@ -317,9 +363,23 @@ export function GetFeedbackPage() {
                     >
                         <ChevronLeft size={20} />
                     </button>
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                        Page {page + 1} of {totalPages}
-                    </span>
+                    {getPageItems().map((item, index) =>
+                        item === 'ellipsis' ? (
+                            <span key={`ellipsis-${index}`} className="px-1 text-slate-400 text-sm select-none">...</span>
+                        ) : (
+                            <button
+                                key={item}
+                                onClick={() => setPage(item)}
+                                className={`min-w-[42px] h-10 px-3 rounded-xl text-sm font-black border transition-all ${
+                                    item === page
+                                        ? 'bg-blue-600 border-blue-600 text-white'
+                                        : 'bg-white border-slate-100 text-slate-500 hover:text-blue-600 hover:border-blue-100'
+                                }`}
+                            >
+                                {item + 1}
+                            </button>
+                        )
+                    )}
                     <button 
                         onClick={() => setPage(prev => Math.min(totalPages - 1, prev + 1))}
                         disabled={page === totalPages - 1}

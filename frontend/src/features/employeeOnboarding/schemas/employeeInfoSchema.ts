@@ -30,7 +30,7 @@ function staffNrcSuperRefine(val: Record<string, unknown>, ctx: z.RefinementCtx)
   }
 }
 
-/** Empty father NRC is allowed; if any part is set, all parts must be valid and consistent. */
+/** Father NRC is required; all parts must be provided and consistent. */
 function fatherNrcSuperRefine(val: Record<string, unknown>, ctx: z.RefinementCtx) {
   const stateCode = String(val.fatherNrcStateCode ?? '').trim()
   const townshipCode = String(val.fatherNrcTownshipCode ?? '').trim()
@@ -38,9 +38,6 @@ function fatherNrcSuperRefine(val: Record<string, unknown>, ctx: z.RefinementCtx
   const number = String(val.fatherNrcNumber ?? '').trim()
   const parts = [stateCode, townshipCode, type, number]
   const filledCount = parts.filter((p) => p.length > 0).length
-  if (filledCount === 0) {
-    return
-  }
   if (filledCount < 4) {
     if (!stateCode) ctx.addIssue({ code: 'custom', message: g, path: ['fatherNrcStateCode'] })
     if (!townshipCode) ctx.addIssue({ code: 'custom', message: g, path: ['fatherNrcTownshipCode'] })
@@ -77,7 +74,7 @@ const personalContactShape = z.object({
   nrcType: z.string(g).min(1, g),
   nrcNumber: z.string(g).regex(/^[0-9]{6}$/, g),
   gender: z.enum(['Male', 'Female'], g),
-  race: z.string(g).min(1, g),
+  race: z.string(g).min(1, g).max(100, g),
   religionId: z.number(g).positive(g),
   dateOfBirth: z
     .string(g)
@@ -101,7 +98,6 @@ const personalContactShape = z.object({
   spouseOccupation: z.string().optional(),
   emergencyPhone: z.string(g).regex(phoneRegex, { message: g }),
   emergencyRelation: z.string(g).min(1, g),
-  nationality: z.string(g).min(1, g).max(100, g),
 })
 
 export const PROBATION_DURATION_VALUES = ['1', '3', '6', 'custom'] as const

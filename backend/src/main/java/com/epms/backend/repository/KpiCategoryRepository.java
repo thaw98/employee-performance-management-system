@@ -7,5 +7,6 @@ import java.util.List;
 
 @Repository
 public interface KpiCategoryRepository extends JpaRepository<KpiCategory, Long> {
-    List<KpiCategory> findByIsActiveTrueOrderByDisplayOrderAsc();
+    List<KpiCategory> findByStatusIgnoreCase(String status);
+    boolean existsByNameIgnoreCase(String name);
 }

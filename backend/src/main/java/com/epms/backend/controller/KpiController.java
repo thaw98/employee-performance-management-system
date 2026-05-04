@@ -1,138 +1,159 @@
 package com.epms.backend.controller;
 
+import com.epms.backend.dto.KpiDto;
+import com.epms.backend.dto.PositionKpiDto;
+import com.epms.backend.dto.DepartmentKpiDto;
+import com.epms.backend.service.KpiService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.web.multipart.MultipartFile;
-import com.epms.backend.service.KpiService;
-import com.epms.backend.service.KpiExcelService;
-import com.epms.backend.entity.KpiRecord;
-import com.epms.backend.entity.KpiRevision;
-import com.epms.backend.entity.Employee;
-import com.epms.backend.dto.KpiUpdateDTO;
-import com.epms.backend.service.EmployeeService;
 
 import java.util.List;
 
-//MNA
 @RestController
-@RequestMapping("/api/v1/kpis")
+@RequestMapping("/api/kpis")
 public class KpiController {
 
     private final KpiService kpiService;
-    private final EmployeeService employeeService;
-    private final KpiExcelService kpiExcelService;
 
-    public KpiController(KpiService kpiService, EmployeeService employeeService, KpiExcelService kpiExcelService) {
+    public KpiController(KpiService kpiService) {
         this.kpiService = kpiService;
-        this.employeeService = employeeService;
-        this.kpiExcelService = kpiExcelService;
     }
 
-    @GetMapping("/employee/{id}")
-    public ResponseEntity<List<KpiRecord>> getEmployeeKpis(@PathVariable Long id, @RequestParam Long periodId) {
-        return ResponseEntity.ok(kpiService.getKpisByEmployee(id, periodId));
+    @GetMapping("/employee/{employeeId}")
+    public ResponseEntity<List<KpiDto>> getKpisByEmployee(@PathVariable Long employeeId, @RequestParam String period) {
+        return ResponseEntity.ok(kpiService.getKpisByEmployeeAndPeriod(employeeId, period));
     }
 
-    /**
-     * FR-KPI-07: Save Draft or Finalize Submission
-     */
-    @PostMapping("/batch")
-    public ResponseEntity<List<KpiRecord>> saveBatch(
-            @RequestBody List<KpiRecord> records,
-            @RequestParam(defaultValue = "false") boolean isFinal,
-            @RequestHeader("X-User-Id") Long currentUserId) {
-        Employee currentUser = employeeService.getEmployeeById(currentUserId);
-        return ResponseEntity.ok(kpiService.saveKpiBatch(records, isFinal, currentUser.getEmployeeName()));
+    @GetMapping("/latest/{employeeId}")
+    public ResponseEntity<List<KpiDto>> getLatestKpisByEmployee(@PathVariable Long employeeId) {
+        return ResponseEntity.ok(kpiService.getLatestKpisByEmployee(employeeId));
     }
 
-    @PutMapping("/{id}/actuals")
-    public ResponseEntity<KpiRecord> updateActuals(
-            @PathVariable Long id,
-            @RequestBody KpiUpdateDTO dto,
-            @RequestHeader("X-User-Id") Long currentUserId,
-            @RequestHeader("X-User-Role") String role) {
-
-        Employee currentUser = employeeService.getEmployeeById(currentUserId);
-        boolean isHr = "HR".equalsIgnoreCase(role) || "ADMIN".equalsIgnoreCase(role);
-        return ResponseEntity.ok(kpiService.updateActualValue(id, dto, currentUser, isHr));
+    @GetMapping("/me/latest")
+    public ResponseEntity<List<KpiDto>> getMyLatestKpis() {
+        try {
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.getMyLatestKpis(userId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
     }
 
-    @PutMapping("/{id}/revise")
-    public ResponseEntity<KpiRecord> reviseKpi(
-            @PathVariable Long id,
-            @RequestBody KpiRecord revisedData,
-            @RequestHeader("X-User-Id") Long currentUserId) {
-        Employee currentUser = employeeService.getEmployeeById(currentUserId);
-        return ResponseEntity.ok(kpiService.reviseKpi(id, revisedData, currentUserId, currentUser.getEmployeeName()));
+    @GetMapping("/latest-date/{employeeId}")
+    public ResponseEntity<java.util.Map<String, String>> getLatestUpdatedDateByEmployee(@PathVariable Long employeeId) {
+        java.time.Instant latest = kpiService.getLatestUpdatedDate(employeeId);
+        return ResponseEntity.ok(java.util.Map.of("latestDate", latest != null ? latest.toString() : ""));
     }
 
-    /**
-     * HR Only: Approve and Move to finalized scoring
-     */
-    @PostMapping("/approve")
-    public ResponseEntity<Void> approveKpis(
-            @RequestParam Long employeeId,
-            @RequestParam Long periodId,
-            @RequestHeader("X-User-Id") Long currentUserId) {
-        Employee currentUser = employeeService.getEmployeeById(currentUserId);
-        kpiService.approveKpiBatch(employeeId, periodId, currentUser.getEmployeeName());
-        return ResponseEntity.ok().build();
+    @GetMapping("/periods/{employeeId}")
+    public ResponseEntity<List<String>> getEmployeeKpiPeriods(@PathVariable Long employeeId) {
+        return ResponseEntity.ok(kpiService.getEmployeeKpiPeriods(employeeId));
     }
 
-    @PostMapping("/lock")
-    public ResponseEntity<Void> lockKpis(
-            @RequestParam Long employeeId,
-            @RequestParam Long periodId,
-            @RequestHeader("X-User-Id") Long currentUserId) {
-        Employee currentUser = employeeService.getEmployeeById(currentUserId);
-        kpiService.lockKpiBatch(employeeId, periodId, currentUser.getEmployeeName());
-        return ResponseEntity.ok().build();
+    @PostMapping("/setup")
+    public ResponseEntity<List<KpiDto>> setupKpis(@RequestBody List<KpiDto> kpiDtos) {
+        try {
+            return ResponseEntity.ok(kpiService.saveKpis(kpiDtos));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(null);
+        }
     }
 
-    @GetMapping("/{id}/history")
-    public ResponseEntity<List<KpiRevision>> getRevisionHistory(@PathVariable Long id) {
-        return ResponseEntity.ok(kpiService.getRevisionHistory(id));
+    @GetMapping("/position")
+    public ResponseEntity<List<PositionKpiDto>> getPositionKpis(
+            @RequestParam Long departmentId,
+            @RequestParam Long positionId,
+            @RequestParam String period) {
+        return ResponseEntity.ok(kpiService.getPositionKpis(departmentId, positionId, period));
     }
 
-    /**
-     * KM-17: Download Excel Template
-     */
-    @GetMapping("/excel/template")
-    public ResponseEntity<Resource> downloadTemplate() {
-        InputStreamResource file = new InputStreamResource(kpiExcelService.generateTemplate());
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=kpi_import_template.xlsx")
-                .contentType(
-                        MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(file);
+    @PostMapping("/position/setup")
+    public ResponseEntity<List<PositionKpiDto>> setupPositionKpis(@RequestBody List<PositionKpiDto> dtoList) {
+        try {
+            return ResponseEntity.ok(kpiService.savePositionKpis(dtoList));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(null);
+        }
     }
 
-    /**
-     * KM-18: Export KPI Data
-     */
-    @GetMapping("/excel/export")
-    public ResponseEntity<Resource> exportKpis(@RequestParam Long employeeId, @RequestParam Long periodId) {
-        List<KpiRecord> records = kpiService.getKpisByEmployee(employeeId, periodId);
-        InputStreamResource file = new InputStreamResource(kpiExcelService.exportKpis(records));
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=kpi_export.xlsx")
-                .contentType(
-                        MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(file);
+    @GetMapping("/department")
+    public ResponseEntity<List<DepartmentKpiDto>> getDepartmentKpis(
+            @RequestParam Long departmentId,
+            @RequestParam String period) {
+        return ResponseEntity.ok(kpiService.getDepartmentKpis(departmentId, period));
     }
 
-    /**
-     * KM-16: Import KPI Data
-     */
-    @PostMapping("/excel/import")
-    public ResponseEntity<List<KpiRecord>> importKpis(
-            @RequestParam("file") MultipartFile file,
-            @RequestHeader("X-User-Id") Long currentUserId) {
-        Employee currentUser = employeeService.getEmployeeById(currentUserId);
-        return ResponseEntity.ok(kpiExcelService.importKpiData(file, currentUser.getEmployeeName()));
+    @PostMapping("/department/setup")
+    public ResponseEntity<List<DepartmentKpiDto>> setupDepartmentKpis(@RequestBody List<DepartmentKpiDto> dtoList) {
+        try {
+            return ResponseEntity.ok(kpiService.saveDepartmentKpis(dtoList));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @PutMapping("/manager/employee/{employeeId}/actuals")
+    public ResponseEntity<List<KpiDto>> updateKpiActuals(
+            @PathVariable Long employeeId,
+            @RequestBody List<KpiDto> kpiUpdates) {
+        try {
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.updateKpiActualsByManager(userId, employeeId, kpiUpdates));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/manager/team")
+    public ResponseEntity<List<java.util.Map<String, Object>>> getManagerTeam() {
+        try {
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.getManagerTeam(userId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/positions/status")
+    public ResponseEntity<List<com.epms.backend.dto.hr.PositionKpiStatusDto>> getPositionsKpiStatus(
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam String period) {
+        return ResponseEntity.ok(kpiService.getPositionsKpiStatus(departmentId, period));
+    }
+
+    @GetMapping("/departments/status")
+    public ResponseEntity<List<com.epms.backend.dto.hr.DepartmentKpiStatusDto>> getDepartmentsKpiStatus(
+            @RequestParam String period) {
+        return ResponseEntity.ok(kpiService.getDepartmentsKpiStatus(period));
+    }
+
+    @GetMapping("/history/employee/{employeeId}")
+    public ResponseEntity<List<KpiDto>> getEmployeeKpiHistory(
+            @PathVariable Long employeeId,
+            @RequestParam(required = false) String period) {
+        return ResponseEntity.ok(kpiService.getEmployeeKpiHistory(employeeId, period));
+    }
+
+    @GetMapping("/history/position")
+    public ResponseEntity<List<PositionKpiDto>> getPositionKpiHistory(
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) String period) {
+        return ResponseEntity.ok(kpiService.getPositionKpiHistory(departmentId, positionId, period));
+    }
+
+    @GetMapping("/history/department")
+    public ResponseEntity<List<DepartmentKpiDto>> getDepartmentKpiHistory(
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String period) {
+        return ResponseEntity.ok(kpiService.getDepartmentKpiHistory(departmentId, period));
+    }
+
+    @GetMapping("/history/summary")
+    public ResponseEntity<List<com.epms.backend.dto.KpiHistorySummaryDto>> getAllHistorySummary() {
+        return ResponseEntity.ok(kpiService.getAllKpiHistorySummary());
     }
 }

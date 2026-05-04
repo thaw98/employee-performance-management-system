@@ -45,7 +45,7 @@ export function FatherNrcInputField({ control, errors, setValue }: FatherNrcInpu
         className={`mb-1 block text-sm font-medium ${hasError ? 'text-red-600' : 'text-slate-700'}`}
         htmlFor="father-nrc-state"
       >
-        Father&apos;s NRC <span className="font-normal text-slate-400">(optional)</span>
+        Father&apos;s NRC <span className="text-red-400">*</span>
       </label>
       <div
         className={`flex items-stretch overflow-hidden rounded-lg border bg-white transition-colors ${
@@ -113,7 +113,7 @@ export function FatherNrcInputField({ control, errors, setValue }: FatherNrcInpu
                 <option value="">—</option>
                 {allTypes.map((type) => (
                   <option key={type.id} value={type.name.en}>
-                    {type.name.en}
+                    {type.name.mm ?? type.name.en} ({type.name.en})
                   </option>
                 ))}
               </select>

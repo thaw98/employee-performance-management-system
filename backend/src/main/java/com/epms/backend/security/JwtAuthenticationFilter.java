@@ -10,15 +10,17 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import io.jsonwebtoken.ExpiredJwtException;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private final JwtService jwtService;
@@ -31,7 +33,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			FilterChain filterChain) throws ServletException, IOException {
 
 		String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-		System.out.println("DEBUG: Auth Header: " + authHeader);
 		if (authHeader == null || !authHeader.startsWith("Bearer ")) {
 			filterChain.doFilter(request, response);
 			return;
@@ -47,10 +48,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 					userDetails.getAuthorities());
 			authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 			SecurityContextHolder.getContext().setAuthentication(authentication);
-		} catch (Exception ex) {
-			System.out.println("JWT AUTH FAILED: " + ex.getMessage());
-			ex.printStackTrace();
+		} catch (ExpiredJwtException ex) {
+			request.setAttribute("jwt_expired", true);
 			SecurityContextHolder.clearContext();
+			log.debug("JWT expired for request {}", request.getRequestURI());
+		} catch (Exception ex) {
+			SecurityContextHolder.clearContext();
+			log.debug("JWT authentication failed: {}", ex.getMessage());
 		}
 
 		filterChain.doFilter(request, response);

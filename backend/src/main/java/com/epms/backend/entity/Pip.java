@@ -1,5 +1,6 @@
 package com.epms.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -26,6 +27,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Pip {
 
     @Id
@@ -43,7 +45,7 @@ public class Pip {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cycle_id")
-    private KpiPeriod period;
+    private AppraisalCycle period;
 
     @Column(name = "status", length = 20)
     private String status;
@@ -53,6 +55,18 @@ public class Pip {
 
     @Column(name = "target_end_date", nullable = false)
     private LocalDate endDate;
+
+    @Column(name = "original_end_date")
+    private LocalDate originalEndDate;
+
+    @Column(name = "auto_close_date")
+    private LocalDate autoCloseDate;
+
+    @Column(name = "extended_end_date")
+    private LocalDate extendedEndDate;
+
+    @Column(name = "final_close_date")
+    private LocalDate finalCloseDate;
 
     @Column(name = "actual_end_date")
     private LocalDate actualEndDate;
@@ -90,6 +104,12 @@ public class Pip {
     @Column(name = "review_reason", columnDefinition = "text")
     private String reviewReason;
 
+    @Column(name = "reopen_decision", length = 20)
+    private String reopenDecision;
+
+    @Column(name = "reopen_decision_date")
+    private Instant reopenDecisionDate;
+
     @Column(name = "updated_date")
     private Instant updatedDate;
 
@@ -107,4 +127,10 @@ public class Pip {
 
     @Column(name = "final_outcome", length = 50)
     private String finalOutcome;
+
+    @Column(name = "expected_improvements", columnDefinition = "text")
+    private String expectedImprovements;
+
+    @Column(name = "reason_for_plan", columnDefinition = "text")
+    private String reasonForPlan;
 }

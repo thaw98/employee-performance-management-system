@@ -1,5 +1,6 @@
 package com.epms.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.Instant;
 
 import jakarta.persistence.Column;
@@ -21,7 +22,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "password"})
 public class User {
 
     @Id
@@ -58,6 +59,9 @@ public class User {
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword = true;
 
+    @Column(name = "theme", length = 20)
+    private String theme = "light";
+
     public String getEmail() {
         return employee != null ? employee.getEmail() : null;
     }
@@ -68,4 +72,16 @@ public class User {
         }
         employee.setEmail(email);
     }
+
+    @Column(name = "wallpaper_url", length = 255)
+    private String wallpaperUrl;
+
+    @Column(name = "language", length = 50)
+    private String language = "English";
+
+    @Column(name = "timezone", length = 50)
+    private String timezone = "UTC+06:30 (Yangon)";
+
+    @Column(name = "time_format", length = 10)
+    private String timeFormat = "12h";
 }

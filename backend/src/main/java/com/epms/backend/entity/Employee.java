@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.hibernate.Hibernate;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -29,11 +30,11 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @JsonIgnoreProperties({
-    "manager",
-    "parentDepartment",
+    "hibernateLazyInitializer", "handler",
     "position",
     "staffType",
     "father",
+    "spouse",
     "probation",
     "emergencyContact",
     "createdBy",
@@ -61,28 +62,26 @@ public class Employee {
     @JoinColumn(name = "department_id")
     private Department department;
 
-    /** Mirrors the selected department for compatibility with legacy schemas. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_department_id")
-    private Department parentDepartment;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_id")
     private Position position;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_id")
-    private Employee manager;
+    @JoinColumn(name = "department_position_id")
+    private DepartmentPosition departmentPosition;
 
     @Column(name = "hire_date")
     private LocalDate dateOfJoining;
 
-    @Column(name = "status", length = 20)
-    private String status;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "employment_status", length = 20)
     private EmployeeStatus employmentStatus = EmployeeStatus.ACTIVE;
+
+    @Column(name = "status_effective_from")
+    private LocalDate statusEffectiveFrom;
+
+    @Column(name = "employment_status_reason", length = 255)
+    private String employmentStatusReason;
 
     @Column(name = "staff_nrc_no", length = 100)
     private String staffNrcNo;
@@ -98,15 +97,22 @@ public class Employee {
     @Column(name = "gender")
     private Gender gender;
 
-    @Column(name = "religion", length = 20)
-    private String religion;
+    @Enumerated(EnumType.STRING)
+    @Column(
+        name = "religion",
+        columnDefinition = "ENUM('Buddhist', 'Christian', 'Muslim', 'Hindu')"
+    )
+    private EmployeeReligion religion;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "father_id")
     private EmployeeFather father;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "employee_probation")
+    @JoinColumn(name = "employee_spouse_id")
+    private EmployeeSpouse spouse;
+
+    @OneToOne(mappedBy = "employee", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private EmployeeProbation probation;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
@@ -121,9 +127,6 @@ public class Employee {
 
     @Transient
     private String otherName;
-
-    @Transient
-    private String race;
 
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
@@ -141,10 +144,30 @@ public class Employee {
     private String phoneNo;
 
     @Transient
+    public Long getPositionId() {
+        if (position == null || !Hibernate.isInitialized(position)) {
+            return null;
+        }
+        return position.getId();
+    }
+
+    @Transient
+    public String getPositionName() {
+        if (position == null || !Hibernate.isInitialized(position)) {
+            return null;
+        }
+        return position.getName();
+    }
+
+    @Enumerated(EnumType.STRING)
+    @Column(
+        name = "marital_status",
+        columnDefinition = "ENUM('Single', 'Married')"
+    )
     private MaritalStatus maritalStatus;
 
-    @Column(name = "nationality", length = 100)
-    private String nationality;
+    @Column(name = "race", length = 100)
+    private String race;
 
     @Transient
     private LocalDate dateOfDemotion;
@@ -169,9 +192,6 @@ public class Employee {
 
     @OneToOne(mappedBy = "employee", fetch = FetchType.LAZY)
     private User userAccount;
-
-    @Transient
-    private EmployeeSpouse spouse;
 
     @Transient
     private Passport passport;
