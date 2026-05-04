@@ -40,6 +40,7 @@ public class SelfAssessmentFormService {
     private final AuditService auditService;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final SelfAssessmentSettingsRepository settingsRepository;
 
     public SelfAssessmentFormService(
             SelfAssessmentFormTemplateRepository templateRepository,
@@ -53,7 +54,8 @@ public class SelfAssessmentFormService {
             NotificationService notificationService,
             AuditService auditService,
             UserRepository userRepository,
-            NotificationRepository notificationRepository) {
+            NotificationRepository notificationRepository,
+            SelfAssessmentSettingsRepository settingsRepository) {
         this.templateRepository = templateRepository;
         this.formRepository = formRepository;
         this.adjustmentRepository = adjustmentRepository;
@@ -66,6 +68,7 @@ public class SelfAssessmentFormService {
         this.auditService = auditService;
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
+        this.settingsRepository = settingsRepository;
     }
 
     @Transactional
@@ -88,7 +91,7 @@ public class SelfAssessmentFormService {
         template.setDepartment(department);
         template.setPosition(position);
         template.setReviewCycle(cycle);
-        template.setRatingSystem(parseRatingSystem(request.ratingSystem()));
+        template.setRatingSystem(resolveTemplateRatingSystem(request.ratingSystem()));
         template.setActive(true);
         template.setCreatedBy(userId);
         template.setCreatedOn(Instant.now());
@@ -142,7 +145,9 @@ public class SelfAssessmentFormService {
         template.setTitle(request.title().trim());
         template.setDepartment(department);
         template.setPosition(position);
-        template.setRatingSystem(parseRatingSystem(request.ratingSystem()));
+        if (request.ratingSystem() != null && !request.ratingSystem().trim().isBlank()) {
+            template.setRatingSystem(parseRatingSystem(request.ratingSystem()));
+        }
         template.setActive(request.isActive());
         template.setUpdatedBy(userId);
         template.setUpdatedOn(Instant.now());
@@ -701,6 +706,20 @@ public class SelfAssessmentFormService {
         return toFormDto(saved);
     }
 
+    @Transactional
+    public SelfAssessmentSettingsDto getSettings() {
+        return toSettingsDto(getOrCreateSettings());
+    }
+
+    @Transactional
+    public SelfAssessmentSettingsDto updateSettings(SelfAssessmentSettingsRequest request, Long userId) {
+        SelfAssessmentSettings settings = getOrCreateSettings();
+        settings.setRatingSystem(parseRatingSystem(request.ratingSystem()));
+        settings.setUpdatedBy(userId);
+        settings.setUpdatedOn(Instant.now());
+        return toSettingsDto(settingsRepository.save(settings));
+    }
+
     @Transactional(readOnly = true)
     public List<FormListDto> getManagerReviewForms(Employee manager) {
         ReviewCycle activeCycle = getActiveCycle();
@@ -1119,6 +1138,28 @@ public class SelfAssessmentFormService {
         } catch (IllegalArgumentException ex) {
             throw new RuntimeException("Invalid rating system");
         }
+    }
+
+    private SelfAssessmentRatingSystem resolveTemplateRatingSystem(String requestValue) {
+        if (requestValue != null && !requestValue.trim().isBlank()) {
+            return parseRatingSystem(requestValue);
+        }
+        return SelfAssessmentRatingSystem.defaultIfNull(getOrCreateSettings().getRatingSystem());
+    }
+
+    private SelfAssessmentSettings getOrCreateSettings() {
+        return settingsRepository.findById(SelfAssessmentSettings.SINGLETON_ID)
+                .orElseGet(() -> {
+                    SelfAssessmentSettings settings = new SelfAssessmentSettings();
+                    settings.setId(SelfAssessmentSettings.SINGLETON_ID);
+                    settings.setRatingSystem(SelfAssessmentRatingSystem.FIVE_POINT);
+                    return settingsRepository.save(settings);
+                });
+    }
+
+    private SelfAssessmentSettingsDto toSettingsDto(SelfAssessmentSettings settings) {
+        return new SelfAssessmentSettingsDto(
+                SelfAssessmentRatingSystem.defaultIfNull(settings.getRatingSystem()).name());
     }
 
     private void assertTemplateEditable(SelfAssessmentFormTemplate template) {

@@ -224,6 +224,14 @@ export interface ActiveCycleFormsDto {
   forms: FormListDto[]
 }
 
+export interface SelfAssessmentSettingsDto {
+  ratingSystem: SelfAssessmentRatingSystem
+}
+
+export interface SelfAssessmentSettingsRequest {
+  ratingSystem: SelfAssessmentRatingSystem
+}
+
 export interface FormStatusDto {
   status: string | null
   isEligible: boolean
@@ -468,6 +476,13 @@ const normalizeAssignmentResponse = (response: unknown): SelfAssessmentAssignmen
     skippedNoTemplateCount: getNumber(source.skippedNoTemplateCount),
     skippedIneligibleCount: getNumber(source.skippedIneligibleCount),
     activeCycle: normalizeCycleInfo(source.activeCycle) ?? { id: 0, name: '', code: '', startDate: '', endDate: '' },
+  }
+}
+
+const normalizeSettings = (settings: unknown): SelfAssessmentSettingsDto => {
+  const source = isRecord(settings) ? settings : {}
+  return {
+    ratingSystem: normalizeRatingSystem(source.ratingSystem),
   }
 }
 
@@ -716,6 +731,22 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeAssignmentResponse(getResponseData(response)),
     }),
 
+    getSelfAssessmentSettings: builder.query<SelfAssessmentSettingsDto, void>({
+      query: () => '/self-assessment-forms/settings',
+      providesTags: ['SelfAssessmentSettings'],
+      transformResponse: (response: unknown) => normalizeSettings(getResponseData(response)),
+    }),
+
+    updateSelfAssessmentSettings: builder.mutation<SelfAssessmentSettingsDto, SelfAssessmentSettingsRequest>({
+      query: (body) => ({
+        url: '/self-assessment-forms/settings',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['SelfAssessmentSettings'],
+      transformResponse: (response: unknown) => normalizeSettings(getResponseData(response)),
+    }),
+
     getQuestionBank: builder.query<QuestionBankDto[], { includeInactive?: boolean } | void>({
       query: (arg) => {
         const includeInactive = typeof arg === 'object' ? arg.includeInactive === true : false
@@ -779,6 +810,8 @@ export const {
   useUpdateTemplateMutation,
   useSetTemplateDeadlineMutation,
   useAssignSelfAssessmentFormsMutation,
+  useGetSelfAssessmentSettingsQuery,
+  useUpdateSelfAssessmentSettingsMutation,
   useGetQuestionBankQuery,
   useCreateQuestionBankItemMutation,
   useUpdateQuestionBankItemMutation,

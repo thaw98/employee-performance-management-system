@@ -1,6 +1,8 @@
 package com.epms.backend.service;
 
 import com.epms.backend.StaffTypes;
+import com.epms.backend.dto.selfassessmentform.CreateTemplateRequest;
+import com.epms.backend.dto.selfassessmentform.QuestionRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentResponse;
 import com.epms.backend.entity.Department;
@@ -12,6 +14,7 @@ import com.epms.backend.entity.SelfAssessmentForm;
 import com.epms.backend.entity.SelfAssessmentFormTemplate;
 import com.epms.backend.entity.SelfAssessmentFormTemplateQuestion;
 import com.epms.backend.entity.SelfAssessmentRatingSystem;
+import com.epms.backend.entity.SelfAssessmentSettings;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeRepository;
@@ -19,6 +22,7 @@ import com.epms.backend.repository.NotificationRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.SelfAssessmentFormAdjustmentRepository;
 import com.epms.backend.repository.SelfAssessmentFormRepository;
+import com.epms.backend.repository.SelfAssessmentSettingsRepository;
 import com.epms.backend.repository.SelfAssessmentFormTemplateRepository;
 import com.epms.backend.repository.SignatureRepository;
 import com.epms.backend.repository.UserRepository;
@@ -69,6 +73,8 @@ class SelfAssessmentFormAssignmentServiceTest {
     private UserRepository userRepository;
     @Mock
     private NotificationRepository notificationRepository;
+    @Mock
+    private SelfAssessmentSettingsRepository settingsRepository;
 
     private SelfAssessmentFormService service;
 
@@ -86,7 +92,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 notificationService,
                 auditService,
                 userRepository,
-                notificationRepository);
+                notificationRepository,
+                settingsRepository);
     }
 
     @Test
@@ -214,6 +221,42 @@ class SelfAssessmentFormAssignmentServiceTest {
 
         assertTrue(ex.getMessage().contains("Deadlines must be ordered"));
         verify(employeeRepository, never()).findEligibleSelfAssessmentAssignees(any(), any());
+    }
+
+    @Test
+    void createTemplate_usesGlobalRatingSystemWhenRequestOmitsRatingSystem() {
+        ReviewCycle cycle = cycle();
+        Department department = new Department();
+        department.setId(10L);
+        department.setName("Department 10");
+        Position position = new Position();
+        position.setId(20L);
+        position.setName("Position 20");
+        SelfAssessmentSettings settings = new SelfAssessmentSettings();
+        settings.setRatingSystem(SelfAssessmentRatingSystem.TEN_POINT);
+
+        when(reviewCycleService.resolveCycleForSelfAssessmentTemplate(7L)).thenReturn(cycle);
+        when(departmentRepository.findById(10L)).thenReturn(Optional.of(department));
+        when(positionRepository.findById(20L)).thenReturn(Optional.of(position));
+        when(templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(10L, 20L, 7L))
+                .thenReturn(Optional.empty());
+        when(settingsRepository.findById(SelfAssessmentSettings.SINGLETON_ID)).thenReturn(Optional.of(settings));
+        when(templateRepository.saveAndFlush(any(SelfAssessmentFormTemplate.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(templateRepository.save(any(SelfAssessmentFormTemplate.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createTemplate(new CreateTemplateRequest(
+                "Template",
+                10L,
+                20L,
+                List.of(new QuestionRequest(null, "What did you achieve?", 0)),
+                7L,
+                null), 99L);
+
+        ArgumentCaptor<SelfAssessmentFormTemplate> templateCaptor = ArgumentCaptor.forClass(SelfAssessmentFormTemplate.class);
+        verify(templateRepository).saveAndFlush(templateCaptor.capture());
+        assertEquals(SelfAssessmentRatingSystem.TEN_POINT, templateCaptor.getValue().getRatingSystem());
     }
 
     private static SelfAssessmentAssignmentRequest request(String mode) {

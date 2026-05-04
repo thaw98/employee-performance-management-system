@@ -31,6 +31,7 @@ public class SelfAssessmentRatingSystemMigrationInitializer implements BeanPostP
     }
 
     private void migrate(JdbcTemplate jdbc) {
+        createSettingsTable(jdbc);
         if (tableExists(jdbc, "self_assessment_form_template")) {
             addColumnIfMissing(jdbc, "self_assessment_form_template", "rating_system", "VARCHAR(20) NOT NULL DEFAULT 'FIVE_POINT'");
             jdbc.update("""
@@ -47,6 +48,27 @@ public class SelfAssessmentRatingSystemMigrationInitializer implements BeanPostP
                     WHERE rating_system IS NULL OR TRIM(rating_system) = ''
                     """);
         }
+    }
+
+    private void createSettingsTable(JdbcTemplate jdbc) {
+        jdbc.execute("""
+                CREATE TABLE IF NOT EXISTS self_assessment_settings (
+                    id BIGINT NOT NULL PRIMARY KEY,
+                    rating_system VARCHAR(20) NOT NULL DEFAULT 'FIVE_POINT',
+                    updated_by BIGINT NULL,
+                    updated_on DATETIME(6) NULL
+                )
+                """);
+        jdbc.update("""
+                INSERT INTO self_assessment_settings (id, rating_system)
+                SELECT 1, 'FIVE_POINT'
+                WHERE NOT EXISTS (SELECT 1 FROM self_assessment_settings WHERE id = 1)
+                """);
+        jdbc.update("""
+                UPDATE self_assessment_settings
+                SET rating_system = 'FIVE_POINT'
+                WHERE rating_system IS NULL OR TRIM(rating_system) = ''
+                """);
     }
 
     private static void addColumnIfMissing(JdbcTemplate jdbc, String tableName, String columnName, String definition) {

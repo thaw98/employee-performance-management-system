@@ -130,6 +130,29 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @GetMapping("/settings")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SelfAssessmentSettingsDto>> getSettings() {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok("Self-assessment settings retrieved", selfAssessmentFormService.getSettings()));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PutMapping("/settings")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SelfAssessmentSettingsDto>> updateSettings(
+            @Valid @RequestBody SelfAssessmentSettingsRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SelfAssessmentSettingsDto settings = selfAssessmentFormService.updateSettings(request, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Self-assessment settings saved", settings));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> getFormById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
