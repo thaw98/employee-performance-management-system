@@ -13,9 +13,10 @@ import {
   useHrReopenFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { getRatingOptions, isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
+import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
-import { formatDateTimeWithSeconds } from '../../utils/dateUtils';
+import { formatDateDayMonthYear, formatDateTimeWithSeconds } from '../../utils/dateUtils';
 import { useSelector } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
 import type { RootState } from '../../app/store';
@@ -306,6 +307,13 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                   </div>
                 </div>
 
+                {selectedForm.assessmentDate && (
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                    <span className="font-medium text-slate-700 dark:text-slate-300">Assessment date:</span>{' '}
+                    {formatDateDayMonthYear(selectedForm.assessmentDate)}
+                  </p>
+                )}
+
                 <div className="border-t border-slate-200 dark:border-slate-700 pt-4 mt-4">
                   <h3 className="font-medium text-slate-900 dark:text-white mb-4">Answers</h3>
                   <div className="space-y-4">
@@ -431,19 +439,24 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                 <option value="No">No</option>
                               </select>
                             </div>
-                            <div>
+                            <div className="md:col-span-1 min-w-0">
                               <label className="block text-xs text-slate-500 mb-1">Proposed Rating</label>
-                              <select
-                                value={currentAdjustment?.proposedRating || ''}
-                                onChange={(e) => handleManagerAdjustmentChange(answer.id, 'proposedRating', parseInt(e.target.value))}
-                                disabled={!proposedYesNo}
-                                className="w-full px-2 py-1.5 border border-slate-300 dark:border-slate-600 rounded text-sm"
-                              >
-                                <option value="">Select</option>
-                                {getRatingOptions(selectedForm.ratingSystem, proposedYesNo).map((rating) => (
-                                  <option key={rating} value={rating}>{rating}</option>
-                                ))}
-                              </select>
+                              {(() => {
+                                const pr = currentAdjustment?.proposedRating;
+                                const allowed = getRatingOptions(selectedForm?.ratingSystem, proposedYesNo);
+                                const ratingValue =
+                                  pr && pr > 0 && allowed.includes(pr) ? pr : null;
+                                return (
+                                  <SelfAssessmentRatingPicker
+                                    compact
+                                    ratingSystem={selectedForm?.ratingSystem}
+                                    yesNoAnswer={proposedYesNo || null}
+                                    value={ratingValue}
+                                    onChange={(r) => handleManagerAdjustmentChange(answer.id, 'proposedRating', r)}
+                                    disabled={!proposedYesNo}
+                                  />
+                                );
+                              })()}
                             </div>
                             <div>
                               <label className="block text-xs text-slate-500 mb-1">Comment (Required)</label>

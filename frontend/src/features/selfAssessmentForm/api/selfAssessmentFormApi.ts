@@ -151,6 +151,8 @@ export interface SelfAssessmentFormDto {
   hrAdjustmentSignatureDate: string | null
   createdDate: string
   submittedDate: string | null
+  /** Calendar date set automatically when the employee submits (cleared when HR reopens). */
+  assessmentDate: string | null
   employee: EmployeeInfoDto
   answers: AnswerDto[]
   adjustments: AdjustmentDto[]
@@ -171,6 +173,7 @@ export interface FormListDto {
   totalScore: number | null
   ratingCategory: string | null
   submittedDate: string | null
+  assessmentDate: string | null
   createdDate: string
 }
 
@@ -412,6 +415,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     hrAdjustmentSignatureDate: getOptionalString(source.hrAdjustmentSignatureDate) ?? null,
     createdDate: getString(source.createdDate),
     submittedDate: getOptionalString(source.submittedDate) ?? null,
+    assessmentDate: getOptionalString(source.assessmentDate) ?? null,
     employee: normalizeEmployeeInfo(isRecord(source.employee) ? source.employee : {}),
     answers: getArray(source.answers).map(a => normalizeAnswer(isRecord(a) ? a : {})),
     adjustments: getArray(source.adjustments).map(a => normalizeAdjustment(isRecord(a) ? a : {})),
@@ -436,6 +440,7 @@ const normalizeFormList = (form: unknown): FormListDto => {
     totalScore: source.totalScore != null ? getNumber(source.totalScore) : null,
     ratingCategory: getOptionalString(source.ratingCategory) ?? null,
     submittedDate: getOptionalString(source.submittedDate) ?? null,
+    assessmentDate: getOptionalString(source.assessmentDate) ?? null,
     createdDate: getString(source.createdDate),
   }
 }

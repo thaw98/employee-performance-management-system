@@ -58,6 +58,7 @@ import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfA
 import { SelfAssessmentActiveFormsPage } from './pages/self-assessment-form/SelfAssessmentActiveFormsPage';
 import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage';
 import { SelfAssessmentAssignmentsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentsPage';
+import { AssignSelfAssessmentFormsPage } from './pages/self-assessment-form/AssignSelfAssessmentFormsPage';
 import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
 
 function App() {
@@ -108,6 +109,7 @@ function App() {
             <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/assignments" element={<SelfAssessmentAssignmentsPage />} />
+            <Route path="self-assessment/assign-forms" element={<AssignSelfAssessmentFormsPage />} />
             <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
             <Route
               path="self-assessment/forms/create"

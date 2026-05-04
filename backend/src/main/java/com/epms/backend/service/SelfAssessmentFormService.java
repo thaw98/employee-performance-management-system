@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -687,8 +688,10 @@ public class SelfAssessmentFormService {
         form.setEmployeeSignatureId(defaultSig.getId());
         form.setEmployeeSignatureDate(Instant.now());
         form.setStatus(SelfAssessmentFormStatus.SUBMITTED);
-        form.setSubmittedDate(Instant.now());
-        form.setUpdatedDate(Instant.now());
+        Instant submittedAt = Instant.now();
+        form.setSubmittedDate(submittedAt);
+        form.setAssessmentDate(LocalDate.ofInstant(submittedAt, ZoneId.systemDefault()));
+        form.setUpdatedDate(submittedAt);
 
         calculateScore(form);
 
@@ -996,6 +999,10 @@ public class SelfAssessmentFormService {
 
         form.setHrSignatureId(defaultSig.getId());
         form.setStatus(SelfAssessmentFormStatus.REOPENED);
+        form.setAssessmentDate(null);
+        form.setSubmittedDate(null);
+        form.setEmployeeSignatureId(null);
+        form.setEmployeeSignatureDate(null);
         form.setUpdatedDate(Instant.now());
 
         SelfAssessmentForm saved = formRepository.save(form);
@@ -1187,8 +1194,11 @@ public class SelfAssessmentFormService {
         if (employeeDeadline == null || managerDeadline == null || finalDeadline == null) {
             throw new RuntimeException("All deadlines are required");
         }
-        if (employeeDeadline.isAfter(managerDeadline) || managerDeadline.isAfter(finalDeadline)) {
-            throw new RuntimeException("Deadlines must be ordered: employee deadline, manager review deadline, final approval deadline");
+        if (employeeDeadline.isAfter(managerDeadline)) {
+            throw new RuntimeException("Manager review deadline cannot be earlier than the employee deadline.");
+        }
+        if (managerDeadline.isAfter(finalDeadline)) {
+            throw new RuntimeException("Final approval deadline cannot be earlier than the manager review deadline.");
         }
         validateDateWithinActiveCycle(employeeDeadline, "Employee deadline", activeCycle);
         validateDateWithinActiveCycle(managerDeadline, "Manager review deadline", activeCycle);
@@ -1553,6 +1563,7 @@ public class SelfAssessmentFormService {
                 form.getHrAdjustmentSignatureDate(),
                 form.getCreatedDate(),
                 form.getSubmittedDate(),
+                form.getAssessmentDate(),
                 employeeInfo,
                 answers,
                 adjustments
@@ -1587,6 +1598,7 @@ public class SelfAssessmentFormService {
                 form.getTotalScore(),
                 form.getRatingCategory(),
                 form.getSubmittedDate(),
+                form.getAssessmentDate(),
                 form.getCreatedDate()
         );
     }

@@ -18,7 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
@@ -27,9 +27,12 @@ import {
   useCreateQuestionBankItemMutation,
   useCreateTemplateMutation,
   useGetQuestionBankQuery,
+  useGetSelfAssessmentSettingsQuery,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { getRatingOptions, ratingSystemLabels } from '../../features/selfAssessmentForm/ratingSystem';
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import { formatCycleDate, SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
+import { AudienceCard, createCountBadge, formatEmployeeCount } from './SelfAssessmentAudienceCard';
 
 interface QuestionFormData {
   title: string;
@@ -111,90 +114,6 @@ const employeeIsActive = (employee: EmployeeListItem) => {
 
   return employee.employmentStatus !== 'Resigned' && employee.employmentStatus !== 'Terminated';
 };
-
-const formatEmployeeCount = (count: number) => `${count} ${count === 1 ? 'employee' : 'employees'}`;
-
-const createCountBadge = (count: number): React.ReactNode =>
-  count > 0 ? (
-    <span className="shrink-0 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-blue-900 dark:bg-sky-950/50 dark:text-sky-200">
-      {formatEmployeeCount(count)}
-    </span>
-  ) : null;
-
-interface AudienceCardProps {
-  value: AudienceType;
-  selected: boolean;
-  title: string;
-  description: string[];
-  icon: React.ReactNode;
-  badge?: React.ReactNode;
-  onSelect: (value: AudienceType) => void;
-}
-
-const AudienceCard: React.FC<AudienceCardProps> = ({
-  value,
-  selected,
-  title,
-  description,
-  icon,
-  badge,
-  onSelect,
-}) => (
-  <button
-    type="button"
-    onClick={() => onSelect(value)}
-    className={`w-full rounded-xl border p-4 text-left transition ${
-      selected
-        ? 'border-2 border-[#5D5FEF] bg-[#5D5FEF]/[0.07] shadow-sm dark:border-[#7C7EF5] dark:bg-[#5D5FEF]/15'
-        : 'border border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600'
-    }`}
-  >
-    <div className="flex items-start gap-3">
-      <span
-        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
-          selected ? 'border-[#5D5FEF]' : 'border-slate-300 dark:border-slate-500'
-        }`}
-        aria-hidden
-      >
-        <span
-          className={`h-2.5 w-2.5 rounded-full ${selected ? 'bg-[#5D5FEF]' : 'bg-transparent'}`}
-        />
-      </span>
-      <div className="flex min-w-0 flex-1 gap-3">
-        <span
-          className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-            selected
-              ? 'bg-[#5D5FEF]/15 text-[#4F52D9] dark:bg-[#5D5FEF]/25 dark:text-[#A5A7FA]'
-              : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'
-          }`}
-        >
-          {icon}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <h3
-              className={`text-sm font-bold ${selected ? 'text-blue-950 dark:text-white' : 'text-slate-900 dark:text-white'}`}
-            >
-              {title}
-            </h3>
-            {badge ? (
-              <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
-                {badge}
-              </div>
-            ) : null}
-          </div>
-          <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs marker:text-slate-300 dark:marker:text-slate-600">
-            {description.map((line) => (
-              <li key={line} className="text-slate-500 dark:text-slate-400">
-                {line}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </div>
-  </button>
-);
 
 interface HybridRuleRowProps {
   rule: HybridRule;
@@ -576,6 +495,12 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     positionIdByName,
   ]);
 
+  const {
+    data: selfAssessmentSettings,
+    isLoading: selfAssessmentSettingsLoading,
+    isError: selfAssessmentSettingsError,
+  } = useGetSelfAssessmentSettingsQuery();
+
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
   const [createQuestionBankItem, { isLoading: isSavingToQuestionBank }] =
     useCreateQuestionBankItemMutation();
@@ -853,6 +778,60 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   })}
                 </select>
               )}
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-600 dark:bg-slate-900/40">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Rating scale for new templates
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Employees answer Yes/No then pick a score from the ranges below. This matches{' '}
+                    <Link
+                      to="/hr/self-assessment/settings"
+                      className="font-semibold text-[#5D5FEF] underline-offset-2 hover:underline dark:text-[#8b8ef7]"
+                    >
+                      Self Assessment Settings
+                    </Link>
+                    .
+                  </p>
+                </div>
+              </div>
+              {selfAssessmentSettingsLoading ? (
+                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Loading rating settings…</p>
+              ) : selfAssessmentSettingsError ? (
+                <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
+                  Could not load rating settings. The server default will still apply when the template is saved.
+                </p>
+              ) : selfAssessmentSettings?.ratingSystem ? (
+                <dl className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
+                  <div>
+                    <dt className="font-medium text-slate-600 dark:text-slate-400">Scale</dt>
+                    <dd className="mt-0.5 font-semibold text-slate-900 dark:text-white">
+                      {ratingSystemLabels[selfAssessmentSettings.ratingSystem]}
+                    </dd>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-800">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                        Yes — allowed scores
+                      </dt>
+                      <dd className="mt-1 tabular-nums font-medium">
+                        {getRatingOptions(selfAssessmentSettings.ratingSystem, 'Yes').join(', ')}
+                      </dd>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-800">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-400">
+                        No — allowed scores
+                      </dt>
+                      <dd className="mt-1 tabular-nums font-medium">
+                        {getRatingOptions(selfAssessmentSettings.ratingSystem, 'No').join(', ')}
+                      </dd>
+                    </div>
+                  </div>
+                </dl>
+              ) : null}
             </div>
 
             <div>

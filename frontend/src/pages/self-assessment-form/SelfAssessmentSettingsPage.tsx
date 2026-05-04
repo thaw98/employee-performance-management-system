@@ -24,8 +24,8 @@ const ratingOptions: RatingOption[] = [
   },
   {
     value: 'TEN_POINT',
-    title: '0-10 Scale (Detailed)',
-    description: 'Uses the detailed ten-point score range for new self-assessment templates.',
+    title: '1-10 Scale (Detailed)',
+    description: 'Uses the detailed 1–10 score range for new self-assessment templates.',
   },
 ];
 

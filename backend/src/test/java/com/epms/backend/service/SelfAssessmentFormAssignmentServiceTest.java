@@ -219,7 +219,7 @@ class SelfAssessmentFormAssignmentServiceTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> service.assignSelfAssessmentForms(request, 99L));
 
-        assertTrue(ex.getMessage().contains("Deadlines must be ordered"));
+        assertTrue(ex.getMessage().contains("Manager review deadline cannot be earlier"));
         verify(employeeRepository, never()).findEligibleSelfAssessmentAssignees(any(), any());
     }
 

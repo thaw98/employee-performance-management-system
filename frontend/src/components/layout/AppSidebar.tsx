@@ -95,7 +95,8 @@ export function AppSidebar() {
           end: false,
           subItems: [
             { name: 'Template Management', path: '/hr/self-assessment/templates', icon: 'bi-sliders' },
-            { name: 'Bulk Assignment', path: '/hr/self-assessment/assignments', icon: 'bi-send' },
+            { name: 'Assignments overview', path: '/hr/self-assessment/assignments', icon: 'bi-clipboard-check' },
+            { name: 'Assign Self-Assessment Forms', path: '/hr/self-assessment/assign-forms', icon: 'bi-send' },
             { name: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: 'bi-inbox' },
             { name: 'Question Bank', path: '/hr/self-assessment/question-bank', icon: 'bi-book' },
             { name: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: 'bi-list-check' },

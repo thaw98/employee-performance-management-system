@@ -36,6 +36,7 @@ public record SelfAssessmentFormDto(
         Instant hrAdjustmentSignatureDate,
         Instant createdDate,
         Instant submittedDate,
+        LocalDate assessmentDate,
         EmployeeInfoDto employee,
         List<AnswerDto> answers,
         List<AdjustmentDto> adjustments

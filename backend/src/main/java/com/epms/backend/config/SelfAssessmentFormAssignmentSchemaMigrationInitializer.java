@@ -39,8 +39,22 @@ public class SelfAssessmentFormAssignmentSchemaMigrationInitializer implements B
         addColumnIfMissing(jdbc, "self_assessment_form", "final_approval_deadline_date", "DATE NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "assigned_at", "DATETIME(6) NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "assigned_by", "BIGINT NULL");
+        addColumnIfMissing(jdbc, "self_assessment_form", "assessment_date", "DATE NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "employee_remarks", "TEXT NULL");
         dropColumnIfExists(jdbc, "self_assessment_form", "title");
+        backfillAssessmentDates(jdbc);
+    }
+
+    private static void backfillAssessmentDates(JdbcTemplate jdbc) {
+        if (!columnExists(jdbc, "self_assessment_form", "assessment_date")
+                || !columnExists(jdbc, "self_assessment_form", "submitted_date")) {
+            return;
+        }
+        jdbc.update("""
+                UPDATE self_assessment_form
+                SET assessment_date = DATE(submitted_date)
+                WHERE assessment_date IS NULL AND submitted_date IS NOT NULL
+                """);
     }
 
     private static void dropColumnIfExists(JdbcTemplate jdbc, String tableName, String columnName) {

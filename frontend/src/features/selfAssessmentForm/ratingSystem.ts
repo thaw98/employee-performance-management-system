@@ -2,7 +2,7 @@ import type { SelfAssessmentRatingSystem } from './api/selfAssessmentFormApi'
 
 export const ratingSystemLabels: Record<SelfAssessmentRatingSystem, string> = {
   FIVE_POINT: '5-point scale',
-  TEN_POINT: '10-point scale',
+  TEN_POINT: '1–10 scale',
 }
 
 export const getRatingOptions = (
