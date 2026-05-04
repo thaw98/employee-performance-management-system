@@ -13,14 +13,22 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/appraisal-assignments")
 @RequiredArgsConstructor
-@org.springframework.security.access.prepost.PreAuthorize("hasRole('HR')")
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
 public class AppraisalAssignmentController {
 
     private final AppraisalAssignmentService appraisalAssignmentService;
 
     @GetMapping
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR')")
     public ResponseEntity<ApiResponse<List<AppraisalAssignment>>> getAll() {
         return ResponseEntity.ok(ApiResponse.ok("Fetched all assignments", appraisalAssignmentService.getAllAssignments()));
+    }
+
+    @GetMapping("/my-team")
+    public ResponseEntity<ApiResponse<List<AppraisalAssignment>>> getMyTeamAssignments(Authentication auth) {
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok("Fetched team assignments", 
+            appraisalAssignmentService.getAssignmentsForEvaluator(principal.getEmployeeDbId())));
     }
 
     @GetMapping("/{id}")

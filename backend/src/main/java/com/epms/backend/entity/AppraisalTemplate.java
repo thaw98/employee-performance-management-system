@@ -46,6 +46,9 @@ public class AppraisalTemplate {
     )
     private List<DepartmentPosition> targetDepartmentPositions;
 
+    @Column(name = "max_rating")
+    private Integer maxRating = 5;
+
     @Column(name = "created_at")
     private LocalDate createdAt = LocalDate.now();
 }
