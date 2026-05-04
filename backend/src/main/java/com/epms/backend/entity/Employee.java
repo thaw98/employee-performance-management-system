@@ -39,7 +39,8 @@ import lombok.Setter;
     "emergencyContact",
     "createdBy",
     "updatedBy",
-    "userAccount"
+    "userAccount",
+    "manager"
 })
 
 public class Employee {
@@ -61,6 +62,11 @@ public class Employee {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id")
     private Department department;
+
+    /** Direct reporting manager (line manager). Falls back to {@link Department#getManagerId()} when null. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id")
+    private Employee manager;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_id")

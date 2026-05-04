@@ -173,6 +173,7 @@ export default function EditEmployeeModal({
         departmentId: d.departmentId,
         departmentPositionId: d.departmentPositionId ?? null,
         positionId: d.positionId,
+        managerId: d.managerId ?? null,
       })
     }
   }, [empRes, reset])
@@ -245,6 +246,7 @@ export default function EditEmployeeModal({
         emergencyRelation: v.emergencyRelation,
         departmentId: v.departmentId!,
         departmentPositionId: v.departmentPositionId!,
+        managerId: v.managerId ?? null,
         dateOfJoining: v.hireDate,
         // Keep existing type here when converting Probation->Permanent; transition endpoint will update it.
         staffTypeId: isProbationToPermanent ? 2 : v.staffType === 'PROBATION' ? 2 : 1,

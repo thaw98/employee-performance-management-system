@@ -1,7 +1,10 @@
 package com.epms.backend.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -15,7 +18,11 @@ import com.epms.backend.dto.department.DepartmentDto;
 import com.epms.backend.dto.department.ManagerOptionDto;
 import com.epms.backend.dto.department.UpdateDepartmentRequest;
 import com.epms.backend.entity.Department;
+import com.epms.backend.entity.DepartmentManagerHistory;
+import com.epms.backend.entity.Employee;
+import com.epms.backend.repository.DepartmentManagerHistoryRepository;
 import com.epms.backend.repository.DepartmentRepository;
+import com.epms.backend.repository.EmployeeRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,6 +31,8 @@ import lombok.RequiredArgsConstructor;
 public class DepartmentServiceImpl implements DepartmentService {
 
     private final DepartmentRepository departmentRepository;
+    private final DepartmentManagerHistoryRepository departmentManagerHistoryRepository;
+    private final EmployeeRepository employeeRepository;
     private final JdbcTemplate jdbcTemplate;
 
     private static final String STATUS_ACTIVE = "Active";
@@ -89,15 +98,21 @@ public class DepartmentServiceImpl implements DepartmentService {
             throw new IllegalArgumentException("Department name already exists.");
         }
 
+        Long requestedManagerId = request.getManagerId();
+        if (requestedManagerId != null && !employeeRepository.existsById(requestedManagerId)) {
+            throw new IllegalArgumentException("Manager employee not found.");
+        }
+
         Department department = new Department();
         department.setCode(code);
         department.setName(name);
-        department.setManagerId(request.getManagerId());
+        department.setManagerId(requestedManagerId);
         department.setStatus(request.getStatus() != null ? normalizeStatus(request.getStatus()) : STATUS_ACTIVE);
         department.setCreatedDate(Instant.now());
         department.setUpdatedDate(Instant.now());
 
         Department saved = departmentRepository.save(department);
+        syncDepartmentManagerHistory(saved, null, saved.getManagerId(), null);
         return mapToDto(saved);
     }
 
@@ -118,13 +133,21 @@ public class DepartmentServiceImpl implements DepartmentService {
             throw new IllegalArgumentException("Department name already exists.");
         }
 
+        Long requestedManagerId = request.getManagerId();
+        if (requestedManagerId != null && !employeeRepository.existsById(requestedManagerId)) {
+            throw new IllegalArgumentException("Manager employee not found.");
+        }
+
+        Long previousManagerId = department.getManagerId();
+
         department.setCode(code);
         department.setName(name);
-        department.setManagerId(request.getManagerId());
+        department.setManagerId(requestedManagerId);
         department.setStatus(normalizeStatus(request.getStatus()));
         department.setUpdatedDate(Instant.now());
 
         Department saved = departmentRepository.save(department);
+        syncDepartmentManagerHistory(saved, previousManagerId, saved.getManagerId(), null);
         return mapToDto(saved);
     }
 
@@ -233,5 +256,38 @@ public class DepartmentServiceImpl implements DepartmentService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * Closes open {@code department_manager_history} rows when {@code department.manager_id} changes,
+     * and opens a new row when a new manager is set.
+     */
+    private void syncDepartmentManagerHistory(
+            Department department,
+            Long previousManagerId,
+            Long newManagerId,
+            Long createdBy) {
+        if (Objects.equals(previousManagerId, newManagerId)) {
+            return;
+        }
+        LocalDate today = LocalDate.now();
+        for (DepartmentManagerHistory open : departmentManagerHistoryRepository.findByDepartment_IdAndEndDateIsNull(
+                department.getId())) {
+            open.setEndDate(today.minusDays(1));
+            departmentManagerHistoryRepository.save(open);
+        }
+        if (newManagerId == null) {
+            return;
+        }
+        Employee mgr = employeeRepository.findById(newManagerId)
+                .orElseThrow(() -> new IllegalArgumentException("Manager employee not found."));
+        DepartmentManagerHistory row = new DepartmentManagerHistory();
+        row.setDepartment(department);
+        row.setManager(mgr);
+        row.setStartDate(today);
+        row.setEndDate(null);
+        row.setCreatedBy(createdBy);
+        row.setCreatedOn(LocalDateTime.now());
+        departmentManagerHistoryRepository.save(row);
     }
 }

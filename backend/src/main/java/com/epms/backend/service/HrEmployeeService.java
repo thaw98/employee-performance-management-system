@@ -80,6 +80,7 @@ public class HrEmployeeService {
     private final MailService mailService;
     private final AuditService auditService;
     private final KpiRepository kpiRepository;
+    private final ReportingManagerResolver reportingManagerResolver;
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
@@ -392,6 +393,8 @@ public class HrEmployeeService {
                     .orElseThrow(() -> new IllegalArgumentException("Staff type not found"));
             employee.setStaffType(st);
         }
+
+        applyReportingManagerAssignment(employee, request.getManagerId());
 
         employee.setUpdatedBy(principal.getId());
         employee.setUpdatedDate(Instant.now());
@@ -756,7 +759,7 @@ public class HrEmployeeService {
     }
 
     private EmployeeDetailResponseDto toDetailDto(Employee employee) {
-        Employee manager = resolveDepartmentManager(employee);
+        Employee manager = reportingManagerResolver.resolve(employee);
         return EmployeeDetailResponseDto.builder()
                 .id(employee.getId())
                 .employeeId(employee.getEmployeeId())
@@ -795,15 +798,17 @@ public class HrEmployeeService {
                 .build();
     }
 
-    private Employee resolveDepartmentManager(Employee employee) {
-        if (employee.getDepartment() == null || employee.getDepartment().getManagerId() == null) {
-            return null;
+    private void applyReportingManagerAssignment(Employee employee, Long managerId) {
+        if (managerId == null) {
+            employee.setManager(null);
+            return;
         }
-        Long managerId = employee.getDepartment().getManagerId();
         if (employee.getId() != null && employee.getId().equals(managerId)) {
-            return null;
+            throw new IllegalArgumentException("Employee cannot be their own manager");
         }
-        return employeeRepository.findById(managerId).orElse(null);
+        Employee mgr = employeeRepository.findById(managerId)
+                .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
+        employee.setManager(mgr);
     }
 
     private boolean isActiveEntity(String status) {
