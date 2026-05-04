@@ -75,7 +75,7 @@ public class FeedbackController {
         try {
             User user = getCurrentUser();
             List<Employee> eligible = feedbackService.getEligibleEvaluatees(user.getEmployee().getId(), role);
-            
+
             // Calculate current role count
             TimeSettingDto cycle = timeSettingService.getCurrentCycleRange();
             Instant start = cycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
@@ -113,7 +113,7 @@ public class FeedbackController {
             User user = getCurrentUser();
             Employee e = user.getEmployee();
             if (e == null) throw new RuntimeException("Evaluator employee record missing");
-            
+
             Map<String, Object> info = new HashMap<>();
             info.put("name", e.getEmployeeName());
             info.put("position", e.getPosition() != null ? e.getPosition().getName() : "N/A");

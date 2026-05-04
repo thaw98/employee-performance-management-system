@@ -45,6 +45,14 @@ public class TimeSettingService {
                 .orElseGet(this::defaultSettings);
     }
 
+    /**
+     * Start/end dates of the organization's active annual cycle (same bounds as time settings).
+     */
+    @Transactional(readOnly = true)
+    public TimeSettingDto getCurrentCycleRange() {
+        return getSettings();
+    }
+
     @Transactional
     public TimeSettingDto saveSettings(TimeSettingDto dto, Long actingUserId, Long actingRoleId) {
         TimeSetting setting = repository.findFirstByOrderByIdAsc().orElse(new TimeSetting());

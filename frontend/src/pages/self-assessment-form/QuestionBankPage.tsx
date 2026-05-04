@@ -148,6 +148,7 @@ export const QuestionBankPage: React.FC = () => {
   ];
 
   return (
+    <>
     <div className="min-h-screen px-6 py-6 md:px-8 animate-fade-in">
       {/* ─── Breadcrumb ─── */}
       <nav className="mb-2 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
@@ -378,10 +379,10 @@ export const QuestionBankPage: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
 
-      {/* ─── Modal ─── */}
-      {modalMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    {modalMode && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
             <div className="mb-5 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -449,7 +450,7 @@ export const QuestionBankPage: React.FC = () => {
             </form>
           </div>
         </div>
-      )}
-    </div>
+    )}
+    </>
   );
 };

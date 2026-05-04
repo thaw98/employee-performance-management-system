@@ -275,6 +275,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                     render={({ field }) => (
                       <SelfAssessmentRatingPicker
                         title={answer.questionText}
+                        fivePointVariant="numeric"
                         ratingSystem={ratingSystem}
                         yesNoAnswer={watchAnswers?.[index]?.yesNoAnswer}
                         value={field.value}

@@ -37,6 +37,8 @@ class FeedbackServiceProbationRuleTest {
     private UserRepository userRepository;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private TimeSettingService timeSettingService;
 
     @Mock
     private TimeSettingService timeSettingService;

@@ -217,4 +217,18 @@ public class FeedbackService {
                 && employee.getStaffType() != null
                 && employee.getStaffType().getId() == StaffTypes.PROBATION;
     }
+
+    public boolean isFeedbackGivenInCurrentCycle(Long evaluatorId, Long evaluateeId) {
+        com.epms.backend.dto.TimeSettingDto cycle = timeSettingService.getCurrentCycleRange();
+        Instant cycleStart = cycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant cycleEnd = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1)
+                .toInstant();
+        return feedbackRepository.existsByEvaluatorIdAndEvaluateeIdAndCreatedDateBetween(evaluatorId, evaluateeId,
+                cycleStart, cycleEnd);
+    }
+
+    public long countFeedbacksByRoleInCycle(Long evaluatorId, String role, Instant start, Instant end) {
+        return feedbackRepository.countByEvaluatorIdAndRoleAndCreatedDateBetween(evaluatorId, role, start, end);
+    }
+
 }
