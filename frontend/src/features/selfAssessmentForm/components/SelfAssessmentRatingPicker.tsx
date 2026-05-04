@@ -4,11 +4,15 @@ import { getRatingOptions } from '../ratingSystem';
 
 const TICKS_1_10 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 const STARS_1_5 = [1, 2, 3, 4, 5] as const;
+/** Five-point scale shown high → low (5 … 1). */
+const NUMERIC_5_TO_1 = [5, 4, 3, 2, 1] as const;
 
 export interface SelfAssessmentRatingPickerProps {
   title?: string;
   /** Omit header + divider (e.g. when the question line is already shown above). */
   compact?: boolean;
+  /** Five-point UI: star buttons vs numeric 5–1 (ten-point unchanged). */
+  fivePointVariant?: 'stars' | 'numeric';
   ratingSystem: SelfAssessmentRatingSystem | null | undefined;
   yesNoAnswer: string | null | undefined;
   value: number | null | undefined;
@@ -152,9 +156,59 @@ function FiveStarWireframe({
   );
 }
 
+function FivePointNumericWireframe({
+  allowed,
+  value,
+  onChange,
+  disabled,
+}: {
+  allowed: number[];
+  value: number | null | undefined;
+  onChange: (rating: number) => void;
+  disabled: boolean;
+}) {
+  const inactive = disabled || allowed.length === 0;
+  const displayNum = value != null && allowed.includes(value) ? value : null;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-5 dark:border-slate-600 dark:bg-slate-900/40">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3" role="group" aria-label="Rating out of 5">
+        {NUMERIC_5_TO_1.map((n) => {
+          const isAllowed = allowed.includes(n);
+          const isSelected = displayNum === n;
+          return (
+            <button
+              key={n}
+              type="button"
+              disabled={inactive || !isAllowed}
+              aria-label={`Rate ${n} out of 5`}
+              aria-pressed={isSelected}
+              onClick={() => onChange(n)}
+              className={`flex min-h-[2.5rem] min-w-[2.5rem] items-center justify-center rounded-lg border-2 text-base font-bold tabular-nums transition-colors sm:min-h-[2.75rem] sm:min-w-[2.75rem] sm:text-lg ${
+                inactive || !isAllowed
+                  ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-600'
+                  : isSelected
+                    ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm dark:border-emerald-400 dark:bg-emerald-600'
+                    : 'border-slate-300 bg-white text-slate-700 hover:border-emerald-400 hover:bg-emerald-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-950/40'
+              }`}
+            >
+              {n}
+            </button>
+          );
+        })}
+      </div>
+      <span className="mt-3 block text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">
+        Selected: {displayNum != null ? `${displayNum}/5` : '—'}
+      </span>
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Tap a number to rate</p>
+    </div>
+  );
+}
+
 export function SelfAssessmentRatingPicker({
   title,
   compact,
+  fivePointVariant = 'stars',
   ratingSystem,
   yesNoAnswer,
   value,
@@ -168,6 +222,8 @@ export function SelfAssessmentRatingPicker({
   const body =
     system === 'TEN_POINT' ? (
       <TenPointScaleWireframe allowed={allowed} value={value} onChange={onChange} disabled={pickerDisabled} />
+    ) : fivePointVariant === 'numeric' ? (
+      <FivePointNumericWireframe allowed={allowed} value={value} onChange={onChange} disabled={pickerDisabled} />
     ) : (
       <FiveStarWireframe allowed={allowed} value={value} onChange={onChange} disabled={pickerDisabled} />
     );
