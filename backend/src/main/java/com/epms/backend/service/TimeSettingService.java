@@ -111,7 +111,7 @@ public class TimeSettingService {
         if (setting == null) {
             // Default to calendar year if not set
             LocalDate start = LocalDate.now().withMonth(1).withDayOfMonth(1);
-            return new TimeSettingDto("Calendar Year", start, start.plusYears(1).minusDays(1), "1 Year");
+            return new TimeSettingDto("Calendar Year", null, start, start.plusYears(1).minusDays(1), "1 Year", null, null);
         }
 
         LocalDate today = LocalDate.now();
@@ -136,7 +136,7 @@ public class TimeSettingService {
             cycleEnd = cycleStart.plusMonths(durationMonths).minusDays(1);
         }
 
-        return new TimeSettingDto(setting.getYearType(), cycleStart, cycleEnd, setting.getDuration());
+        return new TimeSettingDto(setting.getYearType(), null, cycleStart, cycleEnd, setting.getDuration(), null, null);
     }
 
     private TimeSettingDto toDto(TimeSetting entity) {
