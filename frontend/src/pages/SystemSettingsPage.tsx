@@ -55,7 +55,7 @@ export function SystemSettingsPage() {
       setTimeFormat(profileResponse.data.timeFormat)
     }
 
-    if (isHR) {
+    if (isHR && !isSaving) {
       fetchGlobalTimeSettings()
     }
   }, [profileResponse, isHR])
@@ -64,7 +64,7 @@ export function SystemSettingsPage() {
     try {
       setLoadingGlobal(true)
       const resp = await axios.get('/feedback/time-settings')
-      if (resp.data.success) {
+      if (resp.data.success && resp.data.data) {
         setYearType(resp.data.data.yearType)
         setAppliedYearType(resp.data.data.yearType)
         setPendingYearType(resp.data.data.pendingYearType ?? null)
@@ -114,6 +114,12 @@ export function SystemSettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
+      // 1. Save Global Time Settings first (HR Only)
+      if (isHR) {
+        await axios.post('/feedback/time-settings', { yearType, duration })
+      }
+
+      // 2. Then save Personal Profile Settings
       if (pendingWallpaper === 'remove') {
           await deleteWallpaper().unwrap()
           if (theme === 'wallpaper') {
