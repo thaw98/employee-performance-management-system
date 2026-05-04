@@ -15,4 +15,6 @@ public class DepartmentPositionMappingOptionDto {
 	private String positionName;
 	private String positionCode;
 	private String levelCodeName;
+	private Long roleId;
+	private String roleName;
 }

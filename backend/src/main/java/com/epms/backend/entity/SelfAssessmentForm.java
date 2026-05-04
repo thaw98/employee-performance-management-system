@@ -1,7 +1,7 @@
 package com.epms.backend.entity;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +33,28 @@ public class SelfAssessmentForm {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cycle_id")
     private ReviewCycle cycle;
+
+    @Column(name = "title", nullable = false)
+    private String title;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rating_system", nullable = false)
+    private SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.FIVE_POINT;
+
+    @Column(name = "deadline_date")
+    private LocalDate deadlineDate;
+
+    @Column(name = "manager_review_deadline_date")
+    private LocalDate managerReviewDeadlineDate;
+
+    @Column(name = "final_approval_deadline_date")
+    private LocalDate finalApprovalDeadlineDate;
+
+    @Column(name = "assigned_at")
+    private Instant assignedAt;
+
+    @Column(name = "assigned_by")
+    private Long assignedBy;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)

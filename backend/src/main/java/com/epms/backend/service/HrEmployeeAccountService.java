@@ -19,6 +19,7 @@ import com.epms.backend.dto.hr.HrCreateEmployeeAccountResponseDto;
 import com.epms.backend.dto.hr.MessageResponseDto;
 import com.epms.backend.dto.hr.NextStaffNoResponseDto;
 import com.epms.backend.entity.Department;
+import com.epms.backend.entity.DepartmentManagerHistory;
 import com.epms.backend.entity.DepartmentPosition;
 import com.epms.backend.entity.EmergencyContact;
 import com.epms.backend.entity.Employee;
@@ -34,6 +35,7 @@ import com.epms.backend.entity.Role;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.TransferType;
 import com.epms.backend.entity.User;
+import com.epms.backend.repository.DepartmentManagerHistoryRepository;
 import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.EmployeeDepartmentHistoryRepository;
@@ -56,6 +58,7 @@ public class HrEmployeeAccountService {
 	private static final int TEMP_PASSWORD_LENGTH = 8;
 	private static final Pattern STAFF_NO_PATTERN = Pattern.compile("^[0-9]+$");
 	private static final long HR_ROLE_ID = 1L;
+	private static final long DEPARTMENT_MANAGER_ROLE_ID = 2L;
 	/** When no numeric staff numbers exist, start at 0001. */
 	private static final long STAFF_NO_SEQUENCE_START = 0L;
 	private static final long STAFF_TYPE_PERMANENT_ID = 1L;
@@ -66,6 +69,7 @@ public class HrEmployeeAccountService {
 	private final EmployeeRepository employeeRepository;
 	private final UserRepository userRepository;
 	private final DepartmentRepository departmentRepository;
+	private final DepartmentManagerHistoryRepository departmentManagerHistoryRepository;
 	private final StaffTypeRepository staffTypeRepository;
 	private final EmployeeDepartmentHistoryRepository departmentHistoryRepository;
 	private final DepartmentPositionRepository departmentPositionRepository;
@@ -108,8 +112,11 @@ public class HrEmployeeAccountService {
 			throw new IllegalArgumentException("Staff number is already in use");
 		}
 
-		Department department = departmentRepository.findById(request.getDepartmentId())
-				.orElseThrow(() -> new IllegalArgumentException("Department not found"));
+		Department department = request.isAssignAsDepartmentManager()
+				? departmentRepository.findWithLockById(request.getDepartmentId())
+						.orElseThrow(() -> new IllegalArgumentException("Department not found"))
+				: departmentRepository.findById(request.getDepartmentId())
+						.orElseThrow(() -> new IllegalArgumentException("Department not found"));
 		if (!isActiveEntity(department.getStatus())) {
 			throw new IllegalArgumentException("Department is not active");
 		}
@@ -135,6 +142,14 @@ public class HrEmployeeAccountService {
 		}
 
 		Role accountRole = positionRoleResolutionService.resolveRoleFromLoadedPosition(position);
+		boolean requestedManagerAssignment = request.isAssignAsDepartmentManager();
+		boolean roleAllowsManagerAssignment = DEPARTMENT_MANAGER_ROLE_ID == accountRole.getId();
+		String managerAssignmentWarning = null;
+		if (requestedManagerAssignment && !roleAllowsManagerAssignment) {
+			managerAssignmentWarning = "Manager assignment was ignored because the selected position is not a department manager role.";
+		} else if (requestedManagerAssignment && department.getManagerId() != null) {
+			managerAssignmentWarning = "Manager assignment was ignored because the selected department already has a manager.";
+		}
 
 		boolean probation = "PROBATION".equals(request.getStaffType());
 		StaffType staffTypeEntity = staffTypeRepository
@@ -267,6 +282,33 @@ public class HrEmployeeAccountService {
 		user.setCreatedDate(Instant.now());
 		User savedUser = userRepository.save(user);
 
+		boolean assignedAsDepartmentManager = false;
+		if (requestedManagerAssignment && roleAllowsManagerAssignment && department.getManagerId() == null) {
+			department.setManagerId(savedEmployee.getId());
+			department.setUpdatedDate(Instant.now());
+
+			DepartmentManagerHistory managerHistory = new DepartmentManagerHistory();
+			managerHistory.setDepartment(department);
+			managerHistory.setManager(savedEmployee);
+			managerHistory.setStartDate(request.getHireDate() != null ? request.getHireDate() : LocalDate.now());
+			managerHistory.setEndDate(null);
+			managerHistory.setCreatedBy(principal.getId());
+			managerHistory.setCreatedOn(LocalDateTime.now());
+			departmentManagerHistoryRepository.save(managerHistory);
+			assignedAsDepartmentManager = true;
+
+			auditService.record(
+					AuditActionType.MANAGER_ASSIGNED,
+					AuditTargetType.DEPARTMENT,
+					department.getId(),
+					principal.getId(),
+					principal.getRoleId(),
+					"HR user %d assigned employee_id %d as manager for department_id %d"
+							.formatted(principal.getId(), savedEmployee.getId(), department.getId()),
+					("{\"departmentId\":%d,\"managerEmployeeId\":%d,\"employeeAccountId\":%d,\"roleId\":%d}")
+							.formatted(department.getId(), savedEmployee.getId(), savedUser.getId(), accountRole.getId()));
+		}
+
 		String description = "HR user %d created employee account for employee_id %d with role_id %d"
 				.formatted(principal.getId(), savedEmployee.getId(), accountRole.getId());
 		String metadata = "{\"userAccountId\":%d,\"employeeId\":%d}"
@@ -290,7 +332,9 @@ public class HrEmployeeAccountService {
 				email,
 				accountRole.getId(),
 				true,
-				"Employee account created successfully.");
+				"Employee account created successfully.",
+				assignedAsDepartmentManager,
+				managerAssignmentWarning);
 	}
 
 	@Transactional(readOnly = true)

@@ -34,4 +34,14 @@ public class SelfAssessmentFormTemplateQuestion {
 
     @Column(name = "created_on")
     private Instant createdOn;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
 }

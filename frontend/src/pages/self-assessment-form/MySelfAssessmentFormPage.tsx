@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
-import { AlertCircle, CheckCircle2, Clock, FileText, AlertTriangle } from 'lucide-react';
+import { Clock, FileText, AlertTriangle } from 'lucide-react';
 import {
   useGetMyFormStatusQuery,
   useGetMyCurrentFormQuery,
   useSaveDraftMutation,
   useSubmitFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { getRatingOptions, isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
+import { formatDateDayMonthYear } from '../../utils/dateUtils';
 
 interface AnswerFormData {
   answers: {
@@ -17,29 +19,30 @@ interface AnswerFormData {
     remarks: string | null;
   }[];
   employeeRemarks: string | null;
-  overallRemarks: string | null;
 }
 
 export const MySelfAssessmentFormPage: React.FC = () => {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   const { data: formStatus, isLoading: statusLoading } = useGetMyFormStatusQuery();
-  const { data: formData, isLoading: formLoading, refetch } = useGetMyCurrentFormQuery();
+  const shouldLoadForm = Boolean(formStatus?.isEligible && formStatus?.hasActiveTemplate && formStatus?.status !== 'NOT_ASSIGNED');
+  const { data: formData, isLoading: formLoading, refetch } = useGetMyCurrentFormQuery(undefined, {
+    skip: !shouldLoadForm,
+  });
 
   const [saveDraft, { isLoading: isSaving }] = useSaveDraftMutation();
   const [submitForm, { isLoading: isSubmitting }] = useSubmitFormMutation();
 
-  const { register, handleSubmit, setValue, watch, formState: { errors, isDirty } } = useForm<AnswerFormData>({
+  const { register, handleSubmit, setValue, watch, reset, formState: { isDirty } } = useForm<AnswerFormData>({
     defaultValues: {
       answers: [],
       employeeRemarks: '',
-      overallRemarks: '',
     },
   });
 
   useEffect(() => {
     if (formData?.answers) {
-      const defaultValues = {
+      reset({
         answers: formData.answers.map(a => ({
           id: a.id,
           yesNoAnswer: a.yesNoAnswer,
@@ -47,33 +50,17 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           remarks: a.remarks || '',
         })),
         employeeRemarks: formData.employeeRemarks || '',
-        overallRemarks: formData.overallRemarks || '',
-      };
+      });
     }
-  }, [formData]);
+  }, [formData, reset]);
 
   const watchAnswers = watch('answers');
+  const ratingSystem = formData?.ratingSystem ?? 'FIVE_POINT';
 
   const handleYesNoChange = (index: number, value: string, currentRating: number | null) => {
-    let validRating: number | null = null;
-
-    if (value === 'Yes' && currentRating !== null) {
-      if (currentRating >= 3 && currentRating <= 5) {
-        validRating = currentRating;
-      } else {
-        validRating = null;
-      }
-    } else if (value === 'No' && currentRating !== null) {
-      if (currentRating >= 1 && currentRating <= 2) {
-        validRating = currentRating;
-      } else {
-        validRating = null;
-      }
-    }
-
     setValue(`answers.${index}.yesNoAnswer`, value);
-    if (validRating !== null) {
-      setValue(`answers.${index}.rating`, validRating);
+    if (isRatingValidForAnswer(ratingSystem, value, currentRating)) {
+      setValue(`answers.${index}.rating`, currentRating);
     } else {
       setValue(`answers.${index}.rating`, null as any);
     }
@@ -81,12 +68,8 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const handleRatingChange = (index: number, value: string, yesNoAnswer: string | null) => {
     const rating = parseInt(value);
-    if (yesNoAnswer === 'Yes' && (rating < 3 || rating > 5)) {
-      toast.error('For "Yes" answers, rating must be 3, 4, or 5');
-      return;
-    }
-    if (yesNoAnswer === 'No' && (rating < 1 || rating > 2)) {
-      toast.error('For "No" answers, rating must be 1 or 2');
+    if (!isRatingValidForAnswer(ratingSystem, yesNoAnswer, rating)) {
+      toast.error('Rating does not match the selected response');
       return;
     }
     setValue(`answers.${index}.rating`, rating);
@@ -102,7 +85,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           remarks: a.remarks,
         })),
         employeeRemarks: data.employeeRemarks,
-        overallRemarks: data.overallRemarks,
+        overallRemarks: formData?.overallRemarks ?? null,
       }).unwrap();
       toast.success('Draft saved successfully');
       refetch();
@@ -112,14 +95,11 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   };
 
   const onSubmitForm = async (data: AnswerFormData) => {
-    const unanswered = data.answers.filter(a => !a.yesNoAnswer || a.rating === null);
-    if (unanswered.length > 0) {
-      toast.error('Please answer all questions before submitting');
-      return;
-    }
+    const submissionTitle = formData?.title?.trim() || 'Self Assessment Form';
 
     try {
       await submitForm({
+        title: submissionTitle,
         answers: data.answers.map(a => ({
           id: a.id,
           yesNoAnswer: a.yesNoAnswer,
@@ -127,7 +107,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           remarks: a.remarks,
         })),
         employeeRemarks: data.employeeRemarks,
-        overallRemarks: data.overallRemarks,
+        overallRemarks: formData?.overallRemarks ?? null,
       }).unwrap();
       toast.success('Form submitted successfully');
       setShowSubmitConfirm(false);
@@ -178,7 +158,19 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       <div className="p-6">
         <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center">
           <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-          <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">No Template Available</h2>
+          <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">No Form Available</h2>
+          <p className="text-slate-500 dark:text-slate-400 mt-2">{formStatus?.message}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (formStatus?.status === 'NOT_ASSIGNED') {
+    return (
+      <div className="p-6">
+        <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center">
+          <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+          <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">No Assigned Form</h2>
           <p className="text-slate-500 dark:text-slate-400 mt-2">{formStatus?.message}</p>
         </div>
       </div>
@@ -199,6 +191,9 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">My Self Assessment Form</h1>
+        {formData?.title && (
+          <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-300">{formData.title}</p>
+        )}
         <div className="flex items-center gap-4 mt-2">
           <span className={`text-sm px-3 py-1 rounded-full ${
             formData?.status === 'DRAFT' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
@@ -214,7 +209,12 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               Cycle: {formData.cycleName}
             </span>
           )}
-          {formData?.totalScore !== null && (
+          {formData?.deadlineDate && (
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              Deadline: {formatDateDayMonthYear(formData.deadlineDate)}
+            </span>
+          )}
+          {formData?.totalScore != null && (
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Score: {formData.totalScore.toFixed(1)}% ({formData.ratingCategory})
             </span>
@@ -274,7 +274,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Rating {watchAnswers?.[index]?.yesNoAnswer === 'Yes' ? '(3-5)' : watchAnswers?.[index]?.yesNoAnswer === 'No' ? '(1-2)' : ''}
+                    Rating
                   </label>
                   <select
                     {...register(`answers.${index}.rating` as const)}
@@ -284,19 +284,9 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50"
                   >
                     <option value="">Select Rating</option>
-                    {watchAnswers?.[index]?.yesNoAnswer === 'Yes' && (
-                      <>
-                        <option value="5">5 - Excellent</option>
-                        <option value="4">4 - Good</option>
-                        <option value="3">3 - Satisfactory</option>
-                      </>
-                    )}
-                    {watchAnswers?.[index]?.yesNoAnswer === 'No' && (
-                      <>
-                        <option value="2">2 - Needs Improvement</option>
-                        <option value="1">1 - Unsatisfactory</option>
-                      </>
-                    )}
+                    {getRatingOptions(ratingSystem, watchAnswers?.[index]?.yesNoAnswer).map((rating) => (
+                      <option key={rating} value={rating}>{rating}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -348,18 +338,6 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   rows={3}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50"
                   placeholder="Add any additional remarks..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Overall Remarks
-                </label>
-                <textarea
-                  {...register('overallRemarks')}
-                  disabled={isReadOnly}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50"
-                  placeholder="Add overall remarks..."
                 />
               </div>
             </div>

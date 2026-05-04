@@ -12,10 +12,38 @@ import java.util.Optional;
 @Repository
 public interface QuestionBankRepository extends JpaRepository<QuestionBank, Long> {
 
-    List<QuestionBank> findByIsActiveTrueOrderByCreatedOnDesc();
+    @Query("""
+            SELECT q FROM QuestionBank q
+            LEFT JOIN FETCH q.department
+            WHERE q.ownerRoleId = :ownerRoleId
+              AND ((:departmentId IS NULL AND q.department IS NULL) OR q.department.id = :departmentId)
+            ORDER BY q.createdOn DESC
+            """)
+    List<QuestionBank> findByBankScopeOrderByCreatedOnDesc(
+            @Param("ownerRoleId") Long ownerRoleId,
+            @Param("departmentId") Long departmentId);
 
-    List<QuestionBank> findAllByOrderByCreatedOnDesc();
+    @Query("""
+            SELECT q FROM QuestionBank q
+            LEFT JOIN FETCH q.department
+            WHERE q.isActive = true
+              AND q.ownerRoleId = :ownerRoleId
+              AND ((:departmentId IS NULL AND q.department IS NULL) OR q.department.id = :departmentId)
+            ORDER BY q.createdOn DESC
+            """)
+    List<QuestionBank> findActiveByBankScopeOrderByCreatedOnDesc(
+            @Param("ownerRoleId") Long ownerRoleId,
+            @Param("departmentId") Long departmentId);
 
-    @Query("SELECT q FROM QuestionBank q WHERE LOWER(TRIM(q.questionText)) = :normalizedText")
-    Optional<QuestionBank> findByNormalizedQuestionText(@Param("normalizedText") String normalizedText);
+    @Query("""
+            SELECT q FROM QuestionBank q
+            LEFT JOIN FETCH q.department
+            WHERE LOWER(TRIM(q.questionText)) = :normalizedText
+              AND q.ownerRoleId = :ownerRoleId
+              AND ((:departmentId IS NULL AND q.department IS NULL) OR q.department.id = :departmentId)
+            """)
+    Optional<QuestionBank> findByNormalizedQuestionTextInScope(
+            @Param("normalizedText") String normalizedText,
+            @Param("ownerRoleId") Long ownerRoleId,
+            @Param("departmentId") Long departmentId);
 }

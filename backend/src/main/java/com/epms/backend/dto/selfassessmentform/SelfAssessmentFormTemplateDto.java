@@ -10,8 +10,13 @@ public record SelfAssessmentFormTemplateDto(
         String departmentName,
         Long positionId,
         String positionName,
+        Long reviewCycleId,
+        String reviewCycleName,
         boolean isActive,
+        String ratingSystem,
+        boolean isLocked,
         List<QuestionDto> questions,
+        List<QuestionDto> deletedQuestions,
         Instant createdOn,
         Long createdBy
 ) {}

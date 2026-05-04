@@ -106,13 +106,35 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @GetMapping("/hr/active-cycle")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<ActiveCycleFormsDto>> getActiveCycleFormsForHr(@AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            ActiveCycleFormsDto forms = selfAssessmentFormService.getActiveCycleFormsForHr();
+            return ResponseEntity.ok(ApiResponse.ok("Active cycle forms retrieved", forms));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/hr/assignments")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SelfAssessmentAssignmentResponse>> assignSelfAssessmentForms(
+            @Valid @RequestBody SelfAssessmentAssignmentRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SelfAssessmentAssignmentResponse response = selfAssessmentFormService.assignSelfAssessmentForms(request, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Self-assessment forms assigned", response));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> getFormById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            Employee employee = getEmployeeFromPrincipal(principal);
-            SelfAssessmentFormDto form = selfAssessmentFormService.getEmployeeCurrentForm(employee)
-                    .orElseThrow(() -> new RuntimeException("Form not found"));
+            SelfAssessmentFormDto form = selfAssessmentFormService.getFormById(id);
             return ResponseEntity.ok(ApiResponse.ok("Form retrieved", form));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
@@ -191,10 +213,12 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/templates")
-    @PreAuthorize("principal.roleId == 1")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
     public ResponseEntity<ApiResponse<List<SelfAssessmentFormTemplateDto>>> getAllTemplates(@AuthenticationPrincipal UserPrincipal principal) {
         try {
-            List<SelfAssessmentFormTemplateDto> templates = selfAssessmentFormService.getAllTemplates();
+            Employee employee = getEmployeeFromPrincipal(principal);
+            List<SelfAssessmentFormTemplateDto> templates = selfAssessmentFormService.getAllTemplatesForRole(
+                    principal.getId(), principal.getRoleId(), employee);
             return ResponseEntity.ok(ApiResponse.ok("Templates retrieved", templates));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
@@ -202,10 +226,12 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/templates/{id}")
-    @PreAuthorize("principal.roleId == 1")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
     public ResponseEntity<ApiResponse<SelfAssessmentFormTemplateDto>> getTemplateById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            SelfAssessmentFormTemplateDto template = selfAssessmentFormService.getTemplateById(id);
+            Employee employee = getEmployeeFromPrincipal(principal);
+            SelfAssessmentFormTemplateDto template = selfAssessmentFormService.getTemplateByIdForRole(
+                    id, principal.getId(), principal.getRoleId(), employee);
             return ResponseEntity.ok(ApiResponse.ok("Template retrieved", template));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
@@ -240,14 +266,30 @@ public class SelfAssessmentFormController {
     }
 
     @PutMapping("/templates/{id}")
-    @PreAuthorize("principal.roleId == 1")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
     public ResponseEntity<ApiResponse<SelfAssessmentFormTemplateDto>> updateTemplate(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTemplateRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            SelfAssessmentFormTemplateDto template = selfAssessmentFormService.updateTemplate(id, request, principal.getId());
+            Employee employee = getEmployeeFromPrincipal(principal);
+            SelfAssessmentFormTemplateDto template = selfAssessmentFormService.updateTemplateForRole(
+                    id, request, principal.getId(), principal.getRoleId(), employee);
             return ResponseEntity.ok(ApiResponse.ok("Template updated", template));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/templates/{templateId}/set-deadline")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SetTemplateDeadlineResponse>> setTemplateDeadline(
+            @PathVariable Long templateId,
+            @Valid @RequestBody SetTemplateDeadlineRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SetTemplateDeadlineResponse response = selfAssessmentFormService.setTemplateDeadline(templateId, request, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Deadline set and forms assigned", response));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }

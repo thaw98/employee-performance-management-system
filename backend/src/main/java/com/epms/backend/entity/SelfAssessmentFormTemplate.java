@@ -29,11 +29,19 @@ public class SelfAssessmentFormTemplate {
     @JoinColumn(name = "position_id", nullable = false)
     private Position position;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "review_cycle_id")
+    private ReviewCycle reviewCycle;
+
     @Column(name = "title", length = 255)
     private String title;
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rating_system", nullable = false)
+    private SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.FIVE_POINT;
 
     @Column(name = "created_by")
     private Long createdBy;
@@ -47,22 +55,12 @@ public class SelfAssessmentFormTemplate {
     @Column(name = "updated_on")
     private Instant updatedOn;
 
-    @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = false)
     @OrderBy("sortOrder ASC")
     private List<SelfAssessmentFormTemplateQuestion> questions = new ArrayList<>();
 
     public void addQuestion(SelfAssessmentFormTemplateQuestion question) {
         questions.add(question);
         question.setTemplate(this);
-    }
-
-    public void removeQuestion(SelfAssessmentFormTemplateQuestion question) {
-        questions.remove(question);
-        question.setTemplate(null);
-    }
-
-    public void clearQuestions() {
-        questions.forEach(q -> q.setTemplate(null));
-        questions.clear();
     }
 }

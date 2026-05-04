@@ -7,6 +7,7 @@ export interface DepartmentOptionDto {
   name: string
   departmentId: number
   departmentName: string
+  managerId?: number | null
 }
 
 export interface PositionOptionDto {
@@ -18,6 +19,8 @@ export interface PositionOptionDto {
   name: string
   positionCode: string
   levelCodeName?: string | null
+  roleId?: number | null
+  roleName?: string | null
 }
 
 export interface ExistsDto {
@@ -37,6 +40,8 @@ export interface HrCreateEmployeeAccountResponse {
   roleId: number
   mustChangePassword: boolean
   message: string
+  assignedAsDepartmentManager?: boolean
+  managerAssignmentWarning?: string | null
 }
 
 export interface HrCreateEmployeeAccountRequest {
@@ -64,6 +69,7 @@ export interface HrCreateEmployeeAccountRequest {
   hireDate: string
   departmentId: number
   departmentPositionId: number
+  assignAsDepartmentManager?: boolean
   profilePictureUrl?: string
 }
 
@@ -71,25 +77,27 @@ export const hrEmployeeAccountApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getDepartments: builder.query<ApiResponse<DepartmentOptionDto[]>, void>({
       query: () => ({ url: '/lookups/departments/active' }),
-      transformResponse: (response: ApiResponse<{ id: number; name: string }[]>) => ({
+      transformResponse: (response: ApiResponse<{ id: number; name: string; managerId?: number | null }[]>) => ({
         ...response,
         data: (response.data ?? []).map((d) => ({
           id: d.id,
           name: d.name,
           departmentId: d.id,
           departmentName: d.name,
+          managerId: d.managerId ?? null,
         })),
       }),
     }),
     getDepartmentOptions: builder.query<ApiResponse<DepartmentOptionDto[]>, void>({
       query: () => ({ url: '/departments/options' }),
-      transformResponse: (response: ApiResponse<{ departmentId: number; departmentName: string }[]>) => ({
+      transformResponse: (response: ApiResponse<{ departmentId: number; departmentName: string; managerId?: number | null }[]>) => ({
         ...response,
         data: (response.data ?? []).map((d) => ({
           id: d.departmentId,
           name: d.departmentName,
           departmentId: d.departmentId,
           departmentName: d.departmentName,
+          managerId: d.managerId ?? null,
         })),
       }),
     }),

@@ -41,7 +41,7 @@ public class DepartmentRestController {
 	public ResponseEntity<ApiResponse<List<DepartmentOptionDto>>> listOptions() {
 		List<DepartmentOptionDto> rows = departmentRepository.findAll().stream()
 				.filter(this::isActive)
-				.map(d -> new DepartmentOptionDto(d.getId(), d.getName()))
+				.map(d -> new DepartmentOptionDto(d.getId(), d.getName(), d.getManagerId()))
 				.sorted(Comparator.comparing(DepartmentOptionDto::getDepartmentName, String.CASE_INSENSITIVE_ORDER))
 				.toList();
 		return ResponseEntity.ok(ApiResponse.ok("Departments", rows));

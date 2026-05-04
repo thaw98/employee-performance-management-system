@@ -23,6 +23,7 @@ public final class AuditActionType {
 	public static final String EMPLOYEE_RETURN = "EMPLOYEE_RETURN";
 	public static final String EMPLOYEE_INITIAL_TRANSFER = "EMPLOYEE_INITIAL_TRANSFER";
 	public static final String SNAPSHOT_CREATED = "SNAPSHOT_CREATED";
+	public static final String MANAGER_ASSIGNED = "MANAGER_ASSIGNED";
 
 	public static final String SELF_ASSESSMENT_FORM_DRAFT_SAVED = "SELF_ASSESSMENT_FORM_DRAFT_SAVED";
 	public static final String SELF_ASSESSMENT_FORM_SUBMITTED = "SELF_ASSESSMENT_FORM_SUBMITTED";

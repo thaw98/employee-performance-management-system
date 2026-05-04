@@ -57,7 +57,7 @@ public class SignatureService {
         Signature signature = signatureRepository.findByIdAndUser(signatureId, user)
                 .orElseThrow(() -> new IllegalArgumentException("Signature not found"));
         if (signature.isDefault()) {
-            throw new IllegalArgumentException("Signature is already the default");
+            return signature;
         }
         signatureRepository.clearDefaultForUser(user);
         signature.setDefault(true);

@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import { logout } from '../../features/auth/authSlice'
 import { useGetProfileQuery } from '../../features/user/userApi'
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
+import { getRoleGroup } from '../../utils/dashboardRedirect'
 import { ChevronDown, User, Settings, LogOut, Shield, PenLine } from 'lucide-react'
 
 export function ProfileDropdown() {
@@ -11,7 +12,7 @@ export function ProfileDropdown() {
   const navigate = useNavigate()
   const tokenUser = useAppSelector((s) => s.auth.user)
   const { data: profileResponse } = useGetProfileQuery()
-  
+
   const user = profileResponse?.data || tokenUser
   const avatarSrc = resolveProfilePictureSrc(user?.profilePictureUrl)
 
@@ -33,8 +34,10 @@ export function ProfileDropdown() {
     navigate('/login')
   }
 
-  // Determine settings path based on role
-  const rolePrefix = user?.role?.toLowerCase() === 'hr' ? '/hr' : (user?.role?.toLowerCase() === 'manager' ? '/manager' : '/employee')
+  // Profile role name may be a position title (e.g. Department Head); use roleId like ProtectedRoute.
+  const roleGroup = tokenUser ? getRoleGroup(tokenUser) : null
+  const rolePrefix =
+    roleGroup === 'HR' ? '/hr' : roleGroup === 'MANAGER' ? '/manager' : '/employee'
   const profileSettingsPath = `${rolePrefix}/settings/profile`
   const signatureSettingsPath = `${rolePrefix}/settings/signature`
   const systemSettingsPath = `${rolePrefix}/settings/system`

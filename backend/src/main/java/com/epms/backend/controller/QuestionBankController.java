@@ -26,16 +26,17 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/self-assessment-forms/question-bank")
 @RequiredArgsConstructor
-@PreAuthorize("principal.roleId == 1")
+@PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
 public class QuestionBankController {
 
     private final QuestionBankService questionBankService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<QuestionBankDto>>> getQuestions(
-            @RequestParam(defaultValue = "false") boolean includeInactive) {
+            @RequestParam(defaultValue = "false") boolean includeInactive,
+            @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            List<QuestionBankDto> questions = questionBankService.getQuestions(includeInactive);
+            List<QuestionBankDto> questions = questionBankService.getQuestions(includeInactive, principal.getId(), principal.getRoleId());
             return ResponseEntity.ok(ApiResponse.ok("Question bank retrieved", questions));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));

@@ -7,5 +7,12 @@ public record QuestionDto(
         String questionText,
         Integer sortOrder,
         Long createdBy,
-        Instant createdOn
+        Long createdByRoleId,
+        boolean isManagerAdded,
+        boolean canEdit,
+        boolean canDeactivate,
+        boolean canHighlight,
+        Instant createdOn,
+        Instant deletedAt,
+        Long deletedBy
 ) {}

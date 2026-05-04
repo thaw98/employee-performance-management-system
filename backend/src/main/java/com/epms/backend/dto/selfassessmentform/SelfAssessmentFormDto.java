@@ -1,6 +1,7 @@
 package com.epms.backend.dto.selfassessmentform;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 public record SelfAssessmentFormDto(
@@ -8,6 +9,13 @@ public record SelfAssessmentFormDto(
         Long templateId,
         Long cycleId,
         String cycleName,
+        String title,
+        String ratingSystem,
+        LocalDate deadlineDate,
+        LocalDate managerReviewDeadlineDate,
+        LocalDate finalApprovalDeadlineDate,
+        Instant assignedAt,
+        Long assignedBy,
         String status,
         Double totalScore,
         String ratingCategory,

@@ -105,9 +105,11 @@ const HrLayout: React.FC = () => {
     {
       icon: <FileText size={20} />,
       label: 'Self-Assessment',
-      path: '/hr/self-assessment/forms',
+      path: '/hr/self-assessment/templates',
       subItems: [
-        { label: 'Form Management', path: '/hr/self-assessment/forms', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
+        { label: 'Template Management', path: '/hr/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
+        { label: 'Bulk Assignment', path: '/hr/self-assessment/assignments', icon: <Send size={16} className="shrink-0" /> },
+        { label: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: <Inbox size={16} className="shrink-0" /> },
         { label: 'Question Bank', path: '/hr/self-assessment/question-bank', icon: <BookOpen size={16} className="shrink-0" /> },
         { label: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
       ]
