@@ -182,6 +182,7 @@ public class UserService {
                 user.getEmployee().getEmployeeName(),
                 user.getEmail(),
                 user.getRole().getName(),
+                user.getRole().getId(),
                 user.getEmployee().getProfilePictureUrl(),
                 user.getTheme(),
                 user.getWallpaperUrl(),

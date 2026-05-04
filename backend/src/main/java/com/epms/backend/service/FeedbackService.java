@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,6 +26,7 @@ public class FeedbackService {
     private final CriteriaRepository criteriaRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final TimeSettingService timeSettingService;
 
     @Transactional
     public void submitFeedback(Long evaluatorId, FeedbackSubmissionRequest request) {
@@ -36,9 +38,24 @@ public class FeedbackService {
             throw new RuntimeException("Probation employees cannot receive 360 feedback");
         }
 
-        // Rule: Same department only
         if (!evaluator.getDepartment().getId().equals(evaluatee.getDepartment().getId())) {
             throw new RuntimeException("Evaluator and Evaluatee must be in the same department");
+        }
+
+        com.epms.backend.dto.TimeSettingDto cycle = timeSettingService.getCurrentCycleRange();
+        Instant cycleStart = cycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant cycleEnd = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1)
+                .toInstant();
+
+        long currentRoleCount = feedbackRepository.countByEvaluatorIdAndRoleAndCreatedDateBetween(evaluatorId,
+                request.getRole(), cycleStart, cycleEnd);
+        if (currentRoleCount >= 5) {
+            throw new RuntimeException("Maximum of 5 feedbacks allowed per role in the active cycle");
+        }
+
+        if (feedbackRepository.existsByEvaluatorIdAndEvaluateeIdAndCreatedDateBetween(evaluatorId,
+                request.getEvaluateeId(), cycleStart, cycleEnd)) {
+            throw new RuntimeException("Feedback already given for this employee in the current cycle");
         }
 
         Feedback feedback = new Feedback();
@@ -189,4 +206,18 @@ public class FeedbackService {
                 && employee.getStaffType() != null
                 && employee.getStaffType().getId() == StaffTypes.PROBATION;
     }
+
+    public boolean isFeedbackGivenInCurrentCycle(Long evaluatorId, Long evaluateeId) {
+        com.epms.backend.dto.TimeSettingDto cycle = timeSettingService.getCurrentCycleRange();
+        Instant cycleStart = cycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant cycleEnd = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1)
+                .toInstant();
+        return feedbackRepository.existsByEvaluatorIdAndEvaluateeIdAndCreatedDateBetween(evaluatorId, evaluateeId,
+                cycleStart, cycleEnd);
+    }
+
+    public long countFeedbacksByRoleInCycle(Long evaluatorId, String role, Instant start, Instant end) {
+        return feedbackRepository.countByEvaluatorIdAndRoleAndCreatedDateBetween(evaluatorId, role, start, end);
+    }
+
 }
