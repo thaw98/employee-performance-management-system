@@ -191,14 +191,25 @@ public class FeedbackService {
                         case "PEER":
                             return eLevelId.equals(levelId);
                         case "SUBORDINATE":
-                            return eLevelId > levelId; // Higher ID = Lower rank
+                            return eLevelId > levelId;
                         case "MANAGER":
-                            return eLevelId < levelId; // Lower ID = Higher rank
+                            return eLevelId < levelId;
                         default:
                             return false;
                     }
                 })
                 .collect(Collectors.toList());
+    }
+
+    public long countFeedbacksByRoleInCycle(Long evaluatorId, String role, Instant start, Instant end) {
+        return feedbackRepository.countByEvaluatorIdAndRoleAndCreatedDateBetween(evaluatorId, role, start, end);
+    }
+
+    public boolean isFeedbackGivenInCurrentCycle(Long evaluatorId, Long evaluateeId) {
+        com.epms.backend.dto.TimeSettingDto cycle = timeSettingService.getCurrentCycleRange();
+        Instant cycleStart = cycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant cycleEnd = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant();
+        return feedbackRepository.existsByEvaluatorIdAndEvaluateeIdAndCreatedDateBetween(evaluatorId, evaluateeId, cycleStart, cycleEnd);
     }
 
     private boolean isProbationEmployee(Employee employee) {

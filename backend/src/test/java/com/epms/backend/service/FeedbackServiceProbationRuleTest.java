@@ -40,6 +40,9 @@ class FeedbackServiceProbationRuleTest {
     @Mock
     private TimeSettingService timeSettingService;
 
+    @Mock
+    private TimeSettingService timeSettingService;
+
     private FeedbackService feedbackService;
 
     @BeforeEach
