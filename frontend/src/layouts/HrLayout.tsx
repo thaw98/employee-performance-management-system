@@ -24,7 +24,9 @@ import {
   History,
   Layers,
   FileText,
-  BookOpen
+  BookOpen,
+  Settings2,
+  ClipboardList
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -108,10 +110,20 @@ const HrLayout: React.FC = () => {
       path: '/hr/self-assessment/templates',
       subItems: [
         { label: 'Template Management', path: '/hr/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
-        { label: 'Bulk Assignment', path: '/hr/self-assessment/assignments', icon: <Send size={16} className="shrink-0" /> },
+        {
+          label: 'Assignments overview',
+          path: '/hr/self-assessment/assignments',
+          icon: <ClipboardList size={16} className="shrink-0" />,
+        },
+        {
+          label: 'Assign Self-Assessment Forms',
+          path: '/hr/self-assessment/assign-forms',
+          icon: <Send size={16} className="shrink-0" />,
+        },
         { label: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: <Inbox size={16} className="shrink-0" /> },
         { label: 'Question Bank', path: '/hr/self-assessment/question-bank', icon: <BookOpen size={16} className="shrink-0" /> },
-        { label: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
+        { label: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: <ListChecks size={16} className="shrink-0" /> },
+        { label: 'Self Assessment Settings', path: '/hr/self-assessment/settings', icon: <Settings2 size={16} className="shrink-0" /> }
       ]
     },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/hr/meetings' },

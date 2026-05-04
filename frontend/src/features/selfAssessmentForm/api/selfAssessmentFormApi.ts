@@ -151,6 +151,8 @@ export interface SelfAssessmentFormDto {
   hrAdjustmentSignatureDate: string | null
   createdDate: string
   submittedDate: string | null
+  /** Calendar date set automatically when the employee submits (cleared when HR reopens). */
+  assessmentDate: string | null
   employee: EmployeeInfoDto
   answers: AnswerDto[]
   adjustments: AdjustmentDto[]
@@ -171,6 +173,7 @@ export interface FormListDto {
   totalScore: number | null
   ratingCategory: string | null
   submittedDate: string | null
+  assessmentDate: string | null
   createdDate: string
 }
 
@@ -183,7 +186,6 @@ export interface CycleInfoDto {
 }
 
 export interface SetTemplateDeadlineRequest {
-  title: string
   deadlineDate: string
 }
 
@@ -204,7 +206,6 @@ export interface SetTemplateDeadlineResponse {
 export type SelfAssessmentAssignmentMode = 'ALL_EMPLOYEES' | 'DEPARTMENTS' | 'POSITIONS' | 'HYBRID'
 
 export interface SelfAssessmentAssignmentRequest {
-  title: string
   assignmentMode: SelfAssessmentAssignmentMode
   departmentIds: number[]
   positionIds: number[]
@@ -224,6 +225,14 @@ export interface SelfAssessmentAssignmentResponse {
 export interface ActiveCycleFormsDto {
   activeCycle: CycleInfoDto | null
   forms: FormListDto[]
+}
+
+export interface SelfAssessmentSettingsDto {
+  ratingSystem: SelfAssessmentRatingSystem
+}
+
+export interface SelfAssessmentSettingsRequest {
+  ratingSystem: SelfAssessmentRatingSystem
 }
 
 export interface FormStatusDto {
@@ -248,7 +257,6 @@ export interface SaveDraftRequest {
 }
 
 export interface SubmitFormRequest {
-  title: string
   answers: AnswerRequest[]
   employeeRemarks: string | null
   overallRemarks: string | null
@@ -407,6 +415,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     hrAdjustmentSignatureDate: getOptionalString(source.hrAdjustmentSignatureDate) ?? null,
     createdDate: getString(source.createdDate),
     submittedDate: getOptionalString(source.submittedDate) ?? null,
+    assessmentDate: getOptionalString(source.assessmentDate) ?? null,
     employee: normalizeEmployeeInfo(isRecord(source.employee) ? source.employee : {}),
     answers: getArray(source.answers).map(a => normalizeAnswer(isRecord(a) ? a : {})),
     adjustments: getArray(source.adjustments).map(a => normalizeAdjustment(isRecord(a) ? a : {})),
@@ -431,6 +440,7 @@ const normalizeFormList = (form: unknown): FormListDto => {
     totalScore: source.totalScore != null ? getNumber(source.totalScore) : null,
     ratingCategory: getOptionalString(source.ratingCategory) ?? null,
     submittedDate: getOptionalString(source.submittedDate) ?? null,
+    assessmentDate: getOptionalString(source.assessmentDate) ?? null,
     createdDate: getString(source.createdDate),
   }
 }
@@ -471,6 +481,13 @@ const normalizeAssignmentResponse = (response: unknown): SelfAssessmentAssignmen
     skippedNoTemplateCount: getNumber(source.skippedNoTemplateCount),
     skippedIneligibleCount: getNumber(source.skippedIneligibleCount),
     activeCycle: normalizeCycleInfo(source.activeCycle) ?? { id: 0, name: '', code: '', startDate: '', endDate: '' },
+  }
+}
+
+const normalizeSettings = (settings: unknown): SelfAssessmentSettingsDto => {
+  const source = isRecord(settings) ? settings : {}
+  return {
+    ratingSystem: normalizeRatingSystem(source.ratingSystem),
   }
 }
 
@@ -719,6 +736,22 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeAssignmentResponse(getResponseData(response)),
     }),
 
+    getSelfAssessmentSettings: builder.query<SelfAssessmentSettingsDto, void>({
+      query: () => '/self-assessment-forms/settings',
+      providesTags: ['SelfAssessmentSettings'],
+      transformResponse: (response: unknown) => normalizeSettings(getResponseData(response)),
+    }),
+
+    updateSelfAssessmentSettings: builder.mutation<SelfAssessmentSettingsDto, SelfAssessmentSettingsRequest>({
+      query: (body) => ({
+        url: '/self-assessment-forms/settings',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['SelfAssessmentSettings'],
+      transformResponse: (response: unknown) => normalizeSettings(getResponseData(response)),
+    }),
+
     getQuestionBank: builder.query<QuestionBankDto[], { includeInactive?: boolean } | void>({
       query: (arg) => {
         const includeInactive = typeof arg === 'object' ? arg.includeInactive === true : false
@@ -782,6 +815,8 @@ export const {
   useUpdateTemplateMutation,
   useSetTemplateDeadlineMutation,
   useAssignSelfAssessmentFormsMutation,
+  useGetSelfAssessmentSettingsQuery,
+  useUpdateSelfAssessmentSettingsMutation,
   useGetQuestionBankQuery,
   useCreateQuestionBankItemMutation,
   useUpdateQuestionBankItemMutation,

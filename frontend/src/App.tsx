@@ -54,10 +54,13 @@ import { SelfAssessmentFormTemplatePage } from './pages/self-assessment-form/Sel
 import { CreateSelfAssessmentTemplatePage } from './pages/self-assessment-form/CreateSelfAssessmentTemplatePage';
 import { EditSelfAssessmentTemplatePage } from './pages/self-assessment-form/EditSelfAssessmentTemplatePage';
 import { MySelfAssessmentFormPage } from './pages/self-assessment-form/MySelfAssessmentFormPage';
+import { EmployeeSelfAssessmentHubPage } from './pages/self-assessment-form/EmployeeSelfAssessmentHubPage';
 import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfAssessmentFormReviewPage';
 import { SelfAssessmentActiveFormsPage } from './pages/self-assessment-form/SelfAssessmentActiveFormsPage';
 import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage';
 import { SelfAssessmentAssignmentsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentsPage';
+import { AssignSelfAssessmentFormsPage } from './pages/self-assessment-form/AssignSelfAssessmentFormsPage';
+import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
 
 function App() {
   return (
@@ -107,6 +110,7 @@ function App() {
             <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/assignments" element={<SelfAssessmentAssignmentsPage />} />
+            <Route path="self-assessment/assign-forms" element={<AssignSelfAssessmentFormsPage />} />
             <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
             <Route
               path="self-assessment/forms/create"
@@ -114,6 +118,7 @@ function App() {
             />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
+            <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -157,6 +162,7 @@ function App() {
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="self-assessment-forms" element={<EmployeeSelfAssessmentHubPage />} />
             <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>

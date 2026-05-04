@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -40,6 +41,7 @@ public class SelfAssessmentFormService {
     private final AuditService auditService;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final SelfAssessmentSettingsRepository settingsRepository;
 
     public SelfAssessmentFormService(
             SelfAssessmentFormTemplateRepository templateRepository,
@@ -53,7 +55,8 @@ public class SelfAssessmentFormService {
             NotificationService notificationService,
             AuditService auditService,
             UserRepository userRepository,
-            NotificationRepository notificationRepository) {
+            NotificationRepository notificationRepository,
+            SelfAssessmentSettingsRepository settingsRepository) {
         this.templateRepository = templateRepository;
         this.formRepository = formRepository;
         this.adjustmentRepository = adjustmentRepository;
@@ -66,6 +69,7 @@ public class SelfAssessmentFormService {
         this.auditService = auditService;
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
+        this.settingsRepository = settingsRepository;
     }
 
     @Transactional
@@ -88,7 +92,7 @@ public class SelfAssessmentFormService {
         template.setDepartment(department);
         template.setPosition(position);
         template.setReviewCycle(cycle);
-        template.setRatingSystem(parseRatingSystem(request.ratingSystem()));
+        template.setRatingSystem(resolveTemplateRatingSystem(request.ratingSystem()));
         template.setActive(true);
         template.setCreatedBy(userId);
         template.setCreatedOn(Instant.now());
@@ -142,7 +146,9 @@ public class SelfAssessmentFormService {
         template.setTitle(request.title().trim());
         template.setDepartment(department);
         template.setPosition(position);
-        template.setRatingSystem(parseRatingSystem(request.ratingSystem()));
+        if (request.ratingSystem() != null && !request.ratingSystem().trim().isBlank()) {
+            template.setRatingSystem(parseRatingSystem(request.ratingSystem()));
+        }
         template.setActive(request.isActive());
         template.setUpdatedBy(userId);
         template.setUpdatedOn(Instant.now());
@@ -406,11 +412,6 @@ public class SelfAssessmentFormService {
 
     @Transactional
     public SetTemplateDeadlineResponse setTemplateDeadline(Long templateId, SetTemplateDeadlineRequest request, Long userId) {
-        String title = request.title() == null ? "" : request.title().trim();
-        if (title.isBlank()) {
-            throw new RuntimeException("Title is required");
-        }
-
         SelfAssessmentFormTemplate template = templateRepository.findById(templateId)
                 .orElseThrow(() -> new RuntimeException("Template not found"));
         if (!template.isActive()) {
@@ -446,7 +447,7 @@ public class SelfAssessmentFormService {
                 continue;
             }
 
-            SelfAssessmentForm form = createAssignedDraftForm(employee, template, activeCycle, title, deadlineDate, now, userId);
+            SelfAssessmentForm form = createAssignedDraftForm(employee, template, activeCycle, deadlineDate, now, userId);
             formRepository.save(form);
             created++;
 
@@ -474,7 +475,7 @@ public class SelfAssessmentFormService {
                 template.getDepartment().getName(),
                 template.getPosition().getId(),
                 template.getPosition().getName(),
-                title,
+                template.getTitle(),
                 deadlineDate,
                 toCycleInfo(activeCycle),
                 created,
@@ -483,11 +484,6 @@ public class SelfAssessmentFormService {
 
     @Transactional
     public SelfAssessmentAssignmentResponse assignSelfAssessmentForms(SelfAssessmentAssignmentRequest request, Long userId) {
-        String title = request.title() == null ? "" : request.title().trim();
-        if (title.isBlank()) {
-            throw new RuntimeException("Title is required");
-        }
-
         AssignmentMode assignmentMode = parseAssignmentMode(request.assignmentMode());
         validateAssignmentSelections(assignmentMode, request.departmentIds(), request.positionIds());
 
@@ -538,7 +534,6 @@ public class SelfAssessmentFormService {
                     employee,
                     templateOpt.get(),
                     activeCycle,
-                    title,
                     request.deadlineDate(),
                     request.managerReviewDeadlineDate(),
                     request.finalApprovalDeadlineDate(),
@@ -693,8 +688,10 @@ public class SelfAssessmentFormService {
         form.setEmployeeSignatureId(defaultSig.getId());
         form.setEmployeeSignatureDate(Instant.now());
         form.setStatus(SelfAssessmentFormStatus.SUBMITTED);
-        form.setSubmittedDate(Instant.now());
-        form.setUpdatedDate(Instant.now());
+        Instant submittedAt = Instant.now();
+        form.setSubmittedDate(submittedAt);
+        form.setAssessmentDate(LocalDate.ofInstant(submittedAt, ZoneId.systemDefault()));
+        form.setUpdatedDate(submittedAt);
 
         calculateScore(form);
 
@@ -710,6 +707,20 @@ public class SelfAssessmentFormService {
                 null);
 
         return toFormDto(saved);
+    }
+
+    @Transactional
+    public SelfAssessmentSettingsDto getSettings() {
+        return toSettingsDto(getOrCreateSettings());
+    }
+
+    @Transactional
+    public SelfAssessmentSettingsDto updateSettings(SelfAssessmentSettingsRequest request, Long userId) {
+        SelfAssessmentSettings settings = getOrCreateSettings();
+        settings.setRatingSystem(parseRatingSystem(request.ratingSystem()));
+        settings.setUpdatedBy(userId);
+        settings.setUpdatedOn(Instant.now());
+        return toSettingsDto(settingsRepository.save(settings));
     }
 
     @Transactional(readOnly = true)
@@ -988,6 +999,10 @@ public class SelfAssessmentFormService {
 
         form.setHrSignatureId(defaultSig.getId());
         form.setStatus(SelfAssessmentFormStatus.REOPENED);
+        form.setAssessmentDate(null);
+        form.setSubmittedDate(null);
+        form.setEmployeeSignatureId(null);
+        form.setEmployeeSignatureDate(null);
         form.setUpdatedDate(Instant.now());
 
         SelfAssessmentForm saved = formRepository.save(form);
@@ -1054,7 +1069,6 @@ public class SelfAssessmentFormService {
             Employee employee,
             SelfAssessmentFormTemplate template,
             ReviewCycle activeCycle,
-            String title,
             LocalDate deadlineDate,
             Instant assignedAt,
             Long assignedBy) {
@@ -1062,7 +1076,6 @@ public class SelfAssessmentFormService {
                 employee,
                 template,
                 activeCycle,
-                title,
                 deadlineDate,
                 null,
                 null,
@@ -1074,7 +1087,6 @@ public class SelfAssessmentFormService {
             Employee employee,
             SelfAssessmentFormTemplate template,
             ReviewCycle activeCycle,
-            String title,
             LocalDate deadlineDate,
             LocalDate managerReviewDeadlineDate,
             LocalDate finalApprovalDeadlineDate,
@@ -1084,7 +1096,6 @@ public class SelfAssessmentFormService {
         form.setEmployee(employee);
         form.setTemplate(template);
         form.setCycle(activeCycle);
-        form.setTitle(title);
         form.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()));
         form.setDeadlineDate(deadlineDate);
         form.setManagerReviewDeadlineDate(managerReviewDeadlineDate);
@@ -1136,6 +1147,28 @@ public class SelfAssessmentFormService {
         }
     }
 
+    private SelfAssessmentRatingSystem resolveTemplateRatingSystem(String requestValue) {
+        if (requestValue != null && !requestValue.trim().isBlank()) {
+            return parseRatingSystem(requestValue);
+        }
+        return SelfAssessmentRatingSystem.defaultIfNull(getOrCreateSettings().getRatingSystem());
+    }
+
+    private SelfAssessmentSettings getOrCreateSettings() {
+        return settingsRepository.findById(SelfAssessmentSettings.SINGLETON_ID)
+                .orElseGet(() -> {
+                    SelfAssessmentSettings settings = new SelfAssessmentSettings();
+                    settings.setId(SelfAssessmentSettings.SINGLETON_ID);
+                    settings.setRatingSystem(SelfAssessmentRatingSystem.FIVE_POINT);
+                    return settingsRepository.save(settings);
+                });
+    }
+
+    private SelfAssessmentSettingsDto toSettingsDto(SelfAssessmentSettings settings) {
+        return new SelfAssessmentSettingsDto(
+                SelfAssessmentRatingSystem.defaultIfNull(settings.getRatingSystem()).name());
+    }
+
     private void assertTemplateEditable(SelfAssessmentFormTemplate template) {
         if (formRepository.existsByTemplate(template)) {
             throw new RuntimeException("Template cannot be edited after forms have been assigned");
@@ -1161,8 +1194,11 @@ public class SelfAssessmentFormService {
         if (employeeDeadline == null || managerDeadline == null || finalDeadline == null) {
             throw new RuntimeException("All deadlines are required");
         }
-        if (employeeDeadline.isAfter(managerDeadline) || managerDeadline.isAfter(finalDeadline)) {
-            throw new RuntimeException("Deadlines must be ordered: employee deadline, manager review deadline, final approval deadline");
+        if (employeeDeadline.isAfter(managerDeadline)) {
+            throw new RuntimeException("Manager review deadline cannot be earlier than the employee deadline.");
+        }
+        if (managerDeadline.isAfter(finalDeadline)) {
+            throw new RuntimeException("Final approval deadline cannot be earlier than the manager review deadline.");
         }
         validateDateWithinActiveCycle(employeeDeadline, "Employee deadline", activeCycle);
         validateDateWithinActiveCycle(managerDeadline, "Manager review deadline", activeCycle);
@@ -1438,6 +1474,16 @@ public class SelfAssessmentFormService {
         return null;
     }
 
+    private static String resolveFormDisplayTitle(SelfAssessmentForm form) {
+        if (form.getTemplate() != null) {
+            String templateTitle = form.getTemplate().getTitle();
+            if (templateTitle != null && !templateTitle.isBlank()) {
+                return templateTitle;
+            }
+        }
+        return "Self Assessment Form";
+    }
+
     private SelfAssessmentFormDto toFormDto(SelfAssessmentForm form) {
         Employee emp = form.getEmployee();
         EmployeeInfoDto employeeInfo = new EmployeeInfoDto(
@@ -1490,7 +1536,7 @@ public class SelfAssessmentFormService {
                 form.getTemplate().getId(),
                 form.getCycle() != null ? form.getCycle().getId() : null,
                 form.getCycle() != null ? form.getCycle().getName() : null,
-                form.getTitle() != null ? form.getTitle() : form.getTemplate().getTitle(),
+                resolveFormDisplayTitle(form),
                 SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem()).name(),
                 form.getDeadlineDate(),
                 form.getManagerReviewDeadlineDate(),
@@ -1517,6 +1563,7 @@ public class SelfAssessmentFormService {
                 form.getHrAdjustmentSignatureDate(),
                 form.getCreatedDate(),
                 form.getSubmittedDate(),
+                form.getAssessmentDate(),
                 employeeInfo,
                 answers,
                 adjustments
@@ -1538,7 +1585,7 @@ public class SelfAssessmentFormService {
 
         return new FormListDto(
                 form.getId(),
-                form.getTitle() != null ? form.getTitle() : form.getTemplate().getTitle(),
+                resolveFormDisplayTitle(form),
                 form.getCycle() != null ? form.getCycle().getId() : null,
                 form.getCycle() != null ? form.getCycle().getName() : null,
                 form.getDeadlineDate(),
@@ -1551,6 +1598,7 @@ public class SelfAssessmentFormService {
                 form.getTotalScore(),
                 form.getRatingCategory(),
                 form.getSubmittedDate(),
+                form.getAssessmentDate(),
                 form.getCreatedDate()
         );
     }

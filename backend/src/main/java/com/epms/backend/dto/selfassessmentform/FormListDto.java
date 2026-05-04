@@ -18,5 +18,6 @@ public record FormListDto(
         Double totalScore,
         String ratingCategory,
         Instant submittedDate,
+        LocalDate assessmentDate,
         Instant createdDate
 ) {}

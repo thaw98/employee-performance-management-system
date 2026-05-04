@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
 import { Clock, FileText, AlertTriangle } from 'lucide-react';
 import {
@@ -8,7 +8,8 @@ import {
   useSaveDraftMutation,
   useSubmitFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
-import { getRatingOptions, isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
+import { isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
+import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
 import { formatDateDayMonthYear } from '../../utils/dateUtils';
 
 interface AnswerFormData {
@@ -33,7 +34,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const [saveDraft, { isLoading: isSaving }] = useSaveDraftMutation();
   const [submitForm, { isLoading: isSubmitting }] = useSubmitFormMutation();
 
-  const { register, handleSubmit, setValue, watch, reset, formState: { isDirty } } = useForm<AnswerFormData>({
+  const { register, control, handleSubmit, setValue, watch, reset, formState: { isDirty } } = useForm<AnswerFormData>({
     defaultValues: {
       answers: [],
       employeeRemarks: '',
@@ -66,15 +67,6 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     }
   };
 
-  const handleRatingChange = (index: number, value: string, yesNoAnswer: string | null) => {
-    const rating = parseInt(value);
-    if (!isRatingValidForAnswer(ratingSystem, yesNoAnswer, rating)) {
-      toast.error('Rating does not match the selected response');
-      return;
-    }
-    setValue(`answers.${index}.rating`, rating);
-  };
-
   const onSaveDraft = async (data: AnswerFormData) => {
     try {
       await saveDraft({
@@ -95,11 +87,8 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   };
 
   const onSubmitForm = async (data: AnswerFormData) => {
-    const submissionTitle = formData?.title?.trim() || 'Self Assessment Form';
-
     try {
       await submitForm({
-        title: submissionTitle,
         answers: data.answers.map(a => ({
           id: a.id,
           yesNoAnswer: a.yesNoAnswer,
@@ -214,6 +203,11 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               Deadline: {formatDateDayMonthYear(formData.deadlineDate)}
             </span>
           )}
+          {formData?.assessmentDate && (
+            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+              Assessment date: {formatDateDayMonthYear(formData.assessmentDate)}
+            </span>
+          )}
           {formData?.totalScore != null && (
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Score: {formData.totalScore.toFixed(1)}% ({formData.ratingCategory})
@@ -236,10 +230,9 @@ export const MySelfAssessmentFormPage: React.FC = () => {
             <div key={answer.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
               <div className="mb-4">
                 <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Question {index + 1}</span>
-                <p className="text-base font-medium text-slate-900 dark:text-white mt-1">{answer.questionText}</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                     Response
@@ -276,18 +269,27 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                     Rating
                   </label>
-                  <select
-                    {...register(`answers.${index}.rating` as const)}
-                    value={watchAnswers?.[index]?.rating ?? ''}
-                    onChange={(e) => handleRatingChange(index, e.target.value, watchAnswers?.[index]?.yesNoAnswer)}
-                    disabled={isReadOnly || !watchAnswers?.[index]?.yesNoAnswer}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white disabled:opacity-50"
-                  >
-                    <option value="">Select Rating</option>
-                    {getRatingOptions(ratingSystem, watchAnswers?.[index]?.yesNoAnswer).map((rating) => (
-                      <option key={rating} value={rating}>{rating}</option>
-                    ))}
-                  </select>
+                  <Controller
+                    name={`answers.${index}.rating`}
+                    control={control}
+                    render={({ field }) => (
+                      <SelfAssessmentRatingPicker
+                        title={answer.questionText}
+                        ratingSystem={ratingSystem}
+                        yesNoAnswer={watchAnswers?.[index]?.yesNoAnswer}
+                        value={field.value}
+                        onChange={(rating) => {
+                          const yn = watchAnswers?.[index]?.yesNoAnswer ?? null;
+                          if (!isRatingValidForAnswer(ratingSystem, yn, rating)) {
+                            toast.error('Rating does not match the selected response');
+                            return;
+                          }
+                          field.onChange(rating);
+                        }}
+                        disabled={isReadOnly}
+                      />
+                    )}
+                  />
                 </div>
 
                 <div>

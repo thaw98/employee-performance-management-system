@@ -34,9 +34,6 @@ public class SelfAssessmentForm {
     @JoinColumn(name = "cycle_id")
     private ReviewCycle cycle;
 
-    @Column(name = "title", nullable = false)
-    private String title;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "rating_system", nullable = false)
     private SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.FIVE_POINT;
@@ -117,6 +114,10 @@ public class SelfAssessmentForm {
 
     @Column(name = "submitted_date")
     private Instant submittedDate;
+
+    /** Calendar date when the employee submitted the form (set automatically on submit). */
+    @Column(name = "assessment_date")
+    private LocalDate assessmentDate;
 
     @OneToMany(mappedBy = "form", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SelfAssessmentFormAnswer> answers = new ArrayList<>();
