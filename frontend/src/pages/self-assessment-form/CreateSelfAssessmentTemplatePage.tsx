@@ -6,13 +6,17 @@ import {
   BookOpen,
   BriefcaseBusiness,
   Building2,
-  ChartColumn,
+  CalendarCheck,
   ChevronDown,
   ChevronUp,
+  ClipboardList,
+  Crown,
+  GripVertical,
   Layers3,
   Plus,
   Save,
   Search,
+  Target,
   Trash2,
   Users,
   X,
@@ -61,7 +65,6 @@ type TargetPair = {
 type HybridRule = {
   id: string;
   departmentId: number | null;
-  /** `null` = all positions in the selected department */
   positionId: number | null;
 };
 
@@ -124,6 +127,26 @@ interface HybridRuleRowProps {
   canRemove: boolean;
 }
 
+const selectBase =
+  'w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 disabled:cursor-not-allowed disabled:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF] dark:disabled:bg-slate-900';
+
+const inputBase =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500';
+
+const StepBadge: React.FC<{ step: number; label: string; icon: React.ReactNode }> = ({ step, label, icon }) => (
+  <div className="flex items-center gap-3">
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] text-white shadow-md shadow-[#5D5FEF]/25 dark:shadow-[#5D5FEF]/15">
+      {icon}
+    </div>
+    <div>
+      <span className="text-[11px] font-bold uppercase tracking-widest text-[#5D5FEF] dark:text-[#8b8ef7]">
+        Step {step}
+      </span>
+      <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">{label}</h2>
+    </div>
+  </div>
+);
+
 const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
   rule,
   departments,
@@ -140,57 +163,60 @@ const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
     [positionsResponse?.data]
   );
 
-  const selectFocus =
-    'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/25 disabled:cursor-not-allowed disabled:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF] dark:disabled:bg-slate-900';
-
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <select
-        aria-label="Department"
-        value={rule.departmentId ?? ''}
-        onChange={(event) => {
-          const value = event.target.value;
-          onDepartmentChange(rule.id, value ? Number(value) : null);
-        }}
-        className={`min-w-[140px] flex-1 ${selectFocus}`}
-      >
-        <option value="">Select department</option>
-        {departments.map((department) => (
-          <option key={department.id} value={department.id}>
-            {department.name}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Position"
-        value={rule.positionId === null || rule.positionId === undefined ? '' : String(rule.positionId)}
-        disabled={!rule.departmentId}
-        onChange={(event) => {
-          const value = event.target.value;
-          onPositionChange(rule.id, value ? Number(value) : null);
-        }}
-        className={`min-w-[160px] flex-1 ${selectFocus}`}
-      >
-        <option value="">All Positions</option>
-        {rowPositions.length === 0 && rule.departmentId ? (
-          <option value="" disabled>
-            No active positions for this department
-          </option>
-        ) : null}
-        {rowPositions.map((position) => (
-          <option key={position.id} value={position.id}>
-            {position.name}
-          </option>
-        ))}
-      </select>
+    <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50/80 p-3 dark:bg-slate-800/50">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+        <div className="relative min-w-[160px] flex-1">
+          <select
+            aria-label="Department"
+            value={rule.departmentId ?? ''}
+            onChange={(event) => {
+              const value = event.target.value;
+              onDepartmentChange(rule.id, value ? Number(value) : null);
+            }}
+            className={selectBase}
+          >
+            <option value="">Select department</option>
+            {departments.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="relative min-w-[180px] flex-1">
+          <select
+            aria-label="Position"
+            value={rule.positionId === null || rule.positionId === undefined ? '' : String(rule.positionId)}
+            disabled={!rule.departmentId}
+            onChange={(event) => {
+              const value = event.target.value;
+              onPositionChange(rule.id, value ? Number(value) : null);
+            }}
+            className={selectBase}
+          >
+            <option value="">All Positions</option>
+            {rowPositions.length === 0 && rule.departmentId ? (
+              <option value="" disabled>
+                No active positions for this department
+              </option>
+            ) : null}
+            {rowPositions.map((position) => (
+              <option key={position.id} value={position.id}>
+                {position.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
       <button
         type="button"
         onClick={() => onRemove(rule.id)}
         disabled={!canRemove}
-        className="shrink-0 rounded-lg p-2 text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-red-950/40"
+        className="shrink-0 rounded-lg p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-red-950/40 dark:hover:text-red-400"
         aria-label="Remove rule"
       >
-        <Trash2 size={18} />
+        <Trash2 size={16} />
       </button>
     </div>
   );
@@ -296,7 +322,6 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     return counts;
   }, [activeEmployees, departmentIdByName, departments]);
 
-  /** Active employees per global position id + distinct department names (for position-only audience UI). */
   const positionAudienceStats = useMemo(() => {
     const map = new Map<number, { count: number; departments: Set<string> }>();
     positions.forEach((position) => map.set(position.id, { count: 0, departments: new Set<string>() }));
@@ -718,262 +743,310 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <button
-          type="button"
-          onClick={() => navigate('/hr/self-assessment/templates')}
-          className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-        >
-          <ArrowLeft size={16} />
-          Back to Templates
-        </button>
-      </div>
+    <div className="min-h-screen p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-4xl">
+        {/* Header */}
+        <div className="mb-6 animate-fade-in-up">
+          <button
+            type="button"
+            onClick={() => navigate('/hr/self-assessment/templates')}
+            className="group mb-4 inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 transition-all hover:bg-white hover:text-slate-900 hover:shadow-sm dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+          >
+            <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-0.5" />
+            Back to Templates
+          </button>
 
-      <SelfAssessmentReviewCycleInfo className="mb-6 max-w-5xl" />
-
-      <div className="max-w-5xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Create New Template</h1>
-        <p className="mt-1 mb-6 text-sm text-slate-500 dark:text-slate-400">
-          Create a self-assessment template for the employees who should receive it
-        </p>
-
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="mb-6 space-y-4">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <label
-                htmlFor="create-template-review-cycle"
-                className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-              >
-                Review cycle
-              </label>
-              <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-                Templates are stored per cycle. Choose the active cycle or an upcoming one to prepare ahead.
-              </p>
-              {reviewCyclesLoading ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">Loading review cycles…</p>
-              ) : selectableReviewCycles.length === 0 ? (
-                <p className="text-sm text-amber-700 dark:text-amber-300">
-                  No active or upcoming employee-submission cycles found. Generate or adjust cycles in System Settings.
-                </p>
-              ) : (
-                <select
-                  id="create-template-review-cycle"
-                  value={selectedReviewCycleId ?? ''}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setSelectedReviewCycleId(value ? Number(value) : null);
-                  }}
-                  className="w-full max-w-xl rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/25 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#5D5FEF]"
-                >
-                  {selectableReviewCycles.map((cycle) => {
-                    const suffix = reviewCycleOptionSuffix(cycle.status);
-                    return (
-                      <option key={cycle.id} value={cycle.id}>
-                        {cycle.name} ({cycle.yearLabel}) — {formatCycleDate(cycle.startDate)} –{' '}
-                        {formatCycleDate(cycle.endDate)}
-                        {suffix ? ` · ${suffix}` : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-              )}
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-600 dark:bg-slate-900/40">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/20">
+                  <ClipboardList size={20} className="text-white" />
+                </div>
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    Rating scale for new templates
-                  </h3>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    Employees answer Yes/No then pick a score from the ranges below. This matches{' '}
-                    <Link
-                      to="/hr/self-assessment/settings"
-                      className="font-semibold text-[#5D5FEF] underline-offset-2 hover:underline dark:text-[#8b8ef7]"
-                    >
-                      Self Assessment Settings
-                    </Link>
-                    .
+                  <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                    Create New Template
+                  </h1>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Build a self-assessment form and assign it to your target audience
                   </p>
                 </div>
               </div>
-              {selfAssessmentSettingsLoading ? (
-                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Loading rating settings…</p>
-              ) : selfAssessmentSettingsError ? (
-                <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
-                  Could not load rating settings. The server default will still apply when the template is saved.
-                </p>
-              ) : selfAssessmentSettings?.ratingSystem ? (
-                <dl className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-                  <div>
-                    <dt className="font-medium text-slate-600 dark:text-slate-400">Scale</dt>
-                    <dd className="mt-0.5 font-semibold text-slate-900 dark:text-white">
-                      {ratingSystemLabels[selfAssessmentSettings.ratingSystem]}
-                    </dd>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-800">
-                      <dt className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
-                        Yes — allowed scores
-                      </dt>
-                      <dd className="mt-1 tabular-nums font-medium">
-                        {getRatingOptions(selfAssessmentSettings.ratingSystem, 'Yes').join(', ')}
-                      </dd>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-800">
-                      <dt className="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-400">
-                        No — allowed scores
-                      </dt>
-                      <dd className="mt-1 tabular-nums font-medium">
-                        {getRatingOptions(selfAssessmentSettings.ratingSystem, 'No').join(', ')}
-                      </dd>
-                    </div>
-                  </div>
-                </dl>
-              ) : null}
+            </div>
+          </div>
+        </div>
+
+        {/* Review Cycle Banner */}
+        <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
+          <SelfAssessmentReviewCycleInfo />
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)}>
+          {/* ─── Step 1: Review Cycle & Details ─── */}
+          <div
+            className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/90 animate-fade-in-up"
+            style={{ animationDelay: '100ms' }}
+          >
+            <div className="mb-5">
+              <StepBadge step={1} label="Cycle & Details" icon={<CalendarCheck size={17} />} />
             </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Title
-              </label>
-              <input
-                {...register('title')}
-                type="text"
-                placeholder="Template title"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+            <div className="space-y-5">
+              {/* Review Cycle */}
+              <div>
+                <label
+                  htmlFor="create-template-review-cycle"
+                  className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300"
+                >
+                  Review Cycle
+                </label>
+                <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+                  Templates are stored per cycle. Choose the active cycle or an upcoming one to prepare ahead.
+                </p>
+                {reviewCyclesLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#5D5FEF]" />
+                    Loading review cycles...
+                  </div>
+                ) : selectableReviewCycles.length === 0 ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                    No active or upcoming employee-submission cycles found. Generate or adjust cycles in System Settings.
+                  </div>
+                ) : (
+                  <select
+                    id="create-template-review-cycle"
+                    value={selectedReviewCycleId ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setSelectedReviewCycleId(value ? Number(value) : null);
+                    }}
+                    className={`${selectBase} max-w-xl`}
+                  >
+                    {selectableReviewCycles.map((cycle) => {
+                      const suffix = reviewCycleOptionSuffix(cycle.status);
+                      return (
+                        <option key={cycle.id} value={cycle.id}>
+                          {cycle.name} ({cycle.yearLabel}) — {formatCycleDate(cycle.startDate)} –{' '}
+                          {formatCycleDate(cycle.endDate)}
+                          {suffix ? ` · ${suffix}` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
+              </div>
+
+              {/* Rating Scale Info */}
+              <div className="rounded-xl border border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50 p-4 dark:border-slate-600/50 dark:from-slate-900/60 dark:to-slate-800/60">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400">
+                    <Crown size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Rating Scale Preview</h3>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                      Employees answer Yes/No then pick a score. Matches{' '}
+                      <Link
+                        to="/hr/self-assessment/settings"
+                        className="font-semibold text-[#5D5FEF] hover:underline dark:text-[#8b8ef7]"
+                      >
+                        Self Assessment Settings
+                      </Link>
+                      .
+                    </p>
+                    {selfAssessmentSettingsLoading ? (
+                      <p className="mt-2 text-xs text-slate-400">Loading...</p>
+                    ) : selfAssessmentSettingsError ? (
+                      <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                        Could not load settings. Server defaults will apply.
+                      </p>
+                    ) : selfAssessmentSettings?.ratingSystem ? (
+                      <div className="mt-3 space-y-2">
+                        <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                          Scale: <span className="text-slate-900 dark:text-white">{ratingSystemLabels[selfAssessmentSettings.ratingSystem]}</span>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
+                            <dt className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                              Yes — scores
+                            </dt>
+                            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
+                              {getRatingOptions(selfAssessmentSettings.ratingSystem, 'Yes').join(', ')}
+                            </dd>
+                          </div>
+                          <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
+                            <dt className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                              No — scores
+                            </dt>
+                            <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
+                              {getRatingOptions(selfAssessmentSettings.ratingSystem, 'No').join(', ')}
+                            </dd>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Template Title
+                </label>
+                <input
+                  {...register('title')}
+                  type="text"
+                  placeholder="e.g. Q1 Performance Self-Evaluation"
+                  className={inputBase}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ─── Step 2: Audience ─── */}
+          <div
+            className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/90 animate-fade-in-up"
+            style={{ animationDelay: '150ms' }}
+          >
+            <div className="mb-5">
+              <StepBadge step={2} label="Target Audience" icon={<Target size={17} />} />
+              <p className="mt-1.5 pl-12 text-sm text-slate-500 dark:text-slate-400">
+                Choose who should receive this self-assessment template.
+              </p>
+            </div>
+
+            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+              <AudienceCard
+                value="all"
+                selected={audienceType === 'all'}
+                title="All Employees"
+                description={[
+                  'Company-wide distribution',
+                  ...(allCount > 0 ? [`${formatEmployeeCount(allCount)} will receive`] : []),
+                ]}
+                icon={<Users size={18} />}
+                badge={createCountBadge(allCount)}
+                onSelect={setAudienceType}
+              />
+              <AudienceCard
+                value="departments"
+                selected={audienceType === 'departments'}
+                title="By Department"
+                description={[
+                  'Select specific departments',
+                  'All positions within them',
+                ]}
+                icon={<Building2 size={18} />}
+                badge={createCountBadge(departmentCount)}
+                onSelect={setAudienceType}
+              />
+              <AudienceCard
+                value="positions"
+                selected={audienceType === 'positions'}
+                title="By Position"
+                description={[
+                  'Select specific job titles',
+                  'Across any department',
+                ]}
+                icon={<BriefcaseBusiness size={18} />}
+                badge={createCountBadge(positionCount)}
+                onSelect={setAudienceType}
+              />
+              <AudienceCard
+                value="hybrid"
+                selected={audienceType === 'hybrid'}
+                title="Hybrid"
+                description={[
+                  'Most flexible option',
+                  'Dept + position combos',
+                ]}
+                icon={<Layers3 size={18} />}
+                badge={createCountBadge(hybridCount)}
+                onSelect={setAudienceType}
               />
             </div>
 
-            <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-900/20">
-              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    Audience Type Selection
-                  </h2>
-                  <p className="text-sm text-slate-600 dark:text-slate-300">
-                    Choose who should receive this self-assessment template.
-                  </p>
+            {audienceType === 'departments' && (
+              <div className="mt-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 dark:border-slate-600/50 dark:bg-slate-900/30">
+                <div className="mb-3 flex items-center gap-2.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#5D5FEF]/10 text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                    <Building2 size={14} />
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    Select Departments
+                  </h3>
                 </div>
-              </div>
 
-              <div className="grid w-full grid-cols-1 gap-3">
-                <AudienceCard
-                  value="all"
-                  selected={audienceType === 'all'}
-                  title="All Employees (Company-wide)"
-                  description={[
-                    'All active employees in the company will receive this form',
-                    ...(allCount > 0 ? [`Total: ${formatEmployeeCount(allCount)}`] : []),
-                  ]}
-                  icon={<Users size={18} />}
-                  badge={createCountBadge(allCount)}
-                  onSelect={setAudienceType}
-                />
-                <AudienceCard
-                  value="departments"
-                  selected={audienceType === 'departments'}
-                  title="Specific Departments Only"
-                  description={[
-                    'Select one or more departments',
-                    'All positions in selected departments',
-                  ]}
-                  icon={<Building2 size={18} />}
-                  badge={createCountBadge(departmentCount)}
-                  onSelect={setAudienceType}
-                />
-                <AudienceCard
-                  value="positions"
-                  selected={audienceType === 'positions'}
-                  title="Specific Positions Only (Across All Departments)"
-                  description={[
-                    'Select one or more job titles',
-                    'Employees with these positions in ANY department',
-                  ]}
-                  icon={<BriefcaseBusiness size={18} />}
-                  badge={createCountBadge(positionCount)}
-                  onSelect={setAudienceType}
-                />
-                <AudienceCard
-                  value="hybrid"
-                  selected={audienceType === 'hybrid'}
-                  title="Hybrid (Departments + Specific Positions)"
-                  description={[
-                    'Most flexible option',
-                    'Select department AND specific positions within',
-                  ]}
-                  icon={<Layers3 size={18} />}
-                  badge={createCountBadge(hybridCount)}
-                  onSelect={setAudienceType}
-                />
-              </div>
-
-              {audienceType === 'departments' && (
-                <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="h-5 w-1 shrink-0 rounded-full bg-[#5D5FEF]" aria-hidden />
-                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200">
-                      Select Departments
-                    </h3>
-                  </div>
-
-                  <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-600">
-                    {departments.length === 0 ? (
-                      <p className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-                        No departments available
-                      </p>
-                    ) : (
-                      <ul
-                        className={`divide-y divide-slate-200 dark:divide-slate-600 ${
-                          departments.length > 5
-                            ? 'max-h-55 overflow-y-auto overscroll-y-contain'
-                            : ''
-                        }`}
-                      >
-                        {departments.map((department) => {
-                          const empCount = employeeCountByDepartmentId.get(department.id) ?? 0;
-                          const checked = selectedDepartmentIds.includes(department.id);
-                          return (
-                            <li key={department.id}>
-                              <label className="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600">
+                  {departments.length === 0 ? (
+                    <p className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                      No departments available
+                    </p>
+                  ) : (
+                    <ul
+                      className={`divide-y divide-slate-100 bg-white dark:divide-slate-700 dark:bg-slate-800 ${
+                        departments.length > 5 ? 'max-h-60 overflow-y-auto' : ''
+                      }`}
+                    >
+                      {departments.map((department) => {
+                        const empCount = employeeCountByDepartmentId.get(department.id) ?? 0;
+                        const checked = selectedDepartmentIds.includes(department.id);
+                        return (
+                          <li key={department.id}>
+                            <label
+                              className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition-all ${
+                                checked
+                                  ? 'bg-[#5D5FEF]/[0.04] dark:bg-[#5D5FEF]/10'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-700/40'
+                              }`}
+                            >
+                              <div className="relative flex items-center">
                                 <input
                                   type="checkbox"
                                   checked={checked}
                                   onChange={() => toggleDepartment(department.id)}
-                                  className="h-4 w-4 shrink-0 rounded border-slate-400 accent-[#5D5FEF] focus:ring-2 focus:ring-[#5D5FEF]/40 focus:ring-offset-0 dark:border-slate-500"
+                                  className="peer sr-only"
                                 />
-                                <span className="min-w-0 flex-1 text-sm font-medium text-slate-800 dark:text-slate-100">
-                                  {department.name}
+                                <div className="flex h-5 w-5 items-center justify-center rounded-md border-2 border-slate-300 transition-all peer-checked:border-[#5D5FEF] peer-checked:bg-[#5D5FEF] dark:border-slate-500">
+                                  <svg
+                                    className={`h-3 w-3 text-white transition-opacity ${checked ? 'opacity-100' : 'opacity-0'}`}
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={3}
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                              </div>
+                              <span className="min-w-0 flex-1 text-sm font-medium text-slate-800 dark:text-slate-100">
+                                {department.name}
+                              </span>
+                              {empCount > 0 ? (
+                                <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                  {formatEmployeeCount(empCount)}
                                 </span>
-                                {empCount > 0 ? (
-                                  <span className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                                    {formatEmployeeCount(empCount)}
-                                  </span>
-                                ) : null}
-                              </label>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
+                              ) : null}
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 rounded-lg bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-sm font-semibold text-[#5D5FEF] dark:bg-[#5D5FEF]/15 dark:text-[#8b8ef7]">
+                    <span className="tabular-nums">{selectedDepartmentIds.length}</span> departments
+                    <span className="text-[#5D5FEF]/40 dark:text-[#8b8ef7]/40">|</span>
+                    <span className="tabular-nums">{selectedDepartmentEmployeeTotal}</span> employees
                   </div>
-
-                  <p className="mt-3 flex items-center gap-2 text-sm font-medium text-[#5D5FEF]">
-                    <ChartColumn size={18} strokeWidth={2} className="shrink-0 opacity-90" aria-hidden />
-                    <span>
-                      Selected:{' '}
-                      <span className="font-semibold tabular-nums">{selectedDepartmentIds.length}</span> departments /{' '}
-                      <span className="font-semibold tabular-nums">{selectedDepartmentEmployeeTotal}</span> employees
-                    </span>
-                  </p>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setSelectedDepartmentIds(departments.map((d) => d.id))}
                       disabled={departments.length === 0}
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                     >
                       Select All
                     </button>
@@ -981,232 +1054,266 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                       type="button"
                       onClick={() => setSelectedDepartmentIds([])}
                       disabled={selectedDepartmentIds.length === 0}
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                     >
-                      Clear All
+                      Clear
                     </button>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {audienceType === 'positions' && (
-                <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="h-5 w-1 shrink-0 rounded-full bg-[#5D5FEF]" aria-hidden />
-                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200">
-                      Select Positions (Across All Departments)
-                    </h3>
-                  </div>
+            {audienceType === 'positions' && (
+              <div className="mt-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 dark:border-slate-600/50 dark:bg-slate-900/30">
+                <div className="mb-3 flex items-center gap-2.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#5D5FEF]/10 text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                    <BriefcaseBusiness size={14} />
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    Select Positions
+                  </h3>
+                </div>
 
-                  <div className="relative mb-3">
-                    <Search
-                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                      aria-hidden
-                    />
-                    <input
-                      type="search"
-                      value={positionAudienceSearch}
-                      onChange={(event) => setPositionAudienceSearch(event.target.value)}
-                      placeholder="Search positions..."
-                      className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/25 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500"
-                    />
-                  </div>
+                <div className="relative mb-3">
+                  <Search
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                    aria-hidden
+                  />
+                  <input
+                    type="search"
+                    value={positionAudienceSearch}
+                    onChange={(event) => setPositionAudienceSearch(event.target.value)}
+                    placeholder="Search positions..."
+                    className={`${inputBase} pl-9`}
+                  />
+                </div>
 
-                  <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-900/40">
-                    {filteredPositionsForAudience.length === 0 ? (
-                      <p className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-                        {positions.length === 0 ? 'No positions available' : 'No positions match your search'}
-                      </p>
-                    ) : (
-                      <ul
-                        className={`divide-y divide-slate-200 dark:divide-slate-600 dark:bg-slate-900/20 ${
-                          filteredPositionsForAudience.length > 5
-                            ? 'max-h-55 overflow-y-auto overscroll-y-contain'
-                            : ''
-                        }`}
-                      >
-                        {filteredPositionsForAudience.map((position) => {
-                          const stats = positionAudienceStats.get(position.id);
-                          const empCount = stats?.count ?? 0;
-                          const deptNames = stats?.departmentNames ?? [];
-                          const checked = selectedGlobalPositionIds.includes(position.id);
-                          const acrossLabel =
-                            deptNames.length > 0
-                              ? empCount > 0
-                                ? `(${empCount} ${empCount === 1 ? 'employee' : 'employees'} across ${deptNames.join(', ')})`
-                                : ''
-                              : empCount > 0
-                                ? `(${formatEmployeeCount(empCount)})`
-                                : '';
+                <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600">
+                  {filteredPositionsForAudience.length === 0 ? (
+                    <p className="bg-white px-4 py-8 text-center text-sm text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                      {positions.length === 0 ? 'No positions available' : 'No positions match your search'}
+                    </p>
+                  ) : (
+                    <ul
+                      className={`divide-y divide-slate-100 bg-white dark:divide-slate-700 dark:bg-slate-800 ${
+                        filteredPositionsForAudience.length > 5 ? 'max-h-60 overflow-y-auto' : ''
+                      }`}
+                    >
+                      {filteredPositionsForAudience.map((position) => {
+                        const stats = positionAudienceStats.get(position.id);
+                        const empCount = stats?.count ?? 0;
+                        const deptNames = stats?.departmentNames ?? [];
+                        const checked = selectedGlobalPositionIds.includes(position.id);
+                        const acrossLabel =
+                          deptNames.length > 0
+                            ? empCount > 0
+                              ? `(${empCount} ${empCount === 1 ? 'employee' : 'employees'} across ${deptNames.join(', ')})`
+                              : ''
+                            : empCount > 0
+                              ? `(${formatEmployeeCount(empCount)})`
+                              : '';
 
-                          return (
-                            <li key={position.id}>
-                              <label className="flex cursor-pointer items-start gap-3 bg-white px-4 py-3 transition hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700/50">
+                        return (
+                          <li key={position.id}>
+                            <label
+                              className={`flex cursor-pointer items-start gap-3 px-4 py-3 transition-all ${
+                                checked
+                                  ? 'bg-[#5D5FEF]/[0.04] dark:bg-[#5D5FEF]/10'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-700/40'
+                              }`}
+                            >
+                              <div className="relative mt-0.5 flex items-center">
                                 <input
                                   type="checkbox"
                                   checked={checked}
                                   onChange={() => toggleGlobalPosition(position.id)}
-                                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-400 accent-[#5D5FEF] focus:ring-2 focus:ring-[#5D5FEF]/40 focus:ring-offset-0 dark:border-slate-500"
+                                  className="peer sr-only"
                                 />
-                                <span className="min-w-0 flex-1 text-sm leading-snug">
-                                  <span className="font-medium text-slate-900 dark:text-slate-100">{position.name}</span>
-                                  {checked && acrossLabel ? (
-                                    <span className="text-slate-500 dark:text-slate-400"> {acrossLabel}</span>
-                                  ) : null}
-                                </span>
-                                {!checked && empCount > 0 ? (
-                                  <span className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                                    {formatEmployeeCount(empCount)}
-                                  </span>
+                                <div className="flex h-5 w-5 items-center justify-center rounded-md border-2 border-slate-300 transition-all peer-checked:border-[#5D5FEF] peer-checked:bg-[#5D5FEF] dark:border-slate-500">
+                                  <svg
+                                    className={`h-3 w-3 text-white transition-opacity ${checked ? 'opacity-100' : 'opacity-0'}`}
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={3}
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                              </div>
+                              <span className="min-w-0 flex-1 text-sm leading-snug">
+                                <span className="font-medium text-slate-900 dark:text-slate-100">{position.name}</span>
+                                {checked && acrossLabel ? (
+                                  <span className="text-slate-500 dark:text-slate-400"> {acrossLabel}</span>
                                 ) : null}
-                              </label>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </div>
-
-                  <p className="mt-3 flex items-center gap-2 text-sm font-medium text-[#5D5FEF]">
-                    <ChartColumn size={18} strokeWidth={2} className="shrink-0 opacity-90" aria-hidden />
-                    <span>
-                      Selected:{' '}
-                      <span className="font-semibold tabular-nums">{selectedGlobalPositionIds.length}</span> positions /{' '}
-                      <span className="font-semibold tabular-nums">{selectedGlobalPositionEmployeeTotal}</span>{' '}
-                      employees
-                    </span>
-                  </p>
-                </div>
-              )}
-
-              {audienceType === 'hybrid' && (
-                <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                  <div className="mb-4 flex flex-wrap items-baseline gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="h-5 w-1 shrink-0 rounded-full bg-[#5D5FEF]" aria-hidden />
-                      <h3 className="text-xs font-bold uppercase tracking-wide text-slate-800 dark:text-slate-100">
-                        Hybrid Rules
-                      </h3>
-                    </div>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">(Most Flexible)</span>
-                  </div>
-
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-900/30">
-                    <div className="space-y-3">
-                      {hybridRules.map((rule) => (
-                        <HybridRuleRow
-                          key={rule.id}
-                          rule={rule}
-                          departments={departments}
-                          onDepartmentChange={updateHybridRuleDepartment}
-                          onPositionChange={updateHybridRulePosition}
-                          onRemove={removeHybridRule}
-                          canRemove={hybridRules.length > 1}
-                        />
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={addHybridRule}
-                      className="mt-4 text-sm font-semibold text-[#5D5FEF] hover:text-[#4d50e0] dark:text-[#8b8ef7] dark:hover:text-[#a5a7fa]"
-                    >
-                      + Add Rule
-                    </button>
-                  </div>
-
-                  <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/60 dark:bg-sky-950/40">
-                    <h4 className="text-xs font-bold uppercase tracking-wide text-[#5D5FEF] dark:text-[#8b8ef7]">
-                      Summary
-                    </h4>
-                    {hybridSummary.lines.length === 0 ? (
-                      <p className="mt-2 font-mono text-sm text-slate-600 dark:text-slate-400">
-                        Add rules above to preview matched employees.
-                      </p>
-                    ) : (
-                      <ul className="mt-3 space-y-2 font-mono text-sm text-slate-800 dark:text-slate-200">
-                        {hybridSummary.lines.map((line, index) => (
-                          <li key={`${line.label}-${index}`}>
-                            <span>{line.label}</span>
-                            <span className="text-slate-600 dark:text-slate-400">
-                              {' '}
-                              : {line.rawCount} {line.rawCount === 1 ? 'employee' : 'employees'}
-                              {line.showDedupe ? (
-                                <span> (but minus duplicates = {line.newCount} new)</span>
+                              </span>
+                              {!checked && empCount > 0 ? (
+                                <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                  {formatEmployeeCount(empCount)}
+                                </span>
                               ) : null}
-                            </span>
+                            </label>
                           </li>
-                        ))}
-                      </ul>
-                    )}
-                    <div className="mt-4 border-t border-sky-200 pt-3 text-sm font-semibold text-slate-900 dark:border-sky-800 dark:text-slate-100">
-                      Total unique employees:{' '}
-                      <span className="tabular-nums">{hybridSummary.totalUnique}</span>
-                    </div>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-sm font-semibold text-[#5D5FEF] dark:bg-[#5D5FEF]/15 dark:text-[#8b8ef7]">
+                  <span className="tabular-nums">{selectedGlobalPositionIds.length}</span> positions
+                  <span className="text-[#5D5FEF]/40 dark:text-[#8b8ef7]/40">|</span>
+                  <span className="tabular-nums">{selectedGlobalPositionEmployeeTotal}</span> employees
+                </div>
+              </div>
+            )}
+
+            {audienceType === 'hybrid' && (
+              <div className="mt-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 dark:border-slate-600/50 dark:bg-slate-900/30">
+                <div className="mb-4 flex items-center gap-2.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#5D5FEF]/10 text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                    <Layers3 size={14} />
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                    Hybrid Rules
+                  </h3>
+                  <span className="rounded-full bg-slate-200/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                    Most Flexible
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {hybridRules.map((rule) => (
+                    <HybridRuleRow
+                      key={rule.id}
+                      rule={rule}
+                      departments={departments}
+                      onDepartmentChange={updateHybridRuleDepartment}
+                      onPositionChange={updateHybridRulePosition}
+                      onRemove={removeHybridRule}
+                      canRemove={hybridRules.length > 1}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={addHybridRule}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.06] dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/15"
+                >
+                  <Plus size={15} />
+                  Add Rule
+                </button>
+
+                <div className="mt-4 rounded-xl border border-slate-200/80 bg-white p-4 dark:border-slate-600/50 dark:bg-slate-800/60">
+                  <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#5D5FEF] dark:text-[#8b8ef7]">
+                    <Users size={13} />
+                    Summary
+                  </h4>
+                  {hybridSummary.lines.length === 0 ? (
+                    <p className="mt-2 text-sm text-slate-400 dark:text-slate-500">
+                      Add rules above to preview matched employees.
+                    </p>
+                  ) : (
+                    <ul className="mt-3 space-y-1.5">
+                      {hybridSummary.lines.map((line, index) => (
+                        <li key={`${line.label}-${index}`} className="flex items-baseline gap-2 text-sm">
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                            {line.label}
+                          </span>
+                          <span className="text-slate-500 dark:text-slate-400">
+                            {line.rawCount} {line.rawCount === 1 ? 'emp' : 'emps'}
+                            {line.showDedupe ? (
+                              <span className="text-amber-600 dark:text-amber-400"> ({line.newCount} unique)</span>
+                            ) : null}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Total unique:</span>
+                    <span className="rounded-lg bg-[#5D5FEF]/10 px-2.5 py-0.5 text-sm font-bold tabular-nums text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                      {hybridSummary.totalUnique}
+                    </span>
                   </div>
                 </div>
-              )}
-            </section>
+              </div>
+            )}
           </div>
 
-          <div className="mb-4">
-            <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Question
-              </label>
+          {/* ─── Step 3: Questions ─── */}
+          <div
+            className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/90 animate-fade-in-up"
+            style={{ animationDelay: '200ms' }}
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <StepBadge step={3} label="Questions" icon={<ClipboardList size={17} />} />
               <button
                 type="button"
                 onClick={() => setIsQuestionBankOpen(true)}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-800/40 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
               >
-                <BookOpen size={16} />
-                Use from Question Bank
+                <BookOpen size={14} />
+                Question Bank
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {fields.map((field, index) => (
-                <div key={field.id} className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleMoveUp(index)}
-                    disabled={index === 0}
-                    className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30"
-                    aria-label="Move question up"
-                  >
-                    <ChevronUp size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMoveDown(index)}
-                    disabled={index === fields.length - 1}
-                    className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30"
-                    aria-label="Move question down"
-                  >
-                    <ChevronDown size={16} />
-                  </button>
+                <div
+                  key={field.id}
+                  className="group flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 transition-all hover:border-slate-200 hover:bg-white hover:shadow-sm dark:border-slate-700/50 dark:bg-slate-900/30 dark:hover:border-slate-600 dark:hover:bg-slate-800/60"
+                >
+                  <div className="flex shrink-0 flex-col items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => handleMoveUp(index)}
+                      disabled={index === 0}
+                      className="rounded p-0.5 text-slate-300 transition-all hover:bg-slate-200 hover:text-slate-600 disabled:opacity-30 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                      aria-label="Move question up"
+                    >
+                      <ChevronUp size={13} />
+                    </button>
+                    <GripVertical size={14} className="text-slate-300 dark:text-slate-600" />
+                    <button
+                      type="button"
+                      onClick={() => handleMoveDown(index)}
+                      disabled={index === fields.length - 1}
+                      className="rounded p-0.5 text-slate-300 transition-all hover:bg-slate-200 hover:text-slate-600 disabled:opacity-30 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                      aria-label="Move question down"
+                    >
+                      <ChevronDown size={13} />
+                    </button>
+                  </div>
+
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-200/80 text-[11px] font-bold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                    {index + 1}
+                  </span>
+
                   <input
                     {...register(`questions.${index}.questionText` as const)}
                     placeholder={`Question ${index + 1}`}
-                    className="min-w-48 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                    className="min-w-0 flex-1 rounded-lg border-0 bg-transparent px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:text-white dark:placeholder:text-slate-500"
                   />
+
                   <button
                     type="button"
                     onClick={() => void handleSaveQuestionToBank(index)}
                     disabled={isSavingToQuestionBank}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-950/70"
-                    title="Save this question text to the Question Bank"
+                    className="shrink-0 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-emerald-50 hover:text-emerald-600 group-hover:opacity-100 disabled:opacity-30 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+                    title="Save to Question Bank"
                   >
-                    <BookMarked size={14} />
-                    Save to Question Bank
+                    <BookMarked size={15} />
                   </button>
+
                   {fields.length > 1 && (
                     <button
                       type="button"
                       onClick={() => remove(index)}
-                      className="rounded p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      className="shrink-0 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:hover:bg-red-950/30 dark:hover:text-red-400"
                       aria-label="Remove question"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={15} />
                     </button>
                   )}
                 </div>
@@ -1216,86 +1323,104 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             <button
               type="button"
               onClick={() => append({ questionText: '' })}
-              className="mt-3 flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 py-2 text-sm font-semibold text-slate-500 transition-all hover:border-[#5D5FEF] hover:bg-[#5D5FEF]/[0.03] hover:text-[#5D5FEF] dark:border-slate-600 dark:hover:border-[#5D5FEF] dark:hover:text-[#8b8ef7]"
             >
-              <Plus size={16} />
+              <Plus size={15} />
               Add Question
             </button>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              type="submit"
-              disabled={isCreating || selectableReviewCycles.length === 0 || selectedReviewCycleId == null}
-              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              <Save size={16} />
-              Create Template
-            </button>
+          {/* ─── Actions ─── */}
+          <div
+            className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end animate-fade-in-up"
+            style={{ animationDelay: '250ms' }}
+          >
             <button
               type="button"
               onClick={() => navigate('/hr/self-assessment/templates')}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+              className="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
+            <button
+              type="submit"
+              disabled={isCreating || selectableReviewCycles.length === 0 || selectedReviewCycleId == null}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 disabled:opacity-50 disabled:shadow-none dark:shadow-[#5D5FEF]/15"
+            >
+              {isCreating ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : (
+                <Save size={16} />
+              )}
+              {isCreating ? 'Creating...' : 'Create Template'}
+            </button>
           </div>
         </form>
-      </div>
 
-      {isQuestionBankOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-800">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Use from Question Bank</h2>
-              <button
-                type="button"
-                onClick={() => setIsQuestionBankOpen(false)}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                aria-label="Close question bank"
-              >
-                <X size={18} />
-              </button>
-            </div>
+        {/* ─── Question Bank Modal ─── */}
+        {isQuestionBankOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="animate-scale-in w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-700">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400">
+                    <BookOpen size={16} />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">Question Bank</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsQuestionBankOpen(false)}
+                  className="rounded-lg p-2 text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                  aria-label="Close question bank"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                value={questionBankSearch}
-                onChange={(event) => setQuestionBankSearch(event.target.value)}
-                type="text"
-                placeholder="Search active questions"
-                className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              />
-            </div>
+              <div className="p-6">
+                <div className="relative mb-4">
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={questionBankSearch}
+                    onChange={(event) => setQuestionBankSearch(event.target.value)}
+                    type="text"
+                    placeholder="Search questions..."
+                    className={`${inputBase} pl-10`}
+                  />
+                </div>
 
-            <div className="max-h-[55vh] overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700">
-              {isQuestionBankLoading ? (
-                <div className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                  Loading questions...
+                <div className="max-h-[50vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-600">
+                  {isQuestionBankLoading ? (
+                    <div className="flex items-center justify-center gap-2 px-4 py-12 text-sm text-slate-400">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#5D5FEF]" />
+                      Loading questions...
+                    </div>
+                  ) : filteredQuestionBank.length > 0 ? (
+                    <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                      {filteredQuestionBank.map((question) => (
+                        <button
+                          key={question.id}
+                          type="button"
+                          onClick={() => handleUseBankQuestion(question.questionText)}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-all hover:bg-[#5D5FEF]/[0.04] dark:hover:bg-[#5D5FEF]/10"
+                        >
+                          <Plus size={14} className="shrink-0 text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                          <span className="text-slate-800 dark:text-slate-100">{question.questionText}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
+                      No active questions found
+                    </div>
+                  )}
                 </div>
-              ) : filteredQuestionBank.length > 0 ? (
-                <div className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {filteredQuestionBank.map((question) => (
-                    <button
-                      key={question.id}
-                      type="button"
-                      onClick={() => handleUseBankQuestion(question.questionText)}
-                      className="block w-full px-4 py-3 text-left text-sm text-slate-800 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-700/60"
-                    >
-                      {question.questionText}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                  No active questions found
-                </div>
-              )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
