@@ -26,6 +26,7 @@ import {
   useMarkAllNotificationsAsReadMutation,
   useMarkNotificationAsReadMutation,
 } from '../../features/notification/notificationApi';
+import { EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH } from '../../routes/employeeSelfAssessmentRoutes';
 
 function getFeedbackPath(pathname: string) {
   const prefix = pathname.split('/').filter(Boolean)[0] || 'employee';
@@ -33,7 +34,7 @@ function getFeedbackPath(pathname: string) {
 }
 
 function getSelfAssessmentPath() {
-  return '/employee/self-assessment-forms/my-form';
+  return EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH;
 }
 
 /** Legacy notifications stored the deadline as yyyy-mm-dd; normalize to dd-mm-yyyy for display. */

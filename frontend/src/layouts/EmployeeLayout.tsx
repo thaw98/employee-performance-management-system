@@ -12,7 +12,8 @@ import {
   Send,
   Inbox,
   History,
-  FileText
+  FileText,
+  ClipboardList
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -22,6 +23,10 @@ import type { RootState } from '../app/store';
 import { logout } from '../features/auth/authSlice';
 import { ProfileDropdown } from '../components/layout/ProfileDropdown';
 import { NotificationBell } from '../components/common/NotificationBell';
+import {
+  EMPLOYEE_SELF_ASSESSMENT_BASE_PATH,
+  EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH,
+} from '../routes/employeeSelfAssessmentRoutes';
 
 function initialsFromName(name: string | undefined) {
   if (!name) return '?'
@@ -67,7 +72,18 @@ const EmployeeLayout: React.FC = () => {
       ]
     },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/employee/meetings' },
-    { icon: <FileText size={20} />, label: 'Self Assessment Form', path: '/employee/self-assessment-forms/my-form' },
+    {
+      icon: <FileText size={20} />,
+      label: 'Self Assessment Form',
+      path: EMPLOYEE_SELF_ASSESSMENT_BASE_PATH,
+      subItems: [
+        {
+          label: 'My Self Assessment Form',
+          path: EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH,
+          icon: <ClipboardList size={16} className="shrink-0" />,
+        },
+      ],
+    },
     { icon: <BellRing size={20} />, label: 'Notifications', path: '/employee/notifications' },
   ];
 
