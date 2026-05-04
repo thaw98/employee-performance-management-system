@@ -49,12 +49,15 @@ import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
 import PositionListPage from './features/position/pages/PositionListPage';
 import LevelCodeListPage from './features/levelCode/pages/LevelCodeListPage';
 
-// Self Assessment Forms
+// Self Assessment (HR templates & employee flows)
 import { SelfAssessmentFormTemplatePage } from './pages/self-assessment-form/SelfAssessmentFormTemplatePage';
 import { CreateSelfAssessmentTemplatePage } from './pages/self-assessment-form/CreateSelfAssessmentTemplatePage';
+import { EditSelfAssessmentTemplatePage } from './pages/self-assessment-form/EditSelfAssessmentTemplatePage';
 import { MySelfAssessmentFormPage } from './pages/self-assessment-form/MySelfAssessmentFormPage';
 import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfAssessmentFormReviewPage';
+import { SelfAssessmentActiveFormsPage } from './pages/self-assessment-form/SelfAssessmentActiveFormsPage';
 import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage';
+import { SelfAssessmentAssignmentsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentsPage';
 
 function App() {
   return (
@@ -100,8 +103,15 @@ function App() {
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
-            <Route path="self-assessment/forms" element={<SelfAssessmentFormTemplatePage />} />
-            <Route path="self-assessment/forms/create" element={<CreateSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
+            <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/assignments" element={<SelfAssessmentAssignmentsPage />} />
+            <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
+            <Route
+              path="self-assessment/forms/create"
+              element={<Navigate to="/hr/self-assessment/templates/create" replace />}
+            />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
@@ -126,6 +136,9 @@ function App() {
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
+            <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
+            <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>

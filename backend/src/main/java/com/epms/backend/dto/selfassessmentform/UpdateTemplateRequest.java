@@ -10,5 +10,6 @@ public record UpdateTemplateRequest(
         @NotNull Long departmentId,
         @NotNull Long positionId,
         boolean isActive,
-        @NotEmpty List<QuestionRequest> questions
+        @NotEmpty List<QuestionRequest> questions,
+        String ratingSystem
 ) {}

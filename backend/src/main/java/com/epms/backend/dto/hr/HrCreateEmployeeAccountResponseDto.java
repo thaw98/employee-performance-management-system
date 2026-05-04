@@ -18,4 +18,6 @@ public class HrCreateEmployeeAccountResponseDto {
 	private Long roleId;
 	private boolean mustChangePassword;
 	private String message;
+	private boolean assignedAsDepartmentManager;
+	private String managerAssignmentWarning;
 }

@@ -12,4 +12,5 @@ import lombok.Setter;
 public class DepartmentOptionDto {
 	private Long departmentId;
 	private String departmentName;
+	private Long managerId;
 }

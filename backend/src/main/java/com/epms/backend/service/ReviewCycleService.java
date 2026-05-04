@@ -92,6 +92,33 @@ public class ReviewCycleService {
                 .orElse(null);
     }
 
+    /**
+     * Resolves which review cycle to attach when creating a self-assessment template.
+     * Explicit {@code reviewCycleId} must be an employee-submission cycle that is not closed.
+     */
+    @Transactional(readOnly = true)
+    public ReviewCycle resolveCycleForSelfAssessmentTemplate(Long reviewCycleId) {
+        LocalDate today = LocalDate.now();
+        if (reviewCycleId != null) {
+            ReviewCycle cycle = reviewCycleRepository.findById(reviewCycleId)
+                    .orElseThrow(() -> new RuntimeException("Review cycle not found"));
+            if (!cycle.isRequiresEmployeeSubmission()) {
+                throw new RuntimeException(
+                        "Self-assessment templates must use a review cycle that requires employee submission");
+            }
+            String status = statusOf(cycle, today);
+            if ("CLOSED".equals(status)) {
+                throw new RuntimeException("Cannot create a template for a closed review cycle");
+            }
+            return cycle;
+        }
+        ReviewCycle active = getActiveSubmissionCycle();
+        if (active == null) {
+            throw new RuntimeException("No active employee-submission review cycle found");
+        }
+        return active;
+    }
+
     private ReviewCycle saveOrGet(ReviewCycle desired, TimeSetting setting, ReviewCycle parentCycle) {
         Optional<ReviewCycle> existing = reviewCycleRepository.findByYearLabelAndSequenceNoOrderByIdAsc(
                 desired.getYearLabel(),

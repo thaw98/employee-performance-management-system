@@ -1,6 +1,8 @@
 import React from 'react';
 import { Edit2, Plus, RotateCcw, Search, ToggleLeft, ToggleRight, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../../app/store';
 import {
   type QuestionBankDto,
   useCreateQuestionBankItemMutation,
@@ -15,6 +17,8 @@ const getApiErrorMessage = (error: unknown, fallback: string) => {
 };
 
 export const QuestionBankPage: React.FC = () => {
+  const roleId = useSelector((state: RootState) => state.auth.user?.roleId);
+  const isDepartmentBank = roleId === 2;
   const [searchTerm, setSearchTerm] = React.useState('');
   const [includeInactive, setIncludeInactive] = React.useState(true);
   const [modalMode, setModalMode] = React.useState<'create' | 'edit' | null>(null);
@@ -92,7 +96,9 @@ export const QuestionBankPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Question Bank</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Manage reusable questions for self-assessment forms
+            {isDepartmentBank
+              ? 'Manage reusable questions for your department self-assessment forms'
+              : 'Manage reusable questions for HR self-assessment forms'}
           </p>
         </div>
         <button
