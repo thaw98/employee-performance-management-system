@@ -9,7 +9,7 @@ const TRANSFER_TYPE_STYLES: Record<string, string> = {
 
 const TRANSFER_TYPE_LABELS: Record<string, string> = {
   INITIAL: 'Initial Placement',
-  TEMPORARY: 'Temporary Transfers',
+  TEMPORARY: 'Temporary Transfer',
   PERMANENT_TRANSFER: 'Permanent Transfer',
   RETURN: 'Return from Temporary',
 }
