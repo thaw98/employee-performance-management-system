@@ -47,8 +47,14 @@ export interface Pip {
   reviewReason?: string
   reopenDecision?: string
   reopenDecisionDate?: string
-closingRemarks?: string
+  closingRemarks?: string
   finalOutcome?: string
+  employeeSignature?: string
+  employeeSignedAt?: string
+  employeeSignatureDate?: string
+  managerSignature?: string
+  managerSignedAt?: string
+  managerSignatureDate?: string
   expectedImprovements?: string
   reasonForPlan?: string
   objectives: PipObjective[]
@@ -83,6 +89,17 @@ export interface EligibleEmployee {
   employeeName: string
   departmentName: string
   totalScore: number
+}
+
+export interface EmployeeSignRequest {
+  signature: string
+}
+
+export interface ClosePipRequest {
+  pipId: number
+  finalOutcome: string
+  closingRemarks: string
+  signature?: string
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -212,8 +229,14 @@ const normalizePip = (pip: unknown): Pip => {
     reviewReason: getOptionalString(source.reviewReason),
     reopenDecision: getOptionalString(source.reopenDecision),
     reopenDecisionDate: getOptionalString(source.reopenDecisionDate),
-closingRemarks: getOptionalString(source.closingRemarks),
+    closingRemarks: getOptionalString(source.closingRemarks),
     finalOutcome: getOptionalString(source.finalOutcome),
+    employeeSignature: getOptionalString(source.employeeSignature),
+    employeeSignedAt: getOptionalString(source.employeeSignedAt),
+    employeeSignatureDate: getOptionalString(source.employeeSignatureDate),
+    managerSignature: getOptionalString(source.managerSignature),
+    managerSignedAt: getOptionalString(source.managerSignedAt),
+    managerSignatureDate: getOptionalString(source.managerSignatureDate),
     expectedImprovements: getOptionalString(source.expectedImprovements),
     reasonForPlan: getOptionalString(source.reasonForPlan),
     objectives: getArray(source.objectives).map(normalizeObjective),
@@ -266,13 +289,22 @@ export const pipApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: () => ['PIP'],
     }),
-    closePip: builder.mutation<Pip, { pipId: number; finalOutcome: string; closingRemarks: string }>({
+    closePip: builder.mutation<Pip, ClosePipRequest>({
       query: ({ pipId, ...body }) => ({
         url: `/pips/${pipId}/close`,
         method: 'PUT',
         body,
       }),
       invalidatesTags: () => ['PIP'],
+      transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
+    }),
+    employeeSign: builder.mutation<Pip, { pipId: number } & EmployeeSignRequest>({
+      query: ({ pipId, ...body }) => ({
+        url: `/pips/${pipId}/employee-sign`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { pipId }) => ['PIP', { type: 'PIP', id: pipId }],
       transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
     }),
     markPipCompleted: builder.mutation<Pip, number>({
@@ -323,6 +355,7 @@ export const {
   useUpdateProgressMutation,
   useScheduleMeetingMutation,
   useClosePipMutation,
+  useEmployeeSignMutation,
   useMarkPipCompletedMutation,
   useReopenPipMutation,
   useReviewPipMutation,

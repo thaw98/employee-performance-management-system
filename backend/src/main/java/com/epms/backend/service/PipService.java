@@ -1,7 +1,14 @@
 package com.epms.backend.service;
 
 import com.epms.backend.StaffTypes;
-import com.epms.backend.dto.pip.*;
+import com.epms.backend.dto.pip.PipCreateRequest;
+import com.epms.backend.dto.pip.EligibleEmployeeDTO;
+import com.epms.backend.dto.pip.ProgressUpdateRequest;
+import com.epms.backend.dto.pip.MeetingScheduleRequest;
+import com.epms.backend.dto.pip.PipCloseRequest;
+import com.epms.backend.dto.pip.PipReopenRequest;
+import com.epms.backend.dto.pip.PipSignatureRequest;
+import com.epms.backend.dto.pip.PipReviewRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -117,7 +124,10 @@ public class PipService {
         }).toList();
 
         pip.setObjectives(objectives);
-        return pipRepository.save(pip);
+
+        Pip savedPip = pipRepository.save(pip);
+        syncTrainingRecords(savedPip);
+        return savedPip;
     }
 
     public List<Pip> getManagerPips(User manager) {
@@ -252,7 +262,9 @@ public class PipService {
 
         progressUpdateRepository.save(update);
         pipRepository.save(pip);
-        return objectiveRepository.save(objective);
+        PipObjective savedObjective = objectiveRepository.save(objective);
+        syncTrainingRecord(pip, savedObjective);
+        return savedObjective;
     }
 
     @Transactional
@@ -319,13 +331,16 @@ public class PipService {
         if (request.getClosingRemarks() == null || request.getClosingRemarks().trim().isEmpty()) {
             throw new RuntimeException("Manager comments are required");
         }
-        pip.setStatus(STATUS_CLOSED);
         if (pip.getFinalCloseDate() == null) {
             pip.setFinalCloseDate(LocalDate.now());
         }
         pip.setActualEndDate(pip.getFinalCloseDate());
         pip.setClosingRemarks(request.getClosingRemarks().trim());
         pip.setFinalOutcome(outcome);
+        if (request.getSignature() != null && !request.getSignature().isBlank()) {
+            pip.setManagerSignature(request.getSignature().trim());
+            pip.setManagerSignatureDate(Instant.now());
+        }
         pip.setReviewReason(null);
         pip.setClosedBy(actor.getEmployee());
         pip.setClosedDate(Instant.now());
@@ -352,6 +367,28 @@ public class PipService {
     }
 
     @Transactional
+    public Pip employeeSign(Long pipId, PipSignatureRequest request, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!isPipEmployee(pip, actor)) {
+            throw new RuntimeException("Only the employee assigned to this PIP can sign it");
+        }
+        if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus())) || pip.getFinalOutcome() == null
+                || pip.getFinalOutcome().isBlank()) {
+            throw new RuntimeException("Only automatically closed PIPs with a final result can be signed");
+        }
+        if (pip.getEmployeeSignatureDate() != null) {
+            throw new RuntimeException("This PIP has already been signed by the employee");
+        }
+        if (request.getSignature() == null || request.getSignature().trim().isEmpty()) {
+            throw new RuntimeException("Signature is required");
+        }
+        pip.setEmployeeSignature(request.getSignature().trim());
+        pip.setEmployeeSignatureDate(Instant.now());
+        pip.setUpdatedDate(Instant.now());
+        return pipRepository.save(pip);
+    }
+
+    @Transactional
     public Pip reopenPip(Long pipId, PipReopenRequest request, User actor) {
         Pip pip = getPipById(pipId, actor);
         if (!isPipEmployee(pip, actor)) {
@@ -362,6 +399,9 @@ public class PipService {
         }
         if (hasReopenBeenUsed(pip)) {
             throw new RuntimeException("A PIP can only be reopened one time");
+        }
+        if (pip.getEmployeeSignatureDate() != null) {
+            throw new RuntimeException("A PIP cannot be reopened after employee acknowledgement");
         }
         if (pip.getFinalOutcome() != null && !pip.getFinalOutcome().isBlank()) {
             throw new RuntimeException("A PIP cannot be reopened after the final result is marked");
@@ -376,6 +416,8 @@ public class PipService {
         pip.setReopenedDate(null);
         pip.setReopenDecision(null);
         pip.setReopenDecisionDate(null);
+        pip.setEmployeeSignature(null);
+        pip.setEmployeeSignatureDate(null);
         pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
     }
@@ -414,6 +456,8 @@ public class PipService {
             pip.setReopenDecision(DECISION_APPROVED);
             pip.setReopenDecisionDate(Instant.now());
             pip.setReviewReason(null);
+            pip.setEmployeeSignature(null);
+            pip.setEmployeeSignatureDate(null);
         } else if ("DENIED".equals(action)) {
             pip.setStatus(STATUS_AUTO_CLOSED);
             pip.setReopenDecision(DECISION_REJECTED);
@@ -436,10 +480,72 @@ public class PipService {
         }
     }
 
+    @Transactional
     public List<TrainingRecord> getEmployeeTrainingHistory(Long employeeId) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
-        return trainingRepository.findByEmployee(employee);
+        pipRepository.findByEmployee(employee).forEach(this::syncTrainingRecords);
+        return trainingRepository.findByEmployee_IdOrderByStartDateDescCreatedDateDesc(employeeId);
+    }
+
+    private void syncTrainingRecords(Pip pip) {
+        if (pip.getObjectives() == null) {
+            return;
+        }
+        pip.getObjectives().forEach(objective -> syncTrainingRecord(pip, objective));
+    }
+
+    private void syncTrainingRecord(Pip pip, PipObjective objective) {
+        if (pip == null || objective == null || objective.getDescription() == null
+                || objective.getDescription().trim().isEmpty()) {
+            return;
+        }
+
+        String trainingName = objective.getDescription().trim();
+        TrainingRecord record = trainingRepository
+                .findFirstByPipAndEmployeeAndTrainingName(pip, pip.getEmployee(), trainingName)
+                .orElseGet(() -> {
+                    TrainingRecord newRecord = new TrainingRecord();
+                    newRecord.setEmployee(pip.getEmployee());
+                    newRecord.setPip(pip);
+                    newRecord.setTrainingName(trainingName);
+                    newRecord.setCreatedDate(Instant.now());
+                    return newRecord;
+                });
+
+        record.setTrainingProvider(pip.getManager() == null ? null : pip.getManager().getEmployeeName());
+        String status = resolveTrainingStatus(objective.getProgressPercentage());
+        record.setStartDate(pip.getStartDate() == null ? LocalDate.now() : pip.getStartDate());
+        record.setEndDate(resolveTrainingEndDate(pip, objective, record, status));
+        record.setCompletionStatus(status);
+        record.setCertificationReceived(Boolean.FALSE);
+        record.setNotes("PIP objective #" + (objective.getId() == null ? "pending" : objective.getId()));
+        record.setUpdatedDate(Instant.now());
+        trainingRepository.save(record);
+    }
+
+    private LocalDate resolveTrainingEndDate(Pip pip, PipObjective objective, TrainingRecord record, String status) {
+        if ("COMPLETED".equals(status)) {
+            if ("COMPLETED".equals(record.getCompletionStatus()) && record.getEndDate() != null) {
+                return record.getEndDate();
+            }
+            return LocalDate.now();
+        }
+        if (objective.getDueDate() != null) {
+            return objective.getDueDate();
+        }
+        return pip.getEndDate();
+    }
+
+    private String resolveTrainingStatus(Integer progressPercentage) {
+        int progress = progressPercentage == null ? 0 : progressPercentage;
+        if (progress >= 100) {
+            return "COMPLETED";
+        }
+        if (progress > 0) {
+            return "IN_PROGRESS";
+        }
+        return "NOT_STARTED";
     }
 
     public List<PipProgressUpdate> getObjectiveHistory(Long objectiveId) {
