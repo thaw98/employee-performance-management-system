@@ -59,6 +59,7 @@ export const baseApi = createApi({
     'SelfAssessmentCopiedTemplate',
     'QuestionBank',
     'KpiCategory',
+    'AuditLog',
   ],
   endpoints: () => ({}),
 });
