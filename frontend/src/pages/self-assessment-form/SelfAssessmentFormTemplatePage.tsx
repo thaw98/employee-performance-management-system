@@ -18,14 +18,21 @@ import {
   LayoutGrid,
   List,
   ChevronDown,
+  Copy,
+  ClipboardPaste,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../app/store';
 import { useGetTimeSettingsQuery } from '../../features/feedback/api/feedbackApi';
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
-import { useGetAllTemplatesQuery } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import {
+  useCopyTemplateMutation,
+  useGetAllTemplatesQuery,
+  useGetCopiedTemplateQuery,
+} from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { ratingSystemLabels } from '../../features/selfAssessmentForm/ratingSystem';
 
 type CyclePhaseFilter = 'all' | 'current' | 'past' | 'upcoming';
@@ -58,8 +65,11 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const [positionFilter, setPositionFilter] = useState<string>('');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [expandedFilters, setExpandedFilters] = useState(false);
+  const [copyingTemplateId, setCopyingTemplateId] = useState<number | null>(null);
 
   const { data: allTemplates = [] } = useGetAllTemplatesQuery();
+  const { data: copiedTemplate } = useGetCopiedTemplateQuery(undefined, { skip: isManager });
+  const [copyTemplate, { isLoading: isCopyingTemplate }] = useCopyTemplateMutation();
   const { data: timeSettings, isLoading: timeSettingsLoading } = useGetTimeSettingsQuery();
   const { data: reviewCycles = [] } = useGetReviewCyclesQuery();
 
@@ -141,7 +151,6 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
 
   const activeCount = allTemplates.filter((t) => t.isActive).length;
   const assignedCount = allTemplates.filter((t) => t.isLocked).length;
-  const uniqueDepts = new Set(allTemplates.map((t) => t.departmentId)).size;
   const totalQuestions = allTemplates.reduce((sum, t) => sum + (t.questions?.length ?? 0), 0);
 
   const hasActiveFilters =
@@ -155,6 +164,22 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
     setCyclePhaseFilter('all');
     setDepartmentFilter('');
     setPositionFilter('');
+  };
+
+  const handleCopyTemplate = async (templateId: number) => {
+    setCopyingTemplateId(templateId);
+    try {
+      await copyTemplate(templateId).unwrap();
+      toast.success('Template copied. Paste it into a new template when ready.');
+    } catch {
+      toast.error('Could not copy template');
+    } finally {
+      setCopyingTemplateId(null);
+    }
+  };
+
+  const handlePasteTemplate = () => {
+    navigate('/hr/self-assessment/templates/create?fromCopiedTemplate=true');
   };
 
   const summaryCards = [
@@ -614,29 +639,54 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                               )}
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() => navigate(`${routeBase}/${template.id}/edit`)}
-                              className={`group/btn inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
-                                template.isLocked || isManager
-                                  ? 'border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-slate-200'
-                                  : 'bg-[#5D5FEF]/[0.06] text-[#5D5FEF] hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20'
-                              }`}
-                            >
-                              {template.isLocked || isManager ? (
+                          <td className="px-5 py-4">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              {!isManager && (
                                 <>
-                                  <Eye size={13} />
-                                  View
-                                </>
-                              ) : (
-                                <>
-                                  <Pencil size={13} />
-                                  Edit
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleCopyTemplate(template.id)}
+                                    disabled={isCopyingTemplate && copyingTemplateId === template.id}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-white"
+                                  >
+                                    <Copy size={13} />
+                                    {isCopyingTemplate && copyingTemplateId === template.id ? 'Copying...' : 'Copy'}
+                                  </button>
+                                  {copiedTemplate && (
+                                    <button
+                                      type="button"
+                                      onClick={handlePasteTemplate}
+                                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                                    >
+                                      <ClipboardPaste size={13} />
+                                      Paste
+                                    </button>
+                                  )}
                                 </>
                               )}
-                              <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => navigate(`${routeBase}/${template.id}/edit`)}
+                                className={`group/btn inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
+                                  template.isLocked || isManager
+                                    ? 'border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-slate-200'
+                                    : 'bg-[#5D5FEF]/[0.06] text-[#5D5FEF] hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20'
+                                }`}
+                              >
+                                {template.isLocked || isManager ? (
+                                  <>
+                                    <Eye size={13} />
+                                    View
+                                  </>
+                                ) : (
+                                  <>
+                                    <Pencil size={13} />
+                                    Edit
+                                  </>
+                                )}
+                                <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -739,8 +789,31 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Action */}
-                          <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-700/40">
+                          {/* Actions */}
+                          <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-slate-700/40">
+                            {!isManager && (
+                              <div className={`grid gap-2 ${copiedTemplate ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleCopyTemplate(template.id)}
+                                  disabled={isCopyingTemplate && copyingTemplateId === template.id}
+                                  className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700/60"
+                                >
+                                  <Copy size={14} />
+                                  {isCopyingTemplate && copyingTemplateId === template.id ? 'Copying...' : 'Copy'}
+                                </button>
+                                {copiedTemplate ? (
+                                  <button
+                                    type="button"
+                                    onClick={handlePasteTemplate}
+                                    className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                                  >
+                                    <ClipboardPaste size={14} />
+                                    Paste
+                                  </button>
+                                ) : null}
+                              </div>
+                            )}
                             <button
                               type="button"
                               onClick={() => navigate(`${routeBase}/${template.id}/edit`)}

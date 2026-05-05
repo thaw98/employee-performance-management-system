@@ -17,6 +17,7 @@ import com.epms.backend.entity.SelfAssessmentRatingSystem;
 import com.epms.backend.entity.SelfAssessmentSettings;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentRepository;
+import com.epms.backend.repository.CopiedSelfAssessmentFormTemplateRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.NotificationRepository;
 import com.epms.backend.repository.PositionRepository;
@@ -52,6 +53,8 @@ class SelfAssessmentFormAssignmentServiceTest {
     @Mock
     private SelfAssessmentFormTemplateRepository templateRepository;
     @Mock
+    private CopiedSelfAssessmentFormTemplateRepository copiedTemplateRepository;
+    @Mock
     private SelfAssessmentFormRepository formRepository;
     @Mock
     private SelfAssessmentFormAdjustmentRepository adjustmentRepository;
@@ -82,6 +85,7 @@ class SelfAssessmentFormAssignmentServiceTest {
     void setUp() {
         service = new SelfAssessmentFormService(
                 templateRepository,
+                copiedTemplateRepository,
                 formRepository,
                 adjustmentRepository,
                 employeeRepository,
@@ -251,6 +255,7 @@ class SelfAssessmentFormAssignmentServiceTest {
                 10L,
                 20L,
                 List.of(new QuestionRequest(null, "What did you achieve?", 0)),
+                null,
                 7L,
                 null), 99L);
 
