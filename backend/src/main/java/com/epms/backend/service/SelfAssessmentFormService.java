@@ -716,11 +716,14 @@ public class SelfAssessmentFormService {
 
     @Transactional
     public SelfAssessmentSettingsDto updateSettings(SelfAssessmentSettingsRequest request, Long userId) {
+        SelfAssessmentRatingSystem targetRatingSystem = parseRatingSystem(request.ratingSystem());
         SelfAssessmentSettings settings = getOrCreateSettings();
-        settings.setRatingSystem(parseRatingSystem(request.ratingSystem()));
+        settings.setRatingSystem(targetRatingSystem);
         settings.setUpdatedBy(userId);
         settings.setUpdatedOn(Instant.now());
-        return toSettingsDto(settingsRepository.save(settings));
+        settingsRepository.save(settings);
+        syncUnassignedTemplatesInActiveCycle(targetRatingSystem, userId);
+        return toSettingsDto(settings);
     }
 
     @Transactional(readOnly = true)
@@ -1165,8 +1168,49 @@ public class SelfAssessmentFormService {
     }
 
     private SelfAssessmentSettingsDto toSettingsDto(SelfAssessmentSettings settings) {
+        boolean editable = !isRatingSystemLocked();
         return new SelfAssessmentSettingsDto(
-                SelfAssessmentRatingSystem.defaultIfNull(settings.getRatingSystem()).name());
+                SelfAssessmentRatingSystem.defaultIfNull(settings.getRatingSystem()).name(),
+                editable,
+                editable ? null : getRatingSystemLockReason());
+    }
+
+    private boolean isRatingSystemLocked() {
+        return false;
+    }
+
+    private String getRatingSystemLockReason() {
+        return "Templates already assigned to a deadline keep their existing rating scale.";
+    }
+
+    private void syncUnassignedTemplatesInActiveCycle(SelfAssessmentRatingSystem ratingSystem, Long userId) {
+        ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
+        if (activeCycle == null) {
+            return;
+        }
+
+        List<SelfAssessmentFormTemplate> templates = templateRepository.findActiveByReviewCycleId(activeCycle.getId());
+        if (templates.isEmpty()) {
+            return;
+        }
+
+        Instant now = Instant.now();
+        boolean changed = false;
+        for (SelfAssessmentFormTemplate template : templates) {
+            if (formRepository.existsByTemplate(template)) {
+                continue;
+            }
+            SelfAssessmentRatingSystem current = SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem());
+            if (current != ratingSystem) {
+                template.setRatingSystem(ratingSystem);
+                template.setUpdatedBy(userId);
+                template.setUpdatedOn(now);
+                changed = true;
+            }
+        }
+        if (changed) {
+            templateRepository.saveAll(templates);
+        }
     }
 
     private void assertTemplateEditable(SelfAssessmentFormTemplate template) {

@@ -101,6 +101,10 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
     }
   }, [data?.ratingSystem]);
 
+  const isRatingScaleEditable = data?.ratingSystemEditable ?? true;
+  const ratingScaleLockReason =
+    data?.ratingSystemLockReason ??
+    'Templates already assigned to a deadline keep their existing rating scale.';
   const isDirty = data?.ratingSystem != null && data.ratingSystem !== ratingSystem;
 
   const handleSave = async () => {
@@ -327,12 +331,15 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                     <button
                       type="button"
                       key={option.value}
-                      onClick={() => setRatingSystem(option.value)}
+                      onClick={() =>
+                        isRatingScaleEditable && setRatingSystem(option.value)
+                      }
+                      disabled={!isRatingScaleEditable}
                       className={`group relative overflow-hidden rounded-2xl border-2 p-0 text-left transition-all duration-300 ${
                         checked
                           ? 'border-[#5D5FEF] bg-gradient-to-br from-[#5D5FEF]/[0.03] to-[#7C7EF5]/[0.01] shadow-lg shadow-[#5D5FEF]/10 dark:border-[#5D5FEF] dark:from-[#5D5FEF]/10 dark:to-[#7C7EF5]/5 dark:shadow-[#5D5FEF]/5'
                           : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-800/60 dark:hover:border-slate-600'
-                      }`}
+                      } ${!isRatingScaleEditable ? 'cursor-not-allowed opacity-70' : ''}`}
                     >
                       {/* Selection indicator glow */}
                       {checked && (
@@ -429,11 +436,22 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                   <span className="font-semibold text-slate-600 dark:text-slate-300">
                     Note:
                   </span>{' '}
-                  Existing assigned forms retain the rating system that was
-                  active when they were created. This setting only affects new
-                  templates going forward.
+                  Changing the global rating scale updates unassigned templates
+                  in the active review cycle to stay consistent. Templates
+                  already assigned to a deadline keep their existing scale.
                 </p>
               </div>
+              {!isRatingScaleEditable && (
+                <div className="mt-3 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3.5 dark:border-amber-800/50 dark:bg-amber-950/30">
+                  <Info
+                    size={16}
+                    className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400"
+                  />
+                  <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+                    {ratingScaleLockReason}
+                  </p>
+                </div>
+              )}
 
               {/* Action bar */}
               <div
@@ -446,7 +464,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={isSaving || isFetching || !isDirty}
+                  disabled={isSaving || isFetching || !isDirty || !isRatingScaleEditable}
                   className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:brightness-100"
                 >
                   {isSaving ? (

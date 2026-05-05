@@ -229,6 +229,8 @@ export interface ActiveCycleFormsDto {
 
 export interface SelfAssessmentSettingsDto {
   ratingSystem: SelfAssessmentRatingSystem
+  ratingSystemEditable: boolean
+  ratingSystemLockReason: string | null
 }
 
 export interface SelfAssessmentSettingsRequest {
@@ -488,6 +490,8 @@ const normalizeSettings = (settings: unknown): SelfAssessmentSettingsDto => {
   const source = isRecord(settings) ? settings : {}
   return {
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    ratingSystemEditable: getBoolean(source.ratingSystemEditable, true),
+    ratingSystemLockReason: getOptionalString(source.ratingSystemLockReason) ?? null,
   }
 }
 
