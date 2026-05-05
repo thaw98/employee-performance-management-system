@@ -19,7 +19,6 @@ import {
   List,
   ChevronDown,
   Copy,
-  ClipboardPaste,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -31,7 +30,6 @@ import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 import {
   useCopyTemplateMutation,
   useGetAllTemplatesQuery,
-  useGetCopiedTemplateQuery,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { ratingSystemLabels } from '../../features/selfAssessmentForm/ratingSystem';
 
@@ -68,7 +66,6 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const [copyingTemplateId, setCopyingTemplateId] = useState<number | null>(null);
 
   const { data: allTemplates = [] } = useGetAllTemplatesQuery();
-  const { data: copiedTemplate } = useGetCopiedTemplateQuery(undefined, { skip: isManager });
   const [copyTemplate, { isLoading: isCopyingTemplate }] = useCopyTemplateMutation();
   const { data: timeSettings, isLoading: timeSettingsLoading } = useGetTimeSettingsQuery();
   const { data: reviewCycles = [] } = useGetReviewCyclesQuery();
@@ -166,20 +163,17 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
     setPositionFilter('');
   };
 
-  const handleCopyTemplate = async (templateId: number) => {
+  const handleDuplicateTemplate = async (templateId: number) => {
     setCopyingTemplateId(templateId);
     try {
       await copyTemplate(templateId).unwrap();
-      toast.success('Template copied. Paste it into a new template when ready.');
+      toast.success('Template duplicated. Review details before creating.');
+      navigate('/hr/self-assessment/templates/create?fromCopiedTemplate=true');
     } catch {
-      toast.error('Could not copy template');
+      toast.error('Could not duplicate template');
     } finally {
       setCopyingTemplateId(null);
     }
-  };
-
-  const handlePasteTemplate = () => {
-    navigate('/hr/self-assessment/templates/create?fromCopiedTemplate=true');
   };
 
   const summaryCards = [
@@ -645,23 +639,13 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                                 <>
                                   <button
                                     type="button"
-                                    onClick={() => void handleCopyTemplate(template.id)}
+                                    onClick={() => void handleDuplicateTemplate(template.id)}
                                     disabled={isCopyingTemplate && copyingTemplateId === template.id}
                                     className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-white"
                                   >
                                     <Copy size={13} />
-                                    {isCopyingTemplate && copyingTemplateId === template.id ? 'Copying...' : 'Copy'}
+                                    {isCopyingTemplate && copyingTemplateId === template.id ? 'Duplicating...' : 'Duplicate'}
                                   </button>
-                                  {copiedTemplate && (
-                                    <button
-                                      type="button"
-                                      onClick={handlePasteTemplate}
-                                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
-                                    >
-                                      <ClipboardPaste size={13} />
-                                      Paste
-                                    </button>
-                                  )}
                                 </>
                               )}
                               <button
@@ -792,26 +776,16 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                           {/* Actions */}
                           <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-slate-700/40">
                             {!isManager && (
-                              <div className={`grid gap-2 ${copiedTemplate ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                              <div className="grid grid-cols-1 gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => void handleCopyTemplate(template.id)}
+                                  onClick={() => void handleDuplicateTemplate(template.id)}
                                   disabled={isCopyingTemplate && copyingTemplateId === template.id}
                                   className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700/60"
                                 >
                                   <Copy size={14} />
-                                  {isCopyingTemplate && copyingTemplateId === template.id ? 'Copying...' : 'Copy'}
+                                  {isCopyingTemplate && copyingTemplateId === template.id ? 'Duplicating...' : 'Duplicate'}
                                 </button>
-                                {copiedTemplate ? (
-                                  <button
-                                    type="button"
-                                    onClick={handlePasteTemplate}
-                                    className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-700 transition-all hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
-                                  >
-                                    <ClipboardPaste size={14} />
-                                    Paste
-                                  </button>
-                                ) : null}
                               </div>
                             )}
                             <button

@@ -45,6 +45,7 @@ import {
   useCreateQuestionBankItemMutation,
   useCreateTemplateMutation,
   useCheckActiveTemplateConflictsMutation,
+  useDeleteCopiedTemplateMutation,
   useGetCopiedTemplateQuery,
   useGetQuestionBankQuery,
   useGetSelfAssessmentSettingsQuery,
@@ -633,6 +634,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
   const [checkActiveTemplateConflicts] = useCheckActiveTemplateConflictsMutation();
+  const [deleteCopiedTemplate] = useDeleteCopiedTemplateMutation();
   const [createQuestionBankItem, { isLoading: isSavingToQuestionBank }] =
     useCreateQuestionBankItemMutation();
   const { data: copiedTemplate } = useGetCopiedTemplateQuery(undefined, {
@@ -898,6 +900,13 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
         toast.error(`${createdCount} template(s) created, ${failures.length} skipped because they could not be created`);
       } else {
         toast.success(createdCount === 1 ? 'Template created successfully' : `${createdCount} templates created successfully`);
+      }
+      if (isPastingCopiedTemplate) {
+        try {
+          await deleteCopiedTemplate().unwrap();
+        } catch {
+          toast.error('Template created, but the duplicate draft could not be cleared');
+        }
       }
       navigate('/hr/self-assessment/templates');
     } catch (error: unknown) {
