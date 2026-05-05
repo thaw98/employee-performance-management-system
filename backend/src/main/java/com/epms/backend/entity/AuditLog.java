@@ -45,6 +45,12 @@ public class AuditLog {
 	@Column(name = "metadata_json", columnDefinition = "JSON")
 	private String metadataJson;
 
+	@Column(name = "before_data", columnDefinition = "LONGTEXT")
+	private String beforeData;
+
+	@Column(name = "after_data", columnDefinition = "LONGTEXT")
+	private String afterData;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt = Instant.now();
 }
