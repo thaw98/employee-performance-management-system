@@ -790,6 +790,8 @@ public class SelfAssessmentFormService {
                 "Submitted self-assessment form with score " + saved.getTotalScore(),
                 null);
 
+        sendManagerSubmissionNotification(employee, saved);
+
         return toFormDto(saved);
     }
 
@@ -1478,6 +1480,43 @@ public class SelfAssessmentFormService {
         }
         return subject.getDepartment().getManagerId() != null
                 && subject.getDepartment().getManagerId().equals(manager.getId());
+    }
+
+    private void sendManagerSubmissionNotification(Employee employee, SelfAssessmentForm form) {
+        resolveManagerRecipient(employee)
+                .ifPresent(manager -> notificationService.send(
+                        manager.getUserAccount(),
+                        "Self-Assessment Submitted",
+                        "Employee " + employee.getEmployeeName() + " submitted "
+                                + resolveFormDisplayTitle(form) + " for your review.",
+                        "SELF_ASSESSMENT_FORM"));
+    }
+
+    private Optional<Employee> resolveManagerRecipient(Employee employee) {
+        if (employee == null) {
+            return Optional.empty();
+        }
+
+        Employee directManager = employee.getManager();
+        if (directManager != null) {
+            return hasActiveUserAccount(directManager) ? Optional.of(directManager) : Optional.empty();
+        }
+
+        Long departmentManagerId = employee.getDepartment() != null
+                ? employee.getDepartment().getManagerId()
+                : null;
+        if (departmentManagerId == null) {
+            return Optional.empty();
+        }
+
+        return employeeRepository.findById(departmentManagerId)
+                .filter(this::hasActiveUserAccount);
+    }
+
+    private boolean hasActiveUserAccount(Employee employee) {
+        return employee != null
+                && employee.getUserAccount() != null
+                && employee.getUserAccount().isActive();
     }
 
     private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q) {
