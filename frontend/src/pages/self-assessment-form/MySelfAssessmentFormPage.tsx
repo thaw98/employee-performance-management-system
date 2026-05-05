@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
 import {
@@ -290,10 +290,8 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const watchAnswers = watch('answers');
   const ratingSystem = formData?.ratingSystem ?? 'FIVE_POINT';
 
-  const answeredCount = useMemo(() => {
-    if (!watchAnswers) return 0;
-    return watchAnswers.filter((a) => a.yesNoAnswer === 'Yes' || a.yesNoAnswer === 'No').length;
-  }, [watchAnswers]);
+  const answeredCount =
+    watchAnswers?.filter((a) => a.yesNoAnswer === 'Yes' || a.yesNoAnswer === 'No').length ?? 0;
 
   const totalCount = formData?.answers?.length ?? 0;
 
