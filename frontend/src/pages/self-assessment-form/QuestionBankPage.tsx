@@ -37,7 +37,6 @@ export const QuestionBankPage: React.FC = () => {
   const [modalMode, setModalMode] = React.useState<'create' | 'edit' | null>(null);
   const [editingQuestion, setEditingQuestion] = React.useState<QuestionBankDto | null>(null);
   const [questionText, setQuestionText] = React.useState('');
-  const [isActive, setIsActive] = React.useState(true);
 
   const { data: questions = [], isLoading, refetch } = useGetQuestionBankQuery({ includeInactive });
   const [createQuestion, { isLoading: isCreating }] = useCreateQuestionBankItemMutation();
@@ -56,21 +55,18 @@ export const QuestionBankPage: React.FC = () => {
     setModalMode('create');
     setEditingQuestion(null);
     setQuestionText('');
-    setIsActive(true);
   };
 
   const openEditModal = (question: QuestionBankDto) => {
     setModalMode('edit');
     setEditingQuestion(question);
     setQuestionText(question.questionText);
-    setIsActive(question.isActive);
   };
 
   const closeModal = () => {
     setModalMode(null);
     setEditingQuestion(null);
     setQuestionText('');
-    setIsActive(true);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -85,7 +81,7 @@ export const QuestionBankPage: React.FC = () => {
       if (modalMode === 'edit' && editingQuestion) {
         await updateQuestion({
           id: editingQuestion.id,
-          request: { questionText: questionText.trim(), isActive },
+          request: { questionText: questionText.trim(), isActive: editingQuestion.isActive },
         }).unwrap();
         toast.success('Question updated');
       } else {
@@ -417,18 +413,6 @@ export const QuestionBankPage: React.FC = () => {
                   className="w-full rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF] resize-none"
                 />
               </div>
-
-              {modalMode === 'edit' && (
-                <label className="inline-flex items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition-all cursor-pointer select-none hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={isActive}
-                    onChange={(event) => setIsActive(event.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-[#5D5FEF] focus:ring-[#5D5FEF]/20"
-                  />
-                  Active
-                </label>
-              )}
 
               <div className="flex gap-3 pt-2">
                 <button

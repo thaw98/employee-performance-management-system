@@ -17,10 +17,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping(PublicProfilePictureController.PUBLIC_BASE)
+@RequestMapping({ PublicProfilePictureController.PUBLIC_BASE, PublicProfilePictureController.LEGACY_PUBLIC_BASE })
 public class PublicProfilePictureController {
 
 	static final String PUBLIC_BASE = "/api/public/profile-pictures";
+	static final String LEGACY_PUBLIC_BASE = "/uploads/profile-pictures";
 
 	@Value("${epms.upload.profile-pictures-dir:uploads/profile-pictures}")
 	private String uploadDir;
