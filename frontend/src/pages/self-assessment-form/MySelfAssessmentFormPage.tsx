@@ -573,7 +573,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
         {/* ───── Sticky Action Bar ───── */}
         {!isReadOnly && (
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/80 backdrop-blur-lg dark:border-slate-700 dark:bg-slate-900/80">
+          <div className="fixed bottom-0 left-64 right-0 z-40 border-t border-slate-200 bg-white/80 backdrop-blur-lg dark:border-slate-700 dark:bg-slate-900/80">
             <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3.5">
               <div className="hidden sm:block">
                 <p className="text-xs text-slate-500 dark:text-slate-400">
