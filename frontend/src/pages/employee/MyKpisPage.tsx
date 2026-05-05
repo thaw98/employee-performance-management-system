@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Target, TrendingUp, Award, Calendar } from 'lucide-react';
 import { useGetMyLatestKpisQuery } from '../../features/kpi/kpiApi';
 
@@ -37,8 +37,8 @@ export function MyKpisPage() {
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Avg Score</p>
             <h3 className="text-3xl font-black text-slate-900">
-              {kpis && kpis.length > 0 
-                ? (kpis.reduce((acc, curr) => acc + (curr.score || 0), 0) / kpis.length).toFixed(1) 
+              {kpis && kpis.length > 0
+                ? (kpis.reduce((acc, curr) => acc + (curr.score || 0), 0) / kpis.length).toFixed(1)
                 : '0.0'}
             </h3>
           </div>
@@ -49,14 +49,70 @@ export function MyKpisPage() {
 
         <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
-            <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight text-sm">
-              {kpis?.[0]?.status || 'ACTIVE'}
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Weight</p>
+            <h3 className={`text-3xl font-black ${(kpis?.reduce((acc, curr) => acc + (curr.weight || 0), 0) || 0) === 100
+                ? 'text-emerald-600'
+                : 'text-amber-600'
+              }`}>
+              {kpis?.reduce((acc, curr) => acc + (curr.weight || 0), 0) || 0}%
             </h3>
           </div>
-          <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${(kpis?.reduce((acc, curr) => acc + (curr.weight || 0), 0) || 0) === 100
+              ? 'bg-emerald-50 text-emerald-600'
+              : 'bg-amber-50 text-amber-600'
+            }`}>
             <Award size={24} />
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">Weight Breakdown</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">How each indicator contributes to your final score</p>
+          </div>
+          {(kpis?.reduce((acc, curr) => acc + (curr.weight || 0), 0) || 0) !== 100 && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 animate-pulse">
+              <Calendar size={14} />
+              <span className="text-[10px] font-black uppercase">Configuration Incomplete (Total Weight != 100%)</span>
+            </div>
+          )}
+        </div>
+
+        <div className="h-4 w-full bg-slate-50 rounded-full overflow-hidden flex shadow-inner border border-slate-100">
+          {kpis?.map((kpi, idx) => (
+            <div
+              key={kpi.id}
+              className={`h-full transition-all duration-1000 ease-out hover:opacity-80 cursor-help border-r border-white/20 last:border-0`}
+              style={{
+                width: `${kpi.weight}%`,
+                backgroundColor: [
+                  '#0855BF', '#10B981', '#6366F1', '#F59E0B', '#EC4899', '#8B5CF6', '#14B8A6'
+                ][idx % 7]
+              }}
+              title={`${kpi.name}: ${kpi.weight}%`}
+            />
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          {kpis?.map((kpi, idx) => (
+            <div key={kpi.id} className="flex items-center gap-2">
+              <div
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{
+                  backgroundColor: [
+                    '#0855BF', '#10B981', '#6366F1', '#F59E0B', '#EC4899', '#8B5CF6', '#14B8A6'
+                  ][idx % 7]
+                }}
+              />
+              <span className="text-[9px] font-black text-slate-500 uppercase truncate" title={kpi.name}>
+                {kpi.name}
+              </span>
+              <span className="text-[9px] font-black text-slate-900 ml-auto">{kpi.weight}%</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -101,9 +157,8 @@ export function MyKpisPage() {
                     {kpi.actual || '—'}
                   </td>
                   <td className="py-6 px-4 text-center">
-                    <span className={`text-sm font-black ${
-                      (kpi.score || 0) >= 80 ? 'text-emerald-600' : (kpi.score || 0) >= 60 ? 'text-blue-600' : 'text-amber-600'
-                    }`}>
+                    <span className={`text-sm font-black ${(kpi.score || 0) >= 80 ? 'text-emerald-600' : (kpi.score || 0) >= 60 ? 'text-blue-600' : 'text-amber-600'
+                      }`}>
                       {kpi.score || '0.0'}
                     </span>
                   </td>
@@ -114,6 +169,30 @@ export function MyKpisPage() {
                   </td>
                 </tr>
               ))}
+              {kpis && kpis.length > 0 && (
+                <tr className="bg-slate-50/50 font-black">
+                  <td className="py-6 px-8 text-slate-900 uppercase tracking-widest text-[10px]">Total Aggregate</td>
+                  <td className="py-6 px-4 text-center">
+                    <span className={`px-2.5 py-1 rounded-lg text-[10px] ${kpis.reduce((acc, curr) => acc + (curr.weight || 0), 0) === 100
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-amber-100 text-amber-700'
+                      }`}>
+                      {kpis.reduce((acc, curr) => acc + (curr.weight || 0), 0)}%
+                    </span>
+                  </td>
+                  <td className="py-6 px-4" />
+                  <td className="py-6 px-4" />
+                  <td className="py-6 px-4" />
+                  <td className="py-6 px-8 text-right">
+                    <div className="flex flex-col items-end">
+                      <span className="text-lg text-blue-600 tracking-tight">
+                        {kpis.reduce((acc, curr) => acc + (curr.weightedScore || 0), 0).toFixed(1)}
+                      </span>
+                      <span className="text-[8px] text-slate-400 uppercase tracking-tighter">Total Score</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {(!kpis || kpis.length === 0) && (
                 <tr>
                   <td colSpan={6} className="py-20 text-center">
