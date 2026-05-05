@@ -176,6 +176,10 @@ public class UserService {
     }
 
     private UserProfileDto toUserProfileDto(User user) {
+        String profilePictureUrl = user.getEmployee().getProfilePictureUrl();
+        if (profilePictureUrl != null && !profilePictureStorageService.isAvailable(profilePictureUrl)) {
+            profilePictureUrl = null;
+        }
         return new UserProfileDto(
                 user.getId(),
                 String.valueOf(user.getEmployee().getId()),
@@ -183,7 +187,7 @@ public class UserService {
                 user.getEmail(),
                 user.getRole().getName(),
                 user.getRole().getId(),
-                user.getEmployee().getProfilePictureUrl(),
+                profilePictureUrl,
                 user.getTheme(),
                 user.getWallpaperUrl(),
                 user.getLanguage(),
