@@ -395,7 +395,7 @@ public class MeetingService {
     }
 
     @Transactional
-    public MeetingResponse finishMeeting(Long id, Long userId) {
+    public MeetingResponse finishMeeting(Long id, Long userId, String summaryNotes) {
         Meeting meeting = meetingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Meeting not found"));
         
@@ -409,6 +409,7 @@ public class MeetingService {
 
         meeting.setStatus(MeetingStatus.COMPLETED);
         meeting.setActualEndTime(Instant.now());
+        meeting.setSummaryNotes(summaryNotes);
         meeting = meetingRepository.save(meeting);
 
         notificationService.send(
@@ -604,6 +605,7 @@ public class MeetingService {
                 meeting.getProposedTime(),
                 meeting.getActualStartTime(),
                 meeting.getActualEndTime(),
+                meeting.getSummaryNotes(),
                 meeting.getCreatedDate()
         );
     }

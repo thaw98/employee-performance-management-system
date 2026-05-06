@@ -249,10 +249,10 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/finish")
-    public ResponseEntity<ApiResponse<MeetingResponse>> finishMeeting(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<MeetingResponse>> finishMeeting(@PathVariable Long id, @RequestBody MeetingFinishRequest request) {
         try {
             User user = getCurrentUser();
-            MeetingResponse response = meetingService.finishMeeting(id, user.getId());
+            MeetingResponse response = meetingService.finishMeeting(id, user.getId(), request.summaryNotes());
             return ResponseEntity.ok(new ApiResponse<>(true, "Meeting finished", response));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));

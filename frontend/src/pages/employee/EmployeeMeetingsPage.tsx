@@ -40,7 +40,7 @@ export function EmployeeMeetingsPage() {
     // Pagination & Filter state
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
-    const [pageSize] = useState(10);
+    const [pageSize] = useState(9);
     const [searchName, setSearchName] = useState('');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
@@ -56,6 +56,11 @@ export function EmployeeMeetingsPage() {
 
     const now = new Date();
     const minDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+    useEffect(() => {
+        setSortBy('latest');
+        setPage(0);
+    }, [activeTab]);
 
     useEffect(() => {
         fetchMeetings();

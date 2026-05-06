@@ -69,6 +69,9 @@ public class Meeting {
 
     @Column(name = "updated_date")
     private Instant updatedDate = Instant.now();
+
+    @Column(name = "summary_notes", columnDefinition = "TEXT")
+    private String summaryNotes;
     
     @PreUpdate
     public void preUpdate() {

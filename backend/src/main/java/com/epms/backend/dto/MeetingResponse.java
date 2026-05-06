@@ -22,5 +22,6 @@ public record MeetingResponse(
     Instant proposedTime,
     Instant actualStartTime,
     Instant actualEndTime,
+    String summaryNotes,
     Instant createdDate
 ) {}

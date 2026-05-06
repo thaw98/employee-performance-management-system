@@ -16,8 +16,9 @@ export function MeetingDetailPage() {
     const { user } = useSelector((state: RootState) => state.auth);
     const [meeting, setMeeting] = useState<any>(null);
     const [notes, setNotes] = useState<any[]>([]);
-    const [newNote, setNewNote] = useState('');
     const [duration, setDuration] = useState<string>('00:00:00');
+    const [isEndModalOpen, setIsEndModalOpen] = useState(false);
+    const [summaryNotes, setSummaryNotes] = useState('');
 
     const formatDate = (dateString: string) => {
         if (!dateString) return 'N/A';
@@ -114,11 +115,17 @@ export function MeetingDetailPage() {
         }
     };
 
-    const handleFinishMeeting = async () => {
-        if (!window.confirm('Are you sure you want to finish this meeting? This will close all meeting notes.')) return;
+    const handleFinishMeeting = () => {
+        setSummaryNotes('');
+        setIsEndModalOpen(true);
+    };
+
+    const handleFinishSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
         try {
-            await axios.put(`/meetings/${id}/finish`);
-            toast.success('Meeting finished');
+            await axios.put(`/meetings/${id}/finish`, { summaryNotes });
+            toast.success('Meeting ended and finalized');
+            setIsEndModalOpen(false);
             fetchMeetingDetails();
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to finish meeting');
@@ -307,9 +314,23 @@ export function MeetingDetailPage() {
                         <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100">
                             <div className="flex items-center gap-2 text-slate-400 mb-4">
                                 <MessageSquare size={16} />
-                                <h3 className="text-[10px] font-black uppercase tracking-widest">Agenda / Notes</h3>
+                                <h3 className="text-[10px] font-black uppercase tracking-widest">Agenda / Initial Notes</h3>
                             </div>
                             <p className="text-slate-700 whitespace-pre-wrap leading-relaxed text-sm font-medium">{meeting.description}</p>
+                        </div>
+                    )}
+
+                    {/* Final Summary Notes */}
+                    {meeting.status === 'COMPLETED' && meeting.summaryNotes && (
+                        <div className="bg-emerald-50 p-8 rounded-[32px] border border-emerald-100 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-200/20 rounded-bl-[100px] -mr-10 -mt-10"></div>
+                            <div className="relative">
+                                <div className="flex items-center gap-2 text-emerald-600 mb-4">
+                                    <CheckCircle size={16} />
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest">Final Meeting Summary</h3>
+                                </div>
+                                <p className="text-slate-800 whitespace-pre-wrap leading-relaxed text-sm font-bold">{meeting.summaryNotes}</p>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -413,6 +434,55 @@ export function MeetingDetailPage() {
                     </div>
                 </div>
             </div>
+            {/* End Meeting Modal */}
+            {isEndModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-[40px] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="bg-slate-800 p-8 text-white flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <CheckCircle size={28} className="text-emerald-400" />
+                                <h2 className="text-2xl font-black uppercase tracking-tight">End & Finalize</h2>
+                            </div>
+                            <button onClick={() => setIsEndModalOpen(false)} className="text-slate-400 hover:text-white transition-colors p-2">
+                                <XCircle size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleFinishSubmit} className="p-8 space-y-6">
+                            <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
+                                <p className="text-sm text-slate-600 font-bold leading-relaxed">
+                                    Finalize this meeting session? You can provide summary notes below that will be permanently saved.
+                                </p>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2.5 ml-1">Summary Notes & Takeaways</label>
+                                <textarea 
+                                    required
+                                    rows={6}
+                                    value={summaryNotes}
+                                    onChange={(e) => setSummaryNotes(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-[28px] px-5 py-4 text-sm font-bold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all resize-none shadow-inner"
+                                    placeholder="Discuss key points, decisions made, and next steps..."
+                                />
+                            </div>
+                            <div className="flex gap-4">
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsEndModalOpen(false)}
+                                    className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit"
+                                    className="flex-[2] bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100 flex items-center justify-center gap-2"
+                                >
+                                    <CheckCircle size={18} /> Confirm & Finalize
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -43,7 +43,7 @@ export function MeetingsPage() {
     // Pagination & Filter state
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
-    const [pageSize] = useState(10);
+    const [pageSize] = useState(9);
     const [searchName, setSearchName] = useState('');
     const [selectedDept, setSelectedDept] = useState('');
     const [fromDate, setFromDate] = useState('');
@@ -51,6 +51,11 @@ export function MeetingsPage() {
     const [sortBy, setSortBy] = useState('latest');
     const [subStatus, setSubStatus] = useState('ALL');
     const [showFilters, setShowFilters] = useState(false);
+
+    // End Meeting Modal
+    const [isEndModalOpen, setIsEndModalOpen] = useState(false);
+    const [summaryNotes, setSummaryNotes] = useState('');
+    const [endMeetingId, setEndMeetingId] = useState<number | null>(null);
 
     // Form state
     const [employeeId, setEmployeeId] = useState('');
@@ -67,6 +72,11 @@ export function MeetingsPage() {
     const [selectedMeetingId, setSelectedMeetingId] = useState<number | null>(null);
     const [rescheduleProposedTime, setRescheduleProposedTime] = useState('');
     const [rescheduleReason, setRescheduleReason] = useState('');
+
+    useEffect(() => {
+        setSortBy('latest');
+        setPage(0);
+    }, [activeTab]);
 
     useEffect(() => {
         fetchMeetings();
@@ -236,14 +246,22 @@ export function MeetingsPage() {
         setIsCancelModalOpen(true);
     };
 
-    const handleFinishMeeting = async (id: number) => {
-        if (!window.confirm('Are you sure you want to end this meeting?')) return;
+    const handleFinishMeeting = (id: number) => {
+        setEndMeetingId(id);
+        setSummaryNotes('');
+        setIsEndModalOpen(true);
+    };
+
+    const handleFinishSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!endMeetingId) return;
         try {
-            await axios.put(`/meetings/${id}/finish`);
-            toast.success('Meeting ended');
+            await axios.put(`/meetings/${endMeetingId}/finish`, { summaryNotes });
+            toast.success('Meeting ended and marked as completed');
+            setIsEndModalOpen(false);
             fetchMeetings();
-        } catch (err) {
-            toast.error('Failed to end meeting');
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to end meeting');
         }
     };
 
@@ -641,6 +659,55 @@ export function MeetingsPage() {
                             >
                                 Confirm Cancellation
                             </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {/* End Meeting Modal */}
+            {isEndModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="bg-slate-800 p-6 text-white flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <CheckCircle size={24} className="text-emerald-400" />
+                                <h2 className="text-xl font-black uppercase tracking-tight">End Meeting & Finalize</h2>
+                            </div>
+                            <button onClick={() => setIsEndModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                                <XCircle size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleFinishSubmit} className="p-6 space-y-5">
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                                    Are you sure you want to end this meeting? This will mark the meeting as <span className="font-bold text-emerald-600">COMPLETED</span> and record the actual end time.
+                                </p>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2 ml-1">Final Summary Notes</label>
+                                <textarea 
+                                    required
+                                    rows={5}
+                                    value={summaryNotes}
+                                    onChange={(e) => setSummaryNotes(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all resize-none shadow-inner"
+                                    placeholder="Write a brief summary of the discussion, key takeaways, and any action items..."
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsEndModalOpen(false)}
+                                    className="flex-1 bg-slate-100 text-slate-600 py-3.5 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-slate-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit"
+                                    className="flex-[2] bg-emerald-600 text-white py-3.5 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100 flex items-center justify-center gap-2"
+                                >
+                                    <CheckCircle size={18} /> Confirm & End Meeting
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
