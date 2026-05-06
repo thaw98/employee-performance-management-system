@@ -2,7 +2,7 @@ import { useGetPipsQuery } from '../features/pip/pipApi'
 import { skipToken } from '@reduxjs/toolkit/query'
 import { Link, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
 import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
 
@@ -62,6 +62,8 @@ export default function PipMonitoringPage() {
   const [searchName, setSearchName] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
   const departmentFilter = isHr ? filterDept : undefined
 
   const { data: pips, isLoading, isError, error } = useGetPipsQuery({
@@ -153,6 +155,16 @@ export default function PipMonitoringPage() {
       return 0
     })
   }, [pips])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filterDept, filterPos, filterStatus, searchName, startDate, endDate, rowsPerPage])
+
+  const totalPages = Math.max(1, Math.ceil(filteredPips.length / rowsPerPage))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const startIndex = filteredPips.length === 0 ? 0 : (safeCurrentPage - 1) * rowsPerPage + 1
+  const endIndex = Math.min(safeCurrentPage * rowsPerPage, filteredPips.length)
+  const paginatedPips = filteredPips.slice((safeCurrentPage - 1) * rowsPerPage, safeCurrentPage * rowsPerPage)
 
   if (isLoading) return <div className="p-8 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><span className="ml-3">Loading PIPs...</span></div>
 
@@ -322,7 +334,7 @@ export default function PipMonitoringPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredPips.map((pip) => {
+            {paginatedPips.map((pip) => {
               const emp: EmployeeDisplay | undefined = pip.employee.employee
               return (
                 <tr key={pip.id} className="group hover:bg-slate-50 transition-all duration-200">
@@ -394,6 +406,51 @@ export default function PipMonitoringPage() {
           </tbody>
         </table>
       </div>
+      {filteredPips.length > 0 && (
+        <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-md shadow-slate-100 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
+            <span>
+              Showing <span className="font-bold text-slate-700">{startIndex} - {endIndex}</span> of{' '}
+              <span className="font-bold text-slate-700">{filteredPips.length}</span> employees
+            </span>
+            <label className="flex items-center gap-2">
+              <span className="text-slate-400">Rows:</span>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                {[5, 10, 20, 50].map((rows) => (
+                  <option key={rows} value={rows}>{rows}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={safeCurrentPage === 1}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-slate-400"
+            >
+              <i className="bi bi-chevron-left text-xs" />
+              Prev
+            </button>
+            <span className="flex h-11 min-w-11 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm shadow-blue-200">
+              {safeCurrentPage}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={safeCurrentPage === totalPages}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-slate-400"
+            >
+              Next
+              <i className="bi bi-chevron-right text-xs" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

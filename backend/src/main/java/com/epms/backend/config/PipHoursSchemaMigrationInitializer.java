@@ -48,6 +48,24 @@ public class PipHoursSchemaMigrationInitializer implements BeanPostProcessor {
 		if (updated > 0) {
 			log.info("Backfilled performance_improvement_plan.completed_hours for {} rows", updated);
 		}
+		if (tableExists(jdbc, "training_development_history")) {
+			if (columnExists(jdbc, "training_development_history", "certification_received")) {
+				jdbc.execute("ALTER TABLE training_development_history DROP COLUMN certification_received");
+				log.info("Dropped training_development_history.certification_received");
+			}
+			if (!columnExists(jdbc, "training_development_history", "total_completed_hours")) {
+				jdbc.execute("ALTER TABLE training_development_history ADD COLUMN total_completed_hours INT NULL");
+				log.info("Added training_development_history.total_completed_hours");
+			}
+			if (!columnExists(jdbc, "training_development_history", "percentage_completion")) {
+				jdbc.execute("ALTER TABLE training_development_history ADD COLUMN percentage_completion INT NULL");
+				log.info("Added training_development_history.percentage_completion");
+			}
+			if (!columnExists(jdbc, "training_development_history", "feedback_notes")) {
+				jdbc.execute("ALTER TABLE training_development_history ADD COLUMN feedback_notes TEXT NULL");
+				log.info("Added training_development_history.feedback_notes");
+			}
+		}
 	}
 
 	private static boolean tableExists(JdbcTemplate jdbc, String tableName) {

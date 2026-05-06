@@ -69,17 +69,28 @@ export interface Pip {
 export interface TrainingRecord {
   id: number
   trainingName: string
-  completionDate: string
+  trainingProvider?: string
+  startDate: string
+  endDate?: string
+  completionDate?: string
+  completionStatus: string
   status: string
+  totalCompletedHours?: number
+  percentageCompletion?: number
+  feedbackNotes?: string
+  createdDate?: string
+  updatedDate?: string
 }
 
 export interface PipProgressUpdate {
   id: number
   objectiveId: number
+  objectiveDescription?: string
   previousPercentage: number
   newPercentage: number
   feedback: string
   updatedBy: User
+  updateDate?: string
   createdAt: string
 }
 
@@ -92,7 +103,7 @@ export interface EligibleEmployee {
 }
 
 export interface EmployeeSignRequest {
-  signature: string
+  signature?: string
 }
 
 export interface ClosePipRequest {
@@ -249,6 +260,49 @@ const normalizePip = (pip: unknown): Pip => {
   }
 }
 
+const normalizeTrainingRecord = (record: unknown): TrainingRecord => {
+  const source = isRecord(record) ? record : {}
+  const completionStatus = getString(source.completionStatus ?? source.status)
+  const endDate = getOptionalString(source.endDate ?? source.completionDate)
+
+  return {
+    id: getNumber(source.id),
+    trainingName: getString(source.trainingName),
+    trainingProvider: getOptionalString(source.trainingProvider),
+    startDate: getString(source.startDate),
+    endDate,
+    completionDate: getOptionalString(source.completionDate ?? source.endDate),
+    completionStatus,
+    status: getString(source.status ?? source.completionStatus),
+    totalCompletedHours: source.totalCompletedHours == null && source.total_completed_hours == null
+      ? undefined
+      : getNumber(source.totalCompletedHours ?? source.total_completed_hours),
+    percentageCompletion: source.percentageCompletion == null && source.percentage_completion == null
+      ? undefined
+      : getNumber(source.percentageCompletion ?? source.percentage_completion),
+    feedbackNotes: getOptionalString(source.feedbackNotes ?? source.feedback_notes),
+    createdDate: getOptionalString(source.createdDate),
+    updatedDate: getOptionalString(source.updatedDate),
+  }
+}
+
+const normalizeProgressUpdate = (update: unknown): PipProgressUpdate => {
+  const source = isRecord(update) ? update : {}
+  const objectiveSource = getRecord(source, 'objective')
+
+  return {
+    id: getNumber(source.id),
+    objectiveId: getNumber(source.objectiveId ?? objectiveSource?.id),
+    objectiveDescription: getOptionalString(objectiveSource?.description ?? objectiveSource?.objectiveDescription),
+    previousPercentage: getNumber(source.previousPercentage),
+    newPercentage: getNumber(source.newPercentage ?? source.progressValue),
+    feedback: getString(source.feedback ?? source.comments),
+    updatedBy: normalizePerson(source.updatedBy),
+    updateDate: getOptionalString(source.updateDate),
+    createdAt: getString(source.createdAt ?? source.createdDate),
+  }
+}
+
 export const pipApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getPips: builder.query<Pip[], { departmentId?: number; positionId?: number; employeeName?: string; status?: string; startDate?: string; endDate?: string } | void>({
@@ -307,6 +361,15 @@ export const pipApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { pipId }) => ['PIP', { type: 'PIP', id: pipId }],
       transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
     }),
+    managerSign: builder.mutation<Pip, { pipId: number } & EmployeeSignRequest>({
+      query: ({ pipId, ...body }) => ({
+        url: `/pips/${pipId}/manager-sign`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { pipId }) => ['PIP', { type: 'PIP', id: pipId }],
+      transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
+    }),
     markPipCompleted: builder.mutation<Pip, number>({
       query: (pipId) => ({
         url: `/pips/${pipId}/completed`,
@@ -335,11 +398,12 @@ export const pipApi = baseApi.injectEndpoints({
     }),
     getTrainingHistory: builder.query<TrainingRecord[], string>({
       query: (employeeId) => `/pips/employees/${employeeId}/training`,
-      transformResponse: (response: unknown) => getArray(getResponseData(response)) as TrainingRecord[],
+      providesTags: ['PIP'],
+      transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeTrainingRecord),
     }),
     getObjectiveHistory: builder.query<PipProgressUpdate[], number>({
       query: (objectiveId) => `/pips/objectives/${objectiveId}/history`,
-      transformResponse: (response: unknown) => getArray(getResponseData(response)) as PipProgressUpdate[],
+      transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeProgressUpdate),
     }),
     getEligibleEmployees: builder.query<EligibleEmployee[], void>({
       query: () => '/pips/eligible-employees',
@@ -356,6 +420,7 @@ export const {
   useScheduleMeetingMutation,
   useClosePipMutation,
   useEmployeeSignMutation,
+  useManagerSignMutation,
   useMarkPipCompletedMutation,
   useReopenPipMutation,
   useReviewPipMutation,

@@ -131,9 +131,20 @@ public class PipController {
     public ResponseEntity<ApiResponse<Pip>> employeeSign(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
-            @Valid @RequestBody PipSignatureRequest request) {
+            @RequestBody(required = false) PipSignatureRequest request) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         Pip pip = pipService.employeeSign(id, request, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP signed successfully", pip));
+    }
+
+    @PostMapping("/{id}/manager-sign")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<Pip>> managerSign(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @RequestBody(required = false) PipSignatureRequest request) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pip pip = pipService.managerSign(id, request, user);
         return ResponseEntity.ok(ApiResponse.ok("PIP signed successfully", pip));
     }
 
@@ -159,4 +170,5 @@ public class PipController {
         return ResponseEntity.ok(ApiResponse.ok("Objective history retrieved successfully",
                 pipService.getObjectiveHistory(objectiveId)));
     }
+
 }
