@@ -564,7 +564,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                 <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
                   <button
                     type="button"
-                    className="flex-1 inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-xs font-medium text-slate-500 shadow-sm transition-all hover:border-[#5D5FEF]/60 hover:bg-[#5D5FEF]/2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    className="flex-1 inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-sm font-medium text-slate-500 shadow-sm transition-all hover:border-[#5D5FEF]/60 hover:bg-[#5D5FEF]/2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                     onClick={() => {
                       const el = document.getElementById('hybrid-departments-panel');
                       if (el) {
@@ -573,20 +573,20 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                     }}
                   >
                     <span className="flex items-center gap-2">
-                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300">
-                        <Building2 size={13} />
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300">
+                        <Building2 size={15} />
                       </span>
-                      <span className="flex flex-col">
-                        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Select department</span>
-                        <span className="text-[11px] text-slate-400 dark:text-slate-500">Choose one</span>
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">Select department</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500 sm:text-sm">Choose one</span>
                       </span>
                     </span>
-                    <ChevronDown size={14} className="text-slate-400" />
+                    <ChevronDown size={16} className="text-slate-400" />
                   </button>
 
                   <button
                     type="button"
-                    className="flex-1 inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-xs font-medium text-slate-500 shadow-sm transition-all hover:border-[#5D5FEF]/60 hover:bg-[#5D5FEF]/2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    className="flex-1 inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-sm font-medium text-slate-500 shadow-sm transition-all hover:border-[#5D5FEF]/60 hover:bg-[#5D5FEF]/2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                     onClick={() => {
                       const el = document.getElementById('hybrid-positions-panel');
                       if (el) {
@@ -595,15 +595,15 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                     }}
                   >
                     <span className="flex items-center gap-2">
-                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300">
-                        <BriefcaseBusiness size={13} />
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300">
+                        <BriefcaseBusiness size={15} />
                       </span>
-                      <span className="flex flex-col">
-                        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">All Positions</span>
-                        <span className="text-[11px] text-slate-400 dark:text-slate-500">Choose one</span>
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">All Positions</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500 sm:text-sm">Choose one</span>
                       </span>
                     </span>
-                    <ChevronDown size={14} className="text-slate-400" />
+                    <ChevronDown size={16} className="text-slate-400" />
                   </button>
                   <button
                     type="button"
@@ -611,10 +611,10 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                       setHybridRuleDepartmentId(null);
                       setHybridRulePositionId(null);
                     }}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-300 transition-colors hover:text-slate-500 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-300 transition-colors hover:text-slate-500 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
                     aria-label="Clear selected hybrid inputs"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
 
@@ -622,7 +622,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                   <select
                     value={hybridRuleDepartmentId ?? ''}
                     onChange={(event) => setHybridRuleDepartmentId(event.target.value ? Number(event.target.value) : null)}
-                    className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-3 text-sm font-medium text-slate-700 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                   >
                     <option value="">Select department</option>
                     {departments.map((department) => (
@@ -634,7 +634,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                   <select
                     value={hybridRulePositionId ?? ''}
                     onChange={(event) => setHybridRulePositionId(event.target.value ? Number(event.target.value) : null)}
-                    className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-3 text-sm font-medium text-slate-700 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                   >
                     <option value="">All Positions</option>
                     {positions.map((position) => (
@@ -646,9 +646,9 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={addHybridRule}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#5D5FEF]/25 bg-[#5D5FEF]/10 px-3 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/15 dark:border-[#5D5FEF]/30 dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#5D5FEF]/25 bg-[#5D5FEF]/10 px-4 py-2.5 text-sm font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/15 dark:border-[#5D5FEF]/30 dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]"
                   >
-                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/70 dark:bg-slate-900/60">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/70 text-base leading-none dark:bg-slate-900/60">
                       +
                     </span>
                     Add Rule
@@ -660,7 +660,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                     {hybridRules.map((rule) => (
                       <li
                         key={rule.id}
-                        className="flex items-center justify-between rounded-lg border border-slate-200/70 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800/60"
+                        className="flex items-center justify-between rounded-lg border border-slate-200/70 bg-white px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-800/60"
                       >
                         <span className="font-medium text-slate-700 dark:text-slate-200">
                           {(departmentById.get(rule.departmentId) ?? 'Unknown department')} +{' '}
@@ -672,21 +672,21 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                           className="inline-flex items-center gap-1 text-slate-400 transition-colors hover:text-rose-500 dark:text-slate-500 dark:hover:text-rose-400"
                           aria-label="Remove rule"
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={15} />
                         </button>
                       </li>
                     ))}
                   </ul>
                 )}
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-xs dark:border-slate-700 dark:bg-slate-900/50">
-                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[#5D5FEF] dark:text-[#8b8ef7]">Summary</p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-4 text-sm dark:border-slate-700 dark:bg-slate-900/50">
+                  <p className="mb-1.5 text-sm font-bold uppercase tracking-wide text-[#5D5FEF] dark:text-[#8b8ef7]">Summary</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
                     Add rules above to preview matched employees based on each department and position pair.
                   </p>
-                  <div className="mt-3 flex items-center justify-between text-[11px]">
+                  <div className="mt-3 flex items-center justify-between text-sm">
                     <span className="text-slate-500 dark:text-slate-400">Total unique:</span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold tabular-nums text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-semibold tabular-nums text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                       {formatEmployeeCount(currentAudienceCount)}
                     </span>
                   </div>
