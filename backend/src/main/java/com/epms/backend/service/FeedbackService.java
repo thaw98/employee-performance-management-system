@@ -23,7 +23,7 @@ public class FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
     private final EmployeeRepository employeeRepository;
-    private final ReportingManagerResolver reportingManagerResolver;
+    // private final ReportingManagerResolver reportingManagerResolver;
     private final CriteriaRepository criteriaRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
@@ -153,11 +153,13 @@ public class FeedbackService {
         return dto;
     }
 
-
     private String getEvaluatorRoleRelation(String evaluateeRoleRelation) {
-        if ("SUBORDINATE".equalsIgnoreCase(evaluateeRoleRelation)) return "Manager";
-        if ("MANAGER".equalsIgnoreCase(evaluateeRoleRelation)) return "Subordinate";
-        if ("PEER".equalsIgnoreCase(evaluateeRoleRelation)) return "Peer";
+        if ("SUBORDINATE".equalsIgnoreCase(evaluateeRoleRelation))
+            return "Manager";
+        if ("MANAGER".equalsIgnoreCase(evaluateeRoleRelation))
+            return "Subordinate";
+        if ("PEER".equalsIgnoreCase(evaluateeRoleRelation))
+            return "Peer";
         return "Anonymous";
     }
 
@@ -215,8 +217,10 @@ public class FeedbackService {
     public boolean isFeedbackGivenInCurrentCycle(Long evaluatorId, Long evaluateeId) {
         com.epms.backend.dto.TimeSettingDto cycle = timeSettingService.getCurrentCycleRange();
         Instant cycleStart = cycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant cycleEnd = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant();
-        return feedbackRepository.existsByEvaluatorIdAndEvaluateeIdAndCreatedDateBetween(evaluatorId, evaluateeId, cycleStart, cycleEnd);
+        Instant cycleEnd = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1)
+                .toInstant();
+        return feedbackRepository.existsByEvaluatorIdAndEvaluateeIdAndCreatedDateBetween(evaluatorId, evaluateeId,
+                cycleStart, cycleEnd);
     }
 
     private boolean isProbationEmployee(Employee employee) {

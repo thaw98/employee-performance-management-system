@@ -1560,9 +1560,10 @@ Instant now = Instant.now();
                 && employee.getUserAccount().isActive();
     }
 
-    private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q) {
-        return mapTemplateQuestionToDto(q, null, null);
-    }
+    // private QuestionDto
+    // mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q) {
+    // return mapTemplateQuestionToDto(q, null, null);
+    // }
 
     private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q, Long currentUserId, Long currentRoleId) {
         Long createdByRoleId = getUserRoleId(q.getCreatedBy());
