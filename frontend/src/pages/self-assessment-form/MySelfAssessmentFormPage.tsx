@@ -110,15 +110,15 @@ function MetaItem({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-3 px-5 py-3.5">
+    <div className="flex items-start gap-3 px-5 py-3.5">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 ring-1 ring-inset ring-slate-200/70 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700">
         {icon}
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
           {label}
         </p>
-        <p className="mt-0.5 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
+        <p className="mt-0.5 wrap-break-word text-sm font-semibold leading-snug text-slate-800 dark:text-slate-100">
           {value}
         </p>
       </div>
@@ -404,7 +404,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const positionDisplay = formatNameCode(formData?.employee?.positionName, formData?.employee?.positionCode);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-32">
+    <div className="mx-auto max-w-5xl space-y-6 pb-32">
       {/* ───── Hero Header ───── */}
       <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/40 shadow-sm dark:border-slate-700 dark:from-slate-800 dark:via-slate-800 dark:to-emerald-950/20">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-gradient-to-br from-emerald-200/40 to-teal-100/0 blur-3xl dark:from-emerald-900/20" />
@@ -438,7 +438,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
         {/* Metadata strip */}
         {(formData?.employee || formData?.cycleName || formData?.deadlineDate || formData?.assessmentDate || formData?.totalScore != null) && (
-          <div className="relative grid grid-cols-2 divide-slate-200/70 border-t border-slate-200/70 bg-white/60 backdrop-blur-sm lg:grid-cols-3 xl:grid-cols-6 sm:divide-x dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/30">
+          <div className="relative grid grid-cols-1 divide-y divide-slate-200/70 border-t border-slate-200/70 bg-white/60 backdrop-blur-sm sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/30">
             {formData?.employee && (
               <MetaItem icon={<Building2 size={17} />} label="Department" value={departmentDisplay} />
             )}
