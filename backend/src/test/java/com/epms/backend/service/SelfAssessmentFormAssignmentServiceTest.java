@@ -3,9 +3,12 @@ package com.epms.backend.service;
 import com.epms.backend.StaffTypes;
 import com.epms.backend.dto.selfassessmentform.AnswerRequest;
 import com.epms.backend.dto.selfassessmentform.CreateTemplateRequest;
+import com.epms.backend.dto.selfassessmentform.ManagerAdjustmentRequest;
+import com.epms.backend.dto.selfassessmentform.ManagerReviewRequest;
 import com.epms.backend.dto.selfassessmentform.QuestionRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentResponse;
+import com.epms.backend.dto.selfassessmentform.SelfAssessmentSettingsRequest;
 import com.epms.backend.dto.selfassessmentform.SubmitFormRequest;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
@@ -149,6 +152,7 @@ class SelfAssessmentFormAssignmentServiceTest {
         Employee employee = employee(1L, 10L, 20L);
         SelfAssessmentFormTemplate template = template(100L, 10L, 20L, cycle);
         template.setRatingSystem(SelfAssessmentRatingSystem.TEN_POINT);
+        template.setTenPointYesMinRating(7);
 
         when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
         when(employeeRepository.findEligibleSelfAssessmentAssignees(EmployeeStatus.ACTIVE, StaffTypes.PROBATION))
@@ -162,6 +166,28 @@ class SelfAssessmentFormAssignmentServiceTest {
         ArgumentCaptor<SelfAssessmentForm> formCaptor = ArgumentCaptor.forClass(SelfAssessmentForm.class);
         verify(formRepository).save(formCaptor.capture());
         assertEquals(SelfAssessmentRatingSystem.TEN_POINT, formCaptor.getValue().getRatingSystem());
+        assertEquals(7, formCaptor.getValue().getTenPointYesMinRating());
+    }
+
+    @Test
+    void updateSettings_savesThresholdAndSyncsUnassignedActiveCycleTemplates() {
+        ReviewCycle cycle = cycle();
+        SelfAssessmentSettings settings = new SelfAssessmentSettings();
+        SelfAssessmentFormTemplate template = template(100L, 10L, 20L, cycle);
+
+        when(settingsRepository.findById(SelfAssessmentSettings.SINGLETON_ID)).thenReturn(Optional.of(settings));
+        when(settingsRepository.save(settings)).thenReturn(settings);
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(templateRepository.findActiveByReviewCycleId(cycle.getId())).thenReturn(List.of(template));
+        when(formRepository.existsByTemplate(template)).thenReturn(false);
+
+        service.updateSettings(new SelfAssessmentSettingsRequest("TEN_POINT", 7), 99L);
+
+        assertEquals(SelfAssessmentRatingSystem.TEN_POINT, settings.getRatingSystem());
+        assertEquals(7, settings.getTenPointYesMinRating());
+        assertEquals(SelfAssessmentRatingSystem.TEN_POINT, template.getRatingSystem());
+        assertEquals(7, template.getTenPointYesMinRating());
+        verify(templateRepository).saveAll(List.of(template));
     }
 
     @Test
@@ -261,6 +287,7 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(new QuestionRequest(null, "What did you achieve?", 0)),
                 null,
                 7L,
+                null,
                 null), 99L);
 
         ArgumentCaptor<SelfAssessmentFormTemplate> templateCaptor = ArgumentCaptor.forClass(SelfAssessmentFormTemplate.class);
@@ -320,6 +347,53 @@ class SelfAssessmentFormAssignmentServiceTest {
         service.submitForm(employee, submitRequest());
 
         verify(notificationService, never()).send(any(), eq("Self-Assessment Submitted"), any(), eq("SELF_ASSESSMENT_FORM"));
+    }
+
+    @Test
+    void submitForm_validatesEmployeeAnswersAgainstSavedTenPointThreshold() {
+        ReviewCycle cycle = cycle();
+        Employee employee = employee(1L, 10L, 20L);
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.DRAFT);
+        form.setRatingSystem(SelfAssessmentRatingSystem.TEN_POINT);
+        form.setTenPointYesMinRating(7);
+
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(formRepository.findByEmployeeAndCycle(employee, cycle)).thenReturn(Optional.of(form));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.submitForm(
+                employee,
+                new SubmitFormRequest(
+                        List.of(new AnswerRequest(501L, "Yes", 6, "Too low for Yes")),
+                        "Employee remarks",
+                        "Overall remarks")));
+
+        assertEquals("Rating does not match the form rating system", ex.getMessage());
+        verify(signatureRepository, never()).findByUserAndIsDefaultTrue(any());
+    }
+
+    @Test
+    void managerReview_validatesAdjustmentsAgainstSavedTenPointThreshold() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+        form.setRatingSystem(SelfAssessmentRatingSystem.TEN_POINT);
+        form.setTenPointYesMinRating(8);
+
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+        when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
+                .thenReturn(Optional.of(signature(manager.getUserAccount())));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.managerReview(
+                form.getId(),
+                manager,
+                new ManagerReviewRequest(
+                        "Needs adjustment",
+                        List.of(new ManagerAdjustmentRequest(501L, "Yes", 7, "Below saved threshold")))));
+
+        assertEquals("Proposed rating does not match the form rating system", ex.getMessage());
+        verify(adjustmentRepository, never()).save(any());
     }
 
     @Test

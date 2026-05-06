@@ -308,6 +308,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const watchAnswers = watch('answers');
   const ratingSystem = formData?.ratingSystem ?? 'FIVE_POINT';
+  const tenPointYesMinRating = formData?.tenPointYesMinRating ?? 5;
 
   const answeredCount =
     watchAnswers?.filter((a) => a.yesNoAnswer === 'Yes' || a.yesNoAnswer === 'No').length ?? 0;
@@ -316,7 +317,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const handleYesNoChange = (index: number, value: string, currentRating: number | null) => {
     setValue(`answers.${index}.yesNoAnswer`, value);
-    if (isRatingValidForAnswer(ratingSystem, value, currentRating)) {
+    if (isRatingValidForAnswer(ratingSystem, value, currentRating, tenPointYesMinRating)) {
       setValue(`answers.${index}.rating`, currentRating);
     } else {
       setValue(`answers.${index}.rating`, null as any);
@@ -559,11 +560,12 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                             title={answer.questionText}
                             fivePointVariant="numeric"
                             ratingSystem={ratingSystem}
+                            tenPointYesMinRating={tenPointYesMinRating}
                             yesNoAnswer={watchAnswers?.[index]?.yesNoAnswer}
                             value={field.value}
                             onChange={(rating) => {
                               const yn2 = watchAnswers?.[index]?.yesNoAnswer ?? null;
-                              if (!isRatingValidForAnswer(ratingSystem, yn2, rating)) {
+                              if (!isRatingValidForAnswer(ratingSystem, yn2, rating, tenPointYesMinRating)) {
                                 toast.error('Rating does not match the selected response');
                                 return;
                               }

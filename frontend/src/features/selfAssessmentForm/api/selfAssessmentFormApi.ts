@@ -28,6 +28,7 @@ export interface SelfAssessmentFormTemplateDto {
   reviewCycleName: string | null
   isActive: boolean
   ratingSystem: SelfAssessmentRatingSystem
+  tenPointYesMinRating: number
   isLocked: boolean
   questions: QuestionDto[]
   /** Questions soft-deleted from the template; still visible for restore until cleared server-side. */
@@ -70,6 +71,7 @@ export interface CreateTemplateRequest {
   /** Omit or null to use the active employee-submission cycle on the server. */
   reviewCycleId?: number | null
   ratingSystem?: SelfAssessmentRatingSystem
+  tenPointYesMinRating?: number | null
 }
 
 export interface CopiedSelfAssessmentFormTemplateDto {
@@ -77,6 +79,7 @@ export interface CopiedSelfAssessmentFormTemplateDto {
   sourceTemplateId: number
   title: string
   ratingSystem: SelfAssessmentRatingSystem
+  tenPointYesMinRating: number
   departmentId: number
   positionId: number
   departmentName?: string | null
@@ -115,6 +118,7 @@ export interface UpdateTemplateRequest {
   isActive: boolean
   questions: QuestionRequest[]
   ratingSystem?: SelfAssessmentRatingSystem
+  tenPointYesMinRating?: number | null
 }
 
 export interface EmployeeInfoDto {
@@ -165,6 +169,7 @@ export interface SelfAssessmentFormDto {
   cycleName: string | null
   title: string
   ratingSystem: SelfAssessmentRatingSystem
+  tenPointYesMinRating: number
   deadlineDate: string | null
   managerReviewDeadlineDate: string | null
   finalApprovalDeadlineDate: string | null
@@ -267,12 +272,14 @@ export interface ActiveCycleFormsDto {
 
 export interface SelfAssessmentSettingsDto {
   ratingSystem: SelfAssessmentRatingSystem
+  tenPointYesMinRating: number
   ratingSystemEditable: boolean
   ratingSystemLockReason: string | null
 }
 
 export interface SelfAssessmentSettingsRequest {
   ratingSystem: SelfAssessmentRatingSystem
+  tenPointYesMinRating?: number | null
 }
 
 export interface FormStatusDto {
@@ -377,6 +384,12 @@ const normalizeRatingSystem = (value: unknown): SelfAssessmentRatingSystem => {
   return value === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT'
 }
 
+const normalizeTenPointYesMinRating = (value: unknown): number => {
+  const numericValue = Number(value ?? 5)
+  if (!Number.isFinite(numericValue)) return 5
+  return Math.min(10, Math.max(2, Math.trunc(numericValue)))
+}
+
 const getResponseData = (response: unknown) => {
   return isRecord(response) ? response.data : undefined
 }
@@ -441,6 +454,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     cycleName: getOptionalString(source.cycleName) ?? null,
     title: getString(source.title, 'Self Assessment Form'),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
     deadlineDate: getOptionalString(source.deadlineDate) ?? null,
     managerReviewDeadlineDate: getOptionalString(source.managerReviewDeadlineDate) ?? null,
     finalApprovalDeadlineDate: getOptionalString(source.finalApprovalDeadlineDate) ?? null,
@@ -539,6 +553,7 @@ const normalizeSettings = (settings: unknown): SelfAssessmentSettingsDto => {
   const source = isRecord(settings) ? settings : {}
   return {
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
     ratingSystemEditable: getBoolean(source.ratingSystemEditable, true),
     ratingSystemLockReason: getOptionalString(source.ratingSystemLockReason) ?? null,
   }
@@ -576,6 +591,7 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
     reviewCycleName: getOptionalString(source.reviewCycleName) ?? null,
     isActive: getBoolean(source.isActive),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
     isLocked: getBoolean(source.isLocked),
     questions: getArray(source.questions).map(normalizeTemplateQuestion),
     deletedQuestions: getArray(source.deletedQuestions).map(normalizeTemplateQuestion),
@@ -596,6 +612,7 @@ const normalizeCopiedTemplate = (template: unknown): CopiedSelfAssessmentFormTem
     sourceTemplateId: getNumber(source.sourceTemplateId),
     title: getString(source.title),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
     departmentId,
     positionId,
     departmentName: getOptionalString(source.departmentName ?? source.department_name) ?? null,

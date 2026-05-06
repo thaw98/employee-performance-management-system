@@ -96,6 +96,7 @@ public class SelfAssessmentFormService {
         template.setPosition(position);
         template.setReviewCycle(cycle);
         template.setRatingSystem(resolveTemplateRatingSystem(request.ratingSystem()));
+        template.setTenPointYesMinRating(resolveTemplateTenPointYesMinRating(request.tenPointYesMinRating()));
         template.setActive(true);
         template.setCreatedBy(userId);
         template.setCreatedOn(Instant.now());
@@ -157,6 +158,7 @@ Instant now = Instant.now();
         copied.setSourceTemplate(source);
         copied.setTitle(source.getTitle());
         copied.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(source.getRatingSystem()));
+        copied.setTenPointYesMinRating(resolveSavedTenPointYesMinRating(source.getTenPointYesMinRating()));
         copied.setCreatedBy(userId);
         copied.setCreatedOn(now);
         copied.setDepartmentId(source.getDepartment().getId());
@@ -234,6 +236,9 @@ Instant now = Instant.now();
         template.setPosition(position);
         if (request.ratingSystem() != null && !request.ratingSystem().trim().isBlank()) {
             template.setRatingSystem(parseRatingSystem(request.ratingSystem()));
+        }
+        if (request.tenPointYesMinRating() != null) {
+            template.setTenPointYesMinRating(parseTenPointYesMinRating(request.tenPointYesMinRating()));
         }
         template.setActive(request.isActive());
         template.setUpdatedBy(userId);
@@ -803,12 +808,14 @@ Instant now = Instant.now();
     @Transactional
     public SelfAssessmentSettingsDto updateSettings(SelfAssessmentSettingsRequest request, Long userId) {
         SelfAssessmentRatingSystem targetRatingSystem = parseRatingSystem(request.ratingSystem());
+        int targetTenPointYesMinRating = parseTenPointYesMinRating(request.tenPointYesMinRating());
         SelfAssessmentSettings settings = getOrCreateSettings();
         settings.setRatingSystem(targetRatingSystem);
+        settings.setTenPointYesMinRating(targetTenPointYesMinRating);
         settings.setUpdatedBy(userId);
         settings.setUpdatedOn(Instant.now());
         settingsRepository.save(settings);
-        syncUnassignedTemplatesInActiveCycle(targetRatingSystem, userId);
+        syncUnassignedTemplatesInActiveCycle(targetRatingSystem, targetTenPointYesMinRating, userId);
         return toSettingsDto(settings);
     }
 
@@ -894,9 +901,10 @@ Instant now = Instant.now();
         if (request.adjustments() != null && !request.adjustments().isEmpty()) {
             hasAdjustments = true;
             SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
+            int tenPointYesMinRating = resolveSavedTenPointYesMinRating(form.getTenPointYesMinRating());
             for (ManagerAdjustmentRequest adj : request.adjustments()) {
                 if (!ratingSystem.isValidYesNo(adj.proposedYesNo()) || adj.proposedRating() == null
-                        || !ratingSystem.isValidRating(adj.proposedYesNo(), adj.proposedRating())) {
+                        || !ratingSystem.isValidRating(adj.proposedYesNo(), adj.proposedRating(), tenPointYesMinRating)) {
                     throw new RuntimeException("Proposed rating does not match the form rating system");
                 }
                 for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
@@ -1184,6 +1192,7 @@ Instant now = Instant.now();
         form.setTemplate(template);
         form.setCycle(activeCycle);
         form.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()));
+        form.setTenPointYesMinRating(resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()));
         form.setDeadlineDate(deadlineDate);
         form.setManagerReviewDeadlineDate(managerReviewDeadlineDate);
         form.setFinalApprovalDeadlineDate(activeCycle.getEndDate());
@@ -1241,12 +1250,29 @@ Instant now = Instant.now();
         return SelfAssessmentRatingSystem.defaultIfNull(getOrCreateSettings().getRatingSystem());
     }
 
+    private int parseTenPointYesMinRating(Integer value) {
+        SelfAssessmentRatingSystem.validateTenPointYesMinRating(value);
+        return SelfAssessmentRatingSystem.normalizeTenPointYesMinRating(value);
+    }
+
+    private int resolveTemplateTenPointYesMinRating(Integer requestValue) {
+        if (requestValue != null) {
+            return parseTenPointYesMinRating(requestValue);
+        }
+        return resolveSavedTenPointYesMinRating(getOrCreateSettings().getTenPointYesMinRating());
+    }
+
+    private int resolveSavedTenPointYesMinRating(Integer value) {
+        return parseTenPointYesMinRating(value);
+    }
+
     private SelfAssessmentSettings getOrCreateSettings() {
         return settingsRepository.findById(SelfAssessmentSettings.SINGLETON_ID)
                 .orElseGet(() -> {
                     SelfAssessmentSettings settings = new SelfAssessmentSettings();
                     settings.setId(SelfAssessmentSettings.SINGLETON_ID);
                     settings.setRatingSystem(SelfAssessmentRatingSystem.FIVE_POINT);
+                    settings.setTenPointYesMinRating(SelfAssessmentRatingSystem.DEFAULT_TEN_POINT_YES_MIN_RATING);
                     return settingsRepository.save(settings);
                 });
     }
@@ -1255,6 +1281,7 @@ Instant now = Instant.now();
         boolean editable = !isRatingSystemLocked();
         return new SelfAssessmentSettingsDto(
                 SelfAssessmentRatingSystem.defaultIfNull(settings.getRatingSystem()).name(),
+                resolveSavedTenPointYesMinRating(settings.getTenPointYesMinRating()),
                 editable,
                 editable ? null : getRatingSystemLockReason());
     }
@@ -1267,7 +1294,10 @@ Instant now = Instant.now();
         return "Templates already assigned to a deadline keep their existing rating scale.";
     }
 
-    private void syncUnassignedTemplatesInActiveCycle(SelfAssessmentRatingSystem ratingSystem, Long userId) {
+    private void syncUnassignedTemplatesInActiveCycle(
+            SelfAssessmentRatingSystem ratingSystem,
+            Integer tenPointYesMinRating,
+            Long userId) {
         ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
         if (activeCycle == null) {
             return;
@@ -1285,8 +1315,11 @@ Instant now = Instant.now();
                 continue;
             }
             SelfAssessmentRatingSystem current = SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem());
-            if (current != ratingSystem) {
+            int currentTenPointYesMinRating = resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating());
+            int targetTenPointYesMinRating = resolveSavedTenPointYesMinRating(tenPointYesMinRating);
+            if (current != ratingSystem || currentTenPointYesMinRating != targetTenPointYesMinRating) {
                 template.setRatingSystem(ratingSystem);
+                template.setTenPointYesMinRating(targetTenPointYesMinRating);
                 template.setUpdatedBy(userId);
                 template.setUpdatedOn(now);
                 changed = true;
@@ -1378,6 +1411,7 @@ Instant now = Instant.now();
         if (answerRequests == null) return;
 
         SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
+        int tenPointYesMinRating = resolveSavedTenPointYesMinRating(form.getTenPointYesMinRating());
         for (AnswerRequest ar : answerRequests) {
             for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
                 if (answer.getId().equals(ar.id())) {
@@ -1385,7 +1419,7 @@ Instant now = Instant.now();
                     Integer effectiveRating = ar.rating() != null ? ar.rating() : answer.getRating();
                     if ((effectiveRating != null && effectiveYesNo == null)
                             || !ratingSystem.isValidYesNo(effectiveYesNo)
-                            || !ratingSystem.isValidRating(effectiveYesNo, effectiveRating)) {
+                            || !ratingSystem.isValidRating(effectiveYesNo, effectiveRating, tenPointYesMinRating)) {
                         throw new RuntimeException("Rating does not match the form rating system");
                     }
                     if (ar.yesNoAnswer() != null) {
@@ -1622,6 +1656,7 @@ Instant now = Instant.now();
                 source != null ? source.getId() : null,
                 copied.getTitle(),
                 SelfAssessmentRatingSystem.defaultIfNull(copied.getRatingSystem()).name(),
+                resolveSavedTenPointYesMinRating(copied.getTenPointYesMinRating()),
                 departmentId,
                 positionId,
                 departmentName,
@@ -1662,6 +1697,7 @@ Instant now = Instant.now();
                 template.getReviewCycle() != null ? template.getReviewCycle().getName() : null,
                 template.isActive(),
                 SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()).name(),
+                resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()),
                 formRepository.existsByTemplate(template),
                 questions,
                 deletedQuestions,
@@ -1793,6 +1829,7 @@ Instant now = Instant.now();
                 form.getCycle() != null ? form.getCycle().getName() : null,
                 resolveFormDisplayTitle(form),
                 SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem()).name(),
+                resolveSavedTenPointYesMinRating(form.getTenPointYesMinRating()),
                 form.getDeadlineDate(),
                 form.getManagerReviewDeadlineDate(),
                 resolveFinalApprovalDeadlineDate(form),

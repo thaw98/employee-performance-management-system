@@ -32,6 +32,9 @@ public class CopiedSelfAssessmentFormTemplate {
     @Column(name = "rating_system", nullable = false)
     private SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.FIVE_POINT;
 
+    @Column(name = "ten_point_yes_min_rating", nullable = false)
+    private Integer tenPointYesMinRating = SelfAssessmentRatingSystem.DEFAULT_TEN_POINT_YES_MIN_RATING;
+
     @Column(name = "created_by", nullable = false, unique = true)
     private Long createdBy;
 

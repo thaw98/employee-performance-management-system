@@ -14,6 +14,7 @@ public record SelfAssessmentFormTemplateDto(
         String reviewCycleName,
         boolean isActive,
         String ratingSystem,
+        Integer tenPointYesMinRating,
         boolean isLocked,
         List<QuestionDto> questions,
         List<QuestionDto> deletedQuestions,

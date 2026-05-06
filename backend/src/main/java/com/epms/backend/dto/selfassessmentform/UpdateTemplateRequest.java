@@ -11,5 +11,6 @@ public record UpdateTemplateRequest(
         @NotNull Long positionId,
         boolean isActive,
         @NotEmpty List<QuestionRequest> questions,
-        String ratingSystem
+        String ratingSystem,
+        Integer tenPointYesMinRating
 ) {}

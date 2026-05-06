@@ -91,6 +91,10 @@ const SortableQuestionRow: React.FC<SortableQuestionRowProps> = ({
     zIndex: isDragging ? 10 : undefined,
   };
 
+  const previewRatingSystem = copiedRatingSystem ?? selfAssessmentSettings?.ratingSystem;
+  const previewTenPointYesMinRating =
+    copiedTenPointYesMinRating ?? selfAssessmentSettings?.tenPointYesMinRating;
+
   return (
     <div
       ref={setNodeRef}
@@ -374,6 +378,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const [copiedSourceTitle, setCopiedSourceTitle] = useState<string | null>(null);
   const [copiedDeletedQuestions, setCopiedDeletedQuestions] = useState<QuestionRequest[]>([]);
   const [copiedRatingSystem, setCopiedRatingSystem] = useState<SelfAssessmentRatingSystem | undefined>(undefined);
+  const [copiedTenPointYesMinRating, setCopiedTenPointYesMinRating] = useState<number | undefined>(undefined);
 
   const { data: reviewCycles = [], isLoading: reviewCyclesLoading } = useGetReviewCyclesQuery({
     requiresEmployeeSubmission: true,
@@ -713,7 +718,8 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           sortOrder: question.sortOrder ?? copiedTemplate.questions.length + index,
         }))
     );
-setCopiedRatingSystem(copiedTemplate.ratingSystem);
+    setCopiedRatingSystem(copiedTemplate.ratingSystem);
+    setCopiedTenPointYesMinRating(copiedTemplate.tenPointYesMinRating);
 
     const copiedDeptId =
       typeof copiedTemplate.departmentId === 'number' && copiedTemplate.departmentId > 0
@@ -942,6 +948,7 @@ setCopiedRatingSystem(copiedTemplate.ratingSystem);
             deletedQuestions: copiedDeletedQuestions,
             reviewCycleId: selectedReviewCycleId,
             ratingSystem: copiedRatingSystem,
+            tenPointYesMinRating: copiedTenPointYesMinRating,
           }).unwrap();
           createdCount += 1;
         } catch (error: unknown) {
@@ -1089,10 +1096,10 @@ setCopiedRatingSystem(copiedTemplate.ratingSystem);
                       <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
                         Could not load settings. Server defaults will apply.
                       </p>
-                    ) : selfAssessmentSettings?.ratingSystem ? (
+                    ) : previewRatingSystem ? (
                       <div className="mt-3 space-y-2">
                         <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          Scale: <span className="text-slate-900 dark:text-white">{ratingSystemLabels[selfAssessmentSettings.ratingSystem]}</span>
+                          Scale: <span className="text-slate-900 dark:text-white">{ratingSystemLabels[previewRatingSystem]}</span>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2">
                           <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
@@ -1100,7 +1107,11 @@ setCopiedRatingSystem(copiedTemplate.ratingSystem);
                               Yes — scores
                             </dt>
                             <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
-                              {getRatingOptions(selfAssessmentSettings.ratingSystem, 'Yes').join(', ')}
+                              {getRatingOptions(
+                                previewRatingSystem,
+                                'Yes',
+                                previewTenPointYesMinRating,
+                              ).join(', ')}
                             </dd>
                           </div>
                           <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
@@ -1108,7 +1119,11 @@ setCopiedRatingSystem(copiedTemplate.ratingSystem);
                               No — scores
                             </dt>
                             <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
-                              {getRatingOptions(selfAssessmentSettings.ratingSystem, 'No').join(', ')}
+                              {getRatingOptions(
+                                previewRatingSystem,
+                                'No',
+                                previewTenPointYesMinRating,
+                              ).join(', ')}
                             </dd>
                           </div>
                         </div>

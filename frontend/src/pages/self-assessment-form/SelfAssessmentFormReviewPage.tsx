@@ -21,7 +21,6 @@ import {
   RotateCcw,
   ArrowLeft,
   SlidersHorizontal,
-  Filter,
   Star,
   ThumbsUp,
   ThumbsDown,
@@ -232,7 +231,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
           ? {
               proposedYesNo: String(value),
               ...(existing?.proposedRating
-                && !isRatingValidForAnswer(selectedForm?.ratingSystem, String(value), existing.proposedRating)
+                && !isRatingValidForAnswer(
+                  selectedForm?.ratingSystem,
+                  String(value),
+                  existing.proposedRating,
+                  selectedForm?.tenPointYesMinRating,
+                )
                 ? { proposedRating: 0 }
                 : {}),
             }
@@ -257,7 +261,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         return;
       }
       const invalidRatings = adjustments.filter(
-        a => a.proposedYesNo && a.proposedRating && !isRatingValidForAnswer(selectedForm?.ratingSystem, a.proposedYesNo, a.proposedRating)
+        a => a.proposedYesNo && a.proposedRating && !isRatingValidForAnswer(
+          selectedForm?.ratingSystem,
+          a.proposedYesNo,
+          a.proposedRating,
+          selectedForm?.tenPointYesMinRating,
+        )
       );
       if (invalidRatings.length > 0) {
         toast.error('One or more proposed ratings do not match the selected response');
@@ -878,13 +887,18 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                       <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Proposed Rating</label>
                                       {(() => {
                                         const pr = currentAdjustment?.proposedRating;
-                                        const allowed = getRatingOptions(selectedForm?.ratingSystem, proposedYesNo);
+                                        const allowed = getRatingOptions(
+                                          selectedForm?.ratingSystem,
+                                          proposedYesNo,
+                                          selectedForm?.tenPointYesMinRating,
+                                        );
                                         const ratingValue =
                                           pr && pr > 0 && allowed.includes(pr) ? pr : null;
                                         return (
                                           <SelfAssessmentRatingPicker
                                             compact
                                             ratingSystem={selectedForm?.ratingSystem}
+                                            tenPointYesMinRating={selectedForm?.tenPointYesMinRating}
                                             yesNoAnswer={proposedYesNo || null}
                                             value={ratingValue}
                                             onChange={(r) => handleManagerAdjustmentChange(answer.id, 'proposedRating', r)}

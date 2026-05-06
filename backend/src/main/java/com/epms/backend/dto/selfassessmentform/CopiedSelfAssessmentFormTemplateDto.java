@@ -8,6 +8,7 @@ public record CopiedSelfAssessmentFormTemplateDto(
         Long sourceTemplateId,
         String title,
         String ratingSystem,
+        Integer tenPointYesMinRating,
         Long departmentId,
         Long positionId,
         String departmentName,
