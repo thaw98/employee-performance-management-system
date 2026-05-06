@@ -265,6 +265,27 @@ export interface SelfAssessmentAssignmentResponse {
   activeCycle: CycleInfoDto
 }
 
+export type SelfAssessmentAssignmentPreviewStatus = 'NOT_ASSIGNED' | 'ALREADY_ASSIGNED' | 'NO_TEMPLATE'
+
+export interface SelfAssessmentAssignmentPreviewRequest {
+  targets: TemplateTargetPairRequest[]
+  deadlineDate: string
+  managerReviewDeadlineDate: string
+}
+
+export interface SelfAssessmentAssignmentPreviewDto {
+  departmentId: number
+  departmentName: string
+  positionId: number
+  positionName: string
+  templateId: number | null
+  templateTitle: string | null
+  ratingSystem: SelfAssessmentRatingSystem | null
+  questionCount: number
+  assignmentStatus: SelfAssessmentAssignmentPreviewStatus
+  assignedCount: number
+}
+
 export interface ActiveCycleFormsDto {
   activeCycle: CycleInfoDto | null
   forms: FormListDto[]
@@ -546,6 +567,27 @@ const normalizeAssignmentResponse = (response: unknown): SelfAssessmentAssignmen
     skippedNoTemplateCount: getNumber(source.skippedNoTemplateCount),
     skippedIneligibleCount: getNumber(source.skippedIneligibleCount),
     activeCycle: normalizeCycleInfo(source.activeCycle) ?? { id: 0, name: '', code: '', startDate: '', endDate: '' },
+  }
+}
+
+const normalizeAssignmentPreview = (preview: unknown): SelfAssessmentAssignmentPreviewDto => {
+  const source = isRecord(preview) ? preview : {}
+  const assignmentStatus = getString(source.assignmentStatus)
+
+  return {
+    departmentId: getNumber(source.departmentId),
+    departmentName: getString(source.departmentName),
+    positionId: getNumber(source.positionId),
+    positionName: getString(source.positionName),
+    templateId: source.templateId != null ? getNumber(source.templateId) : null,
+    templateTitle: getOptionalString(source.templateTitle) ?? null,
+    ratingSystem: source.ratingSystem != null ? normalizeRatingSystem(source.ratingSystem) : null,
+    questionCount: getNumber(source.questionCount),
+    assignmentStatus:
+      assignmentStatus === 'ALREADY_ASSIGNED' || assignmentStatus === 'NO_TEMPLATE'
+        ? assignmentStatus
+        : 'NOT_ASSIGNED',
+    assignedCount: getNumber(source.assignedCount),
   }
 }
 
@@ -880,6 +922,16 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeAssignmentResponse(getResponseData(response)),
     }),
 
+    previewSelfAssessmentAssignments: builder.query<SelfAssessmentAssignmentPreviewDto[], SelfAssessmentAssignmentPreviewRequest>({
+      query: (body) => ({
+        url: '/self-assessment-forms/hr/assignments/preview',
+        method: 'POST',
+        body,
+      }),
+      providesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeAssignmentPreview),
+    }),
+
     getSelfAssessmentSettings: builder.query<SelfAssessmentSettingsDto, void>({
       query: () => '/self-assessment-forms/settings',
       providesTags: ['SelfAssessmentSettings'],
@@ -963,6 +1015,7 @@ export const {
   useUpdateTemplateMutation,
   useSetTemplateDeadlineMutation,
   useAssignSelfAssessmentFormsMutation,
+  usePreviewSelfAssessmentAssignmentsQuery,
   useGetSelfAssessmentSettingsQuery,
   useUpdateSelfAssessmentSettingsMutation,
   useGetQuestionBankQuery,

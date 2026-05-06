@@ -7,9 +7,12 @@ import com.epms.backend.dto.selfassessmentform.ManagerAdjustmentRequest;
 import com.epms.backend.dto.selfassessmentform.ManagerReviewRequest;
 import com.epms.backend.dto.selfassessmentform.QuestionRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentRequest;
+import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentPreviewDto;
+import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentPreviewRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentResponse;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentSettingsRequest;
 import com.epms.backend.dto.selfassessmentform.SubmitFormRequest;
+import com.epms.backend.dto.selfassessmentform.TemplateTargetPairRequest;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeStatus;
@@ -258,6 +261,79 @@ class SelfAssessmentFormAssignmentServiceTest {
     }
 
     @Test
+    void previewSelfAssessmentAssignments_returnsNotAssignedWhenTemplateExistsForSelectedDeadlines() {
+        ReviewCycle cycle = cycle();
+        Department department = department(10L);
+        Position position = position(20L);
+        SelfAssessmentFormTemplate template = template(100L, 10L, 20L, cycle);
+
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(departmentRepository.findById(10L)).thenReturn(Optional.of(department));
+        when(positionRepository.findById(20L)).thenReturn(Optional.of(position));
+        when(templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(10L, 20L, 7L))
+                .thenReturn(Optional.of(template));
+        when(formRepository.countByTemplateAndCycleAndDeadlineDateAndManagerReviewDeadlineDate(
+                template, cycle, LocalDate.of(2026, 5, 10), LocalDate.of(2026, 5, 15)))
+                .thenReturn(0L);
+
+        List<SelfAssessmentAssignmentPreviewDto> preview = service.previewSelfAssessmentAssignments(previewRequest(10L, 20L));
+
+        assertEquals(1, preview.size());
+        SelfAssessmentAssignmentPreviewDto item = preview.get(0);
+        assertEquals("NOT_ASSIGNED", item.assignmentStatus());
+        assertEquals(100L, item.templateId());
+        assertEquals("Template", item.templateTitle());
+        assertEquals("FIVE_POINT", item.ratingSystem());
+        assertEquals(1, item.questionCount());
+        assertEquals(0L, item.assignedCount());
+    }
+
+    @Test
+    void previewSelfAssessmentAssignments_returnsAlreadyAssignedWhenMatchingFormsExistForSelectedDeadlines() {
+        ReviewCycle cycle = cycle();
+        Department department = department(10L);
+        Position position = position(20L);
+        SelfAssessmentFormTemplate template = template(100L, 10L, 20L, cycle);
+
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(departmentRepository.findById(10L)).thenReturn(Optional.of(department));
+        when(positionRepository.findById(20L)).thenReturn(Optional.of(position));
+        when(templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(10L, 20L, 7L))
+                .thenReturn(Optional.of(template));
+        when(formRepository.countByTemplateAndCycleAndDeadlineDateAndManagerReviewDeadlineDate(
+                template, cycle, LocalDate.of(2026, 5, 10), LocalDate.of(2026, 5, 15)))
+                .thenReturn(3L);
+
+        List<SelfAssessmentAssignmentPreviewDto> preview = service.previewSelfAssessmentAssignments(previewRequest(10L, 20L));
+
+        assertEquals(1, preview.size());
+        assertEquals("ALREADY_ASSIGNED", preview.get(0).assignmentStatus());
+        assertEquals(3L, preview.get(0).assignedCount());
+    }
+
+    @Test
+    void previewSelfAssessmentAssignments_returnsNoTemplateWhenActiveCycleTemplateDoesNotExist() {
+        ReviewCycle cycle = cycle();
+        Department department = department(10L);
+        Position position = position(20L);
+
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(departmentRepository.findById(10L)).thenReturn(Optional.of(department));
+        when(positionRepository.findById(20L)).thenReturn(Optional.of(position));
+        when(templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(10L, 20L, 7L))
+                .thenReturn(Optional.empty());
+
+        List<SelfAssessmentAssignmentPreviewDto> preview = service.previewSelfAssessmentAssignments(previewRequest(10L, 20L));
+
+        assertEquals(1, preview.size());
+        SelfAssessmentAssignmentPreviewDto item = preview.get(0);
+        assertEquals("NO_TEMPLATE", item.assignmentStatus());
+        assertEquals(null, item.templateId());
+        assertEquals(0, item.questionCount());
+        assertEquals(0L, item.assignedCount());
+    }
+
+    @Test
     void createTemplate_usesGlobalRatingSystemWhenRequestOmitsRatingSystem() {
         ReviewCycle cycle = cycle();
         Department department = new Department();
@@ -440,6 +516,13 @@ class SelfAssessmentFormAssignmentServiceTest {
                 LocalDate.of(2026, 5, 15));
     }
 
+    private static SelfAssessmentAssignmentPreviewRequest previewRequest(Long departmentId, Long positionId) {
+        return new SelfAssessmentAssignmentPreviewRequest(
+                List.of(new TemplateTargetPairRequest(departmentId, positionId)),
+                LocalDate.of(2026, 5, 10),
+                LocalDate.of(2026, 5, 15));
+    }
+
     private static ReviewCycle cycle() {
         ReviewCycle cycle = new ReviewCycle();
         cycle.setId(7L);
@@ -474,6 +557,20 @@ class SelfAssessmentFormAssignmentServiceTest {
         user.setActive(true);
         employee.setUserAccount(user);
         return employee;
+    }
+
+    private static Department department(Long id) {
+        Department department = new Department();
+        department.setId(id);
+        department.setName("Department " + id);
+        return department;
+    }
+
+    private static Position position(Long id) {
+        Position position = new Position();
+        position.setId(id);
+        position.setName("Position " + id);
+        return position;
     }
 
     private static SelfAssessmentFormTemplate template(Long id, Long departmentId, Long positionId, ReviewCycle cycle) {

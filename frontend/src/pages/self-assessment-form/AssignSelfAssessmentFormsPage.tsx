@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { skipToken } from '@reduxjs/toolkit/query';
 import {
   ArrowLeft,
   ArrowRight,
@@ -17,6 +18,9 @@ import {
   Users,
   Sparkles,
   AlertCircle,
+  CheckCircle2,
+  ClipboardList,
+  FileQuestion,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -26,7 +30,10 @@ import { useGetPositionsQuery } from '../../features/position/api/positionApi';
 import { useGetActiveReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import {
   useAssignSelfAssessmentFormsMutation,
+  usePreviewSelfAssessmentAssignmentsQuery,
   type SelfAssessmentAssignmentMode,
+  type SelfAssessmentAssignmentPreviewDto,
+  type SelfAssessmentAssignmentPreviewStatus,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { AudienceCard, createCountBadge, formatEmployeeCount } from './SelfAssessmentAudienceCard';
 import { formatCycleDate, SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
@@ -50,6 +57,40 @@ type HybridRule = {
   positionId: number;
 };
 
+const previewGroups: Array<{
+  status: SelfAssessmentAssignmentPreviewStatus;
+  title: string;
+  description: string;
+  emptyText: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  accent: string;
+}> = [
+  {
+    status: 'NOT_ASSIGNED',
+    title: 'Not assigned',
+    description: 'These templates match the active cycle and are ready to assign.',
+    emptyText: 'No ready templates for the selected targets.',
+    icon: CheckCircle2,
+    accent: 'text-emerald-600 dark:text-emerald-400',
+  },
+  {
+    status: 'ALREADY_ASSIGNED',
+    title: 'Already assigned',
+    description: 'Existing forms for these exact deadlines will be skipped during assignment.',
+    emptyText: 'No templates are already assigned to these deadlines.',
+    icon: ClipboardList,
+    accent: 'text-amber-600 dark:text-amber-400',
+  },
+  {
+    status: 'NO_TEMPLATE',
+    title: 'No template',
+    description: 'Create an active-cycle template before this target can receive forms.',
+    emptyText: 'Every selected target has a matching active-cycle template.',
+    icon: FileQuestion,
+    accent: 'text-rose-600 dark:text-rose-400',
+  },
+];
+
 function StepIndicator({ step, label, active }: { step: number; label: string; active: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
@@ -69,6 +110,42 @@ function StepIndicator({ step, label, active }: { step: number; label: string; a
       >
         {label}
       </span>
+    </div>
+  );
+}
+
+function HybridPreviewCard({ item }: { item: SelfAssessmentAssignmentPreviewDto }) {
+  const hasTemplate = item.assignmentStatus !== 'NO_TEMPLATE';
+  return (
+    <div className="rounded-lg border border-slate-200/70 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-800/60">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
+            {item.departmentName} + {item.positionName}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {hasTemplate ? item.templateTitle : 'No matching template for the active employee-submission cycle'}
+          </p>
+        </div>
+        {hasTemplate && (
+          <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200">
+            {item.assignedCount} assigned
+          </span>
+        )}
+      </div>
+      {hasTemplate && (
+        <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+          <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-700">
+            {item.ratingSystem === 'TEN_POINT' ? '10-point' : '5-point'}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-700">
+            {item.questionCount} question{item.questionCount === 1 ? '' : 's'}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-700">
+            Template #{item.templateId}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -97,6 +174,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
   const [assignForms, { isLoading: isAssigning }] = useAssignSelfAssessmentFormsMutation();
 
   const activeSubmissionCycle = activeCycles.find((cycle) => cycle.requiresEmployeeSubmission) ?? null;
+  const selectAssignmentMode = (value: string) => setAssignmentMode(value as SelfAssessmentAssignmentMode);
 
   useEffect(() => {
     if (!activeSubmissionCycle) return;
@@ -201,6 +279,50 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
   const cycleStart = activeSubmissionCycle?.startDate ?? '';
   const cycleEnd = activeSubmissionCycle?.endDate ?? '';
   const managerReviewMinDate = deadlineDate || cycleStart;
+
+  const hybridPreviewTargets = useMemo(() => {
+    if (assignmentMode !== 'HYBRID') return [];
+
+    const targetByKey = new Map<string, { departmentId: number; positionId: number }>();
+    if (hybridRuleDepartmentId && hybridRulePositionId) {
+      targetByKey.set(`${hybridRuleDepartmentId}-${hybridRulePositionId}`, {
+        departmentId: hybridRuleDepartmentId,
+        positionId: hybridRulePositionId,
+      });
+    }
+    hybridRules.forEach((rule) => {
+      targetByKey.set(`${rule.departmentId}-${rule.positionId}`, {
+        departmentId: rule.departmentId,
+        positionId: rule.positionId,
+      });
+    });
+
+    return [...targetByKey.values()];
+  }, [assignmentMode, hybridRuleDepartmentId, hybridRulePositionId, hybridRules]);
+
+  const previewQueryArg =
+    assignmentMode === 'HYBRID' && deadlineDate && managerReviewDeadlineDate && hybridPreviewTargets.length > 0
+      ? {
+          targets: hybridPreviewTargets,
+          deadlineDate,
+          managerReviewDeadlineDate,
+        }
+      : skipToken;
+
+  const {
+    data: hybridPreview = [],
+    isFetching: isPreviewFetching,
+    isError: isPreviewError,
+  } = usePreviewSelfAssessmentAssignmentsQuery(previewQueryArg);
+
+  const hybridPreviewByStatus = useMemo(() => {
+    const groups = new Map<SelfAssessmentAssignmentPreviewStatus, SelfAssessmentAssignmentPreviewDto[]>();
+    previewGroups.forEach((group) => groups.set(group.status, []));
+    hybridPreview.forEach((item) => {
+      groups.get(item.assignmentStatus)?.push(item);
+    });
+    return groups;
+  }, [hybridPreview]);
 
   const currentAudienceCount = useMemo(() => {
     if (assignmentMode === 'DEPARTMENTS') return departmentAudienceCount;
@@ -511,7 +633,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                 description={['All positions in selected departments', 'Best for department-wide reviews']}
                 icon={<Building2 size={18} />}
                 badge={createCountBadge(departmentAudienceCount)}
-                onSelect={setAssignmentMode}
+                onSelect={selectAssignmentMode}
               />
               <AudienceCard
                 value="POSITIONS"
@@ -520,7 +642,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                 description={['Across all departments', 'Role-based assessments']}
                 icon={<BriefcaseBusiness size={18} />}
                 badge={createCountBadge(positionAudienceCount)}
-                onSelect={setAssignmentMode}
+                onSelect={selectAssignmentMode}
               />
               <AudienceCard
                 value="HYBRID"
@@ -529,7 +651,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                 description={['Departments + specific positions', 'Most flexible option']}
                 icon={<Layers3 size={18} />}
                 badge={createCountBadge(hybridAudienceCount)}
-                onSelect={setAssignmentMode}
+                onSelect={selectAssignmentMode}
               />
             </div>
           </section>
@@ -938,6 +1060,80 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
               </div>
             )}
           </section>
+
+          {assignmentMode === 'HYBRID' && (
+            <section className="animate-fade-in-up">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50 dark:from-cyan-900/30 dark:to-cyan-800/20">
+                  <ClipboardList size={14} className="text-cyan-600 dark:text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Template Preview</h3>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                    Already-assigned templates have forms for these exact deadlines, so existing forms will be skipped.
+                  </p>
+                </div>
+              </div>
+
+              {!deadlineDate || !managerReviewDeadlineDate ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+                  Select both employee and manager review deadlines to preview matching active-cycle templates.
+                </div>
+              ) : hybridPreviewTargets.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+                  Choose a department and position pair or add a hybrid rule to preview templates.
+                </div>
+              ) : isPreviewError ? (
+                <div className="flex items-center gap-2 rounded-xl border border-rose-200/70 bg-rose-50/70 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300">
+                  <AlertCircle size={15} className="shrink-0" />
+                  Preview is unavailable for the current selection.
+                </div>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-3">
+                  {previewGroups.map((group) => {
+                    const items = hybridPreviewByStatus.get(group.status) ?? [];
+                    return (
+                      <div
+                        key={group.status}
+                        className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-900/40"
+                      >
+                        <div className="mb-3 flex items-start gap-2">
+                          <group.icon size={16} className={`mt-0.5 shrink-0 ${group.accent}`} />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white">{group.title}</h4>
+                              <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold tabular-nums text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
+                                {items.length}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{group.description}</p>
+                          </div>
+                        </div>
+                        {isPreviewFetching ? (
+                          <div className="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-5 text-center text-xs font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-500">
+                            Loading preview...
+                          </div>
+                        ) : items.length > 0 ? (
+                          <div className="space-y-2">
+                            {items.map((item) => (
+                              <HybridPreviewCard
+                                key={`${item.departmentId}-${item.positionId}-${item.assignmentStatus}`}
+                                item={item}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-5 text-center text-xs font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-500">
+                            {group.emptyText}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Target Summary */}
           <div className="relative overflow-hidden rounded-xl border border-slate-200/60 bg-gradient-to-r from-[#5D5FEF]/[0.04] via-white to-[#5D5FEF]/[0.04] px-5 py-4 dark:border-slate-700/60 dark:from-[#5D5FEF]/[0.06] dark:via-slate-800 dark:to-[#5D5FEF]/[0.06]">

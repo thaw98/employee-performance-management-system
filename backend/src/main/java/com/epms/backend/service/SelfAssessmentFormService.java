@@ -658,6 +658,71 @@ Instant now = Instant.now();
                 toCycleInfo(activeCycle));
     }
 
+    @Transactional(readOnly = true)
+    public List<SelfAssessmentAssignmentPreviewDto> previewSelfAssessmentAssignments(
+            SelfAssessmentAssignmentPreviewRequest request) {
+        ReviewCycle activeCycle = requireActiveCycle();
+        validateAssignmentDeadlines(
+                request.deadlineDate(),
+                request.managerReviewDeadlineDate(),
+                activeCycle);
+
+        return request.targets().stream()
+                .map(target -> previewSelfAssessmentAssignmentTarget(target, request, activeCycle))
+                .collect(Collectors.toList());
+    }
+
+    private SelfAssessmentAssignmentPreviewDto previewSelfAssessmentAssignmentTarget(
+            TemplateTargetPairRequest target,
+            SelfAssessmentAssignmentPreviewRequest request,
+            ReviewCycle activeCycle) {
+        Department department = departmentRepository.findById(target.departmentId())
+                .orElseThrow(() -> new RuntimeException("Department not found"));
+        Position position = positionRepository.findById(target.positionId())
+                .orElseThrow(() -> new RuntimeException("Position not found"));
+
+        Optional<SelfAssessmentFormTemplate> templateOpt = templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
+                target.departmentId(),
+                target.positionId(),
+                activeCycle.getId());
+
+        if (templateOpt.isEmpty()) {
+            return new SelfAssessmentAssignmentPreviewDto(
+                    department.getId(),
+                    department.getName(),
+                    position.getId(),
+                    position.getName(),
+                    null,
+                    null,
+                    null,
+                    0,
+                    "NO_TEMPLATE",
+                    0);
+        }
+
+        SelfAssessmentFormTemplate template = templateOpt.get();
+        long assignedCount = formRepository.countByTemplateAndCycleAndDeadlineDateAndManagerReviewDeadlineDate(
+                template,
+                activeCycle,
+                request.deadlineDate(),
+                request.managerReviewDeadlineDate());
+        int questionCount = (int) template.getQuestions().stream()
+                .filter(question -> question.getDeletedAt() == null)
+                .count();
+
+        return new SelfAssessmentAssignmentPreviewDto(
+                department.getId(),
+                department.getName(),
+                position.getId(),
+                position.getName(),
+                template.getId(),
+                template.getTitle(),
+                SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()).name(),
+                questionCount,
+                assignedCount > 0 ? "ALREADY_ASSIGNED" : "NOT_ASSIGNED",
+                assignedCount);
+    }
+
     @Transactional
     public FormStatusDto getEmployeeFormStatus(Employee employee) {
         if (!isPermanentEmployee(employee)) {

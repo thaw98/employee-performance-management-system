@@ -248,6 +248,18 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @PostMapping("/hr/assignments/preview")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<List<SelfAssessmentAssignmentPreviewDto>>> previewSelfAssessmentAssignments(
+            @Valid @RequestBody SelfAssessmentAssignmentPreviewRequest request) {
+        try {
+            List<SelfAssessmentAssignmentPreviewDto> response = selfAssessmentFormService.previewSelfAssessmentAssignments(request);
+            return ResponseEntity.ok(ApiResponse.ok("Self-assessment assignment preview retrieved", response));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @PostMapping("/templates/{id}/copy")
     @PreAuthorize("principal.roleId == 1")
     public ResponseEntity<ApiResponse<CopiedSelfAssessmentFormTemplateDto>> copyTemplate(
