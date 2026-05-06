@@ -701,16 +701,16 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                                   </button>
                                 </>
                               )}
-                              <button
+<button
                                 type="button"
                                 onClick={() => navigate(`${routeBase}/${template.id}/edit`)}
                                 className={`group/btn inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
-                                  template.isLocked || isManager
+                                  template.isLocked
                                     ? 'border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-slate-200'
                                     : 'bg-[#5D5FEF]/[0.06] text-[#5D5FEF] hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20'
                                 }`}
                               >
-                                {template.isLocked || isManager ? (
+                                {template.isLocked ? (
                                   <>
                                     <Eye size={13} />
                                     View
@@ -841,16 +841,16 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                                 </button>
                               </div>
                             )}
-                            <button
+<button
                               type="button"
                               onClick={() => navigate(`${routeBase}/${template.id}/edit`)}
                               className={`group/btn flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
-                                template.isLocked || isManager
+                                template.isLocked
                                   ? 'border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700/60'
                                   : 'bg-[#5D5FEF]/[0.06] text-[#5D5FEF] hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20'
                               }`}
                             >
-                              {template.isLocked || isManager ? (
+                              {template.isLocked ? (
                                 <>
                                   <Eye size={14} />
                                   View Template
