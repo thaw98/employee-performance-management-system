@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.epms.backend.entity.AuditLog;
-import com.epms.backend.entity.User;
 import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.AuditLogDto;
 import com.epms.backend.repository.AuditLogRepository;
