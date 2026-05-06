@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BellRing, CheckCheck, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
 import {
@@ -17,11 +17,39 @@ import { getNotificationDestinationPath } from '../features/notification/notific
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 
 type NotificationTab = 'all' | 'unread' | 'read';
+type NotificationSourceFilter =
+  | 'all'
+  | 'APPRAISAL'
+  | 'KPI'
+  | '360_FEEDBACK'
+  | 'MEETING'
+  | 'PIP'
+  | 'SELF_ASSESSMENT_FORM';
 
 const PAGE_SIZE = 10;
+const CATEGORY_OPTIONS: { value: NotificationSourceFilter; label: string }[] = [
+  { value: 'all', label: 'All Categories' },
+  { value: 'APPRAISAL', label: 'Appraisal' },
+  { value: 'KPI', label: 'KPI' },
+  { value: '360_FEEDBACK', label: '360 Feedback' },
+  { value: 'MEETING', label: 'One-on-one Meeting' },
+  { value: 'PIP', label: 'PIP' },
+  { value: 'SELF_ASSESSMENT_FORM', label: 'Self-Assessment' },
+];
+
+const SOURCE_LABELS = CATEGORY_OPTIONS.reduce<Record<string, string>>((labels, option) => {
+  if (option.value !== 'all') {
+    labels[option.value] = option.label;
+  }
+  return labels;
+}, {});
 
 function getNotificationTitle(notification: NotificationItem) {
   return notification.source === '360_FEEDBACK' ? '360 Feedback' : notification.title;
+}
+
+function getSourceLabel(source: string) {
+  return SOURCE_LABELS[source] ?? source;
 }
 
 function formatMessage(message: string): string {
@@ -72,9 +100,15 @@ export function NotificationPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<NotificationTab>('all');
+  const [activeCategory, setActiveCategory] = useState<NotificationSourceFilter>('all');
   const [page, setPage] = useState(0);
   const { unreadCount } = useAppSelector((state) => state.notification);
-  const { data, isLoading, isFetching } = useGetNotificationsQuery({ page, size: PAGE_SIZE });
+  const { data, isLoading, isFetching } = useGetNotificationsQuery({
+    page,
+    size: PAGE_SIZE,
+    status: activeTab,
+    source: activeCategory === 'all' ? undefined : activeCategory,
+  });
   const { data: unreadCountResponse } = useGetUnreadCountQuery();
   const [markRead] = useMarkNotificationAsReadMutation();
   const [markAllRead, { isLoading: isMarkingAll }] = useMarkAllNotificationsAsReadMutation();
@@ -83,21 +117,11 @@ export function NotificationPage() {
   const totalPages = data?.data?.totalPages ?? 0;
   const totalElements = data?.data?.totalElements ?? 0;
 
-  const filteredNotifications = useMemo(() => {
-    if (activeTab === 'unread') {
-      return notifications.filter((notification) => !notification.read);
-    }
-
-    if (activeTab === 'read') {
-      return notifications.filter((notification) => notification.read);
-    }
-
-    return notifications;
-  }, [activeTab, notifications]);
-
   const emptyText =
     totalElements === 0
-      ? 'No notifications yet'
+      ? activeCategory === 'all'
+        ? 'No notifications yet'
+        : `No ${getSourceLabel(activeCategory)} notifications`
       : activeTab === 'unread'
         ? 'No unread notifications'
         : activeTab === 'read'
@@ -112,6 +136,11 @@ export function NotificationPage() {
 
   const handleTabChange = (nextTab: NotificationTab) => {
     setActiveTab(nextTab);
+    setPage(0);
+  };
+
+  const handleCategoryChange = (nextCategory: NotificationSourceFilter) => {
+    setActiveCategory(nextCategory);
     setPage(0);
   };
 
@@ -190,6 +219,21 @@ export function NotificationPage() {
             );
           })}
         </div>
+        <div className="px-6 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-xs font-black uppercase tracking-widest text-slate-400">Category</span>
+          <select
+            value={activeCategory}
+            onChange={(event) => handleCategoryChange(event.target.value as NotificationSourceFilter)}
+            className="min-w-56 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 outline-none transition-colors focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+            aria-label="Notification category"
+          >
+            {CATEGORY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {isLoading ? (
           <div className="p-10 space-y-4">
@@ -197,14 +241,14 @@ export function NotificationPage() {
               <div key={index} className="h-20 rounded-xl bg-slate-100 animate-pulse" />
             ))}
           </div>
-        ) : filteredNotifications.length === 0 ? (
+        ) : notifications.length === 0 ? (
           <div className="p-16 text-center text-slate-400">
             <Inbox size={46} className="mx-auto mb-4 opacity-40" />
             <p className="text-base font-black text-slate-500">{emptyText}</p>
           </div>
         ) : (
           <div className={isFetching ? 'opacity-70 transition-opacity' : 'transition-opacity'}>
-            {filteredNotifications.map((notification) => (
+            {notifications.map((notification) => (
               <button
                 key={notification.id}
                 type="button"
@@ -231,7 +275,7 @@ export function NotificationPage() {
                     {formatMessage(notification.message)}
                   </span>
                   <span className="block mt-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
-                    {notification.source.replaceAll('_', ' ')}
+                    {getSourceLabel(notification.source)}
                   </span>
                 </span>
               </button>
