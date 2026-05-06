@@ -46,7 +46,17 @@ type StatusFilter = 'all' | string;
 
 function getStatusConfig(status: string) {
   const s = status.toUpperCase();
-  if (s === 'DRAFT' || s === 'NOT_STARTED') {
+  if (s === 'NOT_SUBMITTED') {
+    return {
+      label: 'Not Submitted',
+      bg: 'bg-slate-100 dark:bg-slate-700/60',
+      text: 'text-slate-600 dark:text-slate-300',
+      dot: 'bg-slate-400',
+      icon: Edit3,
+      cardAccent: 'border-l-slate-400',
+    };
+  }
+  if (s === 'DRAFT') {
     return {
       label: 'Draft',
       bg: 'bg-slate-100 dark:bg-slate-700/60',

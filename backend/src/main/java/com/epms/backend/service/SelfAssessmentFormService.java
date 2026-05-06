@@ -1824,6 +1824,12 @@ public class SelfAssessmentFormService {
                 emp.getPosition() != null ? emp.getPosition().getId() : null,
                 emp.getPosition() != null ? emp.getPosition().getName() : null);
 
+        String displayStatus = form.getStatus().name();
+        if (form.getStatus() == SelfAssessmentFormStatus.DRAFT && form.getAnswers().stream()
+                .allMatch(a -> a.getYesNoAnswer() == null && a.getRating() == null)) {
+            displayStatus = "NOT_SUBMITTED";
+        }
+
         return new FormListDto(
                 form.getId(),
                 resolveFormDisplayTitle(form),
@@ -1835,7 +1841,7 @@ public class SelfAssessmentFormService {
                 form.getAssignedAt(),
                 form.getAssignedBy(),
                 employeeInfo,
-                form.getStatus().name(),
+                displayStatus,
                 form.getTotalScore(),
                 form.getRatingCategory(),
                 form.getSubmittedDate(),

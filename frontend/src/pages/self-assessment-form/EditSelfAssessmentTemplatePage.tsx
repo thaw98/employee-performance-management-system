@@ -70,7 +70,7 @@ interface EditQuestionRowShellProps {
   canEditRow: boolean;
   canDeactivateRow: boolean;
   isManagerQ: boolean;
-  isReadOnlyTemplate: boolean;
+  isQuestionEditorReadOnly: boolean;
   onRemove: (index: number) => void;
   onSaveToBank: (index: number) => void;
   isSavingToQuestionBank: boolean;
@@ -87,7 +87,7 @@ const EditQuestionRowShell: React.FC<EditQuestionRowShellProps> = ({
   canEditRow,
   canDeactivateRow,
   isManagerQ,
-  isReadOnlyTemplate,
+  isQuestionEditorReadOnly,
   onRemove,
   onSaveToBank,
   isSavingToQuestionBank,
@@ -130,7 +130,7 @@ const EditQuestionRowShell: React.FC<EditQuestionRowShellProps> = ({
       </span>
     )}
 
-    {!isReadOnlyTemplate && (
+    {!isQuestionEditorReadOnly && canEditRow && (
       <button
         type="button"
         onClick={() => void onSaveToBank(index)}
@@ -214,7 +214,7 @@ const SortableEditQuestionRow: React.FC<SortableEditQuestionRowProps> = ({
       canEditRow={canEditRow}
       canDeactivateRow={canDeactivateRow}
       isManagerQ={isManagerQ}
-      isReadOnlyTemplate={false}
+      isQuestionEditorReadOnly={false}
       onRemove={onRemove}
       onSaveToBank={onSaveToBank}
       isSavingToQuestionBank={isSavingToQuestionBank}
@@ -289,7 +289,8 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
   const templateReady =
     idValid && loadedTemplate != null && loadedTemplate.id === templateId;
   const isLocked = loadedTemplate?.isLocked === true;
-  const isReadOnlyTemplate = isLocked || isManager;
+  const isTemplateDetailsReadOnly = isLocked || isManager;
+  const isQuestionEditorReadOnly = isLocked;
   const showTemplateLoader =
     idValid && !templateReady && (isTemplateLoading || isTemplateFetching) && !isTemplateError;
 
@@ -363,8 +364,8 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
 
   const onSubmit = async (data: QuestionFormData) => {
     if (!idValid) return;
-    if (isReadOnlyTemplate) {
-      toast.error(isLocked ? 'This template is locked because forms have been assigned' : 'Managers cannot edit templates');
+    if (isQuestionEditorReadOnly) {
+      toast.error('This template is locked because forms have been assigned');
       return;
     }
 
@@ -424,7 +425,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
       toast.error('This question is already in the form');
       return;
     }
-    append({ questionText: trimmed, canEdit: true, canDeactivate: true });
+    append({ questionText: trimmed, canEdit: true, canDeactivate: true, isManagerAdded: isManager });
     setIsQuestionBankOpen(false);
     setQuestionBankSearch('');
     toast.success('Question added to form');
@@ -511,10 +512,10 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                   {templateReady && isManager && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-bold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                       <ShieldCheck size={10} />
-                      Read-only
+                      Manager
                     </span>
                   )}
-                  {templateReady && !isReadOnlyTemplate && (
+                  {templateReady && !isQuestionEditorReadOnly && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
                       <Pencil size={10} />
                       Editing
@@ -524,7 +525,9 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                 {templateReady ? (
                   <p className="text-sm text-slate-500 dark:text-slate-400">
                     {isManager
-                      ? 'Manager access is read-only.'
+                      ? isLocked
+                        ? 'This template has assigned forms and is read-only.'
+                        : 'Template details are HR-controlled; you can manage your own questions.'
                       : isLocked
                         ? 'This template has assigned forms and is read-only.'
                         : 'Removing a question soft-deletes it for new assignments; existing forms keep their snapshot.'}
@@ -631,7 +634,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                     {...register('title')}
                     type="text"
                     placeholder="e.g. Q1 Performance Self-Evaluation"
-                    readOnly={isReadOnlyTemplate}
+                    readOnly={isTemplateDetailsReadOnly}
                     className={inputBase}
                   />
                 </div>
@@ -647,7 +650,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                         setSelectedDepartmentId(e.target.value ? Number(e.target.value) : null);
                         setSelectedPositionId(null);
                       }}
-                      disabled={isReadOnlyTemplate}
+                      disabled={isTemplateDetailsReadOnly}
                       className={selectBase}
                     >
                       <option value="">Select Department</option>
@@ -666,7 +669,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                     <select
                       value={selectedPositionId || ''}
                       onChange={(e) => setSelectedPositionId(e.target.value ? Number(e.target.value) : null)}
-                      disabled={!selectedDepartmentId || isReadOnlyTemplate}
+                      disabled={!selectedDepartmentId || isTemplateDetailsReadOnly}
                       className={selectBase}
                     >
                       <option value="">Select Position</option>
@@ -691,7 +694,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                       id="isActive"
                       checked={isActive}
                       onChange={(e) => setIsActive(e.target.checked)}
-                      disabled={isReadOnlyTemplate}
+                      disabled={isTemplateDetailsReadOnly}
                       className="peer sr-only"
                     />
                     <div
@@ -699,7 +702,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                         isActive
                           ? 'bg-[#5D5FEF]'
                           : 'bg-slate-300 dark:bg-slate-600'
-                      } ${isReadOnlyTemplate ? 'opacity-50' : ''}`}
+                      } ${isTemplateDetailsReadOnly ? 'opacity-50' : ''}`}
                     >
                       <div
                         className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
@@ -732,7 +735,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
             >
               <div className="mb-5 flex items-center justify-between">
                 <StepBadge step={2} label="Questions" icon={<ClipboardList size={17} />} />
-                {!isReadOnlyTemplate && (
+                {!isQuestionEditorReadOnly && (
                   <button
                     type="button"
                     onClick={() => setIsQuestionBankOpen(true)}
@@ -744,11 +747,11 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                 )}
               </div>
 
-              {isReadOnlyTemplate ? (
+              {isQuestionEditorReadOnly ? (
                 <div className="space-y-2.5">
                   {fields.map((field, index) => {
-                    const canEditRow = !isReadOnlyTemplate && field.canEdit !== false;
-                    const canDeactivateRow = !isReadOnlyTemplate && field.canDeactivate !== false;
+                    const canEditRow = !isQuestionEditorReadOnly && field.canEdit !== false;
+                    const canDeactivateRow = !isQuestionEditorReadOnly && field.canDeactivate !== false;
                     const isManagerQ = !!(field.canHighlight || field.isManagerAdded);
                     return (
                       <EditQuestionRowShell
@@ -760,7 +763,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                         canEditRow={canEditRow}
                         canDeactivateRow={canDeactivateRow}
                         isManagerQ={isManagerQ}
-                        isReadOnlyTemplate={isReadOnlyTemplate}
+                        isQuestionEditorReadOnly={isQuestionEditorReadOnly}
                         onRemove={remove}
                         onSaveToBank={handleSaveQuestionToBank}
                         isSavingToQuestionBank={isSavingToQuestionBank}
@@ -801,7 +804,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                 </DndContext>
               )}
 
-              {!isReadOnlyTemplate && (
+              {!isQuestionEditorReadOnly && (
                 <button
                   type="button"
                   onClick={() => append({ questionText: '', canEdit: true, canDeactivate: true, isManagerAdded: isManager })}
@@ -821,7 +824,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                     .map((row) => row.questionId)
                     .filter((id): id is number => typeof id === 'number'),
                 );
-                const pendingRestore = isReadOnlyTemplate ? [] : (loadedTemplate.deletedQuestions ?? []).filter((d) => !restoredIds.has(d.id) && d.canEdit);
+                const pendingRestore = isQuestionEditorReadOnly ? [] : (loadedTemplate.deletedQuestions ?? []).filter((d) => !restoredIds.has(d.id) && d.canEdit);
                 if (pendingRestore.length === 0) return null;
                 return (
                   <div
@@ -877,7 +880,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
             ) : null}
 
             {/* ─── Actions ─── */}
-            {!isReadOnlyTemplate && (
+            {!isQuestionEditorReadOnly && (
               <div
                 className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end animate-fade-in-up"
                 style={{ animationDelay: '250ms' }}
@@ -904,7 +907,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
               </div>
             )}
 
-            {isReadOnlyTemplate && (
+            {isQuestionEditorReadOnly && (
               <div
                 className="flex justify-end animate-fade-in-up"
                 style={{ animationDelay: '250ms' }}
