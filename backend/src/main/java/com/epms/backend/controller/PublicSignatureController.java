@@ -3,6 +3,7 @@ package com.epms.backend.controller;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
@@ -27,9 +28,8 @@ public class PublicSignatureController {
         if (filename == null || filename.isEmpty() || filename.contains("..") || filename.indexOf('/') >= 0) {
             return ResponseEntity.notFound().build();
         }
-        Path dir = Path.of(uploadDir).toAbsolutePath().normalize();
-        Path filePath = dir.resolve(filename).normalize();
-        if (!filePath.startsWith(dir) || !Files.isRegularFile(filePath)) {
+        Path filePath = resolveExistingFile(filename);
+        if (filePath == null) {
             return ResponseEntity.notFound().build();
         }
         FileSystemResource resource = new FileSystemResource(filePath);
@@ -37,6 +37,20 @@ public class PublicSignatureController {
                 .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
                 .contentType(MediaType.parseMediaType(probeContentType(filePath)))
                 .body(resource);
+    }
+
+    private Path resolveExistingFile(String filename) {
+        List<Path> candidates = List.of(
+                Path.of(uploadDir).toAbsolutePath().normalize(),
+                Path.of("uploads/signatures").toAbsolutePath().normalize(),
+                Path.of("backend/uploads/signatures").toAbsolutePath().normalize());
+        for (Path dir : candidates) {
+            Path filePath = dir.resolve(filename).normalize();
+            if (filePath.startsWith(dir) && Files.isRegularFile(filePath)) {
+                return filePath;
+            }
+        }
+        return null;
     }
 
     private static String probeContentType(Path filePath) {

@@ -20,6 +20,10 @@ import com.epms.backend.repository.DepartmentPositionRepository;
 import com.epms.backend.dto.hr.PositionKpiStatusDto;
 import com.epms.backend.dto.hr.DepartmentKpiStatusDto;
 import com.epms.backend.entity.DepartmentPosition;
+import com.epms.backend.repository.AppraisalAssignmentRepository;
+import com.epms.backend.entity.AppraisalStatus;
+import com.epms.backend.audit.AuditActionType;
+import com.epms.backend.audit.AuditTargetType;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +47,7 @@ public class KpiService {
     private final UserRepository userRepository;
     private final DepartmentPositionRepository departmentPositionRepository;
     private final AuditService auditService;
+    private final AppraisalAssignmentRepository appraisalAssignmentRepository;
 
     public KpiService(KpiRepository kpiRepository,
             EmployeeRepository employeeRepository,
@@ -52,7 +57,8 @@ public class KpiService {
             PositionRepository positionRepository,
             UserRepository userRepository,
             DepartmentPositionRepository departmentPositionRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            AppraisalAssignmentRepository appraisalAssignmentRepository) {
         this.kpiRepository = kpiRepository;
         this.employeeRepository = employeeRepository;
         this.positionKpiRepository = positionKpiRepository;
@@ -62,6 +68,7 @@ public class KpiService {
         this.userRepository = userRepository;
         this.departmentPositionRepository = departmentPositionRepository;
         this.auditService = auditService;
+        this.appraisalAssignmentRepository = appraisalAssignmentRepository;
     }
 
     public List<KpiDto> getKpisByEmployeeAndPeriod(Long employeeId, String period) {
@@ -93,7 +100,7 @@ public class KpiService {
     }
 
     @Transactional
-    public List<KpiDto> saveKpis(List<KpiDto> kpiDtos) {
+    public List<KpiDto> saveKpis(List<KpiDto> kpiDtos, Long performerUserId) {
         if (kpiDtos.isEmpty())
             return List.of();
 
@@ -110,6 +117,8 @@ public class KpiService {
 
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        User performer = userRepository.findById(performerUserId).orElseThrow();
 
         // Soft delete: Archive existing active KPIs for this specific employee and
         // period
@@ -139,6 +148,17 @@ public class KpiService {
 
         kpiRepository.saveAll(kpis);
 
+        String metadata = null;
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            metadata = mapper.writeValueAsString(kpiDtos);
+        } catch (Exception e) {}
+
+        auditService.record(AuditActionType.KPI_CREATED, AuditTargetType.EMPLOYEE_KPI, employeeId, performerUserId,
+                performer.getRole().getId(),
+                "KPIs set up for " + employee.getEmployeeName() + " for period " + period,
+                metadata);
+
         return getKpisByEmployeeAndPeriod(employeeId, period);
     }
 
@@ -161,6 +181,14 @@ public class KpiService {
             throw new IllegalArgumentException("Manager can only update KPIs for employees in the same department");
         }
 
+        // Check if appraisal is finalized (LOCKED) for this period
+        appraisalAssignmentRepository.findByEmployee_IdAndPeriod_Name(employeeId, kpiUpdates.get(0).getPeriod())
+                .ifPresent(appraisal -> {
+                    if (appraisal.getStatus() == AppraisalStatus.LOCKED) {
+                        throw new IllegalStateException("Cannot update KPIs for a finalized appraisal period.");
+                    }
+                });
+
         List<EmployeeKpi> updatedKpis = new ArrayList<>();
         String status = kpiUpdates.get(0).getStatus();
         if (status == null || status.isBlank()) {
@@ -178,6 +206,18 @@ public class KpiService {
                 throw new IllegalArgumentException("KPI does not belong to the specified employee");
             }
 
+            // Validation: Actual value is required for submission
+            if ("SUBMITTED".equals(status) && (update.getActual() == null || update.getActual().trim().isEmpty())) {
+                throw new IllegalArgumentException("Actual value is required for all KPIs when submitting");
+            }
+
+            // Validation: Score range check
+            if (update.getScore() != null) {
+                if (update.getScore().compareTo(BigDecimal.ZERO) < 0 || update.getScore().compareTo(new BigDecimal("100")) > 0) {
+                    throw new IllegalArgumentException("Score for '" + kpi.getName() + "' must be between 0 and 100");
+                }
+            }
+
             kpi.setActual(update.getActual());
             if (update.getScore() != null) {
                 kpi.setScore(update.getScore());
@@ -192,12 +232,22 @@ public class KpiService {
 
         kpiRepository.saveAll(updatedKpis);
 
-        String action = "DRAFT".equals(status) ? "KPI_DRAFT_SAVED" : "KPI_SUBMITTED";
-        auditService.record(action, "EMPLOYEE_KPI", employeeId, managerUserId, managerUser.getRole().getId(),
+        String action = "DRAFT".equals(status) ? AuditActionType.KPI_DRAFT_SAVED : AuditActionType.KPI_SUBMITTED;
+        
+        // Prepare metadata for changes
+        String metadata = null;
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            metadata = mapper.writeValueAsString(kpiUpdates);
+        } catch (Exception e) {
+            // Ignore mapping errors
+        }
+
+        auditService.record(action, AuditTargetType.EMPLOYEE_KPI, employeeId, managerUserId, managerUser.getRole().getId(),
                 "Manager " + manager.getEmployeeName() + " "
-                        + (action.equals("KPI_DRAFT_SAVED") ? "saved draft" : "submitted") + " KPI actuals for "
+                        + (action.equals(AuditActionType.KPI_DRAFT_SAVED) ? "saved draft" : "submitted") + " KPI actuals for "
                         + employee.getEmployeeName(),
-                null);
+                metadata);
 
         return kpiRepository.findByEmployee_IdAndPeriod(employeeId, kpiUpdates.get(0).getPeriod())
                 .stream().map(this::convertToDto).collect(Collectors.toList());
@@ -246,7 +296,7 @@ public class KpiService {
     }
 
     @Transactional
-    public List<PositionKpiDto> savePositionKpis(List<PositionKpiDto> dtoList) {
+    public List<PositionKpiDto> savePositionKpis(List<PositionKpiDto> dtoList, Long performerUserId) {
         if (dtoList.isEmpty())
             return List.of();
 
@@ -272,6 +322,7 @@ public class KpiService {
 
         Department dept = departmentRepository.findById(deptId).orElseThrow();
         Position pos = positionRepository.findById(posId).orElseThrow();
+        User performer = userRepository.findById(performerUserId).orElseThrow();
 
         List<PositionKpi> entities = dtoList.stream().map(dto -> {
             PositionKpi entity = new PositionKpi();
@@ -293,11 +344,22 @@ public class KpiService {
         // position
         applyToEmployees(deptId, posId, period, saved);
 
+        String metadata = null;
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            metadata = mapper.writeValueAsString(dtoList);
+        } catch (Exception e) {}
+
+        auditService.record(AuditActionType.KPI_CREATED, AuditTargetType.POSITION_KPI, posId, performerUserId,
+                performer.getRole().getId(),
+                "Position KPIs set up for " + pos.getName() + " in " + dept.getName() + " for period " + period,
+                metadata);
+
         return saved.stream().map(this::convertToPositionDto).collect(Collectors.toList());
     }
 
     @Transactional
-    public List<DepartmentKpiDto> saveDepartmentKpis(List<DepartmentKpiDto> dtoList) {
+    public List<DepartmentKpiDto> saveDepartmentKpis(List<DepartmentKpiDto> dtoList, Long performerUserId) {
         if (dtoList.isEmpty())
             return List.of();
 
@@ -321,6 +383,7 @@ public class KpiService {
         departmentKpiRepository.saveAll(existingActive);
 
         Department dept = departmentRepository.findById(deptId).orElseThrow();
+        User performer = userRepository.findById(performerUserId).orElseThrow();
 
         List<DepartmentKpi> entities = dtoList.stream().map(dto -> {
             DepartmentKpi entity = new DepartmentKpi();
@@ -336,6 +399,17 @@ public class KpiService {
         }).collect(Collectors.toList());
 
         List<DepartmentKpi> saved = departmentKpiRepository.saveAll(entities);
+
+        String metadata = null;
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            metadata = mapper.writeValueAsString(dtoList);
+        } catch (Exception e) {}
+
+        auditService.record(AuditActionType.KPI_CREATED, AuditTargetType.DEPARTMENT_KPI, deptId, performerUserId,
+                performer.getRole().getId(),
+                "Department KPIs set up for " + dept.getName() + " for period " + period,
+                metadata);
 
         return saved.stream().map(this::convertToDepartmentDto).collect(Collectors.toList());
     }

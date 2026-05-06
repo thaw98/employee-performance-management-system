@@ -29,6 +29,11 @@ import {
 } from 'lucide-react'
 
 const MAX_DRAWN_SIGNATURE_REQUEST_BYTES = 3 * 1024 * 1024
+const EMPTY_DRAWN_SIGNATURE_TOAST_ID = 'empty-drawn-signature'
+const INVALID_SIGNATURE_FILE_TYPE_TOAST_ID = 'invalid-signature-file-type'
+const SIGNATURE_FILE_SIZE_TOAST_ID = 'signature-file-size-limit'
+const DRAWN_SIGNATURE_TOO_DETAILED_TOAST_ID = 'drawn-signature-too-detailed'
+const EMPTY_UPLOADED_SIGNATURE_TOAST_ID = 'empty-uploaded-signature'
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (typeof error === 'object' && error !== null && 'message' in error) {
@@ -190,11 +195,11 @@ export function DefaultSignaturePage() {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      toast.error('Please choose an image file.')
+      toast.error('Please choose an image file.', { id: INVALID_SIGNATURE_FILE_TYPE_TOAST_ID })
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Signature image size exceeds 5MB.')
+      toast.error('Signature image size exceeds 5MB.', { id: SIGNATURE_FILE_SIZE_TOAST_ID })
       return
     }
     setSignatureFile(file)
@@ -219,13 +224,15 @@ export function DefaultSignaturePage() {
   const handleSaveDrawnSignature = async () => {
     try {
       if (!signatureCanvasRef.current || signatureCanvasRef.current.isEmpty()) {
-        toast.error('Draw your signature before saving.')
+        toast.error('Draw your signature before saving.', { id: EMPTY_DRAWN_SIGNATURE_TOAST_ID })
         return
       }
       const trimmedCanvas = trimSignatureCanvas(signatureCanvasRef.current.getCanvas())
       const dataUrl = exportSignatureDataUrl(trimmedCanvas)
       if (estimateDataUrlBytes(dataUrl) > MAX_DRAWN_SIGNATURE_REQUEST_BYTES) {
-        toast.error('Signature is too detailed. Please draw a simpler signature and try again.')
+        toast.error('Signature is too detailed. Please draw a simpler signature and try again.', {
+          id: DRAWN_SIGNATURE_TOO_DETAILED_TOAST_ID,
+        })
         return
       }
       const result = await saveDrawnSignature({
@@ -265,7 +272,9 @@ export function DefaultSignaturePage() {
   const handleSaveUploadedSignature = async () => {
     try {
       if (!signatureFile) {
-        toast.error('Choose a signature image before saving.')
+        toast.error('Choose a signature image before saving.', {
+          id: EMPTY_UPLOADED_SIGNATURE_TOAST_ID,
+        })
         return
       }
       const response = await uploadSignature({

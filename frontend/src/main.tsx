@@ -6,12 +6,10 @@ import App from './App.tsx'
 import { store } from './app/store'
 import './index.css'
 import 'bootstrap-icons/font/bootstrap-icons.css'
-import { Toaster } from 'react-hot-toast'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
-      <Toaster position="bottom-center" />
       <App />
     </Provider>
   </StrictMode>,
