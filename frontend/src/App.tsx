@@ -21,6 +21,7 @@ import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { ManagerKpisPage } from './pages/manager/ManagerKpisPage';
 import { ManagerAppraisalsPage } from './pages/manager/ManagerAppraisalsPage';
+import { ManagerEvaluationPage } from './pages/manager/ManagerEvaluationPage';
 import { MyKpisPage } from './pages/employee/MyKpisPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
@@ -193,6 +194,7 @@ function App() {
             <Route path="pip/create" element={<PipCreatePage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />
             <Route path="appraisals" element={<ManagerAppraisalsPage />} />
+            <Route path="appraisals/:id/evaluate" element={<ManagerEvaluationPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />

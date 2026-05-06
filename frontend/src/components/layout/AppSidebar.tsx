@@ -23,8 +23,9 @@ type NavSection = { label: string; items: NavItem[] }
 export function AppSidebar() {
   const role = useAppSelector((s) => s.auth.user?.role)
   const roleId = useAppSelector((s) => s.auth.user?.roleId)
-  const isHr = roleId === 1 || role === 'HR'
-  const isManager = roleId === 2 || roleId === 3 || role === 'DEPARTMENT_HEAD' || role === 'TEAM_HEAD'
+  const isHr = roleId === 1 || role?.toUpperCase() === 'HR'
+  const isManager = roleId === 2 || roleId === 3 || 
+    ['DEPARTMENT_HEAD', 'TEAM_HEAD', 'DEPARTMENT HEAD', 'TEAM HEAD'].includes(role?.toUpperCase() || '')
   const location = useLocation()
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
@@ -69,11 +70,15 @@ export function AppSidebar() {
       items: [
         { 
           name: 'Appraisals', 
-          path: '/hr/appraisals-group', 
+          path: isHr ? '/hr/appraisals-group' : '/manager/appraisals-group', 
           icon: 'bi-clipboard-check', 
           end: false,
           subItems: [
-            { name: 'Management', path: '/hr/appraisals', icon: 'bi-kanban' }
+            { 
+              name: isHr ? 'Management' : 'Team Appraisals', 
+              path: isHr ? '/hr/appraisals' : '/manager/appraisals', 
+              icon: isHr ? 'bi-kanban' : 'bi-people' 
+            }
           ]
         },
         {

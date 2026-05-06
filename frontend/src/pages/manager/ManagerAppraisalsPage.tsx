@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
@@ -207,7 +208,8 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                 </div>
 
                                 {/* Action Button */}
-                                <button 
+                                <Link 
+                                    to={`/manager/appraisals/${assignment.id}/evaluate`}
                                     className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm ${
                                         assignment.status === 'PENDING_MANAGER'
                                         ? 'bg-slate-900 text-white hover:bg-amber-600 hover:shadow-lg hover:shadow-amber-200'
@@ -221,7 +223,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                     ) : (
                                         <>View Details <ChevronRight size={14} /></>
                                     )}
-                                </button>
+                                </Link>
                             </div>
 
                             {/* Background Decoration */}
