@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { useRhfAutosave, withRetry, type SaveResult, type Transport } from 'react-hook-form-autosave';
 import { toast } from 'react-hot-toast';
 import {
   Clock,
@@ -25,6 +26,7 @@ import {
   useGetMyCurrentFormQuery,
   useSaveDraftMutation,
   useSubmitFormMutation,
+  type SaveDraftRequest,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
@@ -39,6 +41,20 @@ interface AnswerFormData {
   }[];
   employeeRemarks: string | null;
 }
+
+const toSaveDraftRequest = (
+  data: AnswerFormData,
+  overallRemarks: string | null | undefined,
+): SaveDraftRequest => ({
+  answers: data.answers.map((a) => ({
+    id: a.id,
+    yesNoAnswer: a.yesNoAnswer,
+    rating: a.rating,
+    remarks: a.remarks,
+  })),
+  employeeRemarks: data.employeeRemarks,
+  overallRemarks: overallRemarks ?? null,
+});
 
 function StatusBadge({ status }: { status: string | undefined | null }) {
   if (!status) return null;
@@ -274,8 +290,15 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     skip: !shouldLoadForm,
   });
 
-  const [saveDraft, { isLoading: isSaving }] = useSaveDraftMutation();
+  const [saveDraft] = useSaveDraftMutation();
   const [submitForm, { isLoading: isSubmitting }] = useSubmitFormMutation();
+
+  const form = useForm<AnswerFormData>({
+    defaultValues: {
+      answers: [],
+      employeeRemarks: '',
+    },
+  });
 
   const {
     register,
@@ -284,12 +307,41 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     setValue,
     watch,
     reset,
-    formState: { isDirty },
-  } = useForm<AnswerFormData>({
-    defaultValues: {
-      answers: [],
-      employeeRemarks: '',
+  } = form;
+
+  const isReadOnly = formData?.status !== 'DRAFT' && formData?.status !== 'REOPENED';
+  const editsBlockedByDeadline = Boolean(formStatus?.deadlinePassed && formStatus?.status !== 'REOPENED');
+  const autosaveDisabled = statusLoading || formLoading || !formData || isReadOnly || editsBlockedByDeadline;
+
+  const draftTransport = useMemo<Transport>(() => {
+    const transport: Transport = async (payload) => {
+      try {
+        await saveDraft(payload as unknown as SaveDraftRequest).unwrap();
+        return { ok: true };
+      } catch (error: any) {
+        return {
+          ok: false,
+          error: new Error(error?.data?.message || 'Failed to save draft'),
+        } satisfies SaveResult;
+      }
+    };
+
+    return withRetry(transport, { maxRetries: 3 });
+  }, [saveDraft]);
+
+  const autosave = useRhfAutosave<AnswerFormData>({
+    form,
+    transport: draftTransport,
+    config: {
+      debounceMs: 2000,
+      maxRetries: 3,
+      debug: false,
     },
+    validateBeforeSave: 'none',
+    selectPayload: (values) => values,
+    shouldSave: ({ isDirty, dirtyFields }) =>
+      !autosaveDisabled && (isDirty || Object.keys(dirtyFields).length > 0),
+    mapPayload: () => toSaveDraftRequest(form.getValues(), formData?.overallRemarks),
   });
 
   useEffect(() => {
@@ -316,45 +368,34 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const totalCount = formData?.answers?.length ?? 0;
 
   const handleYesNoChange = (index: number, value: string, currentRating: number | null) => {
-    setValue(`answers.${index}.yesNoAnswer`, value);
+    setValue(`answers.${index}.yesNoAnswer`, value, { shouldDirty: true, shouldTouch: true });
     if (isRatingValidForAnswer(ratingSystem, value, currentRating, tenPointYesMinRating)) {
-      setValue(`answers.${index}.rating`, currentRating);
+      setValue(`answers.${index}.rating`, currentRating, { shouldDirty: true, shouldTouch: true });
     } else {
-      setValue(`answers.${index}.rating`, null as any);
+      setValue(`answers.${index}.rating`, null as any, { shouldDirty: true, shouldTouch: true });
     }
   };
 
-  const onSaveDraft = async (data: AnswerFormData) => {
+  const onSaveNow = useCallback(async () => {
     try {
-      await saveDraft({
-        answers: data.answers.map((a) => ({
-          id: a.id,
-          yesNoAnswer: a.yesNoAnswer,
-          rating: a.rating,
-          remarks: a.remarks,
-        })),
-        employeeRemarks: data.employeeRemarks,
-        overallRemarks: formData?.overallRemarks ?? null,
-      }).unwrap();
-      toast.success('Draft saved successfully');
+      const result = await autosave.flush();
+      if (!result?.ok) {
+        toast.error(result?.error?.message || 'Failed to save draft');
+        return;
+      }
       refetch();
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to save draft');
+      toast.error(error?.message || 'Failed to save draft');
     }
-  };
+  }, [autosave, refetch]);
 
   const onSubmitForm = async (data: AnswerFormData) => {
     try {
-      await submitForm({
-        answers: data.answers.map((a) => ({
-          id: a.id,
-          yesNoAnswer: a.yesNoAnswer,
-          rating: a.rating,
-          remarks: a.remarks,
-        })),
-        employeeRemarks: data.employeeRemarks,
-        overallRemarks: formData?.overallRemarks ?? null,
-      }).unwrap();
+      if (autosave.hasPendingChanges) {
+        await autosave.flush();
+      }
+
+      await submitForm(toSaveDraftRequest(data, formData?.overallRemarks)).unwrap();
       toast.success('Form submitted successfully');
       setShowSubmitConfirm(false);
       refetch();
@@ -400,9 +441,29 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     return <StateCard icon={<FileText size={32} />} title="No Assigned Form" message={formStatus?.message} />;
   }
 
-  const isReadOnly = formData?.status !== 'DRAFT' && formData?.status !== 'REOPENED';
   const departmentDisplay = formatNameCode(formData?.employee?.departmentName, formData?.employee?.departmentCode);
   const positionDisplay = formatNameCode(formData?.employee?.positionName, formData?.employee?.positionCode);
+  const saveStatus = autosave.isSaving
+    ? 'Saving...'
+    : autosave.lastError
+      ? 'Save failed'
+      : autosave.hasPendingChanges
+        ? 'Unsaved changes'
+        : 'All changes saved';
+  const saveStatusTone = autosave.isSaving
+    ? 'text-sky-700 dark:text-sky-400'
+    : autosave.lastError
+      ? 'text-rose-700 dark:text-rose-400'
+      : autosave.hasPendingChanges
+        ? 'text-amber-700 dark:text-amber-400'
+        : 'text-slate-500 dark:text-slate-400';
+  const saveStatusDot = autosave.isSaving
+    ? 'animate-pulse bg-sky-500'
+    : autosave.lastError
+      ? 'bg-rose-500'
+      : autosave.hasPendingChanges
+        ? 'animate-pulse bg-amber-500'
+        : 'bg-emerald-500';
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-32">
@@ -677,17 +738,9 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           <div className="fixed bottom-0 left-64 right-0 z-40 border-t border-slate-200 bg-white/85 backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900/85">
             <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-6 py-4">
               <div className="hidden items-center gap-2.5 sm:flex">
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    isDirty ? 'animate-pulse bg-amber-500' : 'bg-emerald-500'
-                  }`}
-                />
+                <span className={`h-2 w-2 rounded-full ${saveStatusDot}`} />
                 <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                  {isDirty ? (
-                    <span className="text-amber-700 dark:text-amber-400">Unsaved changes</span>
-                  ) : (
-                    <span className="text-slate-500 dark:text-slate-400">All changes saved</span>
-                  )}
+                  <span className={saveStatusTone}>{saveStatus}</span>
                 </p>
                 <span className="mx-1 text-slate-300 dark:text-slate-600">·</span>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -700,12 +753,12 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               <div className="flex flex-1 items-center justify-end gap-3 sm:flex-initial">
                 <button
                   type="button"
-                  onClick={handleSubmit(onSaveDraft)}
-                  disabled={isSaving || !isDirty}
+                  onClick={onSaveNow}
+                  disabled={autosave.isSaving || !autosave.hasPendingChanges}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-px hover:bg-slate-50 hover:shadow disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:disabled:hover:bg-slate-800"
                 >
                   <Save size={15} />
-                  {isSaving ? 'Saving…' : 'Save Draft'}
+                  {autosave.isSaving ? 'Saving...' : 'Save Now'}
                 </button>
                 <button
                   type="button"

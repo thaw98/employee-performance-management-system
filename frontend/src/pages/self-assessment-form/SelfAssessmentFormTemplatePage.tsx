@@ -19,6 +19,7 @@ import {
   List,
   ChevronDown,
   Copy,
+  BookOpen,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -286,17 +287,27 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
             </p>
           </div>
         </div>
-        {!isManager && (
+        <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate('/hr/self-assessment/templates/create')}
-            className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 active:scale-[0.97]"
+            onClick={() => navigate(`${routeBase.replace('/templates', '/question-bank')}`)}
+            className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-[#5D5FEF]/30 bg-white px-5 py-2.5 text-sm font-bold text-[#5D5FEF] shadow-sm transition-all hover:border-[#5D5FEF]/50 hover:bg-[#5D5FEF]/5 hover:shadow-md active:scale-[0.97] dark:border-[#5D5FEF]/40 dark:bg-slate-800 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/10"
           >
-            <Plus size={16} strokeWidth={2.5} />
-            Create Template
-            <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            <BookOpen size={16} strokeWidth={2.5} />
+            Question Bank
           </button>
-        )}
+          {!isManager && (
+            <button
+              type="button"
+              onClick={() => navigate('/hr/self-assessment/templates/create')}
+              className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 active:scale-[0.97]"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              Create Template
+              <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ─── Summary Cards ─── */}
