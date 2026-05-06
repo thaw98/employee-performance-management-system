@@ -59,14 +59,24 @@ interface ManagerAdjustment {
 
 function getStatusConfig(status: string) {
   const s = status.toUpperCase();
-  if (s === 'DRAFT' || s === 'NOT_STARTED') {
+  if (s === 'NOT_STARTED') {
     return {
-      label: 'Draft',
+      label: 'Not Started',
       bg: 'bg-slate-100 dark:bg-slate-700/60',
       text: 'text-slate-600 dark:text-slate-300',
       dot: 'bg-slate-400',
       icon: Edit3,
       cardAccent: 'border-l-slate-400',
+    };
+  }
+  if (s === 'DRAFT') {
+    return {
+      label: 'Draft',
+      bg: 'bg-amber-100 dark:bg-amber-900/30',
+      text: 'text-amber-700 dark:text-amber-400',
+      dot: 'bg-amber-500',
+      icon: Edit3,
+      cardAccent: 'border-l-amber-500',
     };
   }
   if (s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED') {
