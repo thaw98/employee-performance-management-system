@@ -63,6 +63,11 @@ import { SelfAssessmentAssignmentsPage } from './pages/self-assessment-form/Self
 import { AssignSelfAssessmentFormsPage } from './pages/self-assessment-form/AssignSelfAssessmentFormsPage';
 import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
 
+// Meetings
+import { MeetingsPage } from './pages/manager/MeetingsPage';
+import { EmployeeMeetingsPage } from './pages/employee/EmployeeMeetingsPage';
+import { MeetingDetailPage } from './pages/meetings/MeetingDetailPage';
+
 const TOAST_DEDUP_MS = 600;
 const recentToastTimestamps = new Map<string, number>();
 let isToastPatched = false;
@@ -170,6 +175,8 @@ function App() {
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
+            <Route path="meetings" element={<MeetingsPage />} />
+            <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -196,6 +203,8 @@ function App() {
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
+            <Route path="meetings" element={<MeetingsPage />} />
+            <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>
@@ -215,6 +224,8 @@ function App() {
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment-forms" element={<EmployeeSelfAssessmentHubPage />} />
             <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
+            <Route path="meetings" element={<EmployeeMeetingsPage />} />
+            <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>

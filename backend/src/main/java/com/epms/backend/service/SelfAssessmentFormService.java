@@ -1549,9 +1549,10 @@ public class SelfAssessmentFormService {
                 && employee.getUserAccount().isActive();
     }
 
-    private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q) {
-        return mapTemplateQuestionToDto(q, null, null);
-    }
+    // private QuestionDto
+    // mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q) {
+    // return mapTemplateQuestionToDto(q, null, null);
+    // }
 
     private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q, Long currentUserId,
             Long currentRoleId) {
