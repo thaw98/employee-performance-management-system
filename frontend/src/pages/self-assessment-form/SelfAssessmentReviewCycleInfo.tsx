@@ -1,3 +1,4 @@
+import { CalendarRange, Clock, AlertCircle } from 'lucide-react';
 import { useGetActiveReviewCyclesQuery, useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 
 export function formatCycleDate(iso: string) {
@@ -27,69 +28,114 @@ function cycleStatusLabel(status: string) {
 function cycleStatusClass(status: string) {
   const normalized = status.toUpperCase();
   if (normalized === 'ACTIVE') {
-    return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
+    return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
   }
   if (normalized === 'UPCOMING') {
-    return 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
+    return 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300';
   }
-  return 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
+  return 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
 }
 
 type SelfAssessmentReviewCycleInfoProps = {
   className?: string;
-  /** Use inside an existing card row (no outer border/background). */
   variant?: 'card' | 'inline';
 };
 
-/** Shows the current employee-submission review cycle (active when available; otherwise sensible fallbacks). */
-export function SelfAssessmentReviewCycleInfo({ className, variant = 'card' }: SelfAssessmentReviewCycleInfoProps) {
-  const { data: activeCycles = [], isLoading: cyclesLoading } = useGetActiveReviewCyclesQuery();
-  const { data: reviewCycles = [], isLoading: allCyclesLoading } = useGetReviewCyclesQuery({
-    requiresEmployeeSubmission: true,
-  });
+export function SelfAssessmentReviewCycleInfo({
+  className,
+  variant = 'card',
+}: SelfAssessmentReviewCycleInfoProps) {
+  const { data: activeCycles = [], isLoading: cyclesLoading } =
+    useGetActiveReviewCyclesQuery();
+  const { data: reviewCycles = [], isLoading: allCyclesLoading } =
+    useGetReviewCyclesQuery({ requiresEmployeeSubmission: true });
 
-  const activeSubmissionCycle = activeCycles.find((c) => c.requiresEmployeeSubmission) ?? null;
+  const activeSubmissionCycle =
+    activeCycles.find((c) => c.requiresEmployeeSubmission) ?? null;
   const submissionCycle =
     activeSubmissionCycle ??
     reviewCycles.find((c) => c.status?.toUpperCase() === 'UPCOMING') ??
-    [...reviewCycles].reverse().find((c) => c.status?.toUpperCase() === 'CLOSED') ??
+    [...reviewCycles]
+      .reverse()
+      .find((c) => c.status?.toUpperCase() === 'CLOSED') ??
     activeCycles[0] ??
     null;
 
-  const innerBase = 'flex-1 text-sm text-slate-700 dark:text-slate-200 sm:min-w-0';
-  const innerClass =
-    variant === 'inline' && className ? `${innerBase} ${className}`.trim() : innerBase;
+  const isActive = submissionCycle?.status?.toUpperCase() === 'ACTIVE';
+  const isUpcoming = submissionCycle?.status?.toUpperCase() === 'UPCOMING';
 
   const inner = (
-    <div className={innerClass}>
-      <span className="font-semibold text-slate-900 dark:text-white">Current review cycle</span>
-      <span className="mx-1.5 text-slate-400">·</span>
+    <div className="flex-1 min-w-0">
       {cyclesLoading || allCyclesLoading ? (
-        <span className="text-slate-500">Loading…</span>
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#5D5FEF]/10 dark:bg-[#5D5FEF]/20">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#5D5FEF]/30 border-t-[#5D5FEF]" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+              Loading review cycle…
+            </p>
+          </div>
+        </div>
       ) : submissionCycle ? (
-        <>
-          <span className="text-slate-900 dark:text-white">{submissionCycle.name}</span>
-          <span className="text-slate-500 dark:text-slate-400">
-            {' '}
-            ({submissionCycle.yearLabel}, {cycleTypeLabel(submissionCycle.cycleType)})
-          </span>
-          <span className="block text-xs text-slate-500 dark:text-slate-400 mt-1">
-            {formatCycleDate(submissionCycle.startDate)} – {formatCycleDate(submissionCycle.endDate)}
-            {submissionCycle.status ? (
-              <span
-                className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${cycleStatusClass(
-                  submissionCycle.status
-                )}`}
-              >
-                {cycleStatusLabel(submissionCycle.status)}
-              </span>
-            ) : null}
-          </span>
-        </>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+          {/* Cycle icon + name */}
+          <div className="flex items-center gap-3">
+            <div
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-md ${
+                isActive
+                  ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20'
+                  : isUpcoming
+                    ? 'bg-gradient-to-br from-sky-500 to-blue-600 shadow-sky-500/20'
+                    : 'bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-[#5D5FEF]/20'
+              }`}
+            >
+              <CalendarRange className="h-4 w-4 text-white" aria-hidden />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
+                  {submissionCycle.name}
+                </span>
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cycleStatusClass(submissionCycle.status)}`}
+                >
+                  {cycleStatusLabel(submissionCycle.status)}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {submissionCycle.yearLabel},{' '}
+                {cycleTypeLabel(submissionCycle.cycleType)}
+              </p>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="hidden sm:block sm:h-8 sm:w-px sm:shrink-0 sm:bg-gradient-to-b sm:from-transparent sm:via-slate-200 sm:to-transparent dark:sm:via-slate-700" />
+
+          {/* Dates */}
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <Clock size={13} className="shrink-0" />
+            <span>
+              {formatCycleDate(submissionCycle.startDate)} —{' '}
+              {formatCycleDate(submissionCycle.endDate)}
+            </span>
+          </div>
+        </div>
       ) : (
-        <span className="text-slate-500">
-          No active, upcoming, or closed submission cycle is available. Generate cycles in System Settings if needed.
-        </span>
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/30">
+            <AlertCircle size={16} className="text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              No review cycle configured
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Create cycles in System Settings to enable self-assessments.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -99,7 +145,7 @@ export function SelfAssessmentReviewCycleInfo({ className, variant = 'card' }: S
   }
 
   const outerClass = [
-    'rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50',
+    'rounded-2xl border border-slate-200/60 bg-white px-5 py-4 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80',
     className,
   ]
     .filter(Boolean)

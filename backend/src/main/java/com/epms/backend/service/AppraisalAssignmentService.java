@@ -115,6 +115,11 @@ public class AppraisalAssignmentService {
     @Transactional
     public AppraisalAssignment lock(Long id, Long userId, Long roleId) {
         AppraisalAssignment assignment = getById(id);
+
+        if (assignment.getStatus() != AppraisalStatus.HR_APPROVED) {
+            throw new RuntimeException("Only approved appraisals can be finalized.");
+        }
+
         assignment.setStatus(AppraisalStatus.LOCKED);
         assignment.setUpdatedAt(Instant.now());
 

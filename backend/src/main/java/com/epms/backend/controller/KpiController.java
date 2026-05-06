@@ -7,6 +7,7 @@ import com.epms.backend.service.KpiService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.List;
 
 @RestController
@@ -54,9 +55,13 @@ public class KpiController {
     @PostMapping("/setup")
     public ResponseEntity<List<KpiDto>> setupKpis(@RequestBody List<KpiDto> kpiDtos) {
         try {
-            return ResponseEntity.ok(kpiService.saveKpis(kpiDtos));
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.saveKpis(kpiDtos, userId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(null);
         }
     }
 
@@ -71,9 +76,13 @@ public class KpiController {
     @PostMapping("/position/setup")
     public ResponseEntity<List<PositionKpiDto>> setupPositionKpis(@RequestBody List<PositionKpiDto> dtoList) {
         try {
-            return ResponseEntity.ok(kpiService.savePositionKpis(dtoList));
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.savePositionKpis(dtoList, userId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(null);
         }
     }
 
@@ -87,12 +96,17 @@ public class KpiController {
     @PostMapping("/department/setup")
     public ResponseEntity<List<DepartmentKpiDto>> setupDepartmentKpis(@RequestBody List<DepartmentKpiDto> dtoList) {
         try {
-            return ResponseEntity.ok(kpiService.saveDepartmentKpis(dtoList));
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.saveDepartmentKpis(dtoList, userId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(null);
         }
     }
 
+    @PreAuthorize("hasRole('MANAGER')")
     @PutMapping("/manager/employee/{employeeId}/actuals")
     public ResponseEntity<List<KpiDto>> updateKpiActuals(
             @PathVariable Long employeeId,

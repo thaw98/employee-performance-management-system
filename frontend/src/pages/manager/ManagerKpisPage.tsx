@@ -43,6 +43,14 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
   };
 
   const handleSave = async (status: 'DRAFT' | 'SUBMITTED') => {
+    if (status === 'SUBMITTED') {
+      const missingActuals = editedKpis.some(k => !k.actual || !k.actual.trim());
+      if (missingActuals) {
+        toast.error('All KPIs must have an actual value before submitting');
+        return;
+      }
+    }
+
     try {
       const kpisWithStatus = editedKpis.map(k => ({ ...k, status }));
       await updateKpis({ employeeId: employee.id, kpis: kpisWithStatus }).unwrap();
@@ -72,6 +80,28 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
             <X size={20} />
           </button>
         </div>
+
+        {/* Weight Breakdown Visualization */}
+        {!isLoading && editedKpis.length > 0 && (
+          <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100 space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <span>KPI Weight Distribution</span>
+              <span>Total Score: {totalWeightedScore.toFixed(2)}</span>
+            </div>
+            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
+              {editedKpis.map((kpi, idx) => (
+                <div 
+                  key={kpi.id} 
+                  className="h-full border-r border-white/20 last:border-0"
+                  style={{ 
+                    width: `${kpi.weight}%`,
+                    backgroundColor: ['#0855BF', '#10B981', '#6366F1', '#F59E0B', '#EC4899', '#8B5CF6', '#14B8A6'][idx % 7]
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="flex-1 overflow-y-auto p-0 bg-white">
           {isLoading ? (
@@ -95,37 +125,49 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {editedKpis.map((kpi, idx) => (
-                    <tr key={kpi.id || idx} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4 px-6 text-xs font-bold text-slate-900 border-r border-slate-100">{kpi.name}</td>
-                      <td className="py-4 px-4 text-[11px] font-medium text-slate-500 border-r border-slate-100 uppercase">{kpi.category}</td>
-                      <td className="py-4 px-4 text-center text-xs font-bold text-slate-700 border-r border-slate-100">{kpi.target}</td>
+                    <tr key={kpi.id || idx} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="py-4 px-6 border-r border-slate-100">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{kpi.name}</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">{kpi.category}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center border-r border-slate-100">
+                        <span className="text-xs font-bold text-slate-700">{kpi.target}</span>
+                      </td>
                       <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{kpi.unit}</td>
                       <td className="py-4 px-2 border-r border-slate-100">
-                        <input 
-                          type="text" 
-                          value={kpi.actual || ''} 
-                          onChange={(e) => handleChange(idx, 'actual', e.target.value)}
-                          className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-center"
-                          placeholder="—"
-                        />
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            value={kpi.actual || ''} 
+                            onChange={(e) => handleChange(idx, 'actual', e.target.value)}
+                            className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
+                            placeholder="—"
+                          />
+                        </div>
                       </td>
-                      <td className="py-4 px-4 text-center text-xs font-black text-slate-900 border-r border-slate-100">{kpi.weight}%</td>
+                      <td className="py-4 px-4 text-center border-r border-slate-100">
+                         <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-600">
+                          {kpi.weight}%
+                        </span>
+                      </td>
                       <td className="py-4 px-2 border-r border-slate-100">
                         <input 
                           type="number" 
                           min="0" max="100"
                           value={kpi.score || ''} 
                           onChange={(e) => handleChange(idx, 'score', parseFloat(e.target.value))}
-                          className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-center"
+                          className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
                         />
                       </td>
-                      <td className="py-4 px-2">
-                        <input 
-                          type="number" 
-                          value={kpi.weightedScore || ''} 
-                          onChange={(e) => handleChange(idx, 'weightedScore', parseFloat(e.target.value))}
-                          className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-right"
-                        />
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex flex-col items-end">
+                          <span className="text-sm font-black text-slate-900 tracking-tight">
+                            {kpi.weightedScore || '0.00'}
+                          </span>
+                          <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter">Contribution</span>
+                        </div>
                       </td>
                     </tr>
                   ))}

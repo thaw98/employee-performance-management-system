@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,6 +20,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -91,6 +94,18 @@ public class Pip {
     @Column(name = "closing_remarks", columnDefinition = "text")
     private String closingRemarks;
 
+    @Column(name = "employee_signature", columnDefinition = "LONGTEXT")
+    private String employeeSignature;
+
+    @Column(name = "employee_signature_date")
+    private Instant employeeSignatureDate;
+
+    @Column(name = "manager_signature", columnDefinition = "LONGTEXT")
+    private String managerSignature;
+
+    @Column(name = "manager_signature_date")
+    private Instant managerSignatureDate;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reopened_by")
     private Employee reopenedBy;
@@ -133,4 +148,24 @@ public class Pip {
 
     @Column(name = "reason_for_plan", columnDefinition = "text")
     private String reasonForPlan;
+
+    @Transient
+    private LocalDateTime employeeSignedAt;
+
+    @Transient
+    private LocalDateTime managerSignedAt;
+
+    public LocalDateTime getEmployeeSignedAt() {
+        if (employeeSignedAt != null) {
+            return employeeSignedAt;
+        }
+        return employeeSignatureDate == null ? null : LocalDateTime.ofInstant(employeeSignatureDate, ZoneId.systemDefault());
+    }
+
+    public LocalDateTime getManagerSignedAt() {
+        if (managerSignedAt != null) {
+            return managerSignedAt;
+        }
+        return managerSignatureDate == null ? null : LocalDateTime.ofInstant(managerSignatureDate, ZoneId.systemDefault());
+    }
 }

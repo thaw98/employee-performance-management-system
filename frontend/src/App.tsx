@@ -1,6 +1,6 @@
 // src/App.tsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 
 import { AuthBootstrap } from './components/auth/AuthBootstrap';
 import { ThemeBootstrap } from './components/layout/ThemeBootstrap';
@@ -43,6 +43,7 @@ import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { KpiDetailPage } from './pages/hr/KpiDetailPage';
 import { KpiCategoryPage } from './pages/hr/KpiCategoryPage';
 import { KpiHistoryPage } from './pages/hr/KpiHistoryPage';
+import { KpiAuditLogsPage } from './pages/hr/KpiAuditLogsPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
 import DepartmentDetailPage from './pages/hr/departments/DepartmentDetailPage';
 import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
@@ -61,6 +62,60 @@ import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage'
 import { SelfAssessmentAssignmentsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentsPage';
 import { AssignSelfAssessmentFormsPage } from './pages/self-assessment-form/AssignSelfAssessmentFormsPage';
 import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
+
+// Meetings
+import { MeetingsPage } from './pages/manager/MeetingsPage';
+import { EmployeeMeetingsPage } from './pages/employee/EmployeeMeetingsPage';
+import { MeetingDetailPage } from './pages/meetings/MeetingDetailPage';
+
+const TOAST_DEDUP_MS = 600;
+const recentToastTimestamps = new Map<string, number>();
+let isToastPatched = false;
+
+function shouldSuppressToast(kind: 'success' | 'error', message: unknown): boolean {
+  const normalizedMessage = typeof message === 'string' ? message.trim() : '';
+  if (!normalizedMessage) {
+    return false;
+  }
+
+  const key = `${kind}:${normalizedMessage}`;
+  const now = Date.now();
+  const previous = recentToastTimestamps.get(key);
+
+  if (previous && now - previous < TOAST_DEDUP_MS) {
+    return true;
+  }
+
+  recentToastTimestamps.set(key, now);
+  return false;
+}
+
+function patchToastDuplicateGuard() {
+  if (isToastPatched) {
+    return;
+  }
+
+  const originalSuccess = toast.success.bind(toast);
+  const originalError = toast.error.bind(toast);
+
+  toast.success = ((message, options) => {
+    if (shouldSuppressToast('success', message)) {
+      return '';
+    }
+    return originalSuccess(message, options);
+  }) as typeof toast.success;
+
+  toast.error = ((message, options) => {
+    if (shouldSuppressToast('error', message)) {
+      return '';
+    }
+    return originalError(message, options);
+  }) as typeof toast.error;
+
+  isToastPatched = true;
+}
+
+patchToastDuplicateGuard();
 
 function App() {
   return (
@@ -102,6 +157,7 @@ function App() {
             <Route path="kpi-detail" element={<KpiDetailPage />} />
             <Route path="kpi-categories" element={<KpiCategoryPage />} />
             <Route path="kpi-history" element={<KpiHistoryPage />} />
+            <Route path="kpi-audit-logs" element={<KpiAuditLogsPage />} />
             <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
             <Route path="settings/profile" element={<ProfileSettingsPage />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
@@ -119,6 +175,8 @@ function App() {
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
+            <Route path="meetings" element={<MeetingsPage />} />
+            <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -145,6 +203,8 @@ function App() {
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
+            <Route path="meetings" element={<MeetingsPage />} />
+            <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>
@@ -164,6 +224,8 @@ function App() {
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment-forms" element={<EmployeeSelfAssessmentHubPage />} />
             <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
+            <Route path="meetings" element={<EmployeeMeetingsPage />} />
+            <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>

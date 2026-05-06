@@ -38,4 +38,9 @@ public final class AuditActionType {
 	public static final String QUESTION_BANK_CREATED = "QUESTION_BANK_CREATED";
 	public static final String QUESTION_BANK_UPDATED = "QUESTION_BANK_UPDATED";
 	public static final String QUESTION_BANK_STATUS_CHANGED = "QUESTION_BANK_STATUS_CHANGED";
+	
+	public static final String KPI_CREATED = "KPI_CREATED";
+	public static final String KPI_UPDATED = "KPI_UPDATED";
+	public static final String KPI_DRAFT_SAVED = "KPI_DRAFT_SAVED";
+	public static final String KPI_SUBMITTED = "KPI_SUBMITTED";
 }

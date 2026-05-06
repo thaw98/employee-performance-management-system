@@ -23,7 +23,7 @@ public class FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
     private final EmployeeRepository employeeRepository;
-    private final ReportingManagerResolver reportingManagerResolver;
+    // private final ReportingManagerResolver reportingManagerResolver;
     private final CriteriaRepository criteriaRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
@@ -63,6 +63,7 @@ public class FeedbackService {
         feedback.setEvaluator(evaluator);
         feedback.setEvaluatee(evaluatee);
         feedback.setRole(request.getRole());
+        feedback.setAnonymous(Boolean.TRUE.equals(request.getAnonymous()));
         feedback.setCreatedDate(Instant.now());
 
         List<FeedbackDetail> details = new ArrayList<>();
@@ -133,19 +134,33 @@ public class FeedbackService {
         dto.setRole(entity.getRole());
         dto.setScore(entity.getScore());
         dto.setRemark(entity.getRemark());
+        dto.setAnonymous(Boolean.TRUE.equals(entity.getAnonymous()));
         return dto;
     }
 
     private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity) {
         FeedbackHistoryDto dto = mapToHistoryDto(entity);
-        Employee evaluatee = entity.getEvaluatee();
-        Employee manager = reportingManagerResolver.resolve(evaluatee);
-        boolean directManagerFeedback = manager != null
-                && entity.getEvaluator() != null
-                && manager.getId().equals(entity.getEvaluator().getId());
 
-        dto.setEvaluatorName(directManagerFeedback ? entity.getEvaluator().getEmployeeName() : "Anonymous");
+        if (Boolean.TRUE.equals(entity.getAnonymous())) {
+            dto.setEvaluatorName("Anonymous");
+        } else {
+            dto.setEvaluatorName(entity.getEvaluator().getEmployeeName());
+        }
+
+        // Invert the role for the recipient's view
+        dto.setRole(getEvaluatorRoleRelation(entity.getRole()).toUpperCase());
+
         return dto;
+    }
+
+    private String getEvaluatorRoleRelation(String evaluateeRoleRelation) {
+        if ("SUBORDINATE".equalsIgnoreCase(evaluateeRoleRelation))
+            return "Manager";
+        if ("MANAGER".equalsIgnoreCase(evaluateeRoleRelation))
+            return "Subordinate";
+        if ("PEER".equalsIgnoreCase(evaluateeRoleRelation))
+            return "Peer";
+        return "Anonymous";
     }
 
     public List<com.epms.backend.dto.FeedbackDetailDto> getFeedbackDetails(Long feedbackId) {
@@ -202,8 +217,10 @@ public class FeedbackService {
     public boolean isFeedbackGivenInCurrentCycle(Long evaluatorId, Long evaluateeId) {
         com.epms.backend.dto.TimeSettingDto cycle = timeSettingService.getCurrentCycleRange();
         Instant cycleStart = cycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant cycleEnd = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant();
-        return feedbackRepository.existsByEvaluatorIdAndEvaluateeIdAndCreatedDateBetween(evaluatorId, evaluateeId, cycleStart, cycleEnd);
+        Instant cycleEnd = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1)
+                .toInstant();
+        return feedbackRepository.existsByEvaluatorIdAndEvaluateeIdAndCreatedDateBetween(evaluatorId, evaluateeId,
+                cycleStart, cycleEnd);
     }
 
     private boolean isProbationEmployee(Employee employee) {

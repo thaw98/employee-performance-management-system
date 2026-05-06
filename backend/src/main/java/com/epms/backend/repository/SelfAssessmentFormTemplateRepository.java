@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -34,4 +35,7 @@ public interface SelfAssessmentFormTemplateRepository extends JpaRepository<Self
             @Param("departmentId") Long departmentId,
             @Param("positionId") Long positionId,
             @Param("excludeId") Long excludeId);
+
+    @Query("SELECT t FROM SelfAssessmentFormTemplate t WHERE t.reviewCycle.id = :reviewCycleId AND t.isActive = true")
+    List<SelfAssessmentFormTemplate> findActiveByReviewCycleId(@Param("reviewCycleId") Long reviewCycleId);
 }

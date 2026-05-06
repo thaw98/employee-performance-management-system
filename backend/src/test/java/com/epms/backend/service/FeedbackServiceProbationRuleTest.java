@@ -39,8 +39,6 @@ class FeedbackServiceProbationRuleTest {
     private NotificationService notificationService;
     @Mock
     private TimeSettingService timeSettingService;
-    @Mock
-    private ReportingManagerResolver reportingManagerResolver;
 
     private FeedbackService feedbackService;
 
@@ -49,7 +47,6 @@ class FeedbackServiceProbationRuleTest {
         feedbackService = new FeedbackService(
                 feedbackRepository,
                 employeeRepository,
-                reportingManagerResolver,
                 criteriaRepository,
                 userRepository,
                 notificationService,

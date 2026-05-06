@@ -1,19 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
     User, 
     Briefcase, 
     Building, 
-    Calendar, 
     CheckCircle2, 
     ChevronRight, 
-    ChevronLeft, 
     Send,
-    Star
+    Star,
+    EyeOff,
+    UserCheck
 } from 'lucide-react';
-
-const PRIMARY = '#0855BF';
 
 interface Criteria {
     id: number;
@@ -43,6 +41,7 @@ export function GiveFeedbackPage() {
     const [roleFeedbackCount, setRoleFeedbackCount] = useState(0);
     const [roleFeedbackLimit, setRoleFeedbackLimit] = useState(5);
     const [noEligibleRemaining, setNoEligibleRemaining] = useState(false);
+    const [isAnonymous, setIsAnonymous] = useState(false);
 
     useEffect(() => {
         fetchEvaluatorInfo();
@@ -53,6 +52,7 @@ export function GiveFeedbackPage() {
         if (role) {
             setRatings({}); // Clear ratings when role changes
             setComments({});
+            setIsAnonymous(false);
             fetchEligibleEvaluatees(role);
         }
     }, [role]);
@@ -124,6 +124,7 @@ export function GiveFeedbackPage() {
             const payload = {
                 evaluateeId: selectedEvaluatee.id,
                 role: role,
+                anonymous: role === 'SUBORDINATE' ? isAnonymous : true,
                 details: criteriaList.map(c => ({
                     criteriaId: c.id,
                     rating: ratings[c.id],
@@ -446,6 +447,37 @@ export function GiveFeedbackPage() {
                                 </div>
                             </div>
                         ))}
+
+                        {role === 'SUBORDINATE' && (
+                            <div className="rounded-2xl border-2 border-slate-100 bg-slate-50/70 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isAnonymous ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                        {isAnonymous ? <EyeOff size={22} /> : <UserCheck size={22} />}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                                            {isAnonymous ? 'Submit anonymously' : 'Show my name'}
+                                        </p>
+                                        <p className="text-xs font-bold text-slate-400">
+                                            {isAnonymous
+                                                ? 'Your subordinate will see this feedback as Anonymous.'
+                                                : 'Your subordinate will see your name as the evaluator.'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={isAnonymous}
+                                    onClick={() => setIsAnonymous(prev => !prev)}
+                                    className={`relative h-8 w-16 rounded-full border-2 transition-all ${isAnonymous ? 'bg-blue-500 border-blue-500' : 'bg-slate-200 border-slate-200'}`}
+                                >
+                                    <span
+                                        className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-transform ${isAnonymous ? 'left-[34px]' : 'left-0.5'}`}
+                                    />
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
