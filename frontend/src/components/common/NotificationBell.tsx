@@ -33,7 +33,13 @@ function getFeedbackPath(pathname: string) {
   return `/${prefix}/360-feedback/received`;
 }
 
-function getSelfAssessmentPath() {
+function getSelfAssessmentPath(pathname: string) {
+  if (pathname.startsWith('/manager')) {
+    return '/manager/self-assessment-forms/reviews';
+  }
+  if (pathname.startsWith('/hr')) {
+    return '/hr/self-assessment/reviews';
+  }
   return EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH;
 }
 
@@ -121,7 +127,7 @@ export function NotificationBell() {
         dispatch(setUnreadCount(unreadCount));
       }
     }
-    navigate(notification.source === 'SELF_ASSESSMENT_FORM' ? getSelfAssessmentPath() : getFeedbackPath(location.pathname));
+    navigate(notification.source === 'SELF_ASSESSMENT_FORM' ? getSelfAssessmentPath(location.pathname) : getFeedbackPath(location.pathname));
   };
 
   const handleReadAll = async () => {

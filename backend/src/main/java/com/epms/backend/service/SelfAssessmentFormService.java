@@ -30,6 +30,7 @@ public class SelfAssessmentFormService {
             DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     private final SelfAssessmentFormTemplateRepository templateRepository;
+    private final CopiedSelfAssessmentFormTemplateRepository copiedTemplateRepository;
     private final SelfAssessmentFormRepository formRepository;
     private final SelfAssessmentFormAdjustmentRepository adjustmentRepository;
     private final EmployeeRepository employeeRepository;
@@ -45,6 +46,7 @@ public class SelfAssessmentFormService {
 
     public SelfAssessmentFormService(
             SelfAssessmentFormTemplateRepository templateRepository,
+            CopiedSelfAssessmentFormTemplateRepository copiedTemplateRepository,
             SelfAssessmentFormRepository formRepository,
             SelfAssessmentFormAdjustmentRepository adjustmentRepository,
             EmployeeRepository employeeRepository,
@@ -58,6 +60,7 @@ public class SelfAssessmentFormService {
             NotificationRepository notificationRepository,
             SelfAssessmentSettingsRepository settingsRepository) {
         this.templateRepository = templateRepository;
+        this.copiedTemplateRepository = copiedTemplateRepository;
         this.formRepository = formRepository;
         this.adjustmentRepository = adjustmentRepository;
         this.employeeRepository = employeeRepository;
@@ -99,14 +102,31 @@ public class SelfAssessmentFormService {
 
         SelfAssessmentFormTemplate saved = templateRepository.saveAndFlush(template);
 
+        Instant now = Instant.now();
         for (int i = 0; i < request.questions().size(); i++) {
             QuestionRequest qr = request.questions().get(i);
             SelfAssessmentFormTemplateQuestion question = new SelfAssessmentFormTemplateQuestion();
-            question.setQuestionText(qr.questionText());
+            question.setQuestionText(qr.questionText().trim());
             question.setSortOrder(i);
             question.setCreatedBy(userId);
-            question.setCreatedOn(Instant.now());
+            question.setCreatedOn(now);
             saved.addQuestion(question);
+        }
+        if (request.deletedQuestions() != null) {
+            for (int i = 0; i < request.deletedQuestions().size(); i++) {
+                QuestionRequest qr = request.deletedQuestions().get(i);
+                if (qr.questionText() == null || qr.questionText().trim().isBlank()) {
+                    continue;
+                }
+                SelfAssessmentFormTemplateQuestion question = new SelfAssessmentFormTemplateQuestion();
+                question.setQuestionText(qr.questionText().trim());
+                question.setSortOrder(qr.sortOrder() != null ? qr.sortOrder() : request.questions().size() + i);
+                question.setCreatedBy(userId);
+                question.setCreatedOn(now);
+                question.setDeletedAt(now);
+                question.setDeletedBy(userId);
+                saved.addQuestion(question);
+            }
         }
         templateRepository.save(saved);
 
@@ -120,6 +140,70 @@ public class SelfAssessmentFormService {
                 null);
 
         return toTemplateDto(saved);
+    }
+
+    @Transactional
+    public CopiedSelfAssessmentFormTemplateDto copyTemplate(Long templateId, Long userId) {
+        SelfAssessmentFormTemplate source = templateRepository.findById(templateId)
+                .orElseThrow(() -> new RuntimeException("Template not found"));
+
+        copiedTemplateRepository.findByCreatedBy(userId).ifPresent(existing -> {
+            copiedTemplateRepository.delete(existing);
+            copiedTemplateRepository.flush();
+        });
+
+        Instant now = Instant.now();
+        CopiedSelfAssessmentFormTemplate copied = new CopiedSelfAssessmentFormTemplate();
+        copied.setSourceTemplate(source);
+        copied.setTitle(source.getTitle());
+        copied.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(source.getRatingSystem()));
+        copied.setCreatedBy(userId);
+        copied.setCreatedOn(now);
+
+        source.getQuestions().stream()
+                .sorted(Comparator
+                        .comparing((SelfAssessmentFormTemplateQuestion q) -> q.getDeletedAt() == null ? 0 : 1)
+                        .thenComparing(SelfAssessmentFormTemplateQuestion::getSortOrder))
+                .forEach(sourceQuestion -> {
+                    CopiedSelfAssessmentFormTemplateQuestion question = new CopiedSelfAssessmentFormTemplateQuestion();
+                    question.setQuestionText(sourceQuestion.getQuestionText());
+                    question.setSortOrder(sourceQuestion.getSortOrder());
+                    question.setCreatedBy(sourceQuestion.getCreatedBy());
+                    question.setCreatedOn(sourceQuestion.getCreatedOn());
+                    question.setDeletedAt(sourceQuestion.getDeletedAt());
+                    question.setDeletedBy(sourceQuestion.getDeletedBy());
+                    copied.addQuestion(question);
+                });
+
+        return toCopiedTemplateDto(copiedTemplateRepository.save(copied));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<CopiedSelfAssessmentFormTemplateDto> getCopiedTemplate(Long userId) {
+        return copiedTemplateRepository.findByCreatedBy(userId).map(this::toCopiedTemplateDto);
+    }
+
+    @Transactional
+    public void deleteCopiedTemplate(Long userId) {
+        copiedTemplateRepository.deleteByCreatedBy(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TemplateActiveCheckResultDto> findActiveTemplateConflicts(TemplateActiveCheckRequest request) {
+        return request.targets().stream()
+                .map(target -> templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
+                        target.departmentId(), target.positionId(), request.reviewCycleId()))
+                .flatMap(Optional::stream)
+                .map(template -> new TemplateActiveCheckResultDto(
+                        template.getDepartment().getId(),
+                        template.getPosition().getId(),
+                        template.getId(),
+                        template.getTitle(),
+                        template.getDepartment().getName(),
+                        template.getPosition().getName(),
+                        template.getReviewCycle() != null ? template.getReviewCycle().getId() : null,
+                        template.getReviewCycle() != null ? template.getReviewCycle().getName() : null))
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -705,6 +789,8 @@ public class SelfAssessmentFormService {
                 null,
                 "Submitted self-assessment form with score " + saved.getTotalScore(),
                 null);
+
+        sendManagerSubmissionNotification(employee, saved);
 
         return toFormDto(saved);
     }
@@ -1396,6 +1482,43 @@ public class SelfAssessmentFormService {
                 && subject.getDepartment().getManagerId().equals(manager.getId());
     }
 
+    private void sendManagerSubmissionNotification(Employee employee, SelfAssessmentForm form) {
+        resolveManagerRecipient(employee)
+                .ifPresent(manager -> notificationService.send(
+                        manager.getUserAccount(),
+                        "Self-Assessment Submitted",
+                        "Employee " + employee.getEmployeeName() + " submitted "
+                                + resolveFormDisplayTitle(form) + " for your review.",
+                        "SELF_ASSESSMENT_FORM"));
+    }
+
+    private Optional<Employee> resolveManagerRecipient(Employee employee) {
+        if (employee == null) {
+            return Optional.empty();
+        }
+
+        Employee directManager = employee.getManager();
+        if (directManager != null) {
+            return hasActiveUserAccount(directManager) ? Optional.of(directManager) : Optional.empty();
+        }
+
+        Long departmentManagerId = employee.getDepartment() != null
+                ? employee.getDepartment().getManagerId()
+                : null;
+        if (departmentManagerId == null) {
+            return Optional.empty();
+        }
+
+        return employeeRepository.findById(departmentManagerId)
+                .filter(this::hasActiveUserAccount);
+    }
+
+    private boolean hasActiveUserAccount(Employee employee) {
+        return employee != null
+                && employee.getUserAccount() != null
+                && employee.getUserAccount().isActive();
+    }
+
     private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q) {
         return mapTemplateQuestionToDto(q, null, null);
     }
@@ -1425,6 +1548,50 @@ public class SelfAssessmentFormService {
                 q.getCreatedOn(),
                 q.getDeletedAt(),
                 q.getDeletedBy());
+    }
+
+    private QuestionDto mapCopiedTemplateQuestionToDto(CopiedSelfAssessmentFormTemplateQuestion q) {
+        Long createdByRoleId = getUserRoleId(q.getCreatedBy());
+        boolean isManagerAdded = createdByRoleId != null && createdByRoleId == 2L;
+        return new QuestionDto(
+                q.getId(),
+                q.getQuestionText(),
+                q.getSortOrder(),
+                q.getCreatedBy(),
+                createdByRoleId,
+                isManagerAdded,
+                true,
+                true,
+                false,
+                q.getCreatedOn(),
+                q.getDeletedAt(),
+                q.getDeletedBy());
+    }
+
+    private CopiedSelfAssessmentFormTemplateDto toCopiedTemplateDto(CopiedSelfAssessmentFormTemplate copied) {
+        List<QuestionDto> questions = copied.getQuestions().stream()
+                .filter(q -> q.getDeletedAt() == null)
+                .sorted(Comparator.comparing(CopiedSelfAssessmentFormTemplateQuestion::getSortOrder))
+                .map(this::mapCopiedTemplateQuestionToDto)
+                .collect(Collectors.toList());
+        List<QuestionDto> deletedQuestions = copied.getQuestions().stream()
+                .filter(q -> q.getDeletedAt() != null)
+                .sorted(Comparator
+                        .comparing(CopiedSelfAssessmentFormTemplateQuestion::getDeletedAt)
+                        .reversed()
+                        .thenComparing(CopiedSelfAssessmentFormTemplateQuestion::getSortOrder))
+                .map(this::mapCopiedTemplateQuestionToDto)
+                .collect(Collectors.toList());
+
+        return new CopiedSelfAssessmentFormTemplateDto(
+                copied.getId(),
+                copied.getSourceTemplate().getId(),
+                copied.getTitle(),
+                SelfAssessmentRatingSystem.defaultIfNull(copied.getRatingSystem()).name(),
+                questions,
+                deletedQuestions,
+                copied.getCreatedOn(),
+                copied.getCreatedBy());
     }
 
     private SelfAssessmentFormTemplateDto toTemplateDto(SelfAssessmentFormTemplate template) {

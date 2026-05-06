@@ -13,6 +13,7 @@ import {
   Search,
   Send,
   Target,
+  Trash2,
   Users,
   Sparkles,
   CheckCircle2,
@@ -44,6 +45,12 @@ function toggleId(values: number[], id: number) {
   return values.includes(id) ? values.filter((value) => value !== id) : [...values, id];
 }
 
+type HybridRule = {
+  id: string;
+  departmentId: number;
+  positionId: number;
+};
+
 function StepIndicator({ step, label, active }: { step: number; label: string; active: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
@@ -72,6 +79,9 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
   const [assignmentMode, setAssignmentMode] = useState<SelfAssessmentAssignmentMode>('DEPARTMENTS');
   const [departmentIds, setDepartmentIds] = useState<number[]>([]);
   const [positionIds, setPositionIds] = useState<number[]>([]);
+  const [hybridRules, setHybridRules] = useState<HybridRule[]>([]);
+  const [hybridRuleDepartmentId, setHybridRuleDepartmentId] = useState<number | null>(null);
+  const [hybridRulePositionId, setHybridRulePositionId] = useState<number | null>(null);
   const [deadlineDate, setDeadlineDate] = useState('');
   const [managerReviewDeadlineDate, setManagerReviewDeadlineDate] = useState('');
   const [finalApprovalDeadlineDate, setFinalApprovalDeadlineDate] = useState('');
@@ -160,9 +170,9 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
         const did = departmentIdByName.get(normalizeLookupKey(employee.departmentName));
         const pid = positionIdByName.get(normalizeLookupKey(employee.positionName));
         if (!did || !pid) return false;
-        return departmentIds.includes(did) && positionIds.includes(pid);
+        return hybridRules.some((rule) => rule.departmentId === did && rule.positionId === pid);
       }).length,
-    [activeEmployees, departmentIdByName, departmentIds, positionIdByName, positionIds]
+    [activeEmployees, departmentIdByName, hybridRules, positionIdByName]
   );
 
   const employeeCountByDepartmentId = useMemo(() => {
@@ -207,17 +217,17 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
     if (assignmentMode === 'DEPARTMENTS') return `${departmentIds.length} department${departmentIds.length === 1 ? '' : 's'}`;
     if (assignmentMode === 'POSITIONS') return `${positionIds.length} position${positionIds.length === 1 ? '' : 's'}`;
     if (assignmentMode === 'HYBRID') {
-      return `${departmentIds.length} department${departmentIds.length === 1 ? '' : 's'} and ${positionIds.length} position${positionIds.length === 1 ? '' : 's'}`;
+      return `${hybridRules.length} rule${hybridRules.length === 1 ? '' : 's'}`;
     }
     return 'All eligible employees';
-  }, [assignmentMode, departmentIds.length, positionIds.length]);
+  }, [assignmentMode, departmentIds.length, hybridRules.length, positionIds.length]);
 
   const validate = () => {
     if (!activeSubmissionCycle) return 'No active employee-submission review cycle is available';
     if (assignmentMode === 'DEPARTMENTS' && departmentIds.length === 0) return 'Please select at least one department';
     if (assignmentMode === 'POSITIONS' && positionIds.length === 0) return 'Please select at least one position';
-    if (assignmentMode === 'HYBRID' && (departmentIds.length === 0 || positionIds.length === 0)) {
-      return 'Please select at least one department and one position';
+    if (assignmentMode === 'HYBRID' && hybridRules.length === 0) {
+      return 'Please add at least one hybrid rule';
     }
     if (!deadlineDate || !managerReviewDeadlineDate || !finalApprovalDeadlineDate) return 'Please select all deadlines';
     if (deadlineDate > managerReviewDeadlineDate) {
@@ -241,25 +251,51 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
     }
 
     try {
-      const result = await assignForms({
-        assignmentMode,
-        departmentIds,
-        positionIds,
-        deadlineDate,
-        managerReviewDeadlineDate,
-        finalApprovalDeadlineDate,
-      }).unwrap();
-      toast.success(
-        `Created ${result.createdCount}; skipped ${result.skippedExistingCount} existing and ${result.skippedNoTemplateCount} without templates.`,
-      );
+      if (assignmentMode === 'HYBRID') {
+        let createdCount = 0;
+        let skippedExistingCount = 0;
+        let skippedNoTemplateCount = 0;
+        let skippedIneligibleCount = 0;
+
+        for (const rule of hybridRules) {
+          const result = await assignForms({
+            assignmentMode: 'HYBRID',
+            departmentIds: [rule.departmentId],
+            positionIds: [rule.positionId],
+            deadlineDate,
+            managerReviewDeadlineDate,
+            finalApprovalDeadlineDate,
+          }).unwrap();
+          createdCount += result.createdCount;
+          skippedExistingCount += result.skippedExistingCount;
+          skippedNoTemplateCount += result.skippedNoTemplateCount;
+          skippedIneligibleCount += result.skippedIneligibleCount;
+        }
+
+        toast.success(
+          `Created ${createdCount}; skipped ${skippedExistingCount} existing, ${skippedNoTemplateCount} without templates, and ${skippedIneligibleCount} ineligible.`,
+        );
+      } else {
+        const result = await assignForms({
+          assignmentMode,
+          departmentIds,
+          positionIds,
+          deadlineDate,
+          managerReviewDeadlineDate,
+          finalApprovalDeadlineDate,
+        }).unwrap();
+        toast.success(
+          `Created ${result.createdCount}; skipped ${result.skippedExistingCount} existing and ${result.skippedNoTemplateCount} without templates.`,
+        );
+      }
       navigate('/hr/self-assessment/assignments');
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to assign self-assessment forms');
     }
   };
 
-  const showDepartments = assignmentMode === 'DEPARTMENTS' || assignmentMode === 'HYBRID';
-  const showPositions = assignmentMode === 'POSITIONS' || assignmentMode === 'HYBRID';
+  const showDepartments = assignmentMode === 'DEPARTMENTS';
+  const showPositions = assignmentMode === 'POSITIONS';
 
   const selectAllDepartments = () => setDepartmentIds(departments.map((d) => d.departmentId));
   const clearDepartments = () => setDepartmentIds([]);
@@ -270,6 +306,29 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
       return [...next];
     });
   const clearPositions = () => setPositionIds([]);
+  const addHybridRule = () => {
+    if (!hybridRuleDepartmentId || !hybridRulePositionId) {
+      toast.error('Please choose one department and one position for the rule');
+      return;
+    }
+    const alreadyExists = hybridRules.some(
+      (rule) => rule.departmentId === hybridRuleDepartmentId && rule.positionId === hybridRulePositionId
+    );
+    if (alreadyExists) {
+      toast.error('This hybrid rule already exists');
+      return;
+    }
+    setHybridRules((current) => [
+      ...current,
+      {
+        id: `${hybridRuleDepartmentId}-${hybridRulePositionId}-${Date.now()}`,
+        departmentId: hybridRuleDepartmentId,
+        positionId: hybridRulePositionId,
+      },
+    ]);
+  };
+  const removeHybridRule = (ruleId: string) =>
+    setHybridRules((current) => current.filter((rule) => rule.id !== ruleId));
 
   const summaryCards = [
     {
@@ -430,7 +489,11 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
             <div className="flex items-center gap-4">
               <StepIndicator step={1} label="Audience" active />
               <div className="h-px w-4 bg-slate-200 dark:bg-slate-700" />
-              <StepIndicator step={2} label="Selection" active={showDepartments || showPositions} />
+              <StepIndicator
+                step={2}
+                label="Selection"
+                active={showDepartments || showPositions || (assignmentMode === 'HYBRID' && hybridRules.length > 0)}
+              />
               <div className="h-px w-4 bg-slate-200 dark:bg-slate-700" />
               <StepIndicator step={3} label="Deadlines" active />
             </div>
@@ -480,10 +543,162 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
             </div>
           </section>
 
+          {/* Hybrid Rules Overview (only when Hybrid mode is active) */}
+          {assignmentMode === 'HYBRID' && (
+            <section className="animate-fade-in-up">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers3 size={14} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">Hybrid Rules</h3>
+                      <span className="rounded-full bg-[#5D5FEF]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                        Most Flexible
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-700/60 dark:bg-slate-800/40">
+                <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+                  <button
+                    type="button"
+                    className="flex-1 inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-xs font-medium text-slate-500 shadow-sm transition-all hover:border-[#5D5FEF]/60 hover:bg-[#5D5FEF]/2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    onClick={() => {
+                      const el = document.getElementById('hybrid-departments-panel');
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300">
+                        <Building2 size={13} />
+                      </span>
+                      <span className="flex flex-col">
+                        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Select department</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500">Choose one</span>
+                      </span>
+                    </span>
+                    <ChevronDown size={14} className="text-slate-400" />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="flex-1 inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-xs font-medium text-slate-500 shadow-sm transition-all hover:border-[#5D5FEF]/60 hover:bg-[#5D5FEF]/2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    onClick={() => {
+                      const el = document.getElementById('hybrid-positions-panel');
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300">
+                        <BriefcaseBusiness size={13} />
+                      </span>
+                      <span className="flex flex-col">
+                        <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">All Positions</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500">Choose one</span>
+                      </span>
+                    </span>
+                    <ChevronDown size={14} className="text-slate-400" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHybridRuleDepartmentId(null);
+                      setHybridRulePositionId(null);
+                    }}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-300 transition-colors hover:text-slate-500 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+                    aria-label="Clear selected hybrid inputs"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+
+                <div className="mb-3 grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                  <select
+                    value={hybridRuleDepartmentId ?? ''}
+                    onChange={(event) => setHybridRuleDepartmentId(event.target.value ? Number(event.target.value) : null)}
+                    className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  >
+                    <option value="">Select department</option>
+                    {departments.map((department) => (
+                      <option key={department.departmentId} value={department.departmentId}>
+                        {department.departmentName}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={hybridRulePositionId ?? ''}
+                    onChange={(event) => setHybridRulePositionId(event.target.value ? Number(event.target.value) : null)}
+                    className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 text-xs font-medium text-slate-700 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  >
+                    <option value="">All Positions</option>
+                    {positions.map((position) => (
+                      <option key={position.positionId} value={position.positionId}>
+                        {position.positionName}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={addHybridRule}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#5D5FEF]/25 bg-[#5D5FEF]/10 px-3 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/15 dark:border-[#5D5FEF]/30 dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]"
+                  >
+                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/70 dark:bg-slate-900/60">
+                      +
+                    </span>
+                    Add Rule
+                  </button>
+                </div>
+
+                {hybridRules.length > 0 && (
+                  <ul className="mb-3 space-y-1.5">
+                    {hybridRules.map((rule) => (
+                      <li
+                        key={rule.id}
+                        className="flex items-center justify-between rounded-lg border border-slate-200/70 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800/60"
+                      >
+                        <span className="font-medium text-slate-700 dark:text-slate-200">
+                          {(departmentById.get(rule.departmentId) ?? 'Unknown department')} +{' '}
+                          {(positionById.get(rule.positionId) ?? 'Unknown position')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeHybridRule(rule.id)}
+                          className="inline-flex items-center gap-1 text-slate-400 transition-colors hover:text-rose-500 dark:text-slate-500 dark:hover:text-rose-400"
+                          aria-label="Remove rule"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-xs dark:border-slate-700 dark:bg-slate-900/50">
+                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[#5D5FEF] dark:text-[#8b8ef7]">Summary</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Add rules above to preview matched employees based on each department and position pair.
+                  </p>
+                  <div className="mt-3 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500 dark:text-slate-400">Total unique:</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold tabular-nums text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                      {formatEmployeeCount(currentAudienceCount)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Step 2: Selection Panels */}
           {showDepartments && (
             <section className="animate-fade-in-up">
-              <div className="mb-4 flex items-center justify-between">
+              <div id="hybrid-departments-panel" className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-900/30 dark:to-violet-800/20">
                     <Building2 size={14} className="text-violet-600 dark:text-violet-400" />
@@ -580,7 +795,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
 
           {showPositions && (
             <section className="animate-fade-in-up">
-              <div className="mb-4 flex items-center justify-between">
+              <div id="hybrid-positions-panel" className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/30 dark:to-amber-800/20">
                     <BriefcaseBusiness size={14} className="text-amber-600 dark:text-amber-400" />
