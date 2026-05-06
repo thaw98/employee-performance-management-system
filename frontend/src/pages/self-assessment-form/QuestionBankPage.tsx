@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ArrowLeft,
   BookOpen,
   CheckCircle2,
   Edit2,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import type { RootState } from '../../app/store';
 import {
   type QuestionBankDto,
@@ -30,8 +32,10 @@ const getApiErrorMessage = (error: unknown, fallback: string) => {
 };
 
 export const QuestionBankPage: React.FC = () => {
+  const navigate = useNavigate();
   const roleId = useSelector((state: RootState) => state.auth.user?.roleId);
   const isDepartmentBank = roleId === 2;
+  const routeBase = isDepartmentBank ? '/manager/self-assessment/templates' : '/hr/self-assessment/templates';
   const [searchTerm, setSearchTerm] = React.useState('');
   const [includeInactive, setIncludeInactive] = React.useState(true);
   const [modalMode, setModalMode] = React.useState<'create' | 'edit' | null>(null);
@@ -146,14 +150,14 @@ export const QuestionBankPage: React.FC = () => {
   return (
     <>
     <div className="min-h-screen px-6 py-6 md:px-8 animate-fade-in">
-      {/* ─── Breadcrumb ─── */}
-      <nav className="mb-2 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-        <span className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium">Home</span>
-        <span className="opacity-40">/</span>
-        <span>Self Assessment</span>
-        <span className="opacity-40">/</span>
-        <span className="font-semibold text-slate-700 dark:text-slate-200">Question Bank</span>
-      </nav>
+      <button
+        type="button"
+        onClick={() => navigate(routeBase)}
+        className="group mb-4 inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 transition-all hover:bg-white hover:text-slate-900 hover:shadow-sm dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+      >
+        <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-0.5" />
+        Back to Templates
+      </button>
 
       {/* ─── Header ─── */}
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">

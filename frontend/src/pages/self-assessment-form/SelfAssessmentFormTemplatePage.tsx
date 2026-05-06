@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Copy,
   BookOpen,
+  Unlock,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -153,6 +154,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
 
   const activeCount = allTemplates.filter((t) => t.isActive).length;
   const assignedCount = allTemplates.filter((t) => t.isLocked).length;
+  const unassignedCount = allTemplates.filter((t) => !t.isLocked).length;
 
   const hasActiveFilters =
     searchQuery.trim() !== '' ||
@@ -222,6 +224,16 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
       lightBg: 'bg-violet-50 dark:bg-violet-950/30',
       lightIcon: 'text-violet-600 dark:text-violet-400',
       ring: 'ring-violet-500/20',
+    },
+    {
+      label: 'Unassigned',
+      value: unassignedCount,
+      icon: Unlock,
+      gradient: 'from-amber-500 to-orange-600',
+      bgGlow: 'bg-amber-500/10',
+      lightBg: 'bg-amber-50 dark:bg-amber-950/30',
+      lightIcon: 'text-amber-600 dark:text-amber-400',
+      ring: 'ring-amber-500/20',
     },
 
   ];
