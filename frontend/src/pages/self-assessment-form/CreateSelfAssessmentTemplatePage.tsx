@@ -91,10 +91,6 @@ const SortableQuestionRow: React.FC<SortableQuestionRowProps> = ({
     zIndex: isDragging ? 10 : undefined,
   };
 
-  const previewRatingSystem = copiedRatingSystem ?? selfAssessmentSettings?.ratingSystem;
-  const previewTenPointYesMinRating =
-    copiedTenPointYesMinRating ?? selfAssessmentSettings?.tenPointYesMinRating;
-
   return (
     <div
       ref={setNodeRef}
@@ -663,6 +659,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     isLoading: selfAssessmentSettingsLoading,
     isError: selfAssessmentSettingsError,
   } = useGetSelfAssessmentSettingsQuery();
+  const previewRatingSystem = copiedRatingSystem ?? selfAssessmentSettings?.ratingSystem;
+  const previewTenPointYesMinRating =
+    copiedTenPointYesMinRating ?? selfAssessmentSettings?.tenPointYesMinRating;
 
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
   const [checkActiveTemplateConflicts] = useCheckActiveTemplateConflictsMutation();
