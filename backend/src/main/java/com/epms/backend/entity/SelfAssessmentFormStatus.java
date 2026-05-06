@@ -5,6 +5,7 @@ public enum SelfAssessmentFormStatus {
     SUBMITTED,
     MANAGER_REVIEWED,
     APPROVED,
+    NOT_STARTED,
     NOT_SUBMITTED,
     REOPENED
 }

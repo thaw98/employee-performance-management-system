@@ -26,27 +26,10 @@ import {
   useMarkAllNotificationsAsReadMutation,
   useMarkNotificationAsReadMutation,
 } from '../../features/notification/notificationApi';
-import { EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH } from '../../routes/employeeSelfAssessmentRoutes';
-
-function getFeedbackPath(pathname: string) {
-  const prefix = pathname.split('/').filter(Boolean)[0] || 'employee';
-  return `/${prefix}/360-feedback/received`;
-}
-
-function getSelfAssessmentPath(pathname: string) {
-  if (pathname.startsWith('/manager')) {
-    return '/manager/self-assessment-forms/reviews';
-  }
-  if (pathname.startsWith('/hr')) {
-    return '/hr/self-assessment/reviews';
-  }
-  return EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH;
-}
-
-function getMeetingPath(pathname: string) {
-  const prefix = pathname.split('/').filter(Boolean)[0] || 'employee';
-  return `/${prefix}/meetings`;
-}
+import {
+  getNotificationDestinationPath,
+  getNotificationsPath,
+} from '../../features/notification/notificationNavigation';
 
 /** Legacy notifications stored the deadline as yyyy-mm-dd; normalize to dd-mm-yyyy for display. */
 function formatSelfAssessmentNotificationMessage(message: string): string {
@@ -132,13 +115,7 @@ export function NotificationBell() {
         dispatch(setUnreadCount(unreadCount));
       }
     }
-    if (notification.source === 'SELF_ASSESSMENT_FORM') {
-      navigate(getSelfAssessmentPath(location.pathname));
-    } else if (notification.source === 'MEETING') {
-      navigate(getMeetingPath(location.pathname));
-    } else {
-      navigate(getFeedbackPath(location.pathname));
-    }
+    navigate(getNotificationDestinationPath(notification, location.pathname));
   };
 
   const handleReadAll = async () => {
@@ -150,6 +127,11 @@ export function NotificationBell() {
         dispatch(setUnreadCount(unreadCountResponse.data));
       }
     }
+  };
+
+  const handleViewAll = () => {
+    setAnchorEl(null);
+    navigate(getNotificationsPath(location.pathname));
   };
 
   const open = Boolean(anchorEl);
@@ -315,6 +297,25 @@ export function NotificationBell() {
             ))}
           </List>
         )}
+        <Divider />
+        <Box sx={{ p: 1.25 }}>
+          <Button
+            fullWidth
+            variant="text"
+            onClick={handleViewAll}
+            sx={{
+              py: 1,
+              borderRadius: 1.5,
+              fontSize: 13,
+              fontWeight: 800,
+              textTransform: 'none',
+              color: 'rgb(13 148 136)',
+              '&:hover': { backgroundColor: 'rgb(240 253 250)' },
+            }}
+          >
+            View All
+          </Button>
+        </Box>
       </Popover>
     </>
   );

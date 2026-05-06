@@ -93,15 +93,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
       ring: 'ring-amber-500/20',
       bgGlow: 'bg-amber-500/10',
     },
-    {
-      label: 'Total Questions',
-      value: totalQuestions,
-      icon: Sparkles,
-      lightBg: 'bg-emerald-50 dark:bg-emerald-950/30',
-      lightIcon: 'text-emerald-600 dark:text-emerald-400',
-      ring: 'ring-emerald-500/20',
-      bgGlow: 'bg-emerald-500/10',
-    },
+
   ];
 
   if (templatesLoading) {

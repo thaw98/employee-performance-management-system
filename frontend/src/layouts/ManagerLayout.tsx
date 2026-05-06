@@ -17,7 +17,6 @@ import {
   FileText,
   ListChecks,
   SlidersHorizontal,
-  BookOpen,
   Settings,
   User,
   PenLine,
@@ -72,9 +71,7 @@ const ManagerLayout: React.FC = () => {
       path: '/manager/self-assessment/templates',
       subItems: [
         { label: 'Templates', path: '/manager/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
-        ...(authUser?.roleId === 2
-          ? [{ label: 'Question Bank', path: '/manager/self-assessment/question-bank', icon: <BookOpen size={16} className="shrink-0" /> }]
-          : []),
+
         { label: 'Review Forms', path: '/manager/self-assessment-forms/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
       ]
     },

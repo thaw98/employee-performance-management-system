@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { skipToken } from '@reduxjs/toolkit/query';
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,8 +17,10 @@ import {
   Trash2,
   Users,
   Sparkles,
-  CheckCircle2,
   AlertCircle,
+  CheckCircle2,
+  ClipboardList,
+  FileQuestion,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -27,7 +30,10 @@ import { useGetPositionsQuery } from '../../features/position/api/positionApi';
 import { useGetActiveReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import {
   useAssignSelfAssessmentFormsMutation,
+  usePreviewSelfAssessmentAssignmentsQuery,
   type SelfAssessmentAssignmentMode,
+  type SelfAssessmentAssignmentPreviewDto,
+  type SelfAssessmentAssignmentPreviewStatus,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { AudienceCard, createCountBadge, formatEmployeeCount } from './SelfAssessmentAudienceCard';
 import { formatCycleDate, SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
@@ -50,6 +56,40 @@ type HybridRule = {
   departmentId: number;
   positionId: number;
 };
+
+const previewGroups: Array<{
+  status: SelfAssessmentAssignmentPreviewStatus;
+  title: string;
+  description: string;
+  emptyText: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  accent: string;
+}> = [
+  {
+    status: 'NOT_ASSIGNED',
+    title: 'Not assigned',
+    description: 'These templates match the active cycle and are ready to assign.',
+    emptyText: 'No ready templates for the selected targets.',
+    icon: CheckCircle2,
+    accent: 'text-emerald-600 dark:text-emerald-400',
+  },
+  {
+    status: 'ALREADY_ASSIGNED',
+    title: 'Already assigned',
+    description: 'Existing forms for these exact deadlines will be skipped during assignment.',
+    emptyText: 'No templates are already assigned to these deadlines.',
+    icon: ClipboardList,
+    accent: 'text-amber-600 dark:text-amber-400',
+  },
+  {
+    status: 'NO_TEMPLATE',
+    title: 'No template',
+    description: 'Create an active-cycle template before this target can receive forms.',
+    emptyText: 'Every selected target has a matching active-cycle template.',
+    icon: FileQuestion,
+    accent: 'text-rose-600 dark:text-rose-400',
+  },
+];
 
 function StepIndicator({ step, label, active }: { step: number; label: string; active: boolean }) {
   return (
@@ -74,6 +114,42 @@ function StepIndicator({ step, label, active }: { step: number; label: string; a
   );
 }
 
+function HybridPreviewCard({ item }: { item: SelfAssessmentAssignmentPreviewDto }) {
+  const hasTemplate = item.assignmentStatus !== 'NO_TEMPLATE';
+  return (
+    <div className="rounded-lg border border-slate-200/70 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-800/60">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
+            {item.departmentName} + {item.positionName}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {hasTemplate ? item.templateTitle : 'No matching template for the active employee-submission cycle'}
+          </p>
+        </div>
+        {hasTemplate && (
+          <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200">
+            {item.assignedCount} assigned
+          </span>
+        )}
+      </div>
+      {hasTemplate && (
+        <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+          <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-700">
+            {item.ratingSystem === 'TEN_POINT' ? '10-point' : '5-point'}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-700">
+            {item.questionCount} question{item.questionCount === 1 ? '' : 's'}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-700">
+            Template #{item.templateId}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const AssignSelfAssessmentFormsPage: React.FC = () => {
   const navigate = useNavigate();
   const [assignmentMode, setAssignmentMode] = useState<SelfAssessmentAssignmentMode>('DEPARTMENTS');
@@ -84,7 +160,6 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
   const [hybridRulePositionId, setHybridRulePositionId] = useState<number | null>(null);
   const [deadlineDate, setDeadlineDate] = useState('');
   const [managerReviewDeadlineDate, setManagerReviewDeadlineDate] = useState('');
-  const [finalApprovalDeadlineDate, setFinalApprovalDeadlineDate] = useState('');
   const [positionSearchQuery, setPositionSearchQuery] = useState('');
 
   const { data: activeCycles = [] } = useGetActiveReviewCyclesQuery();
@@ -99,13 +174,13 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
   const [assignForms, { isLoading: isAssigning }] = useAssignSelfAssessmentFormsMutation();
 
   const activeSubmissionCycle = activeCycles.find((cycle) => cycle.requiresEmployeeSubmission) ?? null;
+  const selectAssignmentMode = (value: string) => setAssignmentMode(value as SelfAssessmentAssignmentMode);
 
   useEffect(() => {
     if (!activeSubmissionCycle) return;
     const end = activeSubmissionCycle.endDate ?? '';
     setDeadlineDate(end);
     setManagerReviewDeadlineDate(end);
-    setFinalApprovalDeadlineDate(end);
   }, [activeSubmissionCycle]);
 
   const departments = departmentsResponse?.data ?? [];
@@ -204,7 +279,50 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
   const cycleStart = activeSubmissionCycle?.startDate ?? '';
   const cycleEnd = activeSubmissionCycle?.endDate ?? '';
   const managerReviewMinDate = deadlineDate || cycleStart;
-  const finalApprovalMinDate = managerReviewDeadlineDate || cycleStart;
+
+  const hybridPreviewTargets = useMemo(() => {
+    if (assignmentMode !== 'HYBRID') return [];
+
+    const targetByKey = new Map<string, { departmentId: number; positionId: number }>();
+    if (hybridRuleDepartmentId && hybridRulePositionId) {
+      targetByKey.set(`${hybridRuleDepartmentId}-${hybridRulePositionId}`, {
+        departmentId: hybridRuleDepartmentId,
+        positionId: hybridRulePositionId,
+      });
+    }
+    hybridRules.forEach((rule) => {
+      targetByKey.set(`${rule.departmentId}-${rule.positionId}`, {
+        departmentId: rule.departmentId,
+        positionId: rule.positionId,
+      });
+    });
+
+    return [...targetByKey.values()];
+  }, [assignmentMode, hybridRuleDepartmentId, hybridRulePositionId, hybridRules]);
+
+  const previewQueryArg =
+    assignmentMode === 'HYBRID' && deadlineDate && managerReviewDeadlineDate && hybridPreviewTargets.length > 0
+      ? {
+          targets: hybridPreviewTargets,
+          deadlineDate,
+          managerReviewDeadlineDate,
+        }
+      : skipToken;
+
+  const {
+    data: hybridPreview = [],
+    isFetching: isPreviewFetching,
+    isError: isPreviewError,
+  } = usePreviewSelfAssessmentAssignmentsQuery(previewQueryArg);
+
+  const hybridPreviewByStatus = useMemo(() => {
+    const groups = new Map<SelfAssessmentAssignmentPreviewStatus, SelfAssessmentAssignmentPreviewDto[]>();
+    previewGroups.forEach((group) => groups.set(group.status, []));
+    hybridPreview.forEach((item) => {
+      groups.get(item.assignmentStatus)?.push(item);
+    });
+    return groups;
+  }, [hybridPreview]);
 
   const currentAudienceCount = useMemo(() => {
     if (assignmentMode === 'DEPARTMENTS') return departmentAudienceCount;
@@ -229,16 +347,13 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
     if (assignmentMode === 'HYBRID' && hybridRules.length === 0) {
       return 'Please add at least one hybrid rule';
     }
-    if (!deadlineDate || !managerReviewDeadlineDate || !finalApprovalDeadlineDate) return 'Please select all deadlines';
+    if (!deadlineDate || !managerReviewDeadlineDate) return 'Please select employee and manager review deadlines';
     if (deadlineDate > managerReviewDeadlineDate) {
       return 'Manager review deadline cannot be earlier than the employee deadline.';
     }
-    if (managerReviewDeadlineDate > finalApprovalDeadlineDate) {
-      return 'Final approval deadline cannot be earlier than the manager review deadline.';
-    }
     const { startDate, endDate } = activeSubmissionCycle;
-    if ([deadlineDate, managerReviewDeadlineDate, finalApprovalDeadlineDate].some((date) => date < startDate || date > endDate)) {
-      return 'All deadlines must be within the active cycle';
+    if ([deadlineDate, managerReviewDeadlineDate].some((date) => date < startDate || date > endDate)) {
+      return 'Employee and manager deadlines must be within the active cycle';
     }
     return null;
   };
@@ -264,7 +379,6 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
             positionIds: [rule.positionId],
             deadlineDate,
             managerReviewDeadlineDate,
-            finalApprovalDeadlineDate,
           }).unwrap();
           createdCount += result.createdCount;
           skippedExistingCount += result.skippedExistingCount;
@@ -282,7 +396,6 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
           positionIds,
           deadlineDate,
           managerReviewDeadlineDate,
-          finalApprovalDeadlineDate,
         }).unwrap();
         toast.success(
           `Created ${result.createdCount}; skipped ${result.skippedExistingCount} existing and ${result.skippedNoTemplateCount} without templates.`,
@@ -520,7 +633,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                 description={['All positions in selected departments', 'Best for department-wide reviews']}
                 icon={<Building2 size={18} />}
                 badge={createCountBadge(departmentAudienceCount)}
-                onSelect={setAssignmentMode}
+                onSelect={selectAssignmentMode}
               />
               <AudienceCard
                 value="POSITIONS"
@@ -529,7 +642,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                 description={['Across all departments', 'Role-based assessments']}
                 icon={<BriefcaseBusiness size={18} />}
                 badge={createCountBadge(positionAudienceCount)}
-                onSelect={setAssignmentMode}
+                onSelect={selectAssignmentMode}
               />
               <AudienceCard
                 value="HYBRID"
@@ -538,7 +651,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                 description={['Departments + specific positions', 'Most flexible option']}
                 icon={<Layers3 size={18} />}
                 badge={createCountBadge(hybridAudienceCount)}
-                onSelect={setAssignmentMode}
+                onSelect={selectAssignmentMode}
               />
             </div>
           </section>
@@ -561,63 +674,6 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-700/60 dark:bg-slate-800/40">
-                <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-                  <button
-                    type="button"
-                    className="flex-1 inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-sm font-medium text-slate-500 shadow-sm transition-all hover:border-[#5D5FEF]/60 hover:bg-[#5D5FEF]/2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                    onClick={() => {
-                      const el = document.getElementById('hybrid-departments-panel');
-                      if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    }}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300">
-                        <Building2 size={15} />
-                      </span>
-                      <span className="flex flex-col gap-0.5">
-                        <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">Select department</span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500 sm:text-sm">Choose one</span>
-                      </span>
-                    </span>
-                    <ChevronDown size={16} className="text-slate-400" />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="flex-1 inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-sm font-medium text-slate-500 shadow-sm transition-all hover:border-[#5D5FEF]/60 hover:bg-[#5D5FEF]/2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                    onClick={() => {
-                      const el = document.getElementById('hybrid-positions-panel');
-                      if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    }}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300">
-                        <BriefcaseBusiness size={15} />
-                      </span>
-                      <span className="flex flex-col gap-0.5">
-                        <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">All Positions</span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500 sm:text-sm">Choose one</span>
-                      </span>
-                    </span>
-                    <ChevronDown size={16} className="text-slate-400" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setHybridRuleDepartmentId(null);
-                      setHybridRulePositionId(null);
-                    }}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-300 transition-colors hover:text-slate-500 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
-                    aria-label="Clear selected hybrid inputs"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
                 <div className="mb-3 grid gap-2 md:grid-cols-[1fr_1fr_auto]">
                   <select
                     value={hybridRuleDepartmentId ?? ''}
@@ -932,7 +988,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
                 <div className="absolute -right-3 -top-3 h-12 w-12 rounded-full bg-sky-500/5 blur-xl dark:bg-sky-500/10" />
                 <div className="relative">
@@ -976,29 +1032,24 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                   />
                 </div>
               </div>
+            </div>
 
-              <div className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
-                <div className="absolute -right-3 -top-3 h-12 w-12 rounded-full bg-emerald-500/5 blur-xl dark:bg-emerald-500/10" />
-                <div className="relative">
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 dark:bg-emerald-900/30">
-                      <CheckCircle2 size={11} className="text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Final Approval
-                    </label>
-                  </div>
-                  <input
-                    type="date"
-                    value={finalApprovalDeadlineDate}
-                    min={finalApprovalMinDate}
-                    max={cycleEnd}
-                    onChange={(event) => setFinalApprovalDeadlineDate(event.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#5D5FEF]"
-                  />
+            {cycleEnd && (
+              <div className="mt-4 flex gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 dark:border-slate-700/60 dark:bg-slate-800/40">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                  <CalendarRange size={16} className="text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Final approval
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+                    HR final approval uses the active review cycle end date:{' '}
+                    <span className="font-semibold text-slate-900 dark:text-white">{formatCycleDate(cycleEnd)}</span>.
+                  </p>
                 </div>
               </div>
-            </div>
+            )}
 
             {!activeSubmissionCycle && (
               <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50/50 px-4 py-2.5 dark:border-amber-800/40 dark:bg-amber-900/10">
@@ -1009,6 +1060,80 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
               </div>
             )}
           </section>
+
+          {assignmentMode === 'HYBRID' && (
+            <section className="animate-fade-in-up">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50 dark:from-cyan-900/30 dark:to-cyan-800/20">
+                  <ClipboardList size={14} className="text-cyan-600 dark:text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Template Preview</h3>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                    Already-assigned templates have forms for these exact deadlines, so existing forms will be skipped.
+                  </p>
+                </div>
+              </div>
+
+              {!deadlineDate || !managerReviewDeadlineDate ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+                  Select both employee and manager review deadlines to preview matching active-cycle templates.
+                </div>
+              ) : hybridPreviewTargets.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+                  Choose a department and position pair or add a hybrid rule to preview templates.
+                </div>
+              ) : isPreviewError ? (
+                <div className="flex items-center gap-2 rounded-xl border border-rose-200/70 bg-rose-50/70 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300">
+                  <AlertCircle size={15} className="shrink-0" />
+                  Preview is unavailable for the current selection.
+                </div>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-3">
+                  {previewGroups.map((group) => {
+                    const items = hybridPreviewByStatus.get(group.status) ?? [];
+                    return (
+                      <div
+                        key={group.status}
+                        className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-900/40"
+                      >
+                        <div className="mb-3 flex items-start gap-2">
+                          <group.icon size={16} className={`mt-0.5 shrink-0 ${group.accent}`} />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white">{group.title}</h4>
+                              <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold tabular-nums text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
+                                {items.length}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{group.description}</p>
+                          </div>
+                        </div>
+                        {isPreviewFetching ? (
+                          <div className="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-5 text-center text-xs font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-500">
+                            Loading preview...
+                          </div>
+                        ) : items.length > 0 ? (
+                          <div className="space-y-2">
+                            {items.map((item) => (
+                              <HybridPreviewCard
+                                key={`${item.departmentId}-${item.positionId}-${item.assignmentStatus}`}
+                                item={item}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-5 text-center text-xs font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-500">
+                            {group.emptyText}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Target Summary */}
           <div className="relative overflow-hidden rounded-xl border border-slate-200/60 bg-gradient-to-r from-[#5D5FEF]/[0.04] via-white to-[#5D5FEF]/[0.04] px-5 py-4 dark:border-slate-700/60 dark:from-[#5D5FEF]/[0.06] dark:via-slate-800 dark:to-[#5D5FEF]/[0.06]">

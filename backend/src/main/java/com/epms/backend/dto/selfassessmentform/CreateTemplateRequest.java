@@ -13,5 +13,6 @@ public record CreateTemplateRequest(
         List<QuestionRequest> deletedQuestions,
         /** When null, the active employee-submission cycle is used (existing behavior). */
         Long reviewCycleId,
-        String ratingSystem
+        String ratingSystem,
+        Integer tenPointYesMinRating
 ) {}

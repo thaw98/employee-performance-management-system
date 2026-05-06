@@ -18,6 +18,7 @@ let templateData = {
   reviewCycleName: 'Q1',
   isActive: true,
   ratingSystem: 'FIVE_POINT',
+  tenPointYesMinRating: 5,
   isLocked: false,
   createdOn: '',
   createdBy: 1,

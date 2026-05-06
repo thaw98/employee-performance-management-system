@@ -98,7 +98,7 @@ export function AppSidebar() {
             { name: 'Assignments overview', path: '/hr/self-assessment/assignments', icon: 'bi-clipboard-check' },
             { name: 'Assign Self-Assessment Forms', path: '/hr/self-assessment/assign-forms', icon: 'bi-send' },
             { name: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: 'bi-inbox' },
-            { name: 'Question Bank', path: '/hr/self-assessment/question-bank', icon: 'bi-book' },
+
             { name: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: 'bi-list-check' },
             { name: 'Self Assessment Settings', path: '/hr/self-assessment/settings', icon: 'bi-gear' },
           ],

@@ -21,7 +21,6 @@ import {
   RotateCcw,
   ArrowLeft,
   SlidersHorizontal,
-  Filter,
   Star,
   ThumbsUp,
   ThumbsDown,
@@ -59,14 +58,24 @@ interface ManagerAdjustment {
 
 function getStatusConfig(status: string) {
   const s = status.toUpperCase();
-  if (s === 'DRAFT' || s === 'NOT_STARTED') {
+  if (s === 'NOT_STARTED') {
     return {
-      label: 'Draft',
+      label: 'Not Started',
       bg: 'bg-slate-100 dark:bg-slate-700/60',
       text: 'text-slate-600 dark:text-slate-300',
       dot: 'bg-slate-400',
       icon: Edit3,
       cardAccent: 'border-l-slate-400',
+    };
+  }
+  if (s === 'DRAFT') {
+    return {
+      label: 'Draft',
+      bg: 'bg-amber-100 dark:bg-amber-900/30',
+      text: 'text-amber-700 dark:text-amber-400',
+      dot: 'bg-amber-500',
+      icon: Edit3,
+      cardAccent: 'border-l-amber-500',
     };
   }
   if (s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED') {
@@ -112,6 +121,16 @@ function getStatusConfig(status: string) {
   if (s === 'REJECTED') {
     return {
       label: 'Rejected',
+      bg: 'bg-red-50 dark:bg-red-900/30',
+      text: 'text-red-700 dark:text-red-400',
+      dot: 'bg-red-500',
+      icon: XCircle,
+      cardAccent: 'border-l-red-500',
+    };
+  }
+  if (s === 'NOT_SUBMITTED') {
+    return {
+      label: 'NOT SUBMITTED',
       bg: 'bg-red-50 dark:bg-red-900/30',
       text: 'text-red-700 dark:text-red-400',
       dot: 'bg-red-500',
@@ -222,7 +241,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
           ? {
               proposedYesNo: String(value),
               ...(existing?.proposedRating
-                && !isRatingValidForAnswer(selectedForm?.ratingSystem, String(value), existing.proposedRating)
+                && !isRatingValidForAnswer(
+                  selectedForm?.ratingSystem,
+                  String(value),
+                  existing.proposedRating,
+                  selectedForm?.tenPointYesMinRating,
+                )
                 ? { proposedRating: 0 }
                 : {}),
             }
@@ -247,7 +271,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         return;
       }
       const invalidRatings = adjustments.filter(
-        a => a.proposedYesNo && a.proposedRating && !isRatingValidForAnswer(selectedForm?.ratingSystem, a.proposedYesNo, a.proposedRating)
+        a => a.proposedYesNo && a.proposedRating && !isRatingValidForAnswer(
+          selectedForm?.ratingSystem,
+          a.proposedYesNo,
+          a.proposedRating,
+          selectedForm?.tenPointYesMinRating,
+        )
       );
       if (invalidRatings.length > 0) {
         toast.error('One or more proposed ratings do not match the selected response');
@@ -868,13 +897,18 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                       <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Proposed Rating</label>
                                       {(() => {
                                         const pr = currentAdjustment?.proposedRating;
-                                        const allowed = getRatingOptions(selectedForm?.ratingSystem, proposedYesNo);
+                                        const allowed = getRatingOptions(
+                                          selectedForm?.ratingSystem,
+                                          proposedYesNo,
+                                          selectedForm?.tenPointYesMinRating,
+                                        );
                                         const ratingValue =
                                           pr && pr > 0 && allowed.includes(pr) ? pr : null;
                                         return (
                                           <SelfAssessmentRatingPicker
                                             compact
                                             ratingSystem={selectedForm?.ratingSystem}
+                                            tenPointYesMinRating={selectedForm?.tenPointYesMinRating}
                                             yesNoAnswer={proposedYesNo || null}
                                             value={ratingValue}
                                             onChange={(r) => handleManagerAdjustmentChange(answer.id, 'proposedRating', r)}
