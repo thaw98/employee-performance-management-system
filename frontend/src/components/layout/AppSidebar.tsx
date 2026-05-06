@@ -90,13 +90,12 @@ export function AppSidebar() {
         },
         ...(isHr ? [{
           name: 'Self-Assessment',
-          path: '/hr/self-assessment/templates',
+          path: '/hr/self-assessment',
           icon: 'bi-file-earmark-text',
           end: false,
           subItems: [
             { name: 'Template Management', path: '/hr/self-assessment/templates', icon: 'bi-sliders' },
-            { name: 'Assignments overview', path: '/hr/self-assessment/assignments', icon: 'bi-clipboard-check' },
-            { name: 'Assign Self-Assessment Forms', path: '/hr/self-assessment/assign-forms', icon: 'bi-send' },
+            { name: 'Assignments', path: '/hr/self-assessment/assignments', icon: 'bi-clipboard-check' },
             { name: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: 'bi-inbox' },
 
             { name: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: 'bi-list-check' },
