@@ -552,63 +552,6 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-700/60 dark:bg-slate-800/40">
-                <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-                  <button
-                    type="button"
-                    className="flex-1 inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-sm font-medium text-slate-500 shadow-sm transition-all hover:border-[#5D5FEF]/60 hover:bg-[#5D5FEF]/2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                    onClick={() => {
-                      const el = document.getElementById('hybrid-departments-panel');
-                      if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    }}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300">
-                        <Building2 size={15} />
-                      </span>
-                      <span className="flex flex-col gap-0.5">
-                        <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">Select department</span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500 sm:text-sm">Choose one</span>
-                      </span>
-                    </span>
-                    <ChevronDown size={16} className="text-slate-400" />
-                  </button>
-
-                  <button
-                    type="button"
-                    className="flex-1 inline-flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-3 text-left text-sm font-medium text-slate-500 shadow-sm transition-all hover:border-[#5D5FEF]/60 hover:bg-[#5D5FEF]/2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                    onClick={() => {
-                      const el = document.getElementById('hybrid-positions-panel');
-                      if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    }}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300">
-                        <BriefcaseBusiness size={15} />
-                      </span>
-                      <span className="flex flex-col gap-0.5">
-                        <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">All Positions</span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500 sm:text-sm">Choose one</span>
-                      </span>
-                    </span>
-                    <ChevronDown size={16} className="text-slate-400" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setHybridRuleDepartmentId(null);
-                      setHybridRulePositionId(null);
-                    }}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-300 transition-colors hover:text-slate-500 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
-                    aria-label="Clear selected hybrid inputs"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
                 <div className="mb-3 grid gap-2 md:grid-cols-[1fr_1fr_auto]">
                   <select
                     value={hybridRuleDepartmentId ?? ''}

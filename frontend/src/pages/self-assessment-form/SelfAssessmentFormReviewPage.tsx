@@ -128,6 +128,16 @@ function getStatusConfig(status: string) {
       cardAccent: 'border-l-red-500',
     };
   }
+  if (s === 'NOT_SUBMITTED') {
+    return {
+      label: 'NOT SUBMITTED',
+      bg: 'bg-red-50 dark:bg-red-900/30',
+      text: 'text-red-700 dark:text-red-400',
+      dot: 'bg-red-500',
+      icon: XCircle,
+      cardAccent: 'border-l-red-500',
+    };
+  }
   return {
     label: status,
     bg: 'bg-slate-100 dark:bg-slate-700/60',

@@ -152,7 +152,6 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
 
   const activeCount = allTemplates.filter((t) => t.isActive).length;
   const assignedCount = allTemplates.filter((t) => t.isLocked).length;
-  const totalQuestions = allTemplates.reduce((sum, t) => sum + (t.questions?.length ?? 0), 0);
 
   const hasActiveFilters =
     searchQuery.trim() !== '' ||
@@ -223,16 +222,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
       lightIcon: 'text-violet-600 dark:text-violet-400',
       ring: 'ring-violet-500/20',
     },
-    {
-      label: 'Questions',
-      value: totalQuestions,
-      icon: ClipboardList,
-      gradient: 'from-amber-500 to-orange-600',
-      bgGlow: 'bg-amber-500/10',
-      lightBg: 'bg-amber-50 dark:bg-amber-950/30',
-      lightIcon: 'text-amber-600 dark:text-amber-400',
-      ring: 'ring-amber-500/20',
-    },
+
   ];
 
   const getPhaseBadge = (template: typeof allTemplates[number]) => {
@@ -595,12 +585,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                         <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden md:table-cell">
                           Position
                         </th>
-                        <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
-                          Review Cycle
-                        </th>
-                        <th scope="col" className="px-5 py-3.5 text-center text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                          Questions
-                        </th>
+
                         <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
                           Rating
                         </th>
@@ -655,11 +640,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                               {getPhaseBadge(template)}
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-center">
-                            <span className="inline-flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-slate-100 px-1.5 text-xs font-bold tabular-nums text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
-                              {template.questions?.length ?? 0}
-                            </span>
-                          </td>
+
                           <td className="px-5 py-4 hidden lg:table-cell">
                             <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100/80 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
                               <SlidersHorizontal size={10} />
