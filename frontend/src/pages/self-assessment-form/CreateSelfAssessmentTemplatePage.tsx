@@ -36,7 +36,7 @@ import {
   X,
 } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
@@ -44,8 +44,13 @@ import { useGetEmployeesQuery, type EmployeeListItem } from '../../features/hrEm
 import {
   useCreateQuestionBankItemMutation,
   useCreateTemplateMutation,
+  useCheckActiveTemplateConflictsMutation,
+  useDeleteCopiedTemplateMutation,
+  useGetCopiedTemplateQuery,
   useGetQuestionBankQuery,
   useGetSelfAssessmentSettingsQuery,
+  type QuestionRequest,
+  type SelfAssessmentRatingSystem,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { getRatingOptions, ratingSystemLabels } from '../../features/selfAssessmentForm/ratingSystem';
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
@@ -326,6 +331,9 @@ function reviewCycleOptionSuffix(status: string | undefined) {
 
 export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isPastingCopiedTemplate = searchParams.get('fromCopiedTemplate') === 'true';
   const [audienceType, setAudienceType] = useState<AudienceType>('hybrid');
   const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<number[]>([]);
   const [selectedGlobalPositionIds, setSelectedGlobalPositionIds] = useState<number[]>([]);
@@ -336,6 +344,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const [questionBankSearch, setQuestionBankSearch] = useState('');
   const [positionAudienceSearch, setPositionAudienceSearch] = useState('');
   const [selectedReviewCycleId, setSelectedReviewCycleId] = useState<number | null>(null);
+  const [copiedSourceTitle, setCopiedSourceTitle] = useState<string | null>(null);
+  const [copiedDeletedQuestions, setCopiedDeletedQuestions] = useState<QuestionRequest[]>([]);
+  const [copiedRatingSystem, setCopiedRatingSystem] = useState<SelfAssessmentRatingSystem | undefined>(undefined);
 
   const { data: reviewCycles = [], isLoading: reviewCyclesLoading } = useGetReviewCyclesQuery({
     requiresEmployeeSubmission: true,
@@ -622,8 +633,13 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   } = useGetSelfAssessmentSettingsQuery();
 
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
+  const [checkActiveTemplateConflicts] = useCheckActiveTemplateConflictsMutation();
+  const [deleteCopiedTemplate] = useDeleteCopiedTemplateMutation();
   const [createQuestionBankItem, { isLoading: isSavingToQuestionBank }] =
     useCreateQuestionBankItemMutation();
+  const { data: copiedTemplate } = useGetCopiedTemplateQuery(undefined, {
+    skip: !isPastingCopiedTemplate,
+  });
   const { data: questionBank = [], isLoading: isQuestionBankLoading } = useGetQuestionBankQuery(
     { includeInactive: false },
     { skip: !isQuestionBankOpen }
@@ -633,7 +649,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     question.questionText.toLowerCase().includes(questionBankSearch.trim().toLowerCase())
   );
 
-  const { register, control, handleSubmit, getValues } = useForm<QuestionFormData>({
+  const { register, control, handleSubmit, getValues, reset } = useForm<QuestionFormData>({
     defaultValues: {
       title: '',
       questions: [{ questionText: '' }],
@@ -649,6 +665,29 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  useEffect(() => {
+    if (!isPastingCopiedTemplate || !copiedTemplate) {
+      return;
+    }
+    reset({
+      title: copiedTemplate.title,
+      questions:
+        copiedTemplate.questions.length > 0
+          ? copiedTemplate.questions.map((question) => ({ questionText: question.questionText }))
+          : [{ questionText: '' }],
+    });
+    setCopiedSourceTitle(copiedTemplate.title);
+    setCopiedDeletedQuestions(
+      copiedTemplate.deletedQuestions
+        .filter((question) => question.questionText.trim())
+        .map((question, index) => ({
+          questionText: question.questionText,
+          sortOrder: question.sortOrder ?? copiedTemplate.questions.length + index,
+        }))
+    );
+    setCopiedRatingSystem(copiedTemplate.ratingSystem);
+  }, [copiedTemplate, isPastingCopiedTemplate, reset]);
 
   const handleQuestionDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -773,6 +812,11 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
       return;
     }
 
+    if (copiedSourceTitle != null && data.title.trim() === copiedSourceTitle.trim()) {
+      toast.error('Please edit the copied template title before creating a new template');
+      return;
+    }
+
     if (!validateAudience()) {
       return;
     }
@@ -809,6 +853,24 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     );
 
     try {
+      const conflicts = await checkActiveTemplateConflicts({
+        reviewCycleId: selectedReviewCycleId,
+        targets: uniqueTargetPairs.map((pair) => ({
+          departmentId: pair.departmentId,
+          positionId: pair.positionId,
+        })),
+      }).unwrap();
+
+      if (conflicts.length > 0) {
+        const conflictLabels = conflicts
+          .slice(0, 5)
+          .map((conflict) => `${conflict.departmentName} / ${conflict.positionName}`)
+          .join(', ');
+        const remaining = conflicts.length > 5 ? `, and ${conflicts.length - 5} more` : '';
+        toast.error(`Active template already exists for: ${conflictLabels}${remaining}`);
+        return;
+      }
+
       let createdCount = 0;
       const failures: string[] = [];
 
@@ -819,7 +881,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             departmentId: pair.departmentId,
             positionId: pair.positionId,
             questions,
+            deletedQuestions: copiedDeletedQuestions,
             reviewCycleId: selectedReviewCycleId,
+            ratingSystem: copiedRatingSystem,
           }).unwrap();
           createdCount += 1;
         } catch (error: unknown) {
@@ -836,6 +900,13 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
         toast.error(`${createdCount} template(s) created, ${failures.length} skipped because they could not be created`);
       } else {
         toast.success(createdCount === 1 ? 'Template created successfully' : `${createdCount} templates created successfully`);
+      }
+      if (isPastingCopiedTemplate) {
+        try {
+          await deleteCopiedTemplate().unwrap();
+        } catch {
+          toast.error('Template created, but the duplicate draft could not be cleared');
+        }
       }
       navigate('/hr/self-assessment/templates');
     } catch (error: unknown) {

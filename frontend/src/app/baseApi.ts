@@ -56,6 +56,7 @@ export const baseApi = createApi({
     'SelfAssessmentForm',
     'SelfAssessmentSettings',
     'SelfAssessmentTemplates',
+    'SelfAssessmentCopiedTemplate',
     'QuestionBank',
     'KpiCategory',
     'AuditLog',

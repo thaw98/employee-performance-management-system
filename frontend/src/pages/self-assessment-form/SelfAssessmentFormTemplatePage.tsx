@@ -18,14 +18,21 @@ import {
   LayoutGrid,
   List,
   ChevronDown,
+  Copy,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../app/store';
 import { useGetTimeSettingsQuery } from '../../features/feedback/api/feedbackApi';
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
-import { useGetAllTemplatesQuery } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import {
+  useDeleteCopiedTemplateMutation,
+  useCopyTemplateMutation,
+  useGetAllTemplatesQuery,
+  useGetCopiedTemplateQuery,
+} from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { ratingSystemLabels } from '../../features/selfAssessmentForm/ratingSystem';
 
 type CyclePhaseFilter = 'all' | 'current' | 'past' | 'upcoming';
@@ -58,8 +65,12 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const [positionFilter, setPositionFilter] = useState<string>('');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [expandedFilters, setExpandedFilters] = useState(false);
+  const [copyingTemplateId, setCopyingTemplateId] = useState<number | null>(null);
 
   const { data: allTemplates = [] } = useGetAllTemplatesQuery();
+  const { data: copiedTemplate } = useGetCopiedTemplateQuery(undefined, { skip: isManager });
+  const [copyTemplate, { isLoading: isCopyingTemplate }] = useCopyTemplateMutation();
+  const [deleteCopiedTemplate, { isLoading: isClearingCopiedTemplate }] = useDeleteCopiedTemplateMutation();
   const { data: timeSettings, isLoading: timeSettingsLoading } = useGetTimeSettingsQuery();
   const { data: reviewCycles = [] } = useGetReviewCyclesQuery();
 
@@ -141,7 +152,6 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
 
   const activeCount = allTemplates.filter((t) => t.isActive).length;
   const assignedCount = allTemplates.filter((t) => t.isLocked).length;
-  const uniqueDepts = new Set(allTemplates.map((t) => t.departmentId)).size;
   const totalQuestions = allTemplates.reduce((sum, t) => sum + (t.questions?.length ?? 0), 0);
 
   const hasActiveFilters =
@@ -155,6 +165,31 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
     setCyclePhaseFilter('all');
     setDepartmentFilter('');
     setPositionFilter('');
+  };
+
+  const handleDuplicateTemplate = async (templateId: number) => {
+    setCopyingTemplateId(templateId);
+    try {
+      await copyTemplate(templateId).unwrap();
+      toast.success('Template duplicated. Continue when ready.');
+    } catch {
+      toast.error('Could not duplicate template');
+    } finally {
+      setCopyingTemplateId(null);
+    }
+  };
+
+  const handleContinueCopiedTemplate = () => {
+    navigate('/hr/self-assessment/templates/create?fromCopiedTemplate=true');
+  };
+
+  const handleClearCopiedTemplate = async () => {
+    try {
+      await deleteCopiedTemplate().unwrap();
+      toast.success('Duplicate draft cleared');
+    } catch {
+      toast.error('Could not clear duplicate draft');
+    }
   };
 
   const summaryCards = [
@@ -389,6 +424,43 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
           )}
         </div>
 
+        {!isManager && copiedTemplate && (
+          <div className="border-b border-slate-100 bg-[#5D5FEF]/[0.03] px-6 py-4 dark:border-slate-700/60 dark:bg-[#5D5FEF]/10">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#5D5FEF] shadow-sm ring-1 ring-[#5D5FEF]/15 dark:bg-slate-800 dark:text-[#8b8ef7] dark:ring-[#5D5FEF]/25">
+                  <Copy size={16} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Continue copied template</p>
+                  <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+                    {copiedTemplate.title?.trim() ? copiedTemplate.title : 'Untitled template'} is ready to review as a new template.
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2 sm:justify-end">
+                <button
+                  type="button"
+                  onClick={handleClearCopiedTemplate}
+                  disabled={isClearingCopiedTemplate}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  <X size={13} />
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={handleContinueCopiedTemplate}
+                  className="group inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF] px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-[#5D5FEF]/20 transition-all hover:bg-[#5153dc] active:scale-[0.98] dark:bg-[#6f72f4] dark:hover:bg-[#6265e8]"
+                >
+                  Continue
+                  <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {allTemplates.length > 0 ? (
           <div className="p-6">
             {/* ─── Search + Filter Bar ─── */}
@@ -614,29 +686,44 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                               )}
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-right">
-                            <button
-                              type="button"
-                              onClick={() => navigate(`${routeBase}/${template.id}/edit`)}
-                              className={`group/btn inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
-                                template.isLocked || isManager
-                                  ? 'border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-slate-200'
-                                  : 'bg-[#5D5FEF]/[0.06] text-[#5D5FEF] hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20'
-                              }`}
-                            >
-                              {template.isLocked || isManager ? (
+                          <td className="px-5 py-4">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              {!isManager && (
                                 <>
-                                  <Eye size={13} />
-                                  View
-                                </>
-                              ) : (
-                                <>
-                                  <Pencil size={13} />
-                                  Edit
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleDuplicateTemplate(template.id)}
+                                    disabled={isCopyingTemplate && copyingTemplateId === template.id}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-white"
+                                  >
+                                    <Copy size={13} />
+                                    {isCopyingTemplate && copyingTemplateId === template.id ? 'Duplicating...' : 'Duplicate'}
+                                  </button>
                                 </>
                               )}
-                              <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => navigate(`${routeBase}/${template.id}/edit`)}
+                                className={`group/btn inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
+                                  template.isLocked || isManager
+                                    ? 'border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-slate-200'
+                                    : 'bg-[#5D5FEF]/[0.06] text-[#5D5FEF] hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20'
+                                }`}
+                              >
+                                {template.isLocked || isManager ? (
+                                  <>
+                                    <Eye size={13} />
+                                    View
+                                  </>
+                                ) : (
+                                  <>
+                                    <Pencil size={13} />
+                                    Edit
+                                  </>
+                                )}
+                                <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -739,8 +826,21 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                             )}
                           </div>
 
-                          {/* Action */}
-                          <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-700/40">
+                          {/* Actions */}
+                          <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-slate-700/40">
+                            {!isManager && (
+                              <div className="grid grid-cols-1 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDuplicateTemplate(template.id)}
+                                  disabled={isCopyingTemplate && copyingTemplateId === template.id}
+                                  className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700/60"
+                                >
+                                  <Copy size={14} />
+                                  {isCopyingTemplate && copyingTemplateId === template.id ? 'Duplicating...' : 'Duplicate'}
+                                </button>
+                              </div>
+                            )}
                             <button
                               type="button"
                               onClick={() => navigate(`${routeBase}/${template.id}/edit`)}
