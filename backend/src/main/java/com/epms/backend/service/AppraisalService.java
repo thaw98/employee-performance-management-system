@@ -52,17 +52,28 @@ public class AppraisalService {
         }
 
         int count = 0;
+        StringBuilder errorLog = new StringBuilder();
+
         for (DepartmentPosition mapping : template.getTargetDepartmentPositions()) {
+            // Find Department Head for this specific department
+            Department dept = mapping.getDepartment();
+            if (dept == null) continue;
+
+            if (dept.getManagerId() == null) {
+                errorLog.append("Department '").append(dept.getName()).append("' has no Department Head assigned. ");
+                continue;
+            }
+
+            Employee departmentHead = employeeRepository.findById(dept.getManagerId()).orElse(null);
+            if (departmentHead == null) {
+                errorLog.append("Department Head with ID ").append(dept.getManagerId()).append(" not found in records. ");
+                continue;
+            }
+
             List<Employee> employees = employeeRepository.findByDepartmentPosition_Id(mapping.getId());
             for (Employee employee : employees) {
-                // Find current manager
-                Employee manager = reportingHistoryRepository.findByEmployee_IdAndCurrentTrue(employee.getId())
-                        .map(EmployeeReportingHistory::getManager)
-                        .orElse(null);
-
-                // If no manager is found, we can't assign it to anyone for evaluation
-                if (manager == null)
-                    continue;
+                // Skip if the employee is the department head themselves
+                if (employee.getId().equals(departmentHead.getId())) continue;
 
                 // Create or Update Assignment
                 AppraisalAssignment assignment = assignmentRepository
@@ -71,7 +82,7 @@ public class AppraisalService {
 
                 assignment.setEmployee(employee);
                 assignment.setPeriod(activeCycle);
-                assignment.setEvaluator(manager);
+                assignment.setEvaluator(departmentHead); // Assign to Department Head
                 assignment.setStatus(AppraisalStatus.PENDING_MANAGER);
                 assignment.setUpdatedAt(java.time.Instant.now());
 
@@ -81,7 +92,13 @@ public class AppraisalService {
         }
 
         if (count == 0) {
-            throw new RuntimeException("No eligible employees found for the selected positions.");
+            String message = "No assignments were created. ";
+            if (errorLog.length() > 0) {
+                message += "Issues found: " + errorLog.toString();
+            } else {
+                message += "Ensure the selected positions have active employees assigned to them.";
+            }
+            throw new RuntimeException(message);
         }
     }
 
