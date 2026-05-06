@@ -38,6 +38,14 @@ public class CopiedSelfAssessmentFormTemplate {
     @Column(name = "created_on", nullable = false)
     private Instant createdOn;
 
+    /** Nullable for legacy rows; resolved from {@link #sourceTemplate} when missing. */
+    @Column(name = "department_id")
+    private Long departmentId;
+
+    /** Nullable for legacy rows; resolved from {@link #sourceTemplate} when missing. */
+    @Column(name = "position_id")
+    private Long positionId;
+
     @OneToMany(mappedBy = "copiedTemplate", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     private List<CopiedSelfAssessmentFormTemplateQuestion> questions = new ArrayList<>();

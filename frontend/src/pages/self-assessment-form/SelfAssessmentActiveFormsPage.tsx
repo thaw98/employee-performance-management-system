@@ -56,6 +56,16 @@ function getStatusConfig(status: string) {
       cardAccent: 'border-l-slate-400',
     };
   }
+  if (s === 'NOT_STARTED') {
+    return {
+      label: 'Not Started',
+      bg: 'bg-slate-100 dark:bg-slate-700/60',
+      text: 'text-slate-600 dark:text-slate-300',
+      dot: 'bg-slate-400',
+      icon: Edit3,
+      cardAccent: 'border-l-slate-400',
+    };
+  }
   if (s === 'DRAFT') {
     return {
       label: 'Draft',

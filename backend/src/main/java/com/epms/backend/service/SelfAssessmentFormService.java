@@ -152,13 +152,15 @@ public class SelfAssessmentFormService {
             copiedTemplateRepository.flush();
         });
 
-        Instant now = Instant.now();
+Instant now = Instant.now();
         CopiedSelfAssessmentFormTemplate copied = new CopiedSelfAssessmentFormTemplate();
         copied.setSourceTemplate(source);
         copied.setTitle(source.getTitle());
         copied.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(source.getRatingSystem()));
         copied.setCreatedBy(userId);
         copied.setCreatedOn(now);
+        copied.setDepartmentId(source.getDepartment().getId());
+        copied.setPositionId(source.getPosition().getId());
 
         source.getQuestions().stream()
                 .sorted(Comparator
@@ -575,7 +577,6 @@ public class SelfAssessmentFormService {
         validateAssignmentDeadlines(
                 request.deadlineDate(),
                 request.managerReviewDeadlineDate(),
-                request.finalApprovalDeadlineDate(),
                 activeCycle);
 
         Set<Long> departmentIds = toIdSet(request.departmentIds());
@@ -620,7 +621,6 @@ public class SelfAssessmentFormService {
                     activeCycle,
                     request.deadlineDate(),
                     request.managerReviewDeadlineDate(),
-                    request.finalApprovalDeadlineDate(),
                     now,
                     userId);
             formRepository.save(form);
@@ -1167,7 +1167,6 @@ public class SelfAssessmentFormService {
                 activeCycle,
                 deadlineDate,
                 null,
-                null,
                 assignedAt,
                 assignedBy);
     }
@@ -1178,7 +1177,6 @@ public class SelfAssessmentFormService {
             ReviewCycle activeCycle,
             LocalDate deadlineDate,
             LocalDate managerReviewDeadlineDate,
-            LocalDate finalApprovalDeadlineDate,
             Instant assignedAt,
             Long assignedBy) {
         SelfAssessmentForm form = new SelfAssessmentForm();
@@ -1188,7 +1186,7 @@ public class SelfAssessmentFormService {
         form.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()));
         form.setDeadlineDate(deadlineDate);
         form.setManagerReviewDeadlineDate(managerReviewDeadlineDate);
-        form.setFinalApprovalDeadlineDate(finalApprovalDeadlineDate);
+        form.setFinalApprovalDeadlineDate(activeCycle.getEndDate());
         form.setAssignedAt(assignedAt);
         form.setAssignedBy(assignedBy);
         form.setStatus(SelfAssessmentFormStatus.DRAFT);
@@ -1319,20 +1317,29 @@ public class SelfAssessmentFormService {
     private void validateAssignmentDeadlines(
             LocalDate employeeDeadline,
             LocalDate managerDeadline,
-            LocalDate finalDeadline,
             ReviewCycle activeCycle) {
-        if (employeeDeadline == null || managerDeadline == null || finalDeadline == null) {
-            throw new RuntimeException("All deadlines are required");
+        if (employeeDeadline == null || managerDeadline == null) {
+            throw new RuntimeException("Employee and manager review deadlines are required");
+        }
+        LocalDate cycleEnd = activeCycle.getEndDate();
+        if (cycleEnd == null) {
+            throw new RuntimeException("Active review cycle has no end date");
         }
         if (employeeDeadline.isAfter(managerDeadline)) {
             throw new RuntimeException("Manager review deadline cannot be earlier than the employee deadline.");
         }
-        if (managerDeadline.isAfter(finalDeadline)) {
-            throw new RuntimeException("Final approval deadline cannot be earlier than the manager review deadline.");
+        if (managerDeadline.isAfter(cycleEnd)) {
+            throw new RuntimeException("Manager review deadline cannot be after the review cycle end date.");
         }
         validateDateWithinActiveCycle(employeeDeadline, "Employee deadline", activeCycle);
         validateDateWithinActiveCycle(managerDeadline, "Manager review deadline", activeCycle);
-        validateDateWithinActiveCycle(finalDeadline, "Final approval deadline", activeCycle);
+    }
+
+    private LocalDate resolveFinalApprovalDeadlineDate(SelfAssessmentForm form) {
+        if (form.getCycle() != null && form.getCycle().getEndDate() != null) {
+            return form.getCycle().getEndDate();
+        }
+        return form.getFinalApprovalDeadlineDate();
     }
 
     private void validateDateWithinActiveCycle(LocalDate date, String label, ReviewCycle activeCycle) {
@@ -1583,11 +1590,42 @@ public class SelfAssessmentFormService {
                 .map(this::mapCopiedTemplateQuestionToDto)
                 .collect(Collectors.toList());
 
+        SelfAssessmentFormTemplate source = copied.getSourceTemplate();
+        Long departmentId = copied.getDepartmentId();
+        Long positionId = copied.getPositionId();
+        if (departmentId == null && source != null && source.getDepartment() != null) {
+            departmentId = source.getDepartment().getId();
+        }
+        if (positionId == null && source != null && source.getPosition() != null) {
+            positionId = source.getPosition().getId();
+        }
+
+        String departmentName = null;
+        String positionName = null;
+        if (source != null && source.getDepartment() != null && departmentId != null
+                && departmentId.equals(source.getDepartment().getId())) {
+            departmentName = source.getDepartment().getName();
+        }
+        if (source != null && source.getPosition() != null && positionId != null
+                && positionId.equals(source.getPosition().getId())) {
+            positionName = source.getPosition().getName();
+        }
+        if (departmentName == null && departmentId != null) {
+            departmentName = departmentRepository.findById(departmentId).map(Department::getName).orElse(null);
+        }
+        if (positionName == null && positionId != null) {
+            positionName = positionRepository.findById(positionId).map(Position::getName).orElse(null);
+        }
+
         return new CopiedSelfAssessmentFormTemplateDto(
                 copied.getId(),
-                copied.getSourceTemplate().getId(),
+                source != null ? source.getId() : null,
                 copied.getTitle(),
                 SelfAssessmentRatingSystem.defaultIfNull(copied.getRatingSystem()).name(),
+                departmentId,
+                positionId,
+                departmentName,
+                positionName,
                 questions,
                 deletedQuestions,
                 copied.getCreatedOn(),
@@ -1708,8 +1746,10 @@ public class SelfAssessmentFormService {
                 emp.getEmail(),
                 emp.getDepartment() != null ? emp.getDepartment().getId() : null,
                 emp.getDepartment() != null ? emp.getDepartment().getName() : null,
+                emp.getDepartment() != null ? emp.getDepartment().getCode() : null,
                 emp.getPosition() != null ? emp.getPosition().getId() : null,
-                emp.getPosition() != null ? emp.getPosition().getName() : null
+                emp.getPosition() != null ? emp.getPosition().getName() : null,
+                emp.getPosition() != null ? emp.getPosition().getCode() : null
         );
 
         List<AnswerDto> answers = form.getAnswers().stream()
@@ -1755,7 +1795,7 @@ public class SelfAssessmentFormService {
                 SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem()).name(),
                 form.getDeadlineDate(),
                 form.getManagerReviewDeadlineDate(),
-                form.getFinalApprovalDeadlineDate(),
+                resolveFinalApprovalDeadlineDate(form),
                 form.getAssignedAt(),
                 form.getAssignedBy(),
                 form.getStatus().name(),
@@ -1794,8 +1834,10 @@ public class SelfAssessmentFormService {
                 emp.getEmail(),
                 emp.getDepartment() != null ? emp.getDepartment().getId() : null,
                 emp.getDepartment() != null ? emp.getDepartment().getName() : null,
+                emp.getDepartment() != null ? emp.getDepartment().getCode() : null,
                 emp.getPosition() != null ? emp.getPosition().getId() : null,
-                emp.getPosition() != null ? emp.getPosition().getName() : null
+                emp.getPosition() != null ? emp.getPosition().getName() : null,
+                emp.getPosition() != null ? emp.getPosition().getCode() : null
         );
 
         String displayStatus = form.getStatus().name();
@@ -1811,7 +1853,7 @@ public class SelfAssessmentFormService {
                 form.getCycle() != null ? form.getCycle().getName() : null,
                 form.getDeadlineDate(),
                 form.getManagerReviewDeadlineDate(),
-                form.getFinalApprovalDeadlineDate(),
+                resolveFinalApprovalDeadlineDate(form),
                 form.getAssignedAt(),
                 form.getAssignedBy(),
                 employeeInfo,

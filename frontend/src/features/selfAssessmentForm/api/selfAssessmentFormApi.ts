@@ -77,6 +77,10 @@ export interface CopiedSelfAssessmentFormTemplateDto {
   sourceTemplateId: number
   title: string
   ratingSystem: SelfAssessmentRatingSystem
+  departmentId: number
+  positionId: number
+  departmentName?: string | null
+  positionName?: string | null
   questions: QuestionDto[]
   deletedQuestions: QuestionDto[]
   createdOn: string
@@ -120,8 +124,10 @@ export interface EmployeeInfoDto {
   email: string
   departmentId: number
   departmentName: string
+  departmentCode: string
   positionId: number
   positionName: string
+  positionCode: string
 }
 
 export interface AnswerDto {
@@ -244,7 +250,6 @@ export interface SelfAssessmentAssignmentRequest {
   positionIds: number[]
   deadlineDate: string
   managerReviewDeadlineDate: string
-  finalApprovalDeadlineDate: string
 }
 
 export interface SelfAssessmentAssignmentResponse {
@@ -359,6 +364,15 @@ const getOptionalString = (value: unknown) => {
   return typeof value === 'string' ? value : undefined
 }
 
+/** Parses API ids; treats null/undefined/invalid as absent (avoids coalescing JSON null to 0). */
+const parsePositiveId = (value: unknown): number | undefined => {
+  if (value == null || value === '') {
+    return undefined
+  }
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
 const normalizeRatingSystem = (value: unknown): SelfAssessmentRatingSystem => {
   return value === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT'
 }
@@ -378,8 +392,10 @@ const normalizeEmployeeInfo = (source: UnknownRecord): EmployeeInfoDto => {
     email: getString(source.email),
     departmentId: getNumber(departmentSource?.id ?? source.departmentId),
     departmentName: getString(departmentSource?.departmentName ?? departmentSource?.name ?? source.departmentName, 'N/A'),
+    departmentCode: getString(departmentSource?.departmentCode ?? departmentSource?.code ?? source.departmentCode),
     positionId: getNumber(positionSource?.id ?? source.positionId),
     positionName: getString(positionSource?.positionName ?? positionSource?.name ?? source.positionName, 'N/A'),
+    positionCode: getString(positionSource?.positionCode ?? positionSource?.code ?? source.positionCode),
   }
 }
 
@@ -571,11 +587,19 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
 const normalizeCopiedTemplate = (template: unknown): CopiedSelfAssessmentFormTemplateDto => {
   const source = isRecord(template) ? template : {}
 
+  const departmentId =
+    parsePositiveId(source.departmentId) ?? parsePositiveId(source.department_id) ?? 0
+  const positionId = parsePositiveId(source.positionId) ?? parsePositiveId(source.position_id) ?? 0
+
   return {
     id: getNumber(source.id),
     sourceTemplateId: getNumber(source.sourceTemplateId),
     title: getString(source.title),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    departmentId,
+    positionId,
+    departmentName: getOptionalString(source.departmentName ?? source.department_name) ?? null,
+    positionName: getOptionalString(source.positionName ?? source.position_name) ?? null,
     questions: getArray(source.questions).map(normalizeTemplateQuestion),
     deletedQuestions: getArray(source.deletedQuestions).map(normalizeTemplateQuestion),
     createdOn: getString(source.createdOn),

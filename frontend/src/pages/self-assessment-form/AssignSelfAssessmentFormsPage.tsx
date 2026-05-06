@@ -16,7 +16,6 @@ import {
   Trash2,
   Users,
   Sparkles,
-  CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -84,7 +83,6 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
   const [hybridRulePositionId, setHybridRulePositionId] = useState<number | null>(null);
   const [deadlineDate, setDeadlineDate] = useState('');
   const [managerReviewDeadlineDate, setManagerReviewDeadlineDate] = useState('');
-  const [finalApprovalDeadlineDate, setFinalApprovalDeadlineDate] = useState('');
   const [positionSearchQuery, setPositionSearchQuery] = useState('');
 
   const { data: activeCycles = [] } = useGetActiveReviewCyclesQuery();
@@ -105,7 +103,6 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
     const end = activeSubmissionCycle.endDate ?? '';
     setDeadlineDate(end);
     setManagerReviewDeadlineDate(end);
-    setFinalApprovalDeadlineDate(end);
   }, [activeSubmissionCycle]);
 
   const departments = departmentsResponse?.data ?? [];
@@ -204,7 +201,6 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
   const cycleStart = activeSubmissionCycle?.startDate ?? '';
   const cycleEnd = activeSubmissionCycle?.endDate ?? '';
   const managerReviewMinDate = deadlineDate || cycleStart;
-  const finalApprovalMinDate = managerReviewDeadlineDate || cycleStart;
 
   const currentAudienceCount = useMemo(() => {
     if (assignmentMode === 'DEPARTMENTS') return departmentAudienceCount;
@@ -229,16 +225,13 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
     if (assignmentMode === 'HYBRID' && hybridRules.length === 0) {
       return 'Please add at least one hybrid rule';
     }
-    if (!deadlineDate || !managerReviewDeadlineDate || !finalApprovalDeadlineDate) return 'Please select all deadlines';
+    if (!deadlineDate || !managerReviewDeadlineDate) return 'Please select employee and manager review deadlines';
     if (deadlineDate > managerReviewDeadlineDate) {
       return 'Manager review deadline cannot be earlier than the employee deadline.';
     }
-    if (managerReviewDeadlineDate > finalApprovalDeadlineDate) {
-      return 'Final approval deadline cannot be earlier than the manager review deadline.';
-    }
     const { startDate, endDate } = activeSubmissionCycle;
-    if ([deadlineDate, managerReviewDeadlineDate, finalApprovalDeadlineDate].some((date) => date < startDate || date > endDate)) {
-      return 'All deadlines must be within the active cycle';
+    if ([deadlineDate, managerReviewDeadlineDate].some((date) => date < startDate || date > endDate)) {
+      return 'Employee and manager deadlines must be within the active cycle';
     }
     return null;
   };
@@ -264,7 +257,6 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
             positionIds: [rule.positionId],
             deadlineDate,
             managerReviewDeadlineDate,
-            finalApprovalDeadlineDate,
           }).unwrap();
           createdCount += result.createdCount;
           skippedExistingCount += result.skippedExistingCount;
@@ -282,7 +274,6 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
           positionIds,
           deadlineDate,
           managerReviewDeadlineDate,
-          finalApprovalDeadlineDate,
         }).unwrap();
         toast.success(
           `Created ${result.createdCount}; skipped ${result.skippedExistingCount} existing and ${result.skippedNoTemplateCount} without templates.`,
@@ -932,7 +923,7 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
                 <div className="absolute -right-3 -top-3 h-12 w-12 rounded-full bg-sky-500/5 blur-xl dark:bg-sky-500/10" />
                 <div className="relative">
@@ -976,29 +967,24 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
                   />
                 </div>
               </div>
+            </div>
 
-              <div className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
-                <div className="absolute -right-3 -top-3 h-12 w-12 rounded-full bg-emerald-500/5 blur-xl dark:bg-emerald-500/10" />
-                <div className="relative">
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 dark:bg-emerald-900/30">
-                      <CheckCircle2 size={11} className="text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Final Approval
-                    </label>
-                  </div>
-                  <input
-                    type="date"
-                    value={finalApprovalDeadlineDate}
-                    min={finalApprovalMinDate}
-                    max={cycleEnd}
-                    onChange={(event) => setFinalApprovalDeadlineDate(event.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#5D5FEF]"
-                  />
+            {cycleEnd && (
+              <div className="mt-4 flex gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 dark:border-slate-700/60 dark:bg-slate-800/40">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                  <CalendarRange size={16} className="text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Final approval
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+                    HR final approval uses the active review cycle end date:{' '}
+                    <span className="font-semibold text-slate-900 dark:text-white">{formatCycleDate(cycleEnd)}</span>.
+                  </p>
                 </div>
               </div>
-            </div>
+            )}
 
             {!activeSubmissionCycle && (
               <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50/50 px-4 py-2.5 dark:border-amber-800/40 dark:bg-amber-900/10">

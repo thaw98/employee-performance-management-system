@@ -13,6 +13,8 @@ import {
   Calendar,
   BarChart3,
   FolderOpen,
+  Building2,
+  Briefcase,
   Lock,
   MessageSquare,
   ClipboardCheck,
@@ -72,6 +74,12 @@ function StatusBadge({ status }: { status: string | undefined | null }) {
       dot: 'bg-slate-400',
       icon: <Clock size={13} />,
     },
+    NOT_STARTED: {
+      bg: 'bg-slate-50 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700',
+      text: 'text-slate-700 dark:text-slate-300',
+      dot: 'bg-slate-400',
+      icon: <Clock size={13} />,
+    },
   };
 
   const c = config[status] ?? {
@@ -116,6 +124,17 @@ function MetaItem({
       </div>
     </div>
   );
+}
+
+function formatNameCode(name?: string | null, code?: string | null) {
+  const displayName = name?.trim();
+  const displayCode = code?.trim();
+
+  if (!displayName || displayName === 'N/A') {
+    return 'N/A';
+  }
+
+  return displayCode ? `${displayName} (${displayCode})` : displayName;
 }
 
 function StateCard({
@@ -381,6 +400,8 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   }
 
   const isReadOnly = formData?.status !== 'DRAFT' && formData?.status !== 'REOPENED';
+  const departmentDisplay = formatNameCode(formData?.employee?.departmentName, formData?.employee?.departmentCode);
+  const positionDisplay = formatNameCode(formData?.employee?.positionName, formData?.employee?.positionCode);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-32">
@@ -416,8 +437,14 @@ export const MySelfAssessmentFormPage: React.FC = () => {
         </div>
 
         {/* Metadata strip */}
-        {(formData?.cycleName || formData?.deadlineDate || formData?.assessmentDate || formData?.totalScore != null) && (
-          <div className="relative grid grid-cols-2 divide-slate-200/70 border-t border-slate-200/70 bg-white/60 backdrop-blur-sm sm:grid-cols-4 sm:divide-x dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/30">
+        {(formData?.employee || formData?.cycleName || formData?.deadlineDate || formData?.assessmentDate || formData?.totalScore != null) && (
+          <div className="relative grid grid-cols-2 divide-slate-200/70 border-t border-slate-200/70 bg-white/60 backdrop-blur-sm lg:grid-cols-3 xl:grid-cols-6 sm:divide-x dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/30">
+            {formData?.employee && (
+              <MetaItem icon={<Building2 size={17} />} label="Department" value={departmentDisplay} />
+            )}
+            {formData?.employee && (
+              <MetaItem icon={<Briefcase size={17} />} label="Position" value={positionDisplay} />
+            )}
             {formData?.cycleName && (
               <MetaItem icon={<FolderOpen size={17} />} label="Cycle" value={formData.cycleName} />
             )}

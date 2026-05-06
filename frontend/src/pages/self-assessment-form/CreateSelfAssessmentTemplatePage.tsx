@@ -166,6 +166,10 @@ type HybridRule = {
   id: string;
   departmentId: number | null;
   positionId: number | null;
+  /** Fallback label when this dept is not in the HR departments list (e.g. inactive). */
+  departmentLabel?: string | null;
+  /** Fallback label when this position is not returned for the department yet. */
+  positionLabel?: string | null;
 };
 
 const createHybridRuleId = () =>
@@ -263,13 +267,26 @@ const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
     [positionsResponse?.data]
   );
 
+  const deptSelectionMissing =
+    rule.departmentId != null &&
+    rule.departmentId > 0 &&
+    !departments.some((d) => d.id === rule.departmentId);
+
+  const positionSelectionMissing =
+    rule.positionId != null &&
+    rule.positionId > 0 &&
+    !rowPositions.some((p) => p.id === rule.positionId);
+
+  const departmentSelectValue =
+    rule.departmentId != null && rule.departmentId > 0 ? String(rule.departmentId) : '';
+
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50/80 p-3 dark:bg-slate-800/50">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
         <div className="relative min-w-[160px] flex-1">
           <select
             aria-label="Department"
-            value={rule.departmentId ?? ''}
+            value={departmentSelectValue}
             onChange={(event) => {
               const value = event.target.value;
               onDepartmentChange(rule.id, value ? Number(value) : null);
@@ -277,6 +294,11 @@ const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
             className={selectBase}
           >
             <option value="">Select department</option>
+            {deptSelectionMissing ? (
+              <option value={String(rule.departmentId)}>
+                {rule.departmentLabel?.trim() || `Department #${rule.departmentId}`}
+              </option>
+            ) : null}
             {departments.map((department) => (
               <option key={department.id} value={department.id}>
                 {department.name}
@@ -296,6 +318,11 @@ const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
             className={selectBase}
           >
             <option value="">All Positions</option>
+            {positionSelectionMissing ? (
+              <option value={String(rule.positionId)}>
+                {rule.positionLabel?.trim() || `Position #${rule.positionId}`}
+              </option>
+            ) : null}
             {rowPositions.length === 0 && rule.departmentId ? (
               <option value="" disabled>
                 No active positions for this department
@@ -686,7 +713,32 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           sortOrder: question.sortOrder ?? copiedTemplate.questions.length + index,
         }))
     );
-    setCopiedRatingSystem(copiedTemplate.ratingSystem);
+setCopiedRatingSystem(copiedTemplate.ratingSystem);
+
+    const copiedDeptId =
+      typeof copiedTemplate.departmentId === 'number' && copiedTemplate.departmentId > 0
+        ? copiedTemplate.departmentId
+        : null;
+    const copiedPosId =
+      typeof copiedTemplate.positionId === 'number' && copiedTemplate.positionId > 0
+        ? copiedTemplate.positionId
+        : null;
+
+    if (copiedDeptId != null) {
+      setSelectedDepartmentIds([copiedDeptId]);
+      setHybridRules([
+        {
+          id: createHybridRuleId(),
+          departmentId: copiedDeptId,
+          positionId: copiedPosId,
+          departmentLabel: copiedTemplate.departmentName?.trim() || undefined,
+          positionLabel: copiedTemplate.positionName?.trim() || undefined,
+        },
+      ]);
+    }
+    if (copiedPosId != null) {
+      setSelectedGlobalPositionIds([copiedPosId]);
+    }
   }, [copiedTemplate, isPastingCopiedTemplate, reset]);
 
   const handleQuestionDragEnd = (event: DragEndEvent) => {
@@ -716,13 +768,19 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
   const updateHybridRuleDepartment = (ruleId: string, departmentId: number | null) => {
     setHybridRules((rules) =>
-      rules.map((rule) => (rule.id === ruleId ? { ...rule, departmentId, positionId: null } : rule))
+      rules.map((rule) =>
+        rule.id === ruleId
+          ? { ...rule, departmentId, positionId: null, departmentLabel: undefined, positionLabel: undefined }
+          : rule
+      )
     );
   };
 
   const updateHybridRulePosition = (ruleId: string, positionId: number | null) => {
     setHybridRules((rules) =>
-      rules.map((rule) => (rule.id === ruleId ? { ...rule, positionId } : rule))
+      rules.map((rule) =>
+        rule.id === ruleId ? { ...rule, positionId, positionLabel: undefined } : rule
+      )
     );
   };
 

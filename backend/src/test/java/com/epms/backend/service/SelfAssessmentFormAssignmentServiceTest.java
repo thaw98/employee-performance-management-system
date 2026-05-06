@@ -132,7 +132,7 @@ class SelfAssessmentFormAssignmentServiceTest {
         assertEquals(template, savedForm.getTemplate());
         assertEquals(LocalDate.of(2026, 5, 10), savedForm.getDeadlineDate());
         assertEquals(LocalDate.of(2026, 5, 15), savedForm.getManagerReviewDeadlineDate());
-        assertEquals(LocalDate.of(2026, 5, 20), savedForm.getFinalApprovalDeadlineDate());
+        assertEquals(LocalDate.of(2026, 5, 31), savedForm.getFinalApprovalDeadlineDate());
         assertEquals(SelfAssessmentRatingSystem.FIVE_POINT, savedForm.getRatingSystem());
         assertEquals(1, savedForm.getAnswers().size());
 
@@ -206,8 +206,7 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(10L),
                 List.of(20L),
                 LocalDate.of(2026, 5, 10),
-                LocalDate.of(2026, 5, 15),
-                LocalDate.of(2026, 5, 20));
+                LocalDate.of(2026, 5, 15));
 
         SelfAssessmentAssignmentResponse response = service.assignSelfAssessmentForms(request, 99L);
 
@@ -224,8 +223,7 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(),
                 List.of(),
                 LocalDate.of(2026, 5, 16),
-                LocalDate.of(2026, 5, 15),
-                LocalDate.of(2026, 5, 20));
+                LocalDate.of(2026, 5, 15));
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> service.assignSelfAssessmentForms(request, 99L));
 
@@ -365,8 +363,7 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(),
                 List.of(),
                 LocalDate.of(2026, 5, 10),
-                LocalDate.of(2026, 5, 15),
-                LocalDate.of(2026, 5, 20));
+                LocalDate.of(2026, 5, 15));
     }
 
     private static ReviewCycle cycle() {

@@ -7,6 +7,8 @@ public record EmployeeInfoDto(
         String email,
         Long departmentId,
         String departmentName,
+        String departmentCode,
         Long positionId,
-        String positionName
+        String positionName,
+        String positionCode
 ) {}
