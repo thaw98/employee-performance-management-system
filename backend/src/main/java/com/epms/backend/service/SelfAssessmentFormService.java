@@ -26,8 +26,7 @@ import java.util.stream.Collectors;
 @Service
 public class SelfAssessmentFormService {
 
-    private static final DateTimeFormatter NOTIFICATION_DEADLINE_FORMAT =
-            DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    private static final DateTimeFormatter NOTIFICATION_DEADLINE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     private final SelfAssessmentFormTemplateRepository templateRepository;
     private final SelfAssessmentFormRepository formRepository;
@@ -84,7 +83,8 @@ public class SelfAssessmentFormService {
                 .findActiveByDepartmentAndPositionAndReviewCycleId(
                         request.departmentId(), request.positionId(), cycle.getId());
         if (existing.isPresent()) {
-            throw new RuntimeException("An active template already exists for this department, position, and review cycle");
+            throw new RuntimeException(
+                    "An active template already exists for this department, position, and review cycle");
         }
 
         SelfAssessmentFormTemplate template = new SelfAssessmentFormTemplate();
@@ -116,7 +116,8 @@ public class SelfAssessmentFormService {
                 saved.getId(),
                 userId,
                 null,
-                "Created self-assessment form template for department " + department.getName() + " and position " + position.getName(),
+                "Created self-assessment form template for department " + department.getName() + " and position "
+                        + position.getName(),
                 null);
 
         return toTemplateDto(saved);
@@ -135,7 +136,8 @@ public class SelfAssessmentFormService {
                 : templateRepository.findActiveByDepartmentAndPositionWithNullReviewCycleExcluding(
                         request.departmentId(), request.positionId(), id);
         if (existing.isPresent() && request.isActive()) {
-            throw new RuntimeException("An active template already exists for this department, position, and review cycle");
+            throw new RuntimeException(
+                    "An active template already exists for this department, position, and review cycle");
         }
 
         Department department = departmentRepository.findById(request.departmentId())
@@ -407,11 +409,13 @@ public class SelfAssessmentFormService {
         if (cycle == null) {
             return Optional.empty();
         }
-        return findActiveTemplateForDepartmentPositionAndCycle(departmentId, positionId, cycle).map(this::toTemplateDto);
+        return findActiveTemplateForDepartmentPositionAndCycle(departmentId, positionId, cycle)
+                .map(this::toTemplateDto);
     }
 
     @Transactional
-    public SetTemplateDeadlineResponse setTemplateDeadline(Long templateId, SetTemplateDeadlineRequest request, Long userId) {
+    public SetTemplateDeadlineResponse setTemplateDeadline(Long templateId, SetTemplateDeadlineRequest request,
+            Long userId) {
         SelfAssessmentFormTemplate template = templateRepository.findById(templateId)
                 .orElseThrow(() -> new RuntimeException("Template not found"));
         if (!template.isActive()) {
@@ -447,7 +451,8 @@ public class SelfAssessmentFormService {
                 continue;
             }
 
-            SelfAssessmentForm form = createAssignedDraftForm(employee, template, activeCycle, deadlineDate, now, userId);
+            SelfAssessmentForm form = createAssignedDraftForm(employee, template, activeCycle, deadlineDate, now,
+                    userId);
             formRepository.save(form);
             created++;
 
@@ -483,7 +488,8 @@ public class SelfAssessmentFormService {
     }
 
     @Transactional
-    public SelfAssessmentAssignmentResponse assignSelfAssessmentForms(SelfAssessmentAssignmentRequest request, Long userId) {
+    public SelfAssessmentAssignmentResponse assignSelfAssessmentForms(SelfAssessmentAssignmentRequest request,
+            Long userId) {
         AssignmentMode assignmentMode = parseAssignmentMode(request.assignmentMode());
         validateAssignmentSelections(assignmentMode, request.departmentIds(), request.positionIds());
 
@@ -521,10 +527,11 @@ public class SelfAssessmentFormService {
                 continue;
             }
 
-            Optional<SelfAssessmentFormTemplate> templateOpt = templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
-                    departmentId,
-                    positionId,
-                    activeCycle.getId());
+            Optional<SelfAssessmentFormTemplate> templateOpt = templateRepository
+                    .findActiveByDepartmentAndPositionAndReviewCycleId(
+                            departmentId,
+                            positionId,
+                            activeCycle.getId());
             if (templateOpt.isEmpty()) {
                 skippedNoTemplate++;
                 continue;
@@ -572,7 +579,8 @@ public class SelfAssessmentFormService {
     @Transactional
     public FormStatusDto getEmployeeFormStatus(Employee employee) {
         if (!isPermanentEmployee(employee)) {
-            return new FormStatusDto(null, false, false, false, "You are not eligible for self-assessment. Only permanent employees can participate.");
+            return new FormStatusDto(null, false, false, false,
+                    "You are not eligible for self-assessment. Only permanent employees can participate.");
         }
 
         ReviewCycle activeCycle = getActiveCycle();
@@ -587,7 +595,8 @@ public class SelfAssessmentFormService {
             if (deadlinePassed && form.getStatus() == SelfAssessmentFormStatus.DRAFT) {
                 form.setStatus(SelfAssessmentFormStatus.NOT_SUBMITTED);
                 formRepository.save(form);
-                return new FormStatusDto("NOT_SUBMITTED", true, true, true, "Deadline has passed. Your draft was marked as not submitted.");
+                return new FormStatusDto("NOT_SUBMITTED", true, true, true,
+                        "Deadline has passed. Your draft was marked as not submitted.");
             }
             return new FormStatusDto(form.getStatus().name(), true, true, deadlinePassed, null);
         }
@@ -601,10 +610,12 @@ public class SelfAssessmentFormService {
                 dp.getDepartment().getId(), dp.getPosition().getId(), activeCycle);
 
         if (templateOpt.isEmpty()) {
-            return new FormStatusDto(null, true, false, false, "No active self-assessment Form available for your department and position.");
+            return new FormStatusDto(null, true, false, false,
+                    "No active self-assessment Form available for your department and position.");
         }
 
-        return new FormStatusDto("NOT_ASSIGNED", true, true, false, "No self-assessment form has been assigned to you for the active cycle.");
+        return new FormStatusDto("NOT_ASSIGNED", true, true, false,
+                "No self-assessment form has been assigned to you for the active cycle.");
     }
 
     @Transactional(readOnly = true)
@@ -627,7 +638,8 @@ public class SelfAssessmentFormService {
     public SelfAssessmentFormDto saveDraft(Employee employee, SaveDraftRequest request) {
         SelfAssessmentForm form = getOrCreateForm(employee);
 
-        if (form.getStatus() != SelfAssessmentFormStatus.DRAFT && form.getStatus() != SelfAssessmentFormStatus.REOPENED) {
+        if (form.getStatus() != SelfAssessmentFormStatus.DRAFT
+                && form.getStatus() != SelfAssessmentFormStatus.REOPENED) {
             throw new RuntimeException("Form cannot be edited in current status: " + form.getStatus());
         }
 
@@ -658,7 +670,8 @@ public class SelfAssessmentFormService {
     public SelfAssessmentFormDto submitForm(Employee employee, SubmitFormRequest request) {
         SelfAssessmentForm form = getOrCreateForm(employee);
 
-        if (form.getStatus() != SelfAssessmentFormStatus.DRAFT && form.getStatus() != SelfAssessmentFormStatus.REOPENED) {
+        if (form.getStatus() != SelfAssessmentFormStatus.DRAFT
+                && form.getStatus() != SelfAssessmentFormStatus.REOPENED) {
             throw new RuntimeException("Form cannot be submitted in current status: " + form.getStatus());
         }
 
@@ -683,7 +696,8 @@ public class SelfAssessmentFormService {
         form.setOverallRemarks(request.overallRemarks());
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(employee.getUserAccount())
-                .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before submitting."));
+                .orElseThrow(() -> new RuntimeException(
+                        "No default signature found. Please set up your signature before submitting."));
 
         form.setEmployeeSignatureId(defaultSig.getId());
         form.setEmployeeSignatureDate(Instant.now());
@@ -793,7 +807,8 @@ public class SelfAssessmentFormService {
         }
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount())
-                .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before reviewing."));
+                .orElseThrow(() -> new RuntimeException(
+                        "No default signature found. Please set up your signature before reviewing."));
 
         form.setManager(manager);
         form.setManagerSignatureId(defaultSig.getId());
@@ -864,7 +879,8 @@ public class SelfAssessmentFormService {
     }
 
     @Transactional
-    public SelfAssessmentFormDto hrApproveManagerReview(Long formId, HrApproveManagerReviewRequest request, Long hrUserId) {
+    public SelfAssessmentFormDto hrApproveManagerReview(Long formId, HrApproveManagerReviewRequest request,
+            Long hrUserId) {
         SelfAssessmentForm form = formRepository.findById(formId)
                 .orElseThrow(() -> new RuntimeException("Form not found"));
 
@@ -876,7 +892,8 @@ public class SelfAssessmentFormService {
                 .orElseThrow(() -> new RuntimeException("HR user not found"));
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
-                .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before approving."));
+                .orElseThrow(() -> new RuntimeException(
+                        "No default signature found. Please set up your signature before approving."));
 
         form.setHrAdjustmentSignatureId(defaultSig.getId());
         form.setHrAdjustmentSignatureDate(Instant.now());
@@ -908,7 +925,8 @@ public class SelfAssessmentFormService {
     }
 
     @Transactional
-    public SelfAssessmentFormDto hrRejectManagerReview(Long formId, HrRejectManagerReviewRequest request, Long hrUserId) {
+    public SelfAssessmentFormDto hrRejectManagerReview(Long formId, HrRejectManagerReviewRequest request,
+            Long hrUserId) {
         SelfAssessmentForm form = formRepository.findById(formId)
                 .orElseThrow(() -> new RuntimeException("Form not found"));
 
@@ -920,7 +938,8 @@ public class SelfAssessmentFormService {
                 .orElseThrow(() -> new RuntimeException("HR user not found"));
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
-                .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before rejecting."));
+                .orElseThrow(() -> new RuntimeException(
+                        "No default signature found. Please set up your signature before rejecting."));
 
         form.setHrAdjustmentSignatureId(defaultSig.getId());
         form.setHrAdjustmentSignatureDate(Instant.now());
@@ -961,7 +980,8 @@ public class SelfAssessmentFormService {
                 .orElseThrow(() -> new RuntimeException("HR user not found"));
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
-                .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before approving."));
+                .orElseThrow(() -> new RuntimeException(
+                        "No default signature found. Please set up your signature before approving."));
 
         form.setHrFinalSignatureId(defaultSig.getId());
         form.setHrFinalSignatureDate(Instant.now());
@@ -995,7 +1015,8 @@ public class SelfAssessmentFormService {
                 .orElseThrow(() -> new RuntimeException("HR user not found"));
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
-                .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before reopening."));
+                .orElseThrow(() -> new RuntimeException(
+                        "No default signature found. Please set up your signature before reopening."));
 
         form.setHrSignatureId(defaultSig.getId());
         form.setStatus(SelfAssessmentFormStatus.REOPENED);
@@ -1022,7 +1043,8 @@ public class SelfAssessmentFormService {
     @Transactional
     public void createDueTomorrowNotifications() {
         ReviewCycle activeCycle = getActiveCycle();
-        if (activeCycle == null) return;
+        if (activeCycle == null)
+            return;
 
         LocalDate tomorrow = LocalDate.now().plusDays(1);
         for (SelfAssessmentForm form : formRepository.findByCycleOrderByCreatedDateDesc(activeCycle)) {
@@ -1035,8 +1057,9 @@ public class SelfAssessmentFormService {
             }
             String message = "Your saved self-assessment draft is due tomorrow";
             String source = "SELF_ASSESSMENT_FORM";
-            Optional<Notification> existingNotif = notificationRepository.findByRecipientAndSourceAndMessageStartingWith(
-                    emp.getUserAccount(), source, "Your saved self-assessment draft");
+            Optional<Notification> existingNotif = notificationRepository
+                    .findByRecipientAndSourceAndMessageStartingWith(
+                            emp.getUserAccount(), source, "Your saved self-assessment draft");
             if (existingNotif.isPresent()) {
                 continue;
             }
@@ -1238,7 +1261,8 @@ public class SelfAssessmentFormService {
     }
 
     private void updateAnswers(SelfAssessmentForm form, List<AnswerRequest> answerRequests) {
-        if (answerRequests == null) return;
+        if (answerRequests == null)
+            return;
 
         SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
         for (AnswerRequest ar : answerRequests) {
@@ -1280,10 +1304,14 @@ public class SelfAssessmentFormService {
     }
 
     private String getRatingCategory(double score) {
-        if (score >= 86) return "Outstanding";
-        if (score >= 71) return "Good";
-        if (score >= 60) return "Meet Requirement";
-        if (score >= 40) return "Need Improvement";
+        if (score >= 86)
+            return "Outstanding";
+        if (score >= 71)
+            return "Good";
+        if (score >= 60)
+            return "Meet Requirement";
+        if (score >= 40)
+            return "Need Improvement";
         return "Unsatisfactory";
     }
 
@@ -1313,15 +1341,17 @@ public class SelfAssessmentFormService {
     }
 
     /**
-     * Prefer a template scoped to the given cycle; fall back to legacy templates with no review cycle.
+     * Prefer a template scoped to the given cycle; fall back to legacy templates
+     * with no review cycle.
      */
     private Optional<SelfAssessmentFormTemplate> findActiveTemplateForDepartmentPositionAndCycle(
             Long departmentId, Long positionId, ReviewCycle cycle) {
         if (cycle == null) {
             return Optional.empty();
         }
-        Optional<SelfAssessmentFormTemplate> forCycle = templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
-                departmentId, positionId, cycle.getId());
+        Optional<SelfAssessmentFormTemplate> forCycle = templateRepository
+                .findActiveByDepartmentAndPositionAndReviewCycleId(
+                        departmentId, positionId, cycle.getId());
         if (forCycle.isPresent()) {
             return forCycle;
         }
@@ -1356,7 +1386,8 @@ public class SelfAssessmentFormService {
         return mapTemplateQuestionToDto(q, null, null);
     }
 
-    private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q, Long currentUserId, Long currentRoleId) {
+    private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q, Long currentUserId,
+            Long currentRoleId) {
         Long createdByRoleId = getUserRoleId(q.getCreatedBy());
         boolean isManagerAdded = createdByRoleId != null && createdByRoleId == 2L;
         boolean isHr = currentRoleId != null && currentRoleId == 1L;
@@ -1387,7 +1418,8 @@ public class SelfAssessmentFormService {
         return toTemplateDto(template, null, null);
     }
 
-    private SelfAssessmentFormTemplateDto toTemplateDto(SelfAssessmentFormTemplate template, Long currentUserId, Long currentRoleId) {
+    private SelfAssessmentFormTemplateDto toTemplateDto(SelfAssessmentFormTemplate template, Long currentUserId,
+            Long currentRoleId) {
         List<QuestionDto> questions = template.getQuestions().stream()
                 .filter(q -> q.getDeletedAt() == null)
                 .sorted(Comparator.comparing(SelfAssessmentFormTemplateQuestion::getSortOrder))
@@ -1417,8 +1449,7 @@ public class SelfAssessmentFormService {
                 questions,
                 deletedQuestions,
                 template.getCreatedOn(),
-                template.getCreatedBy()
-        );
+                template.getCreatedBy());
     }
 
     private Long getUserRoleId(Long userId) {
@@ -1498,8 +1529,7 @@ public class SelfAssessmentFormService {
                 emp.getDepartment() != null ? emp.getDepartment().getId() : null,
                 emp.getDepartment() != null ? emp.getDepartment().getName() : null,
                 emp.getPosition() != null ? emp.getPosition().getId() : null,
-                emp.getPosition() != null ? emp.getPosition().getName() : null
-        );
+                emp.getPosition() != null ? emp.getPosition().getName() : null);
 
         List<AnswerDto> answers = form.getAnswers().stream()
                 .map(a -> new AnswerDto(
@@ -1512,8 +1542,7 @@ public class SelfAssessmentFormService {
                         a.getManagerProposedYesNo(),
                         a.getManagerProposedRating(),
                         a.getManagerProposedComment(),
-                        a.getHrAdjustmentApproved()
-                ))
+                        a.getHrAdjustmentApproved()))
                 .collect(Collectors.toList());
 
         List<AdjustmentDto> adjustments = adjustmentRepository.findByForm(form).stream()
@@ -1529,8 +1558,7 @@ public class SelfAssessmentFormService {
                         a.getHrDecision(),
                         a.getHrRejectionReason(),
                         a.getAdjustedAt(),
-                        a.getAdjustedBy()
-                ))
+                        a.getAdjustedBy()))
                 .collect(Collectors.toList());
 
         String managerName = form.getManager() != null ? form.getManager().getEmployeeName() : null;
@@ -1570,8 +1598,7 @@ public class SelfAssessmentFormService {
                 form.getAssessmentDate(),
                 employeeInfo,
                 answers,
-                adjustments
-        );
+                adjustments);
     }
 
     private FormListDto toFormListDto(SelfAssessmentForm form) {
@@ -1584,8 +1611,7 @@ public class SelfAssessmentFormService {
                 emp.getDepartment() != null ? emp.getDepartment().getId() : null,
                 emp.getDepartment() != null ? emp.getDepartment().getName() : null,
                 emp.getPosition() != null ? emp.getPosition().getId() : null,
-                emp.getPosition() != null ? emp.getPosition().getName() : null
-        );
+                emp.getPosition() != null ? emp.getPosition().getName() : null);
 
         return new FormListDto(
                 form.getId(),
@@ -1603,8 +1629,7 @@ public class SelfAssessmentFormService {
                 form.getRatingCategory(),
                 form.getSubmittedDate(),
                 form.getAssessmentDate(),
-                form.getCreatedDate()
-        );
+                form.getCreatedDate());
     }
 
     private String findQuestionText(SelfAssessmentForm form, Long answerId) {
