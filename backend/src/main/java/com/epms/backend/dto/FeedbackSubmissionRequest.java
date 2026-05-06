@@ -7,6 +7,7 @@ import java.util.List;
 public class FeedbackSubmissionRequest {
     private Long evaluateeId;
     private String role;
+    private Boolean anonymous;
     private List<FeedbackDetailRequest> details;
 
     @Data

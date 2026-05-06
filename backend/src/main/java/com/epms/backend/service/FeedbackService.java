@@ -63,6 +63,7 @@ public class FeedbackService {
         feedback.setEvaluator(evaluator);
         feedback.setEvaluatee(evaluatee);
         feedback.setRole(request.getRole());
+        feedback.setAnonymous(Boolean.TRUE.equals(request.getAnonymous()));
         feedback.setCreatedDate(Instant.now());
 
         List<FeedbackDetail> details = new ArrayList<>();
@@ -133,19 +134,31 @@ public class FeedbackService {
         dto.setRole(entity.getRole());
         dto.setScore(entity.getScore());
         dto.setRemark(entity.getRemark());
+        dto.setAnonymous(Boolean.TRUE.equals(entity.getAnonymous()));
         return dto;
     }
 
     private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity) {
         FeedbackHistoryDto dto = mapToHistoryDto(entity);
-        Employee evaluatee = entity.getEvaluatee();
-        Employee manager = reportingManagerResolver.resolve(evaluatee);
-        boolean directManagerFeedback = manager != null
-                && entity.getEvaluator() != null
-                && manager.getId().equals(entity.getEvaluator().getId());
 
-        dto.setEvaluatorName(directManagerFeedback ? entity.getEvaluator().getEmployeeName() : "Anonymous");
+        if (Boolean.TRUE.equals(entity.getAnonymous())) {
+            dto.setEvaluatorName("Anonymous");
+        } else {
+            dto.setEvaluatorName(entity.getEvaluator().getEmployeeName());
+        }
+
+        // Invert the role for the recipient's view
+        dto.setRole(getEvaluatorRoleRelation(entity.getRole()).toUpperCase());
+
         return dto;
+    }
+
+
+    private String getEvaluatorRoleRelation(String evaluateeRoleRelation) {
+        if ("SUBORDINATE".equalsIgnoreCase(evaluateeRoleRelation)) return "Manager";
+        if ("MANAGER".equalsIgnoreCase(evaluateeRoleRelation)) return "Subordinate";
+        if ("PEER".equalsIgnoreCase(evaluateeRoleRelation)) return "Peer";
+        return "Anonymous";
     }
 
     public List<com.epms.backend.dto.FeedbackDetailDto> getFeedbackDetails(Long feedbackId) {

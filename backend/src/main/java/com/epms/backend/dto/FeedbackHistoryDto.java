@@ -14,4 +14,5 @@ public class FeedbackHistoryDto {
     private String role;
     private Double score;
     private String remark;
+    private Boolean anonymous;
 }

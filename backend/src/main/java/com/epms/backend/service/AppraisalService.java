@@ -19,7 +19,7 @@ public class AppraisalService {
     private final AppraisalCategoryRepository categoryRepository;
     private final AppraisalQuestionRepository questionRepository;
     private final AppraisalTemplateRepository templateRepository;
-    private final PositionRepository positionRepository;
+    // private final PositionRepository positionRepository;
     private final DepartmentPositionRepository departmentPositionRepository;
     private final AppraisalAssignmentRepository assignmentRepository;
     private final EmployeeReportingHistoryRepository reportingHistoryRepository;
