@@ -36,7 +36,7 @@ public class AppraisalAssignment {
     private Employee evaluator;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private AppraisalStatus status = AppraisalStatus.DRAFT;
 
     @Column(name = "hr_comments", columnDefinition = "TEXT")

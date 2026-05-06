@@ -10,7 +10,7 @@ import com.epms.backend.dto.position.UpdatePositionRequest;
 
 public interface PositionService {
 
-	PositionListResponse getPositions(int page, int size, String search, String positionName, Long roleId,
+	PositionListResponse getPositions(Integer page, Integer size, String search, String positionName, Long roleId,
 			Long levelCodeId, String sortBy, String sortDir);
 
 	PositionDto getPositionById(Long id);

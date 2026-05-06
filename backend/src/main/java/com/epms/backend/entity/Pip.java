@@ -46,9 +46,9 @@ public class Pip {
     @JoinColumn(name = "manager_id", nullable = false)
     private Employee manager;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cycle_id")
-    private AppraisalCycle period;
+
+
+
 
     @Column(name = "status", length = 20)
     private String status;

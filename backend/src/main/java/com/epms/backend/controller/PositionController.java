@@ -35,10 +35,10 @@ public class PositionController {
 	@GetMapping
 	@PreAuthorize("hasRole('HR')")
 	public ResponseEntity<ApiResponse<PositionListResponse>> getPositions(
-			@RequestParam(defaultValue = "0") int page,
-			@RequestParam(defaultValue = "10") int size,
-			@RequestParam(defaultValue = "id") String sortBy,
-			@RequestParam(defaultValue = "asc") String sortDir,
+			@RequestParam(required = false) Integer page,
+			@RequestParam(required = false) Integer size,
+			@RequestParam(required = false) String sortBy,
+			@RequestParam(required = false) String sortDir,
 			@RequestParam(required = false) String search,
 			@RequestParam(required = false) String positionName,
 			@RequestParam(required = false) Long roleId,
