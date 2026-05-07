@@ -326,6 +326,9 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                   <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
                     Rating System
                   </th>
+                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
+                    Deadline Assignment
+                  </th>
                   <th scope="col" className="px-5 py-3.5 text-right text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                     Actions
                   </th>
@@ -371,6 +374,17 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                         {template.ratingSystem === 'TEN_POINT' ? '10-Point' : '5-Point'}
                       </span>
+                    </td>
+                    <td className="px-5 py-4 hidden lg:table-cell">
+                      {template.isAssignedToDeadline ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                          Already assigned
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
+                          Not assigned
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-right">
                       <Link

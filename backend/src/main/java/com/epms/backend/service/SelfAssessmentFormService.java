@@ -1765,6 +1765,7 @@ Instant now = Instant.now();
                 SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()).name(),
                 resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()),
                 formRepository.existsByTemplate(template),
+                formRepository.existsByTemplate(template),
                 questions,
                 deletedQuestions,
                 template.getCreatedOn(),

@@ -30,6 +30,7 @@ export interface SelfAssessmentFormTemplateDto {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
   isLocked: boolean
+  isAssignedToDeadline: boolean
   questions: QuestionDto[]
   /** Questions soft-deleted from the template; still visible for restore until cleared server-side. */
   deletedQuestions: QuestionDto[]
@@ -635,6 +636,7 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
     isLocked: getBoolean(source.isLocked),
+    isAssignedToDeadline: getBoolean(source.isAssignedToDeadline, getBoolean(source.isLocked)),
     questions: getArray(source.questions).map(normalizeTemplateQuestion),
     deletedQuestions: getArray(source.deletedQuestions).map(normalizeTemplateQuestion),
     createdOn: getString(source.createdOn),
