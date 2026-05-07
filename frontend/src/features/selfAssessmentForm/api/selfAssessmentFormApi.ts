@@ -248,12 +248,13 @@ export interface SetTemplateDeadlineResponse {
   skippedCount: number
 }
 
-export type SelfAssessmentAssignmentMode = 'ALL_EMPLOYEES' | 'DEPARTMENTS' | 'POSITIONS' | 'HYBRID'
+export type SelfAssessmentAssignmentMode = 'ALL_EMPLOYEES' | 'DEPARTMENTS' | 'POSITIONS' | 'HYBRID' | 'SPECIFIC_EMPLOYEES'
 
 export interface SelfAssessmentAssignmentRequest {
   assignmentMode: SelfAssessmentAssignmentMode
   departmentIds: number[]
   positionIds: number[]
+  employeeIds: number[]
   deadlineDate: string
   managerReviewDeadlineDate: string
 }

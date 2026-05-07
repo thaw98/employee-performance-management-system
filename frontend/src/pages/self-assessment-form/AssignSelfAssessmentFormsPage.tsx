@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   ClipboardList,
   FileQuestion,
+  UserCheck,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -167,6 +168,8 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
   const [deadlineDate, setDeadlineDate] = useState('');
   const [managerReviewDeadlineDate, setManagerReviewDeadlineDate] = useState('');
   const [positionSearchQuery, setPositionSearchQuery] = useState('');
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<number[]>([]);
+  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
 
   const { data: activeCycles = [] } = useGetActiveReviewCyclesQuery();
   const { data: departmentsResponse } = useGetDepartmentsQuery();
@@ -282,6 +285,20 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
     return positions.filter((p) => normalizeLookupKey(p.positionName).includes(q));
   }, [positions, positionSearchQuery]);
 
+  const filteredEmployees = useMemo(() => {
+    const q = normalizeLookupKey(employeeSearchQuery);
+    if (!q) return activeEmployees;
+    return activeEmployees.filter(
+      (e) =>
+        normalizeLookupKey(e.employeeName).includes(q) ||
+        normalizeLookupKey(e.staffNo).includes(q) ||
+        normalizeLookupKey(e.departmentName).includes(q) ||
+        normalizeLookupKey(e.positionName).includes(q)
+    );
+  }, [activeEmployees, employeeSearchQuery]);
+
+  const employeeAudienceCount = selectedEmployeeIds.length;
+
   const cycleStart = activeSubmissionCycle?.startDate ?? '';
   const cycleEnd = activeSubmissionCycle?.endDate ?? '';
   const managerReviewMinDate = deadlineDate || cycleStart;
@@ -334,8 +351,9 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
     if (assignmentMode === 'DEPARTMENTS') return departmentAudienceCount;
     if (assignmentMode === 'POSITIONS') return positionAudienceCount;
     if (assignmentMode === 'HYBRID') return hybridAudienceCount;
+    if (assignmentMode === 'SPECIFIC_EMPLOYEES') return employeeAudienceCount;
     return activeEmployees.length;
-  }, [assignmentMode, departmentAudienceCount, positionAudienceCount, hybridAudienceCount, activeEmployees.length]);
+  }, [assignmentMode, departmentAudienceCount, positionAudienceCount, hybridAudienceCount, employeeAudienceCount, activeEmployees.length]);
 
   const selectedSummary = useMemo(() => {
     if (assignmentMode === 'DEPARTMENTS') return `${departmentIds.length} department${departmentIds.length === 1 ? '' : 's'}`;
@@ -343,8 +361,9 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
     if (assignmentMode === 'HYBRID') {
       return `${hybridRules.length} rule${hybridRules.length === 1 ? '' : 's'}`;
     }
+    if (assignmentMode === 'SPECIFIC_EMPLOYEES') return `${selectedEmployeeIds.length} employee${selectedEmployeeIds.length === 1 ? '' : 's'}`;
     return 'All eligible employees';
-  }, [assignmentMode, departmentIds.length, hybridRules.length, positionIds.length]);
+  }, [assignmentMode, departmentIds.length, hybridRules.length, positionIds.length, selectedEmployeeIds.length]);
 
   const validate = () => {
     if (!activeSubmissionCycle) return 'No active employee-submission review cycle is available';
@@ -352,6 +371,9 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
     if (assignmentMode === 'POSITIONS' && positionIds.length === 0) return 'Please select at least one position';
     if (assignmentMode === 'HYBRID' && hybridRules.length === 0) {
       return 'Please add at least one hybrid rule';
+    }
+    if (assignmentMode === 'SPECIFIC_EMPLOYEES' && selectedEmployeeIds.length === 0) {
+      return 'Please select at least one employee';
     }
     if (!deadlineDate || !managerReviewDeadlineDate) return 'Please select employee and manager review deadlines';
     if (deadlineDate > managerReviewDeadlineDate) {
@@ -400,6 +422,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
           assignmentMode,
           departmentIds,
           positionIds,
+          employeeIds: selectedEmployeeIds,
           deadlineDate,
           managerReviewDeadlineDate,
         }).unwrap();
@@ -419,6 +442,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
 
   const showDepartments = assignmentMode === 'DEPARTMENTS';
   const showPositions = assignmentMode === 'POSITIONS';
+  const showEmployees = assignmentMode === 'SPECIFIC_EMPLOYEES';
 
   const selectAllDepartments = () => setDepartmentIds(departments.map((d) => d.departmentId));
   const clearDepartments = () => setDepartmentIds([]);
@@ -615,7 +639,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
               <StepIndicator
                 step={2}
                 label="Selection"
-                active={showDepartments || showPositions || (assignmentMode === 'HYBRID' && hybridRules.length > 0)}
+                active={showDepartments || showPositions || showEmployees || (assignmentMode === 'HYBRID' && hybridRules.length > 0)}
               />
               <div className="h-px w-4 bg-slate-200 dark:bg-slate-700" />
               <StepIndicator step={3} label="Deadlines" active />
@@ -635,7 +659,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                 <p className="text-xs text-slate-400 dark:text-slate-500">Select who should receive this self-assessment</p>
               </div>
             </div>
-            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <AudienceCard
                 value="DEPARTMENTS"
                 selected={assignmentMode === 'DEPARTMENTS'}
@@ -661,6 +685,15 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                 description={['Departments + specific positions', 'Most flexible option']}
                 icon={<Layers3 size={18} />}
                 badge={createCountBadge(hybridAudienceCount)}
+                onSelect={selectAssignmentMode}
+              />
+              <AudienceCard
+                value="SPECIFIC_EMPLOYEES"
+                selected={assignmentMode === 'SPECIFIC_EMPLOYEES'}
+                title="Employee Name"
+                description={['Select individual employees', 'Assign by name or staff no.']}
+                icon={<UserCheck size={18} />}
+                badge={createCountBadge(employeeAudienceCount)}
                 onSelect={selectAssignmentMode}
               />
             </div>
@@ -979,6 +1012,125 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   <span className="font-bold text-[#5D5FEF] dark:text-[#8b8ef7]">
                     {formatEmployeeCount(positionAudienceCount)}
                   </span>
+                </span>
+              </div>
+            </section>
+          )}
+
+          {showEmployees && (
+            <section className="animate-fade-in-up">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-teal-100 to-teal-50 dark:from-teal-900/30 dark:to-teal-800/20">
+                    <UserCheck size={14} className="text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Select Employees</h3>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">
+                      Search and select employees by name or staff number
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEmployeeIds(activeEmployees.map((e) => e.employeeId))}
+                    className="rounded-lg bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-xs font-bold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                  >
+                    Select all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEmployeeIds([])}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative mb-3">
+                <Search
+                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                  aria-hidden
+                />
+                <input
+                  type="search"
+                  value={employeeSearchQuery}
+                  onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                  placeholder="Search by name, staff no., department, or position..."
+                  className="w-full rounded-xl border border-slate-200/80 bg-white py-2.5 pl-11 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#5D5FEF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-800 dark:focus:border-[#5D5FEF]"
+                />
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-700/60">
+                <div className="max-h-64 overflow-y-auto">
+                  {filteredEmployees.length > 0 ? (
+                    <ul className="divide-y divide-slate-100/80 dark:divide-slate-700/40">
+                      {filteredEmployees.map((employee) => {
+                        const isSelected = selectedEmployeeIds.includes(employee.employeeId);
+                        return (
+                          <li key={employee.employeeId}>
+                            <label
+                              className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition-all duration-200 ${
+                                isSelected
+                                  ? 'bg-[#5D5FEF]/[0.04] dark:bg-[#5D5FEF]/[0.06]'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                              }`}
+                            >
+                              <div
+                                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ${
+                                  isSelected
+                                    ? 'border-[#5D5FEF] bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-sm shadow-[#5D5FEF]/20'
+                                    : 'border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800'
+                                }`}
+                              >
+                                {isSelected && (
+                                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => setSelectedEmployeeIds((current) => toggleId(current, employee.employeeId))}
+                                className="sr-only"
+                              />
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-teal-50 to-teal-100/50 dark:from-teal-900/20 dark:to-teal-800/10">
+                                <Users size={14} className="text-teal-600 dark:text-teal-400" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                  {employee.employeeName}
+                                </span>
+                                <span className="block text-xs text-slate-400 dark:text-slate-500">
+                                  {employee.staffNo} · {employee.departmentName} · {employee.positionName}
+                                </span>
+                              </div>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 px-4">
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700/60">
+                        <Search size={20} className="text-slate-300 dark:text-slate-500" />
+                      </div>
+                      <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">No employees match your search</p>
+                      <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">Try adjusting your search query</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden />
+                <span className="text-sm text-slate-500 dark:text-slate-400">
+                  Selected{' '}
+                  <span className="font-bold text-slate-900 dark:text-white">{selectedEmployeeIds.length}</span>{' '}
+                  of {activeEmployees.length} employees
                 </span>
               </div>
             </section>

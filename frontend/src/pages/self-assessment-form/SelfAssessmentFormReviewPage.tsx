@@ -858,7 +858,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     </div>
 
                     <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-700/60 dark:bg-slate-700/20">
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <button
+                        type="button"
+                        onClick={() => setShowAdjustments((prev) => !prev)}
+                        aria-pressed={showAdjustments}
+                        className="flex w-full items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5D5FEF]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800"
+                      >
                         <div className={`relative flex h-5 w-9 items-center rounded-full transition-colors ${showAdjustments ? 'bg-[#5D5FEF]' : 'bg-slate-300 dark:bg-slate-600'}`}>
                           <div className={`absolute h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${showAdjustments ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
                         </div>
@@ -866,11 +871,11 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                           <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                             Propose Adjustments
                           </span>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">
                             Adjust individual answers with your proposed rating and required comment
                           </p>
                         </div>
-                      </label>
+                      </button>
                     </div>
 
                     {showAdjustments && (

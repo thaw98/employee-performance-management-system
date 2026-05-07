@@ -576,7 +576,7 @@ Instant now = Instant.now();
     @Transactional
     public SelfAssessmentAssignmentResponse assignSelfAssessmentForms(SelfAssessmentAssignmentRequest request, Long userId) {
         AssignmentMode assignmentMode = parseAssignmentMode(request.assignmentMode());
-        validateAssignmentSelections(assignmentMode, request.departmentIds(), request.positionIds());
+        validateAssignmentSelections(assignmentMode, request.departmentIds(), request.positionIds(), request.employeeIds());
 
         ReviewCycle activeCycle = requireActiveCycle();
         validateAssignmentDeadlines(
@@ -586,6 +586,7 @@ Instant now = Instant.now();
 
         Set<Long> departmentIds = toIdSet(request.departmentIds());
         Set<Long> positionIds = toIdSet(request.positionIds());
+        Set<Long> employeeIdSet = toIdSet(request.employeeIds());
         List<Employee> candidates = employeeRepository.findEligibleSelfAssessmentAssignees(
                 EmployeeStatus.ACTIVE,
                 StaffTypes.PROBATION);
@@ -593,10 +594,11 @@ Instant now = Instant.now();
         int created = 0;
         int skippedExisting = 0;
         int skippedNoTemplate = 0;
+        int skippedIneligible = 0;
         Instant now = Instant.now();
 
         for (Employee employee : candidates) {
-            if (!matchesAssignmentMode(employee, assignmentMode, departmentIds, positionIds)) {
+            if (!matchesAssignmentMode(employee, assignmentMode, departmentIds, positionIds, employeeIdSet)) {
                 continue;
             }
             if (formRepository.existsByEmployeeAndCycle(employee, activeCycle)) {
@@ -639,6 +641,15 @@ Instant now = Instant.now();
                     "SELF_ASSESSMENT_FORM");
         }
 
+        if (assignmentMode == AssignmentMode.SPECIFIC_EMPLOYEES) {
+            for (Long requestedId : employeeIdSet) {
+                boolean matched = candidates.stream().anyMatch(e -> e.getEmployeeId().equals(requestedId));
+                if (!matched) {
+                    skippedIneligible++;
+                }
+            }
+        }
+
         auditService.record(
                 AuditActionType.SELF_ASSESSMENT_FORM_TEMPLATE_UPDATED,
                 AuditTargetType.SELF_ASSESSMENT_FORM,
@@ -647,14 +658,15 @@ Instant now = Instant.now();
                 null,
                 "Bulk assigned self-assessment forms: created " + created
                         + ", skipped existing " + skippedExisting
-                        + ", skipped no template " + skippedNoTemplate,
+                        + ", skipped no template " + skippedNoTemplate
+                        + ", skipped ineligible " + skippedIneligible,
                 null);
 
         return new SelfAssessmentAssignmentResponse(
                 created,
                 skippedExisting,
                 skippedNoTemplate,
-                0,
+                skippedIneligible,
                 toCycleInfo(activeCycle));
     }
 
@@ -1283,7 +1295,8 @@ Instant now = Instant.now();
         ALL_EMPLOYEES,
         DEPARTMENTS,
         POSITIONS,
-        HYBRID
+        HYBRID,
+        SPECIFIC_EMPLOYEES
     }
 
     private AssignmentMode parseAssignmentMode(String value) {
@@ -1293,6 +1306,7 @@ Instant now = Instant.now();
             case "SPECIFIC_DEPARTMENTS", "DEPARTMENTS", "DEPARTMENT" -> AssignmentMode.DEPARTMENTS;
             case "SPECIFIC_POSITIONS", "POSITIONS", "POSITION" -> AssignmentMode.POSITIONS;
             case "HYBRID" -> AssignmentMode.HYBRID;
+            case "SPECIFIC_EMPLOYEES", "EMPLOYEE_NAMES", "EMPLOYEES" -> AssignmentMode.SPECIFIC_EMPLOYEES;
             default -> throw new RuntimeException("Invalid assignment mode");
         };
     }
@@ -1401,14 +1415,18 @@ Instant now = Instant.now();
         }
     }
 
-    private void validateAssignmentSelections(AssignmentMode mode, List<Long> departmentIds, List<Long> positionIds) {
+    private void validateAssignmentSelections(AssignmentMode mode, List<Long> departmentIds, List<Long> positionIds, List<Long> employeeIds) {
         boolean hasDepartments = departmentIds != null && departmentIds.stream().anyMatch(id -> id != null && id > 0);
         boolean hasPositions = positionIds != null && positionIds.stream().anyMatch(id -> id != null && id > 0);
+        boolean hasEmployees = employeeIds != null && employeeIds.stream().anyMatch(id -> id != null && id > 0);
         if ((mode == AssignmentMode.DEPARTMENTS || mode == AssignmentMode.HYBRID) && !hasDepartments) {
             throw new RuntimeException("Please select at least one department");
         }
         if ((mode == AssignmentMode.POSITIONS || mode == AssignmentMode.HYBRID) && !hasPositions) {
             throw new RuntimeException("Please select at least one position");
+        }
+        if (mode == AssignmentMode.SPECIFIC_EMPLOYEES && !hasEmployees) {
+            throw new RuntimeException("Please select at least one employee");
         }
     }
 
@@ -1459,7 +1477,8 @@ Instant now = Instant.now();
             Employee employee,
             AssignmentMode mode,
             Set<Long> departmentIds,
-            Set<Long> positionIds) {
+            Set<Long> positionIds,
+            Set<Long> employeeIds) {
         Long departmentId = getEmployeeDepartmentId(employee);
         Long positionId = getEmployeePositionId(employee);
         return switch (mode) {
@@ -1469,6 +1488,7 @@ Instant now = Instant.now();
             case HYBRID -> departmentId != null && positionId != null
                     && departmentIds.contains(departmentId)
                     && positionIds.contains(positionId);
+            case SPECIFIC_EMPLOYEES -> employeeIds.contains(employee.getEmployeeId());
         };
     }
 
