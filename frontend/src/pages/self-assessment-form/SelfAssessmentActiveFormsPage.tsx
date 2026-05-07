@@ -554,9 +554,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                         <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden xl:table-cell">
                           Manager Review
                         </th>
-                        <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden xl:table-cell">
-                          Final Approval
-                        </th>
+
                         <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                           Status
                         </th>
@@ -623,9 +621,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                             <td className="px-5 py-4 hidden xl:table-cell">
                               <DeadlineIndicator date={form.managerReviewDeadlineDate} />
                             </td>
-                            <td className="px-5 py-4 hidden xl:table-cell">
-                              <DeadlineIndicator date={form.finalApprovalDeadlineDate} />
-                            </td>
+
                             <td className="px-5 py-4">
                               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${statusCfg.bg} ${statusCfg.text}`}>
                                 <span className={`h-1.5 w-1.5 rounded-full ${statusCfg.dot}`} />

@@ -169,9 +169,15 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: managerForms, isLoading: managerFormsLoading } = useGetReviewFormsQuery();
-  const { data: hrForms, isLoading: hrFormsLoading } = useGetHrReviewFormsQuery();
-  const { data: allForms, isLoading: allFormsLoading } = useGetAllFormsForHrQuery();
+  const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError } = useGetReviewFormsQuery(undefined, {
+    skip: isHr,
+  });
+  const { data: hrForms, isLoading: hrFormsLoading } = useGetHrReviewFormsQuery(undefined, {
+    skip: !isHr || Boolean(selectedFormId),
+  });
+  const { data: allForms, isLoading: allFormsLoading } = useGetAllFormsForHrQuery(undefined, {
+    skip: !isHr || !selectedFormId,
+  });
   const { data: selectedForm, refetch: refetchForm } = useGetFormByIdQuery(selectedFormId!, {
     skip: !selectedFormId,
   });
@@ -194,6 +200,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
   const forms = isHr ? (selectedFormId ? allForms : hrForms) : managerForms;
   const isLoading = isHr ? (selectedFormId ? allFormsLoading : hrFormsLoading) : managerFormsLoading;
+  const managerErrorMessage = !isHr && managerFormsError && typeof managerFormsError === 'object' && 'data' in managerFormsError
+    ? (managerFormsError as any)?.data?.message || 'Unable to load review forms for this manager account.'
+    : null;
 
   const filteredForms = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -507,6 +516,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {managerErrorMessage && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/70 dark:bg-amber-900/30 dark:text-amber-200">
+          {managerErrorMessage}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4 xl:col-span-3">

@@ -2,6 +2,7 @@ package com.epms.backend.service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -42,6 +43,7 @@ import lombok.RequiredArgsConstructor;
 public class EmployeeTransferService {
 
     public static final long AUDIT_SYSTEM_ACTOR_ID = 0L;
+    private static final DateTimeFormatter TRANSFER_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private static final List<TransferType> BASE_TRANSFER_TYPES = List.of(
         TransferType.INITIAL,
@@ -56,6 +58,7 @@ public class EmployeeTransferService {
     private final EmployeeDepartmentHistoryRepository historyRepository;
     private final EmployeeReportingHistoryRepository reportingHistoryRepository;
     private final AuditService auditService;
+    private final NotificationService notificationService;
 
     @Transactional
     public TransferHistoryResponseDto temporaryTransfer(Long employeeId, TemporaryTransferRequestDto req, UserPrincipal actor) {
@@ -84,6 +87,8 @@ public class EmployeeTransferService {
         employee.setDepartment(toDept);
         employee.setPosition(toPos);
         employeeRepository.save(employee);
+
+        sendTemporaryTransferNotification(employee, toDept, toPos, req.getEffectiveStartDate(), req.getEffectiveEndDate());
 
         auditService.record(
             AuditActionType.EMPLOYEE_TEMPORARY_TRANSFER,
@@ -430,6 +435,32 @@ public class EmployeeTransferService {
     private String buildTransferMeta(EmployeeDepartmentHistory h) {
         return "{\"transferHistoryId\":%d,\"transferType\":\"%s\",\"toDepartmentId\":%d}"
             .formatted(h.getId(), h.getTransferType(), h.getToDepartment().getId());
+    }
+
+    private void sendTemporaryTransferNotification(
+            Employee employee,
+            Department toDept,
+            Position toPos,
+            LocalDate effectiveStartDate,
+            LocalDate effectiveEndDate) {
+        if (employee.getUserAccount() == null) {
+            return;
+        }
+        String title = "Temporary Transfer Assigned";
+        String message = "You have been temporarily transferred to "
+            + toDept.getName()
+            + " as "
+            + toPos.getName()
+            + " ("
+            + effectiveStartDate.format(TRANSFER_DATE_FORMAT)
+            + " - "
+            + effectiveEndDate.format(TRANSFER_DATE_FORMAT)
+            + ").";
+        try {
+            notificationService.send(employee.getUserAccount(), title, message);
+        } catch (Exception ignored) {
+            // Keep transfer flow successful even if notification delivery fails.
+        }
     }
 
     private TransferHistoryResponseDto toDto(EmployeeDepartmentHistory h) {

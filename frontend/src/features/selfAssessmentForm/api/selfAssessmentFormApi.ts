@@ -834,6 +834,7 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
 
     getTemplateById: builder.query<SelfAssessmentFormTemplateDto, number>({
       query: (id) => `/self-assessment-forms/templates/${id}`,
+      providesTags: (_result, _error, id) => [{ type: 'SelfAssessmentTemplates', id }],
       transformResponse: (response: unknown) => normalizeTemplate(getResponseData(response)),
     }),
 
@@ -898,7 +899,11 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
         method: 'PUT',
         body: request,
       }),
-      invalidatesTags: ['SelfAssessmentForm', 'SelfAssessmentTemplates'],
+      invalidatesTags: (_result, _error, { id }) => [
+        'SelfAssessmentForm',
+        'SelfAssessmentTemplates',
+        { type: 'SelfAssessmentTemplates', id },
+      ],
       transformResponse: (response: unknown) => normalizeTemplate(getResponseData(response)),
     }),
 

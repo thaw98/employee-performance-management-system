@@ -49,6 +49,8 @@ import {
   useGetQuestionBankQuery,
   useUpdateTemplateMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
+import { formatCycleDate } from './SelfAssessmentReviewCycleInfo';
 
 interface QuestionFormData {
   title: string;
@@ -302,10 +304,29 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
     { includeInactive: false },
     { skip: !isQuestionBankOpen }
   );
+  const { data: reviewCycles = [] } = useGetReviewCyclesQuery();
 
   const filteredQuestionBank = questionBank.filter((question) =>
     question.questionText.toLowerCase().includes(questionBankSearch.trim().toLowerCase())
   );
+  const selectedReviewCycle = React.useMemo(() => {
+    if (!loadedTemplate?.reviewCycleId) {
+      return null;
+    }
+    return reviewCycles.find((cycle) => cycle.id === loadedTemplate.reviewCycleId) ?? null;
+  }, [loadedTemplate?.reviewCycleId, reviewCycles]);
+  const selectedReviewCycleDurationDays = React.useMemo(() => {
+    if (!selectedReviewCycle) {
+      return null;
+    }
+    const start = new Date(`${selectedReviewCycle.startDate}T00:00:00Z`);
+    const end = new Date(`${selectedReviewCycle.endDate}T00:00:00Z`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+      return null;
+    }
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    return Math.floor((end.getTime() - start.getTime()) / oneDayMs) + 1;
+  }, [selectedReviewCycle]);
 
   const { register, control, handleSubmit, reset, watch, getValues } = useForm<QuestionFormData>({
     defaultValues: {
@@ -561,6 +582,14 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                     ? loadedTemplate.reviewCycleName
                     : 'Not set (legacy template)'}
                 </p>
+                {selectedReviewCycle && (
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    {formatCycleDate(selectedReviewCycle.startDate)} - {formatCycleDate(selectedReviewCycle.endDate)}
+                    {selectedReviewCycleDurationDays != null
+                      ? ` (${selectedReviewCycleDurationDays} day${selectedReviewCycleDurationDays === 1 ? '' : 's'})`
+                      : ''}
+                  </p>
+                )}
               </div>
               {loadedTemplate.departmentName && (
                 <div className="hidden items-center gap-2 sm:flex">
