@@ -25,6 +25,7 @@ public class AppraisalService {
     private final EmployeeReportingHistoryRepository reportingHistoryRepository;
     private final AppraisalCycleRepository appraisalCycleRepository;
     private final EmployeeRepository employeeRepository;
+    // private final ReportingManagerResolver reportingManagerResolver;
 
     @Transactional
     public void distributeAppraisalsToManagers() {
@@ -66,11 +67,14 @@ public class AppraisalService {
 
             Employee departmentHead = employeeRepository.findById(dept.getManagerId()).orElse(null);
             if (departmentHead == null) {
-                errorLog.append("Department Head with ID ").append(dept.getManagerId()).append(" not found in records. ");
+                errorLog.append("Department Head for '").append(dept.getName()).append("' (ID: ").append(dept.getManagerId()).append(") not found. ");
                 continue;
             }
 
-            List<Employee> employees = employeeRepository.findByDepartmentPosition_Id(mapping.getId());
+            List<Employee> employees = employeeRepository.findByDepartment_IdAndPosition_Id(
+                    mapping.getDepartment().getId(), 
+                    mapping.getPosition().getId()
+            );
             for (Employee employee : employees) {
                 // Skip if the employee is the department head themselves
                 if (employee.getId().equals(departmentHead.getId())) continue;
@@ -82,7 +86,8 @@ public class AppraisalService {
 
                 assignment.setEmployee(employee);
                 assignment.setPeriod(activeCycle);
-                assignment.setEvaluator(departmentHead); // Assign to Department Head
+                assignment.setTemplate(template);
+                assignment.setEvaluator(departmentHead); // Assign strictly to Department Head
                 assignment.setStatus(AppraisalStatus.PENDING_MANAGER);
                 assignment.setUpdatedAt(java.time.Instant.now());
 
@@ -96,7 +101,7 @@ public class AppraisalService {
             if (errorLog.length() > 0) {
                 message += "Issues found: " + errorLog.toString();
             } else {
-                message += "Ensure the selected positions have active employees assigned to them.";
+                message += "Ensure the selected positions have active employees assigned to them and departments have heads.";
             }
             throw new RuntimeException(message);
         }

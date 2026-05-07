@@ -62,4 +62,27 @@ public class DebugController {
             return "Error migrating DB: " + e.getMessage();
         }
     }
+
+    @GetMapping("/check-user")
+    public Map<String, Object> checkUser(@org.springframework.web.bind.annotation.RequestParam String email) {
+        try {
+            java.util.List<Map<String, Object>> users = jdbcTemplate.queryForList(
+                "SELECT u.user_id, u.employee_id as emp_db_id, e.full_name, e.department_id, r.role_name " +
+                "FROM user_account u " +
+                "JOIN role r ON u.role_id = r.role_id " +
+                "JOIN employee e ON u.employee_id = e.employee_id " +
+                "WHERE e.email = ?", email);
+            if (users.isEmpty()) return new HashMap<>();
+            return users.get(0);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return error;
+        }
+    }
+
+    @GetMapping("/dept-heads")
+    public java.util.List<Map<String, Object>> getDeptHeads() {
+        return jdbcTemplate.queryForList("SELECT d.department_id, d.department_name, d.manager_id, e.full_name as head_name FROM department d LEFT JOIN employee e ON d.manager_id = e.employee_id");
+    }
 }

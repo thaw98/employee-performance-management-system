@@ -63,6 +63,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/api/auth/forgot-password/**").permitAll()
+                .requestMatchers("/api/debug/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public/profile-pictures/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/uploads/profile-pictures/**").permitAll()
