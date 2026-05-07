@@ -57,7 +57,7 @@ export function EmployeeStepper({ currentStep }: EmployeeStepperProps) {
             Employee Info
           </p>
           <p className={`mt-0.5 text-xs ${step1Active || step1Done ? 'text-slate-500' : 'text-slate-300'}`}>
-            Personal, family & contact
+            Personal, family & contacts
           </p>
         </div>
       </div>
