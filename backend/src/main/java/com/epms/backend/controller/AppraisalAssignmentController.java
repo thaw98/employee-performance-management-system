@@ -36,6 +36,26 @@ public class AppraisalAssignmentController {
         return ResponseEntity.ok(ApiResponse.ok("Fetched assignment", appraisalAssignmentService.getById(id)));
     }
 
+    @PostMapping("/{id}/evaluate")
+    public ResponseEntity<ApiResponse<AppraisalAssignment>> submitEvaluation(@PathVariable Long id, 
+                                                                           @RequestBody com.epms.backend.dto.EvaluationRequest req,
+                                                                           Authentication auth) {
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        AppraisalAssignment saved = appraisalAssignmentService.submitEvaluation(id, req, principal.getId(), principal.getRoleId());
+        return ResponseEntity.ok(ApiResponse.ok("Appraisal evaluation submitted", saved));
+    }
+
+    @GetMapping("/{id}/form")
+    public ResponseEntity<ApiResponse<AppraisalAssignment>> getEvaluationForm(@PathVariable Long id) {
+        AppraisalAssignment assignment = appraisalAssignmentService.getById(id);
+        // Ensure template and questions are initialized if needed
+        if (assignment.getTemplate() != null) {
+            assignment.getTemplate().getCategories().size();
+            assignment.getTemplate().getCategories().forEach(c -> c.getQuestions().size());
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Fetched evaluation form", assignment));
+    }
+
     @PostMapping("/{id}/approve")
     public ResponseEntity<ApiResponse<AppraisalAssignment>> approve(@PathVariable Long id, 
                                                                   @RequestBody ActionRequest req,
