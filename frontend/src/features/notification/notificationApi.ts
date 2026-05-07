@@ -18,6 +18,8 @@ interface PageResponse<T> {
 interface GetNotificationsParams {
   page?: number;
   size?: number;
+  status?: 'all' | 'unread' | 'read';
+  source?: string;
 }
 
 export const notificationApi = baseApi.injectEndpoints({
@@ -26,7 +28,20 @@ export const notificationApi = baseApi.injectEndpoints({
       query: (params) => {
         const page = params?.page ?? 0;
         const size = params?.size ?? 10;
-        return `/notifications?page=${page}&size=${size}`;
+        const searchParams = new URLSearchParams({
+          page: String(page),
+          size: String(size),
+        });
+
+        if (params?.status) {
+          searchParams.set('status', params.status);
+        }
+
+        if (params?.source) {
+          searchParams.set('source', params.source);
+        }
+
+        return `/notifications?${searchParams.toString()}`;
       },
       providesTags: ['Notification'],
     }),

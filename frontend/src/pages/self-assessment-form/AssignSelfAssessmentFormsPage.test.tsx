@@ -169,4 +169,22 @@ describe('AssignSelfAssessmentFormsPage hybrid preview', () => {
     expect(screen.getByText('Finance Analyst Review')).toBeTruthy()
     expect(screen.getByText('No matching template for the active employee-submission cycle')).toBeTruthy()
   })
+
+  it('returns to the overview tab after successful assignment', async () => {
+    const user = userEvent.setup()
+    assignFormsMock.mockReturnValue({
+      unwrap: vi.fn().mockResolvedValue({
+        createdCount: 1,
+        skippedExistingCount: 0,
+        skippedNoTemplateCount: 0,
+      }),
+    })
+
+    render(<AssignSelfAssessmentFormsPage />)
+
+    await user.click(screen.getByText('Engineering'))
+    await user.click(screen.getByRole('button', { name: /Assign Forms/i }))
+
+    expect(navigateMock).toHaveBeenCalledWith('/hr/self-assessment/assignments?tab=overview')
+  })
 })

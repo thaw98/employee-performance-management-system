@@ -150,7 +150,13 @@ function HybridPreviewCard({ item }: { item: SelfAssessmentAssignmentPreviewDto 
   );
 }
 
-export const AssignSelfAssessmentFormsPage: React.FC = () => {
+type AssignSelfAssessmentFormsPageProps = {
+  onAssignmentSuccess?: () => void;
+};
+
+export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPageProps> = ({
+  onAssignmentSuccess,
+}) => {
   const navigate = useNavigate();
   const [assignmentMode, setAssignmentMode] = useState<SelfAssessmentAssignmentMode>('DEPARTMENTS');
   const [departmentIds, setDepartmentIds] = useState<number[]>([]);
@@ -401,7 +407,11 @@ export const AssignSelfAssessmentFormsPage: React.FC = () => {
           `Created ${result.createdCount}; skipped ${result.skippedExistingCount} existing and ${result.skippedNoTemplateCount} without templates.`,
         );
       }
-      navigate('/hr/self-assessment/assignments');
+      if (onAssignmentSuccess) {
+        onAssignmentSuccess();
+      } else {
+        navigate('/hr/self-assessment/assignments?tab=overview');
+      }
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to assign self-assessment forms');
     }
