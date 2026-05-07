@@ -21,6 +21,7 @@ import {
   Copy,
   BookOpen,
   Unlock,
+  Settings,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -300,6 +301,16 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {!isManager && (
+            <button
+              type="button"
+              onClick={() => navigate('/hr/self-assessment/settings')}
+              className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-[#5D5FEF]/30 bg-white px-5 py-2.5 text-sm font-bold text-[#5D5FEF] shadow-sm transition-all hover:border-[#5D5FEF]/50 hover:bg-[#5D5FEF]/5 hover:shadow-md active:scale-[0.97] dark:border-[#5D5FEF]/40 dark:bg-slate-800 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/10"
+            >
+              <Settings size={16} strokeWidth={2.5} />
+              Settings
+            </button>
+          )}
           <button
             type="button"
             onClick={() => navigate(`${routeBase.replace('/templates', '/question-bank')}`)}
