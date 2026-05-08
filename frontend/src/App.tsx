@@ -24,6 +24,8 @@ import { ManagerAppraisalsPage } from './pages/manager/ManagerAppraisalsPage';
 import { ManagerEvaluationPage } from './pages/manager/ManagerEvaluationPage';
 import { MyKpisPage } from './pages/employee/MyKpisPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+import { EmployeeAppraisalsPage } from './pages/employee/EmployeeAppraisalsPage';
+import { EmployeeAppraisalViewPage } from './pages/employee/EmployeeAppraisalViewPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage';
@@ -234,6 +236,8 @@ function App() {
             <Route path="meetings" element={<EmployeeMeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
+            <Route path="appraisals" element={<EmployeeAppraisalsPage />} />
+            <Route path="appraisals/:id/view" element={<EmployeeAppraisalViewPage />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>

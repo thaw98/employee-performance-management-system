@@ -28,12 +28,18 @@ public class AppraisalService {
     // private final ReportingManagerResolver reportingManagerResolver;
 
     @Transactional
-    public void distributeAppraisalsToManagers() {
-        List<AppraisalTemplate> activeTemplates = templateRepository.findAllByIsActiveTrue();
-        AppraisalTemplate template = activeTemplates.isEmpty() ? null : activeTemplates.get(activeTemplates.size() - 1);
+    public void distributeAppraisalsToManagers(Long templateId) {
+        AppraisalTemplate template;
+        if (templateId != null) {
+            template = templateRepository.findById(templateId)
+                    .orElseThrow(() -> new RuntimeException("Template not found with ID: " + templateId));
+        } else {
+            List<AppraisalTemplate> activeTemplates = templateRepository.findAllByIsActiveTrue();
+            template = activeTemplates.isEmpty() ? null : activeTemplates.get(activeTemplates.size() - 1);
+        }
 
         if (template == null) {
-            throw new RuntimeException("No active appraisal template found. Please confirm a template first.");
+            throw new RuntimeException("No appraisal template found to distribute.");
         }
 
         if (template.getTargetDepartmentPositions() == null || template.getTargetDepartmentPositions().isEmpty()) {
@@ -191,7 +197,7 @@ public class AppraisalService {
     }
 
     @Transactional
-    public void finalizeAppraisal(AppraisalTemplateDto dto) {
+    public AppraisalTemplateDto finalizeAppraisal(AppraisalTemplateDto dto) {
         // Reset all categories finalize flag
         List<AppraisalCategory> allCategories = categoryRepository.findAll();
         allCategories.forEach(c -> c.setIsFinalized(false));
@@ -222,7 +228,7 @@ public class AppraisalService {
 
         template.setMaxRating(dto.getMaxRating() != null ? dto.getMaxRating() : 5);
 
-        templateRepository.save(template);
+        return mapToTemplateDto(templateRepository.save(template));
     }
 
     public AppraisalTemplateDto getCurrentTemplate() {

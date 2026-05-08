@@ -22,9 +22,17 @@ public class AppraisalAssignmentService {
     private final AuditService auditService;
 
     public List<AppraisalAssignment> getAllAssignments() {
-        return appraisalAssignmentRepository.findAll().stream()
-                .filter(assignment -> !isProbationEmployee(assignment))
-                .toList();
+        List<AppraisalAssignment> list = appraisalAssignmentRepository.findAll();
+        // Force initialization of template and its categories/questions for HR review
+        list.forEach(a -> {
+            if (a.getTemplate() != null) {
+                a.getTemplate().getCategories().forEach(c -> {
+                    if (c.getQuestions() != null) c.getQuestions().size();
+                });
+            }
+            if (a.getAnswers() != null) a.getAnswers().size();
+        });
+        return list;
     }
 
     public List<AppraisalAssignment> getAssignmentsForEvaluator(Long evaluatorId) {
@@ -32,12 +40,8 @@ public class AppraisalAssignmentService {
     }
 
     public AppraisalAssignment getById(Long id) {
-        AppraisalAssignment assignment = appraisalAssignmentRepository.findById(id)
+        return appraisalAssignmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Appraisal not found"));
-        if (isProbationEmployee(assignment)) {
-            throw new RuntimeException("Appraisal not found");
-        }
-        return assignment;
     }
 
     @Transactional
@@ -73,7 +77,12 @@ public class AppraisalAssignmentService {
             double sum = assignment.getAnswers().stream()
                     .mapToDouble(a -> a.getRating() != null ? a.getRating() : 0.0)
                     .sum();
-            assignment.setTotalScore(sum / assignment.getAnswers().size() * 20); // Normalized to 100% assuming 5-point scale
+            
+            double maxRating = (assignment.getTemplate() != null && assignment.getTemplate().getMaxRating() != null) 
+                    ? assignment.getTemplate().getMaxRating() 
+                    : 5.0;
+            
+            assignment.setTotalScore((sum / (assignment.getAnswers().size() * maxRating)) * 100);
             
             if (assignment.getTotalScore() >= 90) assignment.setRatingCategory("EXCEPTIONAL");
             else if (assignment.getTotalScore() >= 75) assignment.setRatingCategory("GOOD");
@@ -102,7 +111,12 @@ public class AppraisalAssignmentService {
             double sum = assignment.getAnswers().stream()
                     .mapToDouble(a -> a.getRating() != null ? a.getRating() : 0.0)
                     .sum();
-            assignment.setTotalScore(sum / assignment.getAnswers().size() * 20); // Normalize to 100% assuming 5-point scale
+            
+            double maxRating = (assignment.getTemplate() != null && assignment.getTemplate().getMaxRating() != null) 
+                    ? assignment.getTemplate().getMaxRating() 
+                    : 5.0;
+            
+            assignment.setTotalScore((sum / (assignment.getAnswers().size() * maxRating)) * 100);
 
             // Basic Rating Category Logic
             if (assignment.getTotalScore() >= 90) assignment.setRatingCategory("EXCEPTIONAL");

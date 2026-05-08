@@ -44,9 +44,8 @@ public class AppraisalCategoryController {
 
     @PostMapping("/finalize")
     @PreAuthorize("hasAnyRole('HR')")
-    public ResponseEntity<ApiResponse<Void>> finalizeAppraisal(@RequestBody AppraisalTemplateDto dto) {
-        appraisalService.finalizeAppraisal(dto);
-        return ResponseEntity.ok(ApiResponse.ok("Appraisal finalized and saved successfully", null));
+    public ResponseEntity<ApiResponse<AppraisalTemplateDto>> finalizeAppraisal(@RequestBody AppraisalTemplateDto dto) {
+        return ResponseEntity.ok(ApiResponse.ok("Appraisal finalized and saved successfully", appraisalService.finalizeAppraisal(dto)));
     }
 
     @GetMapping("/current-template")
@@ -62,8 +61,8 @@ public class AppraisalCategoryController {
 
     @PostMapping("/distribute")
     @PreAuthorize("hasAnyRole('HR')")
-    public ResponseEntity<ApiResponse<Void>> distributeToManagers() {
-        appraisalService.distributeAppraisalsToManagers();
+    public ResponseEntity<ApiResponse<Void>> distributeToManagers(@RequestParam(required = false) Long templateId) {
+        appraisalService.distributeAppraisalsToManagers(templateId);
         return ResponseEntity.ok(ApiResponse.ok("Appraisals distributed to managers successfully", null));
     }
 }
