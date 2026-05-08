@@ -173,6 +173,7 @@ export interface SelfAssessmentFormDto {
   title: string
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
+  startDate: string | null
   deadlineDate: string | null
   managerReviewDeadlineDate: string | null
   finalApprovalDeadlineDate: string | null
@@ -214,9 +215,11 @@ export interface SelfAssessmentFormDto {
 
 export interface FormListDto {
   id: number
+  templateId: number
   title: string
   cycleId: number | null
   cycleName: string | null
+  startDate: string | null
   deadlineDate: string | null
   managerReviewDeadlineDate: string | null
   finalApprovalDeadlineDate: string | null
@@ -264,6 +267,7 @@ export interface SelfAssessmentAssignmentRequest {
   departmentIds: number[]
   positionIds: number[]
   employeeIds: number[]
+  startDate: string
   deadlineDate: string
   managerReviewDeadlineDate: string
 }
@@ -496,6 +500,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     title: getString(source.title, 'Self Assessment Form'),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
+    startDate: getOptionalString(source.startDate) ?? null,
     deadlineDate: getOptionalString(source.deadlineDate) ?? null,
     managerReviewDeadlineDate: getOptionalString(source.managerReviewDeadlineDate) ?? null,
     finalApprovalDeadlineDate: getOptionalString(source.finalApprovalDeadlineDate) ?? null,
@@ -540,9 +545,11 @@ const normalizeFormList = (form: unknown): FormListDto => {
 
   return {
     id: getNumber(source.id),
+    templateId: getNumber(source.templateId),
     title: getString(source.title, 'Self Assessment Form'),
     cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
     cycleName: getOptionalString(source.cycleName) ?? null,
+    startDate: getOptionalString(source.startDate) ?? null,
     deadlineDate: getOptionalString(source.deadlineDate) ?? null,
     managerReviewDeadlineDate: getOptionalString(source.managerReviewDeadlineDate) ?? null,
     finalApprovalDeadlineDate: getOptionalString(source.finalApprovalDeadlineDate) ?? null,

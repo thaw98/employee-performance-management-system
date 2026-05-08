@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useGetActiveReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
-import { useGetAllTemplatesQuery } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { useGetActiveCycleFormsForHrQuery, useGetAllTemplatesQuery } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 
 function formatDate(iso?: string | null) {
@@ -37,6 +37,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
     isLoading: templatesLoading,
     isError: templatesError,
   } = useGetAllTemplatesQuery();
+  const { data: activeCycleForms } = useGetActiveCycleFormsForHrQuery();
 
   const activeSubmissionCycle = activeCycles.find((cycle) => cycle.requiresEmployeeSubmission) ?? null;
 
@@ -60,6 +61,42 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
     () => new Set(existingTemplatesForActiveCycle.map((t) => t.positionName)).size,
     [existingTemplatesForActiveCycle]
   );
+
+  const assignedEmployeesByTemplateId = useMemo(() => {
+    const map = new Map<number, string[]>();
+    const forms = activeCycleForms?.forms ?? [];
+
+    forms.forEach((form) => {
+      if (!form.templateId) return;
+      const current = map.get(form.templateId) ?? [];
+      const label =
+        form.employee.employeeName && form.employee.employeeId
+          ? `${form.employee.employeeName} (${form.employee.employeeId})`
+          : form.employee.employeeName || form.employee.employeeId || '';
+
+      if (label && !current.includes(label)) {
+        current.push(label);
+        map.set(form.templateId, current);
+      }
+    });
+
+    return map;
+  }, [activeCycleForms?.forms]);
+
+  const assignmentStartDateByTemplateId = useMemo(() => {
+    const map = new Map<number, string>();
+    const forms = activeCycleForms?.forms ?? [];
+
+    forms.forEach((form) => {
+      if (!form.templateId || !form.startDate) return;
+      const existing = map.get(form.templateId);
+      if (!existing || form.startDate < existing) {
+        map.set(form.templateId, form.startDate);
+      }
+    });
+
+    return map;
+  }, [activeCycleForms?.forms]);
   const summaryCards = [
     {
       label: 'Templates',
@@ -327,6 +364,9 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                     Rating System
                   </th>
                   <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
+                    Start Date
+                  </th>
+                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
                     Deadline Assignment
                   </th>
                   <th scope="col" className="px-5 py-3.5 text-right text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
@@ -349,6 +389,9 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-slate-900 dark:text-white max-w-[240px]">
                             {template.title}
+                          </p>
+                          <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 lg:hidden">
+                            Start: {formatDate(assignmentStartDateByTemplateId.get(template.id) ?? null)}
                           </p>
                         </div>
                       </div>
@@ -376,6 +419,11 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-5 py-4 hidden lg:table-cell">
+                      <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                        {formatDate(assignmentStartDateByTemplateId.get(template.id) ?? null)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 hidden lg:table-cell">
                       {template.isAssignedToDeadline ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                           Already assigned
@@ -387,14 +435,55 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                       )}
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <Link
-                        to={`/hr/self-assessment/templates/${template.id}/edit`}
-                        className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
-                      >
-                        <Pencil size={13} />
-                        Edit
-                        <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
-                      </Link>
+                      {template.isAssignedToDeadline ? (
+                        <div className="space-y-1 text-right">
+                          {(() => {
+                            const assignedEmployees = assignedEmployeesByTemplateId.get(template.id) ?? [];
+                            if (assignedEmployees.length === 0) {
+                              return (
+                                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                  Assigned employees already exist for this department and position.
+                                </span>
+                              );
+                            }
+
+                            const visibleEmployees = assignedEmployees.slice(0, 2);
+                            const hiddenCount = assignedEmployees.length - visibleEmployees.length;
+
+                            return (
+                              <>
+                                <div className="space-y-1">
+                                  {visibleEmployees.map((employee) => (
+                                    <span
+                                      key={`${template.id}-${employee}`}
+                                      className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300"
+                                    >
+                                      {employee}
+                                    </span>
+                                  ))}
+                                </div>
+                                {hiddenCount > 0 && (
+                                  <span
+                                    className="text-[11px] font-medium text-slate-500 dark:text-slate-400"
+                                    title={assignedEmployees.join(', ')}
+                                  >
+                                    +{hiddenCount} more assigned
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      ) : (
+                        <Link
+                          to={`/hr/self-assessment/templates/${template.id}/edit`}
+                          className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                        >
+                          <Pencil size={13} />
+                          Edit
+                          <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))}

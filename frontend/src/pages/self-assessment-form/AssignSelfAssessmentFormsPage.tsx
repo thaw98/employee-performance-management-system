@@ -165,6 +165,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
   const [hybridRules, setHybridRules] = useState<HybridRule[]>([]);
   const [hybridRuleDepartmentId, setHybridRuleDepartmentId] = useState<number | null>(null);
   const [hybridRulePositionId, setHybridRulePositionId] = useState<number | null>(null);
+  const [startDate, setStartDate] = useState('');
   const [deadlineDate, setDeadlineDate] = useState('');
   const [managerReviewDeadlineDate, setManagerReviewDeadlineDate] = useState('');
   const [positionSearchQuery, setPositionSearchQuery] = useState('');
@@ -187,7 +188,9 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
 
   useEffect(() => {
     if (!activeSubmissionCycle) return;
+    const start = activeSubmissionCycle.startDate ?? '';
     const end = activeSubmissionCycle.endDate ?? '';
+    setStartDate(start);
     setDeadlineDate(end);
     setManagerReviewDeadlineDate(end);
   }, [activeSubmissionCycle]);
@@ -375,13 +378,19 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
     if (assignmentMode === 'SPECIFIC_EMPLOYEES' && selectedEmployeeIds.length === 0) {
       return 'Please select at least one employee';
     }
-    if (!deadlineDate || !managerReviewDeadlineDate) return 'Please select employee and manager review deadlines';
+    if (!startDate || !deadlineDate || !managerReviewDeadlineDate) {
+      return 'Please select start date, employee deadline, and manager review deadline';
+    }
+    if (startDate > deadlineDate) {
+      return 'Employee deadline cannot be earlier than the start date.';
+    }
     if (deadlineDate > managerReviewDeadlineDate) {
       return 'Manager review deadline cannot be earlier than the employee deadline.';
     }
-    const { startDate, endDate } = activeSubmissionCycle;
-    if ([deadlineDate, managerReviewDeadlineDate].some((date) => date < startDate || date > endDate)) {
-      return 'Employee and manager deadlines must be within the active cycle';
+    const cycleStartDate = activeSubmissionCycle.startDate;
+    const cycleEndDate = activeSubmissionCycle.endDate;
+    if ([startDate, deadlineDate, managerReviewDeadlineDate].some((date) => date < cycleStartDate || date > cycleEndDate)) {
+      return 'Start date, employee deadline, and manager deadline must be within the active cycle';
     }
     return null;
   };
@@ -405,6 +414,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
             assignmentMode: 'HYBRID',
             departmentIds: [rule.departmentId],
             positionIds: [rule.positionId],
+            startDate,
             deadlineDate,
             managerReviewDeadlineDate,
           }).unwrap();
@@ -423,6 +433,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
           departmentIds,
           positionIds,
           employeeIds: selectedEmployeeIds,
+          startDate,
           deadlineDate,
           managerReviewDeadlineDate,
         }).unwrap();
@@ -1150,7 +1161,29 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
+                <div className="absolute -right-3 -top-3 h-12 w-12 rounded-full bg-emerald-500/5 blur-xl dark:bg-emerald-500/10" />
+                <div className="relative">
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 dark:bg-emerald-900/30">
+                      <CalendarRange size={11} className="text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Start Date
+                    </label>
+                  </div>
+                  <input
+                    type="date"
+                    value={startDate}
+                    min={cycleStart}
+                    max={cycleEnd}
+                    onChange={(event) => setStartDate(event.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#5D5FEF]"
+                  />
+                </div>
+              </div>
+
               <div className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
                 <div className="absolute -right-3 -top-3 h-12 w-12 rounded-full bg-sky-500/5 blur-xl dark:bg-sky-500/10" />
                 <div className="relative">

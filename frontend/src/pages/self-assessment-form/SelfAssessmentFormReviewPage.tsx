@@ -47,7 +47,7 @@ import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { formatDateDayMonthYear, formatDateTimeWithSeconds } from '../../utils/dateUtils';
 import { useSelector } from 'react-redux';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { RootState } from '../../app/store';
 
 interface ManagerAdjustment {
@@ -194,18 +194,21 @@ const filterControlClass =
 
 export const SelfAssessmentFormReviewPage: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
+  const { formId: formIdParam } = useParams<{ formId?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const isHr = user?.roleId === 1;
   const reviewQueuePath = isHr ? '/hr/self-assessment/review-queue' : '/manager/self-assessment-forms/review-queue';
 
+  const parsedFormIdFromUrl = formIdParam ? Number(formIdParam) : null;
+  const urlFormId = parsedFormIdFromUrl && Number.isFinite(parsedFormIdFromUrl) ? parsedFormIdFromUrl : null;
   const initialFormId = typeof location.state === 'object'
     && location.state !== null
     && 'formId' in location.state
     && typeof location.state.formId === 'number'
     ? location.state.formId
     : null;
-  const [selectedFormId, setSelectedFormId] = useState<number | null>(initialFormId);
+  const [selectedFormId, setSelectedFormId] = useState<number | null>(urlFormId ?? initialFormId);
   const [showAdjustments, setShowAdjustments] = useState(false);
   const [managerComments, setManagerComments] = useState('');
   const [adjustments, setAdjustments] = useState<ManagerAdjustment[]>([]);

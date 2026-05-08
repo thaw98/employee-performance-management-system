@@ -65,24 +65,55 @@ export function getNotificationsPath(pathname: string) {
   return `/${getRolePrefix(pathname)}/notifications`;
 }
 
-export function getNotificationDestinationPath(notification: Pick<NotificationItem, 'source'>, pathname: string) {
-  if (notification.source === 'SELF_ASSESSMENT_FORM') {
+type NotificationNavigationInput = Pick<NotificationItem, 'source' | 'title' | 'message'>;
+
+function normalizeNotificationSource(source: string | undefined) {
+  return source?.trim().toUpperCase() ?? '';
+}
+
+function resolveLegacySource(notification: NotificationNavigationInput) {
+  const searchableText = `${notification.title ?? ''} ${notification.message ?? ''}`.toUpperCase();
+  if (searchableText.includes('SELF-ASSESSMENT')) {
+    return 'SELF_ASSESSMENT_FORM';
+  }
+  if (searchableText.includes('MEETING')) {
+    return 'MEETING';
+  }
+  if (searchableText.includes('APPRAISAL')) {
+    return 'APPRAISAL';
+  }
+  if (searchableText.includes('KPI')) {
+    return 'KPI';
+  }
+  if (searchableText.includes('PIP')) {
+    return 'PIP';
+  }
+  if (searchableText.includes('FEEDBACK')) {
+    return '360_FEEDBACK';
+  }
+  return '';
+}
+
+export function getNotificationDestinationPath(notification: NotificationNavigationInput, pathname: string) {
+  const source = normalizeNotificationSource(notification.source) || resolveLegacySource(notification);
+
+  if (source === 'SELF_ASSESSMENT_FORM') {
     return getSelfAssessmentPath(pathname);
   }
 
-  if (notification.source === 'MEETING') {
+  if (source === 'MEETING') {
     return getMeetingPath(pathname);
   }
 
-  if (notification.source === 'PIP') {
+  if (source === 'PIP') {
     return getPipPath(pathname);
   }
 
-  if (notification.source === 'APPRAISAL') {
+  if (source === 'APPRAISAL') {
     return getAppraisalPath(pathname);
   }
 
-  if (notification.source === 'KPI') {
+  if (source === 'KPI') {
     return getKpiPath(pathname);
   }
 

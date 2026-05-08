@@ -180,6 +180,7 @@ function App() {
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment/review-queue" element={<SelfAssessmentFormQueuePage />} />
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
+            <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
@@ -212,6 +213,7 @@ function App() {
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment-forms/review-queue" element={<SelfAssessmentFormQueuePage />} />
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
+            <Route path="self-assessment-forms/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />

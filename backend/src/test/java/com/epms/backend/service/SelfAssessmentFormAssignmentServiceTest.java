@@ -236,6 +236,7 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(10L),
                 List.of(20L),
                 List.of(),
+                LocalDate.of(2026, 5, 5),
                 LocalDate.of(2026, 5, 10),
                 LocalDate.of(2026, 5, 15));
 
@@ -254,6 +255,7 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(),
                 List.of(),
                 List.of(),
+                LocalDate.of(2026, 5, 10),
                 LocalDate.of(2026, 5, 16),
                 LocalDate.of(2026, 5, 15));
 
@@ -486,6 +488,8 @@ class SelfAssessmentFormAssignmentServiceTest {
         employee.setManager(manager);
         employee.setEmployeeName("Jane Doe");
         SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+        form.getAnswers().get(0).setYesNoAnswer("Yes");
+        form.getAnswers().get(0).setRating(5);
 
         User hrUserOne = new User();
         hrUserOne.setId(101L);
@@ -522,6 +526,52 @@ class SelfAssessmentFormAssignmentServiceTest {
                 eq(hrUserTwo),
                 eq("Self-Assessment Requires HR Review"),
                 eq("Manager has reviewed Jane Doe's Template and it requires HR attention. Reason: Manager requested HR review"),
+                eq("SELF_ASSESSMENT_FORM"));
+    }
+
+    @Test
+    void managerReview_withAdjustments_notifiesHrEvenWhenHrReviewFlagsAreFalse() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        employee.setEmployeeName("Jane Doe");
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+        form.getAnswers().get(0).setYesNoAnswer("Yes");
+        form.getAnswers().get(0).setRating(5);
+
+        User hrUser = new User();
+        hrUser.setId(101L);
+        hrUser.setActive(true);
+
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+        when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
+                .thenReturn(Optional.of(signature(manager.getUserAccount())));
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+        when(userRepository.findByRole_IdAndActiveTrue(1L)).thenReturn(List.of(hrUser));
+
+        service.managerReview(
+                form.getId(),
+                manager,
+                new ManagerReviewRequest(
+                        "Reviewed",
+                        List.of(new ManagerAdjustmentRequest(501L, "No", 1, "Needs calibration")),
+                        false,
+                        false,
+                        false));
+
+        verify(notificationService).send(
+                eq(employee.getUserAccount()),
+                eq("Manager Review Completed"),
+                eq("Your manager has reviewed your self-assessment and updated one or more scores. "
+                        + "Please review the updated evaluation, including any manager comments, "
+                        + "before your performance discussion."),
+                eq("SELF_ASSESSMENT_FORM"));
+        verify(notificationService).send(
+                eq(hrUser),
+                eq("Manager Proposed Self-Assessment Adjustments"),
+                eq("Manager has proposed adjustments for Jane Doe's Template."),
                 eq("SELF_ASSESSMENT_FORM"));
     }
 
@@ -602,6 +652,7 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(),
                 List.of(),
                 List.of(),
+                LocalDate.of(2026, 5, 5),
                 LocalDate.of(2026, 5, 10),
                 LocalDate.of(2026, 5, 15));
     }

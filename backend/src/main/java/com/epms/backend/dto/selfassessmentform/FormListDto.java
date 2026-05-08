@@ -8,6 +8,7 @@ public record FormListDto(
         String title,
         Long cycleId,
         String cycleName,
+        LocalDate startDate,
         LocalDate deadlineDate,
         LocalDate managerReviewDeadlineDate,
         LocalDate finalApprovalDeadlineDate,

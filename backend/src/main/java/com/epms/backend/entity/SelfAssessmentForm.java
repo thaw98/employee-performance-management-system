@@ -41,6 +41,9 @@ public class SelfAssessmentForm {
     @Column(name = "ten_point_yes_min_rating", nullable = false)
     private Integer tenPointYesMinRating = SelfAssessmentRatingSystem.DEFAULT_TEN_POINT_YES_MIN_RATING;
 
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
     @Column(name = "deadline_date")
     private LocalDate deadlineDate;
 

@@ -538,7 +538,14 @@ Instant now = Instant.now();
                 continue;
             }
 
-            SelfAssessmentForm form = createAssignedDraftForm(employee, template, activeCycle, deadlineDate, now, userId);
+            SelfAssessmentForm form = createAssignedDraftForm(
+                    employee,
+                    template,
+                    activeCycle,
+                    activeCycle.getStartDate(),
+                    deadlineDate,
+                    now,
+                    userId);
             formRepository.save(form);
             created++;
 
@@ -580,6 +587,7 @@ Instant now = Instant.now();
 
         ReviewCycle activeCycle = requireActiveCycle();
         validateAssignmentDeadlines(
+                request.startDate(),
                 request.deadlineDate(),
                 request.managerReviewDeadlineDate(),
                 activeCycle);
@@ -626,6 +634,7 @@ Instant now = Instant.now();
                     employee,
                     templateOpt.get(),
                     activeCycle,
+                    request.startDate(),
                     request.deadlineDate(),
                     request.managerReviewDeadlineDate(),
                     now,
@@ -675,6 +684,7 @@ Instant now = Instant.now();
             SelfAssessmentAssignmentPreviewRequest request) {
         ReviewCycle activeCycle = requireActiveCycle();
         validateAssignmentDeadlines(
+                request.deadlineDate(),
                 request.deadlineDate(),
                 request.managerReviewDeadlineDate(),
                 activeCycle);
@@ -749,6 +759,9 @@ Instant now = Instant.now();
         Optional<SelfAssessmentForm> existingForm = formRepository.findByEmployeeAndCycle(employee, activeCycle);
         if (existingForm.isPresent()) {
             SelfAssessmentForm form = existingForm.get();
+            if (isAssignmentScheduledForFuture(form)) {
+                return new FormStatusDto("NOT_ASSIGNED", true, true, false, "Your self-assessment starts on " + form.getStartDate() + ".");
+            }
             boolean deadlinePassed = isDeadlinePassed(form);
             if (deadlinePassed && form.getStatus() == SelfAssessmentFormStatus.DRAFT) {
                 form.setStatus(SelfAssessmentFormStatus.NOT_SUBMITTED);
@@ -783,6 +796,9 @@ Instant now = Instant.now();
         Optional<SelfAssessmentForm> existingForm = formRepository.findByEmployeeAndCycle(employee, activeCycle);
 
         if (existingForm.isPresent()) {
+            if (isAssignmentScheduledForFuture(existingForm.get())) {
+                return Optional.empty();
+            }
             return Optional.of(toFormDto(existingForm.get()));
         }
 
@@ -977,7 +993,8 @@ Instant now = Instant.now();
         form.setUpdatedDate(Instant.now());
 
         boolean anyScoreChanged = false;
-        if (request.adjustments() != null && !request.adjustments().isEmpty()) {
+        boolean hasManagerAdjustments = request.adjustments() != null && !request.adjustments().isEmpty();
+        if (hasManagerAdjustments) {
             SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
             int tenPointYesMinRating = resolveSavedTenPointYesMinRating(form.getTenPointYesMinRating());
             for (ManagerAdjustmentRequest adj : request.adjustments()) {
@@ -1047,7 +1064,7 @@ Instant now = Instant.now();
                 "Manager reviewed self-assessment form",
                 null);
 
-        sendManagerReviewNotificationsNew(saved, anyScoreChanged, hrNotificationRequired);
+        sendManagerReviewNotificationsNew(saved, anyScoreChanged, hrNotificationRequired, hasManagerAdjustments);
 
         return toFormDto(saved);
     }
@@ -1367,6 +1384,9 @@ Instant now = Instant.now();
 
         if (existingForm.isPresent()) {
             SelfAssessmentForm form = existingForm.get();
+            if (isAssignmentScheduledForFuture(form)) {
+                throw new RuntimeException("Your self-assessment is scheduled to start on " + form.getStartDate() + ".");
+            }
             if (isDeadlinePassed(form) && form.getStatus() == SelfAssessmentFormStatus.DRAFT) {
                 form.setStatus(SelfAssessmentFormStatus.NOT_SUBMITTED);
                 formRepository.save(form);
@@ -1382,6 +1402,7 @@ Instant now = Instant.now();
             Employee employee,
             SelfAssessmentFormTemplate template,
             ReviewCycle activeCycle,
+            LocalDate startDate,
             LocalDate deadlineDate,
             Instant assignedAt,
             Long assignedBy) {
@@ -1389,6 +1410,7 @@ Instant now = Instant.now();
                 employee,
                 template,
                 activeCycle,
+                startDate,
                 deadlineDate,
                 null,
                 assignedAt,
@@ -1399,6 +1421,7 @@ Instant now = Instant.now();
             Employee employee,
             SelfAssessmentFormTemplate template,
             ReviewCycle activeCycle,
+            LocalDate startDate,
             LocalDate deadlineDate,
             LocalDate managerReviewDeadlineDate,
             Instant assignedAt,
@@ -1409,6 +1432,7 @@ Instant now = Instant.now();
         form.setCycle(activeCycle);
         form.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()));
         form.setTenPointYesMinRating(resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()));
+        form.setStartDate(startDate);
         form.setDeadlineDate(deadlineDate);
         form.setManagerReviewDeadlineDate(managerReviewDeadlineDate);
         form.setFinalApprovalDeadlineDate(activeCycle.getEndDate());
@@ -1570,15 +1594,19 @@ Instant now = Instant.now();
     }
 
     private void validateAssignmentDeadlines(
+            LocalDate assignmentStartDate,
             LocalDate employeeDeadline,
             LocalDate managerDeadline,
             ReviewCycle activeCycle) {
-        if (employeeDeadline == null || managerDeadline == null) {
-            throw new RuntimeException("Employee and manager review deadlines are required");
+        if (assignmentStartDate == null || employeeDeadline == null || managerDeadline == null) {
+            throw new RuntimeException("Start date, employee deadline, and manager review deadlines are required");
         }
         LocalDate cycleEnd = activeCycle.getEndDate();
         if (cycleEnd == null) {
             throw new RuntimeException("Active review cycle has no end date");
+        }
+        if (assignmentStartDate.isAfter(employeeDeadline)) {
+            throw new RuntimeException("Employee deadline cannot be earlier than the start date.");
         }
         if (employeeDeadline.isAfter(managerDeadline)) {
             throw new RuntimeException("Manager review deadline cannot be earlier than the employee deadline.");
@@ -1586,8 +1614,13 @@ Instant now = Instant.now();
         if (managerDeadline.isAfter(cycleEnd)) {
             throw new RuntimeException("Manager review deadline cannot be after the review cycle end date.");
         }
+        validateDateWithinActiveCycle(assignmentStartDate, "Start date", activeCycle);
         validateDateWithinActiveCycle(employeeDeadline, "Employee deadline", activeCycle);
         validateDateWithinActiveCycle(managerDeadline, "Manager review deadline", activeCycle);
+    }
+
+    private boolean isAssignmentScheduledForFuture(SelfAssessmentForm form) {
+        return form.getStartDate() != null && LocalDate.now().isBefore(form.getStartDate());
     }
 
     private LocalDate resolveFinalApprovalDeadlineDate(SelfAssessmentForm form) {
@@ -1824,7 +1857,11 @@ Instant now = Instant.now();
         return String.join("; ", reasons);
     }
 
-    private void sendManagerReviewNotificationsNew(SelfAssessmentForm form, boolean scoreChanged, boolean notifyHr) {
+    private void sendManagerReviewNotificationsNew(
+            SelfAssessmentForm form,
+            boolean scoreChanged,
+            boolean notifyHr,
+            boolean hasManagerAdjustments) {
         Employee employee = form.getEmployee();
         if (employee != null && hasActiveUserAccount(employee)) {
             notificationService.send(
@@ -1836,16 +1873,22 @@ Instant now = Instant.now();
                     "SELF_ASSESSMENT_FORM");
         }
 
-        if (notifyHr) {
+        if (notifyHr || hasManagerAdjustments) {
             User reviewedEmployeeUser = employee != null ? employee.getUserAccount() : null;
             userRepository.findByRole_IdAndActiveTrue(1L).stream()
                     .filter(hrUser -> reviewedEmployeeUser == null || !hrUser.getId().equals(reviewedEmployeeUser.getId()))
                     .forEach(hrUser -> notificationService.send(
                             hrUser,
-                            "Self-Assessment Requires HR Review",
-                            "Manager has reviewed " + (employee != null ? employee.getEmployeeName() : "an employee")
-                                    + "'s " + resolveFormDisplayTitle(form) + " and it requires HR attention. Reason: "
-                                    + (form.getHrReviewReason() != null ? form.getHrReviewReason() : "See form details."),
+                            notifyHr
+                                    ? "Self-Assessment Requires HR Review"
+                                    : "Manager Proposed Self-Assessment Adjustments",
+                            notifyHr
+                                    ? "Manager has reviewed " + (employee != null ? employee.getEmployeeName() : "an employee")
+                                            + "'s " + resolveFormDisplayTitle(form) + " and it requires HR attention. Reason: "
+                                            + (form.getHrReviewReason() != null ? form.getHrReviewReason() : "See form details.")
+                                    : "Manager has proposed adjustments for "
+                                            + (employee != null ? employee.getEmployeeName() : "an employee")
+                                            + "'s " + resolveFormDisplayTitle(form) + ".",
                             "SELF_ASSESSMENT_FORM"));
         }
     }
@@ -2195,6 +2238,7 @@ Instant now = Instant.now();
                 resolveFormDisplayTitle(form),
                 SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem()).name(),
                 resolveSavedTenPointYesMinRating(form.getTenPointYesMinRating()),
+                form.getStartDate(),
                 form.getDeadlineDate(),
                 form.getManagerReviewDeadlineDate(),
                 resolveFinalApprovalDeadlineDate(form),
@@ -2260,6 +2304,7 @@ Instant now = Instant.now();
                 resolveFormDisplayTitle(form),
                 form.getCycle() != null ? form.getCycle().getId() : null,
                 form.getCycle() != null ? form.getCycle().getName() : null,
+                form.getStartDate(),
                 form.getDeadlineDate(),
                 form.getManagerReviewDeadlineDate(),
                 resolveFinalApprovalDeadlineDate(form),

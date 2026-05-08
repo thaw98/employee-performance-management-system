@@ -203,7 +203,12 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
                 <button
                   key={form.id}
                   type="button"
-                  onClick={() => navigate(isHr ? '/hr/self-assessment/reviews' : '/manager/self-assessment-forms/reviews', { state: { formId: form.id } })}
+                  onClick={() => navigate(
+                    isHr
+                      ? `/hr/self-assessment/reviews/${form.id}`
+                      : `/manager/self-assessment-forms/reviews/${form.id}`,
+                    { state: { formId: form.id } },
+                  )}
                   className="group w-full text-left rounded-xl border-l-[3px] border-l-transparent p-3.5 transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-700/40"
                   style={{ animationDelay: `${index * 30}ms` }}
                 >
