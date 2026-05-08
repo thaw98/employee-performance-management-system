@@ -20,12 +20,17 @@ import {
   MessageSquare,
   ClipboardCheck,
   Sparkles,
+  ThumbsUp,
+  ThumbsDown,
+  Scale,
 } from 'lucide-react';
 import {
   useGetMyFormStatusQuery,
   useGetMyCurrentFormQuery,
   useSaveDraftMutation,
   useSubmitFormMutation,
+  useEmployeeAcknowledgeMutation,
+  useEmployeeDisputeMutation,
   type SaveDraftRequest,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
@@ -71,6 +76,36 @@ function StatusBadge({ status }: { status: string | undefined | null }) {
       text: 'text-sky-800 dark:text-sky-300',
       dot: 'bg-sky-500',
       icon: <Send size={13} />,
+    },
+    PENDING_MANAGER_REVIEW: {
+      bg: 'bg-sky-50 ring-sky-200 dark:bg-sky-900/20 dark:ring-sky-800/60',
+      text: 'text-sky-800 dark:text-sky-300',
+      dot: 'bg-sky-500',
+      icon: <Send size={13} />,
+    },
+    PENDING_EMPLOYEE_REVIEW: {
+      bg: 'bg-amber-50 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-800/60',
+      text: 'text-amber-800 dark:text-amber-300',
+      dot: 'bg-amber-500',
+      icon: <Scale size={13} />,
+    },
+    PENDING_FINAL_APPROVAL: {
+      bg: 'bg-blue-50 ring-blue-200 dark:bg-blue-900/20 dark:ring-blue-800/60',
+      text: 'text-blue-800 dark:text-blue-300',
+      dot: 'bg-blue-500',
+      icon: <ClipboardCheck size={13} />,
+    },
+    PENDING_HR_CALIBRATION_REVIEW: {
+      bg: 'bg-orange-50 ring-orange-200 dark:bg-orange-900/20 dark:ring-orange-800/60',
+      text: 'text-orange-800 dark:text-orange-300',
+      dot: 'bg-orange-500',
+      icon: <AlertTriangle size={13} />,
+    },
+    FINALIZED_LOCKED: {
+      bg: 'bg-emerald-50 ring-emerald-200 dark:bg-emerald-900/20 dark:ring-emerald-800/60',
+      text: 'text-emerald-800 dark:text-emerald-300',
+      dot: 'bg-emerald-500',
+      icon: <CheckCircle2 size={13} />,
     },
     APPROVED: {
       bg: 'bg-emerald-50 ring-emerald-200 dark:bg-emerald-900/20 dark:ring-emerald-800/60',
@@ -281,6 +316,8 @@ function YesNoToggle({
 
 export const MySelfAssessmentFormPage: React.FC = () => {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
 
   const { data: formStatus, isLoading: statusLoading } = useGetMyFormStatusQuery();
   const shouldLoadForm = Boolean(
@@ -292,6 +329,8 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const [saveDraft] = useSaveDraftMutation();
   const [submitForm, { isLoading: isSubmitting }] = useSubmitFormMutation();
+  const [employeeAcknowledge, { isLoading: isAcknowledging }] = useEmployeeAcknowledgeMutation();
+  const [employeeDispute, { isLoading: isDisputing }] = useEmployeeDisputeMutation();
 
   const form = useForm<AnswerFormData>({
     defaultValues: {
@@ -401,6 +440,34 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       refetch();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to submit form');
+    }
+  };
+
+  const onAcknowledge = async () => {
+    if (!formData?.id) return;
+    try {
+      await employeeAcknowledge(formData.id).unwrap();
+      toast.success('You have acknowledged the manager review');
+      refetch();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to acknowledge');
+    }
+  };
+
+  const onDispute = async () => {
+    if (!formData?.id) return;
+    if (!disputeReason.trim()) {
+      toast.error('Please provide a reason for your dispute');
+      return;
+    }
+    try {
+      await employeeDispute({ formId: formData.id, request: { disputeReason: disputeReason.trim() } }).unwrap();
+      toast.success('Your dispute has been submitted to HR');
+      setShowDisputeModal(false);
+      setDisputeReason('');
+      refetch();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to submit dispute');
     }
   };
 
@@ -543,7 +610,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       )}
 
       {/* ───── Read-only Banner ───── */}
-      {isReadOnly && (
+      {isReadOnly && formData?.status !== 'PENDING_EMPLOYEE_REVIEW' && (
         <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-blue-50 px-5 py-4 dark:border-sky-800/60 dark:from-sky-900/20 dark:to-blue-900/15">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300">
             <Lock size={16} />
@@ -553,6 +620,56 @@ export const MySelfAssessmentFormPage: React.FC = () => {
             <p className="mt-0.5 text-xs text-sky-700 dark:text-sky-300/80">
               This form cannot be modified in its current status.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ───── Pending Employee Review Panel ───── */}
+      {formData?.status === 'PENDING_EMPLOYEE_REVIEW' && (
+        <div className="overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/40 shadow-sm dark:border-amber-800/60 dark:from-amber-900/20 dark:to-orange-900/10">
+          <div className="flex items-center gap-3 border-b border-amber-200/70 bg-amber-100/60 px-5 py-3.5 dark:border-amber-800/50 dark:bg-amber-900/30">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500 text-white shadow-sm">
+              <Scale size={15} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-900 dark:text-amber-100">Manager Review Completed</p>
+              <p className="text-xs text-amber-700 dark:text-amber-300">Please review the updated scores and respond before your performance discussion.</p>
+            </div>
+          </div>
+          {formData.managerRevisedTotalScore != null && (
+            <div className="grid grid-cols-2 gap-px border-b border-amber-200/60 bg-amber-200/30 dark:border-amber-800/40 dark:bg-amber-900/20">
+              <div className="bg-amber-50/80 px-5 py-3 dark:bg-amber-950/30">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Your Self Score</p>
+                <p className="mt-0.5 text-lg font-bold text-amber-900 dark:text-amber-100">
+                  {formData.totalScore?.toFixed(1)}%
+                </p>
+              </div>
+              <div className="bg-amber-50/80 px-5 py-3 dark:bg-amber-950/30">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Manager Revised Score</p>
+                <p className="mt-0.5 text-lg font-bold text-amber-900 dark:text-amber-100">
+                  {formData.managerRevisedTotalScore.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          )}
+          <div className="flex items-center justify-end gap-3 px-5 py-4">
+            <button
+              type="button"
+              onClick={() => setShowDisputeModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 shadow-sm transition-all hover:bg-rose-50 dark:border-rose-800/60 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-900/20"
+            >
+              <ThumbsDown size={14} />
+              Dispute
+            </button>
+            <button
+              type="button"
+              onClick={onAcknowledge}
+              disabled={isAcknowledging}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:-translate-y-px hover:shadow-lg disabled:opacity-50"
+            >
+              <ThumbsUp size={14} />
+              {isAcknowledging ? 'Acknowledging…' : 'Acknowledge'}
+            </button>
           </div>
         </div>
       )}
@@ -657,21 +774,21 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Manager Proposed Adjustment */}
-                  {answer.managerProposedYesNo && (
+                  {/* Score Revisions */}
+                  {(answer.managerProposedYesNo || answer.finalApprovedYesNo) && (
                     <div className="border-t border-amber-200/70 bg-gradient-to-br from-amber-50/80 to-orange-50/40 px-6 py-5 dark:border-amber-800/60 dark:from-amber-900/15 dark:to-orange-900/10">
                       <div className="mb-3 flex items-center gap-2">
                         <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-200/70 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                           <AlertTriangle size={12} />
                         </div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800 dark:text-amber-300">
-                          Manager Proposed Adjustment
+                          Score Revisions
                         </p>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-3">
                         <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 dark:border-slate-600 dark:bg-slate-800/80">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                            Original
+                            Employee Self Score
                           </span>
                           <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">
                             {answer.yesNoAnswer}{' '}
@@ -682,24 +799,49 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                         </div>
                         <div className="rounded-xl border border-amber-300/70 bg-white px-3.5 py-3 ring-1 ring-amber-200/50 dark:border-amber-700/60 dark:bg-amber-950/30 dark:ring-amber-900/30">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                            Proposed
+                            Manager Revised Score
                           </span>
                           <p className="mt-1 text-sm font-bold text-amber-800 dark:text-amber-200">
-                            {answer.managerProposedYesNo}{' '}
-                            <span className="font-medium text-amber-500 dark:text-amber-500">
-                              ({answer.managerProposedRating})
-                            </span>
+                            {answer.managerProposedYesNo ? (
+                              <>
+                                {answer.managerProposedYesNo}{' '}
+                                <span className="font-medium text-amber-500">
+                                  ({answer.managerProposedRating})
+                                </span>
+                              </>
+                            ) : (
+                              <span className="font-medium text-slate-400 dark:text-slate-500">—</span>
+                            )}
                           </p>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 dark:border-slate-600 dark:bg-slate-800/80">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                            Comment
+                        <div className={`rounded-xl border px-3.5 py-3 ${answer.finalApprovedYesNo ? 'border-emerald-300/70 bg-white ring-1 ring-emerald-200/50 dark:border-emerald-700/60 dark:bg-emerald-950/30 dark:ring-emerald-900/30' : 'border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800/80'}`}>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${answer.finalApprovedYesNo ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                            Final Approved Score
                           </span>
-                          <p className="mt-1 text-sm leading-snug text-slate-600 dark:text-slate-300">
-                            {answer.managerProposedComment || '—'}
+                          <p className="mt-1 text-sm font-bold text-emerald-800 dark:text-emerald-200">
+                            {answer.finalApprovedYesNo ? (
+                              <>
+                                {answer.finalApprovedYesNo}{' '}
+                                <span className="font-medium text-emerald-500">
+                                  ({answer.finalApprovedRating})
+                                </span>
+                              </>
+                            ) : (
+                              <span className="font-medium text-slate-400 dark:text-slate-500">—</span>
+                            )}
                           </p>
                         </div>
                       </div>
+                      {answer.managerProposedComment && (
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 dark:border-slate-600 dark:bg-slate-800/80">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            Manager Comment
+                          </span>
+                          <p className="mt-1 text-sm leading-snug text-slate-600 dark:text-slate-300">
+                            {answer.managerProposedComment}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -774,6 +916,63 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           </div>
         )}
       </form>
+
+      {/* ───── Dispute Modal ───── */}
+      {showDisputeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-400">
+                  <ThumbsDown size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
+                    Dispute Manager Review
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    This will be escalated to HR for review
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowDisputeModal(false); setDisputeReason(''); }}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Reason for Dispute <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+                rows={4}
+                placeholder="Explain why you disagree with the manager's revised scores…"
+                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-rose-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-100/60 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4 dark:border-slate-700 dark:bg-slate-900/40">
+              <button
+                onClick={() => { setShowDisputeModal(false); setDisputeReason(''); }}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onDispute}
+                disabled={isDisputing || !disputeReason.trim()}
+                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-rose-700 disabled:opacity-50"
+              >
+                <Scale size={15} />
+                {isDisputing ? 'Submitting…' : 'Submit Dispute'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ───── Confirmation Modal ───── */}
       {showSubmitConfirm && (

@@ -99,14 +99,54 @@ function getStatusConfig(status: string) {
       cardAccent: 'border-l-amber-500',
     };
   }
-  if (s === 'APPROVED' || s === 'COMPLETED') {
+  if (s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED') {
     return {
-      label: 'Approved',
+      label: s === 'FINALIZED_LOCKED' ? 'Finalized' : 'Approved',
       bg: 'bg-emerald-50 dark:bg-emerald-900/30',
       text: 'text-emerald-700 dark:text-emerald-400',
       dot: 'bg-emerald-500',
       icon: CheckCircle2,
       cardAccent: 'border-l-emerald-500',
+    };
+  }
+  if (s === 'PENDING_MANAGER_REVIEW') {
+    return {
+      label: 'Pending Manager Review',
+      bg: 'bg-blue-50 dark:bg-blue-900/30',
+      text: 'text-blue-700 dark:text-blue-400',
+      dot: 'bg-blue-500',
+      icon: Send,
+      cardAccent: 'border-l-blue-500',
+    };
+  }
+  if (s === 'PENDING_EMPLOYEE_REVIEW') {
+    return {
+      label: 'Pending Employee Review',
+      bg: 'bg-amber-50 dark:bg-amber-900/30',
+      text: 'text-amber-700 dark:text-amber-400',
+      dot: 'bg-amber-500',
+      icon: Hourglass,
+      cardAccent: 'border-l-amber-500',
+    };
+  }
+  if (s === 'PENDING_FINAL_APPROVAL') {
+    return {
+      label: 'Pending Final Approval',
+      bg: 'bg-sky-50 dark:bg-sky-900/30',
+      text: 'text-sky-700 dark:text-sky-400',
+      dot: 'bg-sky-500',
+      icon: ShieldCheck,
+      cardAccent: 'border-l-sky-500',
+    };
+  }
+  if (s === 'PENDING_HR_CALIBRATION_REVIEW') {
+    return {
+      label: 'HR Calibration Review',
+      bg: 'bg-orange-50 dark:bg-orange-900/30',
+      text: 'text-orange-700 dark:text-orange-400',
+      dot: 'bg-orange-500',
+      icon: AlertCircle,
+      cardAccent: 'border-l-orange-500',
     };
   }
   if (s === 'REOPENED') {
@@ -194,6 +234,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [approvalMode, setApprovalMode] = useState<'adjustment' | 'final'>('final');
+  const [requiresHrReview, setRequiresHrReview] = useState(false);
+  const [affectsCompensationOrPip, setAffectsCompensationOrPip] = useState(false);
+  const [companyPolicyRequiresHrApproval, setCompanyPolicyRequiresHrApproval] = useState(false);
 
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery(undefined, {
     skip: !isHr,
@@ -229,18 +272,22 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const submittedCount = useMemo(
     () => (forms ?? []).filter((f: any) => {
       const s = (f.status ?? '').toUpperCase();
-      return s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED';
+      return s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED' || s === 'PENDING_MANAGER_REVIEW';
     }).length,
     [forms],
   );
   const reviewedCount = useMemo(
-    () => (forms ?? []).filter((f: any) => (f.status ?? '').toUpperCase() === 'MANAGER_REVIEWED').length,
+    () => (forms ?? []).filter((f: any) => {
+      const s = (f.status ?? '').toUpperCase();
+      return s === 'MANAGER_REVIEWED' || s === 'PENDING_EMPLOYEE_REVIEW'
+        || s === 'PENDING_FINAL_APPROVAL' || s === 'PENDING_HR_CALIBRATION_REVIEW';
+    }).length,
     [forms],
   );
   const approvedCount = useMemo(
     () => (forms ?? []).filter((f: any) => {
       const s = (f.status ?? '').toUpperCase();
-      return s === 'APPROVED' || s === 'COMPLETED';
+      return s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED';
     }).length,
     [forms],
   );
@@ -303,12 +350,18 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         request: {
           comments: managerComments,
           adjustments: adjustments.filter(a => a.proposedYesNo && a.proposedRating),
+          requiresHrReview,
+          affectsCompensationOrPip,
+          companyPolicyRequiresHrApproval,
         },
       }).unwrap();
       toast.success('Review submitted successfully');
       setManagerComments('');
       setAdjustments([]);
       setShowAdjustments(false);
+      setRequiresHrReview(false);
+      setAffectsCompensationOrPip(false);
+      setCompanyPolicyRequiresHrApproval(false);
       refetchForm();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to submit review');
@@ -701,6 +754,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                         {selectedForm.totalScore !== null && (
                           <div className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5">
                             <Star size={14} className="text-amber-500 fill-amber-500" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Self</span>
                             <span className="text-sm font-extrabold tabular-nums text-amber-700 dark:text-amber-400">
                               {selectedForm.totalScore.toFixed(1)}%
                             </span>
@@ -712,6 +766,24 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                 </span>
                               </>
                             )}
+                          </div>
+                        )}
+                        {selectedForm.managerRevisedTotalScore != null && (
+                          <div className="flex items-center gap-2 rounded-xl bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5">
+                            <Star size={14} className="text-orange-500 fill-orange-500" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">Mgr Revised</span>
+                            <span className="text-sm font-extrabold tabular-nums text-orange-700 dark:text-orange-400">
+                              {selectedForm.managerRevisedTotalScore.toFixed(1)}%
+                            </span>
+                          </div>
+                        )}
+                        {selectedForm.finalApprovedTotalScore != null && (
+                          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5">
+                            <Star size={14} className="text-emerald-500 fill-emerald-500" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Final</span>
+                            <span className="text-sm font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">
+                              {selectedForm.finalApprovedTotalScore.toFixed(1)}%
+                            </span>
                           </div>
                         )}
                       </div>
@@ -778,12 +850,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                             <div className="flex items-center gap-2 mb-2">
                               <Edit3 size={13} className="text-amber-600 dark:text-amber-400" />
                               <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                                Manager Adjustment
+                                Manager Revised Score
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-3">
                               <div className="inline-flex items-center gap-2 rounded-lg bg-white px-2.5 py-1.5 dark:bg-slate-800/60">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">From</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employee Self Score</span>
                                 <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                                   {answer.yesNoAnswer} ({answer.rating})
                                 </span>
@@ -792,17 +864,40 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                 <ArrowLeft size={12} className="rotate-180" />
                               </div>
                               <div className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-2.5 py-1.5 dark:bg-amber-800/40">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">To</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Manager Revised</span>
                                 <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
                                   {answer.managerProposedYesNo} ({answer.managerProposedRating})
                                 </span>
                               </div>
+                              {answer.finalApprovedYesNo && (
+                                <>
+                                  <div className="flex items-center text-slate-300 dark:text-slate-600">
+                                    <ArrowLeft size={12} className="rotate-180" />
+                                  </div>
+                                  <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 px-2.5 py-1.5 dark:bg-emerald-800/40">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final Approved</span>
+                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                                      {answer.finalApprovedYesNo} ({answer.finalApprovedRating})
+                                    </span>
+                                  </div>
+                                </>
+                              )}
                             </div>
                             {answer.managerProposedComment && (
                               <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 italic">
                                 "{answer.managerProposedComment}"
                               </p>
                             )}
+                          </div>
+                        )}
+                        {!answer.managerProposedYesNo && answer.finalApprovedYesNo && (
+                          <div className="mt-3 ml-10 rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-3 dark:border-emerald-700/60 dark:bg-emerald-900/20">
+                            <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 px-2.5 py-1.5 dark:bg-emerald-800/40">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final Approved</span>
+                              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                                {answer.finalApprovedYesNo} ({answer.finalApprovedRating})
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -842,9 +937,28 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     )}
                   </div>
                 )}
+              {selectedForm.employeeDisputedAt && (
+                <div className="mx-6 mb-5 rounded-xl border border-rose-200/80 bg-rose-50/50 p-4 dark:border-rose-700/60 dark:bg-rose-900/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle size={14} className="text-rose-600 dark:text-rose-400" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">Employee Dispute</h4>
+                  </div>
+                  <p className="text-sm text-rose-800 dark:text-rose-200 leading-relaxed">{selectedForm.employeeDisputeReason}</p>
+                </div>
+              )}
+
+              {selectedForm.hrReviewRequired && selectedForm.hrReviewReason && (
+                <div className="mx-6 mb-5 rounded-xl border border-orange-200/80 bg-orange-50/50 p-4 dark:border-orange-700/60 dark:bg-orange-900/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle size={14} className="text-orange-600 dark:text-orange-400" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-400">HR Review Required</h4>
+                  </div>
+                  <p className="text-sm text-orange-800 dark:text-orange-200 leading-relaxed">{selectedForm.hrReviewReason}</p>
+                </div>
+              )}
               </div>
 
-              {!isHr && selectedForm.status === 'SUBMITTED' && (
+              {!isHr && (selectedForm.status === 'SUBMITTED' || selectedForm.status === 'PENDING_MANAGER_REVIEW') && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '320ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-md shadow-amber-500/20">
@@ -1018,12 +1132,34 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                       </div>
                     )}
 
+                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 space-y-2 dark:border-slate-700/60 dark:bg-slate-700/20">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">HR Routing Flags</p>
+                      {[
+                        { label: 'Request HR / calibration review', value: requiresHrReview, setter: setRequiresHrReview },
+                        { label: 'Affects compensation, bonus, promotion, or PIP', value: affectsCompensationOrPip, setter: setAffectsCompensationOrPip },
+                        { label: 'Company policy requires HR approval', value: companyPolicyRequiresHrApproval, setter: setCompanyPolicyRequiresHrApproval },
+                      ].map(({ label, value, setter }) => (
+                        <label key={label} className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={value}
+                            onChange={(e) => setter(e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300 text-[#5D5FEF] focus:ring-[#5D5FEF]/30 dark:border-slate-600"
+                          />
+                          <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+
                     <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-700/40">
                       <button
                         onClick={() => {
                           setManagerComments('');
                           setAdjustments([]);
                           setShowAdjustments(false);
+                          setRequiresHrReview(false);
+                          setAffectsCompensationOrPip(false);
+                          setCompanyPolicyRequiresHrApproval(false);
                         }}
                         className="px-5 py-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all"
                       >
@@ -1046,7 +1182,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 </div>
               )}
 
-              {isHr && selectedForm.status === 'MANAGER_REVIEWED' && (
+              {isHr && (selectedForm.status === 'MANAGER_REVIEWED' || selectedForm.status === 'PENDING_FINAL_APPROVAL' || selectedForm.status === 'PENDING_HR_CALIBRATION_REVIEW') && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '320ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">

@@ -2,6 +2,7 @@ package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.selfassessmentform.*;
+import com.epms.backend.dto.selfassessmentform.EmployeeDisputeRequest;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.security.UserPrincipal;
@@ -159,6 +160,33 @@ public class SelfAssessmentFormController {
         try {
             SelfAssessmentFormDto form = selfAssessmentFormService.getFormById(id);
             return ResponseEntity.ok(ApiResponse.ok("Form retrieved", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/acknowledge")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> employeeAcknowledge(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee employee = getEmployeeFromPrincipal(principal);
+            SelfAssessmentFormDto form = selfAssessmentFormService.employeeAcknowledge(id, employee);
+            return ResponseEntity.ok(ApiResponse.ok("Acknowledged successfully", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/dispute")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> employeeDispute(
+            @PathVariable Long id,
+            @Valid @RequestBody EmployeeDisputeRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee employee = getEmployeeFromPrincipal(principal);
+            SelfAssessmentFormDto form = selfAssessmentFormService.employeeDispute(id, employee, request);
+            return ResponseEntity.ok(ApiResponse.ok("Dispute submitted successfully", form));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }

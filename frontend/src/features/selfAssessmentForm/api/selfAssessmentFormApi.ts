@@ -146,6 +146,8 @@ export interface AnswerDto {
   managerProposedRating: number | null
   managerProposedComment: string | null
   hrAdjustmentApproved: boolean | null
+  finalApprovedYesNo: string | null
+  finalApprovedRating: number | null
 }
 
 export interface AdjustmentDto {
@@ -201,6 +203,13 @@ export interface SelfAssessmentFormDto {
   employee: EmployeeInfoDto
   answers: AnswerDto[]
   adjustments: AdjustmentDto[]
+  managerRevisedTotalScore: number | null
+  finalApprovedTotalScore: number | null
+  employeeAcknowledgedAt: string | null
+  employeeDisputedAt: string | null
+  employeeDisputeReason: string | null
+  hrReviewRequired: boolean | null
+  hrReviewReason: string | null
 }
 
 export interface FormListDto {
@@ -342,6 +351,13 @@ export interface ManagerAdjustmentRequest {
 export interface ManagerReviewRequest {
   comments: string
   adjustments: ManagerAdjustmentRequest[]
+  requiresHrReview?: boolean
+  affectsCompensationOrPip?: boolean
+  companyPolicyRequiresHrApproval?: boolean
+}
+
+export interface EmployeeDisputeRequest {
+  disputeReason: string
 }
 
 export interface HrApproveManagerReviewRequest {
@@ -447,6 +463,8 @@ const normalizeAnswer = (source: UnknownRecord): AnswerDto => {
     managerProposedRating: source.managerProposedRating != null ? getNumber(source.managerProposedRating) : null,
     managerProposedComment: getOptionalString(source.managerProposedComment) ?? null,
     hrAdjustmentApproved: source.hrAdjustmentApproved != null ? getBoolean(source.hrAdjustmentApproved) : null,
+    finalApprovedYesNo: getOptionalString(source.finalApprovedYesNo) ?? null,
+    finalApprovedRating: source.finalApprovedRating != null ? getNumber(source.finalApprovedRating) : null,
   }
 }
 
@@ -507,6 +525,13 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     employee: normalizeEmployeeInfo(isRecord(source.employee) ? source.employee : {}),
     answers: getArray(source.answers).map(a => normalizeAnswer(isRecord(a) ? a : {})),
     adjustments: getArray(source.adjustments).map(a => normalizeAdjustment(isRecord(a) ? a : {})),
+    managerRevisedTotalScore: source.managerRevisedTotalScore != null ? getNumber(source.managerRevisedTotalScore) : null,
+    finalApprovedTotalScore: source.finalApprovedTotalScore != null ? getNumber(source.finalApprovedTotalScore) : null,
+    employeeAcknowledgedAt: getOptionalString(source.employeeAcknowledgedAt) ?? null,
+    employeeDisputedAt: getOptionalString(source.employeeDisputedAt) ?? null,
+    employeeDisputeReason: getOptionalString(source.employeeDisputeReason) ?? null,
+    hrReviewRequired: source.hrReviewRequired != null ? getBoolean(source.hrReviewRequired) : null,
+    hrReviewReason: getOptionalString(source.hrReviewReason) ?? null,
   }
 }
 
@@ -829,6 +854,25 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
+    employeeAcknowledge: builder.mutation<SelfAssessmentFormDto, number>({
+      query: (formId) => ({
+        url: `/self-assessment-forms/${formId}/acknowledge`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
+    employeeDispute: builder.mutation<SelfAssessmentFormDto, { formId: number; request: EmployeeDisputeRequest }>({
+      query: ({ formId, request }) => ({
+        url: `/self-assessment-forms/${formId}/dispute`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
     getAllTemplates: builder.query<SelfAssessmentFormTemplateDto[], void>({
       query: () => '/self-assessment-forms/templates',
       providesTags: ['SelfAssessmentTemplates'],
@@ -1030,4 +1074,6 @@ export const {
   useCreateQuestionBankItemMutation,
   useUpdateQuestionBankItemMutation,
   useUpdateQuestionBankItemStatusMutation,
+  useEmployeeAcknowledgeMutation,
+  useEmployeeDisputeMutation,
 } = selfAssessmentFormApi
