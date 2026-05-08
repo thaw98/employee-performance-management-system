@@ -402,9 +402,11 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const tenPointYesMinRating = formData?.tenPointYesMinRating ?? 5;
 
   const answeredCount =
-    watchAnswers?.filter((a) => a.yesNoAnswer === 'Yes' || a.yesNoAnswer === 'No').length ?? 0;
+    watchAnswers?.filter((a) => (a.yesNoAnswer === 'Yes' || a.yesNoAnswer === 'No') && a.rating != null)
+      .length ?? 0;
 
   const totalCount = formData?.answers?.length ?? 0;
+  const isSubmissionComplete = totalCount > 0 && answeredCount === totalCount;
 
   const handleYesNoChange = (index: number, value: string, currentRating: number | null) => {
     setValue(`answers.${index}.yesNoAnswer`, value, { shouldDirty: true, shouldTouch: true });
@@ -430,6 +432,15 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const onSubmitForm = async (data: AnswerFormData) => {
     try {
+      const incompleteAnswers = data.answers.filter(
+        (a) => (a.yesNoAnswer !== 'Yes' && a.yesNoAnswer !== 'No') || a.rating == null,
+      );
+      if (incompleteAnswers.length > 0) {
+        toast.error('Each question requires both a Yes/No response and a rating');
+        setShowSubmitConfirm(false);
+        return;
+      }
+
       if (autosave.hasPendingChanges) {
         await autosave.flush();
       }
@@ -680,7 +691,8 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           {formData?.answers &&
             formData.answers.map((answer, index) => {
               const yn = watchAnswers?.[index]?.yesNoAnswer;
-              const isAnswered = yn === 'Yes' || yn === 'No';
+              const rating = watchAnswers?.[index]?.rating;
+              const isAnswered = (yn === 'Yes' || yn === 'No') && rating != null;
               return (
                 <div
                   key={answer.id}
@@ -716,7 +728,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                     {/* Yes / No */}
                     <div>
                       <label className="mb-2.5 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                        Your Response
+                        Your Response (required)
                       </label>
                       <YesNoToggle
                         value={watchAnswers?.[index]?.yesNoAnswer}
@@ -728,14 +740,13 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                     {/* Rating */}
                     <div>
                       <label className="mb-2.5 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                        Rating
+                        Rating (required)
                       </label>
                       <Controller
                         name={`answers.${index}.rating`}
                         control={control}
                         render={({ field }) => (
                           <SelfAssessmentRatingPicker
-                            title={answer.questionText}
                             fivePointVariant="numeric"
                             ratingSystem={ratingSystem}
                             tenPointYesMinRating={tenPointYesMinRating}
@@ -905,7 +916,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowSubmitConfirm(true)}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isSubmissionComplete}
                   className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 ring-1 ring-emerald-600/20 transition-all hover:-translate-y-px hover:shadow-lg hover:shadow-emerald-500/30 disabled:translate-y-0 disabled:opacity-50"
                 >
                   <Send size={15} />
@@ -1021,7 +1032,8 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               </button>
               <button
                 onClick={handleSubmit(onSubmitForm)}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:shadow-lg hover:shadow-emerald-500/30"
+                disabled={isSubmitting || !isSubmissionComplete}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:shadow-lg hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CheckCircle2 size={16} />
                 Confirm Submit

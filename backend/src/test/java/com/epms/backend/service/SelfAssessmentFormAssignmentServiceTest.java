@@ -469,7 +469,10 @@ class SelfAssessmentFormAssignmentServiceTest {
                 manager,
                 new ManagerReviewRequest(
                         "Needs adjustment",
-                        List.of(new ManagerAdjustmentRequest(501L, "Yes", 7, "Below saved threshold")))));
+                        List.of(new ManagerAdjustmentRequest(501L, "Yes", 7, "Below saved threshold")),
+                        false,
+                        false,
+                        false)));
 
         assertEquals("Proposed rating does not match the form rating system", ex.getMessage());
         verify(adjustmentRepository, never()).save(any());
@@ -501,22 +504,24 @@ class SelfAssessmentFormAssignmentServiceTest {
         service.managerReview(
                 form.getId(),
                 manager,
-                new ManagerReviewRequest("Reviewed", List.of()));
+                new ManagerReviewRequest("Reviewed", List.of(), true, false, false));
 
         verify(notificationService).send(
                 eq(employee.getUserAccount()),
                 eq("Manager Review Completed"),
-                eq("Your Template has been reviewed by your manager."),
+                eq("Your manager has reviewed your self-assessment and updated one or more scores. "
+                        + "Please review the updated evaluation, including any manager comments, "
+                        + "before your performance discussion."),
                 eq("SELF_ASSESSMENT_FORM"));
         verify(notificationService).send(
                 eq(hrUserOne),
-                eq("Manager Review Submitted"),
-                eq("Manager has reviewed Jane Doe's Template."),
+                eq("Self-Assessment Requires HR Review"),
+                eq("Manager has reviewed Jane Doe's Template and it requires HR attention. Reason: Manager requested HR review"),
                 eq("SELF_ASSESSMENT_FORM"));
         verify(notificationService).send(
                 eq(hrUserTwo),
-                eq("Manager Review Submitted"),
-                eq("Manager has reviewed Jane Doe's Template."),
+                eq("Self-Assessment Requires HR Review"),
+                eq("Manager has reviewed Jane Doe's Template and it requires HR attention. Reason: Manager requested HR review"),
                 eq("SELF_ASSESSMENT_FORM"));
     }
 
@@ -542,12 +547,12 @@ class SelfAssessmentFormAssignmentServiceTest {
         service.managerReview(
                 form.getId(),
                 manager,
-                new ManagerReviewRequest("Reviewed", List.of()));
+                new ManagerReviewRequest("Reviewed", List.of(), true, false, false));
 
         verify(notificationService).send(
                 eq(activeHrUser),
-                eq("Manager Review Submitted"),
-                eq("Manager has reviewed Employee 1's Template."),
+                eq("Self-Assessment Requires HR Review"),
+                eq("Manager has reviewed Employee 1's Template and it requires HR attention. Reason: Manager requested HR review"),
                 eq("SELF_ASSESSMENT_FORM"));
         verify(notificationService, atLeastOnce()).send(
                 eq(employee.getUserAccount()),

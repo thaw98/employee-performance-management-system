@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MySelfAssessmentFormPage } from './MySelfAssessmentFormPage'
+import { toast } from 'react-hot-toast'
 
 const mocks = vi.hoisted(() => {
   const editableFormData = {
@@ -79,6 +80,8 @@ const mocks = vi.hoisted(() => {
     refetch: vi.fn(),
     saveDraft: vi.fn(),
     submitForm: vi.fn(),
+    employeeAcknowledge: vi.fn(),
+    employeeDispute: vi.fn(),
   }
 })
 
@@ -136,6 +139,8 @@ vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   }),
   useSaveDraftMutation: () => [mocks.saveDraft, { isLoading: false }],
   useSubmitFormMutation: () => [mocks.submitForm, { isLoading: false }],
+  useEmployeeAcknowledgeMutation: () => [mocks.employeeAcknowledge, { isLoading: false }],
+  useEmployeeDisputeMutation: () => [mocks.employeeDispute, { isLoading: false }],
 }))
 
 vi.mock('../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker', () => ({
@@ -163,7 +168,11 @@ describe('MySelfAssessmentFormPage autosave', () => {
     mocks.saveDraft.mockReturnValue({ unwrap: () => Promise.resolve({}) })
     mocks.submitForm.mockReset()
     mocks.submitForm.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+    mocks.employeeAcknowledge.mockReset()
+    mocks.employeeDispute.mockReset()
     mocks.editableFormData.status = 'DRAFT'
+    mocks.editableFormData.answers[0].yesNoAnswer = null
+    mocks.editableFormData.answers[0].rating = null
   })
 
   it('configures react-hook-form autosave for editable drafts', async () => {
@@ -220,5 +229,16 @@ describe('MySelfAssessmentFormPage autosave', () => {
       }),
     ).toBe(false)
     expect(screen.queryByRole('button', { name: 'Save Now' })).toBeNull()
+  })
+
+  it('disables submit when rating is missing after Yes/No is selected', async () => {
+    const user = userEvent.setup()
+    render(<MySelfAssessmentFormPage />)
+
+    await user.click(await screen.findByRole('button', { name: 'Yes' }))
+    expect(screen.getByRole('button', { name: 'Submit Assessment' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Confirm Submit' })).toBeNull()
+    expect(mocks.submitForm).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
   })
 })
