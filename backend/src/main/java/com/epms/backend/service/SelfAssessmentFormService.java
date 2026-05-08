@@ -1034,6 +1034,8 @@ Instant now = Instant.now();
                 "Manager reviewed self-assessment form",
                 null);
 
+        sendManagerReviewNotifications(saved);
+
         return toFormDto(saved);
     }
 
@@ -1615,6 +1617,27 @@ Instant now = Instant.now();
                         "Self-Assessment Submitted",
                         "Employee " + employee.getEmployeeName() + " submitted "
                                 + resolveFormDisplayTitle(form) + " for your review.",
+                        "SELF_ASSESSMENT_FORM"));
+    }
+
+    private void sendManagerReviewNotifications(SelfAssessmentForm form) {
+        Employee employee = form.getEmployee();
+        if (employee != null && hasActiveUserAccount(employee)) {
+            notificationService.send(
+                    employee.getUserAccount(),
+                    "Manager Review Completed",
+                    "Your " + resolveFormDisplayTitle(form) + " has been reviewed by your manager.",
+                    "SELF_ASSESSMENT_FORM");
+        }
+
+        User reviewedEmployeeUser = employee != null ? employee.getUserAccount() : null;
+        userRepository.findByRole_IdAndActiveTrue(1L).stream()
+                .filter(hrUser -> reviewedEmployeeUser == null || !hrUser.getId().equals(reviewedEmployeeUser.getId()))
+                .forEach(hrUser -> notificationService.send(
+                        hrUser,
+                        "Manager Review Submitted",
+                        "Manager has reviewed " + (employee != null ? employee.getEmployeeName() : "an employee")
+                                + "'s " + resolveFormDisplayTitle(form) + ".",
                         "SELF_ASSESSMENT_FORM"));
     }
 

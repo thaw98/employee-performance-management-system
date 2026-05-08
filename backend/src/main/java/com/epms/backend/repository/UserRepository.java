@@ -26,4 +26,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 			where u.id = :id
 			""")
 	Optional<User> findByIdWithEmployeeDepartment(@Param("id") Long id);
+
+	java.util.List<User> findByRole_IdAndActiveTrue(Long roleId);
 }

@@ -11,11 +11,11 @@ export function getFeedbackPath(pathname: string) {
 
 export function getSelfAssessmentPath(pathname: string) {
   if (pathname.startsWith('/manager')) {
-    return '/manager/self-assessment-forms/reviews';
+    return '/manager/self-assessment-forms/review-queue';
   }
 
   if (pathname.startsWith('/hr')) {
-    return '/hr/self-assessment/reviews';
+    return '/hr/self-assessment/review-queue';
   }
 
   return EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH;

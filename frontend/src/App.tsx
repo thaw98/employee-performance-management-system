@@ -58,6 +58,7 @@ import { EditSelfAssessmentTemplatePage } from './pages/self-assessment-form/Edi
 import { MySelfAssessmentFormPage } from './pages/self-assessment-form/MySelfAssessmentFormPage';
 import { EmployeeSelfAssessmentHubPage } from './pages/self-assessment-form/EmployeeSelfAssessmentHubPage';
 import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfAssessmentFormReviewPage';
+import { SelfAssessmentFormQueuePage } from './pages/self-assessment-form/SelfAssessmentFormQueuePage';
 import { SelfAssessmentActiveFormsPage } from './pages/self-assessment-form/SelfAssessmentActiveFormsPage';
 import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage';
 import { SelfAssessmentAssignmentTabsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentTabsPage';
@@ -177,6 +178,7 @@ function App() {
               element={<Navigate to="/hr/self-assessment/templates/create" replace />}
             />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
+            <Route path="self-assessment/review-queue" element={<SelfAssessmentFormQueuePage />} />
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
             <Route path="meetings" element={<MeetingsPage />} />
@@ -208,6 +210,7 @@ function App() {
             <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
+            <Route path="self-assessment-forms/review-queue" element={<SelfAssessmentFormQueuePage />} />
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />

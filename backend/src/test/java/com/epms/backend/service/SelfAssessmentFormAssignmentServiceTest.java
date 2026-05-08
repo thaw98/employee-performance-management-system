@@ -55,6 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -234,6 +235,7 @@ class SelfAssessmentFormAssignmentServiceTest {
                 "HYBRID",
                 List.of(10L),
                 List.of(20L),
+                List.of(),
                 LocalDate.of(2026, 5, 10),
                 LocalDate.of(2026, 5, 15));
 
@@ -249,6 +251,7 @@ class SelfAssessmentFormAssignmentServiceTest {
 
         SelfAssessmentAssignmentRequest request = new SelfAssessmentAssignmentRequest(
                 "ALL_EMPLOYEES",
+                List.of(),
                 List.of(),
                 List.of(),
                 LocalDate.of(2026, 5, 16),
@@ -473,6 +476,87 @@ class SelfAssessmentFormAssignmentServiceTest {
     }
 
     @Test
+    void managerReview_notifiesEmployeeAndAllActiveHrUsers() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        employee.setEmployeeName("Jane Doe");
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+
+        User hrUserOne = new User();
+        hrUserOne.setId(101L);
+        hrUserOne.setActive(true);
+        User hrUserTwo = new User();
+        hrUserTwo.setId(102L);
+        hrUserTwo.setActive(true);
+
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+        when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
+                .thenReturn(Optional.of(signature(manager.getUserAccount())));
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+        when(userRepository.findByRole_IdAndActiveTrue(1L)).thenReturn(List.of(hrUserOne, hrUserTwo));
+
+        service.managerReview(
+                form.getId(),
+                manager,
+                new ManagerReviewRequest("Reviewed", List.of()));
+
+        verify(notificationService).send(
+                eq(employee.getUserAccount()),
+                eq("Manager Review Completed"),
+                eq("Your Template has been reviewed by your manager."),
+                eq("SELF_ASSESSMENT_FORM"));
+        verify(notificationService).send(
+                eq(hrUserOne),
+                eq("Manager Review Submitted"),
+                eq("Manager has reviewed Jane Doe's Template."),
+                eq("SELF_ASSESSMENT_FORM"));
+        verify(notificationService).send(
+                eq(hrUserTwo),
+                eq("Manager Review Submitted"),
+                eq("Manager has reviewed Jane Doe's Template."),
+                eq("SELF_ASSESSMENT_FORM"));
+    }
+
+    @Test
+    void managerReview_skipsInactiveHrUsersWhenSendingNotifications() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+
+        User activeHrUser = new User();
+        activeHrUser.setId(101L);
+        activeHrUser.setActive(true);
+
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+        when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
+                .thenReturn(Optional.of(signature(manager.getUserAccount())));
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+        when(userRepository.findByRole_IdAndActiveTrue(1L)).thenReturn(List.of(activeHrUser));
+
+        service.managerReview(
+                form.getId(),
+                manager,
+                new ManagerReviewRequest("Reviewed", List.of()));
+
+        verify(notificationService).send(
+                eq(activeHrUser),
+                eq("Manager Review Submitted"),
+                eq("Manager has reviewed Employee 1's Template."),
+                eq("SELF_ASSESSMENT_FORM"));
+        verify(notificationService, atLeastOnce()).send(
+                eq(employee.getUserAccount()),
+                eq("Manager Review Completed"),
+                any(),
+                eq("SELF_ASSESSMENT_FORM"));
+    }
+
+    @Test
     void submitForm_reopenedResubmissionCreatesAnotherNotification() {
         ReviewCycle cycle = cycle();
         Employee employee = employee(1L, 10L, 20L);
@@ -510,6 +594,7 @@ class SelfAssessmentFormAssignmentServiceTest {
     private static SelfAssessmentAssignmentRequest request(String mode) {
         return new SelfAssessmentAssignmentRequest(
                 mode,
+                List.of(),
                 List.of(),
                 List.of(),
                 LocalDate.of(2026, 5, 10),
