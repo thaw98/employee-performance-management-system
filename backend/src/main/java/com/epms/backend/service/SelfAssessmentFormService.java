@@ -2301,6 +2301,7 @@ Instant now = Instant.now();
 
         return new FormListDto(
                 form.getId(),
+                form.getTemplate() != null ? form.getTemplate().getId() : null,
                 resolveFormDisplayTitle(form),
                 form.getCycle() != null ? form.getCycle().getId() : null,
                 form.getCycle() != null ? form.getCycle().getName() : null,

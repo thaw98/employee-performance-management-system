@@ -2,6 +2,7 @@ package com.epms.backend.service;
 
 import com.epms.backend.StaffTypes;
 import com.epms.backend.dto.selfassessmentform.AnswerRequest;
+import com.epms.backend.dto.selfassessmentform.ActiveCycleFormsDto;
 import com.epms.backend.dto.selfassessmentform.CreateTemplateRequest;
 import com.epms.backend.dto.selfassessmentform.ManagerAdjustmentRequest;
 import com.epms.backend.dto.selfassessmentform.ManagerReviewRequest;
@@ -644,6 +645,21 @@ class SelfAssessmentFormAssignmentServiceTest {
 
         assertEquals(1, service.getManagerReviewForms(manager).size());
         verify(formRepository).findByManagerAndCycle(manager.getId(), cycle);
+    }
+
+    @Test
+    void getActiveCycleFormsForHr_includesTemplateIdInFormListRows() {
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate template = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm form = formForSubmit(employee(1L, 10L, 20L), template, cycle, SelfAssessmentFormStatus.DRAFT);
+
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(formRepository.findByCycleOrderByCreatedDateDesc(cycle)).thenReturn(List.of(form));
+
+        ActiveCycleFormsDto response = service.getActiveCycleFormsForHr();
+
+        assertEquals(1, response.forms().size());
+        assertEquals(100L, response.forms().get(0).templateId());
     }
 
     private static SelfAssessmentAssignmentRequest request(String mode) {
