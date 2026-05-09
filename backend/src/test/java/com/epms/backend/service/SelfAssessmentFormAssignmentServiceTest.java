@@ -561,7 +561,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 eq("Your manager has reviewed your self-assessment and completed the review. "
                         + "Please review the updated evaluation, including any manager comments, "
                         + "before your performance discussion."),
-                eq("SELF_ASSESSMENT_FORM"));
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(form.getId()));
         verify(userRepository, never()).findByRole_IdAndActiveTrue(1L);
     }
 
@@ -595,7 +596,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 eq("Your manager has reviewed your self-assessment and updated one or more scores. "
                         + "Please review the updated evaluation, including any manager comments, "
                         + "before your performance discussion."),
-                eq("SELF_ASSESSMENT_FORM"));
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(form.getId()));
         verify(userRepository, never()).findByRole_IdAndActiveTrue(1L);
     }
 

@@ -349,7 +349,11 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   } = form;
 
   const isReadOnly = formData?.status !== 'DRAFT' && formData?.status !== 'REOPENED';
-  const editsBlockedByDeadline = Boolean(formStatus?.deadlinePassed && formStatus?.status !== 'REOPENED');
+  const deadlineBlocksDraftWork = Boolean(
+    formStatus?.deadlinePassed
+      && (formStatus?.status === 'DRAFT' || formStatus?.status === 'NOT_SUBMITTED'),
+  );
+  const editsBlockedByDeadline = deadlineBlocksDraftWork;
   const autosaveDisabled = statusLoading || formLoading || !formData || isReadOnly || editsBlockedByDeadline;
 
   const draftTransport = useMemo<Transport>(() => {
@@ -497,7 +501,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     return <StateCard variant="warning" icon={<AlertTriangle size={32} />} title="Not Eligible" message={formStatus?.message} />;
   }
 
-  if (formStatus?.deadlinePassed && formStatus?.status !== 'REOPENED') {
+  if (deadlineBlocksDraftWork) {
     return (
       <StateCard
         icon={<Clock size={32} />}
