@@ -31,7 +31,7 @@ public class AuthService {
 
         log.info("Login attempt for email: {}", email);
 
-        User user = userRepository.findByEmployee_EmailIgnoreCase(email)
+        User user = userRepository.findFirstByEmployee_EmailIgnoreCaseOrderByActiveDescIdAsc(email)
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
         if (!user.isActive()) {

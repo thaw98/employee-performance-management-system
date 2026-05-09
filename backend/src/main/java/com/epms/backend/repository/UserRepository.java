@@ -10,7 +10,7 @@ import com.epms.backend.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-	Optional<User> findByEmployee_EmailIgnoreCase(String email);
+	Optional<User> findFirstByEmployee_EmailIgnoreCaseOrderByActiveDescIdAsc(String email);
 
 	Optional<User> findByEmployee_Id(Long employeeId);
 
