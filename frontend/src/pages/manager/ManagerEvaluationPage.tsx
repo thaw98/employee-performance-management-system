@@ -4,7 +4,6 @@ import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
     ChevronLeft, 
-    Star, 
     MessageSquare, 
     Save, 
     CheckCircle2, 
@@ -14,7 +13,8 @@ import {
     Loader2,
     Building2,
     Calendar,
-    ArrowRight
+    ArrowRight,
+    AlertCircle
 } from 'lucide-react';
 
 interface Question {
@@ -49,6 +49,11 @@ interface Assignment {
         categories: Category[];
     };
     status: string;
+    managerComments?: string;
+    managerSignature?: string;
+    hrComments?: string;
+    totalScore?: number;
+    ratingCategory?: string;
 }
 
 export const ManagerEvaluationPage: React.FC = () => {
@@ -71,14 +76,30 @@ export const ManagerEvaluationPage: React.FC = () => {
             const response = await axios.get(`/appraisal-assignments/${id}/form`);
             if (response.data.success) {
                 setAssignment(response.data.data);
-                // Initialize answers
+                
+                // Initialize answers with defaults
                 const initialAnswers: any = {};
-                response.data.data.template.categories.forEach((cat: Category) => {
-                    cat.questions.forEach((q: Question) => {
+                response.data.data.template?.categories?.forEach((cat: Category) => {
+                    cat.questions?.forEach((q: Question) => {
                         initialAnswers[q.id] = { rating: 0, comments: '' };
                     });
                 });
+
+                // Fill with existing answers if available
+                if (response.data.data.answers && response.data.data.answers.length > 0) {
+                    response.data.data.answers.forEach((ans: any) => {
+                        if (ans.question && ans.question.id) {
+                            initialAnswers[ans.question.id] = { 
+                                rating: ans.rating || 0, 
+                                comments: ans.comments || '' 
+                            };
+                        }
+                    });
+                }
+                
                 setAnswers(initialAnswers);
+                setComments(response.data.data.managerComments || '');
+                setSignature(response.data.data.managerSignature || '');
             }
         } catch (error) {
             toast.error('Failed to load evaluation form');
@@ -152,9 +173,10 @@ export const ManagerEvaluationPage: React.FC = () => {
 
     if (!assignment) return null;
 
-    const empName = assignment.employee.employeeName || assignment.employee.fullName || assignment.employee.full_name || 'Employee';
-    const deptName = assignment.employee.department?.departmentName || assignment.employee.department?.name || 'N/A';
-    const posName = assignment.employee.position?.positionName || assignment.employee.position?.name || 'N/A';
+    const empName = assignment.employee?.employeeName || assignment.employee?.fullName || (assignment.employee as any)?.full_name || 'Employee';
+    const deptName = assignment.employee?.department?.departmentName || assignment.employee?.department?.name || 'N/A';
+    const posName = (assignment.employee as any)?.position?.positionName || (assignment.employee as any)?.position?.name || 'N/A';
+    const isReadOnly = assignment.status !== 'PENDING_MANAGER' && assignment.status !== 'RETURNED';
 
     return (
         <div className="min-h-screen bg-slate-50/50 pb-20">
@@ -169,22 +191,49 @@ export const ManagerEvaluationPage: React.FC = () => {
                             <ChevronLeft size={24} />
                         </button>
                         <div>
-                            <h1 className="text-xl font-black text-slate-900 tracking-tight">Perform Evaluation</h1>
-                            <p className="text-xs text-slate-500 font-medium">Assessing {empName}</p>
+                            <h1 className="text-xl font-black text-slate-900 tracking-tight">
+                                {isReadOnly ? 'View Evaluation' : 'Perform Evaluation'}
+                            </h1>
+                            <p className="text-xs text-slate-500 font-medium">
+                                {isReadOnly ? 'Reviewing' : 'Assessing'} {empName}
+                            </p>
                         </div>
                     </div>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={submitting}
-                        className="flex items-center gap-2 bg-[#5D5FEF] text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#5D5FEF]/20 hover:bg-[#4C4EDE] transition-all disabled:opacity-50"
-                    >
-                        {submitting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                        Submit Evaluation
-                    </button>
+                    {!isReadOnly && (
+                        <button
+                            onClick={handleSubmit}
+                            disabled={submitting}
+                            className="flex items-center gap-2 bg-[#5D5FEF] text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#5D5FEF]/20 hover:bg-[#4C4EDE] transition-all disabled:opacity-50"
+                        >
+                            {submitting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                            Submit Evaluation
+                        </button>
+                    )}
+                    {isReadOnly && (
+                        <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
+                            assignment.status === 'SUBMITTED' ? 'bg-blue-50 text-blue-600 border-blue-100' : 
+                            assignment.status === 'HR_APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                            'bg-slate-100 text-slate-500 border-slate-200'
+                        }`}>
+                            Status: {assignment.status}
+                        </div>
+                    )}
                 </div>
             </header>
 
             <main className="max-w-5xl mx-auto px-6 mt-8 space-y-8">
+                {/* HR Feedback if returned or rejected */}
+                {(assignment.status === 'RETURNED' || assignment.status === 'REJECTED') && assignment.hrComments && (
+                    <section className="bg-red-50 border border-red-100 rounded-3xl p-6 flex items-start gap-4">
+                        <div className="bg-red-500 text-white p-2 rounded-xl">
+                            <AlertCircle size={20} />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-black text-red-900 uppercase tracking-tight">HR Feedback</h4>
+                            <p className="text-sm text-red-700 mt-1">{assignment.hrComments}</p>
+                        </div>
+                    </section>
+                )}
                 {/* Employee Info Card */}
                 <section className="bg-white rounded-3xl border border-slate-200/60 p-8 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
@@ -237,17 +286,15 @@ export const ManagerEvaluationPage: React.FC = () => {
                                                     return (
                                                         <button
                                                             key={ratingValue}
-                                                            onClick={() => handleRatingChange(question.id, ratingValue)}
-                                                            className={`h-12 w-12 rounded-2xl flex items-center justify-center transition-all ${
+                                                            onClick={() => !isReadOnly && handleRatingChange(question.id, ratingValue)}
+                                                            disabled={isReadOnly}
+                                                            className={`h-11 w-11 rounded-xl flex items-center justify-center text-sm font-black transition-all ${
                                                                 isSelected 
-                                                                ? 'bg-amber-500 text-white shadow-lg shadow-amber-200 scale-110' 
-                                                                : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                                                            }`}
+                                                                ? 'bg-[#5D5FEF] text-white shadow-lg shadow-[#5D5FEF]/30 ring-2 ring-[#5D5FEF]/50 ring-offset-2' + (!isReadOnly ? ' scale-110' : '') 
+                                                                : 'bg-white border-2 border-slate-100 text-slate-400 hover:border-[#5D5FEF]/30 hover:text-[#5D5FEF] hover:bg-slate-50'
+                                                            } ${isReadOnly ? 'cursor-default' : 'hover:scale-105 active:scale-95'}`}
                                                         >
-                                                            <Star size={20} fill={isSelected ? "currentColor" : "none"} />
-                                                            <span className="absolute -bottom-6 text-[10px] font-black opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                {ratingValue}
-                                                            </span>
+                                                            {ratingValue}
                                                         </button>
                                                     );
                                                 })}
@@ -259,9 +306,10 @@ export const ManagerEvaluationPage: React.FC = () => {
                                     <div className="mt-8 pt-8 border-t border-slate-100 flex items-start gap-4">
                                         <MessageSquare size={20} className="text-slate-300 mt-3" />
                                         <textarea
-                                            placeholder="Add specific comments for this item (optional)..."
+                                            placeholder={isReadOnly ? "No comments provided" : "Add specific comments for this item (optional)..."}
                                             value={answers[question.id]?.comments || ''}
-                                            onChange={(e) => handleAnswerCommentChange(question.id, e.target.value)}
+                                            onChange={(e) => !isReadOnly && handleAnswerCommentChange(question.id, e.target.value)}
+                                            readOnly={isReadOnly}
                                             className="flex-1 bg-slate-50/50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-[#5D5FEF]/20 transition-all resize-none h-24"
                                         />
                                     </div>
@@ -286,9 +334,10 @@ export const ManagerEvaluationPage: React.FC = () => {
                                 This feedback will be visible to HR and potentially the employee.
                             </p>
                             <textarea
-                                placeholder="Your summary comments..."
+                                placeholder={isReadOnly ? "No summary feedback" : "Your summary comments..."}
                                 value={comments}
-                                onChange={(e) => setComments(e.target.value)}
+                                onChange={(e) => !isReadOnly && setComments(e.target.value)}
+                                readOnly={isReadOnly}
                                 className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-sm focus:ring-2 focus:ring-amber-500/50 transition-all resize-none h-40"
                             />
                         </div>
@@ -301,25 +350,36 @@ export const ManagerEvaluationPage: React.FC = () => {
                                 <div className="relative">
                                     <input
                                         type="text"
-                                        placeholder="Type your full name as signature"
+                                        placeholder={isReadOnly ? "Signed" : "Type your full name as signature"}
                                         value={signature}
-                                        onChange={(e) => setSignature(e.target.value)}
+                                        onChange={(e) => !isReadOnly && setSignature(e.target.value)}
+                                        readOnly={isReadOnly}
                                         className="w-full bg-white/5 border-b-2 border-white/10 focus:border-amber-400 px-0 py-4 text-2xl font-signature bg-transparent focus:outline-none transition-all italic tracking-widest placeholder:opacity-20"
                                     />
                                     <p className="mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Authorized Manager Signature</p>
                                 </div>
                             </div>
 
-                            <div className="flex justify-end">
-                                <button
-                                    onClick={handleSubmit}
-                                    disabled={submitting}
-                                    className="group bg-amber-500 text-white px-10 py-5 rounded-[28px] font-black text-base shadow-xl shadow-amber-500/30 hover:bg-amber-600 transition-all flex items-center gap-4"
-                                >
-                                    {submitting ? 'SUBMITTING...' : 'FINALIZE & SUBMIT'}
-                                    <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
-                                </button>
-                            </div>
+                             {!isReadOnly && (
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={handleSubmit}
+                                        disabled={submitting}
+                                        className="group bg-amber-500 text-white px-10 py-5 rounded-[28px] font-black text-base shadow-xl shadow-amber-500/30 hover:bg-amber-600 transition-all flex items-center gap-4"
+                                    >
+                                        {submitting ? 'SUBMITTING...' : 'FINALIZE & SUBMIT'}
+                                        <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
+                                    </button>
+                                </div>
+                            )}
+                            {isReadOnly && (
+                                <div className="flex justify-end">
+                                    <div className="bg-white/10 px-8 py-4 rounded-3xl border border-white/10">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Evaluation Completed</p>
+                                        <p className="text-amber-400 font-bold text-lg mt-1 italic">{signature}</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </section>

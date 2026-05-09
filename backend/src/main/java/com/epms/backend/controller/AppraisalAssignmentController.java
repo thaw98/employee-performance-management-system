@@ -27,8 +27,10 @@ public class AppraisalAssignmentController {
     @GetMapping("/my-team")
     public ResponseEntity<ApiResponse<List<AppraisalAssignment>>> getMyTeamAssignments(Authentication auth) {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
-        return ResponseEntity.ok(ApiResponse.ok("Fetched team assignments", 
-            appraisalAssignmentService.getAssignmentsForEvaluator(principal.getEmployeeDbId())));
+        System.out.println("DEBUG: Fetching team assignments for evaluator ID: " + principal.getEmployeeDbId() + " (User: " + principal.getName() + ")");
+        List<AppraisalAssignment> assignments = appraisalAssignmentService.getAssignmentsForEvaluator(principal.getEmployeeDbId());
+        System.out.println("DEBUG: Found " + assignments.size() + " assignments.");
+        return ResponseEntity.ok(ApiResponse.ok("Fetched team assignments", assignments));
     }
 
     @GetMapping("/{id}")
@@ -48,10 +50,16 @@ public class AppraisalAssignmentController {
     @GetMapping("/{id}/form")
     public ResponseEntity<ApiResponse<AppraisalAssignment>> getEvaluationForm(@PathVariable Long id) {
         AppraisalAssignment assignment = appraisalAssignmentService.getById(id);
+        if (assignment == null) {
+            return ResponseEntity.status(404).body(ApiResponse.fail("Appraisal assignment not found"));
+        }
         // Ensure template and questions are initialized if needed
-        if (assignment.getTemplate() != null) {
-            assignment.getTemplate().getCategories().size();
-            assignment.getTemplate().getCategories().forEach(c -> c.getQuestions().size());
+        if (assignment.getTemplate() != null && assignment.getTemplate().getCategories() != null) {
+            assignment.getTemplate().getCategories().forEach(c -> {
+                if (c.getQuestions() != null) {
+                    c.getQuestions().size();
+                }
+            });
         }
         return ResponseEntity.ok(ApiResponse.ok("Fetched evaluation form", assignment));
     }

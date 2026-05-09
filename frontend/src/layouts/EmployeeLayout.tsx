@@ -59,6 +59,7 @@ const EmployeeLayout: React.FC = () => {
 
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/employee/dashboard' },
+    { icon: <FileText size={20} />, label: 'Appraisals', path: '/employee/appraisals' },
     { icon: <Target size={20} />, label: 'My KPIs', path: '/employee/kpis' },
     { icon: <TrendingUp size={20} />, label: 'My PIPs', path: '/employee/pip' },
     {
