@@ -9,13 +9,13 @@ export function getFeedbackPath(pathname: string) {
   return `/${getRolePrefix(pathname)}/360-feedback/received`;
 }
 
-export function getSelfAssessmentPath(pathname: string) {
+export function getSelfAssessmentPath(pathname: string, formId?: number | null) {
   if (pathname.startsWith('/manager')) {
-    return '/manager/self-assessment-forms/review-queue';
+    return formId ? `/manager/self-assessment-forms/reviews/${formId}` : '/manager/self-assessment-forms/review-queue';
   }
 
   if (pathname.startsWith('/hr')) {
-    return '/hr/self-assessment/review-queue';
+    return formId ? `/hr/self-assessment/reviews/${formId}` : '/hr/self-assessment/review-queue';
   }
 
   return EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH;
@@ -65,7 +65,7 @@ export function getNotificationsPath(pathname: string) {
   return `/${getRolePrefix(pathname)}/notifications`;
 }
 
-type NotificationNavigationInput = Pick<NotificationItem, 'source' | 'title' | 'message'>;
+type NotificationNavigationInput = Pick<NotificationItem, 'source' | 'title' | 'message' | 'targetId'>;
 
 function normalizeNotificationSource(source: string | undefined) {
   return source?.trim().toUpperCase() ?? '';
@@ -98,7 +98,7 @@ export function getNotificationDestinationPath(notification: NotificationNavigat
   const source = normalizeNotificationSource(notification.source) || resolveLegacySource(notification);
 
   if (source === 'SELF_ASSESSMENT_FORM') {
-    return getSelfAssessmentPath(pathname);
+    return getSelfAssessmentPath(pathname, notification.targetId);
   }
 
   if (source === 'MEETING') {

@@ -8,6 +8,7 @@ public record NotificationDto(
         String title,
         String message,
         String source,
+        Long targetId,
         boolean read,
         LocalDateTime createdAt) {
 }

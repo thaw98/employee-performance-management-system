@@ -371,6 +371,10 @@ export interface HrRejectManagerReviewRequest {
   signatureId?: number | null
 }
 
+export interface HrReturnDisputedReviewRequest {
+  reason: string
+}
+
 export interface HrApproveFormRequest {
   signatureId?: number | null
 }
@@ -838,6 +842,16 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
+    hrReturnDisputedReview: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrReturnDisputedReviewRequest }>({
+      query: ({ formId, request }) => ({
+        url: `/self-assessment-forms/${formId}/hr-return-disputed-review`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
     hrApproveForm: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrApproveFormRequest }>({
       query: ({ formId, request }) => ({
         url: `/self-assessment-forms/${formId}/hr-approve`,
@@ -1058,6 +1072,7 @@ export const {
   useManagerReviewMutation,
   useHrApproveManagerReviewMutation,
   useHrRejectManagerReviewMutation,
+  useHrReturnDisputedReviewMutation,
   useHrApproveFormMutation,
   useHrReopenFormMutation,
   useGetAllTemplatesQuery,

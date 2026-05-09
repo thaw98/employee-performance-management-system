@@ -235,6 +235,20 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @PostMapping("/{id}/hr-return-disputed-review")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrReturnDisputedReview(
+            @PathVariable Long id,
+            @Valid @RequestBody HrReturnDisputedReviewRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SelfAssessmentFormDto form = selfAssessmentFormService.hrReturnDisputedReview(id, request, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Disputed review returned to manager", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/hr-approve")
     @PreAuthorize("principal.roleId == 1")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrApproveForm(

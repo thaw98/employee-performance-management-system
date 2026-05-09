@@ -6,6 +6,7 @@ import com.epms.backend.dto.selfassessmentform.ActiveCycleFormsDto;
 import com.epms.backend.dto.selfassessmentform.CreateTemplateRequest;
 import com.epms.backend.dto.selfassessmentform.ManagerAdjustmentRequest;
 import com.epms.backend.dto.selfassessmentform.ManagerReviewRequest;
+import com.epms.backend.dto.selfassessmentform.HrReturnDisputedReviewRequest;
 import com.epms.backend.dto.selfassessmentform.QuestionRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentPreviewDto;
@@ -215,6 +216,61 @@ class SelfAssessmentFormAssignmentServiceTest {
         assertEquals(1, response.skippedNoTemplateCount());
         verify(formRepository, never()).save(any(SelfAssessmentForm.class));
         verify(notificationService, never()).send(any(), any(), any(), any());
+    }
+
+    @Test
+    void hrReturnDisputedReview_requiresNonEmptyReason() {
+        SelfAssessmentForm form = disputedForm();
+        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> service.hrReturnDisputedReview(200L, new HrReturnDisputedReviewRequest("   "), 99L));
+
+        assertEquals("HR return reason is required", ex.getMessage());
+        verify(formRepository, never()).save(any(SelfAssessmentForm.class));
+        verify(signatureRepository, never()).findByUserAndIsDefaultTrue(any());
+    }
+
+    @Test
+    void hrReturnDisputedReview_movesFormToManagerReviewAndNotifiesManagerWithBothReasonsWithoutSignature() {
+        SelfAssessmentForm form = disputedForm();
+        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+
+        service.hrReturnDisputedReview(200L, new HrReturnDisputedReviewRequest("Please revise the rating evidence"), 99L);
+
+        assertEquals(SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW, form.getStatus());
+        assertEquals("Please revise the rating evidence", form.getHrReviewReason());
+        assertEquals("Employee disagrees with rating", form.getEmployeeDisputeReason());
+        assertEquals(null, form.getManagerSignatureId());
+        assertEquals(null, form.getManagerComments());
+        verify(signatureRepository, never()).findByUserAndIsDefaultTrue(any());
+        verify(notificationService).send(
+                eq(form.getEmployee().getManager().getUserAccount()),
+                eq("Self-Assessment Review Returned"),
+                org.mockito.ArgumentMatchers.contains("Employee dispute reason: Employee disagrees with rating"),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(200L));
+        verify(notificationService).send(
+                eq(form.getEmployee().getManager().getUserAccount()),
+                eq("Self-Assessment Review Returned"),
+                org.mockito.ArgumentMatchers.contains("HR return reason: Please revise the rating evidence"),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(200L));
+    }
+
+    @Test
+    void hrFinalApprovalStillRequiresDefaultSignatureForDisputedForm() {
+        SelfAssessmentForm form = disputedForm();
+        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
+        when(userRepository.findById(99L)).thenReturn(Optional.of(new User()));
+        when(signatureRepository.findByUserAndIsDefaultTrue(any())).thenReturn(Optional.empty());
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> service.hrApproveForm(200L, new com.epms.backend.dto.selfassessmentform.HrApproveFormRequest(null), 99L));
+
+        assertTrue(ex.getMessage().contains("No default signature found"));
     }
 
     @Test
@@ -566,7 +622,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 eq(activeHrUser),
                 eq("Self-Assessment Pending Final Approval"),
                 eq("Jane Doe has acknowledged the manager review for Template. Final HR approval is required."),
-                eq("SELF_ASSESSMENT_FORM"));
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(form.getId()));
     }
 
     @Test
@@ -747,6 +804,26 @@ class SelfAssessmentFormAssignmentServiceTest {
         answer.setQuestionText("What did you achieve?");
         answer.setSortOrder(0);
         form.addAnswer(answer);
+        return form;
+    }
+
+    private static SelfAssessmentForm disputedForm() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(10L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+
+        SelfAssessmentForm form = formForSubmit(
+                employee,
+                template(100L, 10L, 20L, cycle),
+                cycle,
+                SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW);
+        form.setManager(manager);
+        form.setManagerComments("Manager review");
+        form.setManagerRevisedTotalScore(3.0);
+        form.setEmployeeDisputeReason("Employee disagrees with rating");
+        form.setEmployeeDisputedAt(java.time.Instant.parse("2026-05-08T00:00:00Z"));
+        form.setEmployeeAcknowledgedAt(java.time.Instant.parse("2026-05-07T00:00:00Z"));
         return form;
     }
 

@@ -38,6 +38,7 @@ import {
   useManagerReviewMutation,
   useHrApproveManagerReviewMutation,
   useHrRejectManagerReviewMutation,
+  useHrReturnDisputedReviewMutation,
   useHrApproveFormMutation,
   useHrReopenFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
@@ -213,6 +214,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [managerComments, setManagerComments] = useState('');
   const [adjustments, setAdjustments] = useState<ManagerAdjustment[]>([]);
   const [rejectReason, setRejectReason] = useState('');
+  const [hrReturnReason, setHrReturnReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError } = useGetReviewFormsQuery(undefined, {
@@ -231,6 +233,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [managerReview, { isLoading: isManagerReviewing }] = useManagerReviewMutation();
   const [hrApproveManagerReview, { isLoading: isHrApproving }] = useHrApproveManagerReviewMutation();
   const [hrRejectManagerReview, { isLoading: isHrRejecting }] = useHrRejectManagerReviewMutation();
+  const [hrReturnDisputedReview, { isLoading: isHrReturningDispute }] = useHrReturnDisputedReviewMutation();
   const [hrApproveForm, { isLoading: isApproving }] = useHrApproveFormMutation();
   const [hrReopenForm, { isLoading: isReopening }] = useHrReopenFormMutation();
 
@@ -397,6 +400,25 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
       refetchForm();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to reject adjustments');
+    }
+  };
+
+  const handleHrReturnDisputedReview = async () => {
+    if (!selectedFormId || !hrReturnReason.trim()) {
+      toast.error('Enter an HR reason before sending back to the manager.');
+      return;
+    }
+
+    try {
+      await hrReturnDisputedReview({
+        formId: selectedFormId,
+        request: { reason: hrReturnReason.trim() },
+      }).unwrap();
+      toast.success('Review returned to manager for revision');
+      setHrReturnReason('');
+      refetchForm();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to return review to manager');
     }
   };
 
@@ -1183,7 +1205,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                         </Link>
                       </div>
                       <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 mb-3">
-                        All HR actions will be signed with your default signature.
+                        Final approvals and adjustment decisions use your default signature.
                       </p>
                       <div className="flex items-center justify-center min-h-[72px] rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800/80 px-3 py-2">
                         {isDefaultSigLoading ? (
@@ -1201,6 +1223,62 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                         )}
                       </div>
                     </div>
+
+                    {selectedForm.status === 'PENDING_HR_CALIBRATION_REVIEW' && (
+                      <div className="rounded-xl border border-rose-200/80 bg-rose-50/50 p-4 dark:border-rose-700/60 dark:bg-rose-900/20">
+                        <div className="mb-3 flex items-center gap-2">
+                          <AlertCircle size={15} className="text-rose-600 dark:text-rose-400" />
+                          <p className="text-sm font-bold text-rose-800 dark:text-rose-300">
+                            Disputed review awaiting HR decision
+                          </p>
+                        </div>
+                        <div className="space-y-3">
+                          {selectedForm.employeeDisputeReason && (
+                            <div className="rounded-lg bg-white/70 px-3 py-2 dark:bg-slate-800/60">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500 dark:text-rose-300">
+                                Employee Dispute Reason
+                              </p>
+                              <p className="mt-1 text-sm text-rose-900 dark:text-rose-100">
+                                {selectedForm.employeeDisputeReason}
+                              </p>
+                            </div>
+                          )}
+                          <div>
+                            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-rose-600 dark:text-rose-300">
+                              HR Reason for Manager Revision <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                              value={hrReturnReason}
+                              onChange={(e) => setHrReturnReason(e.target.value)}
+                              rows={3}
+                              className={`${filterControlClass} resize-none`}
+                              placeholder="Explain what the manager must revise..."
+                            />
+                          </div>
+                          <div className="flex flex-wrap gap-3">
+                            <button
+                              onClick={handleHrReturnDisputedReview}
+                              disabled={isHrReturningDispute || !hrReturnReason.trim()}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                              {isHrReturningDispute ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                              Send Back to Manager
+                            </button>
+                            <button
+                              onClick={() => {
+                                setApprovalMode('final');
+                                setShowApprovalModal(true);
+                              }}
+                              disabled={isDefaultSigLoading || !hasDefaultSignature}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                              <CheckCircle2 size={16} />
+                              Final Approval
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {selectedForm.answers?.some((a: any) => a.managerProposedYesNo) && (
                       <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-4 dark:border-amber-700/60 dark:bg-amber-900/20">
@@ -1234,27 +1312,29 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="flex gap-3 flex-wrap pt-2">
-                      <button
-                        onClick={() => {
-                          setApprovalMode('final');
-                          setShowApprovalModal(true);
-                        }}
-                        disabled={isDefaultSigLoading || !hasDefaultSignature}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                      >
-                        <CheckCircle2 size={16} />
-                        Final Approval
-                      </button>
-                      <button
-                        onClick={() => handleHrReopenForm()}
-                        disabled={isReopening || isDefaultSigLoading || !hasDefaultSignature}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                      >
-                        {isReopening ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-                        Reopen for Employee
-                      </button>
-                    </div>
+                    {selectedForm.status !== 'PENDING_HR_CALIBRATION_REVIEW' && (
+                      <div className="flex gap-3 flex-wrap pt-2">
+                        <button
+                          onClick={() => {
+                            setApprovalMode('final');
+                            setShowApprovalModal(true);
+                          }}
+                          disabled={isDefaultSigLoading || !hasDefaultSignature}
+                          className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          <CheckCircle2 size={16} />
+                          Final Approval
+                        </button>
+                        <button
+                          onClick={() => handleHrReopenForm()}
+                          disabled={isReopening || isDefaultSigLoading || !hasDefaultSignature}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          {isReopening ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                          Reopen for Employee
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

@@ -36,6 +36,10 @@ public class NotificationSourceSchemaMigrationInitializer implements BeanPostPro
             jdbc.execute("ALTER TABLE notifications ADD COLUMN source VARCHAR(50) NOT NULL DEFAULT 'GENERAL'");
             log.info("Added notifications.source");
         }
+        if (!columnExists(jdbc, "notifications", "target_id")) {
+            jdbc.execute("ALTER TABLE notifications ADD COLUMN target_id BIGINT NULL");
+            log.info("Added notifications.target_id");
+        }
     }
 
     private static boolean tableExists(JdbcTemplate jdbc, String tableName) {

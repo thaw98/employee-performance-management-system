@@ -990,6 +990,12 @@ Instant now = Instant.now();
         form.setManagerSignatureId(defaultSig.getId());
         form.setManagerSignatureDate(Instant.now());
         form.setManagerComments(request.comments());
+        form.setEmployeeAcknowledgedAt(null);
+        form.setEmployeeDisputedAt(null);
+        form.setEmployeeDisputeReason(null);
+        form.setHrReviewRequired(null);
+        form.setHrReviewReason(null);
+        form.setRequiresHrReview(null);
         form.setUpdatedDate(Instant.now());
 
         boolean anyScoreChanged = false;
@@ -1226,6 +1232,56 @@ Instant now = Instant.now();
                 null,
                 "HR rejected manager adjustments. Reason: " + request.rejectionReason(),
                 null);
+
+        return toFormDto(saved);
+    }
+
+    @Transactional
+    public SelfAssessmentFormDto hrReturnDisputedReview(Long formId, HrReturnDisputedReviewRequest request, Long hrUserId) {
+        SelfAssessmentForm form = formRepository.findById(formId)
+                .orElseThrow(() -> new RuntimeException("Form not found"));
+
+        if (form.getStatus() != SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW) {
+            throw new RuntimeException("Form is not pending HR dispute review");
+        }
+
+        if (request.reason() == null || request.reason().trim().isBlank()) {
+            throw new RuntimeException("HR return reason is required");
+        }
+
+        String reason = request.reason().trim();
+        for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
+            answer.setManagerProposedYesNo(null);
+            answer.setManagerProposedRating(null);
+            answer.setManagerProposedComment(null);
+            answer.setHrAdjustmentApproved(null);
+            answer.setFinalApprovedYesNo(null);
+            answer.setFinalApprovedRating(null);
+        }
+
+        form.setManagerSignatureId(null);
+        form.setManagerSignatureDate(null);
+        form.setManagerComments(null);
+        form.setManagerRevisedTotalScore(null);
+        form.setFinalApprovedTotalScore(null);
+        form.setEmployeeAcknowledgedAt(null);
+        form.setHrReviewRequired(true);
+        form.setHrReviewReason(reason);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW);
+        form.setUpdatedDate(Instant.now());
+
+        SelfAssessmentForm saved = formRepository.save(form);
+
+        auditService.record(
+                AuditActionType.SELF_ASSESSMENT_FORM_HR_SENT_BACK_TO_MANAGER,
+                AuditTargetType.SELF_ASSESSMENT_FORM,
+                saved.getId(),
+                hrUserId,
+                null,
+                "HR returned disputed manager review to manager. Reason: " + reason,
+                null);
+
+        sendManagerDisputeReturnNotification(saved, reason);
 
         return toFormDto(saved);
     }
@@ -1848,7 +1904,8 @@ Instant now = Instant.now();
                         (employee != null ? employee.getEmployeeName() : "An employee")
                                 + " has acknowledged the manager review for "
                                 + resolveFormDisplayTitle(form) + ". Final HR approval is required.",
-                        "SELF_ASSESSMENT_FORM"));
+                        "SELF_ASSESSMENT_FORM",
+                        form.getId()));
     }
 
     private void sendHrDisputeNotification(SelfAssessmentForm form) {
@@ -1861,7 +1918,25 @@ Instant now = Instant.now();
                                 + " has disputed the manager review on "
                                 + resolveFormDisplayTitle(form) + ". Reason: "
                                 + form.getEmployeeDisputeReason(),
-                        "SELF_ASSESSMENT_FORM"));
+                        "SELF_ASSESSMENT_FORM",
+                        form.getId()));
+    }
+
+    private void sendManagerDisputeReturnNotification(SelfAssessmentForm form, String hrReason) {
+        Employee employee = form.getEmployee();
+        resolveManagerRecipient(employee)
+                .ifPresent(manager -> notificationService.send(
+                        manager.getUserAccount(),
+                        "Self-Assessment Review Returned",
+                        "Manager revision is required for "
+                                + (employee != null ? employee.getEmployeeName() + "'s " : "")
+                                + resolveFormDisplayTitle(form)
+                                + ". Employee dispute reason: "
+                                + nullToDash(form.getEmployeeDisputeReason())
+                                + ". HR return reason: "
+                                + hrReason,
+                        "SELF_ASSESSMENT_FORM",
+                        form.getId()));
     }
 
     private void sendManagerSubmissionNotification(Employee employee, SelfAssessmentForm form) {
@@ -2135,6 +2210,10 @@ Instant now = Instant.now();
             }
         }
         return "Self Assessment Form";
+    }
+
+    private static String nullToDash(String value) {
+        return value == null || value.isBlank() ? "-" : value;
     }
 
     private SelfAssessmentFormDto toFormDto(SelfAssessmentForm form) {
