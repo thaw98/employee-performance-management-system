@@ -245,6 +245,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   });
   const defaultSignature = defaultSigResponse?.data ?? null;
   const hasDefaultSignature = Boolean(defaultSignature);
+  const isMissingDefaultSignature = !isDefaultSigLoading && !hasDefaultSignature;
   const portalRoot = typeof document !== 'undefined' ? document.body : null;
 
   const forms = isHr ? (selectedFormId ? allForms : hrForms) : managerForms;
@@ -1201,7 +1202,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                           className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5D5FEF] dark:text-[#8b8ef7] hover:underline"
                         >
                           <PenLine size={12} />
-                          Signature Settings
+                          {isMissingDefaultSignature ? 'Create Default Signature' : 'Signature Settings'}
                         </Link>
                       </div>
                       <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 mb-3">
@@ -1288,12 +1289,18 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                             Manager adjustments pending your review
                           </p>
                         </div>
+                        {isMissingDefaultSignature && (
+                          <div className="mb-3 rounded-lg border border-amber-300/80 bg-amber-100/70 px-3 py-2 text-xs font-semibold text-amber-900 dark:border-amber-600/70 dark:bg-amber-900/40 dark:text-amber-100">
+                            Set a default signature before approving/rejecting manager adjustments.
+                          </div>
+                        )}
                         <div className="flex gap-3 flex-wrap">
                           <button
                             onClick={() => {
                               setApprovalMode('adjustment');
                               setShowApprovalModal(true);
                             }}
+                            title={isMissingDefaultSignature ? 'Set a default signature before approving/rejecting.' : 'Approve manager adjustments'}
                             disabled={isDefaultSigLoading || !hasDefaultSignature}
                             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                           >
@@ -1302,6 +1309,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                           </button>
                           <button
                             onClick={() => setShowRejectModal(true)}
+                            title={isMissingDefaultSignature ? 'Set a default signature before approving/rejecting.' : 'Reject manager adjustments'}
                             disabled={isDefaultSigLoading || !hasDefaultSignature}
                             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-red-500 to-red-600 shadow-md shadow-red-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                           >
