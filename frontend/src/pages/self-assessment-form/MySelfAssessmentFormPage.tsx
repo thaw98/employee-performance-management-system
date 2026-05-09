@@ -694,6 +694,66 @@ export const MySelfAssessmentFormPage: React.FC = () => {
         </div>
       )}
 
+      {(formData?.employeeRemarks || formData?.overallRemarks || formData?.managerComments || formData?.hrReviewReason) && (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800/60">
+          <div className="flex items-start gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-6 py-4 dark:border-slate-700 dark:from-slate-800/80 dark:to-slate-800/40">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm">
+              <MessageSquare size={16} />
+            </span>
+            <div className="min-w-0 flex-1 pt-0.5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+                Review Summary
+              </p>
+              <p className="mt-1 text-[15px] font-semibold text-slate-800 dark:text-slate-100">
+                Remarks From Employee, Manager, and HR
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3 px-6 py-5">
+            {formData?.employeeRemarks && (
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 px-4 py-3 dark:border-slate-700/60 dark:bg-slate-700/20">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                  Employee Remarks
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+                  {formData.employeeRemarks}
+                </p>
+              </div>
+            )}
+            {formData?.overallRemarks && (
+              <div className="rounded-xl border border-violet-200/80 bg-violet-50/60 px-4 py-3 dark:border-violet-700/60 dark:bg-violet-900/20">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700 dark:text-violet-300">
+                  Overall Remarks
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-violet-900 dark:text-violet-100">
+                  {formData.overallRemarks}
+                </p>
+              </div>
+            )}
+            {formData?.managerComments && (
+              <div className="rounded-xl border border-blue-200/80 bg-blue-50/60 px-4 py-3 dark:border-blue-700/60 dark:bg-blue-900/20">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-700 dark:text-blue-300">
+                  Manager Remarks
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-blue-900 dark:text-blue-100">
+                  {formData.managerComments}
+                </p>
+              </div>
+            )}
+            {formData?.hrReviewReason && (
+              <div className="rounded-xl border border-orange-200/80 bg-orange-50/60 px-4 py-3 dark:border-orange-700/60 dark:bg-orange-900/20">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-orange-700 dark:text-orange-300">
+                  HR Remarks
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-orange-900 dark:text-orange-100">
+                  {formData.hrReviewReason}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ───── Questions ───── */}
       <form onSubmit={handleSubmit(onSubmitForm)}>
         <div className="space-y-4">

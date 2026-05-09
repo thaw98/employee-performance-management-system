@@ -874,6 +874,15 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.employeeRemarks}</p>
                   </div>
                 )}
+                {selectedForm.overallRemarks && (
+                  <div className="mx-6 mb-5 rounded-xl border border-violet-200/80 bg-violet-50/50 p-4 dark:border-violet-700/60 dark:bg-violet-900/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MessageSquare size={14} className="text-violet-600 dark:text-violet-400" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-violet-700 dark:text-violet-400">Overall Remarks</h4>
+                    </div>
+                    <p className="text-sm text-violet-900 dark:text-violet-100 leading-relaxed">{selectedForm.overallRemarks}</p>
+                  </div>
+                )}
 
                 {selectedForm.managerComments && (
                   <div className="mx-6 mb-5 rounded-xl border border-blue-200/80 bg-blue-50/50 p-4 dark:border-blue-700/60 dark:bg-blue-900/20">
@@ -907,11 +916,11 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 </div>
               )}
 
-              {selectedForm.hrReviewRequired && selectedForm.hrReviewReason && (
+              {selectedForm.hrReviewReason && (
                 <div className="mx-6 mb-5 rounded-xl border border-orange-200/80 bg-orange-50/50 p-4 dark:border-orange-700/60 dark:bg-orange-900/20">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertCircle size={14} className="text-orange-600 dark:text-orange-400" />
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-400">HR Review Required</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-400">HR Remarks</h4>
                   </div>
                   <p className="text-sm text-orange-800 dark:text-orange-200 leading-relaxed">{selectedForm.hrReviewReason}</p>
                 </div>
