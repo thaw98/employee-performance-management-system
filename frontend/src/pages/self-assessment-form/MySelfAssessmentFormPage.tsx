@@ -411,6 +411,11 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const totalCount = formData?.answers?.length ?? 0;
   const isSubmissionComplete = totalCount > 0 && answeredCount === totalCount;
+  const displayedFinalScore =
+    formData?.finalApprovedTotalScore
+    ?? formData?.managerRevisedTotalScore
+    ?? formData?.totalScore
+    ?? null;
 
   const handleYesNoChange = (index: number, value: string, currentRating: number | null) => {
     setValue(`answers.${index}.yesNoAnswer`, value, { shouldDirty: true, shouldTouch: true });
@@ -581,7 +586,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
         </div>
 
         {/* Metadata strip */}
-        {(formData?.employee || formData?.cycleName || formData?.deadlineDate || formData?.assessmentDate || formData?.totalScore != null) && (
+        {(formData?.employee || formData?.cycleName || formData?.deadlineDate || formData?.assessmentDate || displayedFinalScore != null) && (
           <div className="relative grid grid-cols-1 divide-y divide-slate-200/70 border-t border-slate-200/70 bg-white/60 backdrop-blur-sm sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/30">
             {formData?.employee && (
               <MetaItem icon={<Building2 size={17} />} label="Department" value={departmentDisplay} />
@@ -606,11 +611,11 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                 value={formatDateDayMonthYear(formData.assessmentDate)}
               />
             )}
-            {formData?.totalScore != null && (
+            {displayedFinalScore != null && (
               <MetaItem
                 icon={<BarChart3 size={17} />}
-                label="Score"
-                value={`${formData.totalScore.toFixed(1)}% · ${formData.ratingCategory}`}
+                label="Final Score"
+                value={`${displayedFinalScore.toFixed(1)}%${formData.ratingCategory ? ` · ${formData.ratingCategory}` : ''}`}
               />
             )}
           </div>
