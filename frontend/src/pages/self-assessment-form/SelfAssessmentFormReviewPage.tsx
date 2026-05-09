@@ -237,10 +237,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [approvalMode, setApprovalMode] = useState<'adjustment' | 'final'>('final');
-  const [requiresHrReview, setRequiresHrReview] = useState(false);
-  const [affectsCompensationOrPip, setAffectsCompensationOrPip] = useState(false);
-  const [companyPolicyRequiresHrApproval, setCompanyPolicyRequiresHrApproval] = useState(false);
-
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery(undefined, {
     skip: !isHr,
   });
@@ -353,18 +349,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         request: {
           comments: managerComments,
           adjustments: adjustments.filter(a => a.proposedYesNo && a.proposedRating),
-          requiresHrReview,
-          affectsCompensationOrPip,
-          companyPolicyRequiresHrApproval,
         },
       }).unwrap();
       toast.success('Review submitted successfully');
       setManagerComments('');
       setAdjustments([]);
       setShowAdjustments(false);
-      setRequiresHrReview(false);
-      setAffectsCompensationOrPip(false);
-      setCompanyPolicyRequiresHrApproval(false);
       refetchForm();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to submit review');
@@ -1135,34 +1125,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 space-y-2 dark:border-slate-700/60 dark:bg-slate-700/20">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">HR Routing Flags</p>
-                      {[
-                        { label: 'Request HR / calibration review', value: requiresHrReview, setter: setRequiresHrReview },
-                        { label: 'Affects compensation, bonus, promotion, or PIP', value: affectsCompensationOrPip, setter: setAffectsCompensationOrPip },
-                        { label: 'Company policy requires HR approval', value: companyPolicyRequiresHrApproval, setter: setCompanyPolicyRequiresHrApproval },
-                      ].map(({ label, value, setter }) => (
-                        <label key={label} className="flex items-center gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={value}
-                            onChange={(e) => setter(e.target.checked)}
-                            className="h-4 w-4 rounded border-slate-300 text-[#5D5FEF] focus:ring-[#5D5FEF]/30 dark:border-slate-600"
-                          />
-                          <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
-                        </label>
-                      ))}
-                    </div>
-
                     <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-700/40">
                       <button
                         onClick={() => {
                           setManagerComments('');
                           setAdjustments([]);
                           setShowAdjustments(false);
-                          setRequiresHrReview(false);
-                          setAffectsCompensationOrPip(false);
-                          setCompanyPolicyRequiresHrApproval(false);
                         }}
                         className="px-5 py-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all"
                       >

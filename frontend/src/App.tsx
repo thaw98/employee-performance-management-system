@@ -63,6 +63,7 @@ import { SelfAssessmentActiveFormsPage } from './pages/self-assessment-form/Self
 import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage';
 import { SelfAssessmentAssignmentTabsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentTabsPage';
 import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
+import { SelfAssessmentAssignedEmployeesPage } from './pages/self-assessment-form/SelfAssessmentAssignedEmployeesPage';
 
 // Meetings
 import { MeetingsPage } from './pages/manager/MeetingsPage';
@@ -168,6 +169,7 @@ function App() {
             <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/assignments" element={<SelfAssessmentAssignmentTabsPage />} />
+            <Route path="self-assessment/assignments/:templateId/assigned-employees" element={<SelfAssessmentAssignedEmployeesPage />} />
             <Route
               path="self-assessment/assign-forms"
               element={<Navigate to="/hr/self-assessment/assignments?tab=assign" replace />}

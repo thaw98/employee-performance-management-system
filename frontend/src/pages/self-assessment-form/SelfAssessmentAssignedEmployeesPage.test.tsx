@@ -1,10 +1,10 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
-import { SelfAssessmentAssignmentsPage } from './SelfAssessmentAssignmentsPage'
+import { SelfAssessmentAssignedEmployeesPage } from './SelfAssessmentAssignedEmployeesPage'
 
 let templatesMock: unknown[] = []
-let activeCycleFormsMock: { forms: unknown[] } = { forms: [] }
+let activeCycleFormsMock: { activeCycle: unknown; forms: unknown[] } = { activeCycle: null, forms: [] }
 
 vi.mock('react-router-dom', () => ({
   Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
@@ -12,25 +12,7 @@ vi.mock('react-router-dom', () => ({
       {children}
     </a>
   ),
-}))
-
-vi.mock('../../features/reviewCycle/api/reviewCycleApi', () => ({
-  useGetActiveReviewCyclesQuery: () => ({
-    data: [
-      {
-        id: 7,
-        name: 'Q2 2026',
-        code: 'Q2-2026',
-        startDate: '2026-05-01',
-        endDate: '2026-05-31',
-        requiresEmployeeSubmission: true,
-      },
-    ],
-  }),
-}))
-
-vi.mock('./SelfAssessmentReviewCycleInfo', () => ({
-  SelfAssessmentReviewCycleInfo: () => <div>Cycle info</div>,
+  useParams: () => ({ templateId: '100' }),
 }))
 
 vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
@@ -41,6 +23,8 @@ vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   }),
   useGetActiveCycleFormsForHrQuery: () => ({
     data: activeCycleFormsMock,
+    isLoading: false,
+    isError: false,
   }),
 }))
 
@@ -62,16 +46,6 @@ const assignedTemplate = {
   deletedQuestions: [],
   createdOn: '2026-05-01T00:00:00Z',
   createdBy: 1,
-}
-
-const emptyAssignedTemplate = {
-  ...assignedTemplate,
-  id: 101,
-  title: 'Finance Analyst Review',
-  departmentId: 11,
-  departmentName: 'Finance',
-  positionId: 21,
-  positionName: 'Analyst',
 }
 
 const matchingForm = {
@@ -106,25 +80,49 @@ const matchingForm = {
   createdDate: '2026-05-05T09:30:00Z',
 }
 
-describe('SelfAssessmentAssignmentsPage', () => {
+describe('SelfAssessmentAssignedEmployeesPage', () => {
   beforeEach(() => {
-    templatesMock = [assignedTemplate, emptyAssignedTemplate]
-    activeCycleFormsMock = { forms: [matchingForm] }
+    templatesMock = [assignedTemplate]
+    activeCycleFormsMock = {
+      activeCycle: {
+        id: 7,
+        name: 'Q2 2026',
+        code: 'Q2-2026',
+        startDate: '2026-05-01',
+        endDate: '2026-05-31',
+      },
+      forms: [matchingForm],
+    }
   })
 
   afterEach(() => {
     cleanup()
   })
 
-  it('renders assigned rows with View links to the assigned employees page', () => {
-    render(<SelfAssessmentAssignmentsPage />)
+  it('renders assigned employees as a page', () => {
+    render(<SelfAssessmentAssignedEmployeesPage />)
 
-    const viewLinks = screen.getAllByRole('link', { name: 'View' })
-    expect(viewLinks).toHaveLength(2)
-    expect(viewLinks[0]).toHaveAttribute('href', '/hr/self-assessment/assignments/100/assigned-employees')
-    expect(viewLinks[1]).toHaveAttribute('href', '/hr/self-assessment/assignments/101/assigned-employees')
-    expect(screen.queryByText('Aye Aye (EMP-200)')).not.toBeInTheDocument()
-    expect(screen.queryByText('Assigned employees already exist for this department and position.')).not.toBeInTheDocument()
-    expect(screen.queryByRole('dialog', { name: 'Assigned Employees' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Assigned Employees' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Back to Assignments' })).toHaveAttribute(
+      'href',
+      '/hr/self-assessment/assignments'
+    )
+    expect(screen.getByText('Aye Aye (EMP-200)')).toBeInTheDocument()
+    expect(screen.getByText('Engineering')).toBeInTheDocument()
+    expect(screen.getByText('Developer')).toBeInTheDocument()
+    expect(screen.getByText('May 5, 2026')).toBeInTheDocument()
+    expect(screen.getByText('May 1, 2026')).toBeInTheDocument()
+    expect(screen.getByText('May 15, 2026')).toBeInTheDocument()
+    expect(screen.getByText('May 20, 2026')).toBeInTheDocument()
+    expect(screen.getByText('Not Submitted')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('shows an empty page state when an assigned template has no matching current-cycle forms', () => {
+    activeCycleFormsMock = { ...activeCycleFormsMock, forms: [] }
+
+    render(<SelfAssessmentAssignedEmployeesPage />)
+
+    expect(screen.getByText('No current-cycle employees found')).toBeInTheDocument()
   })
 })

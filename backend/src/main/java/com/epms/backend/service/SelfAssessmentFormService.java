@@ -1039,17 +1039,7 @@ Instant now = Instant.now();
                     null);
         }
 
-        form.setRequiresHrReview(Boolean.TRUE.equals(request.requiresHrReview()));
-        form.setAffectsCompensationOrPip(Boolean.TRUE.equals(request.affectsCompensationOrPip()));
-        form.setCompanyPolicyRequiresHrApproval(Boolean.TRUE.equals(request.companyPolicyRequiresHrApproval()));
-
         calculateManagerRevisedScore(form);
-
-        boolean hrNotificationRequired = determineHrNotificationRequired(form, request);
-        if (hrNotificationRequired) {
-            form.setHrReviewRequired(true);
-            form.setHrReviewReason(buildHrReviewReason(form, request));
-        }
 
         form.setStatus(SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW);
 
@@ -1064,7 +1054,7 @@ Instant now = Instant.now();
                 "Manager reviewed self-assessment form",
                 null);
 
-        sendManagerReviewNotificationsNew(saved, anyScoreChanged, hrNotificationRequired, hasManagerAdjustments);
+        sendManagerReviewNotificationsNew(saved, anyScoreChanged, hasManagerAdjustments);
 
         return toFormDto(saved);
     }
@@ -1096,6 +1086,8 @@ Instant now = Instant.now();
                 null,
                 "Employee acknowledged manager review",
                 null);
+
+        sendHrFinalApprovalNotification(saved);
 
         return toFormDto(saved);
     }
@@ -1824,73 +1816,39 @@ Instant now = Instant.now();
         form.setFinalApprovedTotalScore(((double) totalPoints / (numQuestions * maxRating)) * 100);
     }
 
-    private boolean determineHrNotificationRequired(SelfAssessmentForm form, ManagerReviewRequest request) {
-        if (Boolean.TRUE.equals(request.requiresHrReview())) return true;
-        if (Boolean.TRUE.equals(request.affectsCompensationOrPip())) return true;
-        if (Boolean.TRUE.equals(request.companyPolicyRequiresHrApproval())) return true;
-        Double employeeSelfTotal = form.getTotalScore();
-        Double managerRevised = form.getManagerRevisedTotalScore();
-        if (employeeSelfTotal != null && managerRevised != null) {
-            return Math.abs(employeeSelfTotal - managerRevised) >= 20.0;
-        }
-        return false;
-    }
-
-    private String buildHrReviewReason(SelfAssessmentForm form, ManagerReviewRequest request) {
-        List<String> reasons = new ArrayList<>();
-        if (Boolean.TRUE.equals(request.requiresHrReview())) {
-            reasons.add("Manager requested HR review");
-        }
-        if (Boolean.TRUE.equals(request.affectsCompensationOrPip())) {
-            reasons.add("Affects compensation or PIP");
-        }
-        if (Boolean.TRUE.equals(request.companyPolicyRequiresHrApproval())) {
-            reasons.add("Company policy requires HR approval");
-        }
-        Double employeeSelfTotal = form.getTotalScore();
-        Double managerRevised = form.getManagerRevisedTotalScore();
-        if (employeeSelfTotal != null && managerRevised != null
-                && Math.abs(employeeSelfTotal - managerRevised) >= 20.0) {
-            reasons.add(String.format("Score gap of %.1f percentage points (threshold: 20)",
-                    Math.abs(employeeSelfTotal - managerRevised)));
-        }
-        return String.join("; ", reasons);
-    }
-
     private void sendManagerReviewNotificationsNew(
             SelfAssessmentForm form,
             boolean scoreChanged,
-            boolean notifyHr,
             boolean hasManagerAdjustments) {
         Employee employee = form.getEmployee();
         if (employee != null && hasActiveUserAccount(employee)) {
+            String detail = hasManagerAdjustments
+                    ? (scoreChanged
+                            ? "updated one or more scores"
+                            : "added proposed adjustments")
+                    : "completed the review";
             notificationService.send(
                     employee.getUserAccount(),
                     "Manager Review Completed",
-                    "Your manager has reviewed your self-assessment and updated one or more scores. "
+                    "Your manager has reviewed your self-assessment and " + detail + ". "
                             + "Please review the updated evaluation, including any manager comments, "
                             + "before your performance discussion.",
                     "SELF_ASSESSMENT_FORM");
         }
+    }
 
-        if (notifyHr || hasManagerAdjustments) {
-            User reviewedEmployeeUser = employee != null ? employee.getUserAccount() : null;
-            userRepository.findByRole_IdAndActiveTrue(1L).stream()
-                    .filter(hrUser -> reviewedEmployeeUser == null || !hrUser.getId().equals(reviewedEmployeeUser.getId()))
-                    .forEach(hrUser -> notificationService.send(
-                            hrUser,
-                            notifyHr
-                                    ? "Self-Assessment Requires HR Review"
-                                    : "Manager Proposed Self-Assessment Adjustments",
-                            notifyHr
-                                    ? "Manager has reviewed " + (employee != null ? employee.getEmployeeName() : "an employee")
-                                            + "'s " + resolveFormDisplayTitle(form) + " and it requires HR attention. Reason: "
-                                            + (form.getHrReviewReason() != null ? form.getHrReviewReason() : "See form details.")
-                                    : "Manager has proposed adjustments for "
-                                            + (employee != null ? employee.getEmployeeName() : "an employee")
-                                            + "'s " + resolveFormDisplayTitle(form) + ".",
-                            "SELF_ASSESSMENT_FORM"));
-        }
+    private void sendHrFinalApprovalNotification(SelfAssessmentForm form) {
+        Employee employee = form.getEmployee();
+        User reviewedEmployeeUser = employee != null ? employee.getUserAccount() : null;
+        userRepository.findByRole_IdAndActiveTrue(1L).stream()
+                .filter(hrUser -> reviewedEmployeeUser == null || !hrUser.getId().equals(reviewedEmployeeUser.getId()))
+                .forEach(hrUser -> notificationService.send(
+                        hrUser,
+                        "Self-Assessment Pending Final Approval",
+                        (employee != null ? employee.getEmployeeName() : "An employee")
+                                + " has acknowledged the manager review for "
+                                + resolveFormDisplayTitle(form) + ". Final HR approval is required.",
+                        "SELF_ASSESSMENT_FORM"));
     }
 
     private void sendHrDisputeNotification(SelfAssessmentForm form) {

@@ -56,7 +56,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -472,17 +471,14 @@ class SelfAssessmentFormAssignmentServiceTest {
                 manager,
                 new ManagerReviewRequest(
                         "Needs adjustment",
-                        List.of(new ManagerAdjustmentRequest(501L, "Yes", 7, "Below saved threshold")),
-                        false,
-                        false,
-                        false)));
+                        List.of(new ManagerAdjustmentRequest(501L, "Yes", 7, "Below saved threshold")))));
 
         assertEquals("Proposed rating does not match the form rating system", ex.getMessage());
         verify(adjustmentRepository, never()).save(any());
     }
 
     @Test
-    void managerReview_notifiesEmployeeAndAllActiveHrUsers() {
+    void managerReview_notifiesEmployeeOnly() {
         ReviewCycle cycle = cycle();
         Employee manager = employee(2L, 10L, 20L);
         Employee employee = employee(1L, 10L, 20L);
@@ -492,46 +488,29 @@ class SelfAssessmentFormAssignmentServiceTest {
         form.getAnswers().get(0).setYesNoAnswer("Yes");
         form.getAnswers().get(0).setRating(5);
 
-        User hrUserOne = new User();
-        hrUserOne.setId(101L);
-        hrUserOne.setActive(true);
-        User hrUserTwo = new User();
-        hrUserTwo.setId(102L);
-        hrUserTwo.setActive(true);
-
         when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
         when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
                 .thenReturn(Optional.of(signature(manager.getUserAccount())));
         when(formRepository.save(form)).thenReturn(form);
         when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
-        when(userRepository.findByRole_IdAndActiveTrue(1L)).thenReturn(List.of(hrUserOne, hrUserTwo));
 
         service.managerReview(
                 form.getId(),
                 manager,
-                new ManagerReviewRequest("Reviewed", List.of(), true, false, false));
+                new ManagerReviewRequest("Reviewed", List.of()));
 
         verify(notificationService).send(
                 eq(employee.getUserAccount()),
                 eq("Manager Review Completed"),
-                eq("Your manager has reviewed your self-assessment and updated one or more scores. "
+                eq("Your manager has reviewed your self-assessment and completed the review. "
                         + "Please review the updated evaluation, including any manager comments, "
                         + "before your performance discussion."),
                 eq("SELF_ASSESSMENT_FORM"));
-        verify(notificationService).send(
-                eq(hrUserOne),
-                eq("Self-Assessment Requires HR Review"),
-                eq("Manager has reviewed Jane Doe's Template and it requires HR attention. Reason: Manager requested HR review"),
-                eq("SELF_ASSESSMENT_FORM"));
-        verify(notificationService).send(
-                eq(hrUserTwo),
-                eq("Self-Assessment Requires HR Review"),
-                eq("Manager has reviewed Jane Doe's Template and it requires HR attention. Reason: Manager requested HR review"),
-                eq("SELF_ASSESSMENT_FORM"));
+        verify(userRepository, never()).findByRole_IdAndActiveTrue(1L);
     }
 
     @Test
-    void managerReview_withAdjustments_notifiesHrEvenWhenHrReviewFlagsAreFalse() {
+    void managerReview_withAdjustments_notifiesEmployeeOnly() {
         ReviewCycle cycle = cycle();
         Employee manager = employee(2L, 10L, 20L);
         Employee employee = employee(1L, 10L, 20L);
@@ -541,26 +520,18 @@ class SelfAssessmentFormAssignmentServiceTest {
         form.getAnswers().get(0).setYesNoAnswer("Yes");
         form.getAnswers().get(0).setRating(5);
 
-        User hrUser = new User();
-        hrUser.setId(101L);
-        hrUser.setActive(true);
-
         when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
         when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
                 .thenReturn(Optional.of(signature(manager.getUserAccount())));
         when(formRepository.save(form)).thenReturn(form);
         when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
-        when(userRepository.findByRole_IdAndActiveTrue(1L)).thenReturn(List.of(hrUser));
 
         service.managerReview(
                 form.getId(),
                 manager,
                 new ManagerReviewRequest(
                         "Reviewed",
-                        List.of(new ManagerAdjustmentRequest(501L, "No", 1, "Needs calibration")),
-                        false,
-                        false,
-                        false));
+                        List.of(new ManagerAdjustmentRequest(501L, "No", 1, "Needs calibration"))));
 
         verify(notificationService).send(
                 eq(employee.getUserAccount()),
@@ -569,46 +540,32 @@ class SelfAssessmentFormAssignmentServiceTest {
                         + "Please review the updated evaluation, including any manager comments, "
                         + "before your performance discussion."),
                 eq("SELF_ASSESSMENT_FORM"));
-        verify(notificationService).send(
-                eq(hrUser),
-                eq("Manager Proposed Self-Assessment Adjustments"),
-                eq("Manager has proposed adjustments for Jane Doe's Template."),
-                eq("SELF_ASSESSMENT_FORM"));
+        verify(userRepository, never()).findByRole_IdAndActiveTrue(1L);
     }
 
     @Test
-    void managerReview_skipsInactiveHrUsersWhenSendingNotifications() {
+    void employeeAcknowledge_notifiesActiveHrUsersForFinalApproval() {
         ReviewCycle cycle = cycle();
-        Employee manager = employee(2L, 10L, 20L);
         Employee employee = employee(1L, 10L, 20L);
-        employee.setManager(manager);
-        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+        employee.setEmployeeName("Jane Doe");
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW);
 
         User activeHrUser = new User();
         activeHrUser.setId(101L);
         activeHrUser.setActive(true);
 
         when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
-        when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
-                .thenReturn(Optional.of(signature(manager.getUserAccount())));
         when(formRepository.save(form)).thenReturn(form);
         when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
         when(userRepository.findByRole_IdAndActiveTrue(1L)).thenReturn(List.of(activeHrUser));
 
-        service.managerReview(
-                form.getId(),
-                manager,
-                new ManagerReviewRequest("Reviewed", List.of(), true, false, false));
+        service.employeeAcknowledge(form.getId(), employee);
 
+        assertEquals(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL, form.getStatus());
         verify(notificationService).send(
                 eq(activeHrUser),
-                eq("Self-Assessment Requires HR Review"),
-                eq("Manager has reviewed Employee 1's Template and it requires HR attention. Reason: Manager requested HR review"),
-                eq("SELF_ASSESSMENT_FORM"));
-        verify(notificationService, atLeastOnce()).send(
-                eq(employee.getUserAccount()),
-                eq("Manager Review Completed"),
-                any(),
+                eq("Self-Assessment Pending Final Approval"),
+                eq("Jane Doe has acknowledged the manager review for Template. Final HR approval is required."),
                 eq("SELF_ASSESSMENT_FORM"));
     }
 

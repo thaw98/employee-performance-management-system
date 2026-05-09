@@ -355,9 +355,6 @@ export interface ManagerAdjustmentRequest {
 export interface ManagerReviewRequest {
   comments: string
   adjustments: ManagerAdjustmentRequest[]
-  requiresHrReview?: boolean
-  affectsCompensationOrPip?: boolean
-  companyPolicyRequiresHrApproval?: boolean
 }
 
 export interface EmployeeDisputeRequest {
