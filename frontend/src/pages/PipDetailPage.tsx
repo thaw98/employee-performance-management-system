@@ -17,6 +17,8 @@ import type { RootState } from '../app/store'
 import { formatDate, formatDateTime } from '../utils/dateUtils'
 import { useGetDefaultSignatureQuery } from '../features/user/userApi'
 import { resolveMediaSrc } from '../utils/mediaUrl'
+import { PipCommunicationNotes } from '../features/pip/components/PipCommunicationNotes'
+import PipUnifiedLog from '../features/pip/components/PipUnifiedLog'
 
 const isImageSignature = (signature?: string) => {
   if (!signature) return false
@@ -170,6 +172,7 @@ export default function PipDetailPage() {
     && !pip.finalOutcome
     && Boolean(pip.employeeSignatureDate)
     && Boolean(pip.managerSignatureDate)
+  const canAddCommunicationNote = pip.status === 'ACTIVE' && (isEmployee || isDirectManager)
   const shouldShowSignatureSummary = Boolean(
     pip.finalOutcome
     || pip.employeeSignatureDate
@@ -522,6 +525,17 @@ export default function PipDetailPage() {
             </div>
           </section>
 
+          <PipCommunicationNotes
+            pipId={pipId}
+            pipStatus={pip.status}
+            canAdd={canAddCommunicationNote}
+            currentUserId={user?.id}
+            isHr={isAdmin}
+            onError={setActionError}
+          />
+
+          <PipUnifiedLog pipId={pip.id} />
+
           {/* Training History Section */}
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -740,7 +754,13 @@ export default function PipDetailPage() {
             <h3 className="mb-4 text-lg font-bold">Update Progress</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Percentage Completion</label>
+                <label className="block text-sm font-medium text-slate-700">Latest Percentage</label>
+                <div className="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
+                  {pip.objectives.find((objective) => objective.id === showUpdateModal.objectiveId)?.progressPercentage ?? 0}%
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">New Percentage</label>
                 <div className="mt-1 flex items-center gap-4">
                   <input
                     type="range"

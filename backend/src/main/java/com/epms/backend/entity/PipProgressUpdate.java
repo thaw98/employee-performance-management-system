@@ -54,7 +54,7 @@ public class PipProgressUpdate {
     @Column(name = "created_date")
     private Instant createdDate;
 
-    @Transient
+    @Column(name = "previous_percentage")
     private Integer previousPercentage;
 
     @Transient

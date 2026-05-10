@@ -104,7 +104,15 @@ const HrLayout: React.FC = () => {
         { label: 'Feedback History', path: '/hr/360-feedback/history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
-    { icon: <Zap size={20} />, label: 'PIP Management', path: '/hr/pip-monitoring' },
+    {
+      icon: <Zap size={20} />,
+      label: 'PIP',
+      path: '/hr/pip-monitoring',
+      subItems: [
+        { label: 'PIP Management', path: '/hr/pip-monitoring', icon: <List size={16} className="shrink-0" /> },
+        { label: 'Communication Notes', path: '/hr/pip-notes', icon: <FileText size={16} className="shrink-0" /> }
+      ]
+    },
     {
       icon: <FileText size={20} />,
       label: 'Self-Assessment',

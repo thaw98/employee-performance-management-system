@@ -9,9 +9,14 @@ import com.epms.backend.dto.pip.PipCloseRequest;
 import com.epms.backend.dto.pip.PipReopenRequest;
 import com.epms.backend.dto.pip.PipSignatureRequest;
 import com.epms.backend.dto.pip.PipReviewRequest;
+import com.epms.backend.dto.pip.PipCommunicationNoteDto;
+import com.epms.backend.dto.pip.PipCommunicationNotePageDto;
+import com.epms.backend.dto.pip.PipCommunicationNoteRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +51,7 @@ public class PipService {
     private final FollowUpMeetingRepository meetingRepository;
     private final TrainingRecordRepository trainingRepository;
     private final EmployeeRepository employeeRepository;
+    private final PipCommunicationNoteRepository communicationNoteRepository;
     private final SignatureRepository signatureRepository;
     private final NotificationService notificationService;
 
@@ -231,6 +237,121 @@ public class PipService {
                 .orElseThrow(() -> new RuntimeException("PIP not found"));
         authorizePipAccess(pip, actor);
         return pip;
+    }
+
+    @Transactional(readOnly = true)
+    public PipCommunicationNotePageDto getPipNotes(Long pipId, String noteType, Pageable pageable, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        PipNoteType parsedNoteType = parseNoteType(noteType, null);
+        Specification<PipCommunicationNote> spec = (root, query, cb) -> {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                jakarta.persistence.criteria.Fetch<PipCommunicationNote, Pip> pipFetch = root.fetch("pip",
+                        jakarta.persistence.criteria.JoinType.LEFT);
+                pipFetch.fetch("employee", jakarta.persistence.criteria.JoinType.LEFT);
+                pipFetch.fetch("manager", jakarta.persistence.criteria.JoinType.LEFT);
+                jakarta.persistence.criteria.Fetch<PipCommunicationNote, User> authorFetch = root.fetch("author",
+                        jakarta.persistence.criteria.JoinType.LEFT);
+                authorFetch.fetch("employee", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("pip").get("id"), pip.getId()));
+            if (parsedNoteType != null) {
+                predicates.add(cb.equal(root.get("noteType"), parsedNoteType));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Page<PipCommunicationNoteDto> page = communicationNoteRepository.findAll(spec, pageable).map(this::toNoteDto);
+        return new PipCommunicationNotePageDto(
+                page.getContent(),
+                page.getTotalPages(),
+                page.getTotalElements(),
+                page.getNumber(),
+                page.hasNext());
+    }
+
+    @Transactional
+    public PipCommunicationNoteDto addPipNote(Long pipId, PipCommunicationNoteRequest request, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!STATUS_ACTIVE.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Notes can only be added to active PIPs");
+        }
+        if (!isDirectManager(pip, actor) && !isPipEmployee(pip, actor)) {
+            throw new RuntimeException("Only the assigned employee or manager can add notes");
+        }
+        if (request == null || request.getContent() == null || request.getContent().trim().isEmpty()) {
+            throw new RuntimeException("Note content is required");
+        }
+
+        PipCommunicationNote note = new PipCommunicationNote();
+        note.setPip(pip);
+        note.setContent(request.getContent().trim());
+        note.setNoteType(parseNoteType(request.getNoteType(), PipNoteType.COMMUNICATION));
+        note.setAuthor(actor);
+        note.setCreatedDate(Instant.now());
+        note.setUpdatedDate(Instant.now());
+        return toNoteDto(communicationNoteRepository.save(note));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PipCommunicationNoteDto> getAllPipNotes(
+            Long employeeId,
+            Long managerId,
+            String employeeName,
+            String pipStatus,
+            LocalDate dateFrom,
+            LocalDate dateTo,
+            Pageable pageable,
+            User actor) {
+        if (!isHr(actor)) {
+            throw new RuntimeException("Only HR can review all PIP notes");
+        }
+
+        Specification<PipCommunicationNote> spec = (root, query, cb) -> {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                jakarta.persistence.criteria.Fetch<PipCommunicationNote, Pip> pipFetch = root.fetch("pip",
+                        jakarta.persistence.criteria.JoinType.LEFT);
+                pipFetch.fetch("employee", jakarta.persistence.criteria.JoinType.LEFT);
+                pipFetch.fetch("manager", jakarta.persistence.criteria.JoinType.LEFT);
+                jakarta.persistence.criteria.Fetch<PipCommunicationNote, User> authorFetch = root.fetch("author",
+                        jakarta.persistence.criteria.JoinType.LEFT);
+                authorFetch.fetch("employee", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+
+            List<Predicate> predicates = new ArrayList<>();
+            if (employeeId != null) {
+                predicates.add(cb.equal(root.get("pip").get("employee").get("id"), employeeId));
+            }
+            if (managerId != null) {
+                predicates.add(cb.equal(root.get("pip").get("manager").get("id"), managerId));
+            }
+            if (employeeName != null && !employeeName.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("pip").get("employee").get("employeeName")),
+                        "%" + employeeName.toLowerCase(Locale.ROOT) + "%"));
+            }
+            if (pipStatus != null && !pipStatus.isBlank()) {
+                predicates.add(cb.equal(root.get("pip").get("status"), normalizeStatus(pipStatus)));
+            }
+            if (dateFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdDate"), dateFrom.atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
+            }
+            if (dateTo != null) {
+                predicates.add(cb.lessThan(root.get("createdDate"), dateTo.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return communicationNoteRepository.findAll(spec, pageable).map(this::toNoteDto);
+    }
+
+    @Transactional
+    public void deletePipNote(Long noteId, User actor) {
+        PipCommunicationNote note = communicationNoteRepository.findById(noteId)
+                .orElseThrow(() -> new RuntimeException("PIP note not found"));
+        if (!isHr(actor) && (note.getAuthor() == null || !note.getAuthor().getId().equals(actor.getId()))) {
+            throw new RuntimeException("Only the note author or HR can delete this note");
+        }
+        communicationNoteRepository.delete(note);
     }
 
     @Transactional
@@ -610,6 +731,11 @@ public class PipService {
         return progressUpdateRepository.findByObjective(objective);
     }
 
+    public List<PipProgressUpdate> getPipHistory(Long pipId, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        return progressUpdateRepository.findByPipOrderByCreatedDateDesc(pip);
+    }
+
     private void updatePipProgress(Pip pip) {
         List<PipObjective> objectives = pip.getObjectives();
         if (objectives == null || objectives.isEmpty()) {
@@ -731,6 +857,57 @@ public class PipService {
 
     private boolean isHr(User actor) {
         return actor.getRole() != null && "HR".equalsIgnoreCase(actor.getRole().getName());
+    }
+
+    private PipCommunicationNoteDto toNoteDto(PipCommunicationNote note) {
+        Pip pip = note.getPip();
+        User author = note.getAuthor();
+        Employee authorEmployee = author == null ? null : author.getEmployee();
+        return new PipCommunicationNoteDto(
+                note.getId(),
+                pip == null ? null : pip.getId(),
+                note.getContent(),
+                note.getNoteType() == null ? PipNoteType.COMMUNICATION.name() : note.getNoteType().name(),
+                author == null ? null : new PipCommunicationNoteDto.AuthorDto(
+                        author.getId(),
+                        author.getEmail(),
+                        toAuthorEmployeeDto(authorEmployee)),
+                pip == null ? null : toPipPersonDto(pip.getEmployee()),
+                pip == null ? null : toPipPersonDto(pip.getManager()),
+                pip == null ? null : pip.getStatus(),
+                note.getCreatedDate(),
+                note.getUpdatedDate());
+    }
+
+    private PipNoteType parseNoteType(String value, PipNoteType fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            return PipNoteType.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new RuntimeException("Note type must be COMMUNICATION or FOLLOWUP");
+        }
+    }
+
+    private PipCommunicationNoteDto.EmployeeDto toAuthorEmployeeDto(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        return new PipCommunicationNoteDto.EmployeeDto(
+                employee.getId(),
+                employee.getEmployeeName(),
+                employee.getEmployeeId());
+    }
+
+    private PipCommunicationNoteDto.PipPersonDto toPipPersonDto(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        return new PipCommunicationNoteDto.PipPersonDto(
+                employee.getId(),
+                employee.getEmployeeName(),
+                employee.getEmployeeId());
     }
 
     private boolean isManagedBy(Employee employee, Long managerEmployeeId) {

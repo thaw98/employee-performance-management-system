@@ -42,6 +42,7 @@ export const baseApi = createApi({
     'Employee',
     'Criteria',
     'PIP',
+    'PIPNote',
     'Department',
     'Manager',
     'EmployeeTransfer',

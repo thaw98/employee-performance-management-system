@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux'
 import { useEffect, useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
 import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
+import PipUnifiedLog from '../features/pip/components/PipUnifiedLog'
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-blue-100 text-blue-700',
@@ -64,6 +65,7 @@ export default function PipMonitoringPage() {
   const [endDate, setEndDate] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [logViewerPipId, setLogViewerPipId] = useState<number | null>(null)
   const departmentFilter = isHr ? filterDept : undefined
 
   const { data: pips, isLoading, isError, error } = useGetPipsQuery({
@@ -152,7 +154,10 @@ export default function PipMonitoringPage() {
       const isBActive = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(b.status)
       if (isAActive && !isBActive) return -1
       if (!isAActive && isBActive) return 1
-      return 0
+
+      const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime()
+      const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime()
+      return timeB - timeA
     })
   }, [pips])
 
@@ -353,14 +358,13 @@ export default function PipMonitoringPage() {
                     </td>
                   )}
                   <td className="px-6 py-5 text-center">
-                    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                      pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-100 text-green-700' :
+                    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-100 text-green-700' :
                       pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-100 text-red-700' :
-                      (STATUS_COLORS[pip.status] || 'bg-slate-100 text-slate-700')
-                    }`}>
+                        (STATUS_COLORS[pip.status] || 'bg-slate-100 text-slate-700')
+                      }`}>
                       {pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'Close - Successful' :
-                       pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'Close - Fail' :
-                       pip.status.replace(/_/g, ' ')}
+                        pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'Close - Fail' :
+                          pip.status.replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td className="px-6 py-5 text-sm text-slate-600 font-medium">
@@ -377,17 +381,33 @@ export default function PipMonitoringPage() {
                           style={{ width: `${pip.overallProgressPercentage}%` }}
                         />
                       </div>
-                      <span className="text-[10px] font-extrabold text-slate-400">{pip.overallProgressPercentage}% COMPLETED</span>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-tight">
+                        {pip.overallProgressPercentage}% COMPLETED
+                        {pip.updatedAt && (
+                          <span className="ml-2 border-l border-slate-200 pl-2">
+                            Updated {new Date(pip.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                          </span>
+                        )}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-right">
-                    <Link
-                      to={`${location.pathname}/${pip.id}`}
-                      className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
-                    >
-                      View Details
-                      <i className="bi bi-chevron-right text-[10px]" />
-                    </Link>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => setLogViewerPipId(pip.id)}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition-all"
+                        title="View Activity Log"
+                      >
+                        <i className="bi bi-clock-history text-lg" />
+                      </button>
+                      <Link
+                        to={`${location.pathname}/${pip.id}`}
+                        className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        View Details
+                        <i className="bi bi-chevron-right text-[10px]" />
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               )
@@ -448,6 +468,32 @@ export default function PipMonitoringPage() {
               Next
               <i className="bi bi-chevron-right text-xs" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {logViewerPipId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setLogViewerPipId(null)}
+          />
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2rem] bg-slate-50 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/80 px-8 py-5 backdrop-blur-md">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">PIP Activity History</h3>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Viewing Audit Log for PIP #{logViewerPipId}</p>
+              </div>
+              <button
+                onClick={() => setLogViewerPipId(null)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900"
+              >
+                <i className="bi bi-x-lg" />
+              </button>
+            </div>
+            <div className="p-8">
+              <PipUnifiedLog pipId={logViewerPipId} />
+            </div>
           </div>
         </div>
       )}

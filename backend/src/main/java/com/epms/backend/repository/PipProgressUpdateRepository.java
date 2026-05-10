@@ -10,4 +10,5 @@ import java.util.List;
 @Repository
 public interface PipProgressUpdateRepository extends JpaRepository<PipProgressUpdate, Long> {
     List<PipProgressUpdate> findByObjective(PipObjective objective);
+    List<PipProgressUpdate> findByPipOrderByCreatedDateDesc(com.epms.backend.entity.Pip pip);
 }

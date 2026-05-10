@@ -27,6 +27,8 @@ import com.epms.backend.repository.FollowUpMeetingRepository;
 import com.epms.backend.repository.PipObjectiveRepository;
 import com.epms.backend.repository.PipProgressUpdateRepository;
 import com.epms.backend.repository.PipRepository;
+import com.epms.backend.repository.PipCommunicationNoteRepository;
+import com.epms.backend.repository.SignatureRepository;
 import com.epms.backend.repository.TrainingRecordRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +47,10 @@ class PipServiceProbationRuleTest {
     @Mock
     private EmployeeRepository employeeRepository;
     @Mock
+    private PipCommunicationNoteRepository communicationNoteRepository;
+    @Mock
+    private SignatureRepository signatureRepository;
+    @Mock
     private NotificationService notificationService;
 
     private PipService pipService;
@@ -58,6 +64,8 @@ class PipServiceProbationRuleTest {
                 meetingRepository,
                 trainingRepository,
                 employeeRepository,
+                communicationNoteRepository,
+                signatureRepository,
                 notificationService);
     }
 
