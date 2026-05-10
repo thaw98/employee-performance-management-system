@@ -243,7 +243,9 @@ export interface CycleInfoDto {
 }
 
 export interface SetTemplateDeadlineRequest {
+  startDate: string
   deadlineDate: string
+  managerReviewDeadlineDate: string
 }
 
 export interface SetTemplateDeadlineResponse {

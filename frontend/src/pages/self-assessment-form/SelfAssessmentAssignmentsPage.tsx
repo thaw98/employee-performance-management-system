@@ -1,12 +1,13 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CalendarRange,
+  CalendarDays,
   ChevronDown,
   ChevronRight,
   ClipboardList,
   FileText,
   Layers,
-  Pencil,
   Plus,
   Send,
   Users,
@@ -14,14 +15,18 @@ import {
   AlertCircle,
   ArrowRight,
   Eye,
+  X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useGetActiveReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import {
   useGetActiveCycleFormsForHrQuery,
   useGetAllTemplatesQuery,
+  useSetTemplateDeadlineMutation,
+  type SelfAssessmentFormTemplateDto,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
-import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
+import { SelfAssessmentReviewCycleInfo, formatCycleDate } from './SelfAssessmentReviewCycleInfo';
 
 function formatDate(iso?: string | null) {
   if (!iso) return '-';
@@ -34,6 +39,14 @@ function formatDate(iso?: string | null) {
   });
 }
 
+/** US-style display under date inputs (e.g. 04/01/2026) */
+function formatSlashDate(iso: string) {
+  const parts = iso.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return iso;
+  const [y, m, d] = parts;
+  return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`;
+}
+
 export const SelfAssessmentAssignmentsPage: React.FC = () => {
   const { data: activeCycles = [] } = useGetActiveReviewCyclesQuery();
   const {
@@ -42,8 +55,76 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
     isError: templatesError,
   } = useGetAllTemplatesQuery();
   const { data: activeCycleForms } = useGetActiveCycleFormsForHrQuery();
+  const [deadlineModalTemplate, setDeadlineModalTemplate] = useState<SelfAssessmentFormTemplateDto | null>(null);
+  const [modalStartDate, setModalStartDate] = useState('');
+  const [modalEmployeeDeadline, setModalEmployeeDeadline] = useState('');
+  const [modalManagerDeadline, setModalManagerDeadline] = useState('');
+  const [setTemplateDeadline, { isLoading: isSettingDeadline }] = useSetTemplateDeadlineMutation();
 
   const activeSubmissionCycle = activeCycles.find((cycle) => cycle.requiresEmployeeSubmission) ?? null;
+
+  useEffect(() => {
+    if (!deadlineModalTemplate || !activeSubmissionCycle) return;
+    const start = activeSubmissionCycle.startDate ?? '';
+    const end = activeSubmissionCycle.endDate ?? '';
+    setModalStartDate(start);
+    setModalEmployeeDeadline(end);
+    setModalManagerDeadline(end);
+  }, [deadlineModalTemplate, activeSubmissionCycle]);
+
+  const closeDeadlineModal = () => setDeadlineModalTemplate(null);
+
+  const managerReviewMinDate = modalEmployeeDeadline || activeSubmissionCycle?.startDate || '';
+
+  const validateModalDates = (): string | null => {
+    if (!activeSubmissionCycle) return 'No active employee-submission review cycle is available';
+    if (!modalStartDate || !modalEmployeeDeadline || !modalManagerDeadline) {
+      return 'Please select start date, employee deadline, and manager review deadline';
+    }
+    if (modalStartDate > modalEmployeeDeadline) {
+      return 'Employee deadline cannot be earlier than the start date.';
+    }
+    if (modalEmployeeDeadline > modalManagerDeadline) {
+      return 'Manager review deadline cannot be earlier than the employee deadline.';
+    }
+    const cycleStartDate = activeSubmissionCycle.startDate;
+    const cycleEndDate = activeSubmissionCycle.endDate;
+    if (
+      [modalStartDate, modalEmployeeDeadline, modalManagerDeadline].some(
+        (date) => date < cycleStartDate || date > cycleEndDate
+      )
+    ) {
+      return 'Start date, employee deadline, and manager deadline must be within the active cycle';
+    }
+    return null;
+  };
+
+  const handleSetDeadlineSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!deadlineModalTemplate) return;
+    const validationError = validateModalDates();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+    try {
+      const result = await setTemplateDeadline({
+        templateId: deadlineModalTemplate.id,
+        request: {
+          startDate: modalStartDate,
+          deadlineDate: modalEmployeeDeadline,
+          managerReviewDeadlineDate: modalManagerDeadline,
+        },
+      }).unwrap();
+      toast.success(
+        `Assigned ${result.createdCount} form(s); skipped ${result.skippedCount} (already in cycle or ineligible).`
+      );
+      closeDeadlineModal();
+    } catch (error: unknown) {
+      const err = error as { data?: { message?: string } };
+      toast.error(err?.data?.message ?? 'Failed to set deadline');
+    }
+  };
 
   const existingTemplatesForActiveCycle = useMemo(() => {
     if (!activeSubmissionCycle) return [];
@@ -427,14 +508,14 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                           View
                         </Link>
                       ) : (
-                        <Link
-                          to={`/hr/self-assessment/templates/${template.id}/edit`}
+                        <button
+                          type="button"
+                          onClick={() => setDeadlineModalTemplate(template)}
                           className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
                         >
-                          <Pencil size={13} />
-                          Edit
-                          <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
-                        </Link>
+                          <CalendarDays size={13} />
+                          Set Deadline
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -466,6 +547,164 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {deadlineModalTemplate &&
+        activeSubmissionCycle &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+              onClick={closeDeadlineModal}
+              aria-hidden="true"
+            />
+            <div
+              className="fixed inset-0 z-[110] flex items-center justify-center p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="configure-deadlines-title"
+            >
+            <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-800">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-700/60">
+                <div className="min-w-0">
+                  <h2
+                    id="configure-deadlines-title"
+                    className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white"
+                  >
+                    Configure Deadlines
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Set milestone dates for each stage of the review process
+                  </p>
+                  <p className="mt-2 text-xs font-medium text-slate-400 dark:text-slate-500">
+                    {deadlineModalTemplate.title}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeDeadlineModal}
+                  className="shrink-0 rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSetDeadlineSubmit} className="p-6">
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
+                    <label
+                      htmlFor="modal-start-date"
+                      className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+                    >
+                      Start Date
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="modal-start-date"
+                        type="date"
+                        value={modalStartDate}
+                        min={activeSubmissionCycle.startDate}
+                        max={activeSubmissionCycle.endDate}
+                        onChange={(event) => setModalStartDate(event.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                      />
+                      <CalendarDays
+                        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                        aria-hidden
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{formatSlashDate(modalStartDate)}</p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
+                    <label
+                      htmlFor="modal-employee-deadline"
+                      className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+                    >
+                      Employee Deadline
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="modal-employee-deadline"
+                        type="date"
+                        value={modalEmployeeDeadline}
+                        min={activeSubmissionCycle.startDate}
+                        max={activeSubmissionCycle.endDate}
+                        onChange={(event) => setModalEmployeeDeadline(event.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                      />
+                      <CalendarDays
+                        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                        aria-hidden
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+                      {formatSlashDate(modalEmployeeDeadline)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
+                    <label
+                      htmlFor="modal-manager-deadline"
+                      className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+                    >
+                      Manager Review
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="modal-manager-deadline"
+                        type="date"
+                        value={modalManagerDeadline}
+                        min={managerReviewMinDate || activeSubmissionCycle.startDate}
+                        max={activeSubmissionCycle.endDate}
+                        onChange={(event) => setModalManagerDeadline(event.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                      />
+                      <CalendarDays
+                        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                        aria-hidden
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{formatSlashDate(modalManagerDeadline)}</p>
+                  </div>
+                </div>
+
+                {activeSubmissionCycle.endDate && (
+                  <div className="mt-5 rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 dark:border-slate-700/60 dark:bg-slate-800/40">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Final approval
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+                      HR final approval uses the active review cycle end date:{' '}
+                      <span className="font-semibold text-slate-900 dark:text-white">
+                        {formatCycleDate(activeSubmissionCycle.endDate)}.
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={closeDeadlineModal}
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSettingDeadline}
+                    className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60"
+                  >
+                    {isSettingDeadline ? 'Saving…' : 'Set Deadline'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+          </>,
+          document.body
+        )}
     </div>
   );
 };

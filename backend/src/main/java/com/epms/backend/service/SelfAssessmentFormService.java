@@ -515,13 +515,11 @@ Instant now = Instant.now();
             throw new RuntimeException(
                     "This template belongs to a different review cycle than the active submission cycle. Use a template created for the current cycle.");
         }
-        LocalDate deadlineDate = request.deadlineDate();
-        if (deadlineDate.isBefore(activeCycle.getStartDate())) {
-            throw new RuntimeException("Deadline cannot be before the active cycle start date");
-        }
-        if (deadlineDate.isAfter(activeCycle.getEndDate())) {
-            throw new RuntimeException("Deadline cannot be after the active cycle end date");
-        }
+        validateAssignmentDeadlines(
+                request.startDate(),
+                request.deadlineDate(),
+                request.managerReviewDeadlineDate(),
+                activeCycle);
 
         List<Employee> employees = employeeRepository.findEligibleSelfAssessmentAssignees(
                 template.getDepartment().getId(),
@@ -542,8 +540,9 @@ Instant now = Instant.now();
                     employee,
                     template,
                     activeCycle,
-                    activeCycle.getStartDate(),
-                    deadlineDate,
+                    request.startDate(),
+                    request.deadlineDate(),
+                    request.managerReviewDeadlineDate(),
                     now,
                     userId);
             formRepository.save(form);
@@ -553,7 +552,7 @@ Instant now = Instant.now();
                     employee.getUserAccount(),
                     "Self-Assessment Assigned",
                     "A self-assessment form has been assigned to you. Deadline: "
-                            + deadlineDate.format(NOTIFICATION_DEADLINE_FORMAT),
+                            + request.deadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
                     "SELF_ASSESSMENT_FORM");
         }
 
@@ -563,7 +562,16 @@ Instant now = Instant.now();
                 template.getId(),
                 userId,
                 null,
-                "Set self-assessment deadline and assigned " + created + " forms; skipped " + skipped,
+                "Set self-assessment deadlines (start "
+                        + request.startDate()
+                        + ", employee "
+                        + request.deadlineDate()
+                        + ", manager "
+                        + request.managerReviewDeadlineDate()
+                        + ") and assigned "
+                        + created
+                        + " forms; skipped "
+                        + skipped,
                 null);
 
         return new SetTemplateDeadlineResponse(
@@ -574,7 +582,7 @@ Instant now = Instant.now();
                 template.getPosition().getId(),
                 template.getPosition().getName(),
                 template.getTitle(),
-                deadlineDate,
+                request.deadlineDate(),
                 toCycleInfo(activeCycle),
                 created,
                 skipped);

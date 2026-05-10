@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { SelfAssessmentAssignmentsPage } from './SelfAssessmentAssignmentsPage'
@@ -29,9 +30,13 @@ vi.mock('../../features/reviewCycle/api/reviewCycleApi', () => ({
   }),
 }))
 
-vi.mock('./SelfAssessmentReviewCycleInfo', () => ({
-  SelfAssessmentReviewCycleInfo: () => <div>Cycle info</div>,
-}))
+vi.mock('./SelfAssessmentReviewCycleInfo', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./SelfAssessmentReviewCycleInfo')>()
+  return {
+    ...actual,
+    SelfAssessmentReviewCycleInfo: () => <div>Cycle info</div>,
+  }
+})
 
 vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   useGetAllTemplatesQuery: () => ({
@@ -42,6 +47,18 @@ vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   useGetActiveCycleFormsForHrQuery: () => ({
     data: activeCycleFormsMock,
   }),
+  useSetTemplateDeadlineMutation: () =>
+    [
+      vi.fn(() => ({
+        unwrap: async () =>
+          ({
+            templateId: 100,
+            createdCount: 0,
+            skippedCount: 0,
+          }),
+      })),
+      { isLoading: false },
+    ] as const,
 }))
 
 const assignedTemplate = {
@@ -72,6 +89,7 @@ const emptyAssignedTemplate = {
   departmentName: 'Finance',
   positionId: 21,
   positionName: 'Analyst',
+  isAssignedToDeadline: false,
 }
 
 const matchingForm = {
@@ -116,15 +134,28 @@ describe('SelfAssessmentAssignmentsPage', () => {
     cleanup()
   })
 
-  it('renders assigned rows with View links to the assigned employees page', () => {
+  it('renders View for assigned templates and Set Deadline when no deadline assignment yet', () => {
     render(<SelfAssessmentAssignmentsPage />)
 
     const viewLinks = screen.getAllByRole('link', { name: 'View' })
-    expect(viewLinks).toHaveLength(2)
+    expect(viewLinks).toHaveLength(1)
     expect(viewLinks[0]).toHaveAttribute('href', '/hr/self-assessment/assignments/100/assigned-employees')
-    expect(viewLinks[1]).toHaveAttribute('href', '/hr/self-assessment/assignments/101/assigned-employees')
+    expect(screen.getByRole('button', { name: 'Set Deadline' })).toBeTruthy()
     expect(screen.queryByText('Aye Aye (EMP-200)')).not.toBeInTheDocument()
     expect(screen.queryByText('Assigned employees already exist for this department and position.')).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: 'Assigned Employees' })).not.toBeInTheDocument()
+  })
+
+  it('opens Configure Deadlines modal when Set Deadline is clicked', async () => {
+    const user = userEvent.setup()
+    render(<SelfAssessmentAssignmentsPage />)
+
+    await user.click(screen.getByRole('button', { name: 'Set Deadline' }))
+
+    expect(screen.getByRole('dialog', { name: 'Configure Deadlines' })).toBeTruthy()
+    expect(
+      screen.getByText('Set milestone dates for each stage of the review process')
+    ).toBeInTheDocument()
+    expect(screen.getByText('HR final approval uses the active review cycle end date:')).toBeInTheDocument()
   })
 })
