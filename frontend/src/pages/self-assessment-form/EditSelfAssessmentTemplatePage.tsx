@@ -328,7 +328,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
     return Math.floor((end.getTime() - start.getTime()) / oneDayMs) + 1;
   }, [selectedReviewCycle]);
 
-  const { register, control, handleSubmit, reset, watch, getValues } = useForm<QuestionFormData>({
+  const { register, control, handleSubmit, reset, watch, getValues, setValue } = useForm<QuestionFormData>({
     defaultValues: {
       title: '',
       questions: [{ questionText: '' }],
@@ -446,7 +446,12 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
       toast.error('This question is already in the form');
       return;
     }
-    append({ questionText: trimmed, canEdit: true, canDeactivate: true, isManagerAdded: isManager });
+    const firstEmptyIndex = existing.findIndex((q) => !q.questionText.trim());
+    if (firstEmptyIndex !== -1) {
+      setValue(`questions.${firstEmptyIndex}.questionText`, trimmed, { shouldDirty: true, shouldValidate: true });
+    } else {
+      append({ questionText: trimmed, canEdit: true, canDeactivate: true, isManagerAdded: isManager });
+    }
     setIsQuestionBankOpen(false);
     setQuestionBankSearch('');
     toast.success('Question added to form');

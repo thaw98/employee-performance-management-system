@@ -680,7 +680,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     question.questionText.toLowerCase().includes(questionBankSearch.trim().toLowerCase())
   );
 
-  const { register, control, handleSubmit, getValues, reset } = useForm<QuestionFormData>({
+  const { register, control, handleSubmit, getValues, reset, setValue } = useForm<QuestionFormData>({
     defaultValues: {
       title: '',
       questions: [{ questionText: '' }],
@@ -849,7 +849,12 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
       toast.error('This question is already in the form');
       return;
     }
-    append({ questionText: trimmed });
+    const firstEmptyIndex = existing.findIndex((q) => !q.questionText.trim());
+    if (firstEmptyIndex !== -1) {
+      setValue(`questions.${firstEmptyIndex}.questionText`, trimmed, { shouldDirty: true, shouldValidate: true });
+    } else {
+      append({ questionText: trimmed });
+    }
     setIsQuestionBankOpen(false);
     setQuestionBankSearch('');
     toast.success('Question added to form');
