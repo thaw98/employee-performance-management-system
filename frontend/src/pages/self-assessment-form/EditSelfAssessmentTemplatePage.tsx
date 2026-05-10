@@ -233,7 +233,7 @@ const inputBase =
   'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 read-only:cursor-default read-only:bg-slate-50 read-only:text-slate-500 read-only:shadow-none read-only:focus:ring-0 dark:read-only:bg-slate-900/50 dark:read-only:text-slate-400';
 
 const selectBase =
-  'w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 disabled:cursor-not-allowed disabled:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF] dark:disabled:bg-slate-900';
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#5D5FEF] focus:outline-none focus:ring-1 focus:ring-[#5D5FEF] disabled:cursor-not-allowed disabled:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:disabled:bg-slate-900';
 
 const StepBadge: React.FC<{ step: number; label: string; icon: React.ReactNode }> = ({ step, label, icon }) => (
   <div className="flex items-center gap-3">

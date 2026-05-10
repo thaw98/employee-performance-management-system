@@ -64,6 +64,7 @@ import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage'
 import { SelfAssessmentAssignmentTabsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentTabsPage';
 import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
 import { SelfAssessmentAssignedEmployeesPage } from './pages/self-assessment-form/SelfAssessmentAssignedEmployeesPage';
+import { SelfAssessmentScoreRecordsPage } from './pages/self-assessment-form/SelfAssessmentScoreRecordsPage';
 
 // Meetings
 import { MeetingsPage } from './pages/manager/MeetingsPage';
@@ -184,6 +185,7 @@ function App() {
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
+            <Route path="self-assessment/score-records" element={<SelfAssessmentScoreRecordsPage />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
@@ -216,6 +218,7 @@ function App() {
             <Route path="self-assessment-forms/review-queue" element={<SelfAssessmentFormQueuePage />} />
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment-forms/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
+            <Route path="self-assessment-forms/score-records" element={<SelfAssessmentScoreRecordsPage />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />

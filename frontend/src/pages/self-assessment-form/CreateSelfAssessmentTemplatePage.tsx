@@ -1060,7 +1060,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                       const value = event.target.value;
                       setSelectedReviewCycleId(value ? Number(value) : null);
                     }}
-                    className={`${selectBase} max-w-xl`}
+                    className="max-w-xl w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#5D5FEF] focus:outline-none focus:ring-1 focus:ring-[#5D5FEF] dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                   >
                     {selectableReviewCycles.map((cycle) => {
                       const suffix = reviewCycleOptionSuffix(cycle.status);

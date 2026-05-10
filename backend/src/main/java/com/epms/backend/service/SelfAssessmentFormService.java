@@ -2213,6 +2213,72 @@ Instant now = Instant.now();
         return "Self Assessment Form";
     }
 
+    @Transactional(readOnly = true)
+    public List<ScoreRecordDto> getScoreRecords(Employee employee, Long roleId) {
+        if (roleId != null && roleId == 1L) {
+            return getHrScoreRecords();
+        }
+        if (roleId != null && roleId == 2L) {
+            return getManagerScoreRecords(employee);
+        }
+        throw new RuntimeException("Unauthorized");
+    }
+
+    private List<ScoreRecordDto> getHrScoreRecords() {
+        return formRepository.findAll().stream()
+                .filter(f -> f.getStatus() == SelfAssessmentFormStatus.FINALIZED_LOCKED)
+                .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(this::toScoreRecordDto)
+                .collect(Collectors.toList());
+    }
+
+    private List<ScoreRecordDto> getManagerScoreRecords(Employee manager) {
+        List<SelfAssessmentForm> allForms = formRepository.findAll();
+        Long managerId = manager.getId();
+        return allForms.stream()
+                .filter(f -> f.getStatus() == SelfAssessmentFormStatus.FINALIZED_LOCKED)
+                .filter(f -> {
+                    Employee emp = f.getEmployee();
+                    if (emp == null) return false;
+                    boolean isDirectReport = emp.getManager() != null && emp.getManager().getId().equals(managerId);
+                    boolean isDepartmentManaged = emp.getDepartment() != null
+                            && managerId.equals(emp.getDepartment().getManagerId());
+                    return isDirectReport || isDepartmentManaged;
+                })
+                .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(this::toScoreRecordDto)
+                .collect(Collectors.toList());
+    }
+
+    private ScoreRecordDto toScoreRecordDto(SelfAssessmentForm form) {
+        Employee emp = form.getEmployee();
+        EmployeeInfoDto employeeInfo = new EmployeeInfoDto(
+                emp.getId(),
+                emp.getEmployeeId(),
+                emp.getEmployeeName(),
+                emp.getEmail(),
+                emp.getDepartment() != null ? emp.getDepartment().getId() : null,
+                emp.getDepartment() != null ? emp.getDepartment().getName() : null,
+                emp.getDepartment() != null ? emp.getDepartment().getCode() : null,
+                emp.getPosition() != null ? emp.getPosition().getId() : null,
+                emp.getPosition() != null ? emp.getPosition().getName() : null,
+                emp.getPosition() != null ? emp.getPosition().getCode() : null
+        );
+
+        return new ScoreRecordDto(
+                form.getId(),
+                employeeInfo,
+                form.getStatus().name(),
+                form.getFinalApprovedTotalScore(),
+                form.getRatingCategory(),
+                form.getCycle() != null ? form.getCycle().getId() : null,
+                form.getCycle() != null ? form.getCycle().getName() : null,
+                form.getSubmittedDate(),
+                form.getCreatedDate(),
+                form.getHrFinalSignatureDate()
+        );
+    }
+
     private static String nullToDash(String value) {
         return value == null || value.isBlank() ? "-" : value;
     }

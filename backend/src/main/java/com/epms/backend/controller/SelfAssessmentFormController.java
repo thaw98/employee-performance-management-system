@@ -2,6 +2,7 @@ package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.selfassessmentform.*;
+import com.epms.backend.dto.selfassessmentform.ScoreRecordDto;
 import com.epms.backend.dto.selfassessmentform.EmployeeDisputeRequest;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.repository.EmployeeRepository;
@@ -102,6 +103,18 @@ public class SelfAssessmentFormController {
         try {
             List<FormListDto> forms = selfAssessmentFormService.getAllFormsForHr();
             return ResponseEntity.ok(ApiResponse.ok("All forms retrieved", forms));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/score-records")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
+    public ResponseEntity<ApiResponse<List<ScoreRecordDto>>> getScoreRecords(@AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee employee = getEmployeeFromPrincipal(principal);
+            List<ScoreRecordDto> records = selfAssessmentFormService.getScoreRecords(employee, principal.getRoleId());
+            return ResponseEntity.ok(ApiResponse.ok("Score records retrieved", records));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }

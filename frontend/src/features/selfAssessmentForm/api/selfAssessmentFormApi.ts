@@ -306,6 +306,19 @@ export interface ActiveCycleFormsDto {
   forms: FormListDto[]
 }
 
+export interface ScoreRecordDto {
+  id: number
+  employee: EmployeeInfoDto
+  status: string
+  finalApprovedScore: number | null
+  performance: string | null
+  cycleId: number | null
+  cycleName: string | null
+  submittedDate: string | null
+  createdDate: string
+  finalApprovalDate: string | null
+}
+
 export interface SelfAssessmentSettingsDto {
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
@@ -735,6 +748,22 @@ const normalizeQuestionBankItem = (question: unknown): QuestionBankDto => {
   }
 }
 
+const normalizeScoreRecord = (record: unknown): ScoreRecordDto => {
+  const source = isRecord(record) ? record : {}
+  return {
+    id: getNumber(source.id),
+    employee: normalizeEmployeeInfo(isRecord(source.employee) ? source.employee : {}),
+    status: getString(source.status),
+    finalApprovedScore: source.finalApprovedScore != null ? getNumber(source.finalApprovedScore) : null,
+    performance: getOptionalString(source.performance) ?? null,
+    cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
+    cycleName: getOptionalString(source.cycleName) ?? null,
+    submittedDate: getOptionalString(source.submittedDate) ?? null,
+    createdDate: getString(source.createdDate),
+    finalApprovalDate: getOptionalString(source.finalApprovalDate) ?? null,
+  }
+}
+
 export const selfAssessmentFormApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getMyFormStatus: builder.query<FormStatusDto, void>({
@@ -804,6 +833,12 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
           forms: getArray(source.forms).map(normalizeFormList),
         }
       },
+    }),
+
+    getScoreRecords: builder.query<ScoreRecordDto[], void>({
+      query: () => '/self-assessment-forms/score-records',
+      providesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeScoreRecord),
     }),
 
     getFormById: builder.query<SelfAssessmentFormDto, number>({
@@ -1095,4 +1130,5 @@ export const {
   useUpdateQuestionBankItemStatusMutation,
   useEmployeeAcknowledgeMutation,
   useEmployeeDisputeMutation,
+  useGetScoreRecordsQuery,
 } = selfAssessmentFormApi
