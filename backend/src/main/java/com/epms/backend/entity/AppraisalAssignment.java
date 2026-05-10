@@ -35,9 +35,22 @@ public class AppraisalAssignment {
     @JoinColumn(name = "evaluator_id")
     private Employee evaluator;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "template_id")
+    private AppraisalTemplate template;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private AppraisalStatus status = AppraisalStatus.DRAFT;
+
+    @Column(name = "manager_comments", columnDefinition = "TEXT")
+    private String managerComments;
+
+    @Column(name = "manager_signature", columnDefinition = "TEXT")
+    private String managerSignature;
+
+    @Column(name = "manager_signed_at")
+    private java.time.Instant managerSignedAt;
 
     @Column(name = "hr_comments", columnDefinition = "TEXT")
     private String hrComments;

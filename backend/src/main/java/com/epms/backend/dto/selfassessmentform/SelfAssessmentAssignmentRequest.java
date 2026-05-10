@@ -11,7 +11,6 @@ public record SelfAssessmentAssignmentRequest(
         List<Long> departmentIds,
         List<Long> positionIds,
         @NotNull LocalDate deadlineDate,
-        @NotNull LocalDate managerReviewDeadlineDate,
-        @NotNull LocalDate finalApprovalDeadlineDate
+        @NotNull LocalDate managerReviewDeadlineDate
 ) {
 }

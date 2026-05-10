@@ -19,6 +19,8 @@ import {
   List,
   ChevronDown,
   Copy,
+  BookOpen,
+  Unlock,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -152,7 +154,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
 
   const activeCount = allTemplates.filter((t) => t.isActive).length;
   const assignedCount = allTemplates.filter((t) => t.isLocked).length;
-  const totalQuestions = allTemplates.reduce((sum, t) => sum + (t.questions?.length ?? 0), 0);
+  const unassignedCount = allTemplates.filter((t) => !t.isLocked).length;
 
   const hasActiveFilters =
     searchQuery.trim() !== '' ||
@@ -224,15 +226,16 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
       ring: 'ring-violet-500/20',
     },
     {
-      label: 'Questions',
-      value: totalQuestions,
-      icon: ClipboardList,
+      label: 'Unassigned',
+      value: unassignedCount,
+      icon: Unlock,
       gradient: 'from-amber-500 to-orange-600',
       bgGlow: 'bg-amber-500/10',
       lightBg: 'bg-amber-50 dark:bg-amber-950/30',
       lightIcon: 'text-amber-600 dark:text-amber-400',
       ring: 'ring-amber-500/20',
     },
+
   ];
 
   const getPhaseBadge = (template: typeof allTemplates[number]) => {
@@ -296,17 +299,27 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
             </p>
           </div>
         </div>
-        {!isManager && (
+        <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate('/hr/self-assessment/templates/create')}
-            className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 active:scale-[0.97]"
+            onClick={() => navigate(`${routeBase.replace('/templates', '/question-bank')}`)}
+            className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-[#5D5FEF]/30 bg-white px-5 py-2.5 text-sm font-bold text-[#5D5FEF] shadow-sm transition-all hover:border-[#5D5FEF]/50 hover:bg-[#5D5FEF]/5 hover:shadow-md active:scale-[0.97] dark:border-[#5D5FEF]/40 dark:bg-slate-800 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/10"
           >
-            <Plus size={16} strokeWidth={2.5} />
-            Create Template
-            <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            <BookOpen size={16} strokeWidth={2.5} />
+            Question Bank
           </button>
-        )}
+          {!isManager && (
+            <button
+              type="button"
+              onClick={() => navigate('/hr/self-assessment/templates/create')}
+              className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 active:scale-[0.97]"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              Create Template
+              <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ─── Summary Cards ─── */}
@@ -595,12 +608,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                         <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden md:table-cell">
                           Position
                         </th>
-                        <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
-                          Review Cycle
-                        </th>
-                        <th scope="col" className="px-5 py-3.5 text-center text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                          Questions
-                        </th>
+
                         <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
                           Rating
                         </th>
@@ -655,11 +663,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                               {getPhaseBadge(template)}
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-center">
-                            <span className="inline-flex h-7 min-w-[28px] items-center justify-center rounded-lg bg-slate-100 px-1.5 text-xs font-bold tabular-nums text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
-                              {template.questions?.length ?? 0}
-                            </span>
-                          </td>
+
                           <td className="px-5 py-4 hidden lg:table-cell">
                             <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100/80 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
                               <SlidersHorizontal size={10} />

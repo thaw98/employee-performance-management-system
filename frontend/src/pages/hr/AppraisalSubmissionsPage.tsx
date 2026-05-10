@@ -7,14 +7,25 @@ import SignatureCanvas from 'react-signature-canvas';
 
 const PRIMARY = '#0855BF';
 
-interface Answer {
-    id?: number;
-    question?: {
-        id?: number;
-        questionText: string;
-    };
-    comments?: string;
-    rating: number;
+interface Question {
+    id: number;
+    questionText: string;
+    answerType: string;
+    isRequired: boolean;
+}
+
+interface Category {
+    id: number;
+    name: string;
+    description: string;
+    questions: Question[];
+}
+
+interface Template {
+    id: number;
+    name: string;
+    maxRating: number;
+    categories: Category[];
 }
 
 interface Submission {
@@ -25,18 +36,23 @@ interface Submission {
         employeeId?: string;
         department?: {
             name: string;
+            departmentName?: string;
         };
     };
     period?: {
         id?: number;
         name: string;
     };
+    template?: Template;
     totalScore?: number;
     maxPoints?: number;
     ratingCategory?: string;
     status: 'HR_APPROVED' | 'REJECTED' | 'RETURNED' | 'LOCKED' | 'SUBMITTED' | 'PENDING';
     submittedAt?: string;
     answers?: Answer[];
+    managerComments?: string;
+    managerSignature?: string;
+    managerSignedAt?: string;
 }
 
 export function AppraisalSubmissionsPage() {
@@ -377,50 +393,81 @@ export function AppraisalSubmissionsPage() {
                             </div>
 
                             {/* Detailed Answers Section */}
-                            <div className="space-y-4">
-                                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                                    <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
-                                    Detailed Responses
+                            <div className="space-y-6">
+                                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+                                    <div className="w-1.5 h-6 bg-blue-600 rounded-full shadow-sm shadow-blue-500/50" />
+                                    Evaluation Responses
                                 </h4>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {selectedAsmt.answers && selectedAsmt.answers.length > 0 ? (
-                                        selectedAsmt.answers.map((ans, idx) => (
-                                            <div key={ans.id || idx} className="p-5 bg-white rounded-2xl border border-slate-100 hover:border-blue-200 transition-all shadow-sm group">
-                                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                                                    <div className="space-y-3 flex-1">
-                                                        <div className="flex items-start gap-3">
-                                                            <span className="font-black text-slate-200 group-hover:text-blue-200 text-lg">{(idx + 1).toString().padStart(2, '0')}</span>
-                                                            <p className="text-sm font-bold text-slate-700 leading-relaxed">
-                                                                {ans.question?.questionText || 'Question not available'}
-                                                            </p>
-                                                        </div>
-                                                        {ans.comments && (
-                                                            <p className="text-[11px] text-slate-500 italic bg-slate-50 p-3 rounded-xl border border-slate-100 ml-8">
-                                                                "{ans.comments}"
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    
-                                                    {/* Rating Display 5 4 3 2 1 */}
-                                                    <div className="flex items-center gap-1.5 bg-slate-50/50 p-1.5 rounded-2xl border border-slate-100 self-start lg:self-center">
-                                                        {[5, 4, 3, 2, 1].map(num => (
-                                                            <div 
-                                                                key={num}
-                                                                className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center transition-all ${ans.rating === num ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-110 z-10' : 'bg-white text-slate-300 border border-slate-100 opacity-60'}`}
-                                                            >
-                                                                <span className="text-[9px] font-black uppercase tracking-tighter opacity-70 leading-none mb-0.5">{num}</span>
+                                
+                                {selectedAsmt.template?.categories ? (
+                                    <div className="space-y-8">
+                                        {selectedAsmt.template.categories.map((category) => (
+                                            <div key={category.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                                                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                                                    <h5 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{category.name}</h5>
+                                                    <span className="text-[10px] text-slate-400 italic font-medium">{category.description}</span>
+                                                </div>
+                                                <div className="p-6 space-y-8">
+                                                    {category.questions.map((question, qIdx) => {
+                                                        const answer = selectedAsmt.answers?.find(a => a.question?.id === question.id);
+                                                        const maxRating = selectedAsmt.template?.maxRating || 5;
+
+                                                        return (
+                                                            <div key={question.id} className="space-y-4">
+                                                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                                                                    <div className="flex-1 space-y-1">
+                                                                        <div className="flex items-start gap-3">
+                                                                            <span className="text-xs font-black text-slate-200 mt-0.5">{(qIdx + 1).toString().padStart(2, '0')}</span>
+                                                                            <p className="text-sm font-bold text-slate-700 leading-relaxed">
+                                                                                {question.questionText}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    {/* Rating Display */}
+                                                                    <div className="flex items-center gap-1.5 bg-slate-50/50 p-1.5 rounded-2xl border border-slate-100 self-start lg:self-center">
+                                                                        {[...Array(maxRating)].map((_, i) => {
+                                                                            const num = i + 1;
+                                                                            const isSelected = answer?.rating === num;
+                                                                            return (
+                                                                                <div 
+                                                                                    key={num}
+                                                                                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black transition-all ${
+                                                                                        isSelected 
+                                                                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-500/20 scale-110 z-10' 
+                                                                                        : 'bg-white text-slate-200 border border-slate-100'
+                                                                                    }`}
+                                                                                >
+                                                                                    {num}
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                {answer?.comments && (
+                                                                    <div className="ml-8 flex items-start gap-3 p-4 bg-blue-50/30 rounded-2xl border border-blue-50/50">
+                                                                        <MessageSquare size={14} className="text-blue-400 mt-0.5" />
+                                                                        <p className="text-[11px] text-blue-800 font-medium italic leading-relaxed">
+                                                                            "{answer.comments}"
+                                                                        </p>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        ))}
-                                                    </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="p-10 text-center text-slate-400 font-medium border-2 border-dashed border-slate-200 rounded-3xl">
-                                            Detailed answers not available for preview.
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-16 text-center text-slate-400 font-medium border-4 border-dashed border-slate-50 rounded-[40px] space-y-4">
+                                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
+                                            <Eye size={32} className="opacity-20" />
                                         </div>
-                                    )}
-                                </div>
+                                        <p>No template structure found for this submission.</p>
+                                    </div>
+                                )}
                             </div>
 
                             {/* KPI Revision History Section */}

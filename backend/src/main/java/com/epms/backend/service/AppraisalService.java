@@ -25,14 +25,21 @@ public class AppraisalService {
     private final EmployeeReportingHistoryRepository reportingHistoryRepository;
     private final AppraisalCycleRepository appraisalCycleRepository;
     private final EmployeeRepository employeeRepository;
+    // private final ReportingManagerResolver reportingManagerResolver;
 
     @Transactional
-    public void distributeAppraisalsToManagers() {
-        List<AppraisalTemplate> activeTemplates = templateRepository.findAllByIsActiveTrue();
-        AppraisalTemplate template = activeTemplates.isEmpty() ? null : activeTemplates.get(activeTemplates.size() - 1);
+    public void distributeAppraisalsToManagers(Long templateId) {
+        AppraisalTemplate template;
+        if (templateId != null) {
+            template = templateRepository.findById(templateId)
+                    .orElseThrow(() -> new RuntimeException("Template not found with ID: " + templateId));
+        } else {
+            List<AppraisalTemplate> activeTemplates = templateRepository.findAllByIsActiveTrue();
+            template = activeTemplates.isEmpty() ? null : activeTemplates.get(activeTemplates.size() - 1);
+        }
 
         if (template == null) {
-            throw new RuntimeException("No active appraisal template found. Please confirm a template first.");
+            throw new RuntimeException("No appraisal template found to distribute.");
         }
 
         if (template.getTargetDepartmentPositions() == null || template.getTargetDepartmentPositions().isEmpty()) {
@@ -66,11 +73,14 @@ public class AppraisalService {
 
             Employee departmentHead = employeeRepository.findById(dept.getManagerId()).orElse(null);
             if (departmentHead == null) {
-                errorLog.append("Department Head with ID ").append(dept.getManagerId()).append(" not found in records. ");
+                errorLog.append("Department Head for '").append(dept.getName()).append("' (ID: ").append(dept.getManagerId()).append(") not found. ");
                 continue;
             }
 
-            List<Employee> employees = employeeRepository.findByDepartmentPosition_Id(mapping.getId());
+            List<Employee> employees = employeeRepository.findByDepartment_IdAndPosition_Id(
+                    mapping.getDepartment().getId(), 
+                    mapping.getPosition().getId()
+            );
             for (Employee employee : employees) {
                 // Skip if the employee is the department head themselves
                 if (employee.getId().equals(departmentHead.getId())) continue;
@@ -82,7 +92,8 @@ public class AppraisalService {
 
                 assignment.setEmployee(employee);
                 assignment.setPeriod(activeCycle);
-                assignment.setEvaluator(departmentHead); // Assign to Department Head
+                assignment.setTemplate(template);
+                assignment.setEvaluator(departmentHead); // Assign strictly to Department Head
                 assignment.setStatus(AppraisalStatus.PENDING_MANAGER);
                 assignment.setUpdatedAt(java.time.Instant.now());
 
@@ -96,7 +107,7 @@ public class AppraisalService {
             if (errorLog.length() > 0) {
                 message += "Issues found: " + errorLog.toString();
             } else {
-                message += "Ensure the selected positions have active employees assigned to them.";
+                message += "Ensure the selected positions have active employees assigned to them and departments have heads.";
             }
             throw new RuntimeException(message);
         }
@@ -186,7 +197,7 @@ public class AppraisalService {
     }
 
     @Transactional
-    public void finalizeAppraisal(AppraisalTemplateDto dto) {
+    public AppraisalTemplateDto finalizeAppraisal(AppraisalTemplateDto dto) {
         // Reset all categories finalize flag
         List<AppraisalCategory> allCategories = categoryRepository.findAll();
         allCategories.forEach(c -> c.setIsFinalized(false));
@@ -217,7 +228,7 @@ public class AppraisalService {
 
         template.setMaxRating(dto.getMaxRating() != null ? dto.getMaxRating() : 5);
 
-        templateRepository.save(template);
+        return mapToTemplateDto(templateRepository.save(template));
     }
 
     public AppraisalTemplateDto getCurrentTemplate() {

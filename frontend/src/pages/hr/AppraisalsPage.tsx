@@ -167,9 +167,10 @@ interface ConfirmedAppraisalViewProps {
     maxRating: number;
     selectedPositionIds: number[];
     allPositions: DepartmentPositionMapping[];
+    templateId?: number | null;
 }
 
-function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onRemove, onConfirm, onReset, assessmentDate, effectiveDate, maxRating, selectedPositionIds, allPositions, isFinalizedView = false }: ConfirmedAppraisalViewProps) {
+function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onRemove, onConfirm, onReset, assessmentDate, effectiveDate, maxRating, selectedPositionIds, allPositions, isFinalizedView = false, templateId }: ConfirmedAppraisalViewProps) {
     const [allQuestions, setAllQuestions] = useState<Record<number, Question[]>>({});
     const [showPicker, setShowPicker] = useState(false);
 
@@ -350,8 +351,9 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                             <button
                                 onClick={async () => {
                                     try {
-                                        await axios.post('/appraisal-categories/distribute', {});
-                                        toast.success('Sent to Managers successfully');
+                                        const url = templateId ? `/appraisal-categories/distribute?templateId=${templateId}` : '/appraisal-categories/distribute';
+                                        await axios.post(url, {});
+                                        toast.success('Sent to Managers! You can now track progress in Submissions page.');
                                     } catch (err: any) {
                                         const msg = err.response?.data?.message || 'Failed to send to managers';
                                         toast.error(msg);
@@ -616,12 +618,22 @@ export function AppraisalsPage() {
                 positionIds: selectedPositionIds,
                 maxRating: maxRating
             };
-            await axios.post('/appraisal-categories/finalize', payload);
-            setFinalizedCategories([...confirmedCategories]);
+            const resp = await axios.post('/appraisal-categories/finalize', payload);
+            const newTemplate = resp.data.data;
+            
+            // Sync states for History Details view
+            setSelectedTemplateId(newTemplate.id);
+            setHistoryAssessmentDate(newTemplate.assessmentDate);
+            setHistoryEffectiveDate(newTemplate.effectiveDate);
+            setHistoryPositionIds(newTemplate.positionIds || []);
+            setHistoryMaxRating(newTemplate.maxRating || 10);
+            setFinalizedCategories([...newTemplate.categoryIds]);
+            
             setConfirmedCategories([]); // Clear review tab on finalize
             setActiveTab('finalized');
-            toast.success('Appraisal Configuration Saved to Database!');
-            fetchAllTemplates(); // Refresh the list
+            
+            toast.success('Appraisal Configuration Saved and Archived!');
+            fetchAllTemplates(); // Refresh the list in background
         } catch (err) {
             toast.error('Failed to save to database');
         } finally {
@@ -829,13 +841,13 @@ export function AppraisalsPage() {
                         onClick={() => setActiveTab('confirmed')}
                         className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'confirmed' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
-                        REVIEW APPRAISAL
+                        REVIEW & FINALIZE
                     </button>
                     <button
                         onClick={() => setActiveTab('finalized')}
                         className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'finalized' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
-                        CONFIRMED APPRAISAL
+                        APPRAISAL ARCHIVE
                     </button>
                 </div>
             </div>
@@ -883,7 +895,7 @@ export function AppraisalsPage() {
                                     className="bg-slate-50 border-2 border-slate-50 rounded-2xl px-6 py-4 text-xs font-black text-slate-700 outline-none focus:border-blue-500 transition-all uppercase tracking-widest"
                                 >
                                     <option value="All">All Years</option>
-                                    {Array.from(new Set(allTemplates.map(t => t.assessmentDate.split('-')[0]))).sort().reverse().map(year => (
+                                    {Array.from(new Set(allTemplates.filter(t => t.assessmentDate && typeof t.assessmentDate === 'string').map(t => t.assessmentDate.split(t.assessmentDate.includes('-') ? '-' : '/')[0]))).sort().reverse().map(year => (
                                         <option key={year} value={year}>{year}</option>
                                     ))}
                                 </select>
@@ -896,7 +908,7 @@ export function AppraisalsPage() {
                             {allTemplates
                                 .filter(t => {
                                     const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
-                                    const matchesYear = historyYearFilter === 'All' || t.assessmentDate.startsWith(historyYearFilter);
+                                    const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && t.assessmentDate.startsWith(historyYearFilter));
                                     return matchesSearch && matchesYear;
                                 })
                                 .map(t => (
@@ -908,7 +920,7 @@ export function AppraisalsPage() {
                                             <div className="flex items-start justify-between">
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{t.assessmentDate.split('-')[0]}</span>
+                                                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{t.assessmentDate ? t.assessmentDate.split('-')[0] : 'N/A'}</span>
                                                         {t.isActive && <span className="text-[10px] font-black text-white bg-emerald-500 px-2 py-0.5 rounded uppercase animate-pulse">Active</span>}
                                                     </div>
                                                     <h4 className="text-sm font-black text-slate-800 uppercase leading-tight group-hover:text-blue-600 transition-colors">{t.name}</h4>
@@ -993,6 +1005,7 @@ export function AppraisalsPage() {
                                 isFinalizedView={true}
                                 selectedPositionIds={historyPositionIds}
                                 allPositions={allPositions}
+                                templateId={selectedTemplateId}
                             />
                         </div>
                     )}
@@ -1251,6 +1264,7 @@ export function AppraisalsPage() {
                         maxRating={maxRating}
                         selectedPositionIds={selectedPositionIds}
                         allPositions={allPositions}
+                        templateId={null} // Null for draft mode
                     />
                 </div>
             ) : activeTab === 'category' ? (

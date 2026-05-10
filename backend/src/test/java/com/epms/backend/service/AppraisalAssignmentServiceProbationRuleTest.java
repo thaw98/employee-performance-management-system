@@ -19,6 +19,8 @@ import com.epms.backend.entity.AppraisalAssignment;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.repository.AppraisalAssignmentRepository;
+import com.epms.backend.repository.AppraisalAnswerRepository;
+import com.epms.backend.repository.AppraisalQuestionRepository;
 
 @ExtendWith(MockitoExtension.class)
 class AppraisalAssignmentServiceProbationRuleTest {
@@ -26,13 +28,22 @@ class AppraisalAssignmentServiceProbationRuleTest {
     @Mock
     private AppraisalAssignmentRepository appraisalAssignmentRepository;
     @Mock
+    private AppraisalAnswerRepository appraisalAnswerRepository;
+    @Mock
+    private AppraisalQuestionRepository appraisalQuestionRepository;
+    @Mock
     private AuditService auditService;
 
     private AppraisalAssignmentService appraisalAssignmentService;
 
     @BeforeEach
     void setUp() {
-        appraisalAssignmentService = new AppraisalAssignmentService(appraisalAssignmentRepository, auditService);
+        appraisalAssignmentService = new AppraisalAssignmentService(
+            appraisalAssignmentRepository, 
+            appraisalAnswerRepository, 
+            appraisalQuestionRepository, 
+            auditService
+        );
     }
 
     @Test

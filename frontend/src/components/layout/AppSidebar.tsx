@@ -23,8 +23,9 @@ type NavSection = { label: string; items: NavItem[] }
 export function AppSidebar() {
   const role = useAppSelector((s) => s.auth.user?.role)
   const roleId = useAppSelector((s) => s.auth.user?.roleId)
-  const isHr = roleId === 1 || role === 'HR'
-  const isManager = roleId === 2 || roleId === 3 || role === 'DEPARTMENT_HEAD' || role === 'TEAM_HEAD'
+  const isHr = roleId === 1 || role?.toUpperCase() === 'HR'
+  const isManager = roleId === 2 || roleId === 3 || 
+    ['DEPARTMENT_HEAD', 'TEAM_HEAD', 'DEPARTMENT HEAD', 'TEAM HEAD'].includes(role?.toUpperCase() || '')
   const location = useLocation()
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
@@ -69,11 +70,15 @@ export function AppSidebar() {
       items: [
         { 
           name: 'Appraisals', 
-          path: '/hr/appraisals-group', 
+          path: isHr ? '/hr/appraisals-group' : '/manager/appraisals-group', 
           icon: 'bi-clipboard-check', 
           end: false,
           subItems: [
-            { name: 'Management', path: '/hr/appraisals', icon: 'bi-kanban' }
+            { 
+              name: isHr ? 'Management' : 'Team Appraisals', 
+              path: isHr ? '/hr/appraisals' : '/manager/appraisals', 
+              icon: isHr ? 'bi-kanban' : 'bi-people' 
+            }
           ]
         },
         {
@@ -90,15 +95,14 @@ export function AppSidebar() {
         },
         ...(isHr ? [{
           name: 'Self-Assessment',
-          path: '/hr/self-assessment/templates',
+          path: '/hr/self-assessment',
           icon: 'bi-file-earmark-text',
           end: false,
           subItems: [
             { name: 'Template Management', path: '/hr/self-assessment/templates', icon: 'bi-sliders' },
-            { name: 'Assignments overview', path: '/hr/self-assessment/assignments', icon: 'bi-clipboard-check' },
-            { name: 'Assign Self-Assessment Forms', path: '/hr/self-assessment/assign-forms', icon: 'bi-send' },
+            { name: 'Assignments', path: '/hr/self-assessment/assignments', icon: 'bi-clipboard-check' },
             { name: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: 'bi-inbox' },
-            { name: 'Question Bank', path: '/hr/self-assessment/question-bank', icon: 'bi-book' },
+
             { name: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: 'bi-list-check' },
             { name: 'Self Assessment Settings', path: '/hr/self-assessment/settings', icon: 'bi-gear' },
           ],

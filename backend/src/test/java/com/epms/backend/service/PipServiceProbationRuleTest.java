@@ -45,11 +45,12 @@ class PipServiceProbationRuleTest {
     @Mock
     private TrainingRecordRepository trainingRepository;
     @Mock
+    private SignatureRepository signatureRepository;
+    @Mock
     private EmployeeRepository employeeRepository;
     @Mock
     private PipCommunicationNoteRepository communicationNoteRepository;
-    @Mock
-    private SignatureRepository signatureRepository;
+
     @Mock
     private NotificationService notificationService;
 

@@ -21,8 +21,11 @@ import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { ManagerKpisPage } from './pages/manager/ManagerKpisPage';
 import { ManagerAppraisalsPage } from './pages/manager/ManagerAppraisalsPage';
+import { ManagerEvaluationPage } from './pages/manager/ManagerEvaluationPage';
 import { MyKpisPage } from './pages/employee/MyKpisPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+import { EmployeeAppraisalsPage } from './pages/employee/EmployeeAppraisalsPage';
+import { EmployeeAppraisalViewPage } from './pages/employee/EmployeeAppraisalViewPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
 import { ProfileSettingsPage } from './pages/ProfileSettingsPage';
@@ -60,14 +63,14 @@ import { EmployeeSelfAssessmentHubPage } from './pages/self-assessment-form/Empl
 import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfAssessmentFormReviewPage';
 import { SelfAssessmentActiveFormsPage } from './pages/self-assessment-form/SelfAssessmentActiveFormsPage';
 import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage';
-import { SelfAssessmentAssignmentsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentsPage';
-import { AssignSelfAssessmentFormsPage } from './pages/self-assessment-form/AssignSelfAssessmentFormsPage';
+import { SelfAssessmentAssignmentTabsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentTabsPage';
 import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
 
 // Meetings
 import { MeetingsPage } from './pages/manager/MeetingsPage';
 import { EmployeeMeetingsPage } from './pages/employee/EmployeeMeetingsPage';
 import { MeetingDetailPage } from './pages/meetings/MeetingDetailPage';
+import { NotificationPage } from './pages/NotificationPage';
 
 const TOAST_DEDUP_MS = 600;
 const recentToastTimestamps = new Map<string, number>();
@@ -167,8 +170,11 @@ function App() {
             <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
             <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
-            <Route path="self-assessment/assignments" element={<SelfAssessmentAssignmentsPage />} />
-            <Route path="self-assessment/assign-forms" element={<AssignSelfAssessmentFormsPage />} />
+            <Route path="self-assessment/assignments" element={<SelfAssessmentAssignmentTabsPage />} />
+            <Route
+              path="self-assessment/assign-forms"
+              element={<Navigate to="/hr/self-assessment/assignments?tab=assign" replace />}
+            />
             <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
             <Route
               path="self-assessment/forms/create"
@@ -179,6 +185,7 @@ function App() {
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
+            <Route path="notifications" element={<NotificationPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -195,6 +202,7 @@ function App() {
             <Route path="pip/create" element={<PipCreatePage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />
             <Route path="appraisals" element={<ManagerAppraisalsPage />} />
+            <Route path="appraisals/:id/evaluate" element={<ManagerEvaluationPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
@@ -207,6 +215,7 @@ function App() {
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
+            <Route path="notifications" element={<NotificationPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>
@@ -228,6 +237,9 @@ function App() {
             <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
             <Route path="meetings" element={<EmployeeMeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
+            <Route path="notifications" element={<NotificationPage />} />
+            <Route path="appraisals" element={<EmployeeAppraisalsPage />} />
+            <Route path="appraisals/:id/view" element={<EmployeeAppraisalViewPage />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>

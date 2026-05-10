@@ -166,6 +166,10 @@ type HybridRule = {
   id: string;
   departmentId: number | null;
   positionId: number | null;
+  /** Fallback label when this dept is not in the HR departments list (e.g. inactive). */
+  departmentLabel?: string | null;
+  /** Fallback label when this position is not returned for the department yet. */
+  positionLabel?: string | null;
 };
 
 const createHybridRuleId = () =>
@@ -263,13 +267,26 @@ const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
     [positionsResponse?.data]
   );
 
+  const deptSelectionMissing =
+    rule.departmentId != null &&
+    rule.departmentId > 0 &&
+    !departments.some((d) => d.id === rule.departmentId);
+
+  const positionSelectionMissing =
+    rule.positionId != null &&
+    rule.positionId > 0 &&
+    !rowPositions.some((p) => p.id === rule.positionId);
+
+  const departmentSelectValue =
+    rule.departmentId != null && rule.departmentId > 0 ? String(rule.departmentId) : '';
+
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50/80 p-3 dark:bg-slate-800/50">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
         <div className="relative min-w-[160px] flex-1">
           <select
             aria-label="Department"
-            value={rule.departmentId ?? ''}
+            value={departmentSelectValue}
             onChange={(event) => {
               const value = event.target.value;
               onDepartmentChange(rule.id, value ? Number(value) : null);
@@ -277,6 +294,11 @@ const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
             className={selectBase}
           >
             <option value="">Select department</option>
+            {deptSelectionMissing ? (
+              <option value={String(rule.departmentId)}>
+                {rule.departmentLabel?.trim() || `Department #${rule.departmentId}`}
+              </option>
+            ) : null}
             {departments.map((department) => (
               <option key={department.id} value={department.id}>
                 {department.name}
@@ -296,6 +318,11 @@ const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
             className={selectBase}
           >
             <option value="">All Positions</option>
+            {positionSelectionMissing ? (
+              <option value={String(rule.positionId)}>
+                {rule.positionLabel?.trim() || `Position #${rule.positionId}`}
+              </option>
+            ) : null}
             {rowPositions.length === 0 && rule.departmentId ? (
               <option value="" disabled>
                 No active positions for this department
@@ -347,6 +374,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const [copiedSourceTitle, setCopiedSourceTitle] = useState<string | null>(null);
   const [copiedDeletedQuestions, setCopiedDeletedQuestions] = useState<QuestionRequest[]>([]);
   const [copiedRatingSystem, setCopiedRatingSystem] = useState<SelfAssessmentRatingSystem | undefined>(undefined);
+  const [copiedTenPointYesMinRating, setCopiedTenPointYesMinRating] = useState<number | undefined>(undefined);
 
   const { data: reviewCycles = [], isLoading: reviewCyclesLoading } = useGetReviewCyclesQuery({
     requiresEmployeeSubmission: true,
@@ -631,6 +659,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     isLoading: selfAssessmentSettingsLoading,
     isError: selfAssessmentSettingsError,
   } = useGetSelfAssessmentSettingsQuery();
+  const previewRatingSystem = copiedRatingSystem ?? selfAssessmentSettings?.ratingSystem;
+  const previewTenPointYesMinRating =
+    copiedTenPointYesMinRating ?? selfAssessmentSettings?.tenPointYesMinRating;
 
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
   const [checkActiveTemplateConflicts] = useCheckActiveTemplateConflictsMutation();
@@ -687,6 +718,32 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
         }))
     );
     setCopiedRatingSystem(copiedTemplate.ratingSystem);
+    setCopiedTenPointYesMinRating(copiedTemplate.tenPointYesMinRating);
+
+    const copiedDeptId =
+      typeof copiedTemplate.departmentId === 'number' && copiedTemplate.departmentId > 0
+        ? copiedTemplate.departmentId
+        : null;
+    const copiedPosId =
+      typeof copiedTemplate.positionId === 'number' && copiedTemplate.positionId > 0
+        ? copiedTemplate.positionId
+        : null;
+
+    if (copiedDeptId != null) {
+      setSelectedDepartmentIds([copiedDeptId]);
+      setHybridRules([
+        {
+          id: createHybridRuleId(),
+          departmentId: copiedDeptId,
+          positionId: copiedPosId,
+          departmentLabel: copiedTemplate.departmentName?.trim() || undefined,
+          positionLabel: copiedTemplate.positionName?.trim() || undefined,
+        },
+      ]);
+    }
+    if (copiedPosId != null) {
+      setSelectedGlobalPositionIds([copiedPosId]);
+    }
   }, [copiedTemplate, isPastingCopiedTemplate, reset]);
 
   const handleQuestionDragEnd = (event: DragEndEvent) => {
@@ -716,13 +773,19 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
   const updateHybridRuleDepartment = (ruleId: string, departmentId: number | null) => {
     setHybridRules((rules) =>
-      rules.map((rule) => (rule.id === ruleId ? { ...rule, departmentId, positionId: null } : rule))
+      rules.map((rule) =>
+        rule.id === ruleId
+          ? { ...rule, departmentId, positionId: null, departmentLabel: undefined, positionLabel: undefined }
+          : rule
+      )
     );
   };
 
   const updateHybridRulePosition = (ruleId: string, positionId: number | null) => {
     setHybridRules((rules) =>
-      rules.map((rule) => (rule.id === ruleId ? { ...rule, positionId } : rule))
+      rules.map((rule) =>
+        rule.id === ruleId ? { ...rule, positionId, positionLabel: undefined } : rule
+      )
     );
   };
 
@@ -884,6 +947,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             deletedQuestions: copiedDeletedQuestions,
             reviewCycleId: selectedReviewCycleId,
             ratingSystem: copiedRatingSystem,
+            tenPointYesMinRating: copiedTenPointYesMinRating,
           }).unwrap();
           createdCount += 1;
         } catch (error: unknown) {
@@ -1031,10 +1095,10 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                       <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
                         Could not load settings. Server defaults will apply.
                       </p>
-                    ) : selfAssessmentSettings?.ratingSystem ? (
+                    ) : previewRatingSystem ? (
                       <div className="mt-3 space-y-2">
                         <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          Scale: <span className="text-slate-900 dark:text-white">{ratingSystemLabels[selfAssessmentSettings.ratingSystem]}</span>
+                          Scale: <span className="text-slate-900 dark:text-white">{ratingSystemLabels[previewRatingSystem]}</span>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2">
                           <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
@@ -1042,7 +1106,11 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                               Yes — scores
                             </dt>
                             <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
-                              {getRatingOptions(selfAssessmentSettings.ratingSystem, 'Yes').join(', ')}
+                              {getRatingOptions(
+                                previewRatingSystem,
+                                'Yes',
+                                previewTenPointYesMinRating,
+                              ).join(', ')}
                             </dd>
                           </div>
                           <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
@@ -1050,7 +1118,11 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                               No — scores
                             </dt>
                             <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
-                              {getRatingOptions(selfAssessmentSettings.ratingSystem, 'No').join(', ')}
+                              {getRatingOptions(
+                                previewRatingSystem,
+                                'No',
+                                previewTenPointYesMinRating,
+                              ).join(', ')}
                             </dd>
                           </div>
                         </div>

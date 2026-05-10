@@ -60,11 +60,6 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
     () => new Set(existingTemplatesForActiveCycle.map((t) => t.positionName)).size,
     [existingTemplatesForActiveCycle]
   );
-  const totalQuestions = useMemo(
-    () => existingTemplatesForActiveCycle.reduce((sum, t) => sum + t.questions.length, 0),
-    [existingTemplatesForActiveCycle]
-  );
-
   const summaryCards = [
     {
       label: 'Templates',
@@ -93,15 +88,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
       ring: 'ring-amber-500/20',
       bgGlow: 'bg-amber-500/10',
     },
-    {
-      label: 'Total Questions',
-      value: totalQuestions,
-      icon: Sparkles,
-      lightBg: 'bg-emerald-50 dark:bg-emerald-950/30',
-      lightIcon: 'text-emerald-600 dark:text-emerald-400',
-      ring: 'ring-emerald-500/20',
-      bgGlow: 'bg-emerald-500/10',
-    },
+
   ];
 
   if (templatesLoading) {
@@ -156,7 +143,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
         </div>
         {activeSubmissionCycle ? (
           <Link
-            to="/hr/self-assessment/assign-forms"
+            to="/hr/self-assessment/assignments?tab=assign"
             className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:-translate-y-0.5 hover:shadow-[#5D5FEF]/30"
           >
             <Send size={16} />
@@ -415,7 +402,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Bulk Assignment Rules</h3>
               <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                 Employees are assigned only when they are <span className="font-semibold text-slate-700 dark:text-slate-300">active</span>, <span className="font-semibold text-slate-700 dark:text-slate-300">non-probation</span>, have an <span className="font-semibold text-slate-700 dark:text-slate-300">active user account</span>, and have a matching active template for the current cycle. Existing active-cycle forms are skipped. Use{' '}
-                <Link to="/hr/self-assessment/assign-forms" className="font-semibold text-[#5D5FEF] hover:underline dark:text-[#8b8ef7]">
+                <Link to="/hr/self-assessment/assignments?tab=assign" className="font-semibold text-[#5D5FEF] hover:underline dark:text-[#8b8ef7]">
                   Assign Self-Assessment Forms
                 </Link>{' '}
                 to run an assignment.
