@@ -266,7 +266,7 @@ export interface SelfAssessmentAssignmentRequest {
   assignmentMode: SelfAssessmentAssignmentMode
   departmentIds: number[]
   positionIds: number[]
-  employeeIds: number[]
+  employeeIds?: number[]
   startDate: string
   deadlineDate: string
   managerReviewDeadlineDate: string

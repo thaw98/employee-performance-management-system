@@ -104,6 +104,7 @@ export function AppSidebar() {
             { name: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: 'bi-inbox' },
 
             { name: 'Form Queue', path: '/hr/self-assessment/review-queue', icon: 'bi-list-check' },
+            { name: 'Score Records', path: '/hr/self-assessment/score-records', icon: 'bi-bar-chart' },
             
           ],
         }] : []),

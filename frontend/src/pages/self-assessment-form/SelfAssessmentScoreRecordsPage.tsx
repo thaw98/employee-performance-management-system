@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import type { RootState } from '../../app/store'
 import {
@@ -61,7 +61,6 @@ function formatPeriod(row: ScoreRecordDto): string {
 
 export function SelfAssessmentScoreRecordsPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const roleId = useSelector((state: RootState) => state.auth.user?.roleId)
   const isHr = roleId === 1
   const isManager = roleId === 2
