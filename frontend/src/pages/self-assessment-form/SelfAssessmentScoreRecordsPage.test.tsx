@@ -69,7 +69,7 @@ const mockRecords = [
       positionName: 'Analyst',
       positionCode: 'ANA',
     },
-    status: 'FINALIZED_LOCKED',
+    status: 'APPROVED',
     finalApprovedScore: 72.0,
     performance: 'Good',
     cycleId: 7,
@@ -92,7 +92,7 @@ const mockRecords = [
       positionName: 'Designer',
       positionCode: 'DES',
     },
-    status: 'FINALIZED_LOCKED',
+    status: 'PENDING_FINAL_APPROVAL',
     finalApprovedScore: null,
     performance: null,
     cycleId: 8,
@@ -104,6 +104,12 @@ const mockRecords = [
 ]
 
 let currentRoleId = 1
+
+function expectMetricCard(label: string, value: string) {
+  const labelElement = screen.getByText(label)
+  expect(labelElement).toBeTruthy()
+  expect(within(labelElement.parentElement!).getByText(value)).toBeTruthy()
+}
 
 describe('SelfAssessmentScoreRecordsPage', () => {
   afterEach(() => {
@@ -148,7 +154,7 @@ describe('SelfAssessmentScoreRecordsPage', () => {
   it('displays score bar with numeric value', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.getByText('88.5')).toBeTruthy()
+    expect(screen.getAllByText('88.5').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('72.0')).toBeTruthy()
   })
 
@@ -214,22 +220,77 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/manager/self-assessment-forms/reviews/1')
   })
 
-  it('shows Average Score and Top Score cards for Manager role', () => {
+  it('shows all metric cards for HR role', () => {
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    expectMetricCard('Total Records', '3')
+    expectMetricCard('Average Score', '80.3')
+    expectMetricCard('Top Score', '88.5')
+    expectMetricCard('Finalized / Approved', '2')
+  })
+
+  it('shows all metric cards for Manager role', () => {
     currentRoleId = 2
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.getByText('Average Score')).toBeTruthy()
-    expect(screen.getByText('Top Score')).toBeTruthy()
-    const avg = ((88.5 + 72.0) / 2).toFixed(1)
-    expect(screen.getByText(avg)).toBeTruthy()
-    expect(screen.getAllByText('88.5').length).toBeGreaterThanOrEqual(1)
+    expectMetricCard('Total Records', '3')
+    expectMetricCard('Average Score', '80.3')
+    expectMetricCard('Top Score', '88.5')
+    expectMetricCard('Finalized / Approved', '2')
   })
 
-  it('hides summary cards for HR role', () => {
+  it('ignores null scores for Average Score and Top Score cards', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.queryByText('Average Score')).toBeNull()
-    expect(screen.queryByText('Top Score')).toBeNull()
+    expectMetricCard('Average Score', ((88.5 + 72.0) / 2).toFixed(1))
+    expectMetricCard('Top Score', '88.5')
+  })
+
+  it('counts only finalized locked and approved records in Finalized / Approved card', () => {
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    expectMetricCard('Finalized / Approved', '2')
+  })
+
+  it('updates metric cards after applying the cycle filter', async () => {
+    const user = userEvent.setup()
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    const cycleSelects = screen.getAllByRole('combobox')
+    const cycleSelect = cycleSelects.find(s => Array.from((s as HTMLSelectElement).options).some(o => o.text === 'Q3 2026'))
+    expect(cycleSelect).toBeTruthy()
+    await user.selectOptions(cycleSelect!, 'Q3 2026')
+
+    expectMetricCard('Total Records', '1')
+    expectMetricCard('Average Score', '-')
+    expectMetricCard('Top Score', '-')
+    expectMetricCard('Finalized / Approved', '0')
+  })
+
+  it('updates metric cards after typing in the search box', async () => {
+    const user = userEvent.setup()
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    const searchInput = screen.getByPlaceholderText('Search employees, departments...')
+    await user.type(searchInput, 'Alice')
+
+    expectMetricCard('Total Records', '1')
+    expectMetricCard('Average Score', '88.5')
+    expectMetricCard('Top Score', '88.5')
+    expectMetricCard('Finalized / Approved', '1')
+  })
+
+  it('shows zero total and dashes for score cards when filters return no records', async () => {
+    const user = userEvent.setup()
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    const searchInput = screen.getByPlaceholderText('Search employees, departments...')
+    await user.type(searchInput, 'No matching employee')
+
+    expectMetricCard('Total Records', '0')
+    expectMetricCard('Average Score', '-')
+    expectMetricCard('Top Score', '-')
+    expectMetricCard('Finalized / Approved', '0')
   })
 
   it('shows loading spinner', () => {

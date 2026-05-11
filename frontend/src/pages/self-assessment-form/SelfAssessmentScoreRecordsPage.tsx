@@ -12,7 +12,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
-import { Eye, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Trophy, BarChart3 } from 'lucide-react'
+import { Eye, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Trophy, BarChart3, FileText, CheckCircle2 } from 'lucide-react'
 import { useGetScoreRecordsQuery, type ScoreRecordDto } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi'
 
 function ScoreBar({ score }: { score: number | null }) {
@@ -82,7 +82,6 @@ export function SelfAssessmentScoreRecordsPage() {
   const navigate = useNavigate()
   const roleId = useSelector((state: RootState) => state.auth.user?.roleId)
   const isHr = roleId === 1
-  const isManager = roleId === 2
   const basePath = isHr ? '/hr/self-assessment' : '/manager/self-assessment-forms'
 
   const { data: records = [], isLoading, isError } = useGetScoreRecordsQuery()
@@ -191,19 +190,48 @@ export function SelfAssessmentScoreRecordsPage() {
     initialState: { pagination: { pageSize: 10 } },
   })
 
-  const avgScore = useMemo(() => {
-    if (!isManager || filteredData.length === 0) return null
-    const scores = filteredData.map(r => r.finalApprovedScore).filter((s): s is number => s != null)
-    if (scores.length === 0) return null
-    return scores.reduce((a, b) => a + b, 0) / scores.length
-  }, [isManager, filteredData])
+  const visibleRecords = table.getFilteredRowModel().rows.map(row => row.original)
+  const scoredVisibleRecords = visibleRecords.filter((r): r is ScoreRecordDto & { finalApprovedScore: number } => r.finalApprovedScore != null)
+  const avgScore =
+    scoredVisibleRecords.length > 0
+      ? scoredVisibleRecords.reduce((sum, r) => sum + r.finalApprovedScore, 0) / scoredVisibleRecords.length
+      : null
+  const topScore =
+    scoredVisibleRecords.length > 0
+      ? Math.max(...scoredVisibleRecords.map(r => r.finalApprovedScore))
+      : null
+  const finalizedOrApprovedCount = visibleRecords.filter(r => r.status === 'FINALIZED_LOCKED' || r.status === 'APPROVED').length
 
-  const topScore = useMemo(() => {
-    if (!isManager || filteredData.length === 0) return null
-    const scores = filteredData.map(r => r.finalApprovedScore).filter((s): s is number => s != null)
-    if (scores.length === 0) return null
-    return Math.max(...scores)
-  }, [isManager, filteredData])
+  const metricCards = [
+    {
+      label: 'Total Records',
+      value: visibleRecords.length.toString(),
+      icon: FileText,
+      iconClassName: 'text-slate-600 dark:text-slate-400',
+      iconBgClassName: 'bg-slate-50 dark:bg-slate-900/40',
+    },
+    {
+      label: 'Average Score',
+      value: avgScore != null ? avgScore.toFixed(1) : '-',
+      icon: BarChart3,
+      iconClassName: 'text-blue-600 dark:text-blue-400',
+      iconBgClassName: 'bg-blue-50 dark:bg-blue-900/20',
+    },
+    {
+      label: 'Top Score',
+      value: topScore != null ? topScore.toFixed(1) : '-',
+      icon: Trophy,
+      iconClassName: 'text-amber-600 dark:text-amber-400',
+      iconBgClassName: 'bg-amber-50 dark:bg-amber-900/20',
+    },
+    {
+      label: 'Finalized / Approved',
+      value: finalizedOrApprovedCount.toString(),
+      icon: CheckCircle2,
+      iconClassName: 'text-emerald-600 dark:text-emerald-400',
+      iconBgClassName: 'bg-emerald-50 dark:bg-emerald-900/20',
+    },
+  ]
 
   if (isLoading) {
     return (
@@ -230,32 +258,19 @@ export function SelfAssessmentScoreRecordsPage() {
         </p>
       </div>
 
-      {isManager && (avgScore != null || topScore != null) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {avgScore != null && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                <BarChart3 size={24} className="text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">Average Score</p>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{avgScore.toFixed(1)}</p>
-              </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {metricCards.map(({ label, value, icon: Icon, iconClassName, iconBgClassName }) => (
+          <div key={label} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconBgClassName}`}>
+              <Icon size={24} className={iconClassName} />
             </div>
-          )}
-          {topScore != null && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
-                <Trophy size={24} className="text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">Top Score</p>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{topScore.toFixed(1)}</p>
-              </div>
+            <div>
+              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">{label}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{value}</p>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-3">
