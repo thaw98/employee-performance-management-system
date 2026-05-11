@@ -36,6 +36,7 @@ import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 import PipMonitoringPage from './pages/PipMonitoringPage';
 import PipCreatePage from './pages/PipCreatePage';
 import PipDetailPage from './pages/PipDetailPage';
+import PipNotesReviewPage from './pages/hr/PipNotesReviewPage';
 import { CriteriaPage } from './pages/hr/CriteriaPage';
 import { AppraisalsPage } from './pages/hr/AppraisalsPage';
 import { GiveFeedbackPage } from './pages/GiveFeedbackPage';
@@ -149,6 +150,7 @@ function App() {
 
             <Route path="pip-monitoring" element={<PipMonitoringPage />} />
             <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
+            <Route path="pip-notes" element={<PipNotesReviewPage />} />
             <Route path="360-feedback/criteria" element={<CriteriaPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />

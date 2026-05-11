@@ -24,6 +24,7 @@ export interface User {
     positionId?: number | null
     positionName?: string | null
     department?: {
+      id?: number
       departmentName: string
     }
     position?: {
@@ -92,6 +93,40 @@ export interface PipProgressUpdate {
   updatedBy: User
   updateDate?: string
   createdAt: string
+}
+
+export interface PipCommunicationNote {
+  id: number
+  pipId: number
+  content: string
+  noteType: 'COMMUNICATION' | 'FOLLOWUP'
+  author: User
+  employee?: {
+    id: number
+    employeeName: string
+    employeeId?: string
+    departmentId?: number
+    departmentName?: string
+  }
+  manager?: {
+    id: number
+    employeeName: string
+    employeeId?: string
+    departmentId?: number
+    departmentName?: string
+  }
+  pipStatus?: Pip['status']
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface PipNotesPage {
+  content: PipCommunicationNote[]
+  totalElements: number
+  totalPages: number
+  currentPage: number
+  size: number
+  hasNext: boolean
 }
 
 export interface EligibleEmployee {
@@ -169,21 +204,28 @@ const normalizeMeeting = (meeting: unknown): FollowUpMeeting => {
 
 const normalizePerson = (person: unknown): User => {
   const source = isRecord(person) ? person : {}
+  const employeeSource = getRecord(source, 'employee')
   const departmentSource = getRecord(source, 'department')
   const positionSource = getRecord(source, 'position')
   const departmentPositionSource = getRecord(source, 'departmentPosition')
   const mappedPositionSource = departmentPositionSource ? getRecord(departmentPositionSource, 'position') : undefined
+  const employeeDepartmentSource = employeeSource ? getRecord(employeeSource, 'department') : undefined
+  const employeePositionSource = employeeSource ? getRecord(employeeSource, 'position') : undefined
+  const personRecord = employeeSource ?? source
 
-  const department = departmentSource
+  const department = (employeeDepartmentSource ?? departmentSource)
     ? {
-      departmentName: getString(departmentSource.departmentName) || getString(departmentSource.name, 'N/A'),
+      id: getNumber((employeeDepartmentSource ?? departmentSource)?.id),
+      departmentName: getString((employeeDepartmentSource ?? departmentSource)?.departmentName) || getString((employeeDepartmentSource ?? departmentSource)?.name, 'N/A'),
     }
     : undefined
 
   const positionName =
+    getString(employeePositionSource?.positionName) ||
+    getString(employeePositionSource?.name) ||
     getString(positionSource?.positionName) ||
     getString(positionSource?.name) ||
-    getString(source.positionName) ||
+    getString(personRecord.positionName) ||
     getString(mappedPositionSource?.positionName) ||
     getString(mappedPositionSource?.name)
 
@@ -196,12 +238,12 @@ const normalizePerson = (person: unknown): User => {
   return {
     id: getNumber(source.id),
     email: getString(source.email),
-    employeeId: getOptionalString(source.employeeId) ?? getOptionalString(source.staffNo),
+    employeeId: getOptionalString(personRecord.employeeId) ?? getOptionalString(personRecord.staffNo),
     employee: isRecord(person)
       ? {
-        id: getNumber(source.id),
-        employeeName: getString(source.employeeName) || getString(source.fullName) || getString(source.name, 'N/A'),
-        positionId: getNumber(source.positionId ?? positionSource?.id ?? mappedPositionSource?.id, NaN) || null,
+        id: getNumber(personRecord.id),
+        employeeName: getString(personRecord.employeeName) || getString(personRecord.fullName) || getString(personRecord.name, 'N/A'),
+        positionId: getNumber(personRecord.positionId ?? employeePositionSource?.id ?? positionSource?.id ?? mappedPositionSource?.id, NaN) || null,
         positionName: positionName || null,
         department,
         position,
@@ -303,6 +345,46 @@ const normalizeProgressUpdate = (update: unknown): PipProgressUpdate => {
   }
 }
 
+const normalizePipPerson = (person: unknown) => {
+  const source = isRecord(person) ? person : {}
+  return {
+    id: getNumber(source.id),
+    employeeName: getString(source.employeeName, 'N/A'),
+    employeeId: getOptionalString(source.employeeId),
+    departmentId: source.departmentId == null ? undefined : getNumber(source.departmentId),
+    departmentName: getOptionalString(source.departmentName),
+  }
+}
+
+const normalizeNote = (note: unknown): PipCommunicationNote => {
+  const source = isRecord(note) ? note : {}
+  const noteType = getString(source.noteType).trim().toUpperCase()
+  return {
+    id: getNumber(source.id),
+    pipId: getNumber(source.pipId),
+    content: getString(source.content),
+    noteType: noteType === 'FOLLOWUP' ? 'FOLLOWUP' : 'COMMUNICATION',
+    author: normalizePerson(source.author),
+    employee: isRecord(source.employee) ? normalizePipPerson(source.employee) : undefined,
+    manager: isRecord(source.manager) ? normalizePipPerson(source.manager) : undefined,
+    pipStatus: source.pipStatus ? normalizeStatus(source.pipStatus) : undefined,
+    createdAt: getString(source.createdAt ?? source.createdDate),
+    updatedAt: getOptionalString(source.updatedAt ?? source.updatedDate),
+  }
+}
+
+const normalizeNotesPage = (page: unknown): PipNotesPage => {
+  const source = isRecord(page) ? page : {}
+  return {
+    content: getArray(source.content).map(normalizeNote),
+    totalElements: getNumber(source.totalElements),
+    totalPages: getNumber(source.totalPages, 1),
+    currentPage: getNumber(source.currentPage ?? source.number),
+    size: getNumber(source.size, 10),
+    hasNext: Boolean(source.hasNext),
+  }
+}
+
 export const pipApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getPips: builder.query<Pip[], { departmentId?: number; positionId?: number; employeeName?: string; status?: string; startDate?: string; endDate?: string } | void>({
@@ -317,6 +399,38 @@ export const pipApi = baseApi.injectEndpoints({
       query: (id) => `/pips/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'PIP', id }],
       transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
+    }),
+    getPipNotes: builder.query<PipNotesPage, { pipId: number; noteType?: 'COMMUNICATION' | 'FOLLOWUP'; page?: number; size?: number }>({
+      query: ({ pipId, ...params }) => ({
+        url: `/pips/${pipId}/notes`,
+        params,
+      }),
+      providesTags: (_result, _error, { pipId }) => [{ type: 'PIPNote', id: pipId }],
+      transformResponse: (response: unknown) => normalizeNotesPage(getResponseData(response)),
+    }),
+    addPipNote: builder.mutation<PipCommunicationNote, { pipId: number; content: string; noteType?: 'COMMUNICATION' | 'FOLLOWUP' }>({
+      query: ({ pipId, content, noteType = 'COMMUNICATION' }) => ({
+        url: `/pips/${pipId}/notes`,
+        method: 'POST',
+        body: { content, noteType },
+      }),
+      invalidatesTags: (_result, _error, { pipId }) => [{ type: 'PIPNote', id: pipId }, 'PIPNote'],
+      transformResponse: (response: unknown) => normalizeNote(getResponseData(response)),
+    }),
+    getAllPipNotes: builder.query<PipNotesPage, { employeeId?: number; managerId?: number; departmentId?: number; employeeName?: string; noteType?: 'COMMUNICATION' | 'FOLLOWUP'; pipStatus?: string; dateFrom?: string; dateTo?: string; page?: number; size?: number } | void>({
+      query: (params) => ({
+        url: '/pips/notes',
+        params: params || undefined,
+      }),
+      providesTags: ['PIPNote'],
+      transformResponse: (response: unknown) => normalizeNotesPage(getResponseData(response)),
+    }),
+    deletePipNote: builder.mutation<void, { noteId: number; pipId?: number }>({
+      query: ({ noteId }) => ({
+        url: `/pips/notes/${noteId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { pipId }) => pipId ? [{ type: 'PIPNote', id: pipId }, 'PIPNote'] : ['PIPNote'],
     }),
     createPip: builder.mutation<Pip, { employeeId: number; startDate: string; endDate: string; totalHours: number; objectives: string[]; expectedImprovements?: string; reasonForPlan?: string }>({
       query: (body) => ({
@@ -405,6 +519,11 @@ export const pipApi = baseApi.injectEndpoints({
       query: (objectiveId) => `/pips/objectives/${objectiveId}/history`,
       transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeProgressUpdate),
     }),
+    getPipHistory: builder.query<PipProgressUpdate[], number>({
+      query: (pipId) => `/pips/${pipId}/history`,
+      providesTags: (_result, _error, pipId) => [{ type: 'PIP', id: pipId }],
+      transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeProgressUpdate),
+    }),
     getEligibleEmployees: builder.query<EligibleEmployee[], void>({
       query: () => '/pips/eligible-employees',
       transformResponse: (response: unknown) => getArray(getResponseData(response)) as EligibleEmployee[],
@@ -415,6 +534,10 @@ export const pipApi = baseApi.injectEndpoints({
 export const {
   useGetPipsQuery,
   useGetPipByIdQuery,
+  useGetPipNotesQuery,
+  useAddPipNoteMutation,
+  useGetAllPipNotesQuery,
+  useDeletePipNoteMutation,
   useCreatePipMutation,
   useUpdateProgressMutation,
   useScheduleMeetingMutation,
@@ -425,6 +548,8 @@ export const {
   useReopenPipMutation,
   useReviewPipMutation,
   useGetTrainingHistoryQuery,
+  useLazyGetTrainingHistoryQuery,
   useGetObjectiveHistoryQuery,
+  useGetPipHistoryQuery,
   useGetEligibleEmployeesQuery,
 } = pipApi

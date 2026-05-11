@@ -9,11 +9,18 @@ import com.epms.backend.dto.pip.MeetingScheduleRequest;
 import com.epms.backend.dto.pip.PipCloseRequest;
 import com.epms.backend.dto.pip.PipReopenRequest;
 import com.epms.backend.dto.pip.PipReviewRequest;
+import com.epms.backend.dto.pip.PipCommunicationNoteDto;
+import com.epms.backend.dto.pip.PipCommunicationNotePageDto;
+import com.epms.backend.dto.pip.PipCommunicationNoteRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.PipService;
 import com.epms.backend.repository.UserRepository;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -70,6 +77,57 @@ public class PipController {
             @PathVariable Long id) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         return ResponseEntity.ok(ApiResponse.ok("PIP retrieved successfully", pipService.getPipById(id, user)));
+    }
+
+    @GetMapping("/{id}/notes")
+    public ResponseEntity<ApiResponse<PipCommunicationNotePageDto>> getPipNotes(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @RequestParam(required = false) String noteType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), Sort.by(Sort.Direction.DESC, "createdDate"));
+        return ResponseEntity.ok(ApiResponse.ok("PIP notes retrieved successfully", pipService.getPipNotes(id, noteType, pageable, user)));
+    }
+
+    @PostMapping("/{id}/notes")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<PipCommunicationNoteDto>> addPipNote(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @RequestBody PipCommunicationNoteRequest request) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        return ResponseEntity.ok(ApiResponse.ok("PIP note added successfully", pipService.addPipNote(id, request, user)));
+    }
+
+    @GetMapping("/notes")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<ApiResponse<Page<PipCommunicationNoteDto>>> getAllPipNotes(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long managerId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String employeeName,
+            @RequestParam(required = false) String noteType,
+            @RequestParam(required = false) String pipStatus,
+            @RequestParam(required = false) LocalDate dateFrom,
+            @RequestParam(required = false) LocalDate dateTo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), Sort.by(Sort.Direction.DESC, "createdDate"));
+        return ResponseEntity.ok(ApiResponse.ok("PIP notes retrieved successfully",
+                pipService.getAllPipNotes(employeeId, managerId, departmentId, employeeName, noteType, pipStatus, dateFrom, dateTo, pageable, user)));
+    }
+
+    @DeleteMapping("/notes/{noteId}")
+    public ResponseEntity<ApiResponse<Void>> deletePipNote(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long noteId) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        pipService.deletePipNote(noteId, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP note deleted successfully", null));
     }
 
     @PutMapping("/objectives/{objectiveId}/progress")
@@ -169,6 +227,15 @@ public class PipController {
     public ResponseEntity<ApiResponse<List<PipProgressUpdate>>> getObjectiveHistory(@PathVariable Long objectiveId) {
         return ResponseEntity.ok(ApiResponse.ok("Objective history retrieved successfully",
                 pipService.getObjectiveHistory(objectiveId)));
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<ApiResponse<List<PipProgressUpdate>>> getPipHistory(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        return ResponseEntity.ok(ApiResponse.ok("PIP history retrieved successfully",
+                pipService.getPipHistory(id, user)));
     }
 
 }
