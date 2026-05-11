@@ -30,6 +30,7 @@ import com.epms.backend.repository.PipRepository;
 import com.epms.backend.repository.PipCommunicationNoteRepository;
 import com.epms.backend.repository.SignatureRepository;
 import com.epms.backend.repository.TrainingRecordRepository;
+import com.epms.backend.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class PipServiceProbationRuleTest {
@@ -53,6 +54,8 @@ class PipServiceProbationRuleTest {
 
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private UserRepository userRepository;
 
     private PipService pipService;
 
@@ -67,7 +70,8 @@ class PipServiceProbationRuleTest {
                 employeeRepository,
                 communicationNoteRepository,
                 signatureRepository,
-                notificationService);
+                notificationService,
+                userRepository);
     }
 
     @Test
