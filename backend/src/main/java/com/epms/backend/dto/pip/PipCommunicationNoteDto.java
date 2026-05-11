@@ -41,5 +41,7 @@ public class PipCommunicationNoteDto {
         private Long id;
         private String employeeName;
         private String employeeId;
+        private Long departmentId;
+        private String departmentName;
     }
 }

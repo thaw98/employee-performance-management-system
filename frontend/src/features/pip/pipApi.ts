@@ -24,6 +24,7 @@ export interface User {
     positionId?: number | null
     positionName?: string | null
     department?: {
+      id?: number
       departmentName: string
     }
     position?: {
@@ -104,11 +105,15 @@ export interface PipCommunicationNote {
     id: number
     employeeName: string
     employeeId?: string
+    departmentId?: number
+    departmentName?: string
   }
   manager?: {
     id: number
     employeeName: string
     employeeId?: string
+    departmentId?: number
+    departmentName?: string
   }
   pipStatus?: Pip['status']
   createdAt: string
@@ -210,6 +215,7 @@ const normalizePerson = (person: unknown): User => {
 
   const department = (employeeDepartmentSource ?? departmentSource)
     ? {
+      id: getNumber((employeeDepartmentSource ?? departmentSource)?.id),
       departmentName: getString((employeeDepartmentSource ?? departmentSource)?.departmentName) || getString((employeeDepartmentSource ?? departmentSource)?.name, 'N/A'),
     }
     : undefined
@@ -345,6 +351,8 @@ const normalizePipPerson = (person: unknown) => {
     id: getNumber(source.id),
     employeeName: getString(source.employeeName, 'N/A'),
     employeeId: getOptionalString(source.employeeId),
+    departmentId: source.departmentId == null ? undefined : getNumber(source.departmentId),
+    departmentName: getOptionalString(source.departmentName),
   }
 }
 
@@ -409,7 +417,7 @@ export const pipApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { pipId }) => [{ type: 'PIPNote', id: pipId }, 'PIPNote'],
       transformResponse: (response: unknown) => normalizeNote(getResponseData(response)),
     }),
-    getAllPipNotes: builder.query<PipNotesPage, { employeeId?: number; managerId?: number; employeeName?: string; pipStatus?: string; dateFrom?: string; dateTo?: string; page?: number; size?: number } | void>({
+    getAllPipNotes: builder.query<PipNotesPage, { employeeId?: number; managerId?: number; departmentId?: number; employeeName?: string; noteType?: 'COMMUNICATION' | 'FOLLOWUP'; pipStatus?: string; dateFrom?: string; dateTo?: string; page?: number; size?: number } | void>({
       query: (params) => ({
         url: '/pips/notes',
         params: params || undefined,
@@ -540,6 +548,7 @@ export const {
   useReopenPipMutation,
   useReviewPipMutation,
   useGetTrainingHistoryQuery,
+  useLazyGetTrainingHistoryQuery,
   useGetObjectiveHistoryQuery,
   useGetPipHistoryQuery,
   useGetEligibleEmployeesQuery,

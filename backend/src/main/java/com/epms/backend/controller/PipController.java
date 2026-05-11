@@ -107,7 +107,9 @@ public class PipController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) Long employeeId,
             @RequestParam(required = false) Long managerId,
+            @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) String employeeName,
+            @RequestParam(required = false) String noteType,
             @RequestParam(required = false) String pipStatus,
             @RequestParam(required = false) LocalDate dateFrom,
             @RequestParam(required = false) LocalDate dateTo,
@@ -116,7 +118,7 @@ public class PipController {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), Sort.by(Sort.Direction.DESC, "createdDate"));
         return ResponseEntity.ok(ApiResponse.ok("PIP notes retrieved successfully",
-                pipService.getAllPipNotes(employeeId, managerId, employeeName, pipStatus, dateFrom, dateTo, pageable, user)));
+                pipService.getAllPipNotes(employeeId, managerId, departmentId, employeeName, noteType, pipStatus, dateFrom, dateTo, pageable, user)));
     }
 
     @DeleteMapping("/notes/{noteId}")

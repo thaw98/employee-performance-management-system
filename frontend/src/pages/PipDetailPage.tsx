@@ -75,6 +75,7 @@ export default function PipDetailPage() {
   const [showReviewDenyModal, setShowReviewDenyModal] = useState(false)
   const [showApproveReopenModal, setShowApproveReopenModal] = useState(false)
   const [extendedEndDate, setExtendedEndDate] = useState('')
+  const [minReopenApprovalDate] = useState(() => new Date(Date.now() + 86400000).toISOString().split('T')[0])
   const [reviewReasonType, setReviewReasonType] = useState('Policy Not Met')
   const [reviewCustomReason, setReviewCustomReason] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
@@ -90,7 +91,7 @@ export default function PipDetailPage() {
       : '/manager/settings/signature'
   const getStatusLabel = (status: string) => {
     if (status === 'COMPLETED') return 'Completed'
-    if (status === 'AUTO_CLOSED') return 'Auto Closed'
+    if (status === 'AUTO_CLOSED') return 'auto-close'
     if (status === 'REOPEN_REQUESTED') return 'Reopen Requested'
     return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
   }
@@ -442,9 +443,9 @@ export default function PipDetailPage() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Objectives Section */}
         <div className="lg:col-span-2 space-y-8">
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="max-h-[520px] overflow-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-lg font-bold text-slate-900">Improvement Objectives</h2>
-            <div className="space-y-8">
+            <div className="min-w-[760px] space-y-8">
               {pip.objectives.map((obj) => (
                 <div key={obj.id} className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -537,7 +538,7 @@ export default function PipDetailPage() {
           <PipUnifiedLog pipId={pip.id} />
 
           {/* Training History Section */}
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="max-h-[560px] overflow-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-bold text-slate-900">Training & Development History</h2>
               <div className="inline-flex w-fit rounded-lg border border-slate-200 bg-slate-50 p-1">
@@ -562,7 +563,7 @@ export default function PipDetailPage() {
                 <p className="py-4 text-center text-slate-500">Loading training records...</p>
               )}
               {!isTrainingHistoryLoading && filteredTrainingHistory.length > 0 && (
-                <div className="overflow-x-auto">
+                <div className="min-w-[980px]">
                   <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
                     <thead>
                       <tr className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -1041,7 +1042,7 @@ export default function PipDetailPage() {
               <label className="block text-sm font-medium text-slate-700">Extended End Date</label>
               <input
                 type="date"
-                min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                min={minReopenApprovalDate}
                 className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
                 value={extendedEndDate}
                 onChange={(e) => setExtendedEndDate(e.target.value)}
