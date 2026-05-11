@@ -5,7 +5,7 @@ import { logout } from '../../features/auth/authSlice'
 import { useGetProfileQuery } from '../../features/user/userApi'
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
 import { getRoleGroup } from '../../utils/dashboardRedirect'
-import { ChevronDown, User, Settings, LogOut, Shield, PenLine } from 'lucide-react'
+import { ChevronDown, User, Settings, LogOut, PenLine } from 'lucide-react'
 
 export function ProfileDropdown() {
   const dispatch = useAppDispatch()
@@ -38,7 +38,7 @@ export function ProfileDropdown() {
   const roleGroup = tokenUser ? getRoleGroup(tokenUser) : null
   const rolePrefix =
     roleGroup === 'HR' ? '/hr' : roleGroup === 'MANAGER' ? '/manager' : '/employee'
-  const profileSettingsPath = `${rolePrefix}/settings/profile`
+  const profilePath = `${rolePrefix}/profile`
   const signatureSettingsPath = `${rolePrefix}/settings/signature`
   const systemSettingsPath = `${rolePrefix}/settings/system`
 
@@ -81,14 +81,14 @@ export function ProfileDropdown() {
 
           <div className="px-2 space-y-1">
             <Link
-              to={profileSettingsPath}
+              to={profilePath}
               className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-all group"
               onClick={() => setIsOpen(false)}
             >
               <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
                 <User size={18} />
               </div>
-              User Settings
+              User Profile
             </Link>
 
             <Link

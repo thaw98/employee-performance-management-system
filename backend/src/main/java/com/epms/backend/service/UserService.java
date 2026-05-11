@@ -176,22 +176,58 @@ public class UserService {
     }
 
     private UserProfileDto toUserProfileDto(User user) {
-        String profilePictureUrl = user.getEmployee().getProfilePictureUrl();
+        Employee employee = user.getEmployee();
+        String profilePictureUrl = employee != null ? employee.getProfilePictureUrl() : null;
         if (profilePictureUrl != null && !profilePictureStorageService.isAvailable(profilePictureUrl)) {
             profilePictureUrl = null;
         }
+        String employeeName = employee != null ? employee.getEmployeeName() : null;
         return new UserProfileDto(
                 user.getId(),
-                String.valueOf(user.getEmployee().getId()),
-                user.getEmployee().getEmployeeName(),
+                employee != null && employee.getId() != null ? String.valueOf(employee.getId()) : null,
+                employeeName,
                 user.getEmail(),
-                user.getRole().getName(),
-                user.getRole().getId(),
+                user.getRole() != null ? user.getRole().getName() : null,
+                user.getRole() != null ? user.getRole().getId() : null,
                 profilePictureUrl,
                 user.getTheme(),
                 user.getWallpaperUrl(),
                 user.getLanguage(),
                 user.getTimezone(),
-                user.getTimeFormat());
+                user.getTimeFormat(),
+                employee != null ? employee.getEmployeeId() : null,
+                employeeName,
+                resolveDepartmentName(employee),
+                resolvePositionName(employee),
+                employee != null && employee.getEmploymentStatus() != null ? employee.getEmploymentStatus().name() : null,
+                employee != null && employee.getGender() != null ? employee.getGender().name() : null,
+                employee != null ? employee.getStaffNrcNo() : null,
+                employee != null ? employee.getDateOfJoining() : null);
+    }
+
+    private String resolveDepartmentName(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        if (employee.getDepartmentPosition() != null && employee.getDepartmentPosition().getDepartment() != null) {
+            return employee.getDepartmentPosition().getDepartment().getName();
+        }
+        if (employee.getDepartment() != null) {
+            return employee.getDepartment().getName();
+        }
+        return null;
+    }
+
+    private String resolvePositionName(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        if (employee.getDepartmentPosition() != null && employee.getDepartmentPosition().getPosition() != null) {
+            return employee.getDepartmentPosition().getPosition().getName();
+        }
+        if (employee.getPosition() != null) {
+            return employee.getPosition().getName();
+        }
+        return null;
     }
 }

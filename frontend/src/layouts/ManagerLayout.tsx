@@ -18,7 +18,6 @@ import {
   ListChecks,
   SlidersHorizontal,
   Settings,
-  User,
   PenLine,
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
@@ -89,9 +88,8 @@ const ManagerLayout: React.FC = () => {
     {
       icon: <Settings size={20} />,
       label: 'Settings',
-      path: '/manager/settings/profile',
+      path: '/manager/settings/signature',
       subItems: [
-        { label: 'Profile', path: '/manager/settings/profile', icon: <User size={16} className="shrink-0" /> },
         { label: 'Signature', path: '/manager/settings/signature', icon: <PenLine size={16} className="shrink-0" /> },
         { label: 'System', path: '/manager/settings/system', icon: <Settings size={16} className="shrink-0" /> },
       ]

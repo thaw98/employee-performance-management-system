@@ -28,7 +28,7 @@ import { EmployeeAppraisalsPage } from './pages/employee/EmployeeAppraisalsPage'
 import { EmployeeAppraisalViewPage } from './pages/employee/EmployeeAppraisalViewPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
-import { ProfileSettingsPage } from './pages/ProfileSettingsPage';
+import { UserProfilePage } from './pages/UserProfilePage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
 import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 
@@ -168,7 +168,8 @@ function App() {
             <Route path="kpi-history" element={<KpiHistoryPage />} />
             <Route path="kpi-audit-logs" element={<KpiAuditLogsPage />} />
             <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
-            <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="profile" element={<UserProfilePage />} />
+            <Route path="settings/profile" element={<Navigate to="/hr/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
@@ -214,7 +215,8 @@ function App() {
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
-            <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="profile" element={<UserProfilePage />} />
+            <Route path="settings/profile" element={<Navigate to="/manager/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
@@ -241,7 +243,8 @@ function App() {
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
-            <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="profile" element={<UserProfilePage />} />
+            <Route path="settings/profile" element={<Navigate to="/employee/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment-forms" element={<EmployeeSelfAssessmentHubPage />} />
