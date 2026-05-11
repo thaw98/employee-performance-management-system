@@ -24,6 +24,7 @@ public class AppraisalService {
     private final AppraisalAssignmentRepository assignmentRepository;
     private final EmployeeReportingHistoryRepository reportingHistoryRepository;
     private final AppraisalCycleRepository appraisalCycleRepository;
+    private final ReviewCycleRepository reviewCycleRepository;
     private final EmployeeRepository employeeRepository;
     // private final ReportingManagerResolver reportingManagerResolver;
 
@@ -49,12 +50,27 @@ public class AppraisalService {
         List<AppraisalCycle> activeCycles = appraisalCycleRepository.findByStatusIgnoreCase("Active");
         AppraisalCycle activeCycle = activeCycles.isEmpty() ? null : activeCycles.get(activeCycles.size() - 1);
 
+        if (template.getReviewCycleId() != null) {
+            ReviewCycle rc = reviewCycleRepository.findById(template.getReviewCycleId()).orElse(null);
+            if (rc != null) {
+                activeCycle = appraisalCycleRepository.findByName(rc.getName()).stream().findFirst().orElse(null);
+                if (activeCycle == null) {
+                    activeCycle = new AppraisalCycle();
+                    activeCycle.setName(rc.getName());
+                    activeCycle.setStatus("Active");
+                    activeCycle.setStartDate(rc.getStartDate());
+                    activeCycle.setEndDate(rc.getEndDate());
+                    activeCycle = appraisalCycleRepository.save(activeCycle);
+                }
+            }
+        }
+
         if (activeCycle == null) {
             AppraisalCycle cycle = new AppraisalCycle();
-            cycle.setName("Annual Appraisal " + java.time.LocalDate.now().getYear());
+            cycle.setName(template.getName() != null ? template.getName() : "Annual Appraisal " + java.time.LocalDate.now().getYear());
             cycle.setStatus("Active");
             cycle.setStartDate(java.time.LocalDate.now());
-            cycle.setEndDate(java.time.LocalDate.now().plusMonths(1));
+            cycle.setEndDate(template.getDeadlineDate() != null ? template.getDeadlineDate() : java.time.LocalDate.now().plusMonths(1));
             activeCycle = appraisalCycleRepository.save(cycle);
         }
 
@@ -77,10 +93,7 @@ public class AppraisalService {
                 continue;
             }
 
-            List<Employee> employees = employeeRepository.findByDepartment_IdAndPosition_Id(
-                    mapping.getDepartment().getId(), 
-                    mapping.getPosition().getId()
-            );
+            List<Employee> employees = employeeRepository.findByDepartmentPosition_Id(mapping.getId());
             for (Employee employee : employees) {
                 // Skip if the employee is the department head themselves
                 if (employee.getId().equals(departmentHead.getId())) continue;
@@ -227,6 +240,8 @@ public class AppraisalService {
         }
 
         template.setMaxRating(dto.getMaxRating() != null ? dto.getMaxRating() : 5);
+        template.setDeadlineDate(dto.getDeadlineDate());
+        template.setReviewCycleId(dto.getReviewCycleId());
 
         return mapToTemplateDto(templateRepository.save(template));
     }
@@ -253,6 +268,8 @@ public class AppraisalService {
         dto.setName(t.getName());
         dto.setAssessmentDate(t.getAssessmentDate());
         dto.setEffectiveDate(t.getEffectiveDate());
+        dto.setDeadlineDate(t.getDeadlineDate());
+        dto.setReviewCycleId(t.getReviewCycleId());
         dto.setIsActive(t.getIsActive());
         dto.setCategoryIds(t.getCategories().stream().map(AppraisalCategory::getId).collect(Collectors.toList()));
         if (t.getTargetDepartmentPositions() != null) {
@@ -260,6 +277,7 @@ public class AppraisalService {
                     .collect(Collectors.toList()));
         }
         dto.setMaxRating(t.getMaxRating());
+        dto.setCreatedAt(t.getCreatedAt());
         return dto;
     }
 

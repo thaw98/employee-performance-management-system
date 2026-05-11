@@ -31,7 +31,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @JsonIgnoreProperties({
     "hibernateLazyInitializer", "handler",
-    "position",
     "staffType",
     "father",
     "spouse",

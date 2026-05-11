@@ -13,7 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/appraisal-assignments")
 @RequiredArgsConstructor
-@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'EMPLOYEE')")
 public class AppraisalAssignmentController {
 
     private final AppraisalAssignmentService appraisalAssignmentService;
@@ -24,7 +24,14 @@ public class AppraisalAssignmentController {
         return ResponseEntity.ok(ApiResponse.ok("Fetched all assignments", appraisalAssignmentService.getAllAssignments()));
     }
 
+    @GetMapping("/my-assignments")
+    public ResponseEntity<ApiResponse<List<AppraisalAssignment>>> getMyAssignments(Authentication auth) {
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok("Fetched my assignments", appraisalAssignmentService.getAssignmentsForEmployee(principal.getEmployeeDbId())));
+    }
+
     @GetMapping("/my-team")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
     public ResponseEntity<ApiResponse<List<AppraisalAssignment>>> getMyTeamAssignments(Authentication auth) {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         System.out.println("DEBUG: Fetching team assignments for evaluator ID: " + principal.getEmployeeDbId() + " (User: " + principal.getName() + ")");
