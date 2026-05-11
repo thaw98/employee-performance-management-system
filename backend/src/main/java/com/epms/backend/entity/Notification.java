@@ -26,6 +26,9 @@ public class Notification {
     @Column(nullable = false, length = 50)
     private String source = "GENERAL";
 
+    @Column(name = "target_id")
+    private Long targetId;
+
     @Column(columnDefinition = "text", nullable = false)
     private String message;
 

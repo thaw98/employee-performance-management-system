@@ -10,5 +10,7 @@ public record AnswerDto(
         String managerProposedYesNo,
         Integer managerProposedRating,
         String managerProposedComment,
-        Boolean hrAdjustmentApproved
+        Boolean hrAdjustmentApproved,
+        String finalApprovedYesNo,
+        Integer finalApprovedRating
 ) {}

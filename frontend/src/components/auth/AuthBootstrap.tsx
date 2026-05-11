@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { baseApi } from '../../app/baseApi';
 import { useLazyGetMeQuery } from '../../features/auth/authApi';
 import { updateUser, logout } from '../../features/auth/authSlice';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
@@ -13,22 +14,35 @@ export function AuthBootstrap() {
     const navigate = useNavigate();
     const { token, user, expiresAt, isAuthenticated } = useAppSelector((state) => state.auth);
     const [getMe] = useLazyGetMeQuery();
-    const attempted = useRef(false);
+    const attemptedTokenRef = useRef<string | null>(null);
+    const activeAccountRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (isAuthenticated && token) {
+        const accountKey = isAuthenticated && token && user
+            ? `${user.id}:${token}`
+            : null;
+
+        if (activeAccountRef.current === accountKey) {
+            return;
+        }
+
+        activeAccountRef.current = accountKey;
+        dispatch(resetNotifications());
+
+        if (accountKey && token) {
+            // Ensure notifications are re-fetched for the active account.
+            dispatch(baseApi.util.invalidateTags(['Notification']));
             websocketService.connect(token, dispatch);
         } else {
             websocketService.disconnect();
-            dispatch(resetNotifications());
         }
 
         return () => {
-            if (!isAuthenticated || !token) {
+            if (!accountKey) {
                 websocketService.disconnect();
             }
         };
-    }, [dispatch, isAuthenticated, token]);
+    }, [dispatch, isAuthenticated, token, user]);
 
     useEffect(() => {
         if (token && !expiresAt) {
@@ -66,10 +80,10 @@ export function AuthBootstrap() {
     }, [dispatch, expiresAt, isAuthenticated, navigate, token]);
 
     useEffect(() => {
-        if (!isAuthenticated || !token || attempted.current) {
+        if (!isAuthenticated || !token || attemptedTokenRef.current === token) {
             return;
         }
-        attempted.current = true;
+        attemptedTokenRef.current = token;
 
         getMe()
             .unwrap()

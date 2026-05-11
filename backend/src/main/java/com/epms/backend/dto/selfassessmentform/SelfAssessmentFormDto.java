@@ -12,6 +12,7 @@ public record SelfAssessmentFormDto(
         String title,
         String ratingSystem,
         Integer tenPointYesMinRating,
+        LocalDate startDate,
         LocalDate deadlineDate,
         LocalDate managerReviewDeadlineDate,
         LocalDate finalApprovalDeadlineDate,
@@ -40,5 +41,12 @@ public record SelfAssessmentFormDto(
         LocalDate assessmentDate,
         EmployeeInfoDto employee,
         List<AnswerDto> answers,
-        List<AdjustmentDto> adjustments
+        List<AdjustmentDto> adjustments,
+        Double managerRevisedTotalScore,
+        Double finalApprovedTotalScore,
+        Instant employeeAcknowledgedAt,
+        Instant employeeDisputedAt,
+        String employeeDisputeReason,
+        Boolean hrReviewRequired,
+        String hrReviewReason
 ) {}

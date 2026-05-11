@@ -680,7 +680,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     question.questionText.toLowerCase().includes(questionBankSearch.trim().toLowerCase())
   );
 
-  const { register, control, handleSubmit, getValues, reset } = useForm<QuestionFormData>({
+  const { register, control, handleSubmit, getValues, reset, setValue } = useForm<QuestionFormData>({
     defaultValues: {
       title: '',
       questions: [{ questionText: '' }],
@@ -849,7 +849,12 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
       toast.error('This question is already in the form');
       return;
     }
-    append({ questionText: trimmed });
+    const firstEmptyIndex = existing.findIndex((q) => !q.questionText.trim());
+    if (firstEmptyIndex !== -1) {
+      setValue(`questions.${firstEmptyIndex}.questionText`, trimmed, { shouldDirty: true, shouldValidate: true });
+    } else {
+      append({ questionText: trimmed });
+    }
     setIsQuestionBankOpen(false);
     setQuestionBankSearch('');
     toast.success('Question added to form');
@@ -1055,7 +1060,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                       const value = event.target.value;
                       setSelectedReviewCycleId(value ? Number(value) : null);
                     }}
-                    className={`${selectBase} max-w-xl`}
+                    className="max-w-xl w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#5D5FEF] focus:outline-none focus:ring-1 focus:ring-[#5D5FEF] dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                   >
                     {selectableReviewCycles.map((cycle) => {
                       const suffix = reviewCycleOptionSuffix(cycle.status);

@@ -41,6 +41,9 @@ public class SelfAssessmentForm {
     @Column(name = "ten_point_yes_min_rating", nullable = false)
     private Integer tenPointYesMinRating = SelfAssessmentRatingSystem.DEFAULT_TEN_POINT_YES_MIN_RATING;
 
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
     @Column(name = "deadline_date")
     private LocalDate deadlineDate;
 
@@ -108,6 +111,36 @@ public class SelfAssessmentForm {
 
     @Column(name = "hr_adjustment_signature_date")
     private Instant hrAdjustmentSignatureDate;
+
+    @Column(name = "manager_revised_total_score", precision = 10)
+    private Double managerRevisedTotalScore;
+
+    @Column(name = "final_approved_total_score", precision = 10)
+    private Double finalApprovedTotalScore;
+
+    @Column(name = "employee_acknowledged_at")
+    private Instant employeeAcknowledgedAt;
+
+    @Column(name = "employee_disputed_at")
+    private Instant employeeDisputedAt;
+
+    @Column(name = "employee_dispute_reason", columnDefinition = "TEXT")
+    private String employeeDisputeReason;
+
+    @Column(name = "hr_review_required")
+    private Boolean hrReviewRequired;
+
+    @Column(name = "hr_review_reason", columnDefinition = "TEXT")
+    private String hrReviewReason;
+
+    @Column(name = "requires_hr_review")
+    private Boolean requiresHrReview;
+
+    @Column(name = "affects_compensation_or_pip")
+    private Boolean affectsCompensationOrPip;
+
+    @Column(name = "company_policy_requires_hr_approval")
+    private Boolean companyPolicyRequiresHrApproval;
 
     @Column(name = "created_date")
     private Instant createdDate;

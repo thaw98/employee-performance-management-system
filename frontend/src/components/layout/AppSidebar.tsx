@@ -103,8 +103,9 @@ export function AppSidebar() {
             { name: 'Assignments', path: '/hr/self-assessment/assignments', icon: 'bi-clipboard-check' },
             { name: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: 'bi-inbox' },
 
-            { name: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: 'bi-list-check' },
-            { name: 'Self Assessment Settings', path: '/hr/self-assessment/settings', icon: 'bi-gear' },
+            { name: 'Form Queue', path: '/hr/self-assessment/review-queue', icon: 'bi-list-check' },
+            { name: 'Score Records', path: '/hr/self-assessment/score-records', icon: 'bi-bar-chart' },
+            
           ],
         }] : []),
         { name: 'PIP Monitoring', path: '/hr/pip-monitoring', icon: 'bi-exclamation-triangle', end: false },

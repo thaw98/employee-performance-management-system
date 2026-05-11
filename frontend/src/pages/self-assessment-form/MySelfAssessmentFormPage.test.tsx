@@ -2,8 +2,17 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MySelfAssessmentFormPage } from './MySelfAssessmentFormPage'
+import { toast } from 'react-hot-toast'
 
 const mocks = vi.hoisted(() => {
+  const formStatus = {
+    status: 'DRAFT',
+    isEligible: true,
+    hasActiveTemplate: true,
+    deadlinePassed: false,
+    message: null as string | null,
+  }
+
   const editableFormData = {
     id: 1,
     templateId: 10,
@@ -65,6 +74,13 @@ const mocks = vi.hoisted(() => {
       },
     ],
     adjustments: [],
+    managerRevisedTotalScore: null as number | null,
+    finalApprovedTotalScore: null as number | null,
+    employeeAcknowledgedAt: null,
+    employeeDisputedAt: null,
+    employeeDisputeReason: null,
+    hrReviewRequired: null,
+    hrReviewReason: null,
   }
 
   return {
@@ -74,11 +90,14 @@ const mocks = vi.hoisted(() => {
       lastError: null as Error | null,
       hasPendingChanges: true,
     },
+    formStatus,
     editableFormData,
     flush: vi.fn(),
     refetch: vi.fn(),
     saveDraft: vi.fn(),
     submitForm: vi.fn(),
+    employeeAcknowledge: vi.fn(),
+    employeeDispute: vi.fn(),
   }
 })
 
@@ -120,13 +139,7 @@ vi.mock('react-hot-toast', () => ({
 
 vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   useGetMyFormStatusQuery: () => ({
-    data: {
-      status: 'DRAFT',
-      isEligible: true,
-      hasActiveTemplate: true,
-      deadlinePassed: false,
-      message: null,
-    },
+    data: mocks.formStatus,
     isLoading: false,
   }),
   useGetMyCurrentFormQuery: () => ({
@@ -136,6 +149,8 @@ vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   }),
   useSaveDraftMutation: () => [mocks.saveDraft, { isLoading: false }],
   useSubmitFormMutation: () => [mocks.submitForm, { isLoading: false }],
+  useEmployeeAcknowledgeMutation: () => [mocks.employeeAcknowledge, { isLoading: false }],
+  useEmployeeDisputeMutation: () => [mocks.employeeDispute, { isLoading: false }],
 }))
 
 vi.mock('../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker', () => ({
@@ -163,7 +178,22 @@ describe('MySelfAssessmentFormPage autosave', () => {
     mocks.saveDraft.mockReturnValue({ unwrap: () => Promise.resolve({}) })
     mocks.submitForm.mockReset()
     mocks.submitForm.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+    mocks.employeeAcknowledge.mockReset()
+    mocks.employeeDispute.mockReset()
+    mocks.formStatus.status = 'DRAFT'
+    mocks.formStatus.isEligible = true
+    mocks.formStatus.hasActiveTemplate = true
+    mocks.formStatus.deadlinePassed = false
+    mocks.formStatus.message = null
     mocks.editableFormData.status = 'DRAFT'
+    mocks.editableFormData.totalScore = null
+    mocks.editableFormData.managerRevisedTotalScore = null
+    mocks.editableFormData.managerComments = null
+    mocks.editableFormData.answers[0].yesNoAnswer = null
+    mocks.editableFormData.answers[0].rating = null
+    mocks.editableFormData.answers[0].managerProposedYesNo = null
+    mocks.editableFormData.answers[0].managerProposedRating = null
+    mocks.editableFormData.answers[0].managerProposedComment = null
   })
 
   it('configures react-hook-form autosave for editable drafts', async () => {
@@ -221,4 +251,52 @@ describe('MySelfAssessmentFormPage autosave', () => {
     ).toBe(false)
     expect(screen.queryByRole('button', { name: 'Save Now' })).toBeNull()
   })
+
+  it('disables submit when rating is missing after Yes/No is selected', async () => {
+    const user = userEvent.setup()
+    render(<MySelfAssessmentFormPage />)
+
+    await user.click(await screen.findByRole('button', { name: 'Yes' }))
+    expect(screen.getByRole('button', { name: 'Submit Assessment' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Confirm Submit' })).toBeNull()
+    expect(mocks.submitForm).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('shows manager review actions for expired forms pending employee review', async () => {
+    mocks.formStatus.status = 'PENDING_EMPLOYEE_REVIEW'
+    mocks.formStatus.deadlinePassed = true
+    mocks.editableFormData.status = 'PENDING_EMPLOYEE_REVIEW'
+    mocks.editableFormData.totalScore = 80
+    mocks.editableFormData.managerRevisedTotalScore = 70
+    mocks.editableFormData.answers[0].yesNoAnswer = 'Yes'
+    mocks.editableFormData.answers[0].rating = 4
+    mocks.editableFormData.answers[0].managerProposedYesNo = 'No'
+    mocks.editableFormData.answers[0].managerProposedRating = 3
+    mocks.editableFormData.answers[0].managerProposedComment = 'Needs stronger evidence'
+
+    render(<MySelfAssessmentFormPage />)
+
+    expect(await screen.findByText('Manager Review Completed')).toBeTruthy()
+    expect(screen.getAllByText('Manager Revised Score').length).toBeGreaterThan(0)
+    expect(screen.getByText('Needs stronger evidence')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Dispute' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Acknowledge' })).toBeTruthy()
+    expect(screen.queryByText('Deadline Passed')).toBeNull()
+  })
+
+  it.each(['DRAFT', 'NOT_SUBMITTED'])(
+    'shows the deadline-passed state for expired %s forms',
+    async (status) => {
+      mocks.formStatus.status = status
+      mocks.formStatus.deadlinePassed = true
+      mocks.editableFormData.status = status
+
+      render(<MySelfAssessmentFormPage />)
+
+      expect(await screen.findByText('Deadline Passed')).toBeTruthy()
+      expect(screen.queryByText('Manager Review Completed')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Save Now' })).toBeNull()
+    },
+  )
 })

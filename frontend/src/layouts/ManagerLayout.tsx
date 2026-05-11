@@ -72,7 +72,8 @@ const ManagerLayout: React.FC = () => {
       subItems: [
         { label: 'Templates', path: '/manager/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
 
-        { label: 'Review Forms', path: '/manager/self-assessment-forms/reviews', icon: <ListChecks size={16} className="shrink-0" /> }
+        { label: 'Form Queue', path: '/manager/self-assessment-forms/review-queue', icon: <ListChecks size={16} className="shrink-0" /> },
+        { label: 'Score Records', path: '/manager/self-assessment-forms/score-records', icon: <BarChart size={16} className="shrink-0" /> }
       ]
     },
     {

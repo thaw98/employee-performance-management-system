@@ -2,6 +2,8 @@ package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.selfassessmentform.*;
+import com.epms.backend.dto.selfassessmentform.ScoreRecordDto;
+import com.epms.backend.dto.selfassessmentform.EmployeeDisputeRequest;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.security.UserPrincipal;
@@ -106,6 +108,18 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @GetMapping("/score-records")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
+    public ResponseEntity<ApiResponse<List<ScoreRecordDto>>> getScoreRecords(@AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee employee = getEmployeeFromPrincipal(principal);
+            List<ScoreRecordDto> records = selfAssessmentFormService.getScoreRecords(employee, principal.getRoleId());
+            return ResponseEntity.ok(ApiResponse.ok("Score records retrieved", records));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @GetMapping("/hr/active-cycle")
     @PreAuthorize("principal.roleId == 1")
     public ResponseEntity<ApiResponse<ActiveCycleFormsDto>> getActiveCycleFormsForHr(@AuthenticationPrincipal UserPrincipal principal) {
@@ -164,6 +178,33 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @PostMapping("/{id}/acknowledge")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> employeeAcknowledge(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee employee = getEmployeeFromPrincipal(principal);
+            SelfAssessmentFormDto form = selfAssessmentFormService.employeeAcknowledge(id, employee);
+            return ResponseEntity.ok(ApiResponse.ok("Acknowledged successfully", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/dispute")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> employeeDispute(
+            @PathVariable Long id,
+            @Valid @RequestBody EmployeeDisputeRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee employee = getEmployeeFromPrincipal(principal);
+            SelfAssessmentFormDto form = selfAssessmentFormService.employeeDispute(id, employee, request);
+            return ResponseEntity.ok(ApiResponse.ok("Dispute submitted successfully", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/manager-review")
     @PreAuthorize("principal.roleId == 2")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> managerReview(
@@ -202,6 +243,20 @@ public class SelfAssessmentFormController {
         try {
             SelfAssessmentFormDto form = selfAssessmentFormService.hrRejectManagerReview(id, request, principal.getId());
             return ResponseEntity.ok(ApiResponse.ok("Manager review rejected", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/hr-return-disputed-review")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrReturnDisputedReview(
+            @PathVariable Long id,
+            @Valid @RequestBody HrReturnDisputedReviewRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SelfAssessmentFormDto form = selfAssessmentFormService.hrReturnDisputedReview(id, request, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Disputed review returned to manager", form));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }

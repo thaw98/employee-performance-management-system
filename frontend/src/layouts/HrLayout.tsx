@@ -121,8 +121,8 @@ const HrLayout: React.FC = () => {
         { label: 'Assignments', path: '/hr/self-assessment/assignments', icon: <ClipboardList size={16} className="shrink-0" /> },
         { label: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: <Inbox size={16} className="shrink-0" /> },
 
-        { label: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: <ListChecks size={16} className="shrink-0" /> },
-        { label: 'Self Assessment Settings', path: '/hr/self-assessment/settings', icon: <Settings2 size={16} className="shrink-0" /> }
+        { label: 'Form Queue', path: '/hr/self-assessment/review-queue', icon: <ListChecks size={16} className="shrink-0" /> },
+        { label: 'Score Records', path: '/hr/self-assessment/score-records', icon: <BarChart size={16} className="shrink-0" /> },
       ]
     },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/hr/meetings' },

@@ -10,6 +10,8 @@ public record SelfAssessmentAssignmentRequest(
         @NotBlank String assignmentMode,
         List<Long> departmentIds,
         List<Long> positionIds,
+        List<Long> employeeIds,
+        @NotNull LocalDate startDate,
         @NotNull LocalDate deadlineDate,
         @NotNull LocalDate managerReviewDeadlineDate
 ) {

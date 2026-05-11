@@ -49,6 +49,8 @@ import {
   useGetQuestionBankQuery,
   useUpdateTemplateMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
+import { formatCycleDate } from './SelfAssessmentReviewCycleInfo';
 
 interface QuestionFormData {
   title: string;
@@ -231,7 +233,7 @@ const inputBase =
   'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 read-only:cursor-default read-only:bg-slate-50 read-only:text-slate-500 read-only:shadow-none read-only:focus:ring-0 dark:read-only:bg-slate-900/50 dark:read-only:text-slate-400';
 
 const selectBase =
-  'w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 disabled:cursor-not-allowed disabled:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF] dark:disabled:bg-slate-900';
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#5D5FEF] focus:outline-none focus:ring-1 focus:ring-[#5D5FEF] disabled:cursor-not-allowed disabled:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:disabled:bg-slate-900';
 
 const StepBadge: React.FC<{ step: number; label: string; icon: React.ReactNode }> = ({ step, label, icon }) => (
   <div className="flex items-center gap-3">
@@ -302,12 +304,31 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
     { includeInactive: false },
     { skip: !isQuestionBankOpen }
   );
+  const { data: reviewCycles = [] } = useGetReviewCyclesQuery();
 
   const filteredQuestionBank = questionBank.filter((question) =>
     question.questionText.toLowerCase().includes(questionBankSearch.trim().toLowerCase())
   );
+  const selectedReviewCycle = React.useMemo(() => {
+    if (!loadedTemplate?.reviewCycleId) {
+      return null;
+    }
+    return reviewCycles.find((cycle) => cycle.id === loadedTemplate.reviewCycleId) ?? null;
+  }, [loadedTemplate?.reviewCycleId, reviewCycles]);
+  const selectedReviewCycleDurationDays = React.useMemo(() => {
+    if (!selectedReviewCycle) {
+      return null;
+    }
+    const start = new Date(`${selectedReviewCycle.startDate}T00:00:00Z`);
+    const end = new Date(`${selectedReviewCycle.endDate}T00:00:00Z`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+      return null;
+    }
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    return Math.floor((end.getTime() - start.getTime()) / oneDayMs) + 1;
+  }, [selectedReviewCycle]);
 
-  const { register, control, handleSubmit, reset, watch, getValues } = useForm<QuestionFormData>({
+  const { register, control, handleSubmit, reset, watch, getValues, setValue } = useForm<QuestionFormData>({
     defaultValues: {
       title: '',
       questions: [{ questionText: '' }],
@@ -425,7 +446,12 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
       toast.error('This question is already in the form');
       return;
     }
-    append({ questionText: trimmed, canEdit: true, canDeactivate: true, isManagerAdded: isManager });
+    const firstEmptyIndex = existing.findIndex((q) => !q.questionText.trim());
+    if (firstEmptyIndex !== -1) {
+      setValue(`questions.${firstEmptyIndex}.questionText`, trimmed, { shouldDirty: true, shouldValidate: true });
+    } else {
+      append({ questionText: trimmed, canEdit: true, canDeactivate: true, isManagerAdded: isManager });
+    }
     setIsQuestionBankOpen(false);
     setQuestionBankSearch('');
     toast.success('Question added to form');
@@ -561,6 +587,14 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                     ? loadedTemplate.reviewCycleName
                     : 'Not set (legacy template)'}
                 </p>
+                {selectedReviewCycle && (
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    {formatCycleDate(selectedReviewCycle.startDate)} - {formatCycleDate(selectedReviewCycle.endDate)}
+                    {selectedReviewCycleDurationDays != null
+                      ? ` (${selectedReviewCycleDurationDays} day${selectedReviewCycleDurationDays === 1 ? '' : 's'})`
+                      : ''}
+                  </p>
+                )}
               </div>
               {loadedTemplate.departmentName && (
                 <div className="hidden items-center gap-2 sm:flex">

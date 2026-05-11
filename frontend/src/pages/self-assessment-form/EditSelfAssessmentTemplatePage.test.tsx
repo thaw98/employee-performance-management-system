@@ -83,6 +83,10 @@ vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   useUpdateTemplateMutation: () => [updateTemplateMock, { isLoading: false }],
 }))
 
+vi.mock('../../features/reviewCycle/api/reviewCycleApi', () => ({
+  useGetReviewCyclesQuery: () => ({ data: [], isLoading: false }),
+}))
+
 const managerQuestion = {
   id: 202,
   questionText: 'Manager-added question',

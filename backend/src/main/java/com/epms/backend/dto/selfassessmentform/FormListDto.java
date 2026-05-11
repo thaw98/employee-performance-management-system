@@ -5,9 +5,11 @@ import java.time.LocalDate;
 
 public record FormListDto(
         Long id,
+        Long templateId,
         String title,
         Long cycleId,
         String cycleName,
+        LocalDate startDate,
         LocalDate deadlineDate,
         LocalDate managerReviewDeadlineDate,
         LocalDate finalApprovalDeadlineDate,

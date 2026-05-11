@@ -200,7 +200,7 @@ public class ForgotPasswordService {
         }
 
         // Find user account via employee email
-        User user = userRepository.findByEmployee_EmailIgnoreCase(email)
+        User user = userRepository.findFirstByEmployee_EmailIgnoreCaseOrderByActiveDescIdAsc(email)
                 .orElse(null);
 
         if (user == null) {

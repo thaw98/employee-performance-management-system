@@ -16,6 +16,7 @@ public record SelfAssessmentFormTemplateDto(
         String ratingSystem,
         Integer tenPointYesMinRating,
         boolean isLocked,
+        boolean isAssignedToDeadline,
         List<QuestionDto> questions,
         List<QuestionDto> deletedQuestions,
         Instant createdOn,

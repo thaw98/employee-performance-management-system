@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'react-hot-toast';
 import {
   FileText,
@@ -22,8 +23,6 @@ import {
   ArrowLeft,
   SlidersHorizontal,
   Star,
-  ThumbsUp,
-  ThumbsDown,
   Sparkles,
   FileCheck2,
   Edit3,
@@ -35,8 +34,7 @@ import {
   useGetAllFormsForHrQuery,
   useGetFormByIdQuery,
   useManagerReviewMutation,
-  useHrApproveManagerReviewMutation,
-  useHrRejectManagerReviewMutation,
+  useHrReturnDisputedReviewMutation,
   useHrApproveFormMutation,
   useHrReopenFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
@@ -46,7 +44,7 @@ import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { formatDateDayMonthYear, formatDateTimeWithSeconds } from '../../utils/dateUtils';
 import { useSelector } from 'react-redux';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { RootState } from '../../app/store';
 
 interface ManagerAdjustment {
@@ -98,14 +96,54 @@ function getStatusConfig(status: string) {
       cardAccent: 'border-l-amber-500',
     };
   }
-  if (s === 'APPROVED' || s === 'COMPLETED') {
+  if (s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED') {
     return {
-      label: 'Approved',
+      label: s === 'FINALIZED_LOCKED' ? 'Finalized' : 'Approved',
       bg: 'bg-emerald-50 dark:bg-emerald-900/30',
       text: 'text-emerald-700 dark:text-emerald-400',
       dot: 'bg-emerald-500',
       icon: CheckCircle2,
       cardAccent: 'border-l-emerald-500',
+    };
+  }
+  if (s === 'PENDING_MANAGER_REVIEW') {
+    return {
+      label: 'Pending Manager Review',
+      bg: 'bg-blue-50 dark:bg-blue-900/30',
+      text: 'text-blue-700 dark:text-blue-400',
+      dot: 'bg-blue-500',
+      icon: Send,
+      cardAccent: 'border-l-blue-500',
+    };
+  }
+  if (s === 'PENDING_EMPLOYEE_REVIEW') {
+    return {
+      label: 'Pending Employee Review',
+      bg: 'bg-amber-50 dark:bg-amber-900/30',
+      text: 'text-amber-700 dark:text-amber-400',
+      dot: 'bg-amber-500',
+      icon: Hourglass,
+      cardAccent: 'border-l-amber-500',
+    };
+  }
+  if (s === 'PENDING_FINAL_APPROVAL') {
+    return {
+      label: 'Pending Final Approval',
+      bg: 'bg-sky-50 dark:bg-sky-900/30',
+      text: 'text-sky-700 dark:text-sky-400',
+      dot: 'bg-sky-500',
+      icon: ShieldCheck,
+      cardAccent: 'border-l-sky-500',
+    };
+  }
+  if (s === 'PENDING_HR_CALIBRATION_REVIEW') {
+    return {
+      label: 'HR Calibration Review',
+      bg: 'bg-orange-50 dark:bg-orange-900/30',
+      text: 'text-orange-700 dark:text-orange-400',
+      dot: 'bg-orange-500',
+      icon: AlertCircle,
+      cardAccent: 'border-l-orange-500',
     };
   }
   if (s === 'REOPENED') {
@@ -153,47 +191,59 @@ const filterControlClass =
 
 export const SelfAssessmentFormReviewPage: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
+  const { formId: formIdParam } = useParams<{ formId?: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const isHr = user?.roleId === 1;
+  const reviewQueuePath = isHr ? '/hr/self-assessment/review-queue' : '/manager/self-assessment-forms/review-queue';
 
+  const parsedFormIdFromUrl = formIdParam ? Number(formIdParam) : null;
+  const urlFormId = parsedFormIdFromUrl && Number.isFinite(parsedFormIdFromUrl) ? parsedFormIdFromUrl : null;
   const initialFormId = typeof location.state === 'object'
     && location.state !== null
     && 'formId' in location.state
     && typeof location.state.formId === 'number'
     ? location.state.formId
     : null;
-  const [selectedFormId, setSelectedFormId] = useState<number | null>(initialFormId);
+  const [selectedFormId, setSelectedFormId] = useState<number | null>(urlFormId ?? initialFormId);
   const [showAdjustments, setShowAdjustments] = useState(false);
   const [managerComments, setManagerComments] = useState('');
   const [adjustments, setAdjustments] = useState<ManagerAdjustment[]>([]);
-  const [rejectReason, setRejectReason] = useState('');
+  const [hrReturnReason, setHrReturnReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: managerForms, isLoading: managerFormsLoading } = useGetReviewFormsQuery();
-  const { data: hrForms, isLoading: hrFormsLoading } = useGetHrReviewFormsQuery();
-  const { data: allForms, isLoading: allFormsLoading } = useGetAllFormsForHrQuery();
+  const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError } = useGetReviewFormsQuery(undefined, {
+    skip: isHr,
+  });
+  const { data: hrForms, isLoading: hrFormsLoading } = useGetHrReviewFormsQuery(undefined, {
+    skip: !isHr || Boolean(selectedFormId),
+  });
+  const { data: allForms, isLoading: allFormsLoading } = useGetAllFormsForHrQuery(undefined, {
+    skip: !isHr || !selectedFormId,
+  });
   const { data: selectedForm, refetch: refetchForm } = useGetFormByIdQuery(selectedFormId!, {
     skip: !selectedFormId,
   });
 
   const [managerReview, { isLoading: isManagerReviewing }] = useManagerReviewMutation();
-  const [hrApproveManagerReview, { isLoading: isHrApproving }] = useHrApproveManagerReviewMutation();
-  const [hrRejectManagerReview, { isLoading: isHrRejecting }] = useHrRejectManagerReviewMutation();
+  const [hrReturnDisputedReview, { isLoading: isHrReturningDispute }] = useHrReturnDisputedReviewMutation();
   const [hrApproveForm, { isLoading: isApproving }] = useHrApproveFormMutation();
   const [hrReopenForm, { isLoading: isReopening }] = useHrReopenFormMutation();
 
-  const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
-  const [approvalMode, setApprovalMode] = useState<'adjustment' | 'final'>('final');
-
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery(undefined, {
     skip: !isHr,
   });
   const defaultSignature = defaultSigResponse?.data ?? null;
   const hasDefaultSignature = Boolean(defaultSignature);
+  const isMissingDefaultSignature = !isDefaultSigLoading && !hasDefaultSignature;
+  const portalRoot = typeof document !== 'undefined' ? document.body : null;
 
   const forms = isHr ? (selectedFormId ? allForms : hrForms) : managerForms;
   const isLoading = isHr ? (selectedFormId ? allFormsLoading : hrFormsLoading) : managerFormsLoading;
+  const managerErrorMessage = !isHr && managerFormsError && typeof managerFormsError === 'object' && 'data' in managerFormsError
+    ? (managerFormsError as any)?.data?.message || 'Unable to load review forms for this manager account.'
+    : null;
 
   const filteredForms = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -216,18 +266,22 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const submittedCount = useMemo(
     () => (forms ?? []).filter((f: any) => {
       const s = (f.status ?? '').toUpperCase();
-      return s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED';
+      return s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED' || s === 'PENDING_MANAGER_REVIEW';
     }).length,
     [forms],
   );
   const reviewedCount = useMemo(
-    () => (forms ?? []).filter((f: any) => (f.status ?? '').toUpperCase() === 'MANAGER_REVIEWED').length,
+    () => (forms ?? []).filter((f: any) => {
+      const s = (f.status ?? '').toUpperCase();
+      return s === 'MANAGER_REVIEWED' || s === 'PENDING_EMPLOYEE_REVIEW'
+        || s === 'PENDING_FINAL_APPROVAL' || s === 'PENDING_HR_CALIBRATION_REVIEW';
+    }).length,
     [forms],
   );
   const approvedCount = useMemo(
     () => (forms ?? []).filter((f: any) => {
       const s = (f.status ?? '').toUpperCase();
-      return s === 'APPROVED' || s === 'COMPLETED';
+      return s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED';
     }).length,
     [forms],
   );
@@ -302,51 +356,23 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     }
   };
 
-  const handleHrApproveAdjustment = async () => {
-    if (!selectedFormId || !hasDefaultSignature) {
-      toast.error('Set a default signature in Signature Settings before approving.');
+  const handleHrReturnDisputedReview = async () => {
+    if (!selectedFormId || !hrReturnReason.trim()) {
+      toast.error('Enter an HR reason before sending back to the manager.');
       return;
     }
 
     try {
-      await hrApproveManagerReview({
+      await hrReturnDisputedReview({
         formId: selectedFormId,
-        request: {},
+        request: { reason: hrReturnReason.trim() },
       }).unwrap();
-      toast.success('Manager adjustments approved');
-      setShowApprovalModal(false);
+      toast.success('Review returned to manager for revision');
+      setHrReturnReason('');
       refetchForm();
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to approve adjustments');
+      toast.error(error?.data?.message || 'Failed to return review to manager');
     }
-  };
-
-  const handleHrRejectAdjustment = async () => {
-    if (!selectedFormId || !rejectReason.trim() || !hasDefaultSignature) {
-      toast.error('Enter a rejection reason and set a default signature in Signature Settings.');
-      return;
-    }
-
-    try {
-      await hrRejectManagerReview({
-        formId: selectedFormId,
-        request: { rejectionReason: rejectReason },
-      }).unwrap();
-      toast.success('Manager adjustments rejected');
-      setShowRejectModal(false);
-      setRejectReason('');
-      refetchForm();
-    } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to reject adjustments');
-    }
-  };
-
-  const handleConfirmApproval = () => {
-    if (approvalMode === 'adjustment') {
-      handleHrApproveAdjustment();
-      return;
-    }
-    handleHrApproveForm();
   };
 
   const handleHrApproveForm = async () => {
@@ -481,6 +507,14 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
             </p>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => navigate(reviewQueuePath)}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+        >
+          <FileText size={14} />
+          Open Form Queue
+        </button>
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -508,7 +542,14 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         ))}
       </div>
 
+      {managerErrorMessage && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/70 dark:bg-amber-900/30 dark:text-amber-200">
+          {managerErrorMessage}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {selectedFormId === -1 && (
         <div className="lg:col-span-4 xl:col-span-3">
           <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '240ms' }}>
             <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-700/60">
@@ -628,8 +669,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
 
-        <div className="lg:col-span-8 xl:col-span-9 space-y-5">
+        <div className="lg:col-span-12 space-y-5">
           {selectedForm ? (
             <>
               <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '280ms' }}>
@@ -672,6 +714,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                         {selectedForm.totalScore !== null && (
                           <div className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5">
                             <Star size={14} className="text-amber-500 fill-amber-500" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Self</span>
                             <span className="text-sm font-extrabold tabular-nums text-amber-700 dark:text-amber-400">
                               {selectedForm.totalScore.toFixed(1)}%
                             </span>
@@ -683,6 +726,24 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                 </span>
                               </>
                             )}
+                          </div>
+                        )}
+                        {selectedForm.managerRevisedTotalScore != null && (
+                          <div className="flex items-center gap-2 rounded-xl bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5">
+                            <Star size={14} className="text-orange-500 fill-orange-500" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">Mgr Revised</span>
+                            <span className="text-sm font-extrabold tabular-nums text-orange-700 dark:text-orange-400">
+                              {selectedForm.managerRevisedTotalScore.toFixed(1)}%
+                            </span>
+                          </div>
+                        )}
+                        {selectedForm.finalApprovedTotalScore != null && (
+                          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5">
+                            <Star size={14} className="text-emerald-500 fill-emerald-500" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Final</span>
+                            <span className="text-sm font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">
+                              {selectedForm.finalApprovedTotalScore.toFixed(1)}%
+                            </span>
                           </div>
                         )}
                       </div>
@@ -749,12 +810,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                             <div className="flex items-center gap-2 mb-2">
                               <Edit3 size={13} className="text-amber-600 dark:text-amber-400" />
                               <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                                Manager Adjustment
+                                Manager Revised Score
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-3">
                               <div className="inline-flex items-center gap-2 rounded-lg bg-white px-2.5 py-1.5 dark:bg-slate-800/60">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">From</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employee Self Score</span>
                                 <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                                   {answer.yesNoAnswer} ({answer.rating})
                                 </span>
@@ -763,17 +824,40 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                 <ArrowLeft size={12} className="rotate-180" />
                               </div>
                               <div className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-2.5 py-1.5 dark:bg-amber-800/40">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">To</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Manager Revised</span>
                                 <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
                                   {answer.managerProposedYesNo} ({answer.managerProposedRating})
                                 </span>
                               </div>
+                              {answer.finalApprovedYesNo && (
+                                <>
+                                  <div className="flex items-center text-slate-300 dark:text-slate-600">
+                                    <ArrowLeft size={12} className="rotate-180" />
+                                  </div>
+                                  <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 px-2.5 py-1.5 dark:bg-emerald-800/40">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final Approved</span>
+                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                                      {answer.finalApprovedYesNo} ({answer.finalApprovedRating})
+                                    </span>
+                                  </div>
+                                </>
+                              )}
                             </div>
                             {answer.managerProposedComment && (
                               <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 italic">
                                 "{answer.managerProposedComment}"
                               </p>
                             )}
+                          </div>
+                        )}
+                        {!answer.managerProposedYesNo && answer.finalApprovedYesNo && (
+                          <div className="mt-3 ml-10 rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-3 dark:border-emerald-700/60 dark:bg-emerald-900/20">
+                            <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 px-2.5 py-1.5 dark:bg-emerald-800/40">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final Approved</span>
+                              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                                {answer.finalApprovedYesNo} ({answer.finalApprovedRating})
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -788,6 +872,15 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                       <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Employee Remarks</h4>
                     </div>
                     <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.employeeRemarks}</p>
+                  </div>
+                )}
+                {selectedForm.overallRemarks && (
+                  <div className="mx-6 mb-5 rounded-xl border border-violet-200/80 bg-violet-50/50 p-4 dark:border-violet-700/60 dark:bg-violet-900/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MessageSquare size={14} className="text-violet-600 dark:text-violet-400" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-violet-700 dark:text-violet-400">Overall Remarks</h4>
+                    </div>
+                    <p className="text-sm text-violet-900 dark:text-violet-100 leading-relaxed">{selectedForm.overallRemarks}</p>
                   </div>
                 )}
 
@@ -813,9 +906,28 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     )}
                   </div>
                 )}
+              {selectedForm.employeeDisputedAt && (
+                <div className="mx-6 mb-5 rounded-xl border border-rose-200/80 bg-rose-50/50 p-4 dark:border-rose-700/60 dark:bg-rose-900/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle size={14} className="text-rose-600 dark:text-rose-400" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">Employee Dispute</h4>
+                  </div>
+                  <p className="text-sm text-rose-800 dark:text-rose-200 leading-relaxed">{selectedForm.employeeDisputeReason}</p>
+                </div>
+              )}
+
+              {selectedForm.hrReviewReason && (
+                <div className="mx-6 mb-5 rounded-xl border border-orange-200/80 bg-orange-50/50 p-4 dark:border-orange-700/60 dark:bg-orange-900/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle size={14} className="text-orange-600 dark:text-orange-400" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-400">HR Remarks</h4>
+                  </div>
+                  <p className="text-sm text-orange-800 dark:text-orange-200 leading-relaxed">{selectedForm.hrReviewReason}</p>
+                </div>
+              )}
               </div>
 
-              {!isHr && selectedForm.status === 'SUBMITTED' && (
+              {!isHr && (selectedForm.status === 'SUBMITTED' || selectedForm.status === 'PENDING_MANAGER_REVIEW') && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '320ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-md shadow-amber-500/20">
@@ -843,7 +955,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     </div>
 
                     <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-700/60 dark:bg-slate-700/20">
-                      <label className="flex items-center gap-3 cursor-pointer">
+                      <button
+                        type="button"
+                        onClick={() => setShowAdjustments((prev) => !prev)}
+                        aria-pressed={showAdjustments}
+                        className="flex w-full items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5D5FEF]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800"
+                      >
                         <div className={`relative flex h-5 w-9 items-center rounded-full transition-colors ${showAdjustments ? 'bg-[#5D5FEF]' : 'bg-slate-300 dark:bg-slate-600'}`}>
                           <div className={`absolute h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${showAdjustments ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
                         </div>
@@ -851,11 +968,11 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                           <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                             Propose Adjustments
                           </span>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">
                             Adjust individual answers with your proposed rating and required comment
                           </p>
                         </div>
-                      </label>
+                      </button>
                     </div>
 
                     {showAdjustments && (
@@ -880,54 +997,100 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                     <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-700/60 text-[10px] font-bold text-slate-500 dark:text-slate-400">Q{index + 1}</span>
                                     <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{answer.questionText}</p>
                                   </div>
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <div>
-                                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Proposed Yes/No</label>
-                                      <select
-                                        value={proposedYesNo}
-                                        onChange={(e) => handleManagerAdjustmentChange(answer.id, 'proposedYesNo', e.target.value)}
-                                        className={`${filterControlClass} py-2`}
-                                      >
-                                        <option value="">Select</option>
-                                        <option value="Yes">Yes</option>
-                                        <option value="No">No</option>
-                                      </select>
+                                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3.5 dark:border-slate-700/60 dark:bg-slate-700/20">
+                                      <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                        Current Answer
+                                      </p>
+                                      <div className="flex flex-wrap items-center gap-3">
+                                        <div className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 dark:bg-slate-800/70">
+                                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Yes/No</span>
+                                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                            {answer.yesNoAnswer || '-'}
+                                          </span>
+                                        </div>
+                                        <div className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 dark:bg-slate-800/70">
+                                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Rating</span>
+                                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                            {answer.rating ?? '-'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {answer.remarks && (
+                                        <div className="mt-3 rounded-lg bg-white px-3 py-2 dark:bg-slate-800/70">
+                                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                            Employee Comment
+                                          </p>
+                                          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                                            {answer.remarks}
+                                          </p>
+                                        </div>
+                                      )}
+                                      {selectedForm.employeeRemarks && (
+                                        <div className="mt-3 rounded-lg bg-white px-3 py-2 dark:bg-slate-800/70">
+                                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                            Overall Employee Remarks
+                                          </p>
+                                          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                                            {selectedForm.employeeRemarks}
+                                          </p>
+                                        </div>
+                                      )}
                                     </div>
-                                    <div className="min-w-0">
-                                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Proposed Rating</label>
-                                      {(() => {
-                                        const pr = currentAdjustment?.proposedRating;
-                                        const allowed = getRatingOptions(
-                                          selectedForm?.ratingSystem,
-                                          proposedYesNo,
-                                          selectedForm?.tenPointYesMinRating,
-                                        );
-                                        const ratingValue =
-                                          pr && pr > 0 && allowed.includes(pr) ? pr : null;
-                                        return (
-                                          <SelfAssessmentRatingPicker
-                                            compact
-                                            ratingSystem={selectedForm?.ratingSystem}
-                                            tenPointYesMinRating={selectedForm?.tenPointYesMinRating}
-                                            yesNoAnswer={proposedYesNo || null}
-                                            value={ratingValue}
-                                            onChange={(r) => handleManagerAdjustmentChange(answer.id, 'proposedRating', r)}
-                                            disabled={!proposedYesNo}
-                                          />
-                                        );
-                                      })()}
-                                    </div>
-                                    <div>
-                                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                                        Comment <span className="text-red-500">*</span>
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={adjustments.find(a => a.answerId === answer.id)?.comment || ''}
-                                        onChange={(e) => handleManagerAdjustmentChange(answer.id, 'comment', e.target.value)}
-                                        className={filterControlClass}
-                                        placeholder="Reason for adjustment"
-                                      />
+
+                                    <div className="space-y-3 rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 dark:border-amber-700/60 dark:bg-amber-900/20">
+                                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                                        Proposed Adjustment
+                                      </p>
+                                      <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Proposed Yes/No</label>
+                                        <select
+                                          value={proposedYesNo}
+                                          onChange={(e) => handleManagerAdjustmentChange(answer.id, 'proposedYesNo', e.target.value)}
+                                          className={`${filterControlClass} py-2`}
+                                        >
+                                          <option value="">Select</option>
+                                          <option value="Yes">Yes</option>
+                                          <option value="No">No</option>
+                                        </select>
+                                      </div>
+                                      <div className="min-w-0">
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Proposed Rating</label>
+                                        {(() => {
+                                          const pr = currentAdjustment?.proposedRating;
+                                          const allowed = getRatingOptions(
+                                            selectedForm?.ratingSystem,
+                                            proposedYesNo,
+                                            selectedForm?.tenPointYesMinRating,
+                                          );
+                                          const ratingValue =
+                                            pr && pr > 0 && allowed.includes(pr) ? pr : null;
+                                          return (
+                                            <SelfAssessmentRatingPicker
+                                              compact
+                                              fivePointVariant="numeric"
+                                              ratingSystem={selectedForm?.ratingSystem}
+                                              tenPointYesMinRating={selectedForm?.tenPointYesMinRating}
+                                              yesNoAnswer={proposedYesNo || null}
+                                              value={ratingValue}
+                                              onChange={(r) => handleManagerAdjustmentChange(answer.id, 'proposedRating', r)}
+                                              disabled={!proposedYesNo}
+                                            />
+                                          );
+                                        })()}
+                                      </div>
+                                      <div>
+                                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                          Comment <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={adjustments.find(a => a.answerId === answer.id)?.comment || ''}
+                                          onChange={(e) => handleManagerAdjustmentChange(answer.id, 'comment', e.target.value)}
+                                          className={filterControlClass}
+                                          placeholder="Reason for adjustment"
+                                        />
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -966,7 +1129,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 </div>
               )}
 
-              {isHr && selectedForm.status === 'MANAGER_REVIEWED' && (
+              {isHr && (selectedForm.status === 'MANAGER_REVIEWED' || selectedForm.status === 'PENDING_FINAL_APPROVAL' || selectedForm.status === 'PENDING_HR_CALIBRATION_REVIEW') && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '320ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
@@ -992,11 +1155,11 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                           className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5D5FEF] dark:text-[#8b8ef7] hover:underline"
                         >
                           <PenLine size={12} />
-                          Signature Settings
+                          {isMissingDefaultSignature ? 'Create Default Signature' : 'Signature Settings'}
                         </Link>
                       </div>
                       <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 mb-3">
-                        All HR actions will be signed with your default signature.
+                        Final approvals and adjustment decisions use your default signature.
                       </p>
                       <div className="flex items-center justify-center min-h-[72px] rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800/80 px-3 py-2">
                         {isDefaultSigLoading ? (
@@ -1015,59 +1178,79 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {selectedForm.answers?.some((a: any) => a.managerProposedYesNo) && (
-                      <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-4 dark:border-amber-700/60 dark:bg-amber-900/20">
-                        <div className="flex items-center gap-2 mb-3">
-                          <AlertCircle size={15} className="text-amber-600 dark:text-amber-400" />
-                          <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
-                            Manager adjustments pending your review
+                    {selectedForm.status === 'PENDING_HR_CALIBRATION_REVIEW' && (
+                      <div className="rounded-xl border border-rose-200/80 bg-rose-50/50 p-4 dark:border-rose-700/60 dark:bg-rose-900/20">
+                        <div className="mb-3 flex items-center gap-2">
+                          <AlertCircle size={15} className="text-rose-600 dark:text-rose-400" />
+                          <p className="text-sm font-bold text-rose-800 dark:text-rose-300">
+                            Disputed review awaiting HR decision
                           </p>
                         </div>
-                        <div className="flex gap-3 flex-wrap">
-                          <button
-                            onClick={() => {
-                              setApprovalMode('adjustment');
-                              setShowApprovalModal(true);
-                            }}
-                            disabled={isDefaultSigLoading || !hasDefaultSignature}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                          >
-                            <ThumbsUp size={16} />
-                            Approve Adjustments
-                          </button>
-                          <button
-                            onClick={() => setShowRejectModal(true)}
-                            disabled={isDefaultSigLoading || !hasDefaultSignature}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-red-500 to-red-600 shadow-md shadow-red-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                          >
-                            <ThumbsDown size={16} />
-                            Reject Adjustments
-                          </button>
+                        <div className="space-y-3">
+                          {selectedForm.employeeDisputeReason && (
+                            <div className="rounded-lg bg-white/70 px-3 py-2 dark:bg-slate-800/60">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500 dark:text-rose-300">
+                                Employee Dispute Reason
+                              </p>
+                              <p className="mt-1 text-sm text-rose-900 dark:text-rose-100">
+                                {selectedForm.employeeDisputeReason}
+                              </p>
+                            </div>
+                          )}
+                          <div>
+                            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-rose-600 dark:text-rose-300">
+                              HR Reason for Manager Revision <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                              value={hrReturnReason}
+                              onChange={(e) => setHrReturnReason(e.target.value)}
+                              rows={3}
+                              className={`${filterControlClass} resize-none`}
+                              placeholder="Explain what the manager must revise..."
+                            />
+                          </div>
+                          <div className="flex flex-wrap gap-3">
+                            <button
+                              onClick={handleHrReturnDisputedReview}
+                              disabled={isHrReturningDispute || !hrReturnReason.trim()}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                              {isHrReturningDispute ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                              Send Back to Manager
+                            </button>
+                            <button
+                              onClick={() => setShowApprovalModal(true)}
+                              disabled={isDefaultSigLoading || !hasDefaultSignature}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                              <CheckCircle2 size={16} />
+                              Final Approval
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
 
-                    <div className="flex gap-3 flex-wrap pt-2">
-                      <button
-                        onClick={() => {
-                          setApprovalMode('final');
-                          setShowApprovalModal(true);
-                        }}
-                        disabled={isDefaultSigLoading || !hasDefaultSignature}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                      >
-                        <CheckCircle2 size={16} />
-                        Final Approval
-                      </button>
-                      <button
-                        onClick={() => handleHrReopenForm()}
-                        disabled={isReopening || isDefaultSigLoading || !hasDefaultSignature}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                      >
-                        {isReopening ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-                        Reopen for Employee
-                      </button>
-                    </div>
+                    {selectedForm.status !== 'PENDING_HR_CALIBRATION_REVIEW' && (
+                      <div className="flex gap-3 flex-wrap pt-2">
+                        <button
+                          onClick={() => setShowApprovalModal(true)}
+                          disabled={isDefaultSigLoading || !hasDefaultSignature}
+                          className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          <CheckCircle2 size={16} />
+                          Final Approval
+                        </button>
+                        <button
+                          onClick={() => handleHrReopenForm()}
+                          disabled={isReopening || isDefaultSigLoading || !hasDefaultSignature}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          {isReopening ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                          Reopen for Employee
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1084,14 +1267,21 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
               </div>
               <p className="text-lg font-bold text-slate-800 dark:text-slate-200">Select a form to review</p>
               <p className="mt-1.5 max-w-sm text-center text-sm text-slate-400 dark:text-slate-500">
-                Choose a self-assessment form from the queue to view its details and take action
+                Choose a self-assessment form from the dedicated Form Queue page to review details and take action
               </p>
+              <button
+                type="button"
+                onClick={() => navigate(reviewQueuePath)}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#5D5FEF]/[0.06] px-4 py-2 text-sm font-semibold text-[#5D5FEF] transition hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+              >
+                Open Form Queue
+              </button>
             </div>
           )}
         </div>
       </div>
 
-      {showApprovalModal && (
+      {showApprovalModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowApprovalModal(false)} />
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
@@ -1105,9 +1295,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
               </div>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-              {approvalMode === 'adjustment'
-                ? 'You are about to approve the manager\'s proposed adjustments. This will update the employee\'s answers accordingly.'
-                : 'You are about to give final approval to this self-assessment form. This will finalize the assessment.'}
+              You are about to give final approval to this self-assessment form. This will finalize the assessment.
             </p>
             <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
               <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
@@ -1123,11 +1311,11 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={handleConfirmApproval}
-                disabled={isHrApproving || isApproving || isDefaultSigLoading || !hasDefaultSignature}
+                onClick={handleHrApproveForm}
+                disabled={isApproving || isDefaultSigLoading || !hasDefaultSignature}
                 className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {isHrApproving || isApproving ? (
+                {isApproving ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <CheckCircle2 size={16} />
@@ -1137,65 +1325,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {showRejectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowRejectModal(false)} />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
-                <XCircle size={20} className="text-red-600 dark:text-red-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Reject Adjustments</h3>
-                <p className="text-xs text-slate-400 dark:text-slate-500">Provide a clear reason for the rejection</p>
-              </div>
-            </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-              Please explain why you are rejecting the manager's proposed adjustments.
-            </p>
-            <div className="mb-4">
-              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Rejection Reason <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                rows={3}
-                className={`${filterControlClass} resize-none`}
-                placeholder="Explain your reasoning..."
-              />
-            </div>
-            <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
-              <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                <PenLine size={12} />
-                Your default signature will be recorded for this action.
-              </p>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowRejectModal(false)}
-                className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleHrRejectAdjustment}
-                disabled={isHrRejecting || isDefaultSigLoading || !hasDefaultSignature || !rejectReason.trim()}
-                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-red-500 to-red-600 shadow-md shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {isHrRejecting ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <XCircle size={16} />
-                )}
-                Reject Adjustments
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      , portalRoot)}
     </div>
   );
 };

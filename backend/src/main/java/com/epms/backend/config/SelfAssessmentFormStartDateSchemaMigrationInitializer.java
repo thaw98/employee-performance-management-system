@@ -1,18 +1,21 @@
 package com.epms.backend.config;
 
-import javax.sql.DataSource;
-
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.core.Ordered;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import lombok.extern.slf4j.Slf4j;
+import javax.sql.DataSource;
 
 @Component
-@Slf4j
-public class NotificationSourceSchemaMigrationInitializer implements BeanPostProcessor {
+public class SelfAssessmentFormStartDateSchemaMigrationInitializer implements BeanPostProcessor, Ordered {
+
+    @Override
+    public int getOrder() {
+        return 21;
+    }
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
@@ -20,25 +23,23 @@ public class NotificationSourceSchemaMigrationInitializer implements BeanPostPro
             return bean;
         }
         try {
-            migrate(dataSource);
+            migrate(new JdbcTemplate(dataSource));
         } catch (Exception e) {
-            throw new BeanCreationException("notifications source migration failed", e);
+            throw new BeanCreationException("self-assessment start date schema migration failed", e);
         }
         return bean;
     }
 
-    private void migrate(DataSource dataSource) {
-        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-        if (!tableExists(jdbc, "notifications")) {
+    private void migrate(JdbcTemplate jdbc) {
+        if (!tableExists(jdbc, "self_assessment_form")) {
             return;
         }
-        if (!columnExists(jdbc, "notifications", "source")) {
-            jdbc.execute("ALTER TABLE notifications ADD COLUMN source VARCHAR(50) NOT NULL DEFAULT 'GENERAL'");
-            log.info("Added notifications.source");
-        }
-        if (!columnExists(jdbc, "notifications", "target_id")) {
-            jdbc.execute("ALTER TABLE notifications ADD COLUMN target_id BIGINT NULL");
-            log.info("Added notifications.target_id");
+        addColumnIfMissing(jdbc, "self_assessment_form", "start_date", "DATE NULL");
+    }
+
+    private static void addColumnIfMissing(JdbcTemplate jdbc, String tableName, String columnName, String definition) {
+        if (!columnExists(jdbc, tableName, columnName)) {
+            jdbc.execute("ALTER TABLE `" + tableName + "` ADD COLUMN `" + columnName + "` " + definition);
         }
     }
 

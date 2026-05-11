@@ -6,6 +6,7 @@ export interface NotificationItem {
   title: string;
   message: string;
   source: string;
+  targetId?: number | null;
   read: boolean;
   createdAt: string;
 }

@@ -2,9 +2,11 @@ package com.epms.backend.service;
 
 import com.epms.backend.StaffTypes;
 import com.epms.backend.dto.selfassessmentform.AnswerRequest;
+import com.epms.backend.dto.selfassessmentform.ActiveCycleFormsDto;
 import com.epms.backend.dto.selfassessmentform.CreateTemplateRequest;
 import com.epms.backend.dto.selfassessmentform.ManagerAdjustmentRequest;
 import com.epms.backend.dto.selfassessmentform.ManagerReviewRequest;
+import com.epms.backend.dto.selfassessmentform.HrReturnDisputedReviewRequest;
 import com.epms.backend.dto.selfassessmentform.QuestionRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentPreviewDto;
@@ -217,6 +219,61 @@ class SelfAssessmentFormAssignmentServiceTest {
     }
 
     @Test
+    void hrReturnDisputedReview_requiresNonEmptyReason() {
+        SelfAssessmentForm form = disputedForm();
+        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> service.hrReturnDisputedReview(200L, new HrReturnDisputedReviewRequest("   "), 99L));
+
+        assertEquals("HR return reason is required", ex.getMessage());
+        verify(formRepository, never()).save(any(SelfAssessmentForm.class));
+        verify(signatureRepository, never()).findByUserAndIsDefaultTrue(any());
+    }
+
+    @Test
+    void hrReturnDisputedReview_movesFormToManagerReviewAndNotifiesManagerWithBothReasonsWithoutSignature() {
+        SelfAssessmentForm form = disputedForm();
+        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+
+        service.hrReturnDisputedReview(200L, new HrReturnDisputedReviewRequest("Please revise the rating evidence"), 99L);
+
+        assertEquals(SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW, form.getStatus());
+        assertEquals("Please revise the rating evidence", form.getHrReviewReason());
+        assertEquals("Employee disagrees with rating", form.getEmployeeDisputeReason());
+        assertEquals(null, form.getManagerSignatureId());
+        assertEquals(null, form.getManagerComments());
+        verify(signatureRepository, never()).findByUserAndIsDefaultTrue(any());
+        verify(notificationService).send(
+                eq(form.getEmployee().getManager().getUserAccount()),
+                eq("Self-Assessment Review Returned"),
+                org.mockito.ArgumentMatchers.contains("Employee dispute reason: Employee disagrees with rating"),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(200L));
+        verify(notificationService).send(
+                eq(form.getEmployee().getManager().getUserAccount()),
+                eq("Self-Assessment Review Returned"),
+                org.mockito.ArgumentMatchers.contains("HR return reason: Please revise the rating evidence"),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(200L));
+    }
+
+    @Test
+    void hrFinalApprovalStillRequiresDefaultSignatureForDisputedForm() {
+        SelfAssessmentForm form = disputedForm();
+        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
+        when(userRepository.findById(99L)).thenReturn(Optional.of(new User()));
+        when(signatureRepository.findByUserAndIsDefaultTrue(any())).thenReturn(Optional.empty());
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> service.hrApproveForm(200L, new com.epms.backend.dto.selfassessmentform.HrApproveFormRequest(null), 99L));
+
+        assertTrue(ex.getMessage().contains("No default signature found"));
+    }
+
+    @Test
     void assignSelfAssessmentForms_hybridUsesDepartmentAndPositionIntersection() {
         ReviewCycle cycle = cycle();
         Employee match = employee(1L, 10L, 20L);
@@ -234,6 +291,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 "HYBRID",
                 List.of(10L),
                 List.of(20L),
+                List.of(),
+                LocalDate.of(2026, 5, 5),
                 LocalDate.of(2026, 5, 10),
                 LocalDate.of(2026, 5, 15));
 
@@ -251,6 +310,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 "ALL_EMPLOYEES",
                 List.of(),
                 List.of(),
+                List.of(),
+                LocalDate.of(2026, 5, 10),
                 LocalDate.of(2026, 5, 16),
                 LocalDate.of(2026, 5, 15));
 
@@ -473,6 +534,101 @@ class SelfAssessmentFormAssignmentServiceTest {
     }
 
     @Test
+    void managerReview_notifiesEmployeeOnly() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        employee.setEmployeeName("Jane Doe");
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+        form.getAnswers().get(0).setYesNoAnswer("Yes");
+        form.getAnswers().get(0).setRating(5);
+
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+        when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
+                .thenReturn(Optional.of(signature(manager.getUserAccount())));
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+
+        service.managerReview(
+                form.getId(),
+                manager,
+                new ManagerReviewRequest("Reviewed", List.of()));
+
+        verify(notificationService).send(
+                eq(employee.getUserAccount()),
+                eq("Manager Review Completed"),
+                eq("Your manager has reviewed your self-assessment and completed the review. "
+                        + "Please review the updated evaluation, including any manager comments, "
+                        + "before your performance discussion."),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(form.getId()));
+        verify(userRepository, never()).findByRole_IdAndActiveTrue(1L);
+    }
+
+    @Test
+    void managerReview_withAdjustments_notifiesEmployeeOnly() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        employee.setEmployeeName("Jane Doe");
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+        form.getAnswers().get(0).setYesNoAnswer("Yes");
+        form.getAnswers().get(0).setRating(5);
+
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+        when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
+                .thenReturn(Optional.of(signature(manager.getUserAccount())));
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+
+        service.managerReview(
+                form.getId(),
+                manager,
+                new ManagerReviewRequest(
+                        "Reviewed",
+                        List.of(new ManagerAdjustmentRequest(501L, "No", 1, "Needs calibration"))));
+
+        verify(notificationService).send(
+                eq(employee.getUserAccount()),
+                eq("Manager Review Completed"),
+                eq("Your manager has reviewed your self-assessment and updated one or more scores. "
+                        + "Please review the updated evaluation, including any manager comments, "
+                        + "before your performance discussion."),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(form.getId()));
+        verify(userRepository, never()).findByRole_IdAndActiveTrue(1L);
+    }
+
+    @Test
+    void employeeAcknowledge_notifiesActiveHrUsersForFinalApproval() {
+        ReviewCycle cycle = cycle();
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setEmployeeName("Jane Doe");
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW);
+
+        User activeHrUser = new User();
+        activeHrUser.setId(101L);
+        activeHrUser.setActive(true);
+
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+        when(userRepository.findByRole_IdAndActiveTrue(1L)).thenReturn(List.of(activeHrUser));
+
+        service.employeeAcknowledge(form.getId(), employee);
+
+        assertEquals(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL, form.getStatus());
+        verify(notificationService).send(
+                eq(activeHrUser),
+                eq("Self-Assessment Pending Final Approval"),
+                eq("Jane Doe has acknowledged the manager review for Template. Final HR approval is required."),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(form.getId()));
+    }
+
+    @Test
     void submitForm_reopenedResubmissionCreatesAnotherNotification() {
         ReviewCycle cycle = cycle();
         Employee employee = employee(1L, 10L, 20L);
@@ -507,11 +663,28 @@ class SelfAssessmentFormAssignmentServiceTest {
         verify(formRepository).findByManagerAndCycle(manager.getId(), cycle);
     }
 
+    @Test
+    void getActiveCycleFormsForHr_includesTemplateIdInFormListRows() {
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate template = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm form = formForSubmit(employee(1L, 10L, 20L), template, cycle, SelfAssessmentFormStatus.DRAFT);
+
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(formRepository.findByCycleOrderByCreatedDateDesc(cycle)).thenReturn(List.of(form));
+
+        ActiveCycleFormsDto response = service.getActiveCycleFormsForHr();
+
+        assertEquals(1, response.forms().size());
+        assertEquals(100L, response.forms().get(0).templateId());
+    }
+
     private static SelfAssessmentAssignmentRequest request(String mode) {
         return new SelfAssessmentAssignmentRequest(
                 mode,
                 List.of(),
                 List.of(),
+                List.of(),
+                LocalDate.of(2026, 5, 5),
                 LocalDate.of(2026, 5, 10),
                 LocalDate.of(2026, 5, 15));
     }
@@ -633,6 +806,26 @@ class SelfAssessmentFormAssignmentServiceTest {
         answer.setQuestionText("What did you achieve?");
         answer.setSortOrder(0);
         form.addAnswer(answer);
+        return form;
+    }
+
+    private static SelfAssessmentForm disputedForm() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(10L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+
+        SelfAssessmentForm form = formForSubmit(
+                employee,
+                template(100L, 10L, 20L, cycle),
+                cycle,
+                SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW);
+        form.setManager(manager);
+        form.setManagerComments("Manager review");
+        form.setManagerRevisedTotalScore(3.0);
+        form.setEmployeeDisputeReason("Employee disagrees with rating");
+        form.setEmployeeDisputedAt(java.time.Instant.parse("2026-05-08T00:00:00Z"));
+        form.setEmployeeAcknowledgedAt(java.time.Instant.parse("2026-05-07T00:00:00Z"));
         return form;
     }
 
