@@ -33,11 +33,30 @@ function ScoreBar({ score }: { score: number | null }) {
   )
 }
 
+/** Statuses returned by GET /self-assessment-forms/score-records (matches backend filter). */
+const SCORE_RECORD_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: 'SUBMITTED', label: 'Submitted' },
+  { value: 'REOPENED', label: 'Reopened' },
+  { value: 'PENDING_MANAGER_REVIEW', label: 'Pending Manager Review' },
+  { value: 'PENDING_EMPLOYEE_REVIEW', label: 'Pending Employee Review' },
+  { value: 'PENDING_FINAL_APPROVAL', label: 'Pending Final Approval' },
+  { value: 'PENDING_HR_CALIBRATION_REVIEW', label: 'Pending HR Calibration' },
+  { value: 'MANAGER_REVIEWED', label: 'Manager Reviewed' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'FINALIZED_LOCKED', label: 'Finalized Locked' },
+]
+
 function StatusBadge({ status }: { status: string }) {
   const colorMap: Record<string, string> = {
     FINALIZED_LOCKED: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
     PENDING_FINAL_APPROVAL: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
     PENDING_MANAGER_REVIEW: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    PENDING_EMPLOYEE_REVIEW: 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300',
+    PENDING_HR_CALIBRATION_REVIEW: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300',
+    MANAGER_REVIEWED: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
+    REOPENED: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    SUBMITTED: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+    APPROVED: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
     DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
   }
   const cls = colorMap[status] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
@@ -206,7 +225,9 @@ export function SelfAssessmentScoreRecordsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Score Records</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Finalized self-assessment score records</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Scores for forms in the review workflow through finalized.
+        </p>
       </div>
 
       {isManager && (avgScore != null || topScore != null) && (
@@ -264,7 +285,9 @@ export function SelfAssessmentScoreRecordsPage() {
             className="px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
           >
             <option value="">All Statuses</option>
-            <option value="FINALIZED_LOCKED">Finalized Locked</option>
+            {SCORE_RECORD_STATUS_FILTER_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
           </select>
           <span className="text-xs font-bold text-slate-400 dark:text-slate-500">
             {filteredData.length} record{filteredData.length !== 1 ? 's' : ''}
@@ -295,7 +318,7 @@ export function SelfAssessmentScoreRecordsPage() {
               {table.getRowModel().rows.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
-                    No finalized score records found.
+                    No score records found.
                   </td>
                 </tr>
               ) : (

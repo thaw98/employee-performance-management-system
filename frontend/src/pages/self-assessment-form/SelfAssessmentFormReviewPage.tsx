@@ -263,29 +263,11 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     });
   }, [forms, searchQuery]);
 
-  const submittedCount = useMemo(
-    () => (forms ?? []).filter((f: any) => {
-      const s = (f.status ?? '').toUpperCase();
-      return s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED' || s === 'PENDING_MANAGER_REVIEW';
-    }).length,
-    [forms],
-  );
-  const reviewedCount = useMemo(
-    () => (forms ?? []).filter((f: any) => {
-      const s = (f.status ?? '').toUpperCase();
-      return s === 'MANAGER_REVIEWED' || s === 'PENDING_EMPLOYEE_REVIEW'
-        || s === 'PENDING_FINAL_APPROVAL' || s === 'PENDING_HR_CALIBRATION_REVIEW';
-    }).length,
-    [forms],
-  );
-  const approvedCount = useMemo(
-    () => (forms ?? []).filter((f: any) => {
-      const s = (f.status ?? '').toUpperCase();
-      return s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED';
-    }).length,
-    [forms],
-  );
   const totalCount = (forms ?? []).length;
+  const canHrReopenForEmployee = useMemo(() => {
+    const s = (selectedForm?.status ?? '').toUpperCase();
+    return s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED';
+  }, [selectedForm?.status]);
 
   const handleManagerAdjustmentChange = (answerId: number, field: keyof ManagerAdjustment, value: string | number) => {
     setAdjustments(prev => {
@@ -418,11 +400,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         <div className="animate-pulse space-y-6">
           <div className="h-8 w-72 rounded-lg bg-slate-200 dark:bg-slate-700" />
           <div className="h-4 w-96 rounded bg-slate-100 dark:bg-slate-800" />
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-28 rounded-2xl bg-slate-100 dark:bg-slate-800" />
-            ))}
-          </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="h-96 rounded-2xl bg-slate-100 dark:bg-slate-800" />
             <div className="lg:col-span-2 h-96 rounded-2xl bg-slate-100 dark:bg-slate-800" />
@@ -431,45 +408,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
       </div>
     );
   }
-
-  const summaryCards = [
-    {
-      label: 'Total Pending',
-      value: totalCount,
-      icon: FileText,
-      lightBg: 'bg-blue-50 dark:bg-blue-950/30',
-      lightIcon: 'text-blue-600 dark:text-blue-400',
-      ring: 'ring-blue-500/20',
-      bgGlow: 'bg-blue-500/10',
-    },
-    {
-      label: 'Awaiting Review',
-      value: submittedCount,
-      icon: Hourglass,
-      lightBg: 'bg-sky-50 dark:bg-sky-950/30',
-      lightIcon: 'text-sky-600 dark:text-sky-400',
-      ring: 'ring-sky-500/20',
-      bgGlow: 'bg-sky-500/10',
-    },
-    {
-      label: 'Manager Reviewed',
-      value: reviewedCount,
-      icon: ClipboardCheck,
-      lightBg: 'bg-amber-50 dark:bg-amber-950/30',
-      lightIcon: 'text-amber-600 dark:text-amber-400',
-      ring: 'ring-amber-500/20',
-      bgGlow: 'bg-amber-500/10',
-    },
-    {
-      label: 'Approved',
-      value: approvedCount,
-      icon: CheckCircle2,
-      lightBg: 'bg-emerald-50 dark:bg-emerald-950/30',
-      lightIcon: 'text-emerald-600 dark:text-emerald-400',
-      ring: 'ring-emerald-500/20',
-      bgGlow: 'bg-emerald-500/10',
-    },
-  ];
 
   const selectedStatusConfig = selectedForm ? getStatusConfig(selectedForm.status) : null;
   const SelectedStatusIcon = selectedStatusConfig?.icon ?? FileText;
@@ -515,31 +453,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
           <FileText size={14} />
           Open Form Queue
         </button>
-      </div>
-
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {summaryCards.map((card, i) => (
-          <div
-            key={card.label}
-            className="animate-fade-in-up group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:bg-slate-800/80"
-            style={{ animationDelay: `${i * 60}ms` }}
-          >
-            <div className={`absolute -right-4 -top-4 h-24 w-24 rounded-full ${card.bgGlow} blur-2xl transition-all duration-500 group-hover:scale-150`} />
-            <div className="relative flex items-start justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                  {card.label}
-                </p>
-                <p className="mt-2 text-3xl font-extrabold tabular-nums text-slate-900 dark:text-white">
-                  {card.value}
-                </p>
-              </div>
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.lightBg} ring-1 ${card.ring}`}>
-                <card.icon size={18} className={card.lightIcon} />
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
 
       {managerErrorMessage && (
@@ -1026,16 +939,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                           </p>
                                         </div>
                                       )}
-                                      {selectedForm.employeeRemarks && (
-                                        <div className="mt-3 rounded-lg bg-white px-3 py-2 dark:bg-slate-800/70">
-                                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                                            Overall Employee Remarks
-                                          </p>
-                                          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                                            {selectedForm.employeeRemarks}
-                                          </p>
-                                        </div>
-                                      )}
                                     </div>
 
                                     <div className="space-y-3 rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 dark:border-amber-700/60 dark:bg-amber-900/20">
@@ -1098,6 +1001,16 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                             })()}
                           </div>
                         ))}
+                        {selectedForm.employeeRemarks && (
+                          <div className="rounded-xl border border-violet-200/80 bg-violet-50/50 p-4 dark:border-violet-700/60 dark:bg-violet-900/20">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700 dark:text-violet-400">
+                              Overall Employee Remarks
+                            </p>
+                            <p className="mt-1 text-sm text-violet-900 dark:text-violet-100">
+                              {selectedForm.employeeRemarks}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1241,14 +1154,16 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                           <CheckCircle2 size={16} />
                           Final Approval
                         </button>
-                        <button
-                          onClick={() => handleHrReopenForm()}
-                          disabled={isReopening || isDefaultSigLoading || !hasDefaultSignature}
-                          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                          {isReopening ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-                          Reopen for Employee
-                        </button>
+                        {canHrReopenForEmployee && (
+                          <button
+                            onClick={() => handleHrReopenForm()}
+                            disabled={isReopening || isDefaultSigLoading || !hasDefaultSignature}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          >
+                            {isReopening ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                            Reopen for Employee
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

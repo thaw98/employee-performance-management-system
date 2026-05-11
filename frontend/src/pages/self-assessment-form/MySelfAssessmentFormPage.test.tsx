@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MySelfAssessmentFormPage } from './MySelfAssessmentFormPage'
 import { toast } from 'react-hot-toast'
+import { MemoryRouter } from 'react-router-dom'
 
 const mocks = vi.hoisted(() => {
   const formStatus = {
@@ -161,7 +162,24 @@ vi.mock('../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker
   ),
 }))
 
+vi.mock('../../features/selfAssessmentForm/ratingSystem', () => ({
+  isRatingValidForAnswer: () => true,
+}))
+
+vi.mock('../../features/user/userApi', () => ({
+  useGetDefaultSignatureQuery: () => ({
+    data: { data: { signatureData: 'signed' } },
+    isLoading: false,
+  }),
+}))
+
 describe('MySelfAssessmentFormPage autosave', () => {
+  const renderPage = () => render(
+    <MemoryRouter>
+      <MySelfAssessmentFormPage />
+    </MemoryRouter>,
+  )
+
   afterEach(() => {
     cleanup()
   })
@@ -196,8 +214,15 @@ describe('MySelfAssessmentFormPage autosave', () => {
     mocks.editableFormData.answers[0].managerProposedComment = null
   })
 
+  it('does not show total mark until at least one question is fully answered', async () => {
+    renderPage()
+
+    expect(await screen.findByText('Did you meet your goals?')).toBeTruthy()
+    expect(screen.queryByText('Total Mark')).toBeNull()
+  })
+
   it('configures react-hook-form autosave for editable drafts', async () => {
-    render(<MySelfAssessmentFormPage />)
+    renderPage()
 
     expect(await screen.findByText('Did you meet your goals?')).toBeTruthy()
     expect(mocks.autosaveOptions.config).toMatchObject({
@@ -227,7 +252,7 @@ describe('MySelfAssessmentFormPage autosave', () => {
 
   it('flushes pending changes from Save Now', async () => {
     const user = userEvent.setup()
-    render(<MySelfAssessmentFormPage />)
+    renderPage()
 
     await user.click(await screen.findByRole('button', { name: 'Save Now' }))
 
@@ -240,7 +265,7 @@ describe('MySelfAssessmentFormPage autosave', () => {
   it('prevents autosave when the server status is read-only', async () => {
     mocks.editableFormData.status = 'SUBMITTED'
 
-    render(<MySelfAssessmentFormPage />)
+    renderPage()
 
     expect(await screen.findByText('Read-only mode')).toBeTruthy()
     expect(
@@ -254,13 +279,25 @@ describe('MySelfAssessmentFormPage autosave', () => {
 
   it('disables submit when rating is missing after Yes/No is selected', async () => {
     const user = userEvent.setup()
-    render(<MySelfAssessmentFormPage />)
+    renderPage()
 
     await user.click(await screen.findByRole('button', { name: 'Yes' }))
     expect(screen.getByRole('button', { name: 'Submit Assessment' })).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Confirm Submit' })).toBeNull()
     expect(mocks.submitForm).not.toHaveBeenCalled()
     expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('shows total mark from current answer ratings', async () => {
+    mocks.editableFormData.answers[0].yesNoAnswer = 'Yes'
+    mocks.editableFormData.answers[0].rating = 4
+
+    renderPage()
+    const totalMarkLabel = await screen.findByText('Total Mark')
+    const totalMarkCard = totalMarkLabel.closest('div')
+
+    expect(totalMarkCard?.textContent ?? '').toContain('80.0%')
+    expect(totalMarkCard?.textContent ?? '').toContain('Good')
   })
 
   it('shows manager review actions for expired forms pending employee review', async () => {
@@ -275,7 +312,7 @@ describe('MySelfAssessmentFormPage autosave', () => {
     mocks.editableFormData.answers[0].managerProposedRating = 3
     mocks.editableFormData.answers[0].managerProposedComment = 'Needs stronger evidence'
 
-    render(<MySelfAssessmentFormPage />)
+    renderPage()
 
     expect(await screen.findByText('Manager Review Completed')).toBeTruthy()
     expect(screen.getAllByText('Manager Revised Score').length).toBeGreaterThan(0)
@@ -285,6 +322,26 @@ describe('MySelfAssessmentFormPage autosave', () => {
     expect(screen.queryByText('Deadline Passed')).toBeNull()
   })
 
+  it('requires confirmation before acknowledging manager review', async () => {
+    const user = userEvent.setup()
+    mocks.formStatus.status = 'PENDING_EMPLOYEE_REVIEW'
+    mocks.editableFormData.status = 'PENDING_EMPLOYEE_REVIEW'
+    mocks.employeeAcknowledge.mockReturnValue({ unwrap: () => Promise.resolve({}) })
+
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Acknowledge' }))
+    expect(screen.getByText('Confirm Acknowledgement')).toBeTruthy()
+    expect(mocks.employeeAcknowledge).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Confirm Acknowledge' }))
+
+    await waitFor(() => {
+      expect(mocks.employeeAcknowledge).toHaveBeenCalledWith(1)
+      expect(toast.success).toHaveBeenCalledWith('You have acknowledged the manager review')
+    })
+  })
+
   it.each(['DRAFT', 'NOT_SUBMITTED'])(
     'shows the deadline-passed state for expired %s forms',
     async (status) => {
@@ -292,7 +349,7 @@ describe('MySelfAssessmentFormPage autosave', () => {
       mocks.formStatus.deadlinePassed = true
       mocks.editableFormData.status = status
 
-      render(<MySelfAssessmentFormPage />)
+      renderPage()
 
       expect(await screen.findByText('Deadline Passed')).toBeTruthy()
       expect(screen.queryByText('Manager Review Completed')).toBeNull()

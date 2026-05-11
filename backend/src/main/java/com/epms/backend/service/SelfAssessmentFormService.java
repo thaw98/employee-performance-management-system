@@ -15,6 +15,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -25,6 +26,18 @@ import java.util.stream.Collectors;
 
 @Service
 public class SelfAssessmentFormService {
+
+    /** Forms visible on HR / manager score-records (in-review and finalized). */
+    private static final EnumSet<SelfAssessmentFormStatus> SCORE_RECORD_VISIBLE_STATUSES = EnumSet.of(
+            SelfAssessmentFormStatus.SUBMITTED,
+            SelfAssessmentFormStatus.APPROVED,
+            SelfAssessmentFormStatus.REOPENED,
+            SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW,
+            SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW,
+            SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL,
+            SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW,
+            SelfAssessmentFormStatus.FINALIZED_LOCKED,
+            SelfAssessmentFormStatus.MANAGER_REVIEWED);
 
     private static final DateTimeFormatter NOTIFICATION_DEADLINE_FORMAT =
             DateTimeFormatter.ofPattern("dd-MM-yyyy");
@@ -2234,7 +2247,7 @@ Instant now = Instant.now();
 
     private List<ScoreRecordDto> getHrScoreRecords() {
         return formRepository.findAll().stream()
-                .filter(f -> f.getStatus() == SelfAssessmentFormStatus.FINALIZED_LOCKED)
+                .filter(f -> SCORE_RECORD_VISIBLE_STATUSES.contains(f.getStatus()))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
                 .collect(Collectors.toList());
@@ -2244,7 +2257,7 @@ Instant now = Instant.now();
         List<SelfAssessmentForm> allForms = formRepository.findAll();
         Long managerId = manager.getId();
         return allForms.stream()
-                .filter(f -> f.getStatus() == SelfAssessmentFormStatus.FINALIZED_LOCKED)
+                .filter(f -> SCORE_RECORD_VISIBLE_STATUSES.contains(f.getStatus()))
                 .filter(f -> {
                     Employee emp = f.getEmployee();
                     if (emp == null) return false;

@@ -250,7 +250,7 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     scoreRecordsHookMock.mockReturnValue({ data: [], isLoading: false, isError: false })
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.getByText('No finalized score records found.')).toBeTruthy()
+    expect(screen.getByText('No score records found.')).toBeTruthy()
   })
 
   it('paginates records correctly', () => {
