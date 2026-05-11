@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   Search,
   RefreshCcw,
-  BellRing,
   TrendingUp,
   Send,
   Inbox,
@@ -85,7 +84,6 @@ const EmployeeLayout: React.FC = () => {
         },
       ],
     },
-    { icon: <BellRing size={20} />, label: 'Notifications', path: '/employee/notifications' },
   ];
 
   return (
@@ -108,7 +106,7 @@ const EmployeeLayout: React.FC = () => {
         {/* User Profile Card */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800">
            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner flex-shrink-0">
+              <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner shrink-0">
               {user?.profilePictureUrl ? (
                  <img src={resolveProfilePictureSrc(user.profilePictureUrl)} className="w-full h-full object-cover" alt="Profile" />
               ) : (

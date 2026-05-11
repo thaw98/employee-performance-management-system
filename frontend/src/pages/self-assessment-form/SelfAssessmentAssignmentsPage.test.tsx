@@ -134,23 +134,23 @@ describe('SelfAssessmentAssignmentsPage', () => {
     cleanup()
   })
 
-  it('renders View for assigned templates and Set Deadline when no deadline assignment yet', () => {
+  it('renders View for assigned templates and Assign Deadline when no deadline assignment yet', () => {
     render(<SelfAssessmentAssignmentsPage />)
 
     const viewLinks = screen.getAllByRole('link', { name: 'View' })
     expect(viewLinks).toHaveLength(1)
     expect(viewLinks[0]).toHaveAttribute('href', '/hr/self-assessment/assignments/100/assigned-employees')
-    expect(screen.getByRole('button', { name: 'Set Deadline' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Assign Deadline' })).toBeTruthy()
     expect(screen.queryByText('Aye Aye (EMP-200)')).not.toBeInTheDocument()
     expect(screen.queryByText('Assigned employees already exist for this department and position.')).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: 'Assigned Employees' })).not.toBeInTheDocument()
   })
 
-  it('opens Configure Deadlines modal when Set Deadline is clicked', async () => {
+  it('opens Configure Deadlines modal when Assign Deadline is clicked', async () => {
     const user = userEvent.setup()
     render(<SelfAssessmentAssignmentsPage />)
 
-    await user.click(screen.getByRole('button', { name: 'Set Deadline' }))
+    await user.click(screen.getByRole('button', { name: 'Assign Deadline' }))
 
     expect(screen.getByRole('dialog', { name: 'Configure Deadlines' })).toBeTruthy()
     expect(

@@ -444,7 +444,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
       if (onAssignmentSuccess) {
         onAssignmentSuccess();
       } else {
-        navigate('/hr/self-assessment/assignments?tab=overview');
+        navigate('/hr/self-assessment/assignments');
       }
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to assign self-assessment forms');

@@ -22,6 +22,10 @@ import {
   BookOpen,
   Unlock,
   Settings,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -35,8 +39,18 @@ import {
   useCopyTemplateMutation,
   useGetAllTemplatesQuery,
   useGetCopiedTemplateQuery,
+  type SelfAssessmentFormTemplateDto,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
-import { ratingSystemLabels } from '../../features/selfAssessmentForm/ratingSystem';
+import {
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type SortingState,
+} from '@tanstack/react-table';
+import { PaginationBar } from '../../components/common/PaginationBar';
 
 type CyclePhaseFilter = 'all' | 'current' | 'past' | 'upcoming';
 
@@ -69,6 +83,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [expandedFilters, setExpandedFilters] = useState(false);
   const [copyingTemplateId, setCopyingTemplateId] = useState<number | null>(null);
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   const { data: allTemplates = [] } = useGetAllTemplatesQuery();
   const { data: copiedTemplate } = useGetCopiedTemplateQuery(undefined, { skip: isManager });
@@ -266,6 +281,221 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
     }
     return null;
   };
+
+  type ColumnMeta = { thClassName?: string; tdClassName?: string; enableSorting?: boolean };
+
+  const columns = useMemo<ColumnDef<SelfAssessmentFormTemplateDto, unknown>[]>(() => {
+    const cols: Array<ColumnDef<SelfAssessmentFormTemplateDto, unknown>> = [
+      {
+        id: 'template',
+        header: 'Template',
+        accessorFn: (row) => row.title,
+        cell: ({ row }) => {
+          const template = row.original;
+          return (
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
+                <FileText size={16} />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-900 dark:text-white max-w-[220px]">
+                  {template.title?.trim() ? template.title : '\u2014'}
+                </p>
+                {template.reviewCycleName && (
+                  <p className="truncate text-[11px] text-slate-400 dark:text-slate-500 max-w-[220px] md:hidden">
+                    {template.reviewCycleName}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        },
+        meta: { thClassName: 'px-5 py-3.5 text-left', tdClassName: 'px-5 py-4' } satisfies ColumnMeta,
+      },
+      {
+        id: 'department',
+        header: 'Department',
+        accessorFn: (row) => row.departmentName,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1.5">
+            <Building2 size={12} className="text-slate-400 dark:text-slate-500" />
+            <span className="text-slate-600 dark:text-slate-300 text-xs font-medium">{row.original.departmentName}</span>
+          </div>
+        ),
+        meta: { thClassName: 'px-5 py-3.5 text-left', tdClassName: 'px-5 py-4' } satisfies ColumnMeta,
+      },
+      {
+        id: 'position',
+        header: 'Position',
+        accessorFn: (row) => row.positionName,
+        cell: ({ row }) => row.original.positionName,
+        meta: {
+          thClassName: 'px-5 py-3.5 text-left hidden md:table-cell',
+          tdClassName: 'px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 hidden md:table-cell',
+        } satisfies ColumnMeta,
+      },
+      {
+        id: 'reviewCycle',
+        header: 'Review Cycle',
+        accessorFn: (row) => row.reviewCycleName ?? '',
+        cell: ({ row }) => {
+          const template = row.original;
+          return (
+            <div className="flex items-center gap-2">
+              {template.reviewCycleName?.trim() ? (
+                <span className="text-xs text-slate-600 dark:text-slate-300 truncate max-w-[160px]">
+                  {template.reviewCycleName}
+                </span>
+              ) : (
+                <span className="text-xs text-slate-300 dark:text-slate-600">{'\u2014'}</span>
+              )}
+              {getPhaseBadge(template)}
+            </div>
+          );
+        },
+        meta: {
+          thClassName: 'px-5 py-3.5 text-left hidden lg:table-cell',
+          tdClassName: 'px-5 py-4 hidden lg:table-cell',
+        } satisfies ColumnMeta,
+      },
+      {
+        id: 'rating',
+        header: 'Rating',
+        accessorFn: (row) => row.ratingSystem,
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+            {row.original.ratingSystem === 'TEN_POINT' ? '10-Point' : '5-Point'}
+          </span>
+        ),
+        meta: {
+          thClassName: 'px-5 py-3.5 text-left hidden lg:table-cell',
+          tdClassName: 'px-5 py-4 hidden lg:table-cell',
+        } satisfies ColumnMeta,
+      },
+      {
+        id: 'questions',
+        header: 'Questions',
+        accessorFn: (row) => row.questions?.length ?? 0,
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100/80 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
+            <ClipboardList size={10} />
+            {row.original.questions?.length ?? 0}
+          </span>
+        ),
+        meta: {
+          thClassName: 'px-5 py-3.5 text-left hidden lg:table-cell',
+          tdClassName: 'px-5 py-4 hidden lg:table-cell',
+        } satisfies ColumnMeta,
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        accessorFn: (row) => `${row.isActive ? 'active' : 'inactive'}-${row.isLocked ? 'locked' : 'unlocked'}`,
+        enableSorting: false,
+        cell: ({ row }) => {
+          const template = row.original;
+          return (
+            <div className="flex flex-col gap-1">
+              <span
+                className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                  template.isActive
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                    : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${template.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                {template.isActive ? 'Active' : 'Inactive'}
+              </span>
+              {template.isLocked && (
+                <span
+                  className="inline-flex w-fit items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
+                  title="At least one self-assessment form has been created from this template"
+                >
+                  <Lock size={8} />
+                  Assigned
+                </span>
+              )}
+            </div>
+          );
+        },
+        meta: { thClassName: 'px-5 py-3.5 text-left', tdClassName: 'px-5 py-4' } satisfies ColumnMeta,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const template = row.original;
+          return (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {!isManager && (
+                <button
+                  type="button"
+                  onClick={() => void handleDuplicateTemplate(template.id)}
+                  disabled={isCopyingTemplate && copyingTemplateId === template.id}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-white"
+                >
+                  <Copy size={13} />
+                  {isCopyingTemplate && copyingTemplateId === template.id ? 'Duplicating...' : 'Duplicate'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => navigate(`${routeBase}/${template.id}/edit`)}
+                className={`group/btn inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
+                  template.isLocked
+                    ? 'border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-slate-200'
+                    : 'bg-[#5D5FEF]/[0.06] text-[#5D5FEF] hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20'
+                }`}
+              >
+                {template.isLocked ? (
+                  <>
+                    <Eye size={13} />
+                    View
+                  </>
+                ) : (
+                  <>
+                    <Pencil size={13} />
+                    Edit
+                  </>
+                )}
+                <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
+              </button>
+            </div>
+          );
+        },
+        meta: { thClassName: 'px-5 py-3.5 text-right', tdClassName: 'px-5 py-4' } satisfies ColumnMeta,
+      },
+    ];
+    return cols;
+  }, [
+    ArrowRight,
+    copyingTemplateId,
+    getPhaseBadge,
+    handleDuplicateTemplate,
+    isCopyingTemplate,
+    isManager,
+    navigate,
+    routeBase,
+  ]);
+
+  const templateTable = useReactTable({
+    data: filteredTemplates,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    autoResetPageIndex: false,
+    initialState: { pagination: { pageSize: 10 } },
+  });
+
+  useEffect(() => {
+    if (templateTable.getState().pagination.pageIndex > 0) {
+      templateTable.setPageIndex(0);
+    }
+  }, [searchQuery, cyclePhaseFilter, departmentFilter, positionFilter, templateTable]);
 
   return (
     <div className="min-h-screen px-6 py-6 md:px-8 animate-fade-in">
@@ -609,140 +839,54 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                 {filteredTemplates.length > 0 ? (
                   <table className="min-w-full text-sm">
                     <thead>
-                      <tr className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-800/60 dark:to-slate-800/30 dark:border-slate-700/60">
-                        <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                          Template
-                        </th>
-                        <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                          Department
-                        </th>
-                        <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden md:table-cell">
-                          Position
-                        </th>
-
-                        <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
-                          Review Cycle
-                        </th>
-                        <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
-                          Rating
-                        </th>
-                        <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                          Status
-                        </th>
-                        <th scope="col" className="px-5 py-3.5 text-right text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                          Actions
-                        </th>
-                      </tr>
+                      {templateTable.getHeaderGroups().map((headerGroup) => (
+                        <tr
+                          key={headerGroup.id}
+                          className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-800/60 dark:to-slate-800/30 dark:border-slate-700/60"
+                        >
+                          {headerGroup.headers.map((header) => {
+                            const meta = header.column.columnDef.meta as ColumnMeta | undefined;
+                            const canSort = header.column.getCanSort();
+                            const sorted = header.column.getIsSorted();
+                            return (
+                              <th
+                                key={header.id}
+                                scope="col"
+                                className={`${meta?.thClassName ?? 'px-5 py-3.5 text-left'} text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 ${
+                                  canSort ? 'select-none cursor-pointer hover:text-slate-600 dark:hover:text-slate-300' : ''
+                                }`}
+                                onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                              >
+                                <div className={`flex items-center gap-1 ${meta?.thClassName?.includes('text-right') ? 'justify-end' : ''}`}>
+                                  {flexRender(header.column.columnDef.header, header.getContext())}
+                                  {sorted === 'asc' ? ' ▲' : sorted === 'desc' ? ' ▼' : ''}
+                                </div>
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      ))}
                     </thead>
                     <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/40">
-                      {filteredTemplates.map((template, index) => (
+                      {templateTable.getRowModel().rows.map((row) => (
                         <tr
-                          key={template.id}
+                          key={row.id}
                           className="group transition-all duration-200 hover:bg-[#5D5FEF]/[0.02] dark:hover:bg-[#5D5FEF]/[0.04]"
-                          style={{ animationDelay: `${index * 30}ms` }}
                         >
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
-                                <FileText size={16} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate font-semibold text-slate-900 dark:text-white max-w-[220px]">
-                                  {template.title?.trim() ? template.title : '\u2014'}
-                                </p>
-                                {template.reviewCycleName && (
-                                  <p className="truncate text-[11px] text-slate-400 dark:text-slate-500 max-w-[220px] md:hidden">
-                                    {template.reviewCycleName}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-1.5">
-                              <Building2 size={12} className="text-slate-400 dark:text-slate-500" />
-                              <span className="text-slate-600 dark:text-slate-300 text-xs font-medium">{template.departmentName}</span>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 hidden md:table-cell">
-                            {template.positionName}
-                          </td>
-                          <td className="px-5 py-4 hidden lg:table-cell">
-                            <div className="flex items-center gap-2">
-                              {template.reviewCycleName?.trim() ? (
-                                <span className="text-xs text-slate-600 dark:text-slate-300 truncate max-w-[160px]">{template.reviewCycleName}</span>
-                              ) : (
-                                <span className="text-xs text-slate-300 dark:text-slate-600">{'\u2014'}</span>
-                              )}
-                              {getPhaseBadge(template)}
-                            </div>
-                          </td>
-
-                          <td className="px-5 py-4 hidden lg:table-cell">
-                            <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100/80 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
-                              <SlidersHorizontal size={10} />
-                              {ratingSystemLabels[template.ratingSystem]}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex flex-col gap-1">
-                              <span
-                                className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                                  template.isActive
-                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                                    : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                          {row.getVisibleCells().map((cell) => {
+                            const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
+                            const isRightAligned = (meta?.thClassName ?? '').includes('text-right');
+                            return (
+                              <td
+                                key={cell.id}
+                                className={`${meta?.tdClassName ?? 'px-5 py-4'} ${
+                                  isRightAligned ? 'text-right' : ''
                                 }`}
                               >
-                                <span className={`h-1.5 w-1.5 rounded-full ${template.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                                {template.isActive ? 'Active' : 'Inactive'}
-                              </span>
-                              {template.isLocked && (
-                                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-700 dark:bg-violet-900/30 dark:text-violet-400" title="At least one self-assessment form has been created from this template">
-                                  <Lock size={8} />
-                                  Assigned
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex flex-wrap items-center justify-end gap-2">
-                              {!isManager && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleDuplicateTemplate(template.id)}
-                                    disabled={isCopyingTemplate && copyingTemplateId === template.id}
-                                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-white"
-                                  >
-                                    <Copy size={13} />
-                                    {isCopyingTemplate && copyingTemplateId === template.id ? 'Duplicating...' : 'Duplicate'}
-                                  </button>
-                                </>
-                              )}
-<button
-                                type="button"
-                                onClick={() => navigate(`${routeBase}/${template.id}/edit`)}
-                                className={`group/btn inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
-                                  template.isLocked
-                                    ? 'border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-slate-200'
-                                    : 'bg-[#5D5FEF]/[0.06] text-[#5D5FEF] hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20'
-                                }`}
-                              >
-                                {template.isLocked ? (
-                                  <>
-                                    <Eye size={13} />
-                                    View
-                                  </>
-                                ) : (
-                                  <>
-                                    <Pencil size={13} />
-                                    Edit
-                                  </>
-                                )}
-                                <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
-                              </button>
-                            </div>
-                          </td>
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>
@@ -765,6 +909,19 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                   </div>
                 )}
               </div>
+            )}
+
+            {viewMode === 'table' && filteredTemplates.length > 0 && (
+              <PaginationBar
+                pageIndex={templateTable.getState().pagination.pageIndex}
+                pageSize={templateTable.getState().pagination.pageSize}
+                pageCount={templateTable.getPageCount() || 1}
+                totalItems={filteredTemplates.length}
+                itemLabel="templates"
+                rowsPerPageOptions={[5, 10, 20, 50]}
+                onPageIndexChange={(next) => templateTable.setPageIndex(next)}
+                onPageSizeChange={(nextSize) => templateTable.setPageSize(nextSize)}
+              />
             )}
 
             {/* ─── Grid View ─── */}
@@ -822,9 +979,8 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                               <ClipboardList size={9} />
                               {template.questions?.length ?? 0} Q{((template.questions?.length ?? 0) !== 1 ? 's' : '')}
                             </span>
-                            <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100/80 px-2 py-1 text-[10px] font-bold text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
-                              <SlidersHorizontal size={9} />
-                              {ratingSystemLabels[template.ratingSystem]}
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                              {template.ratingSystem === 'TEN_POINT' ? '10-Point' : '5-Point'}
                             </span>
                             {template.isActive ? (
                               <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-100/80 px-2 py-1 text-[10px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">

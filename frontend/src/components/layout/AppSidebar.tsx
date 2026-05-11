@@ -34,7 +34,7 @@ export function AppSidebar() {
     setExpandedSections(prev => ({ ...prev, [path]: !prev[path] }))
   }
 
-  const settingsPath = isHr ? '/hr/settings/profile' : (isManager ? '/manager/settings/profile' : '/employee/settings/profile')
+  const profilePath = isHr ? '/hr/profile' : (isManager ? '/manager/profile' : '/employee/profile')
 
   const navSections: NavSection[] = [
     {
@@ -225,7 +225,7 @@ export function AppSidebar() {
 
       <div className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-4 transition-colors duration-300">
         <NavLink
-          to={settingsPath}
+          to={profilePath}
           className={({ isActive }) =>
             `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
               ? SIDEBAR_LINK_ACTIVE
@@ -236,10 +236,10 @@ export function AppSidebar() {
           {({ isActive }) => (
             <>
               <i
-                className={`bi bi-gear text-base transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
+                className={`bi bi-person-circle text-base transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
                   }`}
               />
-              Settings
+              User Profile
             </>
           )}
         </NavLink>
