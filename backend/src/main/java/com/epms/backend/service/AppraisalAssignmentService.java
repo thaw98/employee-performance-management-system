@@ -30,13 +30,46 @@ public class AppraisalAssignmentService {
                     if (c.getQuestions() != null) c.getQuestions().size();
                 });
             }
+            if (a.getEmployee() != null) {
+                if (a.getEmployee().getDepartment() != null) a.getEmployee().getDepartment().getName();
+                if (a.getEmployee().getPosition() != null) a.getEmployee().getPosition().getName();
+            }
+            if (a.getPeriod() != null) a.getPeriod().getName();
             if (a.getAnswers() != null) a.getAnswers().size();
         });
         return list;
     }
 
     public List<AppraisalAssignment> getAssignmentsForEvaluator(Long evaluatorId) {
-        return appraisalAssignmentRepository.findByEvaluator_Id(evaluatorId);
+        List<AppraisalAssignment> list = appraisalAssignmentRepository.findByEvaluator_Id(evaluatorId);
+        // Force initialization of employee department and position for manager dashboard
+        list.forEach(a -> {
+            if (a.getEmployee() != null) {
+                if (a.getEmployee().getDepartment() != null) a.getEmployee().getDepartment().getName();
+                if (a.getEmployee().getPosition() != null) a.getEmployee().getPosition().getName();
+            }
+            if (a.getPeriod() != null) a.getPeriod().getName();
+        });
+        return list;
+    }
+
+    public List<AppraisalAssignment> getAssignmentsForEmployee(Long employeeId) {
+        List<AppraisalAssignment> list = appraisalAssignmentRepository.findByEmployeeId(employeeId);
+        // Force initialization for employee report view
+        list.forEach(a -> {
+            if (a.getEmployee() != null) {
+                if (a.getEmployee().getDepartment() != null) a.getEmployee().getDepartment().getName();
+                if (a.getEmployee().getPosition() != null) a.getEmployee().getPosition().getName();
+            }
+            if (a.getPeriod() != null) a.getPeriod().getName();
+            if (a.getTemplate() != null) {
+                a.getTemplate().getName();
+            }
+            if (a.getEvaluator() != null) {
+                a.getEvaluator().getEmployeeName();
+            }
+        });
+        return list;
     }
 
     public AppraisalAssignment getById(Long id) {

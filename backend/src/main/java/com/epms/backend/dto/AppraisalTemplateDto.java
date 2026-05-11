@@ -14,4 +14,7 @@ public class AppraisalTemplateDto {
     private List<Long> categoryIds;
     private List<Long> positionIds;
     private Integer maxRating;
+    private Long reviewCycleId;
+    private LocalDate deadlineDate;
+    private LocalDate createdAt;
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2 } from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2, Building2, Filter, ChevronDown, Award, MessageSquare } from 'lucide-react';
 import { formatDate } from '../../utils/dateUtils';
 import SignatureCanvas from 'react-signature-canvas';
 
@@ -35,8 +35,13 @@ interface Submission {
         employeeName: string;
         employeeId?: string;
         department?: {
+            id?: number;
             name: string;
             departmentName?: string;
+        };
+        position?: {
+            id?: number;
+            name: string;
         };
     };
     period?: {
@@ -59,6 +64,13 @@ export function AppraisalSubmissionsPage() {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterDept, setFilterDept] = useState<string | number>('ALL');
+    const [filterPos, setFilterPos] = useState<string | number>('ALL');
+    const [activeTab, setActiveTab] = useState('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [positions, setPositions] = useState<any[]>([]);
     const [selectedAsmt, setSelectedAsmt] = useState<Submission | null>(null);
     const [history, setHistory] = useState<any[]>([]);
     const [kpiHistory, setKpiHistory] = useState<any[]>([]);
@@ -72,7 +84,17 @@ export function AppraisalSubmissionsPage() {
 
     useEffect(() => {
         fetchSubmissions();
+        fetchDepartments();
     }, []);
+
+    useEffect(() => {
+        if (filterDept !== 'ALL') {
+            fetchPositions(filterDept as number);
+        } else {
+            setPositions([]);
+            setFilterPos('ALL');
+        }
+    }, [filterDept]);
 
     useEffect(() => {
         if (selectedAsmt) {
@@ -101,6 +123,24 @@ export function AppraisalSubmissionsPage() {
             console.error('Fetch error:', err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchDepartments = async () => {
+        try {
+            const resp = await axios.get('/departments');
+            setDepartments(resp.data.data || []);
+        } catch (err) {
+            console.error('Dept fetch error:', err);
+        }
+    };
+
+    const fetchPositions = async (deptId: number) => {
+        try {
+            const resp = await axios.get(`/departments/${deptId}/positions`);
+            setPositions(resp.data.data || []);
+        } catch (err) {
+            console.error('Position fetch error:', err);
         }
     };
 
@@ -184,9 +224,21 @@ export function AppraisalSubmissionsPage() {
         setActionInProgress(null);
     };
 
-    const filteredSubmissions = submissions.filter(s =>
-        s.employee.employeeName.toLowerCase().startsWith(searchTerm.toLowerCase().charAt(0)) ||
-        s.employee.employeeId?.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredSubmissions = submissions.filter(s => {
+        const matchesSearch = s.employee.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             s.employee.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const matchesDept = filterDept === 'ALL' || s.employee.department?.id === Number(filterDept);
+        const matchesPos = filterPos === 'ALL' || s.employee.position?.name === filterPos;
+        
+        const matchesStatus = activeTab === 'ALL' || s.status === activeTab;
+        
+        return matchesSearch && matchesDept && matchesPos && matchesStatus;
+    });
+
+    const paginatedSubmissions = filteredSubmissions.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
     );
 
     const getStatusStyle = (status: string) => {
@@ -215,8 +267,31 @@ export function AppraisalSubmissionsPage() {
 
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50">
+            {/* Status Tabs */}
+            <div className="bg-white p-2 rounded-[28px] border border-slate-100 shadow-sm flex flex-wrap items-center gap-2 px-2 overflow-x-auto">
+                {['ALL', 'PENDING', 'SUBMITTED', 'RETURNED', 'HR_APPROVED', 'REJECTED'].map((status) => (
+                    <button
+                        key={status}
+                        onClick={() => {
+                            setActiveTab(status);
+                            setCurrentPage(1);
+                        }}
+                        className={`px-6 py-3 rounded-[20px] text-[10px] font-black uppercase tracking-widest transition-all ${
+                            activeTab === status 
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
+                            : 'text-slate-400 hover:bg-slate-50'
+                        }`}
+                    >
+                        {status.replace(/_/g, ' ')}
+                        <span className={`ml-2 px-2 py-0.5 rounded-full text-[9px] ${activeTab === status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                            {status === 'ALL' ? submissions.length : submissions.filter(s => s.status === status).length}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Header with Search & Filters */}
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
                         <h1 className="text-4xl font-black tracking-tight" style={{ color: PRIMARY }}>
@@ -226,15 +301,54 @@ export function AppraisalSubmissionsPage() {
                             Track, review and finalize performance appraisal cycles.
                         </p>
                     </div>
-                    <div className="relative group w-full md:w-80">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search employee..."
-                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border-2 border-transparent focus:border-blue-500 focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
+                    <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                        {/* Search */}
+                        <div className="relative group w-full md:w-64">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder="Search employee..."
+                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Dept Filter */}
+                        <div className="relative min-w-[180px]">
+                            <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                            <select
+                                value={filterDept}
+                                onChange={(e) => {
+                                    setFilterDept(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value));
+                                    setFilterPos('ALL');
+                                }}
+                                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                            >
+                                <option value="ALL">All Departments</option>
+                                {departments.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        </div>
+
+                        {/* Position Filter */}
+                        <div className="relative min-w-[180px]">
+                            <Award className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                            <select
+                                value={filterPos}
+                                onChange={(e) => setFilterPos(e.target.value)}
+                                disabled={filterDept === 'ALL'}
+                                className={`w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100 ${filterDept === 'ALL' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <option value="ALL">All Positions</option>
+                                {positions.map(p => (
+                                    <option key={p.id} value={p.positionName}>{p.positionName}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -269,7 +383,7 @@ export function AppraisalSubmissionsPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredSubmissions.map(sa => (
+                                paginatedSubmissions.map(sa => (
                                     <tr key={sa.id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="p-6">
                                             <div className="flex items-center gap-4">
@@ -281,7 +395,7 @@ export function AppraisalSubmissionsPage() {
                                                         {sa.employee.employeeName}
                                                     </div>
                                                     <div className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">
-                                                        {sa.employee.employeeId || 'N/A'} • {sa.employee.department?.name || 'No Department'}
+                                                        {sa.employee.employeeId || 'N/A'} • {sa.employee.department?.name || 'No Dept'} • <span className="text-blue-500 font-bold">{sa.employee.position?.name || 'No Position'}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -330,6 +444,51 @@ export function AppraisalSubmissionsPage() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Controls */}
+                {filteredSubmissions.length > 0 && (
+                    <div className="flex items-center justify-between bg-slate-50 p-6 border-t border-slate-100">
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredSubmissions.length)} to {Math.min(currentPage * itemsPerPage, filteredSubmissions.length)} of {filteredSubmissions.length} records
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                disabled={currentPage === 1}
+                                onClick={() => {
+                                    setCurrentPage(prev => prev - 1);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
+                            >
+                                <RotateCcw size={18} className="rotate-180" />
+                            </button>
+                            
+                            {Array.from({ length: Math.ceil(filteredSubmissions.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => {
+                                        setCurrentPage(page);
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === page ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+
+                            <button
+                                disabled={currentPage === Math.ceil(filteredSubmissions.length / itemsPerPage)}
+                                onClick={() => {
+                                    setCurrentPage(prev => prev + 1);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
+                            >
+                                <RotateCcw size={18} />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Review Modal */}

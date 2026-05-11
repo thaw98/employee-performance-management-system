@@ -69,13 +69,13 @@ export function AppSidebar() {
       label: 'Management',
       items: [
         { 
-          name: 'Appraisals', 
+          name: isHr ? 'Appraisals' : (isManager ? 'Appraiser' : 'Appraisee'), 
           path: isHr ? '/hr/appraisals-group' : '/manager/appraisals-group', 
           icon: 'bi-clipboard-check', 
           end: false,
           subItems: [
             { 
-              name: isHr ? 'Management' : 'Team Appraisals', 
+              name: isHr ? 'Management' : (isManager ? 'Team Appraisals' : 'My Appraisals'), 
               path: isHr ? '/hr/appraisals' : '/manager/appraisals', 
               icon: isHr ? 'bi-kanban' : 'bi-people' 
             }

@@ -49,6 +49,12 @@ public class AppraisalTemplate {
     @Column(name = "max_rating")
     private Integer maxRating = 5;
 
+    @Column(name = "deadline_date")
+    private LocalDate deadlineDate;
+
+    @Column(name = "review_cycle_id")
+    private Long reviewCycleId;
+
     @Column(name = "created_at")
     private LocalDate createdAt = LocalDate.now();
 }

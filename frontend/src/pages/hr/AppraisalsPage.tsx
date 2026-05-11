@@ -19,6 +19,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, ChevronDown, HelpCircle, GripVertical, Download, RotateCcw, Calendar, ArrowRight, Clock, Users, Filter, FileSpreadsheet, FileText, Send, Building2, Check, RefreshCcw, History } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 const PRIMARY = '#0855BF';
@@ -61,6 +63,17 @@ interface AppraisalTemplateDto {
     categoryIds: number[];
     positionIds: number[];
     maxRating: number;
+    reviewCycleId?: number;
+    deadlineDate?: string;
+    createdAt?: string;
+}
+
+interface ReviewCycleDto {
+    id: number;
+    name: string;
+    startDate: string;
+    endDate: string;
+    status: string;
 }
 
 interface SortableCategoryRowProps {
@@ -164,13 +177,15 @@ interface ConfirmedAppraisalViewProps {
     onReset?: () => void;
     assessmentDate: string;
     effectiveDate: string;
+    deadlineDate: string;
+    reviewCycleId?: number | null;
     maxRating: number;
     selectedPositionIds: number[];
     allPositions: DepartmentPositionMapping[];
     templateId?: number | null;
 }
 
-function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onRemove, onConfirm, onReset, assessmentDate, effectiveDate, maxRating, selectedPositionIds, allPositions, isFinalizedView = false, templateId }: ConfirmedAppraisalViewProps) {
+function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onRemove, onConfirm, onReset, assessmentDate, effectiveDate, deadlineDate, reviewCycleId, maxRating, selectedPositionIds, allPositions, isFinalizedView = false, templateId }: ConfirmedAppraisalViewProps) {
     const [allQuestions, setAllQuestions] = useState<Record<number, Question[]>>({});
     const [showPicker, setShowPicker] = useState(false);
 
@@ -230,6 +245,82 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
         toast.success('Excel file generated successfully');
     };
 
+    const handleExportPDF = () => {
+        const doc = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        // Add Header
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text("PERFORMANCE APPRAISAL FORM", 148.5, 20, { align: 'center' });
+
+        // Add Metadata
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Assessment Date: ${assessmentDate}`, 14, 30);
+        doc.text(`Effective Date: ${effectiveDate}`, 14, 35);
+        doc.text(`Deadline: ${deadlineDate}`, 14, 40);
+
+        // Prepare Table Data
+        const ratingNumbers = Array.from({ length: maxRating }, (_, i) => (maxRating - i).toString());
+        const head = [['Category', 'No.', 'Evaluation Criteria & Performance Indicators', ...ratingNumbers]];
+        
+        const body: any[] = [];
+        let localGlobalIndex = 1;
+        
+        categories.forEach(cat => {
+            const qList = allQuestions[cat.id!] || [];
+            qList.forEach((q, idx) => {
+                body.push([
+                    idx === 0 ? cat.name : '',
+                    (localGlobalIndex++).toString().padStart(2, '0'),
+                    q.questionText,
+                    ...Array(maxRating).fill('')
+                ]);
+            });
+        });
+
+        autoTable(doc, {
+            head: head,
+            body: body,
+            startY: 50,
+            theme: 'grid',
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                valign: 'middle',
+                lineWidth: 0.1,
+                lineColor: [200, 200, 200]
+            },
+            headStyles: {
+                fillColor: [8, 85, 191],
+                textColor: [255, 255, 255],
+                fontSize: 9,
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            columnStyles: {
+                0: { cellWidth: 35 },
+                1: { cellWidth: 12, halign: 'center' },
+                2: { cellWidth: 'auto' },
+                // Rating columns
+                ...Object.fromEntries(ratingNumbers.map((_, i) => [i + 3, { cellWidth: 10, halign: 'center' }]))
+            },
+            didDrawPage: (data) => {
+                // Footer
+                const str = "Page " + doc.internal.getNumberOfPages();
+                doc.setFontSize(8);
+                doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 10);
+            }
+        });
+
+        doc.save(`Appraisal_Form_${assessmentDate}.pdf`);
+        toast.success('PDF generated successfully');
+    };
+
     let globalIndex = 1;
 
     return (
@@ -254,6 +345,8 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                             <div className="flex gap-4 mt-2">
                                 <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tight">ASMT: {assessmentDate}</span>
                                 <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md uppercase tracking-tight">EFF: {effectiveDate}</span>
+                                <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-md uppercase tracking-tight">DEADLINE: {deadlineDate}</span>
+                                {reviewCycleId && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tight">CYCLE ID: {reviewCycleId}</span>}
                                 <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md uppercase tracking-tight">SCALE: 1-{maxRating}</span>
                             </div>
                         )}
@@ -320,14 +413,23 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                     )}
 
                     {!isFinalizedView ? (
-                        <button
-                            onClick={onConfirm}
-                            disabled={categories.length === 0}
-                            className="flex items-center gap-3 px-8 py-3.5 bg-gradient-to-r from-emerald-500 via-teal-600 to-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(16,185,129,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 disabled:opacity-50 disabled:grayscale group"
-                        >
-                            <CheckCircle2 size={18} strokeWidth={3} className="group-hover:rotate-12 transition-transform" /> 
-                            <span>Confirm & Finalize</span>
-                        </button>
+                        <div className="flex flex-col items-end gap-2">
+                            <button
+                                onClick={onConfirm}
+                                disabled={categories.length === 0 || !assessmentDate || !effectiveDate || !deadlineDate || selectedPositionIds.length === 0}
+                                className="flex items-center gap-3 px-8 py-3.5 bg-gradient-to-r from-emerald-500 via-teal-600 to-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(16,185,129,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed group"
+                            >
+                                <CheckCircle2 size={18} strokeWidth={3} className="group-hover:rotate-12 transition-transform" /> 
+                                <span>Confirm & Finalize</span>
+                            </button>
+                            {(categories.length === 0 || !assessmentDate || !effectiveDate || selectedPositionIds.length === 0) && (
+                                <p className="text-[9px] font-black text-red-400 uppercase tracking-widest animate-pulse">
+                                    Required: {categories.length === 0 ? 'Categories, ' : ''} 
+                                    {!assessmentDate || !effectiveDate || !deadlineDate ? 'Dates, ' : ''}
+                                    {selectedPositionIds.length === 0 ? 'Positions' : ''}
+                                </p>
+                            )}
+                        </div>
                     ) : (
                         <div className="flex items-center gap-3">
                             <button
@@ -337,7 +439,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                 <RotateCcw size={18} /> <span>Modify / Edit</span>
                             </button>
                             <button
-                                onClick={() => window.print()}
+                                onClick={handleExportPDF}
                                 className="flex items-center gap-3 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 hover:shadow-[0_20px_40px_rgba(15,23,42,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-slate-100 whitespace-nowrap"
                             >
                                 <FileText size={18} /> <span>PDF</span>
@@ -373,7 +475,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                 <table className="w-full border-separate border-spacing-0 min-w-[1000px]">
                     <thead>
                         <tr className="bg-gradient-to-r from-[#0855BF] to-[#0a66e6] print:from-white print:to-white print:text-black">
-                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-28 border-b border-blue-400/20 print:text-slate-900 print:border-slate-800 print:border-b-2">Category</th>
+                            <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-40 border-b border-blue-400/20 print:text-slate-900 print:border-slate-800 print:border-b-2">Category</th>
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-16 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">No.</th>
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-left border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">Evaluation Criteria & Performance Indicators</th>
                             {/* DYNAMIC RATING COLUMNS */}
@@ -412,14 +514,12 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                                         {idx === 0 && (
                                                             <td
                                                                 rowSpan={qList.length}
-                                                                className="p-0 border-r border-slate-100 bg-slate-50/40 align-middle w-28 relative group-hover:bg-blue-50/50 transition-colors print:border-slate-800 print:border-r-2"
+                                                                className="p-0 border-r border-slate-100 bg-slate-50/40 align-middle w-40 relative group-hover:bg-blue-50/50 transition-colors print:border-slate-800 print:border-r-2"
                                                             >
-                                                                <div className="flex items-center justify-center h-full min-h-[120px]">
-                                                                    <div className="rotate-[-90deg] whitespace-nowrap">
-                                                                        <span className="font-black text-[#0855BF] text-[10px] uppercase tracking-[0.3em] opacity-60 print:text-slate-900 print:opacity-100 italic">
-                                                                            {cat.name}
-                                                                        </span>
-                                                                    </div>
+                                                                <div className="flex items-center justify-center h-full min-h-[120px] p-4 text-center">
+                                                                    <span className="font-black text-[#0855BF] text-[10px] uppercase tracking-[0.2em] opacity-70 print:text-slate-900 print:opacity-100 italic leading-relaxed">
+                                                                        {cat.name}
+                                                                    </span>
                                                                 </div>
                                                                 {/* Accent Line for Category Section */}
                                                                 <div className="absolute left-0 top-4 bottom-4 w-1 bg-blue-500 rounded-r-full print:hidden" />
@@ -462,9 +562,9 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                             })
                                         ) : (
                                             <tr key={`empty-${cat.id}`}>
-                                                <td className="p-6 border-r border-slate-100 bg-slate-50/40 text-center relative">
-                                                    <div className="rotate-[-90deg] whitespace-nowrap">
-                                                         <span className="font-black text-slate-300 text-[10px] uppercase tracking-[0.3em]">
+                                                <td className="p-6 border-r border-slate-100 bg-slate-50/40 text-center relative w-40">
+                                                    <div className="p-2 text-center">
+                                                         <span className="font-black text-slate-400 text-[10px] uppercase tracking-[0.2em] leading-relaxed">
                                                             {cat.name}
                                                         </span>
                                                     </div>
@@ -534,6 +634,8 @@ export function AppraisalsPage() {
     const [confirmedCategories, setConfirmedCategories] = useState<number[]>([]); // Current selection (Draft)
     const [finalizedCategories, setFinalizedCategories] = useState<number[]>([]); // Locked selection
     const [allTemplates, setAllTemplates] = useState<AppraisalTemplateDto[]>([]);
+    const [historyPage, setHistoryPage] = useState(1);
+    const historyItemsPerPage = 6;
     const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
     const [showCatModal, setShowCatModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -556,12 +658,17 @@ export function AppraisalsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [assessmentDate, setAssessmentDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [effectiveDate, setEffectiveDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [deadlineDate, setDeadlineDate] = useState<string>(new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0]);
+    const [reviewCycles, setReviewCycles] = useState<ReviewCycleDto[]>([]);
+    const [selectedCycleId, setSelectedCycleId] = useState<number | null>(null);
     const [maxRating, setMaxRating] = useState(10);
     const [selectedPositionIds, setSelectedPositionIds] = useState<number[]>([]);
     
     // Finalized (History) View States - Separate from Review states
     const [historyAssessmentDate, setHistoryAssessmentDate] = useState('');
     const [historyEffectiveDate, setHistoryEffectiveDate] = useState('');
+    const [historyDeadlineDate, setHistoryDeadlineDate] = useState('');
+    const [historyReviewCycleId, setHistoryReviewCycleId] = useState<number | null>(null);
     const [historyMaxRating, setHistoryMaxRating] = useState(10);
     const [historyPositionIds, setHistoryPositionIds] = useState<number[]>([]);
     const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
@@ -614,6 +721,8 @@ export function AppraisalsPage() {
             const payload = {
                 assessmentDate: assessmentDate,
                 effectiveDate: effectiveDate,
+                deadlineDate: deadlineDate,
+                reviewCycleId: selectedCycleId,
                 categoryIds: confirmedCategories,
                 positionIds: selectedPositionIds,
                 maxRating: maxRating
@@ -625,6 +734,8 @@ export function AppraisalsPage() {
             setSelectedTemplateId(newTemplate.id);
             setHistoryAssessmentDate(newTemplate.assessmentDate);
             setHistoryEffectiveDate(newTemplate.effectiveDate);
+            setHistoryDeadlineDate(newTemplate.deadlineDate);
+            setHistoryReviewCycleId(newTemplate.reviewCycleId || null);
             setHistoryPositionIds(newTemplate.positionIds || []);
             setHistoryMaxRating(newTemplate.maxRating || 10);
             setFinalizedCategories([...newTemplate.categoryIds]);
@@ -670,10 +781,20 @@ export function AppraisalsPage() {
         }
     };
 
+    const fetchReviewCycles = async () => {
+        try {
+            const resp = await axios.get('/review-cycles');
+            setReviewCycles(resp.data.data || []);
+        } catch (err) {
+            console.error("Failed to fetch review cycles", err);
+        }
+    };
+
     useEffect(() => {
         fetchCategories();
         fetchAllTemplates();
         fetchPositionsAndLevels();
+        fetchReviewCycles();
     }, []);
 
     useEffect(() => {
@@ -816,6 +937,34 @@ export function AppraisalsPage() {
         }
     };
 
+    const getRelativeTime = (dateString?: string) => {
+        if (!dateString) return 'recently';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'recently';
+            const now = new Date();
+            const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+            
+            const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+            
+            if (diffInSeconds < 60) return 'just now';
+            const diffInMinutes = Math.floor(diffInSeconds / 60);
+            if (diffInMinutes < 60) return rtf.format(-diffInMinutes, 'minute');
+            const diffInHours = Math.floor(diffInMinutes / 60);
+            if (diffInHours < 24) return rtf.format(-diffInHours, 'hour');
+            const diffInDays = Math.floor(diffInHours / 24);
+            if (diffInDays < 7) return rtf.format(-diffInDays, 'day');
+            const diffInWeeks = Math.floor(diffInDays / 7);
+            if (diffInWeeks < 4) return rtf.format(-diffInWeeks, 'week');
+            const diffInMonths = Math.floor(diffInDays / 30);
+            if (diffInMonths < 12) return rtf.format(-diffInMonths, 'month');
+            const diffInYears = Math.floor(diffInDays / 365);
+            return rtf.format(-diffInYears, 'year');
+        } catch (e) {
+            return 'recently';
+        }
+    };
+
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
             {/* Header - Hidden in Print */}
@@ -854,8 +1003,8 @@ export function AppraisalsPage() {
 
             {activeTab === 'finalized' ? (
                 <div className="space-y-8 animate-in fade-in duration-500">
-                    {/* History Explorer Header */}
-                    <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm space-y-6">
+                    {/* History Explorer Header - Hidden in Print */}
+                    <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm space-y-6 print:hidden">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                             <div className="flex items-center gap-5">
                                 <div className="w-14 h-14 bg-blue-600 text-white rounded-[22px] flex items-center justify-center shadow-lg shadow-blue-100">
@@ -867,12 +1016,19 @@ export function AppraisalsPage() {
                                 </div>
                             </div>
 
-                            {selectedTemplateId && (
+                            {selectedTemplateId ? (
                                 <button 
                                     onClick={() => setSelectedTemplateId(null)}
-                                    className="flex items-center gap-2 px-6 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black text-[11px] hover:bg-slate-200 transition-all uppercase tracking-widest"
+                                    className="flex items-center gap-2 px-6 py-3 bg-slate-100 text-slate-600 rounded-2xl font-black text-[11px] hover:bg-slate-200 transition-all uppercase tracking-widest shadow-sm border border-slate-200"
                                 >
                                     <ChevronRight size={16} className="rotate-180" /> Back to Archive
+                                </button>
+                            ) : (
+                                <button 
+                                    onClick={() => setActiveTab('category')}
+                                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-slate-100 text-slate-400 rounded-2xl font-black text-[11px] hover:border-blue-400 hover:text-blue-600 transition-all uppercase tracking-widest group"
+                                >
+                                    <ChevronRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" /> Back to Management
                                 </button>
                             )}
                         </div>
@@ -904,14 +1060,16 @@ export function AppraisalsPage() {
                     </div>
 
                     {!selectedTemplateId ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {allTemplates
-                                .filter(t => {
-                                    const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
-                                    const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && t.assessmentDate.startsWith(historyYearFilter));
-                                    return matchesSearch && matchesYear;
-                                })
-                                .map(t => (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {allTemplates
+                                    .filter(t => {
+                                        const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
+                                        const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
+                                        return matchesSearch && matchesYear;
+                                    })
+                                    .slice((historyPage - 1) * historyItemsPerPage, historyPage * historyItemsPerPage)
+                                    .map(t => (
                                     <div 
                                         key={t.id}
                                         className="group bg-white rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 hover:translate-y-[-4px] transition-all overflow-hidden relative"
@@ -924,6 +1082,12 @@ export function AppraisalsPage() {
                                                         {t.isActive && <span className="text-[10px] font-black text-white bg-emerald-500 px-2 py-0.5 rounded uppercase animate-pulse">Active</span>}
                                                     </div>
                                                     <h4 className="text-sm font-black text-slate-800 uppercase leading-tight group-hover:text-blue-600 transition-colors">{t.name}</h4>
+                                                    <div className="flex items-center gap-1.5 mt-1.5">
+                                                        <Clock size={10} className="text-slate-300" />
+                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                                            Created {getRelativeTime(t.createdAt)}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                                 <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-400 transition-all">
                                                     <FileText size={20} />
@@ -948,6 +1112,8 @@ export function AppraisalsPage() {
                                                         setFinalizedCategories(t.categoryIds);
                                                         setHistoryAssessmentDate(t.assessmentDate);
                                                         setHistoryEffectiveDate(t.effectiveDate);
+                                                        setHistoryDeadlineDate(t.deadlineDate);
+                                                        setHistoryReviewCycleId(t.reviewCycleId || null);
                                                         setHistoryPositionIds(t.positionIds || []);
                                                         setHistoryMaxRating(t.maxRating || 10);
                                                     }}
@@ -960,6 +1126,8 @@ export function AppraisalsPage() {
                                                         setConfirmedCategories([...t.categoryIds]);
                                                         setAssessmentDate(t.assessmentDate);
                                                         setEffectiveDate(t.effectiveDate);
+                                                        setDeadlineDate(t.deadlineDate || new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0]);
+                                                        setSelectedCycleId(t.reviewCycleId || null);
                                                         setMaxRating(t.maxRating || 10);
                                                         setSelectedPositionIds(t.positionIds || []);
                                                         setActiveTab('confirmed');
@@ -975,13 +1143,83 @@ export function AppraisalsPage() {
                                     </div>
                                 ))
                             }
-                            {allTemplates.length === 0 && (
+                            {allTemplates.filter(t => {
+                                const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
+                                const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
+                                return matchesSearch && matchesYear;
+                            }).length === 0 && (
                                 <div className="lg:col-span-3 p-20 text-center bg-slate-50/50 border-2 border-dashed border-slate-100 rounded-[48px]">
                                     <HelpCircle size={48} className="mx-auto text-slate-200 mb-4" />
                                     <p className="text-slate-400 font-black uppercase tracking-widest">No history records found</p>
                                 </div>
                             )}
                         </div>
+
+                            {/* Pagination Controls */}
+                            {allTemplates.length > 0 && (
+                                <div className="flex items-center justify-between bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm mt-8">
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        Showing {Math.min((historyPage - 1) * historyItemsPerPage + 1, allTemplates.filter(t => {
+                                            const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
+                                            const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
+                                            return matchesSearch && matchesYear;
+                                        }).length)} to {Math.min(historyPage * historyItemsPerPage, allTemplates.filter(t => {
+                                            const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
+                                            const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
+                                            return matchesSearch && matchesYear;
+                                        }).length)} of {allTemplates.filter(t => {
+                                            const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
+                                            const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
+                                            return matchesSearch && matchesYear;
+                                        }).length} records
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            disabled={historyPage === 1}
+                                            onClick={() => {
+                                                setHistoryPage(prev => prev - 1);
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }}
+                                            className="w-10 h-10 rounded-xl border border-slate-100 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all"
+                                        >
+                                            <ChevronRight size={18} className="rotate-180" />
+                                        </button>
+                                        
+                                        {Array.from({ length: Math.ceil(allTemplates.filter(t => {
+                                            const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
+                                            const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
+                                            return matchesSearch && matchesYear;
+                                        }).length / historyItemsPerPage) }, (_, i) => i + 1).map(page => (
+                                            <button
+                                                key={page}
+                                                onClick={() => {
+                                                    setHistoryPage(page);
+                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                }}
+                                                className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${historyPage === page ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
+                                            >
+                                                {page}
+                                            </button>
+                                        ))}
+
+                                        <button
+                                            disabled={historyPage === Math.ceil(allTemplates.filter(t => {
+                                                const matchesSearch = t.name.toLowerCase().includes(historySearchTerm.toLowerCase());
+                                                const matchesYear = historyYearFilter === 'All' || (t.assessmentDate && typeof t.assessmentDate === 'string' && t.assessmentDate.startsWith(historyYearFilter));
+                                                return matchesSearch && matchesYear;
+                                            }).length / historyItemsPerPage)}
+                                            onClick={() => {
+                                                setHistoryPage(prev => prev + 1);
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }}
+                                            className="w-10 h-10 rounded-xl border border-slate-100 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all"
+                                        >
+                                            <ChevronRight size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     ) : (
                         <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
                              <ConfirmedAppraisalView
@@ -989,6 +1227,8 @@ export function AppraisalsPage() {
                                 allAvailableCategories={categories}
                                 assessmentDate={historyAssessmentDate}
                                 effectiveDate={historyEffectiveDate}
+                                deadlineDate={historyDeadlineDate}
+                                reviewCycleId={historyReviewCycleId}
                                 onAdd={() => {}}
                                 onRemove={() => {}}
                                 onConfirm={() => {}}
@@ -997,6 +1237,7 @@ export function AppraisalsPage() {
                                     setFinalizedCategories([]);
                                     setAssessmentDate(historyAssessmentDate);
                                     setEffectiveDate(historyEffectiveDate);
+                                    setDeadlineDate(historyDeadlineDate);
                                     setMaxRating(historyMaxRating);
                                     setSelectedPositionIds(historyPositionIds);
                                     setActiveTab('confirmed');
@@ -1013,13 +1254,51 @@ export function AppraisalsPage() {
             ) : activeTab === 'confirmed' ? (
                 <div className="space-y-6">
                     <div className="bg-white p-2 rounded-[28px] border border-slate-100 shadow-sm flex flex-wrap items-center gap-2 px-2 animate-in fade-in slide-in-from-top-4 print:hidden">
+                        {/* Review Cycle Card */}
+                        <div className={`flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border-2 transition-all group ${!selectedCycleId ? 'border-slate-100 hover:border-blue-100' : 'border-blue-200 bg-white'}`}>
+                            <div className={`w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform ${!selectedCycleId ? 'text-slate-400' : 'text-blue-600'}`}>
+                                <RotateCcw size={22} />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Review Cycle (Optional)</p>
+                                <div className="relative">
+                                    <select 
+                                        value={selectedCycleId || ''}
+                                        onChange={(e) => {
+                                            const id = e.target.value ? Number(e.target.value) : null;
+                                            setSelectedCycleId(id);
+                                            if (id) {
+                                                const cycle = reviewCycles.find(c => c.id === id);
+                                                if (cycle) {
+                                                    setAssessmentDate(cycle.startDate);
+                                                    setEffectiveDate(cycle.startDate);
+                                                    setDeadlineDate(cycle.endDate);
+                                                }
+                                            }
+                                        }}
+                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer appearance-none"
+                                    >
+                                        <option value="">Manual Date Entry</option>
+                                        {reviewCycles.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name} ({c.status})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Connection Arrow/Line */}
+                        <div className="hidden lg:flex items-center justify-center w-10 text-slate-200">
+                            <ArrowRight size={20} strokeWidth={3} />
+                        </div>
+
                         {/* Assessment Date Card */}
-                        <div className="flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border border-transparent hover:border-blue-100 hover:bg-white transition-all group">
-                            <div className="w-12 h-12 bg-white text-blue-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                        <div className={`flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border-2 transition-all group ${!assessmentDate ? 'border-red-100 bg-red-50/10' : 'border-transparent hover:border-blue-100 hover:bg-white'}`}>
+                            <div className={`w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform ${!assessmentDate ? 'text-red-500' : 'text-blue-600'}`}>
                                 <Calendar size={22} />
                             </div>
                             <div className="flex-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Assessment Date</p>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Assessment Date {!assessmentDate && '*'}</p>
                                 <div className="relative">
                                     <input 
                                         type="date" 
@@ -1037,12 +1316,12 @@ export function AppraisalsPage() {
                         </div>
 
                         {/* Effective Date Card */}
-                        <div className="flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border border-transparent hover:border-emerald-100 hover:bg-white transition-all group">
-                            <div className="w-12 h-12 bg-white text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                        <div className={`flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border-2 transition-all group ${!effectiveDate ? 'border-red-100 bg-red-50/10' : 'border-transparent hover:border-emerald-100 hover:bg-white'}`}>
+                            <div className={`w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform ${!effectiveDate ? 'text-red-500' : 'text-emerald-600'}`}>
                                 <Clock size={22} />
                             </div>
                             <div className="flex-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Effective Date</p>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Effective Date {!effectiveDate && '*'}</p>
                                 <div className="relative">
                                     <input 
                                         type="date" 
@@ -1058,6 +1337,25 @@ export function AppraisalsPage() {
                         {/* Connection Arrow/Line */}
                         <div className="hidden lg:flex items-center justify-center w-10 text-slate-200">
                             <ArrowRight size={20} strokeWidth={3} />
+                        </div>
+
+                        {/* Deadline Date Card */}
+                        <div className={`flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border-2 transition-all group ${!deadlineDate ? 'border-red-100 bg-red-50/10' : 'border-transparent hover:border-amber-100 hover:bg-white'}`}>
+                            <div className={`w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform ${!deadlineDate ? 'text-red-500' : 'text-amber-600'}`}>
+                                <Clock size={22} />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Deadline Date {!deadlineDate && '*'}</p>
+                                <div className="relative">
+                                    <input 
+                                        type="date" 
+                                        value={deadlineDate}
+                                        min={effectiveDate || assessmentDate}
+                                        onChange={(e) => setDeadlineDate(e.target.value)}
+                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         {/* Rating Scale Selection */}
@@ -1084,14 +1382,14 @@ export function AppraisalsPage() {
                     </div>
 
                     {/* TARGET AUDIENCE SELECTION - Premium UI */}
-                    <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                    <div className={`bg-white p-8 rounded-[32px] border-2 shadow-sm space-y-6 animate-in fade-in slide-in-from-bottom-4 transition-all ${selectedPositionIds.length === 0 ? 'border-red-100' : 'border-slate-100'}`}>
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${selectedPositionIds.length === 0 ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-600'}`}>
                                     <Users size={24} />
                                 </div>
                                 <div className="space-y-1">
-                                    <h3 className="font-black text-slate-800 uppercase tracking-tight">Target Audience</h3>
+                                    <h3 className="font-black text-slate-800 uppercase tracking-tight">Target Audience {selectedPositionIds.length === 0 && '*'}</h3>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assign this form to specific organizational positions</p>
                                 </div>
                             </div>
@@ -1257,6 +1555,8 @@ export function AppraisalsPage() {
                         allAvailableCategories={categories}
                         assessmentDate={assessmentDate}
                         effectiveDate={effectiveDate}
+                        deadlineDate={deadlineDate}
+                        reviewCycleId={selectedCycleId}
                         onAdd={(id) => setConfirmedCategories(prev => [...prev, id])}
                         onRemove={(id) => setConfirmedCategories(prev => prev.filter(cid => cid !== id))}
                         onConfirm={handleFinalize}

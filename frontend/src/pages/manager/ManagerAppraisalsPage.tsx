@@ -7,6 +7,7 @@ import {
     Search, 
     Filter, 
     ChevronRight, 
+    ChevronDown,
     Clock, 
     User, 
     CheckCircle2, 
@@ -22,8 +23,8 @@ interface AppraisalAssignment {
         id: number;
         employeeId: string;
         employeeName: string;
-        department?: { name: string };
-        position?: { name: string };
+        department?: { id: number; name: string };
+        position?: { id: number; name: string };
     };
     period: {
         name: string;
@@ -41,6 +42,12 @@ export const ManagerAppraisalsPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('ALL');
+    const [filterPosition, setFilterPosition] = useState('ALL');
+    const [allDepartmentPositions, setAllDepartmentPositions] = useState<string[]>([]);
+    
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 6;
 
     useEffect(() => {
         fetchAssignments();
@@ -50,7 +57,18 @@ export const ManagerAppraisalsPage: React.FC = () => {
         try {
             setLoading(true);
             const resp = await axios.get('/appraisal-assignments/my-team');
-            setAssignments(resp.data.data || []);
+            const data = resp.data.data || [];
+            setAssignments(data);
+            
+            // Fetch all positions for this department
+            if (data.length > 0) {
+                const deptId = data[0].employee.department?.id;
+                if (deptId) {
+                    const posResp = await axios.get(`/departments/${deptId}/positions`);
+                    const positions = (posResp.data.data || []).map((m: any) => m.positionName);
+                    setAllDepartmentPositions(Array.from(new Set(positions)) as string[]);
+                }
+            }
         } catch (err) {
             console.error("Failed to fetch assignments", err);
             toast.error("Failed to load appraisals");
@@ -74,12 +92,28 @@ export const ManagerAppraisalsPage: React.FC = () => {
         }
     };
 
+    const uniquePositions = allDepartmentPositions.length > 0 
+        ? allDepartmentPositions 
+        : Array.from(new Set(assignments.map(a => a.employee.position?.name).filter(Boolean))) as string[];
+
     const filteredAssignments = assignments.filter(a => {
         const matchesSearch = a.employee.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                              a.employee.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = filterStatus === 'ALL' || a.status === filterStatus;
-        return matchesSearch && matchesStatus;
+        const matchesPosition = filterPosition === 'ALL' || a.employee.position?.name === filterPosition;
+        return matchesSearch && matchesStatus && matchesPosition;
     });
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredAssignments.length / itemsPerPage);
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredAssignments.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterStatus, filterPosition]);
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -108,14 +142,31 @@ export const ManagerAppraisalsPage: React.FC = () => {
                             className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all font-medium text-sm"
                         />
                     </div>
+                    
+                    {/* Position Filter */}
+                    <div className="relative">
+                        <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        <select
+                            value={filterPosition}
+                            onChange={(e) => setFilterPosition(e.target.value)}
+                            className="pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all font-black text-[10px] uppercase tracking-widest appearance-none min-w-[160px] text-slate-600"
+                        >
+                            <option value="ALL">All Positions</option>
+                            {uniquePositions.map(pos => (
+                                <option key={pos} value={pos}>{pos}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+
                     <div className="flex bg-slate-100 p-1.5 rounded-2xl">
-                        {['ALL', 'PENDING_MANAGER', 'RETURNED', 'SUBMITTED'].map(status => (
+                        {['ALL', 'PENDING_MANAGER', 'RETURNED', 'SUBMITTED', 'HR_APPROVED'].map(status => (
                             <button
                                 key={status}
                                 onClick={() => setFilterStatus(status)}
                                 className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === status ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             >
-                                {status === 'PENDING_MANAGER' ? 'PENDING' : status === 'RETURNED' ? 'RETURNED' : status === 'SUBMITTED' ? 'SUBMITTED' : 'ALL'}
+                                {status === 'PENDING_MANAGER' ? 'PENDING' : status === 'RETURNED' ? 'RETURNED' : status === 'SUBMITTED' ? 'SUBMITTED' : status === 'HR_APPROVED' ? 'APPROVED' : 'ALL'}
                             </button>
                         ))}
                     </div>
@@ -142,7 +193,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredAssignments.map((assignment) => (
+                    {currentItems.map((assignment) => (
                         <div 
                             key={assignment.id}
                             className="group bg-white rounded-[2.5rem] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-amber-100/50 hover:translate-y-[-8px] transition-all duration-500 relative overflow-hidden"
@@ -230,6 +281,54 @@ export const ManagerAppraisalsPage: React.FC = () => {
                             <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-amber-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity blur-2xl" />
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Pagination Controls */}
+            {!loading && filteredAssignments.length > itemsPerPage && (
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-8 border-t border-slate-100">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        Showing <span className="text-slate-900">{indexOfFirstItem + 1}</span> to <span className="text-slate-900">{Math.min(indexOfLastItem, filteredAssignments.length)}</span> of <span className="text-slate-900">{filteredAssignments.length}</span> assignments
+                    </p>
+                    
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-amber-500 hover:text-amber-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronRight size={18} className="rotate-180" />
+                        </button>
+                        
+                        <div className="flex items-center gap-1">
+                            {[...Array(totalPages)].map((_, i) => {
+                                const pageNum = i + 1;
+                                // Show limited page numbers if totalPages is large
+                                if (totalPages > 7 && (pageNum > 2 && pageNum < totalPages - 1 && Math.abs(pageNum - currentPage) > 1)) {
+                                    if (pageNum === 3 || pageNum === totalPages - 2) return <span key={pageNum} className="px-2 text-slate-300">...</span>;
+                                    return null;
+                                }
+                                
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        className={`w-10 h-10 rounded-xl font-black text-xs transition-all ${currentPage === pageNum ? 'bg-amber-500 text-white shadow-lg shadow-amber-200 scale-110' : 'text-slate-400 hover:bg-slate-50'}`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-amber-500 hover:text-amber-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronRight size={18} />
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
