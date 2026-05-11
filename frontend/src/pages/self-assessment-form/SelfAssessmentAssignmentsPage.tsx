@@ -16,6 +16,9 @@ import {
   ArrowRight,
   Eye,
   X,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -27,6 +30,16 @@ import {
   type SelfAssessmentFormTemplateDto,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { SelfAssessmentReviewCycleInfo, formatCycleDate } from './SelfAssessmentReviewCycleInfo';
+import {
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type SortingState,
+} from '@tanstack/react-table';
+import { PaginationBar } from '../../components/common/PaginationBar';
 
 function formatDate(iso?: string | null) {
   if (!iso) return '-';
@@ -60,6 +73,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
   const [modalEmployeeDeadline, setModalEmployeeDeadline] = useState('');
   const [modalManagerDeadline, setModalManagerDeadline] = useState('');
   const [setTemplateDeadline, { isLoading: isSettingDeadline }] = useSetTemplateDeadlineMutation();
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   const activeSubmissionCycle = activeCycles.find((cycle) => cycle.requiresEmployeeSubmission) ?? null;
 
@@ -192,6 +206,153 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
 
   ];
 
+  type ColumnMeta = { thClassName?: string; tdClassName?: string };
+
+  const columns = useMemo<ColumnDef<SelfAssessmentFormTemplateDto, unknown>[]>(() => {
+    const cols: Array<ColumnDef<SelfAssessmentFormTemplateDto, unknown>> = [
+      {
+        id: 'template',
+        header: 'Template',
+        accessorFn: (row) => row.title,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
+              <FileText size={16} />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-slate-900 dark:text-white max-w-[240px]">
+                {row.original.title}
+              </p>
+              <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 lg:hidden">
+                Start: {formatDate(assignmentStartDateByTemplateId.get(row.original.id) ?? null)}
+              </p>
+            </div>
+          </div>
+        ),
+        meta: { thClassName: 'px-5 py-3.5 text-left', tdClassName: 'px-5 py-4' } satisfies ColumnMeta,
+      },
+      {
+        id: 'department',
+        header: 'Department',
+        accessorFn: (row) => row.departmentName,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1.5">
+            <Users size={12} className="text-slate-400 dark:text-slate-500 shrink-0" />
+            <span className="text-slate-600 dark:text-slate-300 text-xs font-medium truncate max-w-[140px]">
+              {row.original.departmentName}
+            </span>
+          </div>
+        ),
+        meta: { thClassName: 'px-5 py-3.5 text-left', tdClassName: 'px-5 py-4' } satisfies ColumnMeta,
+      },
+      {
+        id: 'position',
+        header: 'Position',
+        accessorFn: (row) => row.positionName,
+        cell: ({ row }) => row.original.positionName,
+        meta: {
+          thClassName: 'px-5 py-3.5 text-left hidden md:table-cell',
+          tdClassName: 'px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 hidden md:table-cell truncate max-w-[130px]',
+        } satisfies ColumnMeta,
+      },
+      {
+        id: 'questions',
+        header: 'Questions',
+        accessorFn: (row) => row.questions.length,
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold tabular-nums text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
+            <Sparkles size={10} className="text-violet-500 dark:text-violet-400" />
+            {row.original.questions.length}
+          </span>
+        ),
+        meta: { thClassName: 'px-5 py-3.5 text-left hidden lg:table-cell', tdClassName: 'px-5 py-4 hidden lg:table-cell' } satisfies ColumnMeta,
+      },
+      {
+        id: 'ratingSystem',
+        header: 'Rating System',
+        accessorFn: (row) => row.ratingSystem,
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+            {row.original.ratingSystem === 'TEN_POINT' ? '10-Point' : '5-Point'}
+          </span>
+        ),
+        meta: { thClassName: 'px-5 py-3.5 text-left hidden lg:table-cell', tdClassName: 'px-5 py-4 hidden lg:table-cell' } satisfies ColumnMeta,
+      },
+      {
+        id: 'startDate',
+        header: 'Start Date',
+        accessorFn: (row) => assignmentStartDateByTemplateId.get(row.id) ?? '',
+        cell: ({ row }) => (
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+            {formatDate(assignmentStartDateByTemplateId.get(row.original.id) ?? null)}
+          </span>
+        ),
+        meta: { thClassName: 'px-5 py-3.5 text-left hidden lg:table-cell', tdClassName: 'px-5 py-4 hidden lg:table-cell' } satisfies ColumnMeta,
+      },
+      {
+        id: 'deadlineAssignment',
+        header: 'Deadline Assignment',
+        accessorFn: (row) => (row.isAssignedToDeadline ? 'assigned' : 'not-assigned'),
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.isAssignedToDeadline ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              Already assigned
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
+              Not assigned
+            </span>
+          ),
+        meta: { thClassName: 'px-5 py-3.5 text-left hidden lg:table-cell', tdClassName: 'px-5 py-4 hidden lg:table-cell' } satisfies ColumnMeta,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.isAssignedToDeadline ? (
+            <Link
+              to={`/hr/self-assessment/assignments/${row.original.id}/assigned-employees`}
+              className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+            >
+              <Eye size={13} />
+              View
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setDeadlineModalTemplate(row.original)}
+              className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+            >
+              <CalendarDays size={13} />
+              Assign Deadline
+            </button>
+          ),
+        meta: { thClassName: 'px-5 py-3.5 text-right', tdClassName: 'px-5 py-4 text-right' } satisfies ColumnMeta,
+      },
+    ];
+    return cols;
+  }, [assignmentStartDateByTemplateId]);
+
+  const assignmentTable = useReactTable({
+    data: existingTemplatesForActiveCycle,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    autoResetPageIndex: false,
+    initialState: { pagination: { pageSize: 10 } },
+  });
+
+  useEffect(() => {
+    if (assignmentTable.getState().pagination.pageIndex > 0) {
+      assignmentTable.setPageIndex(0);
+    }
+  }, [existingTemplatesForActiveCycle.length, assignmentTable]);
+
   if (templatesLoading) {
     return (
       <div className="min-h-screen px-6 py-6 md:px-8">
@@ -244,7 +405,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
         </div>
         {activeSubmissionCycle ? (
           <Link
-            to="/hr/self-assessment/assignments?tab=assign"
+            to="/hr/self-assessment/assign-forms"
             className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:-translate-y-0.5 hover:shadow-[#5D5FEF]/30"
           >
             <Send size={16} />
@@ -411,113 +572,48 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-800/60 dark:to-slate-800/30 dark:border-slate-700/60">
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                    Template
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                    Department
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden md:table-cell">
-                    Position
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
-                    Questions
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
-                    Rating System
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
-                    Start Date
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
-                    Deadline Assignment
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-right text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                    Actions
-                  </th>
-                </tr>
+                {assignmentTable.getHeaderGroups().map((headerGroup) => (
+                  <tr
+                    key={headerGroup.id}
+                    className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-800/60 dark:to-slate-800/30 dark:border-slate-700/60"
+                  >
+                    {headerGroup.headers.map((header) => {
+                      const meta = header.column.columnDef.meta as ColumnMeta | undefined;
+                      const canSort = header.column.getCanSort();
+                      const sorted = header.column.getIsSorted();
+                      return (
+                        <th
+                          key={header.id}
+                          scope="col"
+                          className={`${meta?.thClassName ?? 'px-5 py-3.5 text-left'} text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 ${
+                            canSort ? 'select-none cursor-pointer hover:text-slate-600 dark:hover:text-slate-300' : ''
+                          }`}
+                          onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                        >
+                          <div className={`flex items-center gap-1 ${(meta?.thClassName ?? '').includes('text-right') ? 'justify-end' : ''}`}>
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {sorted === 'asc' ? ' ▲' : sorted === 'desc' ? ' ▼' : ''}
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                ))}
               </thead>
               <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/40">
-                {existingTemplatesForActiveCycle.map((template, index) => (
+                {assignmentTable.getRowModel().rows.map((row) => (
                   <tr
-                    key={template.id}
+                    key={row.id}
                     className="group transition-all duration-200 hover:bg-[#5D5FEF]/[0.02] dark:hover:bg-[#5D5FEF]/[0.04]"
-                    style={{ animationDelay: `${index * 30}ms` }}
                   >
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
-                          <FileText size={16} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-slate-900 dark:text-white max-w-[240px]">
-                            {template.title}
-                          </p>
-                          <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 lg:hidden">
-                            Start: {formatDate(assignmentStartDateByTemplateId.get(template.id) ?? null)}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <Users size={12} className="text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span className="text-slate-600 dark:text-slate-300 text-xs font-medium truncate max-w-[140px]">
-                          {template.departmentName}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 hidden md:table-cell truncate max-w-[130px]">
-                      {template.positionName}
-                    </td>
-                    <td className="px-5 py-4 hidden lg:table-cell">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold tabular-nums text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
-                        <Sparkles size={10} className="text-violet-500 dark:text-violet-400" />
-                        {template.questions.length}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 hidden lg:table-cell">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                        {template.ratingSystem === 'TEN_POINT' ? '10-Point' : '5-Point'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 hidden lg:table-cell">
-                      <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                        {formatDate(assignmentStartDateByTemplateId.get(template.id) ?? null)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 hidden lg:table-cell">
-                      {template.isAssignedToDeadline ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                          Already assigned
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
-                          Not assigned
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      {template.isAssignedToDeadline ? (
-                        <Link
-                          to={`/hr/self-assessment/assignments/${template.id}/assigned-employees`}
-                          className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
-                        >
-                          <Eye size={13} />
-                          View
-                        </Link>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setDeadlineModalTemplate(template)}
-                          className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
-                        >
-                          <CalendarDays size={13} />
-                          Set Deadline
-                        </button>
-                      )}
-                    </td>
+                    {row.getVisibleCells().map((cell) => {
+                      const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
+                      return (
+                        <td key={cell.id} className={meta?.tdClassName ?? 'px-5 py-4'}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -525,6 +621,19 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {activeSubmissionCycle && !templatesError && existingTemplatesForActiveCycle.length > 0 && (
+        <PaginationBar
+          pageIndex={assignmentTable.getState().pagination.pageIndex}
+          pageSize={assignmentTable.getState().pagination.pageSize}
+          pageCount={assignmentTable.getPageCount() || 1}
+          totalItems={existingTemplatesForActiveCycle.length}
+          itemLabel="templates"
+          rowsPerPageOptions={[5, 10, 20, 50]}
+          onPageIndexChange={(next) => assignmentTable.setPageIndex(next)}
+          onPageSizeChange={(nextSize) => assignmentTable.setPageSize(nextSize)}
+        />
+      )}
 
       {/* Bulk Assignment Rules Card */}
       <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '360ms' }}>
@@ -538,7 +647,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Bulk Assignment Rules</h3>
               <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                 Employees are assigned only when they are <span className="font-semibold text-slate-700 dark:text-slate-300">active</span>, <span className="font-semibold text-slate-700 dark:text-slate-300">non-probation</span>, have an <span className="font-semibold text-slate-700 dark:text-slate-300">active user account</span>, and have a matching active template for the current cycle. Existing active-cycle forms are skipped. Use{' '}
-                <Link to="/hr/self-assessment/assignments?tab=assign" className="font-semibold text-[#5D5FEF] hover:underline dark:text-[#8b8ef7]">
+                <Link to="/hr/self-assessment/assign-forms" className="font-semibold text-[#5D5FEF] hover:underline dark:text-[#8b8ef7]">
                   Assign Self-Assessment Forms
                 </Link>{' '}
                 to run an assignment.
@@ -696,7 +805,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                     disabled={isSettingDeadline}
                     className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60"
                   >
-                    {isSettingDeadline ? 'Saving…' : 'Set Deadline'}
+                    {isSettingDeadline ? 'Saving…' : 'Assign Deadline'}
                   </button>
                 </div>
               </form>

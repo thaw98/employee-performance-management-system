@@ -185,6 +185,6 @@ describe('AssignSelfAssessmentFormsPage hybrid preview', () => {
     await user.click(screen.getByText('Engineering'))
     await user.click(screen.getByRole('button', { name: /Assign Forms/i }))
 
-    expect(navigateMock).toHaveBeenCalledWith('/hr/self-assessment/assignments?tab=overview')
+    expect(navigateMock).toHaveBeenCalledWith('/hr/self-assessment/assignments')
   })
 })
