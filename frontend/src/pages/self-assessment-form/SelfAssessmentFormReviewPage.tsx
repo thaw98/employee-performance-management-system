@@ -437,15 +437,30 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     const steps: { label: string; date?: string; done: boolean; active: boolean }[] = [];
     const s = (selectedForm.status ?? '').toUpperCase();
     steps.push({ label: 'Created', done: true, active: false });
-    if (selectedForm.assessmentDate) {
-      steps[0].date = formatDateDayMonthYear(selectedForm.assessmentDate);
+    if (selectedForm.createdDate) {
+      steps[0].date = formatDateTimeWithSeconds(selectedForm.createdDate);
     }
-    const hasSubmitted = ['SUBMITTED', 'EMPLOYEE_SUBMITTED', 'PENDING_MANAGER_REVIEW', 'MANAGER_REVIEWED', 'PENDING_FINAL_APPROVAL', 'PENDING_HR_CALIBRATION_REVIEW', 'APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
-    steps.push({ label: 'Employee Submitted', done: hasSubmitted, active: s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED', date: selectedForm.submittedAt ? formatDateDayMonthYear(selectedForm.submittedAt) : undefined });
-    const hasMgrReview = ['MANAGER_REVIEWED', 'PENDING_FINAL_APPROVAL', 'PENDING_HR_CALIBRATION_REVIEW', 'APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
-    steps.push({ label: 'Manager Review', done: hasMgrReview, active: s === 'MANAGER_REVIEWED' || s === 'PENDING_MANAGER_REVIEW', date: selectedForm.managerReviewedAt ? formatDateDayMonthYear(selectedForm.managerReviewedAt) : undefined });
+    const hasSubmitted = ['SUBMITTED', 'EMPLOYEE_SUBMITTED', 'PENDING_MANAGER_REVIEW', 'MANAGER_REVIEWED', 'PENDING_EMPLOYEE_REVIEW', 'PENDING_FINAL_APPROVAL', 'PENDING_HR_CALIBRATION_REVIEW', 'APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
+    steps.push({
+      label: 'Employee Submitted',
+      done: hasSubmitted,
+      active: s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED',
+      date: selectedForm.submittedDate ? formatDateTimeWithSeconds(selectedForm.submittedDate) : undefined,
+    });
+    const hasMgrReview = ['MANAGER_REVIEWED', 'PENDING_EMPLOYEE_REVIEW', 'PENDING_FINAL_APPROVAL', 'PENDING_HR_CALIBRATION_REVIEW', 'APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
+    steps.push({
+      label: 'Manager Review',
+      done: hasMgrReview,
+      active: s === 'MANAGER_REVIEWED' || s === 'PENDING_MANAGER_REVIEW',
+      date: selectedForm.managerSignatureDate ? formatDateTimeWithSeconds(selectedForm.managerSignatureDate) : undefined,
+    });
     const hasFinal = ['APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
-    steps.push({ label: 'HR Final Approval', done: hasFinal, active: s === 'PENDING_FINAL_APPROVAL' || s === 'PENDING_HR_CALIBRATION_REVIEW', date: selectedForm.approvedAt ? formatDateDayMonthYear(selectedForm.approvedAt) : undefined });
+    steps.push({
+      label: 'HR Final Approval',
+      done: hasFinal,
+      active: s === 'PENDING_FINAL_APPROVAL' || s === 'PENDING_HR_CALIBRATION_REVIEW',
+      date: selectedForm.hrFinalSignatureDate ? formatDateTimeWithSeconds(selectedForm.hrFinalSignatureDate) : undefined,
+    });
     return steps;
   }, [selectedForm]);
 
@@ -783,14 +798,14 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
               <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '120ms' }}>
                 <div className="flex items-center gap-2 mb-4">
-                  <Clock size={15} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Review Timeline</h3>
+                  <Clock size={17} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Review Timeline</h3>
                 </div>
                 <div className="flex items-center">
                   {timelineSteps.map((step, i) => (
                     <React.Fragment key={step.label}>
                       <div className="flex flex-col items-center min-w-0">
-                        <div className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition-all ${
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${
                           step.done
                             ? 'border-emerald-500 bg-emerald-500'
                             : step.active
@@ -798,20 +813,20 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                               : 'border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800'
                         }`}>
                           {step.done ? (
-                            <CheckCircle2 size={13} className="text-white" />
+                            <CheckCircle2 size={15} className="text-white" />
                           ) : step.active ? (
-                            <div className="h-2 w-2 rounded-full bg-[#5D5FEF]" />
+                            <div className="h-2.5 w-2.5 rounded-full bg-[#5D5FEF]" />
                           ) : (
-                            <div className="h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-600" />
+                            <div className="h-2.5 w-2.5 rounded-full bg-slate-300 dark:bg-slate-600" />
                           )}
                         </div>
-                        <p className={`mt-1.5 text-[10px] font-bold text-center leading-tight ${
+                        <p className={`mt-2 text-xs font-bold text-center leading-snug ${
                           step.done ? 'text-emerald-600 dark:text-emerald-400' : step.active ? 'text-[#5D5FEF] dark:text-[#8b8ef7]' : 'text-slate-400 dark:text-slate-500'
                         }`}>
                           {step.label}
                         </p>
                         {step.date && (
-                          <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">{step.date}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug text-center px-0.5">{step.date}</p>
                         )}
                       </div>
                       {i < timelineSteps.length - 1 && (
