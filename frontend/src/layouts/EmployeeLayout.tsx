@@ -71,7 +71,15 @@ const EmployeeLayout: React.FC = () => {
         { label: 'Feedback History', path: '/employee/360-feedback/history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
-    { icon: <Calendar size={20} />, label: 'Meetings', path: '/employee/meetings' },
+    {
+      icon: <Calendar size={20} />,
+      label: 'Meetings',
+      path: '/employee/meetings',
+      subItems: [
+        { label: 'My Meetings', path: '/employee/meetings', icon: <Calendar size={16} className="shrink-0" /> },
+        { label: 'Request Meeting', path: '/employee/meetings?action=request', icon: <Send size={16} className="shrink-0" /> }
+      ]
+    },
     {
       icon: <FileText size={20} />,
       label: 'Self Assessment Form',
@@ -126,9 +134,25 @@ const EmployeeLayout: React.FC = () => {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-1 dark:bg-slate-900 transition-colors duration-300">
           {menuItems.map((item) => {
+            const currentPath = `${location.pathname}${location.search}`;
+            const itemPathname = item.path.split('?')[0];
+            const matchesPath = (targetPath: string) => {
+              const [targetPathname, targetQuery] = targetPath.split('?');
+              if (location.pathname !== targetPathname) return false;
+              const currentParams = new URLSearchParams(location.search);
+              if (!targetQuery) {
+                return !currentParams.has('section') && !currentParams.has('action');
+              }
+
+              const targetParams = new URLSearchParams(targetQuery);
+              return Array.from(targetParams.entries()).every(
+                ([key, value]) => currentParams.get(key) === value,
+              );
+            };
             const isActive =
-              location.pathname === item.path ||
-              (item.subItems && item.subItems.some((sub) => location.pathname.startsWith(sub.path)));
+              currentPath === item.path ||
+              location.pathname === itemPathname ||
+              (item.subItems && item.subItems.some((sub) => matchesPath(sub.path)));
 
             if (item.subItems) {
               const isExpanded =
@@ -168,7 +192,7 @@ const EmployeeLayout: React.FC = () => {
                   {isExpanded && (
                     <div className="pl-7 pr-3 space-y-1 mt-1">
                       {item.subItems.map((subItem) => {
-                        const isSubActive = location.pathname === subItem.path;
+                        const isSubActive = matchesPath(subItem.path);
 
                         return (
                           <Link

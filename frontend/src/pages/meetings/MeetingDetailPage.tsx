@@ -19,6 +19,7 @@ export function MeetingDetailPage() {
     const [duration, setDuration] = useState<string>('00:00:00');
     const [isEndModalOpen, setIsEndModalOpen] = useState(false);
     const [summaryNotes, setSummaryNotes] = useState('');
+    const [newNote, setNewNote] = useState('');
 
     const formatDate = (dateString: string) => {
         if (!dateString) return 'N/A';
@@ -142,6 +143,7 @@ export function MeetingDetailPage() {
     const managerNotes = notes.filter(n => n.noteType === 'MANAGER_NOTE');
     const employeeNotes = notes.filter(n => n.noteType === 'EMPLOYEE_NOTE');
     const isManager = user?.id === meeting.managerUserId;
+    const isEmployee = user?.id === meeting.employeeUserId;
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 pb-20 px-4">
@@ -416,7 +418,7 @@ export function MeetingDetailPage() {
                             ))}
                         </div>
 
-                        {!isManager && meeting.status !== 'COMPLETED' && (
+                        {isEmployee && meeting.status !== 'COMPLETED' && (
                             <form onSubmit={handleAddNote} className="mt-4">
                                 <div className="relative">
                                     <textarea

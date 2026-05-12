@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { 
-    Calendar, Clock, User, CheckCircle, XCircle, 
-    RefreshCw, MessageSquare, Search, Filter, 
-    ChevronLeft, ChevronRight, ChevronDown, Check
+import {
+    Plus, Calendar, Clock, User, CheckCircle, XCircle,
+    MessageSquare, Search, Filter,
+    ChevronLeft, ChevronRight, Check
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -47,6 +47,12 @@ export function EmployeeMeetingsPage() {
     const [sortBy, setSortBy] = useState('latest');
     const [subStatus, setSubStatus] = useState('ALL');
     const [showFilters, setShowFilters] = useState(false);
+    const [requestableManagers, setRequestableManagers] = useState<any[]>([]);
+    const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+    const [requestTitle, setRequestTitle] = useState('');
+    const [requestDescription, setRequestDescription] = useState('');
+    const [requestScheduledTime, setRequestScheduledTime] = useState('');
+    const [requestDurationMinutes, setRequestDurationMinutes] = useState(45);
 
     // Reschedule Modal state
     const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
@@ -57,13 +63,34 @@ export function EmployeeMeetingsPage() {
     const now = new Date();
     const minDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
+    const openRequestModal = () => {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set('action', 'request');
+        setSearchParams(nextParams);
+        setIsRequestModalOpen(true);
+    };
+
+    const closeRequestModal = () => {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('action');
+        setSearchParams(nextParams);
+        setIsRequestModalOpen(false);
+    };
+
     useEffect(() => {
         setSortBy('latest');
         setPage(0);
     }, [activeTab]);
 
     useEffect(() => {
+        if (searchParams.get('action') === 'request') {
+            setIsRequestModalOpen(true);
+        }
+    }, [searchParams]);
+
+    useEffect(() => {
         fetchMeetings();
+        fetchRequestableManagers();
         const interval = setInterval(() => {
             if (activeTab !== 'COMPLETED') fetchMeetings();
         }, 30000);
@@ -96,10 +123,40 @@ export function EmployeeMeetingsPage() {
         }
     };
 
+    const fetchRequestableManagers = async () => {
+        try {
+            const resp = await axios.get('/meetings/requestable-managers');
+            setRequestableManagers(resp.data.data || []);
+        } catch (err) {
+            console.error('Failed to load requestable managers');
+        }
+    };
+
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         setPage(0);
         fetchMeetings();
+    };
+
+    const handleRequestMeeting = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await axios.post('/meetings/request', {
+                title: requestTitle,
+                description: requestDescription,
+                scheduledTime: new Date(requestScheduledTime).toISOString(),
+                durationMinutes: requestDurationMinutes
+            });
+            toast.success('Meeting request sent');
+            closeRequestModal();
+            setRequestTitle('');
+            setRequestDescription('');
+            setRequestScheduledTime('');
+            setRequestDurationMinutes(45);
+            fetchMeetings();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to request meeting');
+        }
     };
 
     const resetFilters = () => {
@@ -181,9 +238,17 @@ export function EmployeeMeetingsPage() {
 
     return (
         <div className="max-w-7xl mx-auto space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">My Meetings</h1>
-                <p className="text-slate-500 font-medium text-sm mt-1">Manage your 1-on-1 meetings with your manager</p>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">My Meetings</h1>
+                    <p className="text-slate-500 font-medium text-sm mt-1">Manage your 1-on-1 meetings with your manager</p>
+                </div>
+                <button
+                    onClick={openRequestModal}
+                    className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                    <Plus size={18} /> Request Meeting
+                </button>
             </div>
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -433,6 +498,77 @@ export function EmployeeMeetingsPage() {
                             <button 
                                 type="submit"
                                 className="w-full bg-blue-600 text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-blue-700 transition-colors shadow-md mt-2"
+                            >
+                                Send Request
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {isRequestModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="bg-slate-800 p-6 text-white flex justify-between items-center">
+                            <h2 className="text-xl font-black uppercase tracking-tight">Request Meeting</h2>
+                            <button onClick={closeRequestModal} className="text-slate-400 hover:text-white transition-colors">
+                                <XCircle size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleRequestMeeting} className="p-6 space-y-5">
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Manager</label>
+                                <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700">
+                                    {requestableManagers[0]?.name || 'No manager assigned'}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Meeting Title</label>
+                                <input
+                                    required
+                                    type="text"
+                                    value={requestTitle}
+                                    onChange={(e) => setRequestTitle(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                                    placeholder="e.g., Career discussion"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Date & Time</label>
+                                <input
+                                    required
+                                    type="datetime-local"
+                                    min={minDateTime}
+                                    value={requestScheduledTime}
+                                    onChange={(e) => setRequestScheduledTime(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Duration (mins)</label>
+                                <input
+                                    required
+                                    type="number"
+                                    min="15"
+                                    step="15"
+                                    value={requestDurationMinutes}
+                                    onChange={(e) => setRequestDurationMinutes(parseInt(e.target.value))}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Description / Agenda</label>
+                                <textarea
+                                    rows={3}
+                                    value={requestDescription}
+                                    onChange={(e) => setRequestDescription(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all resize-none"
+                                    placeholder="Brief agenda or topics to discuss..."
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={requestableManagers.length === 0}
+                                className="w-full bg-blue-600 text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-blue-700 transition-colors shadow-md mt-2 disabled:opacity-50"
                             >
                                 Send Request
                             </button>
