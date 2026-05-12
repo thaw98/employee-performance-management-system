@@ -12,6 +12,19 @@ import com.epms.backend.entity.User;
 import com.epms.backend.repository.PipProgressUpdateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
@@ -23,7 +36,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -89,6 +101,9 @@ public class PipReportService {
         PipIndividualReportDto report = getIndividualPipReport(pipId, actor);
         log.debug("Report DTO loaded: pipId={}, employee={}, status={}",
                   report.getPipId(), report.getEmployeeName(), report.getStatus());
+        if (isExcelFormat(format)) {
+            return generateIndividualExcelReport(report);
+        }
         Object jasperPrint = fillReport(
                 "pip_individual_report.jrxml",
                 List.of(report),
@@ -108,6 +123,9 @@ public class PipReportService {
             String format,
             User actor) {
         List<PipSummaryReportDto> rows = getPipSummaryReport(status, departmentId, startDate, endDate, actor);
+        if (isExcelFormat(format)) {
+            return generateSummaryExcelReport(rows);
+        }
         Object jasperPrint = fillReport(
                 "pip_summary_report.jrxml",
                 rows,
@@ -125,6 +143,9 @@ public class PipReportService {
             String format,
             User actor) {
         PipProgressReportDto report = getPipProgressReport(departmentId, startDate, endDate, actor);
+        if (isExcelFormat(format)) {
+            return generateProgressExcelReport(report);
+        }
         Object jasperPrint = fillReport(
                 "pip_progress_report.jrxml",
                 List.of(report),
@@ -132,6 +153,122 @@ public class PipReportService {
                         "FILTER_DESCRIPTION", buildFilterDescription(null, departmentId, startDate, endDate),
                         "GENERATED_AT", Instant.now().toString()));
         return export(jasperPrint, format);
+    }
+
+    private byte[] generateIndividualExcelReport(PipIndividualReportDto report) {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            CellStyle titleStyle = createTitleStyle(workbook);
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle textStyle = createTextStyle(workbook);
+
+            Sheet sheet = workbook.createSheet("Individual PIP");
+            int rowIndex = 0;
+            rowIndex = writeTitle(sheet, rowIndex, "Individual PIP Report", 15, titleStyle);
+            rowIndex++;
+            rowIndex = writeHeader(sheet, rowIndex, headerStyle,
+                    "PIP ID", "Employee ID", "Employee Name", "Department", "Position", "Manager", "Manager Department",
+                    "Status", "Start Date", "End Date", "Original End Date", "Actual End Date", "Progress %",
+                    "Completed Hours", "Total Hours", "Final Outcome");
+            writeRow(sheet, rowIndex++, textStyle,
+                    report.getPipId(), report.getEmployeeStaffNo(), report.getEmployeeName(), report.getEmployeeDepartment(),
+                    report.getEmployeePosition(), report.getManagerName(), report.getManagerDepartment(), report.getStatus(),
+                    formatExcelDate(report.getStartDate()), formatExcelDate(report.getEndDate()),
+                    formatExcelDate(report.getOriginalEndDate()), formatExcelDate(report.getActualEndDate()),
+                    report.getOverallProgress(), report.getCompletedHours(), report.getTotalHours(), report.getFinalOutcome());
+
+            rowIndex += 2;
+            rowIndex = writeTitle(sheet, rowIndex, "Objectives", 5, titleStyle);
+            rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Objective ID", "Description", "Weight %", "Progress %", "Due Date", "Status");
+            for (PipIndividualReportDto.ObjectiveRow objective : safeList(report.getObjectives())) {
+                writeRow(sheet, rowIndex++, textStyle,
+                        objective.getObjectiveId(), objective.getDescription(), objective.getWeightPercentage(),
+                        objective.getProgressPercentage(), formatExcelDate(objective.getDueDate()), objective.getStatus());
+            }
+
+            rowIndex += 2;
+            rowIndex = writeTitle(sheet, rowIndex, "Follow-up Meetings", 4, titleStyle);
+            rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Meeting ID", "Scheduled Date", "Meeting Time", "Status", "Notes");
+            for (PipIndividualReportDto.MeetingRow meeting : safeList(report.getMeetings())) {
+                writeRow(sheet, rowIndex++, textStyle,
+                        meeting.getMeetingId(), formatExcelDate(meeting.getScheduledDate()), meeting.getMeetingTime(),
+                        meeting.getStatus(), meeting.getNotes());
+            }
+
+            rowIndex += 2;
+            rowIndex = writeTitle(sheet, rowIndex, "Progress Updates", 6, titleStyle);
+            rowIndex = writeHeader(sheet, rowIndex, headerStyle,
+                    "Update ID", "Update Date", "Objective", "Previous %", "New %", "Updated By", "Feedback");
+            for (PipIndividualReportDto.ProgressUpdateRow update : safeList(report.getProgressUpdates())) {
+                writeRow(sheet, rowIndex++, textStyle,
+                        update.getUpdateId(), formatExcelDate(update.getUpdateDate()), update.getObjectiveDescription(),
+                        update.getPreviousPercentage(), update.getNewPercentage(), update.getUpdatedBy(), update.getFeedback());
+            }
+
+            autosize(sheet, 16);
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to generate individual PIP Excel report", e);
+        }
+    }
+
+    private byte[] generateSummaryExcelReport(List<PipSummaryReportDto> rows) {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            CellStyle titleStyle = createTitleStyle(workbook);
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle textStyle = createTextStyle(workbook);
+
+            Sheet sheet = workbook.createSheet("PIP Summary");
+            int rowIndex = writeTitle(sheet, 0, "PIP Summary Report", 12, titleStyle) + 1;
+            rowIndex = writeHeader(sheet, rowIndex, headerStyle,
+                    "PIP ID", "Employee ID", "Employee Name", "Department", "Position", "Manager", "Status",
+                    "Start Date", "End Date", "Progress %", "Completed Hours", "Total Hours",
+                    "Objectives Count", "Meetings Count", "Final Outcome");
+            for (PipSummaryReportDto row : rows) {
+                writeRow(sheet, rowIndex++, textStyle,
+                        row.getPipId(), row.getEmployeeStaffNo(), row.getEmployeeName(), row.getDepartmentName(),
+                        row.getPositionName(), row.getManagerName(), row.getStatus(), formatExcelDate(row.getStartDate()),
+                        formatExcelDate(row.getEndDate()), row.getOverallProgress(), row.getCompletedHours(),
+                        row.getTotalHours(), row.getObjectivesCount(), row.getMeetingsCount(), row.getFinalOutcome());
+            }
+
+            autosize(sheet, 15);
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to generate PIP summary Excel report", e);
+        }
+    }
+
+    private byte[] generateProgressExcelReport(PipProgressReportDto report) {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            CellStyle titleStyle = createTitleStyle(workbook);
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle textStyle = createTextStyle(workbook);
+
+            Sheet sheet = workbook.createSheet("PIP Progress");
+            int rowIndex = writeTitle(sheet, 0, "PIP Progress Report", 2, titleStyle) + 1;
+            rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Metric", "Value");
+            writeRow(sheet, rowIndex++, textStyle, "Department Scope", report.getDepartmentName());
+            writeRow(sheet, rowIndex++, textStyle, "Period Start", formatExcelDate(report.getPeriodStart()));
+            writeRow(sheet, rowIndex++, textStyle, "Period End", formatExcelDate(report.getPeriodEnd()));
+            writeRow(sheet, rowIndex++, textStyle, "Total PIPs", report.getTotalPips());
+            writeRow(sheet, rowIndex++, textStyle, "Active PIPs", report.getActivePips());
+            writeRow(sheet, rowIndex++, textStyle, "Completed PIPs", report.getCompletedPips());
+            writeRow(sheet, rowIndex++, textStyle, "Closed PIPs", report.getClosedPips());
+            writeRow(sheet, rowIndex++, textStyle, "Auto Closed PIPs", report.getAutoClosedPips());
+            writeRow(sheet, rowIndex++, textStyle, "Reopen Requested PIPs", report.getReopenRequestedPips());
+            writeRow(sheet, rowIndex++, textStyle, "Average Progress %", report.getAverageProgress());
+            writeRow(sheet, rowIndex++, textStyle, "Total Planned Hours", report.getTotalPlannedHours());
+            writeRow(sheet, rowIndex++, textStyle, "Total Completed Hours", report.getTotalCompletedHours());
+            writeRow(sheet, rowIndex, textStyle, "Hours Completion %", report.getHoursCompletionPercentage());
+
+            autosize(sheet, 2);
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to generate PIP progress Excel report", e);
+        }
     }
 
     public void generatePdfReport(Object jasperPrint, OutputStream outputStream) {
@@ -184,15 +321,99 @@ public class PipReportService {
 
     private byte[] export(Object jasperPrint, String format) {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-            if (FORMAT_EXCEL.equalsIgnoreCase(format) || "xlsx".equalsIgnoreCase(format)) {
-                generateExcelReport(jasperPrint, outputStream);
-            } else {
-                generatePdfReport(jasperPrint, outputStream);
-            }
+            generatePdfReport(jasperPrint, outputStream);
             return outputStream.toByteArray();
         } catch (IOException e) {
             throw new IllegalStateException("Failed to write report output", e);
         }
+    }
+
+    private boolean isExcelFormat(String format) {
+        return FORMAT_EXCEL.equalsIgnoreCase(format) || "xlsx".equalsIgnoreCase(format);
+    }
+
+    private CellStyle createTitleStyle(Workbook workbook) {
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 14);
+        CellStyle style = workbook.createCellStyle();
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.LEFT);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        return style;
+    }
+
+    private CellStyle createHeaderStyle(Workbook workbook) {
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setColor(IndexedColors.WHITE.getIndex());
+        CellStyle style = workbook.createCellStyle();
+        style.setFont(font);
+        style.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        return style;
+    }
+
+    private CellStyle createTextStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setVerticalAlignment(VerticalAlignment.TOP);
+        style.setWrapText(true);
+        return style;
+    }
+
+    private int writeTitle(Sheet sheet, int rowIndex, String title, int lastColumn, CellStyle style) {
+        Row row = sheet.createRow(rowIndex++);
+        Cell cell = row.createCell(0);
+        cell.setCellValue(title);
+        cell.setCellStyle(style);
+        sheet.addMergedRegion(new CellRangeAddress(row.getRowNum(), row.getRowNum(), 0, lastColumn));
+        return rowIndex;
+    }
+
+    private int writeHeader(Sheet sheet, int rowIndex, CellStyle style, String... headers) {
+        Row row = sheet.createRow(rowIndex++);
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = row.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(style);
+        }
+        return rowIndex;
+    }
+
+    private void writeRow(Sheet sheet, int rowIndex, CellStyle style, Object... values) {
+        Row row = sheet.createRow(rowIndex);
+        for (int i = 0; i < values.length; i++) {
+            Cell cell = row.createCell(i);
+            cell.setCellStyle(style);
+            setCellValue(cell, values[i]);
+        }
+    }
+
+    private void setCellValue(Cell cell, Object value) {
+        if (value == null) {
+            cell.setBlank();
+        } else if (value instanceof Number number) {
+            cell.setCellValue(number.doubleValue());
+        } else if (value instanceof Boolean bool) {
+            cell.setCellValue(bool);
+        } else {
+            cell.setCellValue(value.toString());
+        }
+    }
+
+    private void autosize(Sheet sheet, int columnCount) {
+        for (int i = 0; i < columnCount; i++) {
+            sheet.autoSizeColumn(i);
+            sheet.setColumnWidth(i, Math.min(sheet.getColumnWidth(i) + 1024, 16000));
+        }
+    }
+
+    private String formatExcelDate(LocalDate date) {
+        return date == null ? "" : DATE_FORMAT.format(date);
     }
 
     private Object fillReport(String templateName, List<?> rows, Map<String, Object> parameters) {
@@ -221,17 +442,6 @@ public class PipReportService {
             log.error("Failed to fill report template {}: {}", templateName, e.getMessage(), e);
             throw new IllegalStateException("Failed to build report from template " + templateName, e);
         }
-    }
-
-    private Method findMethod(Class<?> type, String name, Class<?> argumentType) throws NoSuchMethodException {
-        for (Method method : type.getMethods()) {
-            if (method.getName().equals(name)
-                    && method.getParameterCount() == 1
-                    && method.getParameterTypes()[0].isAssignableFrom(argumentType)) {
-                return method;
-            }
-        }
-        throw new NoSuchMethodException(type.getName() + "." + name);
     }
 
     private Resource resolveTemplate(String templateName) {

@@ -58,3 +58,27 @@ export function downloadPipProgressReport(filters: Omit<PipReportFilters, 'statu
     `pip-progress-report.${getReportExtension(format)}`,
   )
 }
+
+export function downloadPipSummaryReportExport(
+  filters: PipReportFilters,
+  format: PipReportFormat,
+  fallbackName?: string
+) {
+  return downloadPipReport(
+    '/pips/report/summary',
+    { ...filters, format },
+    fallbackName ?? `pip-summary-report.${getReportExtension(format)}`,
+  )
+}
+
+export function downloadPipProgressReportExport(
+  filters: PipReportFilters,
+  format: PipReportFormat,
+  fallbackName?: string
+) {
+  return downloadPipReport(
+    '/pips/report/progress',
+    { ...filters, format },
+    fallbackName ?? `pip-progress-report.${getReportExtension(format)}`,
+  )
+}

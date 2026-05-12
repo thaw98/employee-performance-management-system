@@ -13,7 +13,7 @@ import {
   Legend,
 } from 'recharts'
 import { useGetPipSummaryReportQuery, useGetPipProgressReportQuery, useGetPipIndividualReportQuery } from '../../features/pip/pipApi'
-import { downloadIndividualPipReport } from '../../features/pip/pipReportApi'
+import { downloadIndividualPipReport, downloadPipSummaryReportExport, downloadPipProgressReportExport } from '../../features/pip/pipReportApi'
 import { useGetDepartmentsQuery } from '../../features/hrCreateEmployee/hrEmployeeAccountApi'
 import { Download, FileText, BarChart3, Filter, X, Calendar, User, Target, Clock, TrendingUp } from 'lucide-react'
 
@@ -34,14 +34,13 @@ const COLORS = {
   REOPEN_REQUESTED: '#3b82f6',
 }
 
-const PIE_COLORS = ['#f59e0b', '#10b981', '#6b7280', '#9ca3af', '#3b82f6', '#8b5cf6']
-
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<'summary' | 'progress'>('summary')
   const [statusFilter, setStatusFilter] = useState('')
   const [departmentId, setDepartmentId] = useState<number | undefined>(undefined)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [reportDownload, setReportDownload] = useState<string | null>(null)
 
   const { data: summaryData = [], isLoading: isLoadingSummary } = useGetPipSummaryReportQuery({
     status: statusFilter || undefined,
@@ -80,6 +79,38 @@ export default function ReportsPage() {
       console.error('Failed to download report:', error)
       alert(error?.response?.data?.message || 'Failed to download report')
     })
+  }
+
+  const handleDownloadSummaryReport = async (format: 'pdf' | 'excel') => {
+    try {
+      setReportDownload(`summary-${format}`)
+      await downloadPipSummaryReportExport(
+        { status: statusFilter || undefined, departmentId, startDate: startDate || undefined, endDate: endDate || undefined },
+        format,
+        `pip-summary-report-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`
+      )
+    } catch (error: any) {
+      console.error('Failed to download summary report:', error)
+      alert(error?.response?.data?.message || 'Failed to download summary report')
+    } finally {
+      setReportDownload(null)
+    }
+  }
+
+  const handleDownloadProgressReport = async (format: 'pdf' | 'excel') => {
+    try {
+      setReportDownload(`progress-${format}`)
+      await downloadPipProgressReportExport(
+        { departmentId, startDate: startDate || undefined, endDate: endDate || undefined },
+        format,
+        `pip-progress-report-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`
+      )
+    } catch (error: any) {
+      console.error('Failed to download progress report:', error)
+      alert(error?.response?.data?.message || 'Failed to download progress report')
+    } finally {
+      setReportDownload(null)
+    }
   }
 
   const stats = useMemo(() => {
@@ -237,6 +268,30 @@ export default function ReportsPage() {
         <div className="p-6">
           {activeTab === 'summary' && (
             <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Summary Report</h2>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadSummaryReport('pdf')}
+                    disabled={reportDownload !== null}
+                    className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    <Download size={16} />
+                    {reportDownload === 'summary-pdf' ? 'Downloading...' : 'PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadSummaryReport('excel')}
+                    disabled={reportDownload !== null}
+                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    <FileText size={16} />
+                    {reportDownload === 'summary-excel' ? 'Downloading...' : 'Excel'}
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-4 gap-4">
                 <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                   <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</div>
@@ -253,6 +308,26 @@ export default function ReportsPage() {
                 <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                   <div className="text-2xl font-bold text-slate-600 dark:text-slate-400">{stats.closed}</div>
                   <div className="text-sm text-slate-500 dark:text-slate-400">Closed</div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div></div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadSummaryReport('pdf')}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                  >
+                    <Download size={16} />
+                    Export PDF
+                  </button>
+                  <button
+                    onClick={() => handleDownloadSummaryReport('excel')}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg"
+                  >
+                    <FileText size={16} />
+                    Export Excel
+                  </button>
                 </div>
               </div>
 
@@ -391,11 +466,36 @@ export default function ReportsPage() {
 
           {activeTab === 'progress' && (
             <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Progress Report</h2>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadProgressReport('pdf')}
+                    disabled={reportDownload !== null}
+                    className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    <Download size={16} />
+                    {reportDownload === 'progress-pdf' ? 'Downloading...' : 'PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadProgressReport('excel')}
+                    disabled={reportDownload !== null}
+                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    <FileText size={16} />
+                    {reportDownload === 'progress-excel' ? 'Downloading...' : 'Excel'}
+                  </button>
+                </div>
+              </div>
+
               {isLoadingProgress ? (
                 <div className="text-center py-8 text-slate-500">Loading...</div>
               ) : progressData ? (
                 <>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="flex items-center justify-between mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{progressData.totalPips}</div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">Total PIPs</div>
@@ -413,6 +513,23 @@ export default function ReportsPage() {
                       <div className="text-sm text-slate-500 dark:text-slate-400">Closed</div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2 ml-4">
+                    <button
+                      onClick={() => handleDownloadProgressReport('pdf')}
+                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                    >
+                      <Download size={16} />
+                      Export PDF
+                    </button>
+                    <button
+                      onClick={() => handleDownloadProgressReport('excel')}
+                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg"
+                    >
+                      <FileText size={16} />
+                      Export Excel
+                    </button>
+                  </div>
+                </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
@@ -450,7 +567,7 @@ export default function ReportsPage() {
                               outerRadius={100}
                               paddingAngle={2}
                               dataKey="value"
-                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                              label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
                             >
                               {pieChartData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />

@@ -636,19 +636,8 @@ export const pipApi = baseApi.injectEndpoints({
       providesTags: ['PIP'],
       transformResponse: (response: unknown) => getResponseData(response) as PipProgressReportDto,
     }),
-getPipIndividualReport: builder.query<PipIndividualReportDto, number>({
-      queryFn: async (pipId, api, extraOptions, baseQuery) => {
-        let resolvedId = pipId
-        if (typeof pipId === 'object' && pipId !== null) {
-          resolvedId = (pipId as any).pipId ?? (pipId as any).value ?? 0
-        }
-        const numId = Number(resolvedId)
-        if (!Number.isFinite(numId) || numId <= 0) {
-          return { error: { status: 'FETCH_ERROR', error: 'Invalid pipId' } }
-        }
-        const url = `/pips/${Math.floor(numId)}/report/data`
-        return baseQuery({ url, method: 'GET' }, api, extraOptions)
-      },
+    getPipIndividualReport: builder.query<PipIndividualReportDto, number>({
+      query: (pipId) => `/pips/${pipId}/report/data`,
       providesTags: (_result, _error, id) => [{ type: 'PIP', id }],
       transformResponse: (response: unknown) => getResponseData(response) as PipIndividualReportDto,
     }),

@@ -18,7 +18,12 @@ import {
   useGetPipProgressReportQuery,
   useGetPipIndividualReportQuery,
 } from '../../features/pip/pipApi'
-import { downloadIndividualPipReport } from '../../features/pip/pipReportApi'
+import {
+  downloadIndividualPipReport,
+  downloadPipProgressReport,
+  downloadPipSummaryReport,
+  type PipReportFormat,
+} from '../../features/pip/pipReportApi'
 import { useGetDepartmentsQuery } from '../../features/hrCreateEmployee/hrEmployeeAccountApi'
 import type { RootState } from '../../app/store'
 import { Download, FileText, BarChart3, Filter, X, Calendar, User, Target, Clock, TrendingUp } from 'lucide-react'
@@ -40,8 +45,6 @@ const COLORS = {
   REOPEN_REQUESTED: '#3b82f6',
 }
 
-const PIE_COLORS = ['#f59e0b', '#10b981', '#6b7280', '#9ca3af', '#3b82f6', '#8b5cf6']
-
 function getMonthStart() {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
@@ -58,6 +61,7 @@ export default function ReportsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [reportDownload, setReportDownload] = useState<string | null>(null)
 
   const progressStartDate = useMemo(() => getMonthStart(), [])
   const progressEndDate = useMemo(() => getToday(), [])
@@ -94,6 +98,45 @@ export default function ReportsPage() {
       console.error('Failed to download report:', error)
       alert(error?.response?.data?.message || 'Failed to download report')
     })
+  }
+
+  const handleDownloadSummaryReport = async (format: PipReportFormat) => {
+    try {
+      setReportDownload(`summary-${format}`)
+      await downloadPipSummaryReport(
+        {
+          status: statusFilter || undefined,
+          departmentId,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+        },
+        format,
+      )
+    } catch (error: any) {
+      console.error('Failed to download summary report:', error)
+      alert(error?.response?.data?.message || 'Failed to download summary report')
+    } finally {
+      setReportDownload(null)
+    }
+  }
+
+  const handleDownloadProgressReport = async (format: PipReportFormat) => {
+    try {
+      setReportDownload(`progress-${format}`)
+      await downloadPipProgressReport(
+        {
+          departmentId,
+          startDate: progressStartDate,
+          endDate: progressEndDate,
+        },
+        format,
+      )
+    } catch (error: any) {
+      console.error('Failed to download progress report:', error)
+      alert(error?.response?.data?.message || 'Failed to download progress report')
+    } finally {
+      setReportDownload(null)
+    }
   }
 
   const summaryStats = useMemo(() => {
@@ -243,6 +286,30 @@ export default function ReportsPage() {
         <div className="p-6">
           {activeTab === 'summary' && (
             <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Summary Report</h2>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadSummaryReport('pdf')}
+                    disabled={reportDownload !== null}
+                    className="flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    <Download size={16} />
+                    {reportDownload === 'summary-pdf' ? 'Downloading...' : 'PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadSummaryReport('excel')}
+                    disabled={reportDownload !== null}
+                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    <FileText size={16} />
+                    {reportDownload === 'summary-excel' ? 'Downloading...' : 'Excel'}
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-4 gap-4">
                 <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                   <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{summaryStats.total}</div>
@@ -393,6 +460,30 @@ export default function ReportsPage() {
 
           {activeTab === 'progress' && (
             <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Progress Report</h2>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadProgressReport('pdf')}
+                    disabled={reportDownload !== null}
+                    className="flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    <Download size={16} />
+                    {reportDownload === 'progress-pdf' ? 'Downloading...' : 'PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadProgressReport('excel')}
+                    disabled={reportDownload !== null}
+                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    <FileText size={16} />
+                    {reportDownload === 'progress-excel' ? 'Downloading...' : 'Excel'}
+                  </button>
+                </div>
+              </div>
+
               {isLoadingProgress ? (
                 <div className="text-center py-8 text-slate-500">Loading...</div>
               ) : progressData ? (
@@ -452,7 +543,7 @@ export default function ReportsPage() {
                               outerRadius={100}
                               paddingAngle={2}
                               dataKey="value"
-                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                              label={({ name, percent }) => `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`}
                             >
                               {pieChartData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
