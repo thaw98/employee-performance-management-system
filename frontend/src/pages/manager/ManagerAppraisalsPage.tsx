@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
     Award, 
     Search, 
@@ -14,7 +16,8 @@ import {
     AlertCircle, 
     ArrowRight,
     Building2,
-    Calendar
+    Calendar,
+    FileText
 } from 'lucide-react';
 
 interface AppraisalAssignment {
@@ -44,6 +47,8 @@ export const ManagerAppraisalsPage: React.FC = () => {
     const [filterStatus, setFilterStatus] = useState('ALL');
     const [filterPosition, setFilterPosition] = useState('ALL');
     const [allDepartmentPositions, setAllDepartmentPositions] = useState<string[]>([]);
+    const [showTopOnly, setShowTopOnly] = useState(false);
+    const [showBottomOnly, setShowBottomOnly] = useState(false);
     
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -77,6 +82,80 @@ export const ManagerAppraisalsPage: React.FC = () => {
         }
     };
 
+    const handleExportSummaryPDF = () => {
+        // Filter based on the currently active tab (HR_APPROVED or LOCKED)
+        const targetStatus = filterStatus === 'LOCKED' ? 'LOCKED' : 'HR_APPROVED';
+        const filteredByStatus = assignments.filter(a => a.status === targetStatus);
+        
+        const filtered = filteredByStatus.filter(a => {
+            const posName = a.employee.position?.name || (a.employee.position as any)?.positionName;
+            const matchesPosition = filterPosition === 'ALL' || posName === filterPosition;
+            return matchesPosition;
+        }).sort((a, b) => {
+            const scoreA = a.totalScore ?? 0;
+            const scoreB = b.totalScore ?? 0;
+            return scoreB - scoreA;
+        });
+
+        if (filtered.length === 0) {
+            toast.error(`No appraisals found for ${filterPosition === 'ALL' ? 'all positions' : filterPosition}.`);
+            return;
+        }
+
+        const doc = new jsPDF('l', 'mm', 'a4');
+        const deptName = filtered[0].employee.department?.name || (filtered[0].employee.department as any)?.departmentName || 'Department';
+        const dateStr = new Date().toLocaleDateString();
+
+        // Header
+        doc.setFillColor(8, 85, 191);
+        doc.rect(0, 0, 297, 40, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text('PERFORMANCE SUMMARY REPORT', 15, 20);
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Department: ${deptName.toUpperCase()}`, 15, 30);
+        doc.text(`Generated on: ${dateStr}`, 15, 35);
+        doc.text(`Filter: ${targetStatus === 'LOCKED' ? 'FINALIZED' : 'APPROVED'} | Position: ${filterPosition === 'ALL' ? 'ALL POSITIONS' : filterPosition.toUpperCase()}`, 282, 35, { align: 'right' });
+
+        const tableData = filtered.map((a, index) => [
+            index + 1,
+            a.employee.employeeName,
+            a.employee.employeeId,
+            a.employee.position?.name || 'N/A',
+            a.period.name,
+            `${a.totalScore?.toFixed(1) || '0.0'}%`,
+            a.ratingCategory || 'N/A'
+        ]);
+
+        autoTable(doc, {
+            head: [['NO', 'EMPLOYEE NAME', 'STAFF ID', 'POSITION', 'PERIOD', 'SCORE %', 'RATING']],
+            body: tableData,
+            startY: 50,
+            theme: 'grid',
+            headStyles: { 
+                fillColor: [30, 41, 59], 
+                textColor: [255, 255, 255],
+                fontSize: 9,
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            styles: { fontSize: 9, cellPadding: 5 },
+            columnStyles: {
+                0: { halign: 'center', cellWidth: 15 },
+                5: { halign: 'center', fontStyle: 'bold' },
+                6: { halign: 'center', fontStyle: 'bold' }
+            },
+            alternateRowStyles: { fillColor: [248, 250, 252] }
+        });
+
+        doc.save(`Performance_Summary_${deptName}_${dateStr.replace(/\//g, '-')}.pdf`);
+        toast.success("Summary report exported successfully.");
+    };
+
     const getStatusStyle = (status: string) => {
         switch (status) {
             case 'PENDING_MANAGER':
@@ -87,6 +166,8 @@ export const ManagerAppraisalsPage: React.FC = () => {
                 return 'bg-emerald-50 text-emerald-600 border-emerald-100';
             case 'REJECTED':
                 return 'bg-red-50 text-red-600 border-red-100';
+            case 'LOCKED':
+                return 'bg-slate-900 text-white border-slate-900';
             default:
                 return 'bg-slate-50 text-slate-400 border-slate-100';
         }
@@ -102,13 +183,31 @@ export const ManagerAppraisalsPage: React.FC = () => {
         const matchesStatus = filterStatus === 'ALL' || a.status === filterStatus;
         const matchesPosition = filterPosition === 'ALL' || a.employee.position?.name === filterPosition;
         return matchesSearch && matchesStatus && matchesPosition;
+    }).sort((a, b) => {
+        const scoreA = a.totalScore ?? 0;
+        const scoreB = b.totalScore ?? 0;
+        return scoreB - scoreA;
     });
 
+    // Handle Top/Bottom Performers filtering for Manager view
+    let finalAssignments = filteredAssignments;
+    if (showTopOnly || showBottomOnly) {
+        // Since manager sees their team (usually one dept), find max/min across current filtered list
+        const scores = filteredAssignments.map(a => a.totalScore ?? 0).filter(s => s > 0);
+        if (scores.length > 0) {
+            const extremeScore = showTopOnly ? Math.max(...scores) : Math.min(...scores);
+            finalAssignments = filteredAssignments.filter(a => (a.totalScore ?? 0) === extremeScore && (a.totalScore ?? 0) > 0);
+        }
+    }
+
+    const maxScoreAcrossFiltered = filteredAssignments.length > 0 ? Math.max(...filteredAssignments.map(a => a.totalScore ?? 0)) : 0;
+    const minScoreAcrossFiltered = filteredAssignments.length > 0 ? Math.min(...filteredAssignments.map(a => a.totalScore ?? 0).filter(s => s > 0)) : 0;
+
     // Pagination Logic
-    const totalPages = Math.ceil(filteredAssignments.length / itemsPerPage);
+    const totalPages = Math.ceil(finalAssignments.length / itemsPerPage);
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = filteredAssignments.slice(indexOfFirstItem, indexOfLastItem);
+    const currentItems = finalAssignments.slice(indexOfFirstItem, indexOfLastItem);
 
     // Reset pagination when filters change
     useEffect(() => {
@@ -143,6 +242,44 @@ export const ManagerAppraisalsPage: React.FC = () => {
                         />
                     </div>
                     
+                    {(filterStatus === 'HR_APPROVED' || filterStatus === 'LOCKED') && (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowTopOnly(!showTopOnly);
+                                    setShowBottomOnly(false);
+                                }}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                                    showTopOnly 
+                                    ? 'bg-amber-500 text-white shadow-amber-200' 
+                                    : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'
+                                }`}
+                            >
+                                🏆 {showTopOnly ? 'Showing Best' : 'Show Top'}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowBottomOnly(!showBottomOnly);
+                                    setShowTopOnly(false);
+                                }}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                                    showBottomOnly 
+                                    ? 'bg-red-500 text-white shadow-red-200' 
+                                    : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'
+                                }`}
+                            >
+                                ⚠️ {showBottomOnly ? 'Showing Bottom' : 'Show Bottom'}
+                            </button>
+                            
+                            <button
+                                onClick={handleExportSummaryPDF}
+                                className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-slate-200 animate-in zoom-in duration-300"
+                            >
+                                <FileText size={16} /> Export Summary (PDF)
+                            </button>
+                        </div>
+                    )}
+
                     {/* Position Filter */}
                     <div className="relative">
                         <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
@@ -159,14 +296,14 @@ export const ManagerAppraisalsPage: React.FC = () => {
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
 
-                    <div className="flex bg-slate-100 p-1.5 rounded-2xl">
-                        {['ALL', 'PENDING_MANAGER', 'RETURNED', 'SUBMITTED', 'HR_APPROVED'].map(status => (
+                    <div className="flex bg-slate-100 p-1.5 rounded-2xl overflow-x-auto">
+                        {['ALL', 'PENDING_MANAGER', 'RETURNED', 'SUBMITTED', 'HR_APPROVED', 'LOCKED'].map(status => (
                             <button
                                 key={status}
                                 onClick={() => setFilterStatus(status)}
-                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === status ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filterStatus === status ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             >
-                                {status === 'PENDING_MANAGER' ? 'PENDING' : status === 'RETURNED' ? 'RETURNED' : status === 'SUBMITTED' ? 'SUBMITTED' : status === 'HR_APPROVED' ? 'APPROVED' : 'ALL'}
+                                {status === 'PENDING_MANAGER' ? 'PENDING' : status === 'RETURNED' ? 'RETURNED' : status === 'SUBMITTED' ? 'SUBMITTED' : status === 'HR_APPROVED' ? 'APPROVED' : status === 'LOCKED' ? 'FINALIZED' : 'ALL'}
                             </button>
                         ))}
                     </div>
@@ -200,7 +337,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                         >
                             {/* Status Badge */}
                             <div className={`absolute top-6 right-6 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight border ${getStatusStyle(assignment.status)}`}>
-                                {assignment.status.replace('_', ' ')}
+                                {assignment.status === 'LOCKED' ? 'FINALIZED' : assignment.status.replace('_', ' ')}
                             </div>
 
                             <div className="space-y-6">
@@ -216,6 +353,18 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                                             ID: {assignment.employee.employeeId}
                                         </p>
+                                        <div className="flex gap-2 mt-2">
+                                            {assignment.totalScore && assignment.totalScore > 0 && assignment.totalScore === maxScoreAcrossFiltered && (
+                                                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black rounded-md border border-amber-200 animate-bounce shadow-sm">
+                                                    🏆 TOP PERFORMER
+                                                </span>
+                                            )}
+                                            {assignment.totalScore && assignment.totalScore > 0 && assignment.totalScore === minScoreAcrossFiltered && (
+                                                <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black rounded-md border border-red-200 shadow-sm">
+                                                    ⚠️ NEEDS SUPPORT
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -285,10 +434,10 @@ export const ManagerAppraisalsPage: React.FC = () => {
             )}
 
             {/* Pagination Controls */}
-            {!loading && filteredAssignments.length > itemsPerPage && (
+            {!loading && finalAssignments.length > itemsPerPage && (
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-8 border-t border-slate-100">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                        Showing <span className="text-slate-900">{indexOfFirstItem + 1}</span> to <span className="text-slate-900">{Math.min(indexOfLastItem, filteredAssignments.length)}</span> of <span className="text-slate-900">{filteredAssignments.length}</span> assignments
+                        Showing <span className="text-slate-900">{indexOfFirstItem + 1}</span> to <span className="text-slate-900">{Math.min(indexOfLastItem, finalAssignments.length)}</span> of <span className="text-slate-900">{finalAssignments.length}</span> assignments
                     </p>
                     
                     <div className="flex items-center gap-2">

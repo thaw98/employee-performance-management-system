@@ -4,6 +4,9 @@ import { toast } from 'react-hot-toast';
 import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2, Building2, Filter, ChevronDown, Award, MessageSquare } from 'lucide-react';
 import { formatDate } from '../../utils/dateUtils';
 import SignatureCanvas from 'react-signature-canvas';
+import { resolveMediaSrc } from '../../utils/mediaUrl';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const PRIMARY = '#0855BF';
 
@@ -81,10 +84,15 @@ export function AppraisalSubmissionsPage() {
     const sigCanvas = useRef<any>(null);
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+    const [defaultSignature, setDefaultSignature] = useState<string | null>(null);
+    const [isUsingSavedSignature, setIsUsingSavedSignature] = useState(false);
+    const [showTopOnly, setShowTopOnly] = useState(false);
+    const [showBottomOnly, setShowBottomOnly] = useState(false);
 
     useEffect(() => {
         fetchSubmissions();
         fetchDepartments();
+        fetchDefaultSignature();
     }, []);
 
     useEffect(() => {
@@ -100,6 +108,12 @@ export function AppraisalSubmissionsPage() {
         if (selectedAsmt) {
             fetchHistory(selectedAsmt.id);
             fetchKpiHistory(selectedAsmt.employee.id, selectedAsmt.period?.name);
+            
+            // Auto-load default signature for approval
+            if (defaultSignature && !signature) {
+                setSignature(defaultSignature);
+                setIsUsingSavedSignature(true);
+            }
         }
     }, [selectedAsmt]);
 
@@ -132,6 +146,17 @@ export function AppraisalSubmissionsPage() {
             setDepartments(resp.data.data || []);
         } catch (err) {
             console.error('Dept fetch error:', err);
+        }
+    };
+
+    const fetchDefaultSignature = async () => {
+        try {
+            const resp = await axios.get('/signatures/default');
+            if (resp.data.success && resp.data.data) {
+                setDefaultSignature(resp.data.data.signatureData);
+            }
+        } catch (err) {
+            console.error("Failed to fetch default signature", err);
         }
     };
 
@@ -183,6 +208,7 @@ export function AppraisalSubmissionsPage() {
             setSelectedAsmt(null);
             setComments('');
             setSignature('');
+            setIsUsingSavedSignature(false);
             sigCanvas.current?.clear();
 
             // Refresh data
@@ -212,7 +238,18 @@ export function AppraisalSubmissionsPage() {
     const handleClearSignature = () => {
         if (sigCanvas.current) {
             sigCanvas.current.clear();
-            setSignature('');
+        }
+        setSignature('');
+        setIsUsingSavedSignature(false);
+    };
+
+    const handleUseDefaultSignature = () => {
+        if (defaultSignature) {
+            setSignature(defaultSignature);
+            setIsUsingSavedSignature(true);
+            toast.success("Default signature applied");
+        } else {
+            toast.error("No default signature found in Settings");
         }
     };
 
@@ -220,8 +257,75 @@ export function AppraisalSubmissionsPage() {
         setSelectedAsmt(null);
         setComments('');
         setSignature('');
+        setIsUsingSavedSignature(false);
         sigCanvas.current?.clear();
         setActionInProgress(null);
+    };
+
+    const handleExportSummaryPDF = () => {
+        // Filter based on the currently active tab (HR_APPROVED or LOCKED)
+        const targetStatus = activeTab === 'LOCKED' ? 'LOCKED' : 'HR_APPROVED';
+        
+        // Use finalSubmissions (which handles the top-only filtering)
+        const filtered = finalSubmissions.filter(s => s.status === targetStatus);
+
+        if (filtered.length === 0) {
+            toast.error(`No appraisals found to export for ${activeTab === 'LOCKED' ? 'Finalized' : 'Approved'} status.`);
+            return;
+        }
+
+        const doc = new jsPDF('l', 'mm', 'a4');
+        const dateStr = new Date().toLocaleDateString();
+
+        // Header
+        doc.setFillColor(8, 85, 191);
+        doc.rect(0, 0, 297, 40, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text('HR PERFORMANCE SUMMARY REPORT', 15, 20);
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Status: ${targetStatus === 'LOCKED' ? 'FINALIZED' : 'HR APPROVED'}`, 15, 30);
+        doc.text(`Generated on: ${dateStr}`, 15, 35);
+        doc.text(`Filter: ${filterDept === 'ALL' ? 'ALL DEPARTMENTS' : 'DEPARTMENTAL'} | ${filterPos === 'ALL' ? 'ALL POSITIONS' : filterPos.toUpperCase()}`, 282, 35, { align: 'right' });
+
+        const tableData = filtered.map((a, index) => [
+            index + 1,
+            a.employee.employeeName,
+            a.employee.employeeId || 'N/A',
+            a.employee.department?.name || 'N/A',
+            a.employee.position?.name || 'N/A',
+            a.period?.name || 'N/A',
+            `${a.totalScore?.toFixed(1) || '0.0'}%`,
+            a.ratingCategory || 'N/A'
+        ]);
+
+        autoTable(doc, {
+            head: [['NO', 'EMPLOYEE NAME', 'ID', 'DEPARTMENT', 'POSITION', 'PERIOD', 'SCORE %', 'RATING']],
+            body: tableData,
+            startY: 50,
+            theme: 'grid',
+            headStyles: { 
+                fillColor: [30, 41, 59], 
+                textColor: [255, 255, 255],
+                fontSize: 9,
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            styles: { fontSize: 9, cellPadding: 5 },
+            columnStyles: {
+                0: { halign: 'center', cellWidth: 15 },
+                6: { halign: 'center', fontStyle: 'bold' },
+                7: { halign: 'center', fontStyle: 'bold' }
+            },
+            alternateRowStyles: { fillColor: [248, 250, 252] }
+        });
+
+        doc.save(`HR_Performance_Summary_${targetStatus}_${dateStr.replace(/\//g, '-')}.pdf`);
+        toast.success("Summary report exported successfully.");
     };
 
     const filteredSubmissions = submissions.filter(s => {
@@ -234,12 +338,47 @@ export function AppraisalSubmissionsPage() {
         const matchesStatus = activeTab === 'ALL' || s.status === activeTab;
         
         return matchesSearch && matchesDept && matchesPos && matchesStatus;
+    }).sort((a, b) => {
+        const scoreA = a.totalScore ?? 0;
+        const scoreB = b.totalScore ?? 0;
+        return scoreB - scoreA;
     });
 
-    const paginatedSubmissions = filteredSubmissions.slice(
+    // Handle Top/Bottom Performers filtering
+    let finalSubmissions = filteredSubmissions;
+    if (showTopOnly || showBottomOnly) {
+        const deptExtremeScores: Record<number, number> = {};
+        
+        // Find max/min score for each department
+        filteredSubmissions.forEach(s => {
+            const deptId = s.employee.department?.id || 0;
+            const score = s.totalScore ?? 0;
+            if (showTopOnly) {
+                if (!deptExtremeScores[deptId] || score > deptExtremeScores[deptId]) {
+                    deptExtremeScores[deptId] = score;
+                }
+            } else if (showBottomOnly) {
+                if (!deptExtremeScores[deptId] || score < deptExtremeScores[deptId]) {
+                    deptExtremeScores[deptId] = score;
+                }
+            }
+        });
+        
+        // Filter to keep only those with the extreme score in their department
+        finalSubmissions = filteredSubmissions.filter(s => {
+            const deptId = s.employee.department?.id || 0;
+            const score = s.totalScore ?? 0;
+            return score === deptExtremeScores[deptId] && score > 0;
+        });
+    }
+
+    const paginatedSubmissions = finalSubmissions.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
+
+    const maxScore = finalSubmissions.length > 0 ? Math.max(...finalSubmissions.map(s => s.totalScore ?? 0)) : 0;
+    const minScore = finalSubmissions.length > 0 ? Math.min(...finalSubmissions.map(s => s.totalScore ?? 0).filter(s => s > 0)) : 0;
 
     const getStatusStyle = (status: string) => {
         switch (status) {
@@ -255,6 +394,8 @@ export function AppraisalSubmissionsPage() {
                 return 'bg-blue-50 text-blue-700 border-blue-200';
             case 'PENDING':
                 return 'bg-purple-50 text-purple-700 border-purple-200';
+            case 'LOCKED':
+                return 'bg-slate-900 text-white border-slate-900';
             default:
                 return 'bg-slate-50 text-slate-500 border-slate-200';
         }
@@ -269,7 +410,7 @@ export function AppraisalSubmissionsPage() {
         <div className="p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
             {/* Status Tabs */}
             <div className="bg-white p-2 rounded-[28px] border border-slate-100 shadow-sm flex flex-wrap items-center gap-2 px-2 overflow-x-auto">
-                {['ALL', 'PENDING', 'SUBMITTED', 'RETURNED', 'HR_APPROVED', 'REJECTED'].map((status) => (
+                {['ALL', 'PENDING', 'SUBMITTED', 'RETURNED', 'HR_APPROVED', 'REJECTED', 'LOCKED'].map((status) => (
                     <button
                         key={status}
                         onClick={() => {
@@ -282,7 +423,7 @@ export function AppraisalSubmissionsPage() {
                             : 'text-slate-400 hover:bg-slate-50'
                         }`}
                     >
-                        {status.replace(/_/g, ' ')}
+                        {status === 'LOCKED' ? 'FINALIZED' : status.replace(/_/g, ' ')}
                         <span className={`ml-2 px-2 py-0.5 rounded-full text-[9px] ${activeTab === status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>
                             {status === 'ALL' ? submissions.length : submissions.filter(s => s.status === status).length}
                         </span>
@@ -301,8 +442,44 @@ export function AppraisalSubmissionsPage() {
                             Track, review and finalize performance appraisal cycles.
                         </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                        {/* Search */}
+                        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                            {(activeTab === 'HR_APPROVED' || activeTab === 'LOCKED') && (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            setShowTopOnly(!showTopOnly);
+                                            setShowBottomOnly(false);
+                                        }}
+                                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                                            showTopOnly 
+                                            ? 'bg-amber-500 text-white shadow-amber-200' 
+                                            : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        🏆 {showTopOnly ? 'Showing Best Per Dept' : 'Show Top Per Dept'}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowBottomOnly(!showBottomOnly);
+                                            setShowTopOnly(false);
+                                        }}
+                                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                                            showBottomOnly 
+                                            ? 'bg-red-500 text-white shadow-red-200' 
+                                            : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        ⚠️ {showBottomOnly ? 'Showing Bottom Per Dept' : 'Show Bottom Per Dept'}
+                                    </button>
+                                    <button
+                                        onClick={handleExportSummaryPDF}
+                                        className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-slate-200 animate-in zoom-in duration-300"
+                                    >
+                                        <FileText size={16} /> Export Summary (PDF)
+                                    </button>
+                                </>
+                            )}
+                            {/* Search */}
                         <div className="relative group w-full md:w-64">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input
@@ -391,8 +568,20 @@ export function AppraisalSubmissionsPage() {
                                                     <User size={20} />
                                                 </div>
                                                 <div>
-                                                    <div className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
-                                                        {sa.employee.employeeName}
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+                                                            {sa.employee.employeeName}
+                                                        </div>
+                                                        {sa.totalScore && sa.totalScore > 0 && sa.totalScore === maxScore && showTopOnly && (
+                                                            <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black rounded-md border border-amber-200 animate-bounce shadow-sm">
+                                                                🏆 TOP PERFORMER
+                                                            </span>
+                                                        )}
+                                                        {sa.totalScore && sa.totalScore > 0 && sa.totalScore === minScore && showBottomOnly && (
+                                                            <span className="flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black rounded-md border border-red-200 shadow-sm">
+                                                                ⚠️ NEEDS SUPPORT (PIP)
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">
                                                         {sa.employee.employeeId || 'N/A'} • {sa.employee.department?.name || 'No Dept'} • <span className="text-blue-500 font-bold">{sa.employee.position?.name || 'No Position'}</span>
@@ -446,10 +635,10 @@ export function AppraisalSubmissionsPage() {
                 </div>
 
                 {/* Pagination Controls */}
-                {filteredSubmissions.length > 0 && (
+                {finalSubmissions.length > 0 && (
                     <div className="flex items-center justify-between bg-slate-50 p-6 border-t border-slate-100">
                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredSubmissions.length)} to {Math.min(currentPage * itemsPerPage, filteredSubmissions.length)} of {filteredSubmissions.length} records
+                            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, finalSubmissions.length)} to {Math.min(currentPage * itemsPerPage, finalSubmissions.length)} of {finalSubmissions.length} records
                         </div>
                         <div className="flex items-center gap-2">
                             <button
@@ -463,7 +652,7 @@ export function AppraisalSubmissionsPage() {
                                 <RotateCcw size={18} className="rotate-180" />
                             </button>
                             
-                            {Array.from({ length: Math.ceil(filteredSubmissions.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
+                            {Array.from({ length: Math.ceil(finalSubmissions.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
                                 <button
                                     key={page}
                                     onClick={() => {
@@ -477,7 +666,7 @@ export function AppraisalSubmissionsPage() {
                             ))}
 
                             <button
-                                disabled={currentPage === Math.ceil(filteredSubmissions.length / itemsPerPage)}
+                                disabled={currentPage === Math.ceil(finalSubmissions.length / itemsPerPage)}
                                 onClick={() => {
                                     setCurrentPage(prev => prev + 1);
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -715,15 +904,43 @@ export function AppraisalSubmissionsPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     {/* Signature Section */}
                                     <div className="space-y-3">
-                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-2">
-                                            Digital Signature {selectedAsmt.status !== 'HR_APPROVED' && '(Required for Approval)'}
-                                        </label>
-                                        <div className="relative bg-white border-2 border-slate-200 rounded-2xl overflow-hidden group hover:border-slate-300 transition-all">
+                                        <div className="flex items-center justify-between ml-2">
+                                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                                Digital Signature {selectedAsmt.status !== 'HR_APPROVED' && '(Required for Approval)'}
+                                            </label>
+                                            {defaultSignature && (
+                                                <button 
+                                                    onClick={handleUseDefaultSignature}
+                                                    className="text-[9px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1.5"
+                                                    type="button"
+                                                >
+                                                    <RotateCcw size={10} /> Use Saved Signature
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="relative bg-white border-2 border-slate-200 rounded-2xl overflow-hidden group hover:border-slate-300 transition-all h-40">
+                                            {isUsingSavedSignature && signature && (
+                                                <div 
+                                                    className="absolute inset-0 z-10 flex items-center justify-center p-8 bg-white cursor-pointer"
+                                                    onClick={() => setIsUsingSavedSignature(false)}
+                                                >
+                                                    <img 
+                                                        src={resolveMediaSrc(signature)} 
+                                                        alt="Saved Signature" 
+                                                        className="max-w-full max-h-full object-contain opacity-90 transition-transform group-hover:scale-105"
+                                                    />
+                                                    <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw</span>
+                                                    </div>
+                                                </div>
+                                            )}
                                             <SignatureCanvas
                                                 ref={sigCanvas}
+                                                onBegin={() => setIsUsingSavedSignature(false)}
                                                 onEnd={() => {
                                                     if (sigCanvas.current) {
                                                         setSignature(sigCanvas.current.getCanvas().toDataURL());
+                                                        setIsUsingSavedSignature(false);
                                                     }
                                                 }}
                                                 canvasProps={{
@@ -733,10 +950,10 @@ export function AppraisalSubmissionsPage() {
                                             />
                                             <button
                                                 onClick={handleClearSignature}
-                                                className="absolute top-3 right-3 px-3 py-1.5 bg-white border border-slate-200 text-[10px] font-bold uppercase text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all opacity-0 group-hover:opacity-100 shadow-sm"
+                                                className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 transition-all opacity-0 group-hover:opacity-100 rounded-lg z-20 shadow-sm"
                                                 type="button"
                                             >
-                                                Clear
+                                                <RotateCcw size={14} />
                                             </button>
                                         </div>
                                         {signature && (
