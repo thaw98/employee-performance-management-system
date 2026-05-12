@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="pip_progress_report"
+              pageWidth="595"
+              pageHeight="842"
+              columnWidth="515"
+              leftMargin="40"
+              rightMargin="40"
+              topMargin="30"
+              bottomMargin="30"
+              uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c001">
+    <parameter name="REPORT_TITLE" class="java.lang.String"/>
+    <parameter name="FILTER_DESCRIPTION" class="java.lang.String"/>
+    <parameter name="GENERATED_AT" class="java.lang.String"/>
+
+    <field name="departmentName" class="java.lang.String"/>
+    <field name="periodStart" class="java.time.LocalDate"/>
+    <field name="periodEnd" class="java.time.LocalDate"/>
+    <field name="totalPips" class="java.lang.Long"/>
+    <field name="activePips" class="java.lang.Long"/>
+    <field name="completedPips" class="java.lang.Long"/>
+    <field name="closedPips" class="java.lang.Long"/>
+    <field name="autoClosedPips" class="java.lang.Long"/>
+    <field name="reopenRequestedPips" class="java.lang.Long"/>
+    <field name="averageProgress" class="java.math.BigDecimal"/>
+    <field name="totalPlannedHours" class="java.lang.Integer"/>
+    <field name="totalCompletedHours" class="java.lang.Integer"/>
+    <field name="hoursCompletionPercentage" class="java.math.BigDecimal"/>
+
+    <title>
+        <band height="72">
+            <textField>
+                <reportElement x="0" y="0" width="515" height="28" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c002"/>
+                <textElement><font fontName="DejaVu Sans" size="18" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="0" y="31" width="515" height="16" forecolor="#56616D" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c003"/>
+                <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{FILTER_DESCRIPTION} + " | Generated: " + $P{GENERATED_AT}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="58" width="515" height="1" forecolor="#D9DEE3" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c004"/>
+            </line>
+        </band>
+    </title>
+
+    <detail>
+        <band height="310">
+            <textField>
+                <reportElement x="0" y="0" width="515" height="20" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c005"/>
+                <textElement><font fontName="DejaVu Sans" size="11" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["Scope: " + $F{departmentName} + " | Period: " + String.valueOf($F{periodStart}) + " to " + String.valueOf($F{periodEnd})]]></textFieldExpression>
+            </textField>
+
+            <rectangle><reportElement x="0" y="42" width="160" height="64" backcolor="#EEF6FF" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c006"/></rectangle>
+            <rectangle><reportElement x="178" y="42" width="160" height="64" backcolor="#F2FBF3" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c007"/></rectangle>
+            <rectangle><reportElement x="355" y="42" width="160" height="64" backcolor="#FFF7E8" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c008"/></rectangle>
+            <staticText><reportElement x="12" y="52" width="136" height="16" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c009"/><textElement><font fontName="DejaVu Sans" size="9"/></textElement><text><![CDATA[Total PIPs]]></text></staticText>
+            <staticText><reportElement x="190" y="52" width="136" height="16" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c010"/><textElement><font fontName="DejaVu Sans" size="9"/></textElement><text><![CDATA[Average Progress]]></text></staticText>
+            <staticText><reportElement x="367" y="52" width="136" height="16" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c011"/><textElement><font fontName="DejaVu Sans" size="9"/></textElement><text><![CDATA[Hours Completion]]></text></staticText>
+            <textField><reportElement x="12" y="72" width="136" height="24" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c012"/><textElement><font fontName="DejaVu Sans" size="17" isBold="true"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{totalPips})]]></textFieldExpression></textField>
+            <textField><reportElement x="190" y="72" width="136" height="24" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c013"/><textElement><font fontName="DejaVu Sans" size="17" isBold="true"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{averageProgress}) + "%"]]></textFieldExpression></textField>
+            <textField><reportElement x="367" y="72" width="136" height="24" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c014"/><textElement><font fontName="DejaVu Sans" size="17" isBold="true"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{hoursCompletionPercentage}) + "%"]]></textFieldExpression></textField>
+
+            <staticText><reportElement x="0" y="136" width="515" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c015"/><textElement><font fontName="DejaVu Sans" size="12" isBold="true"/></textElement><text><![CDATA[Status Breakdown]]></text></staticText>
+            <textField><reportElement x="0" y="166" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c016"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Active: " + String.valueOf($F{activePips})]]></textFieldExpression></textField>
+            <textField><reportElement x="265" y="166" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c017"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Completed: " + String.valueOf($F{completedPips})]]></textFieldExpression></textField>
+            <textField><reportElement x="0" y="194" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c018"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Closed: " + String.valueOf($F{closedPips})]]></textFieldExpression></textField>
+            <textField><reportElement x="265" y="194" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c019"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Auto-closed: " + String.valueOf($F{autoClosedPips})]]></textFieldExpression></textField>
+            <textField><reportElement x="0" y="222" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c020"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Reopen requested: " + String.valueOf($F{reopenRequestedPips})]]></textFieldExpression></textField>
+            <textField><reportElement x="265" y="222" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c021"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Hours: " + String.valueOf($F{totalCompletedHours}) + "/" + String.valueOf($F{totalPlannedHours})]]></textFieldExpression></textField>
+        </band>
+    </detail>
+</jasperReport>
