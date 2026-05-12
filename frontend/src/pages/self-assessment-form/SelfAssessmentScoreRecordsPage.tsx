@@ -46,6 +46,20 @@ const SCORE_RECORD_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: 'FINALIZED_LOCKED', label: 'Finalized Locked' },
 ]
 
+/** Matches backend `SelfAssessmentFormService#getRatingCategory` labels. */
+function PerformanceBadge({ performance }: { performance: string | null }) {
+  if (!performance) return <span className="text-slate-400">-</span>
+  const colorMap: Record<string, string> = {
+    Outstanding: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
+    Good: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    'Meet Requirement': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    'Need Improvement': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    Unsatisfactory: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  }
+  const cls = colorMap[performance] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${cls}`}>{performance}</span>
+}
+
 function StatusBadge({ status }: { status: string }) {
   const colorMap: Record<string, string> = {
     FINALIZED_LOCKED: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -137,10 +151,7 @@ export function SelfAssessmentScoreRecordsPage() {
       {
         accessorKey: 'performance',
         header: 'Performance',
-        cell: ({ getValue }) => {
-          const val = getValue() as string | null
-          return <span>{val || '-'}</span>
-        },
+        cell: ({ getValue }) => <PerformanceBadge performance={getValue() as string | null} />,
       },
       {
         accessorKey: 'status',

@@ -27,6 +27,7 @@ import {
   FileCheck2,
   Edit3,
   Hourglass,
+  FileDown,
 } from 'lucide-react';
 import {
   useGetReviewFormsQuery,
@@ -40,6 +41,7 @@ import {
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { getRatingOptions, isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
+import { exportSelfAssessmentReviewPdf } from '../../features/selfAssessmentForm/exportSelfAssessmentReviewPdf';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { formatDateDayMonthYear, formatDateTimeWithSeconds } from '../../utils/dateUtils';
@@ -211,6 +213,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [adjustments, setAdjustments] = useState<ManagerAdjustment[]>([]);
   const [hrReturnReason, setHrReturnReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError } = useGetReviewFormsQuery(undefined, {
     skip: isHr,
@@ -391,6 +394,20 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
       refetchForm();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to reopen form');
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!selectedForm) return;
+
+    try {
+      setIsExportingPdf(true);
+      await exportSelfAssessmentReviewPdf(selectedForm);
+      toast.success('PDF exported');
+    } catch {
+      toast.error('Failed to export PDF');
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -620,6 +637,21 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                       </div>
 
                       <div className="flex flex-col items-end gap-2">
+                        {isHr && (
+                          <button
+                            type="button"
+                            onClick={handleExportPdf}
+                            disabled={isExportingPdf}
+                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                          >
+                            {isExportingPdf ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <FileDown size={14} />
+                            )}
+                            Export PDF
+                          </button>
+                        )}
                         <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${selectedStatusConfig?.bg} ${selectedStatusConfig?.text}`}>
                           <SelectedStatusIcon size={13} />
                           {selectedStatusConfig?.label}
