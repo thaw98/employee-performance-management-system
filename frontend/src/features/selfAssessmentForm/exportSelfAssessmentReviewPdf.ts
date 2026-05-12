@@ -11,17 +11,58 @@ interface SignatureExportItem {
 }
 
 const pageMargin = 14
+const navy: [number, number, number] = [28, 40, 65]
+const slate: [number, number, number] = [88, 99, 115]
+const lightFill: [number, number, number] = [245, 247, 250]
+const borderColor: [number, number, number] = [220, 226, 235]
+const sectionFill: [number, number, number] = [237, 242, 247]
 
+const pad2 = (n: number): string => String(n).padStart(2, '0')
+
+const humanizeWord = (word: string): string => {
+  if (!word) return word
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+}
+
+const humanizeAllCapsToken = (token: string): string => {
+  if (/^[A-Z][A-Z0-9]*$/.test(token) && /[A-Z]/.test(token)) {
+    return humanizeWord(token)
+  }
+  return token
+}
+
+/** Turn API enums (e.g. FINALIZED_LOCKED) into readable PDF text (no underscores, no all-caps). */
+const humanizeEnumLikeString = (raw: string): string => {
+  const text = raw.trim()
+  if (!text) return text
+  const withSpaces = text.replace(/_/g, ' ')
+  const parts = withSpaces.split(/\s+/).filter(Boolean)
+  if (raw.includes('_')) {
+    return parts.map(humanizeWord).join(' ')
+  }
+  return parts.map(humanizeAllCapsToken).join(' ')
+}
+
+/** PDF dates: DD/MM/YYYY and local 12-hour time with seconds (e.g. 11:05:09PM), not locale-dependent. */
 const formatDate = (value: string | null | undefined): string => {
   if (!value) return '-'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+  if (Number.isNaN(date.getTime())) return value
+  const day = pad2(date.getDate())
+  const month = pad2(date.getMonth() + 1)
+  const year = String(date.getFullYear())
+  const h24 = date.getHours()
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12
+  const mm = pad2(date.getMinutes())
+  const ss = pad2(date.getSeconds())
+  const ampm = h24 >= 12 ? 'PM' : 'AM'
+  return `${day}/${month}/${year}, ${h12}:${mm}:${ss}${ampm}`
 }
 
 const formatValue = (value: unknown): string => {
   if (value == null || value === '') return '-'
   if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(1)
-  return String(value)
+  return humanizeEnumLikeString(String(value))
 }
 
 const lastTableY = (doc: jsPDF): number => {
@@ -89,6 +130,145 @@ const signatureRows = (form: SelfAssessmentFormDto): SignatureExportItem[] => [
   },
 ]
 
+const scoreValue = (value: number | null | undefined): string => (
+  value == null ? '-' : `${value.toFixed(1)}%`
+)
+
+const tableBaseStyles = {
+  fontSize: 8,
+  cellPadding: 2.4,
+  overflow: 'linebreak' as const,
+  lineColor: borderColor,
+  lineWidth: 0.1,
+}
+
+const headStyles = {
+  fillColor: navy,
+  textColor: [255, 255, 255] as [number, number, number],
+  fontStyle: 'bold' as const,
+}
+
+const addReportHeader = (doc: jsPDF, form: SelfAssessmentFormDto): number => {
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const contentWidth = pageWidth - pageMargin * 2
+
+  doc.setFillColor(...navy)
+  doc.rect(0, 0, pageWidth, 34, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(17)
+  doc.text('Self-Assessment Review Report', pageMargin, 15)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8.5)
+  doc.text('Review Record', pageMargin, 22)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.text(`Form ID: ${form.id}`, pageWidth - pageMargin, 14, { align: 'right' })
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Exported: ${formatDate(new Date().toISOString())}`, pageWidth - pageMargin, 21, { align: 'right' })
+
+  doc.setTextColor(0, 0, 0)
+  autoTable(doc, {
+    startY: 41,
+    theme: 'plain',
+    body: [
+      [
+        { content: 'Status', styles: { fontStyle: 'bold', textColor: navy } },
+        { content: formatValue(form.status), styles: { fontStyle: 'bold' } },
+        { content: 'Employee', styles: { fontStyle: 'bold', textColor: navy } },
+        form.employee?.employeeName ?? '-',
+        { content: 'Assessment', styles: { fontStyle: 'bold', textColor: navy } },
+        form.title ?? '-',
+      ],
+    ],
+    styles: {
+      ...tableBaseStyles,
+      fillColor: lightFill,
+      minCellHeight: 9,
+    },
+    columnStyles: {
+      0: { cellWidth: 18 },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 22 },
+      3: { cellWidth: 40 },
+      4: { cellWidth: 24 },
+      5: { cellWidth: contentWidth - 132 },
+    },
+    margin: { left: pageMargin, right: pageMargin },
+  })
+
+  return lastTableY(doc) + 8
+}
+
+const addInfoSection = (
+  doc: jsPDF,
+  title: string,
+  rows: Array<[string, string]>,
+  y: number,
+): number => {
+  const startY = addSectionTitle(doc, title, y)
+
+  autoTable(doc, {
+    startY,
+    theme: 'grid',
+    body: rows,
+    styles: tableBaseStyles,
+    alternateRowStyles: { fillColor: lightFill },
+    columnStyles: {
+      0: { cellWidth: 46, fontStyle: 'bold', textColor: navy, fillColor: sectionFill },
+      1: { cellWidth: 'auto' },
+    },
+    margin: { left: pageMargin, right: pageMargin },
+  })
+
+  return lastTableY(doc) + 7
+}
+
+const addScoreSummary = (doc: jsPDF, form: SelfAssessmentFormDto, y: number): number => {
+  const startY = addSectionTitle(doc, 'Score Summary', y)
+
+  autoTable(doc, {
+    startY,
+    theme: 'grid',
+    head: [['Metric', 'Value']],
+    body: [
+      ['Self score', scoreValue(form.totalScore)],
+      ['Rating category', formatValue(form.ratingCategory)],
+      ['Manager revised score', scoreValue(form.managerRevisedTotalScore)],
+      ['Final approved score', scoreValue(form.finalApprovedTotalScore)],
+    ],
+    styles: tableBaseStyles,
+    headStyles,
+    alternateRowStyles: { fillColor: lightFill },
+    columnStyles: {
+      0: { cellWidth: 58, fontStyle: 'bold' },
+      1: { cellWidth: 'auto' },
+    },
+    margin: { left: pageMargin, right: pageMargin },
+  })
+
+  return lastTableY(doc) + 7
+}
+
+const addPageFooters = (doc: jsPDF): void => {
+  const pageCount = doc.getNumberOfPages()
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+    doc.setPage(pageNumber)
+    doc.setDrawColor(...borderColor)
+    doc.line(pageMargin, pageHeight - 10, pageWidth - pageMargin, pageHeight - 10)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...slate)
+    doc.text('Self-Assessment Review Report', pageMargin, pageHeight - 5)
+    doc.text(`Page ${pageNumber} of ${pageCount}`, pageWidth - pageMargin, pageHeight - 5, { align: 'right' })
+    doc.setTextColor(0, 0, 0)
+  }
+}
+
 const drawSignatures = async (doc: jsPDF, form: SelfAssessmentFormDto, startY: number): Promise<number> => {
   let y = ensureSpace(doc, startY, 52)
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -134,56 +314,37 @@ const drawSignatures = async (doc: jsPDF, form: SelfAssessmentFormDto, startY: n
 
 const addSectionTitle = (doc: jsPDF, title: string, y: number): number => {
   const nextY = ensureSpace(doc, y, 12)
-  doc.setFontSize(12)
+  doc.setTextColor(...navy)
+  doc.setFontSize(11.5)
   doc.setFont('helvetica', 'bold')
   doc.text(title, pageMargin, nextY)
-  return nextY + 4
+  doc.setTextColor(0, 0, 0)
+  return nextY + 5
 }
 
 export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto): Promise<void> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
 
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(16)
-  doc.text('Self-Assessment Final Record', pageMargin, 16)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
-  doc.text(`Form #${form.id}`, pageMargin, 22)
+  let y = addReportHeader(doc, form)
 
-  autoTable(doc, {
-    startY: 28,
-    theme: 'grid',
-    head: [['Field', 'Value', 'Field', 'Value']],
-    body: [
-      ['Employee', form.employee?.employeeName ?? '-', 'Employee ID', form.employee?.employeeId ?? '-'],
-      ['Department', form.employee?.departmentName ?? '-', 'Position', form.employee?.positionName ?? '-'],
-      ['Title', form.title, 'Status', form.status],
-      ['Cycle', form.cycleName ?? '-', 'Assessment Date', formatDate(form.assessmentDate)],
-      ['Submitted', formatDate(form.submittedDate), 'Created', formatDate(form.createdDate)],
-    ],
-    styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [35, 45, 70] },
-    columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 28 },
-      2: { fontStyle: 'bold', cellWidth: 28 },
-    },
-  })
+  y = addInfoSection(doc, 'Employee Information', [
+    ['Employee name', form.employee?.employeeName ?? '-'],
+    ['Employee ID', form.employee?.employeeId ?? '-'],
+    ['Department', form.employee?.departmentName ?? '-'],
+    ['Position', form.employee?.positionName ?? '-'],
+  ], y)
 
-  autoTable(doc, {
-    startY: lastTableY(doc) + 7,
-    theme: 'striped',
-    head: [['Score', 'Value']],
-    body: [
-      ['Self score', form.totalScore == null ? '-' : `${form.totalScore.toFixed(1)}%`],
-      ['Rating category', form.ratingCategory ?? '-'],
-      ['Manager revised score', form.managerRevisedTotalScore == null ? '-' : `${form.managerRevisedTotalScore.toFixed(1)}%`],
-      ['Final approved score', form.finalApprovedTotalScore == null ? '-' : `${form.finalApprovedTotalScore.toFixed(1)}%`],
-    ],
-    styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [35, 45, 70] },
-  })
+  y = addInfoSection(doc, 'Assessment Information', [
+    ['Title', form.title ?? '-'],
+    ['Cycle', form.cycleName ?? '-'],
+    ['Assessment date', formatDate(form.assessmentDate)],
+    ['Submitted date', formatDate(form.submittedDate)],
+    ['Created date', formatDate(form.createdDate)],
+  ], y)
 
-  let y = addSectionTitle(doc, 'Assessment Answers', lastTableY(doc) + 9)
+  y = addScoreSummary(doc, form, y)
+
+  y = addSectionTitle(doc, 'Assessment Answers', y + 2)
   autoTable(doc, {
     startY: y,
     theme: 'grid',
@@ -191,14 +352,19 @@ export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto)
     body: form.answers.map((answer, index) => [
       index + 1,
       answer.questionText,
-      answer.yesNoAnswer ?? '-',
+      formatValue(answer.yesNoAnswer),
       formatValue(answer.rating),
       answer.remarks ?? '-',
-      answer.managerProposedYesNo ? `${answer.managerProposedYesNo} (${formatValue(answer.managerProposedRating)})` : '-',
-      answer.finalApprovedYesNo ? `${answer.finalApprovedYesNo} (${formatValue(answer.finalApprovedRating)})` : '-',
+      answer.managerProposedYesNo
+        ? `${formatValue(answer.managerProposedYesNo)} (${formatValue(answer.managerProposedRating)})`
+        : '-',
+      answer.finalApprovedYesNo
+        ? `${formatValue(answer.finalApprovedYesNo)} (${formatValue(answer.finalApprovedRating)})`
+        : '-',
     ]),
-    styles: { fontSize: 7, cellPadding: 1.8, overflow: 'linebreak' },
-    headStyles: { fillColor: [35, 45, 70] },
+    styles: { ...tableBaseStyles, fontSize: 7, cellPadding: 1.8 },
+    headStyles,
+    alternateRowStyles: { fillColor: lightFill },
     columnStyles: {
       0: { cellWidth: 8 },
       1: { cellWidth: 48 },
@@ -208,6 +374,7 @@ export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto)
       5: { cellWidth: 28 },
       6: { cellWidth: 25 },
     },
+    margin: { left: pageMargin, right: pageMargin },
   })
 
   if (form.adjustments.length > 0) {
@@ -220,12 +387,14 @@ export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto)
         adjustment.questionText,
         `${formatValue(adjustment.originalYesNo)} (${formatValue(adjustment.originalRating)})`,
         `${formatValue(adjustment.proposedYesNo)} (${formatValue(adjustment.proposedRating)})`,
-        adjustment.hrDecision ?? '-',
+        formatValue(adjustment.hrDecision),
         adjustment.managerComment ?? '-',
         adjustment.hrRejectionReason ?? '-',
       ]),
-      styles: { fontSize: 7, cellPadding: 1.8, overflow: 'linebreak' },
-      headStyles: { fillColor: [35, 45, 70] },
+      styles: { ...tableBaseStyles, fontSize: 7, cellPadding: 1.8 },
+      headStyles,
+      alternateRowStyles: { fillColor: lightFill },
+      margin: { left: pageMargin, right: pageMargin },
     })
   }
 
@@ -244,9 +413,11 @@ export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto)
       theme: 'grid',
       head: [['Type', 'Text']],
       body: remarks,
-      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-      headStyles: { fillColor: [35, 45, 70] },
+      styles: tableBaseStyles,
+      headStyles,
+      alternateRowStyles: { fillColor: lightFill },
       columnStyles: { 0: { cellWidth: 42, fontStyle: 'bold' } },
+      margin: { left: pageMargin, right: pageMargin },
     })
   }
 
@@ -263,10 +434,13 @@ export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto)
       theme: 'grid',
       head: [['Workflow Signature', 'Status', 'Date']],
       body: workflowRows,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [35, 45, 70] },
+      styles: tableBaseStyles,
+      headStyles,
+      alternateRowStyles: { fillColor: lightFill },
+      margin: { left: pageMargin, right: pageMargin },
     })
   }
 
+  addPageFooters(doc)
   doc.save(`self-assessment-review-${form.id}.pdf`)
 }

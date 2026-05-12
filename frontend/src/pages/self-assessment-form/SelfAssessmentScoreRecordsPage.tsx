@@ -28,7 +28,7 @@ function ScoreBar({ score }: { score: number | null }) {
       <div className="w-24 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${barColor}`} style={{ width: `${clamped}%` }} />
       </div>
-      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{clamped.toFixed(1)}</span>
+      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{clamped.toFixed(1)}%</span>
     </div>
   )
 }
@@ -223,14 +223,14 @@ export function SelfAssessmentScoreRecordsPage() {
     },
     {
       label: 'Average Score',
-      value: avgScore != null ? avgScore.toFixed(1) : '-',
+      value: avgScore != null ? `${avgScore.toFixed(1)}%` : '-',
       icon: BarChart3,
       iconClassName: 'text-blue-600 dark:text-blue-400',
       iconBgClassName: 'bg-blue-50 dark:bg-blue-900/20',
     },
     {
       label: 'Top Score',
-      value: topScore != null ? topScore.toFixed(1) : '-',
+      value: topScore != null ? `${topScore.toFixed(1)}%` : '-',
       icon: Trophy,
       iconClassName: 'text-amber-600 dark:text-amber-400',
       iconBgClassName: 'bg-amber-50 dark:bg-amber-900/20',

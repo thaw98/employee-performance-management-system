@@ -31,6 +31,92 @@ function formatStatus(status: string) {
     .join(' ');
 }
 
+/** Tailwind classes aligned with SelfAssessmentActiveFormsPage status chips. */
+function formStatusBadgeClasses(status: string): { pill: string; dot: string } {
+  const s = status.toUpperCase();
+  if (s === 'NOT_SUBMITTED' || s === 'NOT_STARTED') {
+    return {
+      pill: 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
+      dot: 'bg-slate-400',
+    };
+  }
+  if (s === 'DRAFT') {
+    return {
+      pill: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+      dot: 'bg-amber-500',
+    };
+  }
+  if (s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED') {
+    return {
+      pill: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      dot: 'bg-blue-500',
+    };
+  }
+  if (s === 'MANAGER_REVIEW' || s === 'IN_MANAGER_REVIEW' || s === 'PENDING_MANAGER_REVIEW') {
+    return {
+      pill: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+      dot: 'bg-amber-500',
+    };
+  }
+  if (s === 'MANAGER_COMPLETED' || s === 'MANAGER_APPROVED' || s === 'MANAGER_REVIEWED') {
+    return {
+      pill: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+      dot: 'bg-purple-500',
+    };
+  }
+  if (s === 'PENDING_EMPLOYEE_REVIEW') {
+    return {
+      pill: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
+      dot: 'bg-sky-500',
+    };
+  }
+  if (s === 'PENDING_FINAL_APPROVAL') {
+    return {
+      pill: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+      dot: 'bg-violet-500',
+    };
+  }
+  if (
+    s === 'HR_REVIEW' ||
+    s === 'PENDING_HR_REVIEW' ||
+    s === 'IN_HR_REVIEW' ||
+    s === 'PENDING_HR_CALIBRATION_REVIEW'
+  ) {
+    return {
+      pill: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+      dot: 'bg-orange-500',
+    };
+  }
+  if (s === 'HR_APPROVED' || s === 'APPROVED' || s === 'COMPLETED') {
+    return {
+      pill: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+      dot: 'bg-emerald-500',
+    };
+  }
+  if (s === 'FINALIZED_LOCKED') {
+    return {
+      pill: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+      dot: 'bg-teal-500',
+    };
+  }
+  if (s === 'REJECTED') {
+    return {
+      pill: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+      dot: 'bg-red-500',
+    };
+  }
+  if (s === 'REOPENED') {
+    return {
+      pill: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
+      dot: 'bg-cyan-500',
+    };
+  }
+  return {
+    pill: 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
+    dot: 'bg-slate-400',
+  };
+}
+
 function employeeLabel(form: FormListDto) {
   const name = form.employee.employeeName || form.employee.employeeId || '-';
   return form.employee.employeeName && form.employee.employeeId ? `${name} (${form.employee.employeeId})` : name;
@@ -192,22 +278,28 @@ export const SelfAssessmentAssignedEmployeesPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {assignedForms.map((form) => (
-                      <tr key={form.id} className="text-slate-600 dark:text-slate-300">
-                        <td className="px-4 py-3.5 font-semibold text-slate-900 dark:text-white">{employeeLabel(form)}</td>
-                        <td className="px-4 py-3.5">{form.employee.departmentName || '-'}</td>
-                        <td className="px-4 py-3.5">{form.employee.positionName || '-'}</td>
-                        <td className="px-4 py-3.5">{formatAssignedDate(form.assignedAt)}</td>
-                        <td className="px-4 py-3.5">{formatDate(form.startDate)}</td>
-                        <td className="px-4 py-3.5">{formatDate(form.deadlineDate)}</td>
-                        <td className="px-4 py-3.5">{formatDate(form.managerReviewDeadlineDate)}</td>
-                        <td className="px-4 py-3.5">
-                          <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                            {formatStatus(form.status)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {assignedForms.map((form) => {
+                      const statusBadge = formStatusBadgeClasses(form.status);
+                      return (
+                        <tr key={form.id} className="text-slate-600 dark:text-slate-300">
+                          <td className="px-4 py-3.5 font-semibold text-slate-900 dark:text-white">{employeeLabel(form)}</td>
+                          <td className="px-4 py-3.5">{form.employee.departmentName || '-'}</td>
+                          <td className="px-4 py-3.5">{form.employee.positionName || '-'}</td>
+                          <td className="px-4 py-3.5">{formatAssignedDate(form.assignedAt)}</td>
+                          <td className="px-4 py-3.5">{formatDate(form.startDate)}</td>
+                          <td className="px-4 py-3.5">{formatDate(form.deadlineDate)}</td>
+                          <td className="px-4 py-3.5">{formatDate(form.managerReviewDeadlineDate)}</td>
+                          <td className="px-4 py-3.5">
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${statusBadge.pill}`}
+                            >
+                              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusBadge.dot}`} />
+                              {formatStatus(form.status)}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -154,8 +154,8 @@ describe('SelfAssessmentScoreRecordsPage', () => {
   it('displays score bar with numeric value', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.getAllByText('88.5').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('72.0')).toBeTruthy()
+    expect(screen.getAllByText('88.5%').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('72.0%')).toBeTruthy()
   })
 
   it('displays dash for null score', () => {
@@ -224,8 +224,8 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
     expectMetricCard('Total Records', '3')
-    expectMetricCard('Average Score', '80.3')
-    expectMetricCard('Top Score', '88.5')
+    expectMetricCard('Average Score', '80.3%')
+    expectMetricCard('Top Score', '88.5%')
     expectMetricCard('Finalized / Approved', '2')
   })
 
@@ -234,16 +234,16 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
     expectMetricCard('Total Records', '3')
-    expectMetricCard('Average Score', '80.3')
-    expectMetricCard('Top Score', '88.5')
+    expectMetricCard('Average Score', '80.3%')
+    expectMetricCard('Top Score', '88.5%')
     expectMetricCard('Finalized / Approved', '2')
   })
 
   it('ignores null scores for Average Score and Top Score cards', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expectMetricCard('Average Score', ((88.5 + 72.0) / 2).toFixed(1))
-    expectMetricCard('Top Score', '88.5')
+    expectMetricCard('Average Score', `${((88.5 + 72.0) / 2).toFixed(1)}%`)
+    expectMetricCard('Top Score', '88.5%')
   })
 
   it('counts only finalized locked and approved records in Finalized / Approved card', () => {
@@ -275,8 +275,8 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     await user.type(searchInput, 'Alice')
 
     expectMetricCard('Total Records', '1')
-    expectMetricCard('Average Score', '88.5')
-    expectMetricCard('Top Score', '88.5')
+    expectMetricCard('Average Score', '88.5%')
+    expectMetricCard('Top Score', '88.5%')
     expectMetricCard('Finalized / Approved', '1')
   })
 
