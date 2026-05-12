@@ -11,6 +11,7 @@ import com.epms.backend.entity.PipProgressUpdate;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.PipProgressUpdateRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
@@ -38,6 +39,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class PipReportService {
 
@@ -83,13 +85,17 @@ public class PipReportService {
 
     @Transactional(readOnly = true)
     public byte[] generateIndividualPipReport(Long pipId, String format, User actor) {
+        log.info("Starting report generation for PIP {} with format {}", pipId, format);
         PipIndividualReportDto report = getIndividualPipReport(pipId, actor);
+        log.debug("Report DTO loaded: pipId={}, employee={}, status={}",
+                  report.getPipId(), report.getEmployeeName(), report.getStatus());
         Object jasperPrint = fillReport(
                 "pip_individual_report.jrxml",
                 List.of(report),
                 Map.of("REPORT_TITLE", "Individual PIP Report",
                         "FILTER_DESCRIPTION", "PIP #" + pipId,
                         "GENERATED_AT", Instant.now().toString()));
+        log.info("Report filled successfully for PIP {}", pipId);
         return export(jasperPrint, format);
     }
 
@@ -129,23 +135,28 @@ public class PipReportService {
     }
 
     public void generatePdfReport(Object jasperPrint, OutputStream outputStream) {
+        log.debug("Generating PDF report...");
         try {
             Class<?> jasperPrintClass = Class.forName("net.sf.jasperreports.engine.JasperPrint");
             Class<?> exportManagerClass = Class.forName("net.sf.jasperreports.engine.JasperExportManager");
             exportManagerClass
                     .getMethod("exportReportToPdfStream", jasperPrintClass, OutputStream.class)
                     .invoke(null, jasperPrint, outputStream);
+            log.debug("PDF report generated successfully");
         } catch (ReflectiveOperationException e) {
+            log.error("Failed to generate PDF report: {}", e.getMessage(), e);
             throw new IllegalStateException("Failed to generate PDF report", e);
         }
     }
 
     public void generateExcelReport(Object jasperPrint, OutputStream outputStream) {
+        log.debug("Generating Excel report...");
         try {
             Class<?> jasperPrintClass = Class.forName("net.sf.jasperreports.engine.JasperPrint");
             Class<?> exporterClass = Class.forName("net.sf.jasperreports.engine.export.ooxml.JRXlsxExporter");
             Class<?> exporterInputClass = Class.forName("net.sf.jasperreports.export.ExporterInput");
-            Class<?> exporterOutputClass = Class.forName("net.sf.jasperreports.export.OutputStreamExporterOutput");
+            Class<?> exporterOutputClass = Class.forName("net.sf.jasperreports.export.ExporterOutput");
+            Class<?> reportExportConfigurationClass = Class.forName("net.sf.jasperreports.export.ReportExportConfiguration");
             Class<?> simpleExporterInputClass = Class.forName("net.sf.jasperreports.export.SimpleExporterInput");
             Class<?> simpleOutputClass = Class.forName("net.sf.jasperreports.export.SimpleOutputStreamExporterOutput");
             Class<?> xlsxConfigurationClass = Class.forName("net.sf.jasperreports.export.SimpleXlsxReportConfiguration");
@@ -159,11 +170,14 @@ public class PipReportService {
             xlsxConfigurationClass.getMethod("setDetectCellType", Boolean.class).invoke(configuration, Boolean.TRUE);
             xlsxConfigurationClass.getMethod("setCollapseRowSpan", Boolean.class).invoke(configuration, Boolean.FALSE);
             xlsxConfigurationClass.getMethod("setWhitePageBackground", Boolean.class).invoke(configuration, Boolean.FALSE);
+
             exporterClass.getMethod("setExporterInput", exporterInputClass).invoke(exporter, exporterInput);
             exporterClass.getMethod("setExporterOutput", exporterOutputClass).invoke(exporter, exporterOutput);
-            findMethod(exporterClass, "setConfiguration", configuration.getClass()).invoke(exporter, configuration);
+            exporterClass.getMethod("setConfiguration", reportExportConfigurationClass).invoke(exporter, configuration);
             exporterClass.getMethod("exportReport").invoke(exporter);
+            log.debug("Excel report generated successfully");
         } catch (ReflectiveOperationException e) {
+            log.error("Failed to generate Excel report: {}", e.getMessage(), e);
             throw new IllegalStateException("Failed to generate Excel report", e);
         }
     }
@@ -182,6 +196,7 @@ public class PipReportService {
     }
 
     private Object fillReport(String templateName, List<?> rows, Map<String, Object> parameters) {
+        log.debug("Filling report template: {}, rows count: {}", templateName, rows.size());
         try (InputStream inputStream = resolveTemplate(templateName).getInputStream()) {
             Class<?> compileManagerClass = Class.forName("net.sf.jasperreports.engine.JasperCompileManager");
             Class<?> fillManagerClass = Class.forName("net.sf.jasperreports.engine.JasperFillManager");
@@ -189,6 +204,7 @@ public class PipReportService {
             Class<?> jrDataSourceClass = Class.forName("net.sf.jasperreports.engine.JRDataSource");
             Class<?> beanDataSourceClass = Class.forName("net.sf.jasperreports.engine.data.JRBeanCollectionDataSource");
 
+            log.debug("Compiling JasperReport template: {}", templateName);
             Object jasperReport = compileManagerClass
                     .getMethod("compileReport", InputStream.class)
                     .invoke(null, inputStream);
@@ -197,10 +213,12 @@ public class PipReportService {
             Object dataSource = beanDataSourceClass
                     .getConstructor(Collection.class)
                     .newInstance(rows == null ? List.of() : rows);
+            log.debug("Filling report with data...");
             return fillManagerClass
                     .getMethod("fillReport", jasperReportClass, Map.class, jrDataSourceClass)
                     .invoke(null, jasperReport, reportParameters, dataSource);
         } catch (ReflectiveOperationException | IOException e) {
+            log.error("Failed to fill report template {}: {}", templateName, e.getMessage(), e);
             throw new IllegalStateException("Failed to build report from template " + templateName, e);
         }
     }

@@ -148,6 +148,98 @@ export interface ClosePipRequest {
   signature?: string
 }
 
+export interface PipSummaryReportDto {
+  pipId: number
+  employeeStaffNo: string
+  employeeName: string
+  departmentName: string
+  positionName: string
+  managerName: string
+  status: string
+  startDate: string
+  endDate: string
+  overallProgress: number
+  totalHours: number
+  completedHours: number
+  objectivesCount: number
+  meetingsCount: number
+  finalOutcome: string
+}
+
+export interface PipProgressReportDto {
+  departmentName: string
+  periodStart: string
+  periodEnd: string
+  totalPips: number
+  activePips: number
+  completedPips: number
+  closedPips: number
+  autoClosedPips: number
+  reopenRequestedPips: number
+  averageProgress: number
+  totalPlannedHours: number
+  totalCompletedHours: number
+  hoursCompletionPercentage: number
+}
+
+export interface PipIndividualReportObjective {
+  objectiveId: number
+  description: string
+  weightPercentage: number
+  progressPercentage: number
+  dueDate: string
+  status: string
+}
+
+export interface PipIndividualReportMeeting {
+  meetingId: number
+  scheduledDate: string
+  meetingTime: string
+  status: string
+  notes: string
+}
+
+export interface PipIndividualReportUpdate {
+  updateId: number
+  updateDate: string
+  objectiveDescription: string
+  previousPercentage: number
+  newPercentage: number
+  feedback: string
+  updatedBy: string
+  createdDate: string
+}
+
+export interface PipIndividualReportDto {
+  pipId: number
+  employeeStaffNo: string
+  employeeName: string
+  employeeDepartment: string
+  employeePosition: string
+  managerName: string
+  managerDepartment: string
+  status: string
+  startDate: string
+  endDate: string
+  originalEndDate: string
+  actualEndDate: string
+  totalHours: number
+  completedHours: number
+  overallProgress: number
+  reasonForPlan: string
+  expectedImprovements: string
+  finalOutcome: string
+  closingRemarks: string
+  employeeSignatureDate: string
+  managerSignatureDate: string
+  objectivesSummary: string
+  meetingsSummary: string
+  progressUpdatesSummary: string
+  objectives: PipIndividualReportObjective[]
+  meetings: PipIndividualReportMeeting[]
+  progressUpdates: PipIndividualReportUpdate[]
+}
+
 type UnknownRecord = Record<string, unknown>
 
 const isRecord = (value: unknown): value is UnknownRecord => {
@@ -528,6 +620,38 @@ export const pipApi = baseApi.injectEndpoints({
       query: () => '/pips/eligible-employees',
       transformResponse: (response: unknown) => getArray(getResponseData(response)) as EligibleEmployee[],
     }),
+    getPipSummaryReport: builder.query<PipSummaryReportDto[], { status?: string; departmentId?: number; startDate?: string; endDate?: string }>({
+      query: (params) => ({
+        url: '/pips/report/summary/data',
+        params: params || undefined,
+      }),
+      providesTags: ['PIP'],
+      transformResponse: (response: unknown) => getArray(getResponseData(response)) as PipSummaryReportDto[],
+    }),
+    getPipProgressReport: builder.query<PipProgressReportDto, { departmentId?: number; startDate?: string; endDate?: string }>({
+      query: (params) => ({
+        url: '/pips/report/progress/data',
+        params: params || undefined,
+      }),
+      providesTags: ['PIP'],
+      transformResponse: (response: unknown) => getResponseData(response) as PipProgressReportDto,
+    }),
+getPipIndividualReport: builder.query<PipIndividualReportDto, number>({
+      queryFn: async (pipId, api, extraOptions, baseQuery) => {
+        let resolvedId = pipId
+        if (typeof pipId === 'object' && pipId !== null) {
+          resolvedId = (pipId as any).pipId ?? (pipId as any).value ?? 0
+        }
+        const numId = Number(resolvedId)
+        if (!Number.isFinite(numId) || numId <= 0) {
+          return { error: { status: 'FETCH_ERROR', error: 'Invalid pipId' } }
+        }
+        const url = `/pips/${Math.floor(numId)}/report/data`
+        return baseQuery({ url, method: 'GET' }, api, extraOptions)
+      },
+      providesTags: (_result, _error, id) => [{ type: 'PIP', id }],
+      transformResponse: (response: unknown) => getResponseData(response) as PipIndividualReportDto,
+    }),
   }),
 })
 
@@ -552,4 +676,8 @@ export const {
   useGetObjectiveHistoryQuery,
   useGetPipHistoryQuery,
   useGetEligibleEmployeesQuery,
+  useGetPipSummaryReportQuery,
+  useGetPipProgressReportQuery,
+  useGetPipIndividualReportQuery,
+  useLazyGetPipIndividualReportQuery,
 } = pipApi

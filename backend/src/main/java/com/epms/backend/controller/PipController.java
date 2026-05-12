@@ -17,6 +17,9 @@ import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.PipReportService;
 import com.epms.backend.service.PipService;
 import com.epms.backend.repository.UserRepository;
+import com.epms.backend.dto.pip.report.PipIndividualReportDto;
+import com.epms.backend.dto.pip.report.PipProgressReportDto;
+import com.epms.backend.dto.pip.report.PipSummaryReportDto;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -112,6 +115,40 @@ public class PipController {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         byte[] bytes = pipReportService.generateProgressReport(departmentId, startDate, endDate, format, user);
         return reportResponse(bytes, "pip_progress_report", format);
+    }
+
+    @GetMapping("/report/summary/data")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<List<PipSummaryReportDto>>> getPipSummaryReportData(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        List<PipSummaryReportDto> data = pipReportService.getPipSummaryReport(status, departmentId, startDate, endDate, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP summary report data retrieved successfully", data));
+    }
+
+    @GetMapping("/report/progress/data")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<PipProgressReportDto>> getPipProgressReportData(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        PipProgressReportDto data = pipReportService.getPipProgressReport(departmentId, startDate, endDate, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP progress report data retrieved successfully", data));
+    }
+
+    @GetMapping("/{pipId}/report/data")
+    public ResponseEntity<ApiResponse<PipIndividualReportDto>> getIndividualPipReportData(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long pipId) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        PipIndividualReportDto data = pipReportService.getIndividualPipReport(pipId, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP individual report data retrieved successfully", data));
     }
 
     @GetMapping("/{id}")
