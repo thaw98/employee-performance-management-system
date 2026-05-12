@@ -293,8 +293,10 @@ describe('MySelfAssessmentFormPage autosave', () => {
     mocks.editableFormData.answers[0].rating = 4
 
     renderPage()
-    const totalMarkLabel = await screen.findByText('Total Mark')
-    const totalMarkCard = totalMarkLabel.closest('div')
+    const totalMarkLabels = await screen.findAllByText('Total Mark')
+    const totalMarkCard = totalMarkLabels
+      .map((label) => label.closest('div'))
+      .find((card) => (card?.textContent ?? '').includes('80.0%'))
 
     expect(totalMarkCard?.textContent ?? '').toContain('80.0%')
     expect(totalMarkCard?.textContent ?? '').toContain('Good')
