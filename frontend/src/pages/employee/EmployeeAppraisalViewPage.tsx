@@ -10,8 +10,11 @@ import {
     ShieldCheck,
     Building2,
     Calendar,
-    Lock
+    Lock,
+    Award,
+    TrendingUp
 } from 'lucide-react';
+import { resolveMediaSrc } from '../../utils/mediaUrl';
 
 interface Question {
     id: number;
@@ -97,6 +100,17 @@ export function EmployeeAppraisalViewPage() {
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+            {/* Helper for Category Colors */}
+            {(() => {
+                const getCategoryStyle = (cat: string) => {
+                    const c = (cat || '').toUpperCase();
+                    if (c.includes('EXCELLENT') || c.includes('OUTSTANDING')) return 'from-emerald-500 to-teal-600 text-white border-emerald-400/30';
+                    if (c.includes('GOOD') || c.includes('ABOVE')) return 'from-blue-500 to-indigo-600 text-white border-blue-400/30';
+                    if (c.includes('AVERAGE') || c.includes('SATISFACTORY')) return 'from-amber-500 to-orange-600 text-white border-amber-400/30';
+                    return 'from-slate-500 to-slate-700 text-white border-slate-400/30';
+                };
+                return null;
+            })()}
             {/* Header */}
             <div className="flex items-center justify-between">
                 <button 
@@ -135,11 +149,18 @@ export function EmployeeAppraisalViewPage() {
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-slate-900 text-white p-8 rounded-[32px] text-center min-w-[180px] shadow-2xl shadow-emerald-900/20">
-                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-1">Performance Rate</p>
-                            <div className="text-4xl font-black italic">{assignment.totalScore?.toFixed(1)}%</div>
-                            <div className="mt-2 px-3 py-1 bg-emerald-500/20 rounded-lg text-[8px] font-black uppercase tracking-widest text-emerald-400 border border-emerald-500/30">
-                                {assignment.ratingCategory}
+                        <div className="bg-slate-900 text-white p-8 rounded-[32px] text-center min-w-[200px] shadow-2xl shadow-emerald-900/20 relative group overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-1 relative z-10">Final Assessment</p>
+                            <div className="text-5xl font-black italic relative z-10 mb-2">{assignment.totalScore?.toFixed(1)}<span className="text-xl ml-1 opacity-50">%</span></div>
+                            <div className={`mt-2 px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest border shadow-lg flex items-center justify-center gap-2 relative z-10 bg-gradient-to-r ${
+                                (assignment.ratingCategory || '').toUpperCase().includes('EXCELLENT') ? 'from-emerald-500 to-teal-600 border-emerald-400' :
+                                (assignment.ratingCategory || '').toUpperCase().includes('GOOD') ? 'from-blue-500 to-indigo-600 border-blue-400' :
+                                (assignment.ratingCategory || '').toUpperCase().includes('AVERAGE') ? 'from-amber-500 to-orange-600 border-amber-400' :
+                                'from-slate-600 to-slate-800 border-slate-500'
+                            }`}>
+                                <Award size={14} />
+                                {assignment.ratingCategory || 'PENDING'}
                             </div>
                         </div>
                     </div>
@@ -215,14 +236,18 @@ export function EmployeeAppraisalViewPage() {
                         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 min-h-[100px]">
                             <p className="text-sm text-slate-600 italic">"{assignment.managerComments || 'No summary comments provided.'}"</p>
                         </div>
-                        <div className="flex items-center justify-between pt-4">
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                             <div className="flex flex-col">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manager Signature</span>
-                                <span className="text-xs font-bold text-slate-700 mt-1">{assignment.evaluator?.employeeName}</span>
+                                <span className="text-[9px] text-slate-300 font-medium">{assignment.managerSignedAt ? new Date(assignment.managerSignedAt).toLocaleDateString() : ''}</span>
                             </div>
-                            {assignment.managerSignature && (
-                                <img src={assignment.managerSignature} alt="Manager Signature" className="h-12 object-contain opacity-80" />
-                            )}
+                            <div className="h-14 w-40 bg-white rounded-2xl p-2 flex items-center justify-center border border-slate-100 shadow-inner">
+                                {assignment.managerSignature ? (
+                                    <img src={resolveMediaSrc(assignment.managerSignature)} alt="Manager Signature" className="h-full object-contain opacity-90" />
+                                ) : (
+                                    <span className="font-signature text-slate-400 text-lg">Signed</span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -239,18 +264,29 @@ export function EmployeeAppraisalViewPage() {
                         <div className="bg-white/5 p-6 rounded-2xl border border-white/5 min-h-[100px]">
                             <p className="text-sm text-slate-300 italic">"{assignment.hrComments || 'Form validated and approved by HR.'}"</p>
                         </div>
-                        <div className="flex items-center justify-between pt-4">
+                        <div className="flex items-center justify-between pt-4 border-t border-white/10">
                             <div className="flex flex-col">
                                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HR Representative</span>
-                                <span className="text-xs font-bold text-emerald-500 mt-1 italic uppercase tracking-tighter">Verified & Approved</span>
+                                <span className="text-[9px] text-emerald-500/60 font-medium">{assignment.hrSignedAt ? new Date(assignment.hrSignedAt).toLocaleDateString() : ''}</span>
                             </div>
-                            {assignment.hrSignature && (
-                                <img src={assignment.hrSignature} alt="HR Signature" className="h-12 object-contain invert opacity-80" />
-                            )}
+                            <div className="h-14 w-40 bg-white/10 rounded-2xl p-2 flex items-center justify-center border border-white/10 shadow-inner">
+                                {assignment.hrSignature ? (
+                                    <img src={resolveMediaSrc(assignment.hrSignature)} alt="HR Signature" className="h-full object-contain brightness-0 invert opacity-90" />
+                                ) : (
+                                    <span className="text-emerald-500/40 font-bold text-xs uppercase tracking-tighter italic">Verified by HR</span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+            
+            <style dangerouslySetInnerHTML={{ __html: `
+                @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
+                .font-signature {
+                    font-family: 'Dancing Script', cursive;
+                }
+            `}} />
         </div>
     );
 }

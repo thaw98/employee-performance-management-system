@@ -14,8 +14,12 @@ import {
     Building2,
     Calendar,
     ArrowRight,
-    AlertCircle
+    AlertCircle,
+    RotateCcw
 } from 'lucide-react';
+import SignatureCanvas from 'react-signature-canvas';
+import { useRef } from 'react';
+import { resolveMediaSrc } from '../../utils/mediaUrl';
 
 interface Question {
     id: number;
@@ -65,11 +69,34 @@ export const ManagerEvaluationPage: React.FC = () => {
     const [answers, setAnswers] = useState<Record<number, { rating: number, comments: string }>>({});
     const [comments, setComments] = useState('');
     const [signature, setSignature] = useState('');
+    const [isUsingSavedSignature, setIsUsingSavedSignature] = useState(false);
+    const sigCanvas = useRef<any>(null);
+    const [defaultSignature, setDefaultSignature] = useState<string | null>(null);
 
     useEffect(() => {
         fetchForm();
+        fetchDefaultSignature();
     }, [id]);
 
+    const fetchDefaultSignature = async () => {
+        try {
+            const resp = await axios.get('/signatures/default');
+            if (resp.data.success && resp.data.data) {
+                setDefaultSignature(resp.data.data.signatureData);
+            }
+        } catch (err) {
+            console.error("Failed to fetch default signature", err);
+        }
+    };
+
+    useEffect(() => {
+        if (!loading && assignment && defaultSignature) {
+            if (!signature) {
+                setSignature(defaultSignature);
+                setIsUsingSavedSignature(true);
+            }
+        }
+    }, [loading, assignment, defaultSignature]);
     const fetchForm = async () => {
         try {
             setLoading(true);
@@ -123,7 +150,34 @@ export const ManagerEvaluationPage: React.FC = () => {
         }));
     };
 
+    const handleClearSignature = () => {
+        if (sigCanvas.current) {
+            sigCanvas.current.clear();
+        }
+        setSignature('');
+        setIsUsingSavedSignature(false);
+    };
+
+    const handleUseDefaultSignature = () => {
+        if (defaultSignature) {
+            setSignature(defaultSignature);
+            setIsUsingSavedSignature(true);
+            toast.success("Default signature applied");
+        } else {
+            toast.error("No default signature found in Settings");
+        }
+    };
+
     const handleSubmit = async () => {
+        // Capture signature if drawn but not yet in state
+        let finalSignature = signature;
+        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+            finalSignature = sigCanvas.current.getCanvas().toDataURL();
+        } else if (!finalSignature && defaultSignature) {
+            // Auto-use default signature if canvas is empty and no signature selected yet
+            finalSignature = defaultSignature;
+        }
+
         // Validation
         const unanswered = Object.values(answers).some(a => a.rating === 0);
         if (unanswered) {
@@ -131,8 +185,8 @@ export const ManagerEvaluationPage: React.FC = () => {
             return;
         }
 
-        if (!signature.trim()) {
-            toast.error('Please provide your signature');
+        if (!finalSignature || !finalSignature.trim()) {
+            toast.error('Please provide your signature or set one in Settings');
             return;
         }
 
@@ -145,7 +199,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                     comments: data.comments
                 })),
                 comments,
-                signature
+                signature: finalSignature
             };
 
             const response = await axios.post(`/appraisal-assignments/${id}/evaluate`, payload);
@@ -342,46 +396,113 @@ export const ManagerEvaluationPage: React.FC = () => {
                             />
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-10 items-end">
-                            <div className="space-y-4">
-                                <h3 className="text-xl font-black flex items-center gap-3">
-                                    <PenLine className="text-amber-400" /> Digital Signature
-                                </h3>
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        placeholder={isReadOnly ? "Signed" : "Type your full name as signature"}
-                                        value={signature}
-                                        onChange={(e) => !isReadOnly && setSignature(e.target.value)}
-                                        readOnly={isReadOnly}
-                                        className="w-full bg-white/5 border-b-2 border-white/10 focus:border-amber-400 px-0 py-4 text-2xl font-signature bg-transparent focus:outline-none transition-all italic tracking-widest placeholder:opacity-20"
-                                    />
-                                    <p className="mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Authorized Manager Signature</p>
-                                </div>
-                            </div>
-
-                             {!isReadOnly && (
-                                <div className="flex justify-end">
-                                    <button
-                                        onClick={handleSubmit}
-                                        disabled={submitting}
-                                        className="group bg-amber-500 text-white px-10 py-5 rounded-[28px] font-black text-base shadow-xl shadow-amber-500/30 hover:bg-amber-600 transition-all flex items-center gap-4"
-                                    >
-                                        {submitting ? 'SUBMITTING...' : 'FINALIZE & SUBMIT'}
-                                        <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
-                                    </button>
-                                </div>
-                            )}
-                            {isReadOnly && (
-                                <div className="flex justify-end">
-                                    <div className="bg-white/10 px-8 py-4 rounded-3xl border border-white/10">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Evaluation Completed</p>
-                                        <p className="text-amber-400 font-bold text-lg mt-1 italic">{signature}</p>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-xl font-black flex items-center gap-3">
+                                            <PenLine className="text-amber-400" /> Digital Signature
+                                        </h3>
+                                        {!isReadOnly && defaultSignature && (
+                                            <button 
+                                                onClick={handleUseDefaultSignature}
+                                                className="text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-white transition-colors flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10"
+                                            >
+                                                <CheckCircle2 size={12} /> Use Saved Signature
+                                            </button>
+                                        )}
                                     </div>
+                                    
+                                    <div className="relative bg-white/5 border-2 border-white/10 rounded-3xl overflow-hidden group hover:border-amber-400/50 transition-all">
+                                        {isReadOnly ? (
+                                            <div className="h-40 flex items-center justify-center p-6 bg-white rounded-3xl">
+                                                {assignment.managerSignature ? (
+                                                    <img src={resolveMediaSrc(assignment.managerSignature)} alt="Manager Signature" className="h-full object-contain" />
+                                                ) : (
+                                                    <span className="text-slate-300 italic text-sm">No signature provided</span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="relative h-40 bg-white rounded-2xl overflow-hidden group">
+                                                {isUsingSavedSignature && signature && (
+                                                    <div 
+                                                        className="absolute inset-0 z-10 flex items-center justify-center p-8 bg-white cursor-pointer"
+                                                        onClick={() => setIsUsingSavedSignature(false)}
+                                                    >
+                                                        <img 
+                                                            src={resolveMediaSrc(signature)} 
+                                                            alt="Saved Signature" 
+                                                            className="max-w-full max-h-full object-contain opacity-90 transition-transform group-hover:scale-105"
+                                                        />
+                                                        <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <span className="text-[9px] font-black text-[#5D5FEF] bg-[#5D5FEF]/5 px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw Manually</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <SignatureCanvas
+                                                    ref={sigCanvas}
+                                                    onBegin={() => setIsUsingSavedSignature(false)}
+                                                    onEnd={() => {
+                                                        setSignature(sigCanvas.current.getCanvas().toDataURL());
+                                                        setIsUsingSavedSignature(false);
+                                                    }}
+                                                    canvasProps={{
+                                                        className: "w-full h-40 cursor-crosshair",
+                                                        style: { background: 'white' }
+                                                    }}
+                                                />
+                                                <button
+                                                    onClick={handleClearSignature}
+                                                    className="absolute top-2 right-2 p-2 text-slate-400 hover:text-red-500 transition-colors z-20"
+                                                >
+                                                    <RotateCcw size={16} />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Authorized Manager Signature</p>
                                 </div>
-                            )}
-                        </div>
-                    </div>
+                                
+                                {!isReadOnly && (
+                                    <div className="flex justify-end pt-4">
+                                        <button
+                                            onClick={handleSubmit}
+                                            disabled={submitting}
+                                            className="group bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-10 py-5 rounded-[2rem] font-black text-lg shadow-2xl shadow-orange-500/20 transition-all flex items-center justify-center gap-4"
+                                        >
+                                            {submitting ? 'SUBMITTING...' : 'FINALIZE & SUBMIT'}
+                                            <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
+                                        </button>
+                                    </div>
+                                )}
+                                 {isReadOnly && (
+                                    <div className="flex flex-col md:flex-row justify-end gap-6">
+                                        <div className="bg-white rounded-[2rem] p-6 border border-slate-100 flex items-center gap-4 shadow-xl">
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Verified By</p>
+                                                <p className="text-slate-900 font-black text-sm uppercase">Manager</p>
+                                            </div>
+                                            <div className="h-12 w-32 bg-slate-50 rounded-xl p-2 flex items-center justify-center border border-slate-100">
+                                                {assignment.managerSignature ? (
+                                                    <img src={resolveMediaSrc(assignment.managerSignature)} alt="Verified Signature" className="h-full object-contain" />
+                                                ) : (
+                                                    <span className="font-signature text-slate-700 text-lg">Signed</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {(assignment.status === 'HR_APPROVED' || assignment.status === 'LOCKED') && (assignment as any).hrSignature && (
+                                            <div className="bg-white rounded-[2rem] p-6 border border-slate-100 flex items-center gap-4 shadow-xl">
+                                                <div className="text-right">
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Approved By</p>
+                                                    <p className="text-slate-900 font-black text-sm uppercase">HR / Admin</p>
+                                                </div>
+                                                <div className="h-12 w-32 bg-slate-50 rounded-xl p-2 flex items-center justify-center border border-slate-100">
+                                                    <img src={resolveMediaSrc((assignment as any).hrSignature)} alt="HR Signature" className="h-full object-contain" />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                 </section>
             </main>
 
