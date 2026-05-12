@@ -76,6 +76,11 @@ import { EmployeeMeetingsPage } from './pages/employee/EmployeeMeetingsPage';
 import { MeetingDetailPage } from './pages/meetings/MeetingDetailPage';
 import { NotificationPage } from './pages/NotificationPage';
 
+// Reports Pages
+import ManagerReportsPage from './pages/manager/ReportsPage';
+import HrReportsPage from './pages/hr/ReportsPage';
+import EmployeeReportsPage from './pages/employee/ReportsPage';
+
 const TOAST_DEDUP_MS = 600;
 const recentToastTimestamps = new Map<string, number>();
 let isToastPatched = false;
@@ -195,6 +200,7 @@ function App() {
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
+            <Route path="reports" element={<HrReportsPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -229,6 +235,7 @@ function App() {
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
+            <Route path="reports" element={<ManagerReportsPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>
@@ -254,6 +261,7 @@ function App() {
             <Route path="notifications" element={<NotificationPage />} />
             <Route path="appraisals" element={<EmployeeAppraisalsPage />} />
             <Route path="appraisals/:id/view" element={<EmployeeAppraisalViewPage />} />
+            <Route path="reports" element={<EmployeeReportsPage />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>

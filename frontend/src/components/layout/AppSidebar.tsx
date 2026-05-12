@@ -23,10 +23,13 @@ type NavSection = { label: string; items: NavItem[] }
 export function AppSidebar() {
   const role = useAppSelector((s) => s.auth.user?.role)
   const roleId = useAppSelector((s) => s.auth.user?.roleId)
-  const isHr = roleId === 1 || role?.toUpperCase() === 'HR'
-  const isManager = roleId === 2 || roleId === 3 || 
-    ['DEPARTMENT_HEAD', 'TEAM_HEAD', 'DEPARTMENT HEAD', 'TEAM HEAD'].includes(role?.toUpperCase() || '')
   const location = useLocation()
+  
+  // Robust Detection: Check both Role Info and URL Path
+  const isHr = String(roleId) === '1' || role?.toUpperCase() === 'HR'
+  const isManagerPath = location.pathname.startsWith('/manager')
+  const isManager = isManagerPath || String(roleId) === '2' || String(roleId) === '3' || 
+    ['MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'DEPARTMENT HEAD', 'TEAM HEAD', 'DEPT_HEAD', 'TEAM_LEADER'].includes(role?.toUpperCase().replace(/\s+/g, '_') || '')
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
 
@@ -70,7 +73,7 @@ export function AppSidebar() {
       items: [
         { 
           name: isHr ? 'Appraisals' : (isManager ? 'Appraiser' : 'Appraisee'), 
-          path: isHr ? '/hr/appraisals-group' : '/manager/appraisals-group', 
+          path: isHr ? '/hr/appraisals-group' : (isManager ? '/manager/appraisals-group' : '/manager/appraisals-group'), 
           icon: 'bi-clipboard-check', 
           end: false,
           subItems: [

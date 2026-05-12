@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { resolveMediaSrc } from '../../utils/mediaUrl';
 
 interface AppraisalAssignment {
     id: number;
@@ -140,8 +141,17 @@ export function EmployeeAppraisalsPage() {
                                             <ShieldCheck size={14} />
                                             <span className="text-[9px] font-black uppercase tracking-widest">Score Rate</span>
                                         </div>
-                                        <p className="text-xs font-bold text-slate-700">
-                                            {assignment.status === 'HR_APPROVED' ? `${assignment.totalScore?.toFixed(1) || '0.0'}%` : 'Pending'}
+                                        <p className={`text-xs font-black uppercase tracking-tight ${
+                                            assignment.status === 'PENDING_MANAGER' ? 'text-slate-400' :
+                                            (assignment.ratingCategory || '').toUpperCase().includes('EXCELLENT') ? 'text-emerald-600' :
+                                            (assignment.ratingCategory || '').toUpperCase().includes('GOOD') ? 'text-blue-600' :
+                                            (assignment.ratingCategory || '').toUpperCase().includes('AVERAGE') ? 'text-amber-600' :
+                                            'text-slate-700'
+                                        }`}>
+                                            {assignment.status === 'PENDING_MANAGER' 
+                                                ? 'Pending' 
+                                                : `${assignment.ratingCategory || 'Evaluated'} (${assignment.totalScore?.toFixed(1) || '0.0'}%)`
+                                            }
                                         </p>
                                     </div>
                                 </div>
