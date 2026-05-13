@@ -857,6 +857,19 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       },
     }),
 
+    getActiveCycleFormsForManager: builder.query<ActiveCycleFormsDto, void>({
+      query: () => '/self-assessment-forms/manager/active-cycle',
+      providesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => {
+        const data = getResponseData(response)
+        const source = isRecord(data) ? data : {}
+        return {
+          activeCycle: normalizeCycleInfo(source.activeCycle),
+          forms: getArray(source.forms).map(normalizeFormList),
+        }
+      },
+    }),
+
     getScoreRecords: builder.query<ScoreRecordDto[], void>({
       query: () => '/self-assessment-forms/score-records',
       providesTags: ['SelfAssessmentForm'],
@@ -1125,6 +1138,7 @@ export const {
   useGetHrReviewFormsQuery,
   useGetAllFormsForHrQuery,
   useGetActiveCycleFormsForHrQuery,
+  useGetActiveCycleFormsForManagerQuery,
   useGetFormByIdQuery,
   useManagerReviewMutation,
   useHrApproveManagerReviewMutation,

@@ -733,6 +733,45 @@ class SelfAssessmentFormAssignmentServiceTest {
         assertEquals(100L, response.forms().get(0).templateId());
     }
 
+    @Test
+    void getActiveCycleFormsForManager_includesOnlyAccessibleTeamFormsAndTemplateId() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+
+        Employee directReport = employee(1L, 10L, 20L);
+        directReport.setManager(manager);
+        SelfAssessmentForm directReportForm = formForSubmit(
+                directReport,
+                template(100L, 10L, 20L, cycle),
+                cycle,
+                SelfAssessmentFormStatus.DRAFT);
+
+        Employee departmentReport = employee(3L, 10L, 30L);
+        departmentReport.getDepartment().setManagerId(manager.getId());
+        SelfAssessmentForm departmentReportForm = formForSubmit(
+                departmentReport,
+                template(101L, 10L, 30L, cycle),
+                cycle,
+                SelfAssessmentFormStatus.SUBMITTED);
+
+        Employee unrelatedEmployee = employee(4L, 99L, 20L);
+        SelfAssessmentForm unrelatedForm = formForSubmit(
+                unrelatedEmployee,
+                template(102L, 99L, 20L, cycle),
+                cycle,
+                SelfAssessmentFormStatus.SUBMITTED);
+
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(formRepository.findByCycleOrderByCreatedDateDesc(cycle))
+                .thenReturn(List.of(unrelatedForm, departmentReportForm, directReportForm));
+
+        ActiveCycleFormsDto response = service.getActiveCycleFormsForManager(manager);
+
+        assertEquals(2, response.forms().size());
+        assertEquals(List.of(101L, 100L), response.forms().stream().map(form -> form.templateId()).toList());
+        assertEquals(List.of(3L, 1L), response.forms().stream().map(form -> form.employee().id()).toList());
+    }
+
     private static SelfAssessmentAssignmentRequest request(String mode) {
         return new SelfAssessmentAssignmentRequest(
                 mode,
@@ -853,7 +892,7 @@ class SelfAssessmentFormAssignmentServiceTest {
         form.setCycle(cycle);
         form.setRatingSystem(SelfAssessmentRatingSystem.FIVE_POINT);
         form.setStatus(status);
-        form.setDeadlineDate(LocalDate.of(2026, 5, 10));
+        form.setDeadlineDate(LocalDate.of(2026, 5, 20));
         form.setCreatedDate(java.time.Instant.parse("2026-05-01T00:00:00Z"));
 
         SelfAssessmentFormAnswer answer = new SelfAssessmentFormAnswer();
