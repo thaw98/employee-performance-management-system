@@ -158,6 +158,28 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     expect(screen.getByText('72.0%')).toBeTruthy()
   })
 
+  it('renders not-submitted penalty records with zero score', () => {
+    scoreRecordsHookMock.mockReturnValue({
+      data: [
+        {
+          ...mockRecords[0],
+          id: 4,
+          status: 'NOT_SUBMITTED',
+          finalApprovedScore: 0.0,
+          performance: 'Unsatisfactory',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    })
+
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    expect(screen.getAllByText('Not Submitted').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('0.0%').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('Unsatisfactory')).toBeTruthy()
+  })
+
   it('displays dash for null score', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 

@@ -37,6 +37,7 @@ public class SelfAssessmentFormService {
             SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL,
             SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW,
             SelfAssessmentFormStatus.FINALIZED_LOCKED,
+            SelfAssessmentFormStatus.NOT_SUBMITTED,
             SelfAssessmentFormStatus.MANAGER_REVIEWED);
 
     private static final DateTimeFormatter NOTIFICATION_DEADLINE_FORMAT =
@@ -783,10 +784,9 @@ Instant now = Instant.now();
             if (isAssignmentScheduledForFuture(form)) {
                 return new FormStatusDto("NOT_ASSIGNED", true, true, false, "Your self-assessment starts on " + form.getStartDate() + ".");
             }
+            boolean normalized = normalizeOverdueDraftForm(form);
             boolean deadlinePassed = isDeadlinePassed(form);
-            if (deadlinePassed && form.getStatus() == SelfAssessmentFormStatus.DRAFT) {
-                form.setStatus(SelfAssessmentFormStatus.NOT_SUBMITTED);
-                formRepository.save(form);
+            if (normalized) {
                 return new FormStatusDto("NOT_SUBMITTED", true, true, true, "Deadline has passed. Your draft was marked as not submitted.");
             }
             return new FormStatusDto(form.getStatus().name(), true, true, deadlinePassed, null);
@@ -807,7 +807,7 @@ Instant now = Instant.now();
         return new FormStatusDto("NOT_ASSIGNED", true, true, false, "No self-assessment form has been assigned to you for the active cycle.");
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Optional<SelfAssessmentFormDto> getEmployeeCurrentForm(Employee employee) {
         ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) {
@@ -820,6 +820,7 @@ Instant now = Instant.now();
             if (isAssignmentScheduledForFuture(existingForm.get())) {
                 return Optional.empty();
             }
+            normalizeOverdueDraftForm(existingForm.get());
             return Optional.of(toFormDto(existingForm.get()));
         }
 
@@ -930,7 +931,7 @@ Instant now = Instant.now();
         return toSettingsDto(settings);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<FormListDto> getManagerReviewForms(Employee manager) {
         ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) {
@@ -938,6 +939,7 @@ Instant now = Instant.now();
         }
 
         return formRepository.findByManagerAndCycle(manager.getId(), activeCycle).stream()
+                .peek(this::normalizeOverdueDraftForm)
                 .filter(f -> f.getStatus() == SelfAssessmentFormStatus.SUBMITTED ||
                         f.getStatus() == SelfAssessmentFormStatus.MANAGER_REVIEWED ||
                         f.getStatus() == SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW ||
@@ -946,7 +948,7 @@ Instant now = Instant.now();
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<FormListDto> getHrReviewForms() {
         ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) {
@@ -955,6 +957,7 @@ Instant now = Instant.now();
 
         return formRepository.findAll().stream()
                 .filter(f -> f.getCycle().equals(activeCycle))
+                .peek(this::normalizeOverdueDraftForm)
                 .filter(f -> f.getStatus() == SelfAssessmentFormStatus.MANAGER_REVIEWED ||
                         f.getStatus() == SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL ||
                         f.getStatus() == SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW)
@@ -962,7 +965,7 @@ Instant now = Instant.now();
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<FormListDto> getAllFormsForHr() {
         ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) {
@@ -970,14 +973,16 @@ Instant now = Instant.now();
         }
 
         return formRepository.findByCycleOrderByCreatedDateDesc(activeCycle).stream()
+                .peek(this::normalizeOverdueDraftForm)
                 .map(this::toFormListDto)
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ActiveCycleFormsDto getActiveCycleFormsForHr() {
         ReviewCycle activeCycle = requireActiveCycle();
         List<FormListDto> forms = formRepository.findByCycleOrderByCreatedDateDesc(activeCycle).stream()
+                .peek(this::normalizeOverdueDraftForm)
                 .map(this::toFormListDto)
                 .collect(Collectors.toList());
         return new ActiveCycleFormsDto(toCycleInfo(activeCycle), forms);
@@ -1491,9 +1496,7 @@ Instant now = Instant.now();
             if (isAssignmentScheduledForFuture(form)) {
                 throw new RuntimeException("Your self-assessment is scheduled to start on " + form.getStartDate() + ".");
             }
-            if (isDeadlinePassed(form) && form.getStatus() == SelfAssessmentFormStatus.DRAFT) {
-                form.setStatus(SelfAssessmentFormStatus.NOT_SUBMITTED);
-                formRepository.save(form);
+            if (normalizeOverdueDraftForm(form)) {
                 throw new RuntimeException("Deadline has passed. Your draft was marked as not submitted.");
             }
             return form;
@@ -1802,11 +1805,41 @@ Instant now = Instant.now();
     }
 
     private boolean isDeadlinePassed(SelfAssessmentForm form) {
+        LocalDate today = LocalDate.now();
         LocalDate deadline = form.getDeadlineDate();
-        if (deadline == null && form.getCycle() != null) {
-            deadline = form.getCycle().getEndDate();
+        boolean employeeDeadlinePassed = deadline != null && today.isAfter(deadline);
+        LocalDate cycleEndDate = form.getCycle() != null ? form.getCycle().getEndDate() : null;
+        boolean cycleEnded = cycleEndDate != null && today.isAfter(cycleEndDate);
+        return employeeDeadlinePassed || cycleEnded;
+    }
+
+    private boolean normalizeOverdueDraftForm(SelfAssessmentForm form) {
+        if (form == null || form.getStatus() != SelfAssessmentFormStatus.DRAFT || !isDeadlinePassed(form)) {
+            return false;
         }
-        return deadline != null && LocalDate.now().isAfter(deadline);
+
+        boolean changed = false;
+        if (form.getStatus() != SelfAssessmentFormStatus.NOT_SUBMITTED) {
+            form.setStatus(SelfAssessmentFormStatus.NOT_SUBMITTED);
+            changed = true;
+        }
+        if (!Double.valueOf(0.0).equals(form.getFinalApprovedTotalScore())) {
+            form.setFinalApprovedTotalScore(0.0);
+            changed = true;
+        }
+        if (!Double.valueOf(0.0).equals(form.getTotalScore())) {
+            form.setTotalScore(0.0);
+            changed = true;
+        }
+        if (!"Unsatisfactory".equals(form.getRatingCategory())) {
+            form.setRatingCategory("Unsatisfactory");
+            changed = true;
+        }
+        if (changed) {
+            form.setUpdatedDate(Instant.now());
+            formRepository.save(form);
+        }
+        return changed;
     }
 
     private ReviewCycle getActiveCycle() {
@@ -2240,7 +2273,7 @@ Instant now = Instant.now();
         return "Self Assessment Form";
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<ScoreRecordDto> getScoreRecords(Employee employee, Long roleId) {
         if (roleId != null && roleId == 1L) {
             return getHrScoreRecords();
@@ -2256,6 +2289,7 @@ Instant now = Instant.now();
 
     private List<ScoreRecordDto> getHrScoreRecords() {
         return formRepository.findAll().stream()
+                .peek(this::normalizeOverdueDraftForm)
                 .filter(f -> SCORE_RECORD_VISIBLE_STATUSES.contains(f.getStatus()))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
@@ -2265,6 +2299,7 @@ Instant now = Instant.now();
     private List<ScoreRecordDto> getManagerScoreRecords(Employee manager) {
         List<SelfAssessmentForm> allForms = formRepository.findAll();
         return allForms.stream()
+                .peek(this::normalizeOverdueDraftForm)
                 .filter(f -> SCORE_RECORD_VISIBLE_STATUSES.contains(f.getStatus()))
                 .filter(f -> canManagerAccessForm(f, manager))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
@@ -2275,6 +2310,7 @@ Instant now = Instant.now();
     /** Employee history lists every status for their own forms (incl. draft / not started). */
     private List<ScoreRecordDto> getEmployeeScoreRecords(Employee employee) {
         return formRepository.findAll().stream()
+                .peek(this::normalizeOverdueDraftForm)
                 .filter(f -> isOwnForm(f, employee))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
@@ -2476,12 +2512,6 @@ Instant now = Instant.now();
                 emp.getPosition() != null ? emp.getPosition().getCode() : null
         );
 
-        String displayStatus = form.getStatus().name();
-        if (form.getStatus() == SelfAssessmentFormStatus.DRAFT && form.getAnswers().stream()
-                .allMatch(a -> a.getYesNoAnswer() == null && a.getRating() == null)) {
-            displayStatus = "NOT_SUBMITTED";
-        }
-
         return new FormListDto(
                 form.getId(),
                 form.getTemplate() != null ? form.getTemplate().getId() : null,
@@ -2495,7 +2525,7 @@ Instant now = Instant.now();
                 form.getAssignedAt(),
                 form.getAssignedBy(),
                 employeeInfo,
-                displayStatus,
+                form.getStatus().name(),
                 form.getTotalScore(),
                 form.getRatingCategory(),
                 form.getSubmittedDate(),

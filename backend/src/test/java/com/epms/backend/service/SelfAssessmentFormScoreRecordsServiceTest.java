@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class SelfAssessmentFormScoreRecordsServiceTest {
@@ -133,6 +134,129 @@ class SelfAssessmentFormScoreRecordsServiceTest {
         assertEquals(2, records.size());
         assertTrue(records.stream().anyMatch(r -> "SUBMITTED".equals(r.status())));
         assertTrue(records.stream().anyMatch(r -> "APPROVED".equals(r.status())));
+    }
+
+    @Test
+    void getScoreRecords_hr_normalizesOverdueDraftWithNoAnswers() {
+        Employee emp = employee(1L, 10L, 20L);
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm draft = formWithStatus(200L, emp, tmpl, cycle, SelfAssessmentFormStatus.DRAFT);
+        draft.setDeadlineDate(LocalDate.now().minusDays(1));
+
+        when(formRepository.findAll()).thenReturn(List.of(draft));
+
+        List<ScoreRecordDto> records = service.getScoreRecords(emp, 1L);
+
+        assertEquals(1, records.size());
+        assertEquals("NOT_SUBMITTED", records.get(0).status());
+        assertEquals(0.0, records.get(0).finalApprovedScore());
+        assertEquals("Unsatisfactory", records.get(0).performance());
+        assertEquals(SelfAssessmentFormStatus.NOT_SUBMITTED, draft.getStatus());
+        assertEquals(0.0, draft.getTotalScore());
+        assertEquals(0.0, draft.getFinalApprovedTotalScore());
+        assertEquals("Unsatisfactory", draft.getRatingCategory());
+        assertNotNull(draft.getUpdatedDate());
+        verify(formRepository).save(draft);
+    }
+
+    @Test
+    void getScoreRecords_hr_normalizesOverdueDraftWithSavedAnswers() {
+        Employee emp = employee(1L, 10L, 20L);
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm draft = formWithStatus(200L, emp, tmpl, cycle, SelfAssessmentFormStatus.DRAFT);
+        draft.setDeadlineDate(LocalDate.now().minusDays(1));
+        draft.setTotalScore(75.0);
+        draft.setRatingCategory("Good");
+
+        when(formRepository.findAll()).thenReturn(List.of(draft));
+
+        List<ScoreRecordDto> records = service.getScoreRecords(emp, 1L);
+
+        assertEquals(1, records.size());
+        assertEquals("NOT_SUBMITTED", records.get(0).status());
+        assertEquals(0.0, records.get(0).finalApprovedScore());
+        assertEquals("Unsatisfactory", records.get(0).performance());
+        assertEquals(0.0, draft.getTotalScore());
+        assertEquals(0.0, draft.getFinalApprovedTotalScore());
+        assertEquals("Unsatisfactory", draft.getRatingCategory());
+        verify(formRepository).save(draft);
+    }
+
+    @Test
+    void getScoreRecords_hr_normalizesDraftWhenCycleEndPassed() {
+        Employee emp = employee(1L, 10L, 20L);
+        ReviewCycle cycle = cycle();
+        cycle.setEndDate(LocalDate.now().minusDays(1));
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm draft = formWithStatus(200L, emp, tmpl, cycle, SelfAssessmentFormStatus.DRAFT);
+        draft.setDeadlineDate(null);
+
+        when(formRepository.findAll()).thenReturn(List.of(draft));
+
+        List<ScoreRecordDto> records = service.getScoreRecords(emp, 1L);
+
+        assertEquals(1, records.size());
+        assertEquals("NOT_SUBMITTED", records.get(0).status());
+        assertEquals(0.0, records.get(0).finalApprovedScore());
+        verify(formRepository).save(draft);
+    }
+
+    @Test
+    void getScoreRecords_hr_keepsNonOverdueDraftHidden() {
+        Employee emp = employee(1L, 10L, 20L);
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm draft = formWithStatus(200L, emp, tmpl, cycle, SelfAssessmentFormStatus.DRAFT);
+        draft.setDeadlineDate(LocalDate.now().plusDays(1));
+
+        when(formRepository.findAll()).thenReturn(List.of(draft));
+
+        List<ScoreRecordDto> records = service.getScoreRecords(emp, 1L);
+
+        assertTrue(records.isEmpty());
+        assertEquals(SelfAssessmentFormStatus.DRAFT, draft.getStatus());
+    }
+
+    @Test
+    void getScoreRecords_hr_doesNotOverwriteSubmittedOverdueForm() {
+        Employee emp = employee(1L, 10L, 20L);
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm submitted = formWithStatus(200L, emp, tmpl, cycle, SelfAssessmentFormStatus.SUBMITTED);
+        submitted.setDeadlineDate(LocalDate.now().minusDays(1));
+        submitted.setTotalScore(80.0);
+        submitted.setRatingCategory("Good");
+
+        when(formRepository.findAll()).thenReturn(List.of(submitted));
+
+        List<ScoreRecordDto> records = service.getScoreRecords(emp, 1L);
+
+        assertEquals(1, records.size());
+        assertEquals("SUBMITTED", records.get(0).status());
+        assertEquals(80.0, submitted.getTotalScore());
+        assertEquals("Good", submitted.getRatingCategory());
+    }
+
+    @Test
+    void getScoreRecords_manager_includesNormalizedNotSubmittedRows() {
+        Department managedDept = department(10L);
+        managedDept.setManagerId(100L);
+        Employee manager = employee(100L, managedDept, 20L);
+        Employee report = employee(1L, managedDept, 20L);
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm draft = formWithStatus(200L, report, tmpl, cycle, SelfAssessmentFormStatus.DRAFT);
+        draft.setDeadlineDate(LocalDate.now().minusDays(1));
+
+        when(formRepository.findAll()).thenReturn(List.of(draft));
+
+        List<ScoreRecordDto> records = service.getScoreRecords(manager, 2L);
+
+        assertEquals(1, records.size());
+        assertEquals("NOT_SUBMITTED", records.get(0).status());
+        assertEquals(0.0, records.get(0).finalApprovedScore());
     }
 
     @Test
@@ -398,6 +522,7 @@ class SelfAssessmentFormScoreRecordsServiceTest {
         form.setTemplate(tmpl);
         form.setCycle(cycle);
         form.setStatus(status);
+        form.setDeadlineDate(LocalDate.now().plusDays(14));
         form.setCreatedDate(Instant.parse("2026-05-01T00:00:00Z"));
         return form;
     }
