@@ -200,7 +200,11 @@ function App() {
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
-            <Route path="self-assessment/score-records" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route path="self-assessment/history" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route
+              path="self-assessment/score-records"
+              element={<Navigate to="/hr/self-assessment/history" replace />}
+            />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
@@ -235,7 +239,11 @@ function App() {
             <Route path="self-assessment-forms/review-queue" element={<SelfAssessmentFormQueuePage />} />
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment-forms/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
-            <Route path="self-assessment-forms/score-records" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route path="self-assessment-forms/history" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route
+              path="self-assessment-forms/score-records"
+              element={<Navigate to="/manager/self-assessment-forms/history" replace />}
+            />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
@@ -260,6 +268,8 @@ function App() {
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment-forms" element={<EmployeeSelfAssessmentHubPage />} />
             <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
+            <Route path="self-assessment-forms/history" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route path="self-assessment-forms/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="meetings" element={<EmployeeMeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />

@@ -534,7 +534,7 @@ class SelfAssessmentFormAssignmentServiceTest {
     }
 
     @Test
-    void managerReview_notifiesEmployeeOnly() {
+    void managerReview_withNoScoreChanges_skipsEmployeeNotifiesHrAndSetsPendingFinalApproval() {
         ReviewCycle cycle = cycle();
         Employee manager = employee(2L, 10L, 20L);
         Employee employee = employee(1L, 10L, 20L);
@@ -544,26 +544,81 @@ class SelfAssessmentFormAssignmentServiceTest {
         form.getAnswers().get(0).setYesNoAnswer("Yes");
         form.getAnswers().get(0).setRating(5);
 
+        User activeHrUser = new User();
+        activeHrUser.setId(101L);
+        activeHrUser.setActive(true);
+
         when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
         when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
                 .thenReturn(Optional.of(signature(manager.getUserAccount())));
         when(formRepository.save(form)).thenReturn(form);
         when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+        when(userRepository.findByRole_IdAndActiveTrue(1L)).thenReturn(List.of(activeHrUser));
 
         service.managerReview(
                 form.getId(),
                 manager,
                 new ManagerReviewRequest("Reviewed", List.of()));
 
-        verify(notificationService).send(
+        assertEquals(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL, form.getStatus());
+        verify(notificationService, never()).send(
                 eq(employee.getUserAccount()),
                 eq("Manager Review Completed"),
-                eq("Your manager has reviewed your self-assessment and completed the review. "
-                        + "Please review the updated evaluation, including any manager comments, "
-                        + "before your performance discussion."),
+                any(),
+                eq("SELF_ASSESSMENT_FORM"),
+                any());
+        verify(notificationService).send(
+                eq(activeHrUser),
+                eq("Self-Assessment Pending Final Approval"),
+                eq("Jane Doe's self-assessment for Template: manager completed review with no score changes. "
+                        + "Final HR approval is required."),
                 eq("SELF_ASSESSMENT_FORM"),
                 eq(form.getId()));
-        verify(userRepository, never()).findByRole_IdAndActiveTrue(1L);
+    }
+
+    @Test
+    void managerReview_withAdjustmentsMatchingSelfScores_skipsEmployeeNotifiesHr() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        employee.setEmployeeName("Jane Doe");
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+        form.getAnswers().get(0).setYesNoAnswer("Yes");
+        form.getAnswers().get(0).setRating(5);
+
+        User activeHrUser = new User();
+        activeHrUser.setId(101L);
+        activeHrUser.setActive(true);
+
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+        when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
+                .thenReturn(Optional.of(signature(manager.getUserAccount())));
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+        when(userRepository.findByRole_IdAndActiveTrue(1L)).thenReturn(List.of(activeHrUser));
+
+        service.managerReview(
+                form.getId(),
+                manager,
+                new ManagerReviewRequest(
+                        "Looks good",
+                        List.of(new ManagerAdjustmentRequest(501L, "Yes", 5, "Agree with self rating"))));
+
+        assertEquals(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL, form.getStatus());
+        verify(notificationService, never()).send(
+                eq(employee.getUserAccount()),
+                eq("Manager Review Completed"),
+                any(),
+                eq("SELF_ASSESSMENT_FORM"),
+                any());
+        verify(notificationService).send(
+                eq(activeHrUser),
+                eq("Self-Assessment Pending Final Approval"),
+                eq("Jane Doe's self-assessment for Template: manager completed review with no score changes. "
+                        + "Final HR approval is required."),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(form.getId()));
     }
 
     @Test

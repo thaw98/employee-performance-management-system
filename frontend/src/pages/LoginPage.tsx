@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { LoginForm } from '../components/auth/LoginForm'
 import { useAppSelector } from '../app/hooks'
 import { FIRST_LOGIN_SET_PASSWORD_PATH } from '../routes/paths'
+import { getDashboardPath } from '../utils/dashboardRedirect'
 
 export function LoginPage() {
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated)
@@ -12,11 +13,7 @@ export function LoginPage() {
   const [activeTable, setActiveTable] = useState<'HR' | 'MANAGER' | 'EMPLOYEE'>('HR')
 
   if (isAuthenticated) {
-    const dashboardPath = user?.roleId === 1 
-      ? '/hr/dashboard' 
-      : user?.roleId === 2 
-        ? '/manager/dashboard' 
-        : '/dashboard'
+    const dashboardPath = user ? getDashboardPath(user) : '/login'
         
     return (
       <Navigate to={mustChangePassword ? FIRST_LOGIN_SET_PASSWORD_PATH : dashboardPath} replace />

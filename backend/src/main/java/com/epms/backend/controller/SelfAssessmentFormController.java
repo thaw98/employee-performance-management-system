@@ -109,7 +109,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/score-records")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<List<ScoreRecordDto>>> getScoreRecords(@AuthenticationPrincipal UserPrincipal principal) {
         try {
             Employee employee = getEmployeeFromPrincipal(principal);
@@ -168,10 +168,11 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> getFormById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            SelfAssessmentFormDto form = selfAssessmentFormService.getFormById(id);
+            Employee employee = getEmployeeFromPrincipal(principal);
+            SelfAssessmentFormDto form = selfAssessmentFormService.getFormByIdForRole(id, employee, principal.getRoleId());
             return ResponseEntity.ok(ApiResponse.ok("Form retrieved", form));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));

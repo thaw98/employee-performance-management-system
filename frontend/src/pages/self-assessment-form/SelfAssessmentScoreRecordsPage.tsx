@@ -33,8 +33,11 @@ function ScoreBar({ score }: { score: number | null }) {
   )
 }
 
-/** Statuses returned by GET /self-assessment-forms/score-records (matches backend filter). */
+/** Status filter options (employee history includes draft / not started; HR/manager API omits those). */
 const SCORE_RECORD_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'NOT_STARTED', label: 'Not Started' },
+  { value: 'NOT_SUBMITTED', label: 'Not Submitted' },
   { value: 'SUBMITTED', label: 'Submitted' },
   { value: 'REOPENED', label: 'Reopened' },
   { value: 'PENDING_MANAGER_REVIEW', label: 'Pending Manager Review' },
@@ -72,6 +75,8 @@ function StatusBadge({ status }: { status: string }) {
     SUBMITTED: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
     APPROVED: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
     DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+    NOT_STARTED: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+    NOT_SUBMITTED: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300',
   }
   const cls = colorMap[status] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
   const label = status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
@@ -96,7 +101,12 @@ export function SelfAssessmentScoreRecordsPage() {
   const navigate = useNavigate()
   const roleId = useSelector((state: RootState) => state.auth.user?.roleId)
   const isHr = roleId === 1
-  const basePath = isHr ? '/hr/self-assessment' : '/manager/self-assessment-forms'
+  const isEmployee = roleId === 3 || roleId === 4
+  const basePath = isHr
+    ? '/hr/self-assessment'
+    : isEmployee
+      ? '/employee/self-assessment-forms'
+      : '/manager/self-assessment-forms'
 
   const { data: records = [], isLoading, isError } = useGetScoreRecordsQuery()
 
@@ -115,13 +125,15 @@ export function SelfAssessmentScoreRecordsPage() {
   }, [records])
 
   const columns = useMemo<ColumnDef<ScoreRecordDto>[]>(() => {
-    const cols: ColumnDef<ScoreRecordDto>[] = [
-      {
+    const cols: ColumnDef<ScoreRecordDto>[] = []
+
+    if (!isEmployee) {
+      cols.push({
         accessorKey: 'employee.employeeName',
         header: 'Employee Name',
         cell: ({ getValue }) => <span className="font-medium text-slate-900 dark:text-slate-100">{getValue() as string || '-'}</span>,
-      },
-    ]
+      })
+    }
 
     if (isHr) {
       cols.push({
@@ -175,7 +187,7 @@ export function SelfAssessmentScoreRecordsPage() {
     )
 
     return cols
-  }, [isHr, navigate, basePath])
+  }, [isHr, isEmployee, navigate, basePath])
 
   const filteredData = useMemo(() => {
     let data = records
@@ -255,7 +267,7 @@ export function SelfAssessmentScoreRecordsPage() {
   if (isError) {
     return (
       <div className="p-8 text-center">
-        <p className="text-red-500 font-bold">Failed to load score records.</p>
+        <p className="text-red-500 font-bold">Failed to load history.</p>
       </div>
     )
   }
@@ -263,9 +275,9 @@ export function SelfAssessmentScoreRecordsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Score Records</h1>
+        <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">History</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Scores for forms in the review workflow through finalized.
+          Past self-assessment forms for every workflow status, with scores when available.
         </p>
       </div>
 
@@ -289,7 +301,7 @@ export function SelfAssessmentScoreRecordsPage() {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search employees, departments..."
+              placeholder={isEmployee ? 'Search periods, positions...' : 'Search employees, departments...'}
               value={globalFilter}
               onChange={e => setGlobalFilter(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
@@ -344,7 +356,7 @@ export function SelfAssessmentScoreRecordsPage() {
               {table.getRowModel().rows.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
-                    No score records found.
+                    No history found.
                   </td>
                 </tr>
               ) : (

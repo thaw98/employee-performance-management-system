@@ -8,7 +8,6 @@ import {
   AlertCircle,
   PenLine,
   Loader2,
-  ChevronDown,
   Search,
   X,
   User,
@@ -218,7 +217,19 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isHr = user?.roleId === 1;
-  const reviewQueuePath = isHr ? '/hr/self-assessment/review-queue' : '/manager/self-assessment-forms/review-queue';
+  const isEmployeeDetail = location.pathname.startsWith('/employee/self-assessment-forms') || user?.roleId === 3 || user?.roleId === 4;
+  const reviewQueuePath = isHr
+    ? '/hr/self-assessment/review-queue'
+    : isEmployeeDetail
+      ? '/employee/self-assessment-forms/history'
+      : '/manager/self-assessment-forms/review-queue';
+  const pageTitle = isEmployeeDetail ? 'Self Assessment Detail' : isHr ? 'HR Compliance Review' : 'Manager Review';
+  const pageDescription = isEmployeeDetail
+    ? 'View your submitted self-assessment details and review history.'
+    : isHr
+      ? 'Review and approve self-assessment forms with final authority'
+      : 'Review self-assessment forms submitted by your team members';
+  const backLabel = isEmployeeDetail ? 'Back to History' : 'Back to Review Queue';
 
   const parsedFormIdFromUrl = formIdParam ? Number(formIdParam) : null;
   const urlFormId = parsedFormIdFromUrl && Number.isFinite(parsedFormIdFromUrl) ? parsedFormIdFromUrl : null;
@@ -237,7 +248,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError } = useGetReviewFormsQuery(undefined, {
-    skip: isHr,
+    skip: isHr || isEmployeeDetail,
   });
   const { data: hrForms, isLoading: hrFormsLoading } = useGetHrReviewFormsQuery(undefined, {
     skip: !isHr || Boolean(selectedFormId),
@@ -245,7 +256,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const { data: allForms, isLoading: allFormsLoading } = useGetAllFormsForHrQuery(undefined, {
     skip: !isHr || !selectedFormId,
   });
-  const { data: selectedForm, refetch: refetchForm } = useGetFormByIdQuery(selectedFormId!, {
+  const { data: selectedForm, isLoading: selectedFormLoading, refetch: refetchForm } = useGetFormByIdQuery(selectedFormId!, {
     skip: !selectedFormId,
   });
 
@@ -256,16 +267,16 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery(undefined, {
-    skip: !isHr,
+    skip: !isHr || isEmployeeDetail,
   });
   const defaultSignature = defaultSigResponse?.data ?? null;
   const hasDefaultSignature = Boolean(defaultSignature);
   const isMissingDefaultSignature = !isDefaultSigLoading && !hasDefaultSignature;
   const portalRoot = typeof document !== 'undefined' ? document.body : null;
 
-  const forms = isHr ? (selectedFormId ? allForms : hrForms) : managerForms;
-  const isLoading = isHr ? (selectedFormId ? allFormsLoading : hrFormsLoading) : managerFormsLoading;
-  const managerErrorMessage = !isHr && managerFormsError && typeof managerFormsError === 'object' && 'data' in managerFormsError
+  const forms = isEmployeeDetail ? [] : isHr ? (selectedFormId ? allForms : hrForms) : managerForms;
+  const isLoading = selectedFormLoading || (isEmployeeDetail ? false : isHr ? (selectedFormId ? allFormsLoading : hrFormsLoading) : managerFormsLoading);
+  const managerErrorMessage = !isHr && !isEmployeeDetail && managerFormsError && typeof managerFormsError === 'object' && 'data' in managerFormsError
     ? (managerFormsError as any)?.data?.message || 'Unable to load review forms for this manager account.'
     : null;
 
@@ -287,7 +298,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     });
   }, [forms, searchQuery]);
 
-  const totalCount = (forms ?? []).length;
   const canHrReopenForEmployee = useMemo(() => {
     const s = (selectedForm?.status ?? '').toUpperCase();
     return s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED';
@@ -492,16 +502,16 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         className="group mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#5D5FEF] dark:text-slate-400 dark:hover:text-[#8b8ef7]"
       >
         <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-0.5" />
-        Back to Review Queue
+        {backLabel}
       </button>
 
       <nav className="mb-5 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-        <Link to={isHr ? '/hr/dashboard' : '/manager/dashboard'} className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium hover:underline">Home</Link>
+        <Link to={isHr ? '/hr/dashboard' : isEmployeeDetail ? '/employee/dashboard' : '/manager/dashboard'} className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium hover:underline">Home</Link>
         <ChevronRight size={10} className="opacity-50" />
         <span>Self Assessment</span>
         <ChevronRight size={10} className="opacity-50" />
         <span className="font-semibold text-slate-700 dark:text-slate-200">
-          {isHr ? 'HR Compliance Review' : 'Manager Review'}
+          {pageTitle}
         </span>
         {selectedForm && (
           <>
@@ -520,12 +530,10 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              {isHr ? 'HR Compliance Review' : 'Manager Review'}
+              {pageTitle}
             </h1>
             <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400 max-w-lg">
-              {isHr
-                ? 'Review and approve self-assessment forms with final authority'
-                : 'Review self-assessment forms submitted by your team members'}
+              {pageDescription}
             </p>
           </div>
         </div>
@@ -541,14 +549,16 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
               Export PDF
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => navigate(reviewQueuePath)}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-          >
-            <FileText size={14} />
-            Form Queue
-          </button>
+          {!isEmployeeDetail && (
+            <button
+              type="button"
+              onClick={() => navigate(reviewQueuePath)}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              <FileText size={14} />
+              Form Queue
+            </button>
+          )}
         </div>
       </div>
 
@@ -1070,7 +1080,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 )}
               </div>
 
-              {!isHr && (selectedForm.status === 'SUBMITTED' || selectedForm.status === 'PENDING_MANAGER_REVIEW') && (
+              {!isHr && !isEmployeeDetail && (selectedForm.status === 'SUBMITTED' || selectedForm.status === 'PENDING_MANAGER_REVIEW') && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-md shadow-amber-500/20">
@@ -1272,7 +1282,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 </div>
               )}
 
-              {isHr && (selectedForm.status === 'MANAGER_REVIEWED' || selectedForm.status === 'PENDING_FINAL_APPROVAL' || selectedForm.status === 'PENDING_HR_CALIBRATION_REVIEW') && (
+              {isHr && !isEmployeeDetail && (selectedForm.status === 'MANAGER_REVIEWED' || selectedForm.status === 'PENDING_FINAL_APPROVAL' || selectedForm.status === 'PENDING_HR_CALIBRATION_REVIEW') && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
@@ -1410,17 +1420,23 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                   <FileText size={14} className="text-white" />
                 </div>
               </div>
-              <p className="text-lg font-bold text-slate-800 dark:text-slate-200">Select a form to review</p>
-              <p className="mt-1.5 max-w-sm text-center text-sm text-slate-400 dark:text-slate-500">
-                Choose a self-assessment form from the dedicated Form Queue page to review details and take action
+              <p className="text-lg font-bold text-slate-800 dark:text-slate-200">
+                {isEmployeeDetail ? 'No self-assessment detail selected' : 'Select a form to review'}
               </p>
-              <button
-                type="button"
-                onClick={() => navigate(reviewQueuePath)}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#5D5FEF]/[0.06] px-4 py-2 text-sm font-semibold text-[#5D5FEF] transition hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
-              >
-                Open Form Queue
-              </button>
+              <p className="mt-1.5 max-w-sm text-center text-sm text-slate-400 dark:text-slate-500">
+                {isEmployeeDetail
+                  ? 'Open a history record to view its read-only details.'
+                  : 'Choose a self-assessment form from the dedicated Form Queue page to review details and take action'}
+              </p>
+              {!isEmployeeDetail && (
+                <button
+                  type="button"
+                  onClick={() => navigate(reviewQueuePath)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#5D5FEF]/[0.06] px-4 py-2 text-sm font-semibold text-[#5D5FEF] transition hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                >
+                  Open Form Queue
+                </button>
+              )}
             </div>
           )}
         </div>

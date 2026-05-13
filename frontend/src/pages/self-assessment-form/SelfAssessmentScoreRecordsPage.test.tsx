@@ -9,7 +9,7 @@ const scoreRecordsHookMock = vi.fn()
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
-  useLocation: () => ({ pathname: '/hr/self-assessment/score-records' }),
+  useLocation: () => ({ pathname: '/hr/self-assessment/history' }),
   Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
     <a href={to} {...props}>{children}</a>
   ),
@@ -127,7 +127,7 @@ describe('SelfAssessmentScoreRecordsPage', () => {
   it('renders score records table with HR columns', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.getByText('Score Records')).toBeTruthy()
+    expect(screen.getByText('History')).toBeTruthy()
     expect(screen.getByText('Alice Johnson')).toBeTruthy()
     expect(screen.getByText('Bob Smith')).toBeTruthy()
     expect(screen.getAllByText('Engineering').length).toBeGreaterThanOrEqual(1)
@@ -156,6 +156,28 @@ describe('SelfAssessmentScoreRecordsPage', () => {
 
     expect(screen.getAllByText('88.5%').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('72.0%')).toBeTruthy()
+  })
+
+  it('renders not-submitted penalty records with zero score', () => {
+    scoreRecordsHookMock.mockReturnValue({
+      data: [
+        {
+          ...mockRecords[0],
+          id: 4,
+          status: 'NOT_SUBMITTED',
+          finalApprovedScore: 0.0,
+          performance: 'Unsatisfactory',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    })
+
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    expect(screen.getAllByText('Not Submitted').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('0.0%').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('Unsatisfactory')).toBeTruthy()
   })
 
   it('displays dash for null score', () => {
@@ -218,6 +240,28 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     await user.click(viewButtons[0])
 
     expect(navigateMock).toHaveBeenCalledWith('/manager/self-assessment-forms/reviews/1')
+  })
+
+  it('hides employee identity columns for Employee role', () => {
+    currentRoleId = 3
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    const headers = screen.getAllByRole('columnheader').map(h => h.textContent)
+    expect(headers.some(h => h.includes('Employee Name'))).toBe(false)
+    expect(headers.some(h => h.includes('Department'))).toBe(false)
+    expect(headers.some(h => h.includes('Position'))).toBe(true)
+    expect(screen.queryByText('Alice Johnson')).toBeNull()
+  })
+
+  it('navigates to employee detail page for Employee role', async () => {
+    currentRoleId = 3
+    const user = userEvent.setup()
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    const viewButtons = screen.getAllByText('View')
+    await user.click(viewButtons[0])
+
+    expect(navigateMock).toHaveBeenCalledWith('/employee/self-assessment-forms/reviews/1')
   })
 
   it('shows all metric cards for HR role', () => {
@@ -304,14 +348,14 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     scoreRecordsHookMock.mockReturnValue({ data: [], isLoading: false, isError: true })
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.getByText('Failed to load score records.')).toBeTruthy()
+    expect(screen.getByText('Failed to load history.')).toBeTruthy()
   })
 
   it('shows empty state when no records', () => {
     scoreRecordsHookMock.mockReturnValue({ data: [], isLoading: false, isError: false })
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.getByText('No score records found.')).toBeTruthy()
+    expect(screen.getByText('No history found.')).toBeTruthy()
   })
 
   it('paginates records correctly', () => {

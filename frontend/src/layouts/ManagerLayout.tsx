@@ -72,7 +72,7 @@ const ManagerLayout: React.FC = () => {
         { label: 'Templates', path: '/manager/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
 
         { label: 'Form Queue', path: '/manager/self-assessment-forms/review-queue', icon: <ListChecks size={16} className="shrink-0" /> },
-        { label: 'Score Records', path: '/manager/self-assessment-forms/score-records', icon: <BarChart size={16} className="shrink-0" /> }
+        { label: 'History', path: '/manager/self-assessment-forms/history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
     {
