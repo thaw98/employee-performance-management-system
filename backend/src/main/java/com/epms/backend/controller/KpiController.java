@@ -120,6 +120,52 @@ public class KpiController {
         }
     }
 
+    @PreAuthorize("hasRole('HR')")
+    @PutMapping("/hr/employee/{employeeId}/actuals")
+    public ResponseEntity<?> updateKpiActualsByHr(
+            @PathVariable Long employeeId,
+            @RequestBody List<KpiDto> kpiUpdates) {
+        try {
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.updateKpiActualsByHr(userId, employeeId, kpiUpdates));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage() != null ? e.getMessage() : "An error occurred");
+        }
+    }
+
+    @PreAuthorize("hasRole('HR')")
+    @PutMapping("/hr/department/{departmentId}/actuals")
+    public ResponseEntity<?> updateDepartmentKpiActualsByHr(
+            @PathVariable Long departmentId,
+            @RequestBody List<DepartmentKpiDto> updates) {
+        try {
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.updateDepartmentKpiActualsByHr(userId, departmentId, updates));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage() != null ? e.getMessage() : "An error occurred");
+        }
+    }
+
+    @PreAuthorize("hasRole('HR')")
+    @PutMapping("/hr/position/{departmentId}/{positionId}/actuals")
+    public ResponseEntity<?> updatePositionKpiActualsByHr(
+            @PathVariable Long departmentId,
+            @PathVariable Long positionId,
+            @RequestBody List<PositionKpiDto> updates) {
+        try {
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            return ResponseEntity.ok(kpiService.updatePositionKpiActualsByHr(userId, departmentId, positionId, updates));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(e.getMessage() != null ? e.getMessage() : "An error occurred");
+        }
+    }
+
     @GetMapping("/manager/team")
     public ResponseEntity<List<java.util.Map<String, Object>>> getManagerTeam() {
         try {
@@ -169,5 +215,18 @@ public class KpiController {
     @GetMapping("/history/summary")
     public ResponseEntity<List<com.epms.backend.dto.KpiHistorySummaryDto>> getAllHistorySummary() {
         return ResponseEntity.ok(kpiService.getAllKpiHistorySummary());
+    }
+
+    @PreAuthorize("hasRole('HR')")
+    @PostMapping("/hr/reset-monthly")
+    public ResponseEntity<Void> performMonthlyReset() {
+        try {
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            Long userId = Long.parseLong(userIdStr);
+            kpiService.performMonthlyReset(userId);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

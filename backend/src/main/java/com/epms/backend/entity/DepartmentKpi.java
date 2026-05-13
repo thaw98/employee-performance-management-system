@@ -35,11 +35,21 @@ public class DepartmentKpi {
     @Column(nullable = false)
     private String unit;
 
+    private String actual;
+
     @Column(nullable = false)
     private BigDecimal weight;
 
+    private BigDecimal score;
+
+    @Column(name = "weighted_score")
+    private BigDecimal weightedScore;
+
     @Column(nullable = false)
     private String period;
+
+    @Column(nullable = false)
+    private String status = "DRAFT"; // DRAFT, SUBMITTED, LOCKED
 
     @Column(name = "record_status", nullable = false)
     private String recordStatus = "Active"; // Active, Archived

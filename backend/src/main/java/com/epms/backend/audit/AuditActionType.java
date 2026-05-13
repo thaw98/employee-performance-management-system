@@ -44,4 +44,5 @@ public final class AuditActionType {
 	public static final String KPI_UPDATED = "KPI_UPDATED";
 	public static final String KPI_DRAFT_SAVED = "KPI_DRAFT_SAVED";
 	public static final String KPI_SUBMITTED = "KPI_SUBMITTED";
+	public static final String KPI_MONTHLY_RESET = "KPI_MONTHLY_RESET";
 }

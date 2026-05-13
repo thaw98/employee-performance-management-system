@@ -45,6 +45,8 @@ import { GetFeedbackPage } from './pages/GetFeedbackPage';
 import { KpiManagementPage } from './pages/hr/KpiManagementPage';
 import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { KpiDetailPage } from './pages/hr/KpiDetailPage';
+import { DepartmentKpiDetailPage } from './pages/hr/DepartmentKpiDetailPage';
+import { PositionKpiDetailPage } from './pages/hr/PositionKpiDetailPage';
 import { KpiCategoryPage } from './pages/hr/KpiCategoryPage';
 import { KpiHistoryPage } from './pages/hr/KpiHistoryPage';
 import { KpiAuditLogsPage } from './pages/hr/KpiAuditLogsPage';
@@ -169,6 +171,8 @@ function App() {
             <Route path="kpi-management" element={<KpiManagementPage />} />
             <Route path="kpi-assigned" element={<KpiAssignedPage />} />
             <Route path="kpi-detail" element={<KpiDetailPage />} />
+            <Route path="department-kpi-detail" element={<DepartmentKpiDetailPage />} />
+            <Route path="position-kpi-detail" element={<PositionKpiDetailPage />} />
             <Route path="kpi-categories" element={<KpiCategoryPage />} />
             <Route path="kpi-history" element={<KpiHistoryPage />} />
             <Route path="kpi-audit-logs" element={<KpiAuditLogsPage />} />
