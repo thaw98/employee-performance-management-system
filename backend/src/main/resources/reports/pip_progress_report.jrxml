@@ -37,23 +37,23 @@
                 <textElement><font fontName="DejaVu Sans" size="18" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
             </textField>
-            <textField>
-                <reportElement x="0" y="31" width="515" height="16" forecolor="#56616D" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c003"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="0" y="31" width="515" height="16" forecolor="#56616D" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c003"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA[$P{FILTER_DESCRIPTION} + " | Generated: " + $P{GENERATED_AT}]]></textFieldExpression>
             </textField>
             <line>
-                <reportElement x="0" y="58" width="515" height="1" forecolor="#D9DEE3" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c004"/>
+                <reportElement positionType="Float" x="0" y="58" width="515" height="1" forecolor="#D9DEE3" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c004"/>
             </line>
         </band>
     </title>
 
     <detail>
-        <band height="310">
+        <band height="650">
             <textField textAdjust="StretchHeight">
                 <reportElement stretchType="RelativeToTallestObject" x="0" y="0" width="515" height="20" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c005"/>
                 <textElement><font fontName="DejaVu Sans" size="11" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA["Scope: " + $F{departmentName} + " | Position: " + ($F{positionName} == null || $F{positionName}.isEmpty() ? "-" : $F{positionName}) + " | Period: " + String.valueOf($F{periodStart}) + " to " + String.valueOf($F{periodEnd})]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Scope: " + $F{departmentName} + " | Position: " + ($F{positionName} == null || $F{positionName}.isEmpty() ? "-" : $F{positionName})]]></textFieldExpression>
             </textField>
 
             <rectangle><reportElement x="0" y="42" width="160" height="64" backcolor="#EEF6FF" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c006"/></rectangle>
@@ -72,7 +72,47 @@
             <textField><reportElement x="0" y="194" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c018"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Closed: " + String.valueOf($F{closedPips})]]></textFieldExpression></textField>
             <textField><reportElement x="265" y="194" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c019"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Auto-closed: " + String.valueOf($F{autoClosedPips})]]></textFieldExpression></textField>
             <textField><reportElement x="0" y="222" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c020"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Reopen requested: " + String.valueOf($F{reopenRequestedPips})]]></textFieldExpression></textField>
-            <textField><reportElement x="265" y="222" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c021"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Hours: " + String.valueOf($F{totalCompletedHours}) + "/" + String.valueOf($F{totalPlannedHours})]]></textFieldExpression></textField>
+
+            <staticText><reportElement x="0" y="260" width="515" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c022"/><textElement><font fontName="DejaVu Sans" size="12" isBold="true"/></textElement><text><![CDATA[Hours Completion]]></text></staticText>
+            <textField><reportElement x="0" y="290" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c023"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Completed Hours: " + String.valueOf($F{totalCompletedHours})]]></textFieldExpression></textField>
+            <textField><reportElement x="265" y="290" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c024"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Remaining Hours: " + String.valueOf($F{totalPlannedHours} - $F{totalCompletedHours})]]></textFieldExpression></textField>
+            <textField><reportElement x="0" y="318" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c025"/><textElement><font fontName="DejaVu Sans" size="10" isBold="true"/></textElement><textFieldExpression><![CDATA["Total Planned: " + String.valueOf($F{totalPlannedHours})]]></textFieldExpression></textField>
+
+            <pieChart>
+                <chart evaluationTime="Report">
+                    <reportElement x="0" y="360" width="400" height="250" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c026"/>
+                    <chartTitle>
+                        <font fontName="DejaVu Sans" size="10"/>
+                        <titleExpression><![CDATA["Status Distribution"]]></titleExpression>
+                    </chartTitle>
+                </chart>
+                <pieDataset>
+                    <pieSeries>
+                        <keyExpression><![CDATA["Active"]]></keyExpression>
+                        <valueExpression><![CDATA[$F{activePips}]]></valueExpression>
+                    </pieSeries>
+                    <pieSeries>
+                        <keyExpression><![CDATA["Completed"]]></keyExpression>
+                        <valueExpression><![CDATA[$F{completedPips}]]></valueExpression>
+                    </pieSeries>
+                    <pieSeries>
+                        <keyExpression><![CDATA["Closed"]]></keyExpression>
+                        <valueExpression><![CDATA[$F{closedPips}]]></valueExpression>
+                    </pieSeries>
+                    <pieSeries>
+                        <keyExpression><![CDATA["Auto Closed"]]></keyExpression>
+                        <valueExpression><![CDATA[$F{autoClosedPips}]]></valueExpression>
+                    </pieSeries>
+                    <pieSeries>
+                        <keyExpression><![CDATA["Reopen Req."]]></keyExpression>
+                        <valueExpression><![CDATA[$F{reopenRequestedPips}]]></valueExpression>
+                    </pieSeries>
+                </pieDataset>
+                <piePlot>
+                    <plot/>
+                    <itemLabel/>
+                </piePlot>
+            </pieChart>
         </band>
     </detail>
 </jasperReport>

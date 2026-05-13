@@ -41,15 +41,15 @@
                 </textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
             </textField>
-            <textField>
-                <reportElement x="0" y="27" width="782" height="16" forecolor="#56616D" uuid="6c32ef44-735a-4b18-8a54-a353df4cc003"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="0" y="27" width="782" height="16" forecolor="#56616D" uuid="6c32ef44-735a-4b18-8a54-a353df4cc003"/>
                 <textElement>
                     <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{FILTER_DESCRIPTION} + " | Generated: " + $P{GENERATED_AT}]]></textFieldExpression>
             </textField>
             <line>
-                <reportElement x="0" y="52" width="782" height="1" forecolor="#D9DEE3" uuid="6c32ef44-735a-4b18-8a54-a353df4cc004"/>
+                <reportElement positionType="Float" x="0" y="52" width="782" height="1" forecolor="#D9DEE3" uuid="6c32ef44-735a-4b18-8a54-a353df4cc004"/>
             </line>
         </band>
     </title>

@@ -65,15 +65,15 @@
                 </textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
             </textField>
-            <textField>
-                <reportElement x="82" y="30" width="433" height="16" forecolor="#56616D" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c005"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="82" y="30" width="433" height="16" forecolor="#56616D" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c005"/>
                 <textElement>
                     <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{FILTER_DESCRIPTION} + " | Generated: " + $P{GENERATED_AT}]]></textFieldExpression>
             </textField>
             <line>
-                <reportElement x="0" y="70" width="515" height="1" forecolor="#D9DEE3" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c006"/>
+                <reportElement positionType="Float" x="0" y="70" width="515" height="1" forecolor="#D9DEE3" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c006"/>
             </line>
         </band>
     </title>
