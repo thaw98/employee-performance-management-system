@@ -29,6 +29,14 @@ public class Signature {
     @Column(name = "is_default")
     private boolean isDefault = false;
 
+    public boolean isDefault() {
+        return isDefault;
+    }
+
+    public void setDefault(boolean isDefault) {
+        this.isDefault = isDefault;
+    }
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 }

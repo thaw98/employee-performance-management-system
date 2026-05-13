@@ -155,49 +155,46 @@ public class PipService {
         return pipRepository.findByEmployee(employee.getEmployee());
     }
 
+    public List<Pip> getManagerPips(User manager) {
+        return pipRepository.findByManager(manager.getEmployee());
+    }
+
+    public List<Pip> getEmployeePips(User employee) {
+        return pipRepository.findByEmployee(employee.getEmployee());
+    }
+
     public List<Pip> getAllPips() {
         return pipRepository.findAll();
     }
 
-    public List<Pip> searchPips(
-            Long departmentId,
-            Long positionId,
-            String employeeName,
-            String status,
-            LocalDate startDate,
-            LocalDate endDate,
-            User actor) {
+    public List<Pip> searchPips(Long departmentId, Long positionId, String employeeName, String status,
+            LocalDate startDate, LocalDate endDate, User actor) {
         autoCloseExpiredPips();
         Specification<Pip> spec = (root, query, cb) -> {
-            // Eagerly fetch nested entities to avoid LazyInitializationException and ensure
-            // data is present in JSON
+            // Eagerly fetch nested entities to avoid LazyInitializationException and ensure data is present in JSON
             if (query.getResultType() != Long.class && query.getResultType() != long.class) {
-                jakarta.persistence.criteria.Fetch<Pip, Employee> employeeFetch = root.fetch("employee",
-                        jakarta.persistence.criteria.JoinType.LEFT);
+                jakarta.persistence.criteria.Fetch<Pip, Employee> employeeFetch = root.fetch("employee", jakarta.persistence.criteria.JoinType.LEFT);
                 employeeFetch.fetch("department", jakarta.persistence.criteria.JoinType.LEFT);
                 employeeFetch.fetch("position", jakarta.persistence.criteria.JoinType.LEFT);
 
-                jakarta.persistence.criteria.Fetch<Pip, Employee> managerFetch = root.fetch("manager",
-                        jakarta.persistence.criteria.JoinType.LEFT);
+                jakarta.persistence.criteria.Fetch<Pip, Employee> managerFetch = root.fetch("manager", jakarta.persistence.criteria.JoinType.LEFT);
                 managerFetch.fetch("department", jakarta.persistence.criteria.JoinType.LEFT);
             }
 
             List<Predicate> predicates = new ArrayList<>();
 
             // Role-based visibility
-            String roleName = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase().replace(" ", "_")
-                    : "";
-            boolean isManager = "DEPARTMENT_HEAD".equals(roleName) || "TEAM_HEAD".equals(roleName)
-                    || "MANAGER".equals(roleName);
+            String roleName = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase().replace(" ", "_") : "";
+            boolean isAdmin = "ADMIN".equals(roleName) || "SUPER_ADMIN".equals(roleName);
+            boolean isManager = "DEPARTMENT_HEAD".equals(roleName) || "TEAM_HEAD".equals(roleName) || "MANAGER".equals(roleName) || roleName.contains("MANAGER");
 
-            if (isHr(actor)) {
+            if (isHr(actor) || isAdmin) {
                 if (departmentId != null) {
                     predicates.add(cb.equal(root.get("employee").get("department").get("id"), departmentId));
                 }
             } else if (isManager && actor.getEmployee() != null && actor.getEmployee().getDepartment() != null) {
                 // Manager - restricted to their own department
-                predicates.add(cb.equal(root.get("employee").get("department").get("id"),
-                        actor.getEmployee().getDepartment().getId()));
+                predicates.add(cb.equal(root.get("employee").get("department").get("id"), actor.getEmployee().getDepartment().getId()));
             } else if (actor.getEmployee() != null) {
                 // Regular employee - only see their own PIPs
                 predicates.add(cb.equal(root.get("employee").get("id"), actor.getEmployee().getId()));
@@ -211,8 +208,7 @@ public class PipService {
             }
 
             if (employeeName != null && !employeeName.isBlank()) {
-                predicates.add(cb.like(cb.lower(root.get("employee").get("employeeName")),
-                        "%" + employeeName.toLowerCase() + "%"));
+                predicates.add(cb.like(cb.lower(root.get("employee").get("employeeName")), "%" + employeeName.toLowerCase() + "%"));
             }
 
             if (status != null && !status.isBlank()) {
@@ -872,7 +868,11 @@ public class PipService {
     }
 
     private boolean isHr(User actor) {
-        return actor.getRole() != null && "HR".equalsIgnoreCase(actor.getRole().getName());
+        if (actor == null || actor.getRole() == null) {
+            return false;
+        }
+        String name = actor.getRole().getName().trim().toUpperCase();
+        return "HR".equals(name) || "ADMIN".equals(name) || "SUPER_ADMIN".equals(name);
     }
 
     private PipCommunicationNoteDto toNoteDto(PipCommunicationNote note) {

@@ -100,7 +100,8 @@ public class PipReportService {
             LocalDate endDate,
             User actor) {
         List<Pip> pips = pipService.searchPips(departmentId, null, null, null, startDate, endDate, actor);
-        return toProgressDto(pips, startDate, endDate, actor);
+        PipProgressReportDto progressDto = toProgressDto(pips, departmentId, startDate, endDate, actor);
+        return progressDto;
     }
 
     @Transactional(readOnly = true)
@@ -533,10 +534,20 @@ Object jasperPrint = fillReport(
                 defaultText(pip.getFinalOutcome()));
     }
 
-    private PipProgressReportDto toProgressDto(List<Pip> pips, LocalDate startDate, LocalDate endDate, User actor) {
+    private PipProgressReportDto toProgressDto(List<Pip> pips, Long departmentId, LocalDate startDate, LocalDate endDate, User actor) {
+        if (pips == null) pips = List.of();
         long total = pips.size();
-        int totalHours = pips.stream().map(Pip::getTotalHours).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
-        int completedHours = pips.stream().map(Pip::getCompletedHours).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
+        int totalHours = pips.stream()
+                .map(Pip::getTotalHours)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        int completedHours = pips.stream()
+                .map(Pip::getCompletedHours)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+
         BigDecimal averageProgress = total == 0 ? BigDecimal.ZERO : pips.stream()
                 .map(Pip::getOverallProgressPercentage)
                 .filter(Objects::nonNull)
@@ -547,7 +558,7 @@ Object jasperPrint = fillReport(
                 .divide(BigDecimal.valueOf(totalHours), 2, RoundingMode.HALF_UP);
 
         return new PipProgressReportDto(
-                resolveDepartmentScope(pips),
+                resolveDepartmentScope(pips, departmentId, actor),
                 getManagerPositionName(actor),
                 startDate,
                 endDate,
@@ -663,16 +674,30 @@ Object jasperPrint = fillReport(
                 .count();
     }
 
-    private String resolveDepartmentScope(List<Pip> pips) {
+    private String resolveDepartmentScope(List<Pip> pips, Long departmentId, User actor) {
+        if (departmentId != null) {
+            return departmentRepository.findById(departmentId)
+                    .map(Department::getName)
+                    .orElse("Department #" + departmentId);
+        }
+
+        if (pips.isEmpty()) {
+            if (actor != null && actor.getEmployee() != null && actor.getEmployee().getDepartment() != null) {
+                String roleName = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase() : "";
+                if (!"HR".equals(roleName) && !"ADMIN".equals(roleName) && !"SUPER_ADMIN".equals(roleName)) {
+                    return actor.getEmployee().getDepartment().getName();
+                }
+            }
+            return "All accessible departments";
+        }
+
         List<String> names = pips.stream()
                 .map(Pip::getEmployee)
                 .map(this::departmentName)
                 .filter(name -> !name.isBlank())
                 .distinct()
                 .toList();
-        if (names.isEmpty()) {
-            return "All accessible departments";
-        }
+
         return names.size() == 1 ? names.get(0) : "Multiple departments";
     }
 

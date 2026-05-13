@@ -50,8 +50,8 @@
 
     <detail>
         <band height="310">
-            <textField>
-                <reportElement x="0" y="0" width="515" height="20" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c005"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="0" y="0" width="515" height="20" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c005"/>
                 <textElement><font fontName="DejaVu Sans" size="11" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA["Scope: " + $F{departmentName} + " | Position: " + ($F{positionName} == null || $F{positionName}.isEmpty() ? "-" : $F{positionName}) + " | Period: " + String.valueOf($F{periodStart}) + " to " + String.valueOf($F{periodEnd})]]></textFieldExpression>
             </textField>

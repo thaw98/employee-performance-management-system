@@ -87,38 +87,38 @@
                 </textElement>
                 <text><![CDATA[Employee Information]]></text>
             </staticText>
-            <textField>
-                <reportElement x="0" y="24" width="250" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c008"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="0" y="24" width="250" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c008"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA["Employee: " + $F{employeeName} + " (" + $F{employeeStaffNo} + ")"]]></textFieldExpression>
             </textField>
-            <textField>
-                <reportElement x="265" y="24" width="250" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c009"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="265" y="24" width="250" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c009"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA["Manager: " + $F{managerName}]]></textFieldExpression>
             </textField>
-            <textField>
-                <reportElement x="0" y="44" width="250" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c010"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="0" y="44" width="250" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c010"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA["Department: " + $F{employeeDepartment}]]></textFieldExpression>
             </textField>
-            <textField>
-                <reportElement x="265" y="44" width="250" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c011"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="265" y="44" width="250" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c011"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA["Position: " + $F{employeePosition} + " | Manager Dept: " + $F{managerDepartment}]]></textFieldExpression>
             </textField>
-            <textField>
-                <reportElement x="0" y="74" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c012"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="0" y="74" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c012"/>
                 <textElement><font fontName="DejaVu Sans" size="9" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA["Status: " + $F{status} + " | Start: " + ($F{startDate} == null ? "-" : $F{startDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))) + " | End: " + ($F{endDate} == null ? "-" : $F{endDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH)))]]></textFieldExpression>
             </textField>
-            <textField>
-                <reportElement x="0" y="92" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c034"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="0" y="92" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c034"/>
                 <textElement><font fontName="DejaVu Sans" size="9" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA["Original End: " + ($F{originalEndDate} == null ? "-" : $F{originalEndDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))) + " | Actual End: " + ($F{actualEndDate} == null ? "-" : $F{actualEndDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH)))]]></textFieldExpression>
             </textField>
-            <textField>
-                <reportElement x="0" y="110" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c035"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement stretchType="RelativeToTallestObject" x="0" y="110" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c035"/>
                 <textElement><font fontName="DejaVu Sans" size="9" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA["Progress: " + String.valueOf($F{overallProgress}) + "% | Completed Hours: " + String.valueOf($F{completedHours}) + " | Total Hours: " + String.valueOf($F{totalHours}) + " | Final Outcome: " + ($F{finalOutcome} == null || $F{finalOutcome}.isEmpty() ? "Not specified." : $F{finalOutcome})]]></textFieldExpression>
             </textField>

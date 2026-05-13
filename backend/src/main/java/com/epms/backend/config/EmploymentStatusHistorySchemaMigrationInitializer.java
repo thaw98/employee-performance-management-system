@@ -54,19 +54,19 @@ public class EmploymentStatusHistorySchemaMigrationInitializer implements BeanPo
             return;
         }
         jdbc.execute("""
-            CREATE TABLE employment_status_history (
-                id BIGINT NOT NULL AUTO_INCREMENT,
-                employee_id BIGINT NOT NULL,
-                previous_status VARCHAR(20) NULL,
-                new_status VARCHAR(20) NOT NULL,
-                effective_date DATE NOT NULL,
-                changed_by_user_id BIGINT NULL,
-                changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                reason VARCHAR(255) NULL,
-                PRIMARY KEY (id),
-                CONSTRAINT fk_esh_employee FOREIGN KEY (employee_id) REFERENCES employee(employee_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-            """);
+                CREATE TABLE employment_status_history (
+                    id BIGINT NOT NULL AUTO_INCREMENT,
+                    employee_id BIGINT NOT NULL,
+                    previous_status VARCHAR(20) NULL,
+                    new_status VARCHAR(20) NOT NULL,
+                    effective_date DATE NOT NULL,
+                    changed_by_user_id BIGINT NULL,
+                    changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    reason VARCHAR(255) NULL,
+                    PRIMARY KEY (id),
+                    CONSTRAINT fk_esh_employee FOREIGN KEY (employee_id) REFERENCES employee(employee_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """);
         log.info("Created employment_status_history table");
     }
 
@@ -81,19 +81,19 @@ public class EmploymentStatusHistorySchemaMigrationInitializer implements BeanPo
 
     private static boolean tableExists(JdbcTemplate jdbc, String tableName) {
         return Boolean.TRUE.equals(jdbc.queryForObject(
-            "SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
-            Boolean.class, tableName));
+                "SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
+                Boolean.class, tableName));
     }
 
     private static boolean columnExists(JdbcTemplate jdbc, String tableName, String columnName) {
         return Boolean.TRUE.equals(jdbc.queryForObject(
-            "SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
-            Boolean.class, tableName, columnName));
+                "SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+                Boolean.class, tableName, columnName));
     }
 
     private static boolean indexExists(JdbcTemplate jdbc, String tableName, String indexName) {
         return Boolean.TRUE.equals(jdbc.queryForObject(
-            "SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?",
-            Boolean.class, tableName, indexName));
+                "SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?",
+                Boolean.class, tableName, indexName));
     }
 }
