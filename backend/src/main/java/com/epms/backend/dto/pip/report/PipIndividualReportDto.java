@@ -35,6 +35,8 @@ public class PipIndividualReportDto {
     private String closingRemarks;
     private LocalDateTime employeeSignatureDate;
     private LocalDateTime managerSignatureDate;
+    private String employeeSignature;
+    private String managerSignature;
     private String objectivesSummary;
     private String meetingsSummary;
     private String progressUpdatesSummary;

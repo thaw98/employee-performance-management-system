@@ -16,6 +16,7 @@
     <parameter name="GENERATED_AT" class="java.lang.String"/>
 
     <field name="departmentName" class="java.lang.String"/>
+    <field name="positionName" class="java.lang.String"/>
     <field name="periodStart" class="java.time.LocalDate"/>
     <field name="periodEnd" class="java.time.LocalDate"/>
     <field name="totalPips" class="java.lang.Long"/>
@@ -52,7 +53,7 @@
             <textField>
                 <reportElement x="0" y="0" width="515" height="20" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c005"/>
                 <textElement><font fontName="DejaVu Sans" size="11" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA["Scope: " + $F{departmentName} + " | Period: " + String.valueOf($F{periodStart}) + " to " + String.valueOf($F{periodEnd})]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Scope: " + $F{departmentName} + " | Position: " + ($F{positionName} == null || $F{positionName}.isEmpty() ? "-" : $F{positionName}) + " | Period: " + String.valueOf($F{periodStart}) + " to " + String.valueOf($F{periodEnd})]]></textFieldExpression>
             </textField>
 
             <rectangle><reportElement x="0" y="42" width="160" height="64" backcolor="#EEF6FF" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c006"/></rectangle>
