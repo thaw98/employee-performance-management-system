@@ -28,7 +28,11 @@ export interface PositionKpi {
   target: string
   unit: string
   weight: number
+  actual?: string
+  score?: number
+  weightedScore?: number
   period: string
+  status?: string
   recordStatus?: string
 }
 
@@ -39,8 +43,12 @@ export interface DepartmentKpi {
   category: string
   target: string
   unit: string
+  actual?: string
   weight: number
+  score?: number
+  weightedScore?: number
   period: string
+  status?: string
   recordStatus?: string
 }
 
@@ -142,6 +150,30 @@ export const kpiApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: [{ type: 'KPI', id: 'LIST' }],
     }),
+    updateHrKpiActuals: builder.mutation<Kpi[], { employeeId: number; kpis: Kpi[] }>({
+      query: ({ employeeId, kpis }) => ({
+        url: `/kpis/hr/employee/${employeeId}/actuals`,
+        method: 'PUT',
+        body: kpis,
+      }),
+      invalidatesTags: [{ type: 'KPI', id: 'LIST' }],
+    }),
+    updateDepartmentHrKpiActuals: builder.mutation<DepartmentKpi[], { departmentId: number; kpis: DepartmentKpi[] }>({
+      query: ({ departmentId, kpis }) => ({
+        url: `/kpis/hr/department/${departmentId}/actuals`,
+        method: 'PUT',
+        body: kpis,
+      }),
+      invalidatesTags: [{ type: 'KPI', id: 'LIST' }],
+    }),
+    updatePositionHrKpiActuals: builder.mutation<PositionKpi[], { departmentId: number; positionId: number; kpis: PositionKpi[] }>({
+      query: ({ departmentId, positionId, kpis }) => ({
+        url: `/kpis/hr/position/${departmentId}/${positionId}/actuals`,
+        method: 'PUT',
+        body: kpis,
+      }),
+      invalidatesTags: [{ type: 'KPI', id: 'LIST' }],
+    }),
     getManagerTeam: builder.query<{ id: number; name: string; role: string; status: string }[], void>({
       query: () => '/kpis/manager/team',
       providesTags: ['KPI'],
@@ -185,6 +217,13 @@ export const kpiApi = baseApi.injectEndpoints({
       query: () => '/kpis/history/summary',
       providesTags: ['KPI'],
     }),
+    performMonthlyKpiReset: builder.mutation<void, void>({
+      query: () => ({
+        url: '/kpis/hr/reset-monthly',
+        method: 'POST',
+      }),
+      invalidatesTags: [{ type: 'KPI', id: 'LIST' }],
+    }),
   }),
 })
 
@@ -199,6 +238,9 @@ export const {
   useGetDepartmentKpisQuery,
   useSetupDepartmentKpisMutation,
   useUpdateManagerKpiActualsMutation,
+  useUpdateHrKpiActualsMutation,
+  useUpdateDepartmentHrKpiActualsMutation,
+  useUpdatePositionHrKpiActualsMutation,
   useGetManagerTeamQuery,
   useGetMyLatestKpisQuery,
   useGetPositionsKpiStatusQuery,
@@ -207,4 +249,5 @@ export const {
   useGetPositionKpiHistoryQuery,
   useGetDepartmentKpiHistoryQuery,
   useGetKpiHistorySummaryQuery,
+  usePerformMonthlyKpiResetMutation,
 } = kpiApi

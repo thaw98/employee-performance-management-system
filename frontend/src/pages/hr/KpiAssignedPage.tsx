@@ -4,10 +4,12 @@ import { useGetDepartmentsQuery } from '../../features/department/api/department
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
 import {
   useGetPositionsKpiStatusQuery,
-  useGetDepartmentsKpiStatusQuery
+  useGetDepartmentsKpiStatusQuery,
+  usePerformMonthlyKpiResetMutation
 } from '../../features/kpi/kpiApi';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, Eye, UserCheck, Target, X, CheckCircle2, AlertCircle, Users, LayoutGrid } from 'lucide-react';
+import { Search, Filter, Eye, UserCheck, Target, X, CheckCircle2, AlertCircle, Users, LayoutGrid, RotateCcw } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 type ViewMode = 'employee' | 'position' | 'department';
 
@@ -50,6 +52,8 @@ export const KpiAssignedPage: React.FC = () => {
   const positionsStatus = positionsStatusResponse || [];
   const departmentsStatus = departmentsStatusResponse || [];
   
+  const [performReset, { isLoading: isResetting }] = usePerformMonthlyKpiResetMutation();
+  
   const departments = departmentsResponse?.data || [];
   const positionsList = positionsResponse?.data || [];
 
@@ -58,6 +62,17 @@ export const KpiAssignedPage: React.FC = () => {
     setSelectedDept(undefined);
     setSelectedPos(undefined);
     setKpiStatus('');
+  };
+
+  const handleResetKpis = async () => {
+    if (window.confirm('Are you sure you want to RESET all KPIs for the organization? \n\nThis will: \n1. Archive all current active KPIs. \n2. Create new blank KPIs for the next month. \n3. Reset all scores and actual values to zero.')) {
+      try {
+        await performReset().unwrap();
+        toast.success('System-wide monthly KPI reset completed successfully!');
+      } catch (err: any) {
+        toast.error('Failed to reset KPIs. Please check logs.');
+      }
+    }
   };
 
   const filteredPositions = positionsStatus.filter(p => 
@@ -108,6 +123,14 @@ export const KpiAssignedPage: React.FC = () => {
             <option value="2025-2026">2025-2026</option>
             <option value="2026-2027">2026-2027</option>
           </select>
+          <button 
+            onClick={handleResetKpis}
+            disabled={isResetting}
+            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black transition-all border border-red-100 uppercase tracking-widest disabled:opacity-50 shadow-sm"
+          >
+            <RotateCcw size={16} className={isResetting ? "animate-spin" : ""} />
+            {isResetting ? "Resetting..." : "Reset Monthly KPIs"}
+          </button>
         </div>
       </div>
 
@@ -325,13 +348,22 @@ export const KpiAssignedPage: React.FC = () => {
                         <StatusBadge hasKpis={pos.hasKpis} />
                       </td>
                       <td className="py-4 px-6 text-right">
-                        <button
-                          onClick={() => navigate(`/hr/kpi-management?departmentId=${pos.departmentId}&positionId=${pos.positionId}&mode=position`)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                          title="Manage Position KPIs"
-                        >
-                          <Target size={18} />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => navigate(`/hr/position-kpi-detail?departmentId=${pos.departmentId}&positionId=${pos.positionId}`)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="View Position KPI Details"
+                          >
+                            <Eye size={18} />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/hr/kpi-management?departmentId=${pos.departmentId}&positionId=${pos.positionId}&mode=position`)}
+                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                            title="Manage Position KPIs"
+                          >
+                            <Target size={18} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -345,13 +377,22 @@ export const KpiAssignedPage: React.FC = () => {
                         <StatusBadge hasKpis={dept.hasKpis} />
                       </td>
                       <td className="py-4 px-6 text-right">
-                        <button
-                          onClick={() => navigate(`/hr/kpi-management?departmentId=${dept.departmentId}&mode=department`)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                          title="Manage Department KPIs"
-                        >
-                          <Target size={18} />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => navigate(`/hr/department-kpi-detail?departmentId=${dept.departmentId}`)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="View Department KPI Details"
+                          >
+                            <Eye size={18} />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/hr/kpi-management?departmentId=${dept.departmentId}&mode=department`)}
+                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                            title="Manage Department KPIs"
+                          >
+                            <Target size={18} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

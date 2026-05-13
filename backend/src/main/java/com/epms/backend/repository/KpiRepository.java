@@ -13,6 +13,8 @@ public interface KpiRepository extends JpaRepository<EmployeeKpi, Long> {
     @Query("SELECT k FROM EmployeeKpi k WHERE k.employee.id = :employeeId AND k.period = :period AND k.recordStatus = 'Active'")
     List<EmployeeKpi> findByEmployee_IdAndPeriod(Long employeeId, String period);
 
+    List<EmployeeKpi> findByRecordStatus(String recordStatus);
+
     List<EmployeeKpi> findByEmployee_IdAndPeriodAndRecordStatus(Long employeeId, String period, String recordStatus);
 
     @Query(value = "SELECT DISTINCT period FROM employeekpis WHERE employee_id = :employeeId AND record_status = 'Active' ORDER BY period DESC", nativeQuery = true)

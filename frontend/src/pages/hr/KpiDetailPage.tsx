@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import {
-  useGetLatestKpisByEmployeeQuery,
-  useGetEmployeeKpiPeriodsQuery,
-  useGetKpisByEmployeeQuery,
-  useGetLatestKpiDateByEmployeeQuery
+import { Target, ChevronLeft, Calendar, User, Briefcase, Award, TrendingUp, ShieldCheck, FileEdit, Lock, Save, X } from 'lucide-react';
+import { 
+  useGetLatestKpisByEmployeeQuery, 
+  useGetEmployeeKpiPeriodsQuery, 
+  useGetKpisByEmployeeQuery, 
+  useGetLatestKpiDateByEmployeeQuery,
+  useUpdateHrKpiActualsMutation,
+  type Kpi 
 } from '../../features/kpi/kpiApi';
 import { useGetEmployeeByIdQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
-import { Target, ChevronLeft, Calendar, User, Briefcase, Award, TrendingUp, ShieldCheck, FileEdit, Lock } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export const KpiDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const employeeId = searchParams.get('employeeId');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const { data: employeeResponse, isLoading: empLoading } = useGetEmployeeByIdQuery(Number(employeeId), {
     skip: !employeeId
@@ -86,18 +90,28 @@ export const KpiDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
-          <Calendar size={18} className="text-slate-400" />
-          <select 
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="bg-transparent border-none text-sm font-black text-slate-900 focus:ring-0 outline-none min-w-[140px]"
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsEditModalOpen(true)}
+            disabled={!kpis || kpis.length === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-200 uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {periods?.map(p => (
-              <option key={p.toString()} value={p.toString()}>{p.toString()}</option>
-            ))}
-            {(!periods || periods.length === 0) && <option value="">No Periods Found</option>}
-          </select>
+            <FileEdit size={16} /> Update Actuals
+          </button>
+
+          <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
+            <Calendar size={18} className="text-slate-400" />
+            <select 
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="bg-transparent border-none text-sm font-black text-slate-900 focus:ring-0 outline-none min-w-[140px]"
+            >
+              {periods?.map(p => (
+                <option key={p.toString()} value={p.toString()}>{p.toString()}</option>
+              ))}
+              {(!periods || periods.length === 0) && <option value="">No Periods Found</option>}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -254,6 +268,187 @@ export const KpiDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+      {isEditModalOpen && employee && kpis && (
+        <KpiEditModal 
+          employee={employee} 
+          kpis={kpis} 
+          onClose={() => setIsEditModalOpen(false)} 
+        />
+      )}
+    </div>
+  );
+};
+
+const KpiEditModal = ({ employee, kpis, onClose }: { employee: any, kpis: Kpi[], onClose: () => void }) => {
+  const [updateKpis, { isLoading: isUpdating }] = useUpdateHrKpiActualsMutation();
+  const [editedKpis, setEditedKpis] = useState<Kpi[]>([]);
+
+  useEffect(() => {
+    if (kpis) {
+      setEditedKpis(kpis.map(k => ({...k})));
+    }
+  }, [kpis]);
+
+  const handleChange = (index: number, field: keyof Kpi, value: any) => {
+    const updated = [...editedKpis];
+    const kpi = { ...updated[index], [field]: value };
+
+    // Auto-calculate if actual value changed
+    if (field === 'actual') {
+      const actualStr = String(value || '');
+      const targetStr = String(kpi.target || '');
+      const weight = Number(kpi.weight || 0);
+
+      const actualNum = parseFloat(actualStr.replace(/[^0-9.]/g, ''));
+      const targetNum = parseFloat(targetStr.replace(/[^0-9.]/g, ''));
+
+      if (!isNaN(actualNum) && !isNaN(targetNum) && targetNum !== 0) {
+        // Basic calculation: (Actual / Target) * 100
+        const score = (actualNum / targetNum) * 100;
+        kpi.score = Number(score.toFixed(2));
+        kpi.weightedScore = Number(((score * weight) / 100).toFixed(2));
+      } else {
+        kpi.score = 0;
+        kpi.weightedScore = 0;
+      }
+    }
+
+    updated[index] = kpi;
+    setEditedKpis(updated);
+  };
+
+  const handleSave = async (status: 'DRAFT' | 'SUBMITTED') => {
+    if (status === 'SUBMITTED') {
+      const missingActuals = editedKpis.some(k => !k.actual || !k.actual.trim());
+      if (missingActuals) {
+        toast.error('All KPIs must have an actual value before submitting');
+        return;
+      }
+    }
+
+    try {
+      const kpisWithStatus = editedKpis.map(k => ({ ...k, status }));
+      await updateKpis({ employeeId: employee.id || employee.employeeId, kpis: kpisWithStatus }).unwrap();
+      toast.success(status === 'DRAFT' ? 'KPIs saved as draft' : 'KPIs submitted successfully');
+      onClose();
+    } catch (err: any) {
+      toast.error(err.data?.message || `Failed to ${status === 'DRAFT' ? 'save draft' : 'submit'} KPIs`);
+    }
+  };
+
+  const totalWeightedScore = editedKpis.reduce((acc, kpi) => acc + (kpi.weightedScore || 0), 0);
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white rounded-3xl shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex justify-between items-center p-6 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+               <h2 className="text-xl font-black text-slate-900">Update KPI Actuals (HR Access)</h2>
+               {editedKpis[0]?.status === 'DRAFT' && (
+                 <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded-full uppercase tracking-widest">Draft</span>
+               )}
+            </div>
+            <p className="text-sm font-medium text-slate-500">Employee: <span className="font-bold text-slate-900">{employee.employeeName}</span></p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-0 bg-white">
+          <div className="min-w-full">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200">
+                  <th className="py-4 px-6 border-r border-slate-200">KPI</th>
+                  <th className="py-4 px-4 text-center border-r border-slate-200">Target</th>
+                  <th className="py-4 px-4 text-center border-r border-slate-200">Unit</th>
+                  <th className="py-4 px-4 text-center border-r border-slate-200">Actual</th>
+                  <th className="py-4 px-4 text-center border-r border-slate-200">Weight (%)</th>
+                  <th className="py-4 px-4 text-center border-r border-slate-200">Score (%)</th>
+                  <th className="py-4 px-6 text-right">Weighted Score</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {editedKpis.map((kpi, idx) => (
+                  <tr key={kpi.id || idx} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="py-4 px-6 border-r border-slate-100">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{kpi.name}</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">{kpi.category}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4 text-center border-r border-slate-100">
+                      <span className="text-xs font-bold text-slate-700">{kpi.target}</span>
+                    </td>
+                    <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{kpi.unit}</td>
+                    <td className="py-4 px-2 border-r border-slate-100">
+                      <input 
+                        type="text" 
+                        value={kpi.actual || ''} 
+                        onChange={(e) => handleChange(idx, 'actual', e.target.value)}
+                        className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
+                        placeholder="—"
+                      />
+                    </td>
+                    <td className="py-4 px-4 text-center border-r border-slate-100">
+                       <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-600">
+                        {kpi.weight}%
+                      </span>
+                    </td>
+                    <td className="py-4 px-2 border-r border-slate-100">
+                      <input 
+                        type="number" 
+                        min="0" max="100"
+                        value={kpi.score || ''} 
+                        onChange={(e) => handleChange(idx, 'score', parseFloat(e.target.value))}
+                        className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
+                      />
+                    </td>
+                    <td className="py-4 px-6 text-right font-black text-slate-900 tracking-tight">
+                      {kpi.weightedScore || '0.00'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-slate-50/50 border-t-2 border-slate-200">
+                  <td colSpan={6} className="py-4 px-6 text-right text-xs font-black text-slate-900 uppercase tracking-widest border-r border-slate-200">Total Score</td>
+                  <td className="py-4 px-6 text-right text-sm font-black text-blue-600 tracking-tight bg-blue-50/30">
+                    {totalWeightedScore.toFixed(2)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
+          <button 
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={() => handleSave('DRAFT')}
+            disabled={isUpdating || editedKpis.length === 0}
+            className="px-5 py-2.5 bg-slate-100 text-slate-900 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200"
+          >
+            {isUpdating ? <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin"></div> : <Save size={16} />}
+            Save as Draft
+          </button>
+          <button 
+            onClick={() => handleSave('SUBMITTED')}
+            disabled={isUpdating || editedKpis.length === 0}
+            className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isUpdating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Target size={16} />}
+            Submit KPIs
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

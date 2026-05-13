@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2, Building2, Filter, ChevronDown, Award, MessageSquare } from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2, Building2, Filter, ChevronDown, Award, MessageSquare, Target, Save } from 'lucide-react';
 import { formatDate } from '../../utils/dateUtils';
 import SignatureCanvas from 'react-signature-canvas';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
@@ -29,6 +29,13 @@ interface Template {
     name: string;
     maxRating: number;
     categories: Category[];
+}
+
+interface Answer {
+    id: number;
+    rating: number;
+    comments?: string;
+    question?: Question;
 }
 
 interface Submission {
@@ -88,6 +95,11 @@ export function AppraisalSubmissionsPage() {
     const [isUsingSavedSignature, setIsUsingSavedSignature] = useState(false);
     const [showTopOnly, setShowTopOnly] = useState(false);
     const [showBottomOnly, setShowBottomOnly] = useState(false);
+
+    // KPI Edit Modal for HR
+    const [isKpiModalOpen, setIsKpiModalOpen] = useState(false);
+    const [kpiTargetEmployee, setKpiTargetEmployee] = useState<any>(null);
+    const [kpiTargetPeriod, setKpiTargetPeriod] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         fetchSubmissions();
@@ -290,7 +302,7 @@ export function AppraisalSubmissionsPage() {
         doc.setFont('helvetica', 'normal');
         doc.text(`Status: ${targetStatus === 'LOCKED' ? 'FINALIZED' : 'HR APPROVED'}`, 15, 30);
         doc.text(`Generated on: ${dateStr}`, 15, 35);
-        doc.text(`Filter: ${filterDept === 'ALL' ? 'ALL DEPARTMENTS' : 'DEPARTMENTAL'} | ${filterPos === 'ALL' ? 'ALL POSITIONS' : filterPos.toUpperCase()}`, 282, 35, { align: 'right' });
+        doc.text(`Filter: ${filterDept === 'ALL' ? 'ALL DEPARTMENTS' : 'DEPARTMENTAL'} | ${filterPos === 'ALL' ? 'ALL POSITIONS' : String(filterPos).toUpperCase()}`, 282, 35, { align: 'right' });
 
         const tableData = filtered.map((a, index) => [
             index + 1,
@@ -821,10 +833,22 @@ export function AppraisalSubmissionsPage() {
                             {/* KPI Revision History Section */}
                             {kpiHistory.length > 0 && (
                                 <div className="space-y-4">
-                                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                                        <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
-                                        KPI Revision History
-                                    </h4>
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                            <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
+                                            KPI Revision History
+                                        </h4>
+                                        <button
+                                            onClick={() => {
+                                                setKpiTargetEmployee(selectedAsmt.employee);
+                                                setKpiTargetPeriod(selectedAsmt.period?.name);
+                                                setIsKpiModalOpen(true);
+                                            }}
+                                            className="px-4 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center gap-2"
+                                        >
+                                            <FileText size={14} /> Update KPI Actuals
+                                        </button>
+                                    </div>
                                     <div className="overflow-x-auto rounded-xl border border-slate-200">
                                         <table className="w-full text-left text-[11px]">
                                             <thead className="bg-slate-50 text-slate-500 uppercase font-black">
@@ -1036,8 +1060,213 @@ export function AppraisalSubmissionsPage() {
                     </div>
                 </div>
             )}
+
+            {/* KPI Edit Modal for HR */}
+            {isKpiModalOpen && kpiTargetEmployee && (
+                <KpiEditModal 
+                    employee={kpiTargetEmployee} 
+                    period={kpiTargetPeriod}
+                    onClose={() => {
+                        setIsKpiModalOpen(false);
+                        if (selectedAsmt) fetchKpiHistory(selectedAsmt.employee.id, selectedAsmt.period?.name);
+                    }} 
+                />
+            )}
         </div>
     );
 }
+
+const KpiEditModal = ({ employee, period, onClose }: { employee: any, period?: string, onClose: () => void }) => {
+    const [editedKpis, setEditedKpis] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    useEffect(() => {
+        fetchKpis();
+    }, []);
+
+    const fetchKpis = async () => {
+        try {
+            const resp = await axios.get(`/kpis/employee/${employee.id}${period ? `?period=${period}` : ''}`);
+            setEditedKpis(resp.data || []);
+        } catch (err) {
+            toast.error('Failed to fetch KPIs');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleChange = (index: number, field: string, value: any) => {
+        const updated = [...editedKpis];
+        const kpi = { ...updated[index], [field]: value };
+
+        // Auto-calculate if actual value changed
+        if (field === 'actual') {
+            const actualStr = String(value || '');
+            const targetStr = String(kpi.target || '');
+            const weight = Number(kpi.weight || 0);
+
+            const actualNum = parseFloat(actualStr.replace(/[^0-9.]/g, ''));
+            const targetNum = parseFloat(targetStr.replace(/[^0-9.]/g, ''));
+
+            if (!isNaN(actualNum) && !isNaN(targetNum) && targetNum !== 0) {
+                const score = (actualNum / targetNum) * 100;
+                kpi.score = Number(score.toFixed(2));
+                kpi.weightedScore = Number(((score * weight) / 100).toFixed(2));
+            } else {
+                kpi.score = 0;
+                kpi.weightedScore = 0;
+            }
+        }
+
+        updated[index] = kpi;
+        setEditedKpis(updated);
+    };
+
+    const handleSave = async (status: 'DRAFT' | 'SUBMITTED') => {
+        if (status === 'SUBMITTED') {
+            const missingActuals = editedKpis.some(k => !k.actual || !k.actual.trim());
+            if (missingActuals) {
+                toast.error('All KPIs must have an actual value before submitting');
+                return;
+            }
+        }
+
+        setIsUpdating(true);
+        try {
+            const kpisWithStatus = editedKpis.map(k => ({ ...k, status }));
+            await axios.put(`/kpis/hr/employee/${employee.id}/actuals`, kpisWithStatus);
+            toast.success(status === 'DRAFT' ? 'KPIs saved as draft' : 'KPIs submitted successfully');
+            onClose();
+        } catch (err: any) {
+            const errorMsg = typeof err.response?.data === 'string' 
+                ? err.response.data 
+                : err.response?.data?.message || `Failed to ${status === 'DRAFT' ? 'save draft' : 'submit'} KPIs`;
+            toast.error(errorMsg);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const totalWeightedScore = editedKpis.reduce((acc, kpi) => acc + (kpi.weightedScore || 0), 0);
+
+    return (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-white rounded-3xl shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+                <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50/50">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <h2 className="text-xl font-black text-slate-900">Update KPI Actuals (HR Access)</h2>
+                            {editedKpis[0]?.status === 'DRAFT' && (
+                                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded-full uppercase tracking-widest">Draft</span>
+                            )}
+                        </div>
+                        <p className="text-sm font-medium text-slate-500">Employee: <span className="font-bold text-slate-900">{employee.employeeName}</span></p>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+                        <XCircle size={20} />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-0 bg-white">
+                    {isLoading ? (
+                        <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin text-slate-300" size={32} /></div>
+                    ) : (
+                        <div className="min-w-full">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200">
+                                        <th className="py-4 px-6 border-r border-slate-200">KPI</th>
+                                        <th className="py-4 px-4 text-center border-r border-slate-200">Target</th>
+                                        <th className="py-4 px-4 text-center border-r border-slate-200">Unit</th>
+                                        <th className="py-4 px-4 text-center border-r border-slate-200">Actual</th>
+                                        <th className="py-4 px-4 text-center border-r border-slate-200">Weight (%)</th>
+                                        <th className="py-4 px-4 text-center border-r border-slate-200">Score (%)</th>
+                                        <th className="py-4 px-6 text-right">Weighted Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {editedKpis.map((kpi, idx) => (
+                                        <tr key={kpi.id || idx} className="hover:bg-slate-50/50 transition-colors group">
+                                            <td className="py-4 px-6 border-r border-slate-100">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{kpi.name}</span>
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">{kpi.category}</span>
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-4 text-center border-r border-slate-100">
+                                                <span className="text-xs font-bold text-slate-700">{kpi.target}</span>
+                                            </td>
+                                            <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{kpi.unit}</td>
+                                            <td className="py-4 px-2 border-r border-slate-100">
+                                                <input 
+                                                    type="text" 
+                                                    value={kpi.actual || ''} 
+                                                    onChange={(e) => handleChange(idx, 'actual', e.target.value)}
+                                                    className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
+                                                    placeholder="—"
+                                                />
+                                            </td>
+                                            <td className="py-4 px-4 text-center border-r border-slate-100">
+                                                <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-600">
+                                                    {kpi.weight}%
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-2 border-r border-slate-100">
+                                                <input 
+                                                    type="number" 
+                                                    min="0" max="100"
+                                                    value={kpi.score || ''} 
+                                                    onChange={(e) => handleChange(idx, 'score', parseFloat(e.target.value))}
+                                                    className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
+                                                />
+                                            </td>
+                                            <td className="py-4 px-6 text-right font-black text-slate-900 tracking-tight">
+                                                {kpi.weightedScore?.toFixed(2) || '0.00'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr className="bg-slate-50/50 border-t-2 border-slate-200">
+                                        <td colSpan={6} className="py-4 px-6 text-right text-xs font-black text-slate-900 uppercase tracking-widest border-r border-slate-200">Total Score</td>
+                                        <td className="py-4 px-6 text-right text-sm font-black text-blue-600 tracking-tight bg-blue-50/30">
+                                            {totalWeightedScore.toFixed(2)}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
+                    <button 
+                        onClick={onClose}
+                        className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={() => handleSave('DRAFT')}
+                        disabled={isUpdating || editedKpis.length === 0}
+                        className="px-5 py-2.5 bg-slate-100 text-slate-900 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200"
+                    >
+                        {isUpdating ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle size={16} />}
+                        Save as Draft
+                    </button>
+                    <button 
+                        onClick={() => handleSave('SUBMITTED')}
+                        disabled={isUpdating || editedKpis.length === 0}
+                        className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isUpdating ? <Loader2 className="animate-spin" size={16} /> : <Target size={16} />}
+                        Submit KPIs
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export default AppraisalSubmissionsPage;
