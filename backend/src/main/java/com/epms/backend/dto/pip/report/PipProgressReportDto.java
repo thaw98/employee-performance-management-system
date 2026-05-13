@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PipProgressReportDto {
     private String departmentName;
+    private String positionName;
     private LocalDate periodStart;
     private LocalDate periodEnd;
     private Long totalPips;

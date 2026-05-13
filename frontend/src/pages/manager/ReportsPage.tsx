@@ -63,9 +63,6 @@ export default function ReportsPage() {
   const [endDate, setEndDate] = useState('')
   const [reportDownload, setReportDownload] = useState<string | null>(null)
 
-  const progressStartDate = useMemo(() => getMonthStart(), [])
-  const progressEndDate = useMemo(() => getToday(), [])
-
   const { data: departmentsResponse } = useGetDepartmentsQuery()
 
   const departmentId = useMemo(() => {
@@ -82,8 +79,8 @@ export default function ReportsPage() {
 
   const { data: progressData, isLoading: isLoadingProgress } = useGetPipProgressReportQuery({
     departmentId,
-    startDate: progressStartDate,
-    endDate: progressEndDate,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
   })
 
   const [selectedPipId, setSelectedPipId] = useState<number | null>(null)
@@ -126,10 +123,10 @@ export default function ReportsPage() {
       await downloadPipProgressReport(
         {
           departmentId,
-          startDate: progressStartDate,
-          endDate: progressEndDate,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
         },
-        format,
+        format
       )
     } catch (error: any) {
       console.error('Failed to download progress report:', error)

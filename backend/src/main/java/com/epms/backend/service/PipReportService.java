@@ -3,12 +3,14 @@ package com.epms.backend.service;
 import com.epms.backend.dto.pip.report.PipIndividualReportDto;
 import com.epms.backend.dto.pip.report.PipProgressReportDto;
 import com.epms.backend.dto.pip.report.PipSummaryReportDto;
+import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.FollowUpMeeting;
 import com.epms.backend.entity.Pip;
 import com.epms.backend.entity.PipObjective;
 import com.epms.backend.entity.PipProgressUpdate;
 import com.epms.backend.entity.User;
+import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.PipProgressUpdateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,10 +38,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Base64;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Comparator;
@@ -57,9 +63,12 @@ public class PipReportService {
 
     private static final String FORMAT_EXCEL = "excel";
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy");
+    private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", Locale.ENGLISH);
+    private static final DateTimeFormatter GENERATED_AT_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", Locale.ENGLISH);
 
     private final PipService pipService;
     private final PipProgressUpdateRepository progressUpdateRepository;
+    private final DepartmentRepository departmentRepository;
 
     @Value("${epms.reports.template-path:classpath:reports/}")
     private String reportTemplatePath;
@@ -92,7 +101,8 @@ public class PipReportService {
             LocalDate endDate,
             User actor) {
         List<Pip> pips = pipService.searchPips(departmentId, null, null, null, startDate, endDate, actor);
-        return toProgressDto(pips, startDate, endDate);
+        PipProgressReportDto progressDto = toProgressDto(pips, departmentId, startDate, endDate, actor);
+        return progressDto;
     }
 
     @Transactional(readOnly = true)
@@ -109,7 +119,7 @@ public class PipReportService {
                 List.of(report),
                 Map.of("REPORT_TITLE", "Individual PIP Report",
                         "FILTER_DESCRIPTION", "PIP #" + pipId,
-                        "GENERATED_AT", Instant.now().toString()));
+                        "GENERATED_AT", formatGeneratedAt()));
         log.info("Report filled successfully for PIP {}", pipId);
         return export(jasperPrint, format);
     }
@@ -130,8 +140,8 @@ public class PipReportService {
                 "pip_summary_report.jrxml",
                 rows,
                 Map.of("REPORT_TITLE", "PIP Summary Report",
-                        "FILTER_DESCRIPTION", buildFilterDescription(status, departmentId, startDate, endDate),
-                        "GENERATED_AT", Instant.now().toString()));
+                        "FILTER_DESCRIPTION", buildFilterDescription(status, departmentId, startDate, endDate, actor),
+                        "GENERATED_AT", formatGeneratedAt()));
         return export(jasperPrint, format);
     }
 
@@ -146,12 +156,12 @@ public class PipReportService {
         if (isExcelFormat(format)) {
             return generateProgressExcelReport(report);
         }
-        Object jasperPrint = fillReport(
+Object jasperPrint = fillReport(
                 "pip_progress_report.jrxml",
                 List.of(report),
                 Map.of("REPORT_TITLE", "PIP Progress Report",
-                        "FILTER_DESCRIPTION", buildFilterDescription(null, departmentId, startDate, endDate),
-                        "GENERATED_AT", Instant.now().toString()));
+                        "FILTER_DESCRIPTION", buildFilterDescription(null, departmentId, startDate, endDate, actor) + " | Position: " + getManagerPositionName(actor),
+                        "GENERATED_AT", formatGeneratedAt()));
         return export(jasperPrint, format);
     }
 
@@ -190,7 +200,7 @@ public class PipReportService {
             rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Meeting ID", "Scheduled Date", "Meeting Time", "Status", "Notes");
             for (PipIndividualReportDto.MeetingRow meeting : safeList(report.getMeetings())) {
                 writeRow(sheet, rowIndex++, textStyle,
-                        meeting.getMeetingId(), formatExcelDate(meeting.getScheduledDate()), meeting.getMeetingTime(),
+                        meeting.getMeetingId(), formatExcelDate(meeting.getScheduledDate()), formatExcelDateTime(meeting.getMeetingTime()),
                         meeting.getStatus(), meeting.getNotes());
             }
 
@@ -250,6 +260,7 @@ public class PipReportService {
             int rowIndex = writeTitle(sheet, 0, "PIP Progress Report", 2, titleStyle) + 1;
             rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Metric", "Value");
             writeRow(sheet, rowIndex++, textStyle, "Department Scope", report.getDepartmentName());
+            writeRow(sheet, rowIndex++, textStyle, "Position", report.getPositionName());
             writeRow(sheet, rowIndex++, textStyle, "Period Start", formatExcelDate(report.getPeriodStart()));
             writeRow(sheet, rowIndex++, textStyle, "Period End", formatExcelDate(report.getPeriodEnd()));
             writeRow(sheet, rowIndex++, textStyle, "Total PIPs", report.getTotalPips());
@@ -416,6 +427,14 @@ public class PipReportService {
         return date == null ? "" : DATE_FORMAT.format(date);
     }
 
+    private String formatExcelDateTime(java.time.LocalDateTime dateTime) {
+        return dateTime == null ? "" : DATE_TIME_FORMAT.format(dateTime);
+    }
+
+    private String formatGeneratedAt() {
+        return GENERATED_AT_FORMAT.format(Instant.now().atZone(ZoneId.systemDefault()));
+    }
+
     private Object fillReport(String templateName, List<?> rows, Map<String, Object> parameters) {
         log.debug("Filling report template: {}, rows count: {}", templateName, rows.size());
         try (InputStream inputStream = resolveTemplate(templateName).getInputStream()) {
@@ -489,6 +508,8 @@ public class PipReportService {
                 defaultText(pip.getClosingRemarks()),
                 pip.getEmployeeSignedAt(),
                 pip.getManagerSignedAt(),
+                getSignatureOrDefault(pip.getEmployeeSignature()),
+                getSignatureOrDefault(pip.getManagerSignature()),
                 toObjectiveSummary(objectives),
                 toMeetingSummary(meetings),
                 toProgressUpdateSummary(updates),
@@ -518,10 +539,20 @@ public class PipReportService {
                 defaultText(pip.getFinalOutcome()));
     }
 
-    private PipProgressReportDto toProgressDto(List<Pip> pips, LocalDate startDate, LocalDate endDate) {
+    private PipProgressReportDto toProgressDto(List<Pip> pips, Long departmentId, LocalDate startDate, LocalDate endDate, User actor) {
+        if (pips == null) pips = List.of();
         long total = pips.size();
-        int totalHours = pips.stream().map(Pip::getTotalHours).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
-        int completedHours = pips.stream().map(Pip::getCompletedHours).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
+        int totalHours = pips.stream()
+                .map(Pip::getTotalHours)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        int completedHours = pips.stream()
+                .map(Pip::getCompletedHours)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+
         BigDecimal averageProgress = total == 0 ? BigDecimal.ZERO : pips.stream()
                 .map(Pip::getOverallProgressPercentage)
                 .filter(Objects::nonNull)
@@ -532,7 +563,8 @@ public class PipReportService {
                 .divide(BigDecimal.valueOf(totalHours), 2, RoundingMode.HALF_UP);
 
         return new PipProgressReportDto(
-                resolveDepartmentScope(pips),
+                resolveDepartmentScope(pips, departmentId, actor),
+                getManagerPositionName(actor),
                 startDate,
                 endDate,
                 total,
@@ -592,7 +624,7 @@ public class PipReportService {
             return "No follow-up meetings recorded.";
         }
         return meetings.stream()
-                .map(row -> "- " + format(row.getScheduledDate()) + " | " + row.getStatus() + " | " + row.getNotes())
+                .map(row -> "- " + formatExcelDateTime(row.getMeetingTime()) + " | " + row.getStatus() + " | " + row.getNotes())
                 .collect(Collectors.joining("\n"));
     }
 
@@ -603,13 +635,40 @@ public class PipReportService {
         return updates.stream()
                 .map(row -> "- " + format(row.getUpdateDate()) + " | " + row.getObjectiveDescription()
                         + " | " + nullSafe(row.getPreviousPercentage()) + "% to " + nullSafe(row.getNewPercentage())
-                        + "% | " + row.getFeedback())
+                        + "% | Updated by: " + row.getUpdatedBy()
+                        + " | Progress feedback: " + (row.getFeedback() == null || row.getFeedback().isBlank() ? "No feedback." : row.getFeedback()))
                 .collect(Collectors.joining("\n"));
     }
 
-    private String buildFilterDescription(String status, Long departmentId, LocalDate startDate, LocalDate endDate) {
+    private String resolveDepartmentDisplay(Long departmentId, User actor) {
+        if (departmentId != null) {
+            return departmentRepository.findById(departmentId)
+                    .map(Department::getName)
+                    .orElse("Department #" + departmentId);
+        }
+        if (actor != null && actor.getEmployee() != null && actor.getEmployee().getDepartment() != null) {
+            return actor.getEmployee().getDepartment().getName();
+        }
+        return "All";
+    }
+
+    private String getManagerPositionName(User actor) {
+        if (actor == null || actor.getEmployee() == null) {
+            return "";
+        }
+        Employee emp = actor.getEmployee();
+        if (emp.getDepartmentPosition() != null && emp.getDepartmentPosition().getPosition() != null) {
+            return emp.getDepartmentPosition().getPosition().getName();
+        }
+        if (emp.getPosition() != null) {
+            return emp.getPosition().getName();
+        }
+        return "";
+    }
+
+    private String buildFilterDescription(String status, Long departmentId, LocalDate startDate, LocalDate endDate, User actor) {
         return "Status: " + (status == null || status.isBlank() ? "All" : status)
-                + " | Department ID: " + (departmentId == null ? "All" : departmentId)
+                + " | Department: " + resolveDepartmentDisplay(departmentId, actor)
                 + " | Start: " + format(startDate)
                 + " | End: " + format(endDate);
     }
@@ -620,16 +679,30 @@ public class PipReportService {
                 .count();
     }
 
-    private String resolveDepartmentScope(List<Pip> pips) {
+    private String resolveDepartmentScope(List<Pip> pips, Long departmentId, User actor) {
+        if (departmentId != null) {
+            return departmentRepository.findById(departmentId)
+                    .map(Department::getName)
+                    .orElse("Department #" + departmentId);
+        }
+
+        if (pips.isEmpty()) {
+            if (actor != null && actor.getEmployee() != null && actor.getEmployee().getDepartment() != null) {
+                String roleName = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase() : "";
+                if (!"HR".equals(roleName) && !"ADMIN".equals(roleName) && !"SUPER_ADMIN".equals(roleName)) {
+                    return actor.getEmployee().getDepartment().getName();
+                }
+            }
+            return "All accessible departments";
+        }
+
         List<String> names = pips.stream()
                 .map(Pip::getEmployee)
                 .map(this::departmentName)
                 .filter(name -> !name.isBlank())
                 .distinct()
                 .toList();
-        if (names.isEmpty()) {
-            return "All accessible departments";
-        }
+
         return names.size() == 1 ? names.get(0) : "Multiple departments";
     }
 
@@ -647,6 +720,39 @@ public class PipReportService {
 
     private String defaultText(String value) {
         return value == null || value.isBlank() ? "" : value.trim();
+    }
+
+    private String getSignatureOrDefault(String storedSignature) {
+        if (storedSignature != null && !storedSignature.isBlank()) {
+            String signature = storedSignature.trim();
+            if (signature.startsWith("data:")) {
+                return signature;
+            }
+            if (signature.startsWith("/uploads/") || signature.startsWith("uploads/")) {
+                String base64 = convertFilePathToBase64(signature);
+                if (base64 != null) {
+                    return base64;
+                }
+            }
+            return signature;
+        }
+        return "Not signed";
+    }
+
+    private String convertFilePathToBase64(String filePath) {
+        try {
+            String normalizedPath = filePath.startsWith("/") ? filePath.substring(1) : filePath;
+            Path path = Path.of(normalizedPath).toAbsolutePath().normalize();
+            if (!Files.exists(path)) {
+                log.warn("Signature file not found: {}", path);
+                return null;
+            }
+            byte[] bytes = Files.readAllBytes(path);
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
+        } catch (IOException e) {
+            log.error("Failed to read signature file: {}", filePath, e);
+            return null;
+        }
     }
 
     private String nullSafe(Integer value) {

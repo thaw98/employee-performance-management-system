@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Alert, Autocomplete, Box, Button, IconButton, Stack, TextField, Typography } from '@mui/material'
 import type { HTMLAttributes, Key } from 'react'
 import { Controller, useFieldArray, useForm, type Resolver } from 'react-hook-form'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { z } from 'zod'
@@ -70,6 +70,13 @@ export default function PipCreatePage() {
   const isHr = userRole === 'HR'
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
   const routeBase = isHr ? '/hr/pip-monitoring' : '/manager/pip'
+  const selectableEmployees = useMemo(() => {
+    const currentEmployeeId = user?.employeeId == null ? null : String(user.employeeId)
+    return (eligibleEmployees || []).filter((employee) => {
+      if (currentEmployeeId == null) return true
+      return String(employee.employeeId) !== currentEmployeeId && String(employee.staffId ?? '') !== currentEmployeeId
+    })
+  }, [eligibleEmployees, user?.employeeId])
 
   useEffect(() => {
     if (isHr && !isManager) {
@@ -175,14 +182,21 @@ export default function PipCreatePage() {
       <Box component="form" onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
         <Stack spacing={2}>
           {submitError ? <Alert severity="error">{submitError}</Alert> : null}
+          <TextField
+            label="Manager"
+            value={user?.name || user?.email || 'Current manager'}
+            fullWidth
+            disabled
+            helperText="The PIP will be assigned to the currently logged-in manager account."
+          />
           <Controller
             name="employeeId"
             control={control}
             render={({ field }) => (
               <Autocomplete
                 loading={isLoadingEmployees}
-                options={eligibleEmployees || []}
-                value={eligibleEmployees?.find((e) => e.employeeId === field.value) || null}
+                options={selectableEmployees}
+                value={selectableEmployees.find((e) => e.employeeId === field.value) || null}
                 isOptionEqualToValue={(option, value) => option.employeeId === (typeof value === 'number' ? value : value?.employeeId)}
                 getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}${option.staffId ? ` / ${option.staffId}` : ''}) - ${option.departmentName || 'No Department'}`}
                 onChange={(_, data) => field.onChange(data?.employeeId ?? 0)}

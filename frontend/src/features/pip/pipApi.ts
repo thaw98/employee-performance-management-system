@@ -168,6 +168,7 @@ export interface PipSummaryReportDto {
 
 export interface PipProgressReportDto {
   departmentName: string
+  positionName: string
   periodStart: string
   periodEnd: string
   totalPips: number

@@ -5,7 +5,7 @@ export type PipReportFormat = 'pdf' | 'excel'
 
 type PipReportFilters = {
   status?: string
-  departmentId?: number
+  departmentId?: number | null
   startDate?: string
   endDate?: string
 }
@@ -20,19 +20,41 @@ const getFilenameFromHeader = (contentDisposition?: string) => {
   return match?.[1]
 }
 
-const cleanParams = (params: Record<string, string | number | undefined>) => {
+const cleanParams = (params: Record<string, string | number | null | undefined>) => {
   return Object.fromEntries(
-    Object.entries(params).filter(([, value]) => value !== undefined && value !== ''),
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''),
   )
 }
 
-async function downloadPipReport(url: string, params: Record<string, string | number | undefined>, fallbackName: string) {
-  const response = await axiosInstance.get<Blob>(url, {
-    params: cleanParams(params),
-    responseType: 'blob',
-  })
-  const filename = getFilenameFromHeader(response.headers['content-disposition']) ?? fallbackName
-  downloadBlobFile(response.data, filename)
+async function getBlobErrorMessage(error: unknown) {
+  const data = (error as any)?.response?.data
+  if (!(data instanceof Blob)) {
+    return (error as any)?.response?.data?.message
+  }
+  const text = await data.text()
+  if (!text) return undefined
+  try {
+    return JSON.parse(text)?.message
+  } catch {
+    return text
+  }
+}
+
+async function downloadPipReport(url: string, params: Record<string, string | number | null | undefined>, fallbackName: string) {
+  try {
+    const response = await axiosInstance.get<Blob>(url, {
+      params: cleanParams(params),
+      responseType: 'blob',
+    })
+    const filename = getFilenameFromHeader(response.headers['content-disposition']) ?? fallbackName
+    downloadBlobFile(response.data, filename)
+  } catch (error) {
+    const message = await getBlobErrorMessage(error)
+    if (message) {
+      ;(error as any).response = { ...(error as any).response, data: { message } }
+    }
+    throw error
+  }
 }
 
 export function downloadIndividualPipReport(pipId: number, format: PipReportFormat) {
