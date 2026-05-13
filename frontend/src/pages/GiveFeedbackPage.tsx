@@ -6,6 +6,7 @@ import {
     Briefcase, 
     Building, 
     CheckCircle2, 
+    Calendar,
     ChevronRight, 
     Send,
     Star,
@@ -42,10 +43,12 @@ export function GiveFeedbackPage() {
     const [roleFeedbackLimit, setRoleFeedbackLimit] = useState(5);
     const [noEligibleRemaining, setNoEligibleRemaining] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(false);
+    const [activeCycle, setActiveCycle] = useState<any>(null);
 
     useEffect(() => {
         fetchEvaluatorInfo();
         fetchCriteria();
+        fetchActiveCycle();
     }, []);
 
     useEffect(() => {
@@ -81,6 +84,23 @@ export function GiveFeedbackPage() {
             console.error('Criteria Load Error:', err);
             toast.error('Could not load assessment criteria');
         }
+    };
+
+    const fetchActiveCycle = async () => {
+        try {
+            const resp = await axios.get('/review-cycles/active');
+            const cycles = resp.data.data || [];
+            const submissionCycle = cycles.find((cycle: any) => cycle.requiresEmployeeSubmission) || cycles[0];
+            setActiveCycle(submissionCycle || null);
+        } catch (err) {
+            console.error('Active review cycle load error:', err);
+        }
+    };
+
+    const formatDeadline = (value?: string) => {
+        if (!value) return 'Not set';
+        const date = new Date(`${value}T00:00:00`);
+        return date.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
     };
 
     const fetchEligibleEvaluatees = async (targetRole: string) => {
@@ -197,6 +217,22 @@ export function GiveFeedbackPage() {
                         />
                     </div>
                 </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-3xl px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-white text-amber-600 flex items-center justify-center shadow-sm">
+                        <Calendar size={20} />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Current Review Cycle Deadline</p>
+                        <h2 className="text-lg font-black text-slate-900">
+                            {activeCycle?.name ? `${activeCycle.name}: ` : ''}{formatDeadline(activeCycle?.endDate)}
+                        </h2>
+                    </div>
+                </div>
+                <p className="text-xs font-bold text-amber-800 max-w-md">
+                    Feedback for this cycle must be submitted before the deadline ends.
+                </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
                 {/* Evaluator Card */}
