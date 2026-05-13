@@ -32,6 +32,8 @@ class FeedbackServiceProbationRuleTest {
     @Mock
     private EmployeeRepository employeeRepository;
     @Mock
+    private ReportingManagerResolver reportingManagerResolver;
+    @Mock
     private CriteriaRepository criteriaRepository;
     @Mock
     private UserRepository userRepository;
@@ -47,6 +49,7 @@ class FeedbackServiceProbationRuleTest {
         feedbackService = new FeedbackService(
                 feedbackRepository,
                 employeeRepository,
+                reportingManagerResolver,
                 criteriaRepository,
                 userRepository,
                 notificationService,

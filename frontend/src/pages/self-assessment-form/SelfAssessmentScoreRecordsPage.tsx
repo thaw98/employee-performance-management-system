@@ -12,7 +12,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
-import { Eye, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Trophy, BarChart3 } from 'lucide-react'
+import { Eye, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Trophy, BarChart3, FileText, CheckCircle2 } from 'lucide-react'
 import { useGetScoreRecordsQuery, type ScoreRecordDto } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi'
 
 function ScoreBar({ score }: { score: number | null }) {
@@ -28,9 +28,36 @@ function ScoreBar({ score }: { score: number | null }) {
       <div className="w-24 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${barColor}`} style={{ width: `${clamped}%` }} />
       </div>
-      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{clamped.toFixed(1)}</span>
+      <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">{clamped.toFixed(1)}%</span>
     </div>
   )
+}
+
+/** Statuses returned by GET /self-assessment-forms/score-records (matches backend filter). */
+const SCORE_RECORD_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: 'SUBMITTED', label: 'Submitted' },
+  { value: 'REOPENED', label: 'Reopened' },
+  { value: 'PENDING_MANAGER_REVIEW', label: 'Pending Manager Review' },
+  { value: 'PENDING_EMPLOYEE_REVIEW', label: 'Pending Employee Review' },
+  { value: 'PENDING_FINAL_APPROVAL', label: 'Pending Final Approval' },
+  { value: 'PENDING_HR_CALIBRATION_REVIEW', label: 'Pending HR Calibration' },
+  { value: 'MANAGER_REVIEWED', label: 'Manager Reviewed' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'FINALIZED_LOCKED', label: 'Finalized Locked' },
+]
+
+/** Matches backend `SelfAssessmentFormService#getRatingCategory` labels. */
+function PerformanceBadge({ performance }: { performance: string | null }) {
+  if (!performance) return <span className="text-slate-400">-</span>
+  const colorMap: Record<string, string> = {
+    Outstanding: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
+    Good: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    'Meet Requirement': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    'Need Improvement': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    Unsatisfactory: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  }
+  const cls = colorMap[performance] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${cls}`}>{performance}</span>
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -38,6 +65,12 @@ function StatusBadge({ status }: { status: string }) {
     FINALIZED_LOCKED: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
     PENDING_FINAL_APPROVAL: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
     PENDING_MANAGER_REVIEW: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    PENDING_EMPLOYEE_REVIEW: 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300',
+    PENDING_HR_CALIBRATION_REVIEW: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300',
+    MANAGER_REVIEWED: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
+    REOPENED: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    SUBMITTED: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+    APPROVED: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
     DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
   }
   const cls = colorMap[status] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
@@ -63,7 +96,6 @@ export function SelfAssessmentScoreRecordsPage() {
   const navigate = useNavigate()
   const roleId = useSelector((state: RootState) => state.auth.user?.roleId)
   const isHr = roleId === 1
-  const isManager = roleId === 2
   const basePath = isHr ? '/hr/self-assessment' : '/manager/self-assessment-forms'
 
   const { data: records = [], isLoading, isError } = useGetScoreRecordsQuery()
@@ -119,10 +151,7 @@ export function SelfAssessmentScoreRecordsPage() {
       {
         accessorKey: 'performance',
         header: 'Performance',
-        cell: ({ getValue }) => {
-          const val = getValue() as string | null
-          return <span>{val || '-'}</span>
-        },
+        cell: ({ getValue }) => <PerformanceBadge performance={getValue() as string | null} />,
       },
       {
         accessorKey: 'status',
@@ -172,19 +201,48 @@ export function SelfAssessmentScoreRecordsPage() {
     initialState: { pagination: { pageSize: 10 } },
   })
 
-  const avgScore = useMemo(() => {
-    if (!isManager || filteredData.length === 0) return null
-    const scores = filteredData.map(r => r.finalApprovedScore).filter((s): s is number => s != null)
-    if (scores.length === 0) return null
-    return scores.reduce((a, b) => a + b, 0) / scores.length
-  }, [isManager, filteredData])
+  const visibleRecords = table.getFilteredRowModel().rows.map(row => row.original)
+  const scoredVisibleRecords = visibleRecords.filter((r): r is ScoreRecordDto & { finalApprovedScore: number } => r.finalApprovedScore != null)
+  const avgScore =
+    scoredVisibleRecords.length > 0
+      ? scoredVisibleRecords.reduce((sum, r) => sum + r.finalApprovedScore, 0) / scoredVisibleRecords.length
+      : null
+  const topScore =
+    scoredVisibleRecords.length > 0
+      ? Math.max(...scoredVisibleRecords.map(r => r.finalApprovedScore))
+      : null
+  const finalizedOrApprovedCount = visibleRecords.filter(r => r.status === 'FINALIZED_LOCKED' || r.status === 'APPROVED').length
 
-  const topScore = useMemo(() => {
-    if (!isManager || filteredData.length === 0) return null
-    const scores = filteredData.map(r => r.finalApprovedScore).filter((s): s is number => s != null)
-    if (scores.length === 0) return null
-    return Math.max(...scores)
-  }, [isManager, filteredData])
+  const metricCards = [
+    {
+      label: 'Total Records',
+      value: visibleRecords.length.toString(),
+      icon: FileText,
+      iconClassName: 'text-slate-600 dark:text-slate-400',
+      iconBgClassName: 'bg-slate-50 dark:bg-slate-900/40',
+    },
+    {
+      label: 'Average Score',
+      value: avgScore != null ? `${avgScore.toFixed(1)}%` : '-',
+      icon: BarChart3,
+      iconClassName: 'text-blue-600 dark:text-blue-400',
+      iconBgClassName: 'bg-blue-50 dark:bg-blue-900/20',
+    },
+    {
+      label: 'Top Score',
+      value: topScore != null ? `${topScore.toFixed(1)}%` : '-',
+      icon: Trophy,
+      iconClassName: 'text-amber-600 dark:text-amber-400',
+      iconBgClassName: 'bg-amber-50 dark:bg-amber-900/20',
+    },
+    {
+      label: 'Finalized / Approved',
+      value: finalizedOrApprovedCount.toString(),
+      icon: CheckCircle2,
+      iconClassName: 'text-emerald-600 dark:text-emerald-400',
+      iconBgClassName: 'bg-emerald-50 dark:bg-emerald-900/20',
+    },
+  ]
 
   if (isLoading) {
     return (
@@ -206,35 +264,24 @@ export function SelfAssessmentScoreRecordsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Score Records</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Finalized self-assessment score records</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Scores for forms in the review workflow through finalized.
+        </p>
       </div>
 
-      {isManager && (avgScore != null || topScore != null) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {avgScore != null && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                <BarChart3 size={24} className="text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">Average Score</p>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{avgScore.toFixed(1)}</p>
-              </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {metricCards.map(({ label, value, icon: Icon, iconClassName, iconBgClassName }) => (
+          <div key={label} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${iconBgClassName}`}>
+              <Icon size={24} className={iconClassName} />
             </div>
-          )}
-          {topScore != null && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
-                <Trophy size={24} className="text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">Top Score</p>
-                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{topScore.toFixed(1)}</p>
-              </div>
+            <div>
+              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">{label}</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{value}</p>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-3">
@@ -264,7 +311,9 @@ export function SelfAssessmentScoreRecordsPage() {
             className="px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
           >
             <option value="">All Statuses</option>
-            <option value="FINALIZED_LOCKED">Finalized Locked</option>
+            {SCORE_RECORD_STATUS_FILTER_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
           </select>
           <span className="text-xs font-bold text-slate-400 dark:text-slate-500">
             {filteredData.length} record{filteredData.length !== 1 ? 's' : ''}
@@ -295,7 +344,7 @@ export function SelfAssessmentScoreRecordsPage() {
               {table.getRowModel().rows.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
-                    No finalized score records found.
+                    No score records found.
                   </td>
                 </tr>
               ) : (

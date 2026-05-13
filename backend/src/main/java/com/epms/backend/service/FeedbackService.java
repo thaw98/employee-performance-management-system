@@ -5,7 +5,6 @@ import com.epms.backend.dto.FeedbackHistoryDto;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,16 +17,33 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
     private final EmployeeRepository employeeRepository;
-    // private final ReportingManagerResolver reportingManagerResolver;
+    @SuppressWarnings("unused")
+    private final ReportingManagerResolver reportingManagerResolver;
     private final CriteriaRepository criteriaRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final TimeSettingService timeSettingService;
+
+    public FeedbackService(
+            FeedbackRepository feedbackRepository,
+            EmployeeRepository employeeRepository,
+            ReportingManagerResolver reportingManagerResolver,
+            CriteriaRepository criteriaRepository,
+            UserRepository userRepository,
+            NotificationService notificationService,
+            TimeSettingService timeSettingService) {
+        this.feedbackRepository = feedbackRepository;
+        this.employeeRepository = employeeRepository;
+        this.reportingManagerResolver = reportingManagerResolver;
+        this.criteriaRepository = criteriaRepository;
+        this.userRepository = userRepository;
+        this.notificationService = notificationService;
+        this.timeSettingService = timeSettingService;
+    }
 
     @Transactional
     public void submitFeedback(Long evaluatorId, FeedbackSubmissionRequest request) {
