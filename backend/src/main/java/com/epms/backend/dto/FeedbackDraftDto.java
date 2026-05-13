@@ -1,21 +1,22 @@
 package com.epms.backend.dto;
 
 import lombok.Data;
+
 import java.time.Instant;
+import java.util.List;
 
 @Data
-public class FeedbackHistoryDto {
+public class FeedbackDraftDto {
     private Long id;
-    private Instant date;
-    private String evaluatorName;
+    private Long evaluateeId;
     private String evaluateeName;
     private String evaluateeStaffNo;
-    private String position;
+    private String evaluateePosition;
+    private String evaluateeDepartment;
     private String role;
-    private Double score;
-    private String remark;
     private Boolean anonymous;
-    private String status;
     private Long reviewCycleId;
     private String reviewCycleName;
+    private Instant updatedAt;
+    private List<FeedbackSubmissionRequest.FeedbackDetailRequest> details;
 }

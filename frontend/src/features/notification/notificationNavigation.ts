@@ -9,6 +9,15 @@ export function getFeedbackPath(pathname: string) {
   return `/${getRolePrefix(pathname)}/360-feedback/received`;
 }
 
+export function getGiveFeedbackPath(pathname: string) {
+  return `/${getRolePrefix(pathname)}/360-feedback/give`;
+}
+
+function isFeedbackCycleStartNotification(notification: NotificationNavigationInput) {
+  const searchableText = `${notification.title ?? ''} ${notification.message ?? ''}`.toUpperCase();
+  return searchableText.includes('NEW REVIEW CYCLE') || searchableText.includes('REVIEW CYCLE HAS STARTED');
+}
+
 export function getSelfAssessmentPath(pathname: string, formId?: number | null) {
   if (pathname.startsWith('/manager')) {
     return formId ? `/manager/self-assessment-forms/reviews/${formId}` : '/manager/self-assessment-forms/review-queue';
@@ -115,6 +124,10 @@ export function getNotificationDestinationPath(notification: NotificationNavigat
 
   if (source === 'KPI') {
     return getKpiPath(pathname);
+  }
+
+  if (source === '360_FEEDBACK' && isFeedbackCycleStartNotification(notification)) {
+    return getGiveFeedbackPath(pathname);
   }
 
   return getFeedbackPath(pathname);

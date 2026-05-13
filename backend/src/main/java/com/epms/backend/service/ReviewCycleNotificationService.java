@@ -19,6 +19,7 @@ import java.util.List;
 public class ReviewCycleNotificationService {
 
     private static final String SOURCE = "360_FEEDBACK";
+    private static final String CYCLE_START_TITLE = "New Review Cycle Started";
     private static final DateTimeFormatter DISPLAY_DATE = DateTimeFormatter.ofPattern("dd MMM yyyy");
 
     private final ReviewCycleRepository reviewCycleRepository;
@@ -36,11 +37,11 @@ public class ReviewCycleNotificationService {
 
     private void notifyCycleStarts(LocalDate today) {
         for (ReviewCycle cycle : reviewCycleRepository.findByRequiresEmployeeSubmissionTrueAndStartDate(today)) {
-            String prefix = "Review cycle " + cycle.getId() + " started";
-            String message = prefix + ": " + cycle.getName()
-                    + ". You can begin giving 360 feedback until "
-                    + cycle.getEndDate().format(DISPLAY_DATE) + ".";
-            sendToEmployeesOnce("New Review Cycle Started", message, prefix);
+            String message = "A new review cycle has started. Please complete your feedback submissions before the deadline."
+                    + "\nReview cycle: " + cycle.getName()
+                    + "\nStart date: " + cycle.getStartDate().format(DISPLAY_DATE)
+                    + "\nSubmission deadline: " + cycle.getEndDate().format(DISPLAY_DATE);
+            sendCycleStartToEmployeesOnce(cycle, message);
         }
     }
 
@@ -65,6 +66,24 @@ public class ReviewCycleNotificationService {
                     .isPresent();
             if (!alreadySent) {
                 notificationService.send(recipient, title, message, SOURCE);
+            }
+        }
+    }
+
+    private void sendCycleStartToEmployeesOnce(ReviewCycle cycle, String message) {
+        List<User> recipients = userRepository.findAll().stream()
+                .filter(User::isActive)
+                .filter(user -> user.getEmployee() != null)
+                .toList();
+
+        for (User recipient : recipients) {
+            boolean alreadySent = notificationRepository.existsByRecipientAndSourceAndTargetIdAndTitle(
+                    recipient,
+                    SOURCE,
+                    cycle.getId(),
+                    CYCLE_START_TITLE);
+            if (!alreadySent) {
+                notificationService.send(recipient, CYCLE_START_TITLE, message, SOURCE, cycle.getId());
             }
         }
     }

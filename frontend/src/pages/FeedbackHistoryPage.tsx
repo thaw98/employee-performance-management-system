@@ -30,6 +30,9 @@ interface HistoryItem {
     role: string;
     score: number;
     remark: string;
+    status?: string;
+    reviewCycleId?: number;
+    reviewCycleName?: string;
 }
 
 interface FeedbackDetail {
@@ -43,6 +46,14 @@ export function FeedbackHistoryPage() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [reviewCycles, setReviewCycles] = useState<any[]>([]);
+    const [filters, setFilters] = useState({
+        reviewCycleId: '',
+        status: '',
+        fromDate: '',
+        reviewee: '',
+        feedbackType: ''
+    });
     const { data: profileResponse } = useGetProfileQuery();
     const timeFormat = profileResponse?.data?.timeFormat || '12h';
 
@@ -80,12 +91,37 @@ export function FeedbackHistoryPage() {
 
     useEffect(() => {
         fetchHistory();
-    }, [page]);
+    }, [page, filters]);
+
+    useEffect(() => {
+        fetchReviewCycles();
+    }, []);
+
+    const updateFilter = (key: keyof typeof filters, value: string) => {
+        setPage(0);
+        setFilters(prev => ({ ...prev, [key]: value }));
+    };
+
+    const fetchReviewCycles = async () => {
+        try {
+            const resp = await axios.get('/review-cycles?requiresEmployeeSubmission=true');
+            setReviewCycles(resp.data.data || []);
+        } catch (err) {
+            console.error('Review cycle filter load error:', err);
+        }
+    };
 
     const fetchHistory = async () => {
         try {
             setLoading(true);
-            const resp = await axios.get(`/feedback/history?page=${page}&size=10`);
+            const params = new URLSearchParams({
+                page: String(page),
+                size: '10'
+            });
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value) params.set(key, value);
+            });
+            const resp = await axios.get(`/feedback/history?${params.toString()}`);
             setHistory(resp.data.data.content);
             setTotalPages(resp.data.data.totalPages);
         } catch (err) {
@@ -203,12 +239,52 @@ export function FeedbackHistoryPage() {
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-black text-slate-800 tracking-tight">FEEDBACK HISTORY</h2>
-                <div className="flex items-center gap-4">
-                    <div className="bg-white border-2 border-slate-100 rounded-2xl px-4 py-2 flex items-center gap-2 shadow-sm">
-                        <Search size={18} className="text-slate-400" />
-                        <input placeholder="Quick search..." className="text-sm font-bold text-slate-700 outline-none w-48" />
-                    </div>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm grid grid-cols-1 md:grid-cols-6 gap-3">
+                <div className="md:col-span-2 border-2 border-slate-100 rounded-2xl px-4 py-2 flex items-center gap-2">
+                    <Search size={18} className="text-slate-400" />
+                    <input
+                        value={filters.reviewee}
+                        onChange={(e) => updateFilter('reviewee', e.target.value)}
+                        placeholder="Search reviewee..."
+                        className="text-sm font-bold text-slate-700 outline-none w-full"
+                    />
                 </div>
+                <select
+                    value={filters.reviewCycleId}
+                    onChange={(e) => updateFilter('reviewCycleId', e.target.value)}
+                    className="border-2 border-slate-100 rounded-2xl px-4 py-2 text-xs font-black text-slate-500 outline-none bg-white"
+                >
+                    <option value="">All cycles</option>
+                    {reviewCycles.map(cycle => (
+                        <option key={cycle.id} value={cycle.id}>{cycle.name}</option>
+                    ))}
+                </select>
+                <select
+                    value={filters.feedbackType}
+                    onChange={(e) => updateFilter('feedbackType', e.target.value)}
+                    className="border-2 border-slate-100 rounded-2xl px-4 py-2 text-xs font-black text-slate-500 outline-none bg-white"
+                >
+                    <option value="">All types</option>
+                    <option value="PEER">Peer</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="SUBORDINATE">Subordinate</option>
+                </select>
+                <select
+                    value={filters.status}
+                    onChange={(e) => updateFilter('status', e.target.value)}
+                    className="border-2 border-slate-100 rounded-2xl px-4 py-2 text-xs font-black text-slate-500 outline-none bg-white"
+                >
+                    <option value="">All statuses</option>
+                    <option value="SUBMITTED">Submitted</option>
+                </select>
+                <input
+                    type="date"
+                    value={filters.fromDate}
+                    onChange={(e) => updateFilter('fromDate', e.target.value)}
+                    className="min-w-0 border-2 border-slate-100 rounded-2xl px-3 py-2 text-xs font-bold text-slate-500 outline-none"
+                />
             </div>
 
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
@@ -219,6 +295,7 @@ export function FeedbackHistoryPage() {
                             <th className="p-6">Evaluatee</th>
                             <th className="p-6">Position</th>
                             <th className="p-6">Role</th>
+                            <th className="p-6">Cycle</th>
                             <th className="p-6 text-center">Score</th>
                             <th className="p-6 text-center">Remark</th>
                             <th className="p-6 text-right">Actions</th>
@@ -227,7 +304,7 @@ export function FeedbackHistoryPage() {
                     <tbody className="divide-y divide-slate-50">
                         {loading ? (
                             <tr>
-                                <td colSpan={7} className="p-20 text-center">
+                                <td colSpan={8} className="p-20 text-center">
                                     <div className="flex flex-col items-center gap-4">
                                         <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
                                         <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Loading history...</p>
@@ -236,7 +313,7 @@ export function FeedbackHistoryPage() {
                             </tr>
                         ) : history.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="p-20 text-center">
+                                <td colSpan={8} className="p-20 text-center">
                                     <div className="flex flex-col items-center gap-4 text-slate-300">
                                         <FileText size={48} />
                                         <p className="text-lg font-black uppercase">No feedback history found</p>
@@ -267,6 +344,10 @@ export function FeedbackHistoryPage() {
                                         <span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">
                                             {item.role}
                                         </span>
+                                    </td>
+                                    <td className="p-6">
+                                        <div className="text-xs font-black text-slate-600">{item.reviewCycleName || 'N/A'}</div>
+                                        <div className="text-[10px] font-bold text-emerald-600 uppercase">{item.status || 'SUBMITTED'}</div>
                                     </td>
                                     <td className="p-6 text-center">
                                         <div className="text-base font-black text-blue-600">{item.score.toFixed(1)}%</div>

@@ -1,6 +1,8 @@
 package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
+import com.epms.backend.dto.FeedbackDraftDto;
+import com.epms.backend.dto.FeedbackHistoryFilter;
 import com.epms.backend.dto.FeedbackHistoryDto;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
 import com.epms.backend.entity.Employee;
@@ -44,13 +46,74 @@ public class FeedbackController {
         }
     }
 
+    @PostMapping("/draft")
+    public ResponseEntity<ApiResponse<FeedbackDraftDto>> saveDraft(@RequestBody FeedbackSubmissionRequest request) {
+        try {
+            User user = getCurrentUser();
+            FeedbackDraftDto draft = feedbackService.saveDraft(user.getEmployee().getId(), request);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Draft saved", draft));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Draft Save Error: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/draft")
+    public ResponseEntity<ApiResponse<FeedbackDraftDto>> getDraft(
+            @RequestParam Long evaluateeId,
+            @RequestParam String role) {
+        try {
+            User user = getCurrentUser();
+            FeedbackDraftDto draft = feedbackService.getDraft(user.getEmployee().getId(), evaluateeId, role);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Draft fetched", draft));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Draft Load Error: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/drafts")
+    public ResponseEntity<ApiResponse<List<FeedbackDraftDto>>> getDrafts() {
+        try {
+            User user = getCurrentUser();
+            List<FeedbackDraftDto> drafts = feedbackService.getDrafts(user.getEmployee().getId());
+            return ResponseEntity.ok(new ApiResponse<>(true, "Drafts fetched", drafts));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Draft List Error: " + e.getMessage(), null));
+        }
+    }
+
+    @DeleteMapping("/draft/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteDraft(@PathVariable Long id) {
+        try {
+            User user = getCurrentUser();
+            feedbackService.deleteDraft(user.getEmployee().getId(), id);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Draft deleted", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Draft Delete Error: " + e.getMessage(), null));
+        }
+    }
+
     @GetMapping("/history")
     public ResponseEntity<ApiResponse<Page<FeedbackHistoryDto>>> getHistory(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Long reviewCycleId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
+            @RequestParam(required = false) String reviewer,
+            @RequestParam(required = false) String reviewee,
+            @RequestParam(required = false) String feedbackType) {
         try {
             User user = getCurrentUser();
-            Page<FeedbackHistoryDto> history = feedbackService.getFeedbackHistory(user.getEmployee().getId(), PageRequest.of(page, size));
+            FeedbackHistoryFilter filter = new FeedbackHistoryFilter();
+            filter.setReviewCycleId(reviewCycleId);
+            filter.setStatus(status);
+            filter.setFromDate(fromDate);
+            filter.setToDate(toDate);
+            filter.setReviewer(reviewer);
+            filter.setReviewee(reviewee);
+            filter.setFeedbackType(feedbackType);
+            Page<FeedbackHistoryDto> history = feedbackService.getFeedbackHistory(user.getEmployee().getId(), filter, PageRequest.of(page, size));
             return ResponseEntity.ok(new ApiResponse<>(true, "History fetched", history));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "History Error: " + e.getMessage(), null));

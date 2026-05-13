@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
@@ -7,9 +7,15 @@ import {
     Building, 
     CheckCircle2, 
     Calendar,
+    Clock,
     ChevronRight, 
+    FileText,
     Send,
+    Save,
+    Search,
     Star,
+    Trash2,
+    X,
     EyeOff,
     UserCheck
 } from 'lucide-react';
@@ -31,6 +37,23 @@ interface Evaluatee {
     statusText: string;
 }
 
+interface FeedbackDraft {
+    id: number;
+    evaluateeId: number;
+    evaluateeName: string;
+    evaluateeStaffNo?: string;
+    evaluateePosition?: string;
+    evaluateeDepartment?: string;
+    role: 'MANAGER' | 'PEER' | 'SUBORDINATE';
+    anonymous?: boolean;
+    updatedAt?: string;
+    details?: Array<{
+        criteriaId: number;
+        rating?: number | null;
+        comment?: string;
+    }>;
+}
+
 export function GiveFeedbackPage() {
     const [evaluator, setEvaluator] = useState<any>(null);
     const [evaluatees, setEvaluatees] = useState<Evaluatee[]>([]);
@@ -44,6 +67,13 @@ export function GiveFeedbackPage() {
     const [noEligibleRemaining, setNoEligibleRemaining] = useState(false);
     const [isAnonymous, setIsAnonymous] = useState(false);
     const [activeCycle, setActiveCycle] = useState<any>(null);
+    const [isSavingDraft, setIsSavingDraft] = useState(false);
+    const [drafts, setDrafts] = useState<FeedbackDraft[]>([]);
+    const [isDraftModalOpen, setIsDraftModalOpen] = useState(false);
+    const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
+    const [draftSearch, setDraftSearch] = useState('');
+    const skipPeerAutoSelectRef = useRef(false);
+    const skipSelectedDraftFetchRef = useRef(false);
 
     useEffect(() => {
         fetchEvaluatorInfo();
@@ -53,12 +83,21 @@ export function GiveFeedbackPage() {
 
     useEffect(() => {
         if (role) {
-            setRatings({}); // Clear ratings when role changes
-            setComments({});
-            setIsAnonymous(false);
             fetchEligibleEvaluatees(role);
         }
     }, [role]);
+
+    useEffect(() => {
+        if (selectedEvaluatee) {
+            if (skipSelectedDraftFetchRef.current) {
+                skipSelectedDraftFetchRef.current = false;
+                return;
+            }
+            setRatings({});
+            setComments({});
+            fetchDraft(selectedEvaluatee.id, role);
+        }
+    }, [selectedEvaluatee?.id, role]);
 
     const fetchEvaluatorInfo = async () => {
         try {
@@ -116,7 +155,9 @@ export function GiveFeedbackPage() {
                 const available = list.filter((e: any) => !e.given);
                 setNoEligibleRemaining(available.length === 0);
 
-                if (targetRole === 'PEER' && available.length > 0) {
+                if (skipPeerAutoSelectRef.current) {
+                    skipPeerAutoSelectRef.current = false;
+                } else if (targetRole === 'PEER' && available.length > 0) {
                     // Random Selection Logic
                     const randomIndex = Math.floor(Math.random() * available.length);
                     setSelectedEvaluatee(available[randomIndex]);
@@ -128,6 +169,57 @@ export function GiveFeedbackPage() {
             console.error('Eligible Load Error:', err);
             toast.error(err.response?.data?.message || 'Error fetching eligible employees');
         }
+    };
+
+    const applyDraftToForm = (draft: FeedbackDraft) => {
+        const draftRatings: Record<number, number> = {};
+        const draftComments: Record<number, string> = {};
+        (draft.details || []).forEach((detail) => {
+            if (detail.rating) draftRatings[detail.criteriaId] = detail.rating;
+            if (detail.comment) draftComments[detail.criteriaId] = detail.comment;
+        });
+
+        setRatings(draftRatings);
+        setComments(draftComments);
+        setIsAnonymous(Boolean(draft.anonymous));
+    };
+
+    const fetchDraft = async (evaluateeId: number, targetRole: string) => {
+        try {
+            const resp = await axios.get(`/feedback/draft?evaluateeId=${evaluateeId}&role=${targetRole}`);
+            const draft = resp.data.data;
+            if (!draft) return;
+
+            applyDraftToForm(draft);
+            toast.success('Draft restored');
+        } catch (err: any) {
+            console.error('Draft Load Error:', err);
+        }
+    };
+
+    const fetchDrafts = async () => {
+        try {
+            setIsLoadingDrafts(true);
+            const resp = await axios.get('/feedback/drafts');
+            setDrafts(resp.data.data || []);
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to load drafts');
+        } finally {
+            setIsLoadingDrafts(false);
+        }
+    };
+
+    const openDraftModal = () => {
+        setIsDraftModalOpen(true);
+        fetchDrafts();
+    };
+
+    const handleRoleChange = (nextRole: 'MANAGER' | 'PEER' | 'SUBORDINATE') => {
+        setRatings({});
+        setComments({});
+        setIsAnonymous(false);
+        setSelectedEvaluatee(null);
+        setRole(nextRole);
     };
 
     const isAllRatedTotal = criteriaList.every(c => ratings[c.id]);
@@ -160,6 +252,59 @@ export function GiveFeedbackPage() {
         }
     };
 
+    const handleSaveDraft = async () => {
+        if (!selectedEvaluatee) return toast.error('Please select an employee before saving a draft');
+
+        try {
+            setIsSavingDraft(true);
+            const payload = {
+                evaluateeId: selectedEvaluatee.id,
+                role: role,
+                anonymous: role === 'SUBORDINATE' ? isAnonymous : true,
+                details: criteriaList.map(c => ({
+                    criteriaId: c.id,
+                    rating: ratings[c.id] ?? null,
+                    comment: comments[c.id] || ''
+                }))
+            };
+            await axios.post('/feedback/draft', payload);
+            toast.success('Draft saved');
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to save draft');
+        } finally {
+            setIsSavingDraft(false);
+        }
+    };
+
+    const handleOpenDraft = (draft: FeedbackDraft) => {
+        skipPeerAutoSelectRef.current = true;
+        skipSelectedDraftFetchRef.current = true;
+        setRole(draft.role);
+        setSelectedEvaluatee({
+            id: draft.evaluateeId,
+            name: draft.evaluateeName,
+            staffNo: draft.evaluateeStaffNo || '',
+            position: draft.evaluateePosition || 'N/A',
+            department: draft.evaluateeDepartment || 'N/A',
+            given: false,
+            statusText: 'Draft'
+        });
+        applyDraftToForm(draft);
+        setIsDraftModalOpen(false);
+        toast.success('Draft loaded');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleDeleteDraft = async (draftId: number) => {
+        try {
+            await axios.delete(`/feedback/draft/${draftId}`);
+            setDrafts(prev => prev.filter(draft => draft.id !== draftId));
+            toast.success('Draft deleted');
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to delete draft');
+        }
+    };
+
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [evaluatorImgError, setEvaluatorImgError] = useState(false);
     const [evaluateeImgErrors, setEvaluateeImgErrors] = useState<Record<number, boolean>>({});
@@ -184,6 +329,17 @@ export function GiveFeedbackPage() {
     };
 
     const liveResult = calculateLiveScore();
+    const filteredDrafts = drafts.filter(draft => {
+        const term = draftSearch.trim().toLowerCase();
+        if (!term) return true;
+        return [
+            draft.evaluateeName,
+            draft.evaluateeStaffNo,
+            draft.evaluateePosition,
+            draft.evaluateeDepartment,
+            draft.role
+        ].some(value => (value || '').toLowerCase().includes(term));
+    });
 
     const getLiveRemarkColor = (remark: string) => {
         switch (remark) {
@@ -233,6 +389,16 @@ export function GiveFeedbackPage() {
                 <p className="text-xs font-bold text-amber-800 max-w-md">
                     Feedback for this cycle must be submitted before the deadline ends.
                 </p>
+            </div>
+            <div className="flex justify-end">
+                <button
+                    type="button"
+                    onClick={openDraftModal}
+                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-xs hover:border-blue-200 hover:text-blue-600 transition-all shadow-sm"
+                >
+                    <FileText size={18} />
+                    VIEW DRAFTS
+                </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
                 {/* Evaluator Card */}
@@ -423,7 +589,7 @@ export function GiveFeedbackPage() {
                     {(['PEER', 'MANAGER', 'SUBORDINATE'] as const).map(r => (
                         <button
                             key={r}
-                            onClick={() => { setRole(r); }}
+                            onClick={() => handleRoleChange(r)}
                             className={`px-8 py-3 rounded-xl text-xs font-black transition-all ${role === r ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
                         >
                             {r}
@@ -545,6 +711,15 @@ export function GiveFeedbackPage() {
                                 RESET CHOICE
                             </button>
                             <button
+                                type="button"
+                                onClick={handleSaveDraft}
+                                disabled={isSavingDraft || !selectedEvaluatee}
+                                className="flex items-center gap-3 px-8 py-5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:opacity-50"
+                            >
+                                {isSavingDraft ? <CheckCircle2 size={20} className="animate-spin" /> : <Save size={20} />}
+                                SAVE DRAFT
+                            </button>
+                            <button
                                 onClick={handleSubmit}
                                 disabled={!isAllRatedTotal || isSubmitting || !selectedEvaluatee}
                                 className="flex items-center gap-3 px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black text-sm hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 disabled:opacity-50"
@@ -578,6 +753,93 @@ export function GiveFeedbackPage() {
                             >
                                 OK
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {isDraftModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setIsDraftModalOpen(false)} />
+                    <div className="relative z-10 w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-4">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Saved Drafts</h3>
+                                <p className="text-xs font-bold text-slate-400 mt-1">Sorted by most recently edited</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsDraftModalOpen(false)}
+                                className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all flex items-center justify-center"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="border-2 border-slate-100 rounded-2xl px-4 py-3 flex items-center gap-2">
+                                <Search size={18} className="text-slate-400" />
+                                <input
+                                    value={draftSearch}
+                                    onChange={(e) => setDraftSearch(e.target.value)}
+                                    placeholder="Search drafts..."
+                                    className="w-full outline-none text-sm font-bold text-slate-700"
+                                />
+                            </div>
+
+                            <div className="max-h-[420px] overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+                                {isLoadingDrafts ? (
+                                    <div className="p-12 text-center">
+                                        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Loading drafts...</p>
+                                    </div>
+                                ) : filteredDrafts.length === 0 ? (
+                                    <div className="p-12 text-center bg-slate-50 rounded-2xl border border-slate-100">
+                                        <FileText size={40} className="mx-auto text-slate-300 mb-3" />
+                                        <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No drafts available.</p>
+                                    </div>
+                                ) : (
+                                    filteredDrafts.map(draft => (
+                                        <div
+                                            key={draft.id}
+                                            className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/20 transition-all"
+                                        >
+                                            <button
+                                                type="button"
+                                                onClick={() => handleOpenDraft(draft)}
+                                                className="flex-1 text-left flex items-center gap-4"
+                                            >
+                                                <div className="w-11 h-11 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-black">
+                                                    {draft.evaluateeName?.charAt(0) || <User size={20} />}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <p className="font-black text-slate-800 truncate">{draft.evaluateeName}</p>
+                                                        <span className="px-2 py-1 rounded-lg bg-slate-100 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                                                            {draft.role}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[11px] font-bold text-slate-400 truncate">
+                                                        {draft.evaluateeStaffNo || 'No staff no'} • {draft.evaluateePosition || 'N/A'}
+                                                    </p>
+                                                    {draft.updatedAt && (
+                                                        <p className="text-[10px] font-bold text-slate-400 mt-1 flex items-center gap-1">
+                                                            <Clock size={11} />
+                                                            Last edited {new Date(draft.updatedAt).toLocaleString()}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteDraft(draft.id)}
+                                                className="w-10 h-10 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"
+                                                title="Delete draft"
+                                            >
+                                                <Trash2 size={17} />
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
