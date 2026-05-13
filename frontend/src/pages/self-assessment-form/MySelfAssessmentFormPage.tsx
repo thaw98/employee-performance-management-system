@@ -199,6 +199,15 @@ function getRatingCategory(score: number): string {
   return 'Unsatisfactory';
 }
 
+const DISPUTE_CATEGORY_OTHER = 'other';
+
+const DISPUTE_CATEGORY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'disagree_revised_scores', label: 'I disagree with the revised scores' },
+  { value: 'inaccurate_manager_feedback', label: "The manager's feedback is inaccurate or incomplete" },
+  { value: 'totals_or_calculation', label: 'Totals or score calculation look incorrect' },
+  { value: DISPUTE_CATEGORY_OTHER, label: 'Other' },
+];
+
 function StateCard({
   icon,
   title,
@@ -330,6 +339,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [showAcknowledgeConfirm, setShowAcknowledgeConfirm] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [disputeCategory, setDisputeCategory] = useState('');
   const [disputeReason, setDisputeReason] = useState('');
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery();
   const hasDefaultSignature = Boolean(defaultSigResponse?.data?.signatureData);
@@ -531,14 +541,27 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const onDispute = async () => {
     if (!formData?.id) return;
-    if (!disputeReason.trim()) {
+    if (!disputeCategory) {
+      toast.error('Please select a dispute reason');
+      return;
+    }
+    const isOther = disputeCategory === DISPUTE_CATEGORY_OTHER;
+    const trimmedDetail = disputeReason.trim();
+    if (isOther && !trimmedDetail) {
       toast.error('Please provide a reason for your dispute');
       return;
     }
+    const optionLabel = DISPUTE_CATEGORY_OPTIONS.find((o) => o.value === disputeCategory)?.label;
+    const disputeReasonPayload = isOther ? trimmedDetail : (optionLabel ?? '').trim();
+    if (!disputeReasonPayload) {
+      toast.error('Please select a dispute reason');
+      return;
+    }
     try {
-      await employeeDispute({ formId: formData.id, request: { disputeReason: disputeReason.trim() } }).unwrap();
+      await employeeDispute({ formId: formData.id, request: { disputeReason: disputeReasonPayload } }).unwrap();
       toast.success('Your dispute has been submitted to HR');
       setShowDisputeModal(false);
+      setDisputeCategory('');
       setDisputeReason('');
       refetch();
     } catch (error: any) {
@@ -1086,34 +1109,77 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                 </div>
               </div>
               <button
-                onClick={() => { setShowDisputeModal(false); setDisputeReason(''); }}
+                onClick={() => {
+                  setShowDisputeModal(false);
+                  setDisputeCategory('');
+                  setDisputeReason('');
+                }}
                 className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
               >
                 <X size={18} />
               </button>
             </div>
-            <div className="px-6 py-5">
-              <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                Reason for Dispute <span className="text-rose-500">*</span>
-              </label>
-              <textarea
-                value={disputeReason}
-                onChange={(e) => setDisputeReason(e.target.value)}
-                rows={4}
-                placeholder="Explain why you disagree with the manager's revised scores…"
-                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-rose-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-100/60 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500"
-              />
+            <div className="space-y-4 px-6 py-5">
+              <div>
+                <label
+                  htmlFor="dispute-category"
+                  className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200"
+                >
+                  Dispute reason <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  id="dispute-category"
+                  value={disputeCategory}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDisputeCategory(v);
+                    if (v !== DISPUTE_CATEGORY_OTHER) {
+                      setDisputeReason('');
+                    }
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 focus:border-rose-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-100/60 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white"
+                >
+                  <option value="">Select a reason…</option>
+                  {DISPUTE_CATEGORY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {disputeCategory === DISPUTE_CATEGORY_OTHER && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Reason for Dispute <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    value={disputeReason}
+                    onChange={(e) => setDisputeReason(e.target.value)}
+                    rows={4}
+                    placeholder="Explain why you disagree with the manager's revised scores…"
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-rose-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-rose-100/60 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500"
+                  />
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4 dark:border-slate-700 dark:bg-slate-900/40">
               <button
-                onClick={() => { setShowDisputeModal(false); setDisputeReason(''); }}
+                onClick={() => {
+                  setShowDisputeModal(false);
+                  setDisputeCategory('');
+                  setDisputeReason('');
+                }}
                 className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 Cancel
               </button>
               <button
                 onClick={onDispute}
-                disabled={isDisputing || !disputeReason.trim()}
+                disabled={
+                  isDisputing ||
+                  !disputeCategory ||
+                  (disputeCategory === DISPUTE_CATEGORY_OTHER && !disputeReason.trim())
+                }
                 className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-rose-700 disabled:opacity-50"
               >
                 <Scale size={15} />

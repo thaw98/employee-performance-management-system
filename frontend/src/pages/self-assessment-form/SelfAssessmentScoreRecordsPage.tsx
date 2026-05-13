@@ -33,8 +33,11 @@ function ScoreBar({ score }: { score: number | null }) {
   )
 }
 
-/** Statuses returned by GET /self-assessment-forms/score-records (matches backend filter). */
+/** Status filter options (employee history includes draft / not started; HR/manager API omits those). */
 const SCORE_RECORD_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'NOT_STARTED', label: 'Not Started' },
+  { value: 'NOT_SUBMITTED', label: 'Not Submitted' },
   { value: 'SUBMITTED', label: 'Submitted' },
   { value: 'REOPENED', label: 'Reopened' },
   { value: 'PENDING_MANAGER_REVIEW', label: 'Pending Manager Review' },
@@ -72,6 +75,8 @@ function StatusBadge({ status }: { status: string }) {
     SUBMITTED: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
     APPROVED: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
     DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300',
+    NOT_STARTED: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+    NOT_SUBMITTED: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300',
   }
   const cls = colorMap[status] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
   const label = status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
@@ -272,7 +277,7 @@ export function SelfAssessmentScoreRecordsPage() {
       <div>
         <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">History</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Past self-assessment forms from review through finalized, with scores.
+          Past self-assessment forms for every workflow status, with scores when available.
         </p>
       </div>
 

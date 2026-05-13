@@ -187,7 +187,7 @@ class SelfAssessmentFormScoreRecordsServiceTest {
     }
 
     @Test
-    void getScoreRecords_employee_returnsOnlyOwnVisibleRecords() {
+    void getScoreRecords_employee_returnsOnlyOwnRecords_allStatuses() {
         Employee emp = employee(1L, 10L, 20L);
         Employee otherEmp = employee(2L, 10L, 20L);
         ReviewCycle cycle = cycle();
@@ -196,15 +196,18 @@ class SelfAssessmentFormScoreRecordsServiceTest {
         SelfAssessmentForm ownDraft = formWithStatus(201L, emp, tmpl, cycle, SelfAssessmentFormStatus.DRAFT);
         SelfAssessmentForm otherSubmitted = formWithStatus(202L, otherEmp, tmpl, cycle, SelfAssessmentFormStatus.SUBMITTED);
         SelfAssessmentForm ownFinalized = finalizedForm(203L, emp, tmpl, cycle, 88.0, "Outstanding");
+        SelfAssessmentForm ownNotStarted = formWithStatus(204L, emp, tmpl, cycle, SelfAssessmentFormStatus.NOT_STARTED);
 
-        when(formRepository.findAll()).thenReturn(List.of(ownSubmitted, ownDraft, otherSubmitted, ownFinalized));
+        when(formRepository.findAll()).thenReturn(List.of(ownSubmitted, ownDraft, otherSubmitted, ownFinalized, ownNotStarted));
 
         List<ScoreRecordDto> records = service.getScoreRecords(emp, 3L);
 
-        assertEquals(2, records.size());
+        assertEquals(4, records.size());
         assertTrue(records.stream().allMatch(r -> r.employee().id().equals(emp.getId())));
         assertTrue(records.stream().anyMatch(r -> r.id().equals(200L)));
+        assertTrue(records.stream().anyMatch(r -> r.id().equals(201L)));
         assertTrue(records.stream().anyMatch(r -> r.id().equals(203L)));
+        assertTrue(records.stream().anyMatch(r -> r.id().equals(204L)));
     }
 
     @Test

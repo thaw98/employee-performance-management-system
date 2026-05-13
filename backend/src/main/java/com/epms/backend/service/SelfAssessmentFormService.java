@@ -1086,7 +1086,12 @@ Instant now = Instant.now();
 
         calculateManagerRevisedScore(form);
 
-        form.setStatus(SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW);
+        boolean skipEmployeeAcknowledgment = !anyScoreChanged;
+        if (skipEmployeeAcknowledgment) {
+            form.setStatus(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL);
+        } else {
+            form.setStatus(SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW);
+        }
 
         SelfAssessmentForm saved = formRepository.save(form);
 
@@ -1099,7 +1104,19 @@ Instant now = Instant.now();
                 "Manager reviewed self-assessment form",
                 null);
 
-        sendManagerReviewNotificationsNew(saved, anyScoreChanged, hasManagerAdjustments);
+        if (skipEmployeeAcknowledgment) {
+            auditService.record(
+                    AuditActionType.SELF_ASSESSMENT_FORM_SUBMITTED,
+                    AuditTargetType.SELF_ASSESSMENT_FORM,
+                    saved.getId(),
+                    manager.getUserAccount().getId(),
+                    null,
+                    "Employee acknowledgment skipped: manager made no score adjustments; pending HR final approval",
+                    null);
+            sendHrFinalApprovalNotification(saved, true);
+        } else {
+            sendManagerReviewNotificationsNew(saved, anyScoreChanged, hasManagerAdjustments);
+        }
 
         return toFormDto(saved);
     }
@@ -1132,7 +1149,7 @@ Instant now = Instant.now();
                 "Employee acknowledged manager review",
                 null);
 
-        sendHrFinalApprovalNotification(saved);
+        sendHrFinalApprovalNotification(saved, false);
 
         return toFormDto(saved);
     }
@@ -1915,17 +1932,27 @@ Instant now = Instant.now();
         }
     }
 
-    private void sendHrFinalApprovalNotification(SelfAssessmentForm form) {
+    /**
+     * @param managerConcurrenceNoScoreChanges when true, HR is notified because the manager endorsed the
+     *                                           self-assessment without changing scores (employee step skipped).
+     */
+    private void sendHrFinalApprovalNotification(SelfAssessmentForm form, boolean managerConcurrenceNoScoreChanges) {
         Employee employee = form.getEmployee();
         User reviewedEmployeeUser = employee != null ? employee.getUserAccount() : null;
+        String body = managerConcurrenceNoScoreChanges
+                ? (employee != null ? employee.getEmployeeName() : "An employee")
+                        + "'s self-assessment for "
+                        + resolveFormDisplayTitle(form)
+                        + ": manager completed review with no score changes. Final HR approval is required."
+                : (employee != null ? employee.getEmployeeName() : "An employee")
+                        + " has acknowledged the manager review for "
+                        + resolveFormDisplayTitle(form) + ". Final HR approval is required.";
         userRepository.findByRole_IdAndActiveTrue(1L).stream()
                 .filter(hrUser -> reviewedEmployeeUser == null || !hrUser.getId().equals(reviewedEmployeeUser.getId()))
                 .forEach(hrUser -> notificationService.send(
                         hrUser,
                         "Self-Assessment Pending Final Approval",
-                        (employee != null ? employee.getEmployeeName() : "An employee")
-                                + " has acknowledged the manager review for "
-                                + resolveFormDisplayTitle(form) + ". Final HR approval is required.",
+                        body,
                         "SELF_ASSESSMENT_FORM",
                         form.getId()));
     }
@@ -2245,9 +2272,9 @@ Instant now = Instant.now();
                 .collect(Collectors.toList());
     }
 
+    /** Employee history lists every status for their own forms (incl. draft / not started). */
     private List<ScoreRecordDto> getEmployeeScoreRecords(Employee employee) {
         return formRepository.findAll().stream()
-                .filter(f -> SCORE_RECORD_VISIBLE_STATUSES.contains(f.getStatus()))
                 .filter(f -> isOwnForm(f, employee))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
