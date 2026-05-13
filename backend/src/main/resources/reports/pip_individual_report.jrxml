@@ -187,12 +187,12 @@
             <textField>
                 <reportElement x="0" y="582" width="230" height="14" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c025"/>
                 <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="9"/></textElement>
-                <textFieldExpression><![CDATA["Employee Signature" + ($F{employeeSignatureDate} == null ? "" : " | " + $F{employeeSignatureDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH)))]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Employee Signature" + ($F{employeeSignatureDate} == null ? "" : " | " + $F{employeeSignatureDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", java.util.Locale.ENGLISH)))]]></textFieldExpression>
             </textField>
             <textField>
                 <reportElement x="285" y="582" width="230" height="14" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c026"/>
                 <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="9"/></textElement>
-                <textFieldExpression><![CDATA["Manager Signature" + ($F{managerSignatureDate} == null ? "" : " | " + $F{managerSignatureDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH)))]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Manager Signature" + ($F{managerSignatureDate} == null ? "" : " | " + $F{managerSignatureDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", java.util.Locale.ENGLISH)))]]></textFieldExpression>
             </textField>
             <image scaleImage="RetainShape">
                 <reportElement x="0" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c030">

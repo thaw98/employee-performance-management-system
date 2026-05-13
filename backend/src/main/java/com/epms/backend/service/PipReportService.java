@@ -63,6 +63,7 @@ public class PipReportService {
 
     private static final String FORMAT_EXCEL = "excel";
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy");
+    private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", Locale.ENGLISH);
     private static final DateTimeFormatter GENERATED_AT_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", Locale.ENGLISH);
 
     private final PipService pipService;
@@ -199,7 +200,7 @@ Object jasperPrint = fillReport(
             rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Meeting ID", "Scheduled Date", "Meeting Time", "Status", "Notes");
             for (PipIndividualReportDto.MeetingRow meeting : safeList(report.getMeetings())) {
                 writeRow(sheet, rowIndex++, textStyle,
-                        meeting.getMeetingId(), formatExcelDate(meeting.getScheduledDate()), meeting.getMeetingTime(),
+                        meeting.getMeetingId(), formatExcelDate(meeting.getScheduledDate()), formatExcelDateTime(meeting.getMeetingTime()),
                         meeting.getStatus(), meeting.getNotes());
             }
 
@@ -426,6 +427,10 @@ Object jasperPrint = fillReport(
         return date == null ? "" : DATE_FORMAT.format(date);
     }
 
+    private String formatExcelDateTime(java.time.LocalDateTime dateTime) {
+        return dateTime == null ? "" : DATE_TIME_FORMAT.format(dateTime);
+    }
+
     private String formatGeneratedAt() {
         return GENERATED_AT_FORMAT.format(Instant.now().atZone(ZoneId.systemDefault()));
     }
@@ -619,7 +624,7 @@ Object jasperPrint = fillReport(
             return "No follow-up meetings recorded.";
         }
         return meetings.stream()
-                .map(row -> "- " + format(row.getScheduledDate()) + " | " + row.getStatus() + " | " + row.getNotes())
+                .map(row -> "- " + formatExcelDateTime(row.getMeetingTime()) + " | " + row.getStatus() + " | " + row.getNotes())
                 .collect(Collectors.joining("\n"));
     }
 

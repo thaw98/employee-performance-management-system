@@ -64,8 +64,10 @@ public class PipService {
         if (manager.getEmployee() == null) {
             return new ArrayList<>();
         }
+        Long managerEmployeeId = manager.getEmployee().getId();
         return employeeRepository.findAll().stream()
-                .filter(employee -> isManagedBy(employee, manager.getEmployee().getId()))
+                .filter(employee -> employee.getId() != null && !employee.getId().equals(managerEmployeeId))
+                .filter(employee -> isManagedBy(employee, managerEmployeeId))
                 .filter(employee -> !isProbationEmployee(employee))
                 .map(employee -> new EligibleEmployeeDTO(
                         employee.getId(),

@@ -82,6 +82,7 @@ const formatDateTimeValue = (value?: string) => {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: true,
   })
 }
 
@@ -360,12 +361,29 @@ export default function PipMonitoringPage() {
       setExportError(null)
       const bundles = exportTargetPips.map((pip) => ({ pip, trainingHistory: [] }))
       const rows = buildPipExportRows(bundles)
-      const printWindow = window.open('', '_blank')
-      if (!printWindow) {
-        setExportError('Unable to open print window. Please allow popups and try again.')
+      const printFrame = document.createElement('iframe')
+      printFrame.style.position = 'fixed'
+      printFrame.style.right = '0'
+      printFrame.style.bottom = '0'
+      printFrame.style.width = '0'
+      printFrame.style.height = '0'
+      printFrame.style.border = '0'
+      printFrame.setAttribute('aria-hidden', 'true')
+      document.body.appendChild(printFrame)
+
+      const printDocument = printFrame.contentDocument || printFrame.contentWindow?.document
+      if (!printDocument || !printFrame.contentWindow) {
+        printFrame.remove()
+        setExportError('Unable to prepare print view. Please try again.')
         return
       }
-      printWindow.document.write(`
+
+      const cleanup = () => {
+        window.setTimeout(() => printFrame.remove(), 250)
+      }
+
+      printFrame.contentWindow.onafterprint = cleanup
+      printDocument.write(`
         <html>
           <head>
             <title>PIP Details</title>
@@ -383,9 +401,10 @@ export default function PipMonitoringPage() {
           </body>
         </html>
       `)
-      printWindow.document.close()
-      printWindow.focus()
-      printWindow.print()
+      printDocument.close()
+      printFrame.contentWindow.focus()
+      printFrame.contentWindow.print()
+      window.setTimeout(cleanup, 60000)
     } catch (error) {
       console.error('[PIP Monitoring] Print failed:', error)
       setExportError('Failed to print PIP data.')
