@@ -157,14 +157,6 @@ public class PipService {
         return pipRepository.findByEmployee(employee.getEmployee());
     }
 
-    public List<Pip> getManagerPips(User manager) {
-        return pipRepository.findByManager(manager.getEmployee());
-    }
-
-    public List<Pip> getEmployeePips(User employee) {
-        return pipRepository.findByEmployee(employee.getEmployee());
-    }
-
     public List<Pip> getAllPips() {
         return pipRepository.findAll();
     }
