@@ -184,18 +184,28 @@ export interface SelfAssessmentFormDto {
   ratingCategory: string | null
   employeeRemarks: string | null
   employeeSignatureId: number | null
+  employeeSignatureData: string | null
+  employeeSignatureType: string | null
   employeeSignatureDate: string | null
   overallRemarks: string | null
   managerId: number | null
   managerName: string | null
   managerSignatureId: number | null
+  managerSignatureData: string | null
+  managerSignatureType: string | null
   managerSignatureDate: string | null
   managerComments: string | null
   hrSignatureId: number | null
+  hrSignatureData: string | null
+  hrSignatureType: string | null
   hrSignatureDate: string | null
   hrFinalSignatureId: number | null
+  hrFinalSignatureData: string | null
+  hrFinalSignatureType: string | null
   hrFinalSignatureDate: string | null
   hrAdjustmentSignatureId: number | null
+  hrAdjustmentSignatureData: string | null
+  hrAdjustmentSignatureType: string | null
   hrAdjustmentSignatureDate: string | null
   createdDate: string
   submittedDate: string | null
@@ -527,18 +537,28 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     ratingCategory: getOptionalString(source.ratingCategory) ?? null,
     employeeRemarks: getOptionalString(source.employeeRemarks) ?? null,
     employeeSignatureId: source.employeeSignatureId != null ? getNumber(source.employeeSignatureId) : null,
+    employeeSignatureData: getOptionalString(source.employeeSignatureData) ?? null,
+    employeeSignatureType: getOptionalString(source.employeeSignatureType) ?? null,
     employeeSignatureDate: getOptionalString(source.employeeSignatureDate) ?? null,
     overallRemarks: getOptionalString(source.overallRemarks) ?? null,
     managerId: source.managerId != null ? getNumber(source.managerId) : null,
     managerName: getOptionalString(source.managerName) ?? null,
     managerSignatureId: source.managerSignatureId != null ? getNumber(source.managerSignatureId) : null,
+    managerSignatureData: getOptionalString(source.managerSignatureData) ?? null,
+    managerSignatureType: getOptionalString(source.managerSignatureType) ?? null,
     managerSignatureDate: getOptionalString(source.managerSignatureDate) ?? null,
     managerComments: getOptionalString(source.managerComments) ?? null,
     hrSignatureId: source.hrSignatureId != null ? getNumber(source.hrSignatureId) : null,
+    hrSignatureData: getOptionalString(source.hrSignatureData) ?? null,
+    hrSignatureType: getOptionalString(source.hrSignatureType) ?? null,
     hrSignatureDate: getOptionalString(source.hrSignatureDate) ?? null,
     hrFinalSignatureId: source.hrFinalSignatureId != null ? getNumber(source.hrFinalSignatureId) : null,
+    hrFinalSignatureData: getOptionalString(source.hrFinalSignatureData) ?? null,
+    hrFinalSignatureType: getOptionalString(source.hrFinalSignatureType) ?? null,
     hrFinalSignatureDate: getOptionalString(source.hrFinalSignatureDate) ?? null,
     hrAdjustmentSignatureId: source.hrAdjustmentSignatureId != null ? getNumber(source.hrAdjustmentSignatureId) : null,
+    hrAdjustmentSignatureData: getOptionalString(source.hrAdjustmentSignatureData) ?? null,
+    hrAdjustmentSignatureType: getOptionalString(source.hrAdjustmentSignatureType) ?? null,
     hrAdjustmentSignatureDate: getOptionalString(source.hrAdjustmentSignatureDate) ?? null,
     createdDate: getString(source.createdDate),
     submittedDate: getOptionalString(source.submittedDate) ?? null,

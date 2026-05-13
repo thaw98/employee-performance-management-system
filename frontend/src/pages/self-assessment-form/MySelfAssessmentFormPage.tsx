@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useRhfAutosave, withRetry, type SaveResult, type Transport } from 'react-hook-form-autosave';
 import { toast } from 'react-hot-toast';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Clock,
   FileText,
@@ -20,6 +21,7 @@ import {
   MessageSquare,
   ClipboardCheck,
   Sparkles,
+  PenLine,
   ThumbsUp,
   ThumbsDown,
   Scale,
@@ -33,6 +35,7 @@ import {
   useEmployeeDisputeMutation,
   type SaveDraftRequest,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
 import { formatDateDayMonthYear } from '../../utils/dateUtils';
@@ -188,6 +191,14 @@ function formatNameCode(name?: string | null, code?: string | null) {
   return displayCode ? `${displayName} (${displayCode})` : displayName;
 }
 
+function getRatingCategory(score: number): string {
+  if (score >= 86) return 'Outstanding';
+  if (score >= 71) return 'Good';
+  if (score >= 60) return 'Meet Requirement';
+  if (score >= 40) return 'Need Improvement';
+  return 'Unsatisfactory';
+}
+
 function StateCard({
   icon,
   title,
@@ -315,11 +326,15 @@ function YesNoToggle({
 }
 
 export const MySelfAssessmentFormPage: React.FC = () => {
+  const location = useLocation();
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showAcknowledgeConfirm, setShowAcknowledgeConfirm] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
+  const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery();
+  const hasDefaultSignature = Boolean(defaultSigResponse?.data?.signatureData);
 
-  const { data: formStatus, isLoading: statusLoading } = useGetMyFormStatusQuery();
+  const { data: formStatus, isLoading: statusLoading, refetch: refetchStatus } = useGetMyFormStatusQuery();
   const shouldLoadForm = Boolean(
     formStatus?.isEligible && formStatus?.hasActiveTemplate && formStatus?.status !== 'NOT_ASSIGNED',
   );
@@ -401,6 +416,17 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     }
   }, [formData, reset]);
 
+  useEffect(() => {
+    const refreshToken = (location.state as { notificationRefreshToken?: number } | null)?.notificationRefreshToken;
+    if (!refreshToken) {
+      return;
+    }
+    refetchStatus();
+    if (shouldLoadForm) {
+      refetch();
+    }
+  }, [location.state, refetch, refetchStatus, shouldLoadForm]);
+
   const watchAnswers = watch('answers');
   const ratingSystem = formData?.ratingSystem ?? 'FIVE_POINT';
   const tenPointYesMinRating = formData?.tenPointYesMinRating ?? 5;
@@ -411,11 +437,39 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const totalCount = formData?.answers?.length ?? 0;
   const isSubmissionComplete = totalCount > 0 && answeredCount === totalCount;
-  const displayedFinalScore =
+  const liveTotalMark = useMemo(() => {
+    if (!totalCount) return null;
+
+    const maxRating = ratingSystem === 'TEN_POINT' ? 10 : 5;
+    const totalPoints = (watchAnswers ?? []).reduce((sum, answer) => {
+      return sum + (answer?.rating ?? 0);
+    }, 0);
+
+    return (totalPoints / (totalCount * maxRating)) * 100;
+  }, [ratingSystem, totalCount, watchAnswers]);
+  const serverDisplayScore =
     formData?.finalApprovedTotalScore
     ?? formData?.managerRevisedTotalScore
     ?? formData?.totalScore
     ?? null;
+  const displayedScore =
+    !isReadOnly
+      ? answeredCount > 0 && liveTotalMark != null
+        ? liveTotalMark
+        : null
+      : serverDisplayScore;
+  const displayedScoreCategory =
+    !isReadOnly && displayedScore != null
+      ? getRatingCategory(displayedScore)
+      : (formData?.ratingCategory ?? null);
+
+  const showMetadataStrip =
+    Boolean(formData?.employee)
+    || Boolean(formData?.cycleName)
+    || Boolean(formData?.deadlineDate)
+    || Boolean(formData?.assessmentDate)
+    || displayedScore != null
+    || (!isReadOnly && totalCount > 0);
 
   const handleYesNoChange = (index: number, value: string, currentRating: number | null) => {
     setValue(`answers.${index}.yesNoAnswer`, value, { shouldDirty: true, shouldTouch: true });
@@ -468,6 +522,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     try {
       await employeeAcknowledge(formData.id).unwrap();
       toast.success('You have acknowledged the manager review');
+      setShowAcknowledgeConfirm(false);
       refetch();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to acknowledge');
@@ -586,7 +641,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
         </div>
 
         {/* Metadata strip */}
-        {(formData?.employee || formData?.cycleName || formData?.deadlineDate || formData?.assessmentDate || displayedFinalScore != null) && (
+        {showMetadataStrip && (
           <div className="relative grid grid-cols-1 divide-y divide-slate-200/70 border-t border-slate-200/70 bg-white/60 backdrop-blur-sm sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800/30">
             {formData?.employee && (
               <MetaItem icon={<Building2 size={17} />} label="Department" value={departmentDisplay} />
@@ -611,11 +666,11 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                 value={formatDateDayMonthYear(formData.assessmentDate)}
               />
             )}
-            {displayedFinalScore != null && (
+            {displayedScore != null && (
               <MetaItem
                 icon={<BarChart3 size={17} />}
-                label="Final Score"
-                value={`${displayedFinalScore.toFixed(1)}%${formData.ratingCategory ? ` · ${formData.ratingCategory}` : ''}`}
+                label={isReadOnly ? 'Final Score' : 'Total Mark'}
+                value={`${displayedScore.toFixed(1)}%${displayedScoreCategory ? ` · ${displayedScoreCategory}` : ''}`}
               />
             )}
           </div>
@@ -683,7 +738,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={onAcknowledge}
+              onClick={() => setShowAcknowledgeConfirm(true)}
               disabled={isAcknowledging}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:-translate-y-px hover:shadow-lg disabled:opacity-50"
             >
@@ -971,6 +1026,21 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   </span>
                   /{totalCount} answered
                 </p>
+                {answeredCount > 0 && liveTotalMark != null && (
+                  <>
+                    <span className="mx-1 text-slate-300 dark:text-slate-600">·</span>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                      <span className="font-semibold text-slate-600 dark:text-slate-300">Total Mark </span>
+                      <span className="font-bold tabular-nums text-slate-700 dark:text-slate-200">
+                        {liveTotalMark.toFixed(1)}%
+                      </span>
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {' '}
+                        · {getRatingCategory(liveTotalMark)}
+                      </span>
+                    </p>
+                  </>
+                )}
               </div>
               <div className="flex flex-1 items-center justify-end gap-3 sm:flex-initial">
                 <button
@@ -1054,6 +1124,56 @@ export const MySelfAssessmentFormPage: React.FC = () => {
         </div>
       )}
 
+      {/* ───── Acknowledge Confirmation Modal ───── */}
+      {showAcknowledgeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400">
+                  <ThumbsUp size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
+                    Confirm Acknowledgement
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    This confirms you agree with the manager review
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAcknowledgeConfirm(false)}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                Are you sure you want to acknowledge the manager's revised assessment?
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4 dark:border-slate-700 dark:bg-slate-900/40">
+              <button
+                onClick={() => setShowAcknowledgeConfirm(false)}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onAcknowledge}
+                disabled={isAcknowledging}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:shadow-lg hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ThumbsUp size={16} />
+                {isAcknowledging ? 'Acknowledging…' : 'Confirm Acknowledge'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ───── Confirmation Modal ───── */}
       {showSubmitConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
@@ -1084,6 +1204,23 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
                 Are you ready to submit your completed self-assessment?
               </p>
+              {!isDefaultSigLoading && !hasDefaultSignature && (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-900/20">
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                    Default signature is required before submission.
+                  </p>
+                  <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
+                    Please set your default signature in Signature Settings to continue.
+                  </p>
+                  <Link
+                    to="/employee/settings/signature"
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition-all hover:opacity-90 dark:bg-slate-100 dark:text-slate-900"
+                  >
+                    <PenLine size={13} />
+                    Open Signature Settings
+                  </Link>
+                </div>
+              )}
               <div className="mt-4 flex gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-900/15">
                 <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
                 <p className="text-sm leading-snug font-medium text-amber-800 dark:text-amber-200">
@@ -1101,7 +1238,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               </button>
               <button
                 onClick={handleSubmit(onSubmitForm)}
-                disabled={isSubmitting || !isSubmissionComplete}
+                disabled={isSubmitting || !isSubmissionComplete || isDefaultSigLoading || !hasDefaultSignature}
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:shadow-lg hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CheckCircle2 size={16} />

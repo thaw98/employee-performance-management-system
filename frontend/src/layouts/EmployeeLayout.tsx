@@ -12,7 +12,8 @@ import {
   Inbox,
   History,
   FileText,
-  ClipboardList
+  ClipboardList,
+  BarChart
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -71,15 +72,8 @@ const EmployeeLayout: React.FC = () => {
         { label: 'Feedback History', path: '/employee/360-feedback/history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
-    {
-      icon: <Calendar size={20} />,
-      label: 'Meetings',
-      path: '/employee/meetings',
-      subItems: [
-        { label: 'My Meetings', path: '/employee/meetings', icon: <Calendar size={16} className="shrink-0" /> },
-        { label: 'Request Meeting', path: '/employee/meetings?action=request', icon: <Send size={16} className="shrink-0" /> }
-      ]
-    },
+    { icon: <Calendar size={20} />, label: 'Meetings', path: '/employee/meetings' },
+    { icon: <BarChart size={20} />, label: 'Reports', path: '/employee/reports' },
     {
       icon: <FileText size={20} />,
       label: 'Self Assessment Form',

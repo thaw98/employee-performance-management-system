@@ -158,7 +158,9 @@ export function NotificationPage() {
       }
     }
 
-    navigate(getNotificationDestinationPath(notification, location.pathname));
+    const destinationPath = getNotificationDestinationPath(notification, location.pathname);
+    const isSameDestination = destinationPath === location.pathname;
+    navigate(destinationPath, isSameDestination ? { replace: true, state: { notificationRefreshToken: Date.now() } } : undefined);
   };
 
   const handleMarkAllRead = async () => {

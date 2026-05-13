@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FileText,
   Eye,
@@ -25,9 +25,11 @@ import {
   Edit3,
   Hourglass,
   RotateCcw,
+  Lock,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useGetActiveCycleFormsForHrQuery } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { PaginationBar } from '../../components/common/PaginationBar';
 import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 
 function formatDate(iso?: string | null) {
@@ -96,9 +98,9 @@ function getStatusConfig(status: string) {
       cardAccent: 'border-l-amber-500',
     };
   }
-  if (s === 'MANAGER_COMPLETED' || s === 'MANAGER_APPROVED') {
+  if (s === 'MANAGER_COMPLETED' || s === 'MANAGER_APPROVED' || s === 'MANAGER_REVIEWED') {
     return {
-      label: 'Manager Completed',
+      label: s === 'MANAGER_REVIEWED' ? 'Manager Reviewed' : 'Manager Completed',
       bg: 'bg-purple-100 dark:bg-purple-900/30',
       text: 'text-purple-700 dark:text-purple-400',
       dot: 'bg-purple-500',
@@ -106,9 +108,34 @@ function getStatusConfig(status: string) {
       cardAccent: 'border-l-purple-500',
     };
   }
-  if (s === 'HR_REVIEW' || s === 'PENDING_HR_REVIEW' || s === 'IN_HR_REVIEW') {
+  if (s === 'PENDING_EMPLOYEE_REVIEW') {
     return {
-      label: 'HR Review',
+      label: 'Pending Employee',
+      bg: 'bg-sky-100 dark:bg-sky-900/30',
+      text: 'text-sky-700 dark:text-sky-400',
+      dot: 'bg-sky-500',
+      icon: User,
+      cardAccent: 'border-l-sky-500',
+    };
+  }
+  if (s === 'PENDING_FINAL_APPROVAL') {
+    return {
+      label: 'Pending Final Approval',
+      bg: 'bg-violet-100 dark:bg-violet-900/30',
+      text: 'text-violet-700 dark:text-violet-400',
+      dot: 'bg-violet-500',
+      icon: Clock,
+      cardAccent: 'border-l-violet-500',
+    };
+  }
+  if (
+    s === 'HR_REVIEW' ||
+    s === 'PENDING_HR_REVIEW' ||
+    s === 'IN_HR_REVIEW' ||
+    s === 'PENDING_HR_CALIBRATION_REVIEW'
+  ) {
+    return {
+      label: s === 'PENDING_HR_CALIBRATION_REVIEW' ? 'HR Calibration' : 'HR Review',
       bg: 'bg-orange-100 dark:bg-orange-900/30',
       text: 'text-orange-700 dark:text-orange-400',
       dot: 'bg-orange-500',
@@ -124,6 +151,16 @@ function getStatusConfig(status: string) {
       dot: 'bg-emerald-500',
       icon: CheckCircle2,
       cardAccent: 'border-l-emerald-500',
+    };
+  }
+  if (s === 'FINALIZED_LOCKED') {
+    return {
+      label: 'Finalized',
+      bg: 'bg-teal-100 dark:bg-teal-900/30',
+      text: 'text-teal-700 dark:text-teal-400',
+      dot: 'bg-teal-500',
+      icon: Lock,
+      cardAccent: 'border-l-teal-500',
     };
   }
   if (s === 'REJECTED') {
@@ -196,6 +233,8 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [expandedFilters, setExpandedFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
   const statusOptions = useMemo(() => {
     const set = new Set<string>();
@@ -223,6 +262,26 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
       return hay.includes(q);
     });
   }, [forms, searchQuery, statusFilter]);
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [searchQuery, statusFilter]);
+
+  const pageCount = useMemo(
+    () => Math.max(1, Math.ceil(filteredForms.length / pageSize)),
+    [filteredForms.length, pageSize]
+  );
+
+  useEffect(() => {
+    if (pageIndex > pageCount - 1) {
+      setPageIndex(Math.max(0, pageCount - 1));
+    }
+  }, [pageIndex, pageCount]);
+
+  const paginatedForms = useMemo(() => {
+    const start = pageIndex * pageSize;
+    return filteredForms.slice(start, start + pageSize);
+  }, [filteredForms, pageIndex, pageSize]);
 
   const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all';
 
@@ -564,7 +623,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/40">
-                      {filteredForms.map((form, index) => {
+                      {paginatedForms.map((form, index) => {
                         const statusCfg = getStatusConfig(form.status);
                         return (
                           <tr
@@ -669,7 +728,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
               <>
                 {filteredForms.length > 0 ? (
                   <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {filteredForms.map((form, index) => {
+                    {paginatedForms.map((form, index) => {
                       const statusCfg = getStatusConfig(form.status);
                       const StatusIcon = statusCfg.icon;
                       return (
@@ -775,6 +834,22 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                   </div>
                 )}
               </>
+            )}
+
+            {filteredForms.length > 0 && (
+              <PaginationBar
+                pageIndex={pageIndex}
+                pageSize={pageSize}
+                pageCount={pageCount}
+                totalItems={filteredForms.length}
+                itemLabel="forms"
+                rowsPerPageOptions={[5, 10, 20, 50]}
+                onPageIndexChange={setPageIndex}
+                onPageSizeChange={(nextSize) => {
+                  setPageSize(nextSize);
+                  setPageIndex(0);
+                }}
+              />
             )}
           </div>
         ) : (

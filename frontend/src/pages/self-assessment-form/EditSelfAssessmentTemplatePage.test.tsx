@@ -199,4 +199,38 @@ describe('EditSelfAssessmentTemplatePage manager question permissions', () => {
     expect(screen.queryByRole('button', { name: 'Question Bank' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Go Back' })).toBeInTheDocument()
   })
+
+  it('previews unsaved manager-added questions without saving', async () => {
+    const user = userEvent.setup()
+    render(<EditSelfAssessmentTemplatePage />)
+
+    await user.click(await screen.findByRole('button', { name: 'Add Question' }))
+    await user.type(screen.getByPlaceholderText('Question 2'), 'Manager unsaved preview question')
+    await user.click(screen.getByRole('button', { name: 'Add Question' }))
+
+    await user.click(screen.getByRole('button', { name: 'Preview Template' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Engineering Self Assessment' })
+    expect(dialog).toHaveTextContent('Manager unsaved preview question')
+    expect(dialog).not.toHaveTextContent('Question 3')
+    expect(updateTemplateMock).not.toHaveBeenCalled()
+  })
+
+  it('lets locked templates open the preview', async () => {
+    const user = userEvent.setup()
+    roleId = 1
+    templateData = {
+      ...templateData,
+      isLocked: true,
+      questions: [{ ...templateData.questions[0], canEdit: true, canDeactivate: true }],
+    }
+
+    render(<EditSelfAssessmentTemplatePage />)
+
+    await user.click(await screen.findByRole('button', { name: 'Preview Template' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Engineering Self Assessment' })
+    expect(dialog).toHaveTextContent('HR-created question')
+    expect(updateTemplateMock).not.toHaveBeenCalled()
+  })
 })
