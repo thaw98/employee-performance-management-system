@@ -385,7 +385,7 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     scoreRecordsHookMock.mockReturnValue({ data: manyRecords, isLoading: false, isError: false })
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.getByText(/Page 1 of 2/)).toBeTruthy()
+    expect(document.body.textContent).toMatch(/Showing\s*1\s*–\s*10\s*of\s*12\s*forms/i)
     expect(screen.getByText('Employee 1')).toBeTruthy()
     expect(screen.queryByText('Employee 11')).toBeNull()
   })

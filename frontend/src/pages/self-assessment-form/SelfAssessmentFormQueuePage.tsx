@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FileText,
@@ -22,6 +22,7 @@ import {
   useGetReviewFormsQuery,
   useGetHrReviewFormsQuery,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { PaginationBar } from '../../components/common/PaginationBar';
 
 type StatusKey = 'SUBMITTED' | 'MANAGER_REVIEWED' | 'APPROVED' | 'REJECTED' | 'OTHER';
 type SortField = 'name' | 'department' | 'position' | 'status' | 'score';
@@ -142,6 +143,8 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<StatusKey | 'ALL'>('ALL');
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError } = useGetReviewFormsQuery(undefined, {
     skip: isHr,
@@ -223,6 +226,26 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
     });
     return result;
   }, [forms, searchQuery, activeTab, sortField, sortDir]);
+
+  const pageCount = useMemo(
+    () => Math.max(1, Math.ceil(filteredForms.length / pageSize)),
+    [filteredForms.length, pageSize],
+  );
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [searchQuery, activeTab, sortField, sortDir]);
+
+  useEffect(() => {
+    if (pageIndex > pageCount - 1) {
+      setPageIndex(Math.max(0, pageCount - 1));
+    }
+  }, [pageIndex, pageCount]);
+
+  const paginatedForms = useMemo(() => {
+    const start = pageIndex * pageSize;
+    return filteredForms.slice(start, start + pageSize);
+  }, [filteredForms, pageIndex, pageSize]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -489,7 +512,7 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
 
         <div className="max-h-[calc(100vh-460px)] overflow-y-auto">
           {filteredForms && filteredForms.length > 0 ? (
-            filteredForms.map((form: any, index: number) => {
+            paginatedForms.map((form: any, index: number) => {
               const cfg = getStatusConfig(form.status);
               const StatusIcon = cfg.icon;
               const name = form.employee?.employeeName ?? 'Unknown';
@@ -608,14 +631,31 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
         </div>
 
         {filteredForms.length > 0 && (
-          <div className="border-t border-slate-100 px-5 py-3 dark:border-slate-700/60">
-            <p className="text-[11px] text-slate-400 dark:text-slate-500">
-              Showing <span className="font-semibold text-slate-600 dark:text-slate-300">{filteredForms.length}</span> of{' '}
-              <span className="font-semibold text-slate-600 dark:text-slate-300">{totalCount}</span> forms
-              {activeTab !== 'ALL' && (
-                <span> filtered by <span className="font-semibold text-[#5D5FEF] dark:text-[#8b8ef7]">{STATUS_TABS.find((t) => t.key === activeTab)?.label}</span></span>
-              )}
-            </p>
+          <div className="border-t border-slate-100 px-5 py-4 dark:border-slate-700/60">
+            <PaginationBar
+              className="mt-0"
+              pageIndex={pageIndex}
+              pageSize={pageSize}
+              pageCount={pageCount}
+              totalItems={filteredForms.length}
+              itemLabel="forms"
+              rowsPerPageOptions={[5, 10, 20, 50]}
+              onPageIndexChange={setPageIndex}
+              onPageSizeChange={(nextSize) => {
+                setPageSize(nextSize);
+                setPageIndex(0);
+              }}
+            />
+            {activeTab !== 'ALL' && (
+              <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+                Filtered by{' '}
+                <span className="font-semibold text-[#5D5FEF] dark:text-[#8b8ef7]">
+                  {STATUS_TABS.find((t) => t.key === activeTab)?.label}
+                </span>
+                {' '}
+                ({filteredForms.length} of {totalCount} forms)
+              </p>
+            )}
           </div>
         )}
       </div>
