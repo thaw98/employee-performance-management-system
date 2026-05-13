@@ -4,6 +4,8 @@ import com.epms.backend.StaffTypes;
 import com.epms.backend.entity.AppraisalAssignment;
 import com.epms.backend.entity.AppraisalStatus;
 import com.epms.backend.repository.AppraisalAssignmentRepository;
+import com.epms.backend.repository.AppraisalAnswerRepository;
+import com.epms.backend.repository.AppraisalQuestionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,25 +17,118 @@ import java.util.List;
 public class AppraisalAssignmentService {
 
     private final AppraisalAssignmentRepository appraisalAssignmentRepository;
+    private final AppraisalAnswerRepository appraisalAnswerRepository;
+    private final AppraisalQuestionRepository appraisalQuestionRepository;
     private final AuditService auditService;
 
     public List<AppraisalAssignment> getAllAssignments() {
-        return appraisalAssignmentRepository.findAll().stream()
-                .filter(assignment -> !isProbationEmployee(assignment))
-                .toList();
+        List<AppraisalAssignment> list = appraisalAssignmentRepository.findAll();
+        // Force initialization of template and its categories/questions for HR review
+        list.forEach(a -> {
+            if (a.getTemplate() != null) {
+                a.getTemplate().getCategories().forEach(c -> {
+                    if (c.getQuestions() != null) c.getQuestions().size();
+                });
+            }
+            if (a.getEmployee() != null) {
+                if (a.getEmployee().getDepartment() != null) a.getEmployee().getDepartment().getName();
+                if (a.getEmployee().getPosition() != null) a.getEmployee().getPosition().getName();
+            }
+            if (a.getPeriod() != null) a.getPeriod().getName();
+            if (a.getAnswers() != null) a.getAnswers().size();
+        });
+        return list;
     }
 
     public List<AppraisalAssignment> getAssignmentsForEvaluator(Long evaluatorId) {
-        return appraisalAssignmentRepository.findByEvaluator_Id(evaluatorId);
+        List<AppraisalAssignment> list = appraisalAssignmentRepository.findByEvaluator_Id(evaluatorId);
+        // Force initialization of employee department and position for manager dashboard
+        list.forEach(a -> {
+            if (a.getEmployee() != null) {
+                if (a.getEmployee().getDepartment() != null) a.getEmployee().getDepartment().getName();
+                if (a.getEmployee().getPosition() != null) a.getEmployee().getPosition().getName();
+            }
+            if (a.getPeriod() != null) a.getPeriod().getName();
+        });
+        return list;
+    }
+
+    public List<AppraisalAssignment> getAssignmentsForEmployee(Long employeeId) {
+        List<AppraisalAssignment> list = appraisalAssignmentRepository.findByEmployeeId(employeeId);
+        // Force initialization for employee report view
+        list.forEach(a -> {
+            if (a.getEmployee() != null) {
+                if (a.getEmployee().getDepartment() != null) a.getEmployee().getDepartment().getName();
+                if (a.getEmployee().getPosition() != null) a.getEmployee().getPosition().getName();
+            }
+            if (a.getPeriod() != null) a.getPeriod().getName();
+            if (a.getTemplate() != null) {
+                a.getTemplate().getName();
+            }
+            if (a.getEvaluator() != null) {
+                a.getEvaluator().getEmployeeName();
+            }
+        });
+        return list;
     }
 
     public AppraisalAssignment getById(Long id) {
-        AppraisalAssignment assignment = appraisalAssignmentRepository.findById(id)
+        return appraisalAssignmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Appraisal not found"));
-        if (isProbationEmployee(assignment)) {
-            throw new RuntimeException("Appraisal not found");
+    }
+
+    @Transactional
+    public AppraisalAssignment submitEvaluation(Long id, com.epms.backend.dto.EvaluationRequest req, Long userId, Long roleId) {
+        AppraisalAssignment assignment = getById(id);
+
+        if (assignment.getStatus() != AppraisalStatus.PENDING_MANAGER && assignment.getStatus() != AppraisalStatus.RETURNED) {
+            throw new RuntimeException("Evaluation can only be submitted for pending or returned appraisals.");
         }
-        return assignment;
+
+        // Clear existing answers if any (in case of re-submission/return)
+        assignment.getAnswers().clear();
+
+        for (com.epms.backend.dto.EvaluationRequest.AnswerRequest answerReq : req.getAnswers()) {
+            com.epms.backend.entity.AppraisalAnswer answer = new com.epms.backend.entity.AppraisalAnswer();
+            answer.setAssignment(assignment);
+            answer.setQuestion(appraisalQuestionRepository.findById(answerReq.getQuestionId())
+                    .orElseThrow(() -> new RuntimeException("Question not found: " + answerReq.getQuestionId())));
+            answer.setRating(answerReq.getRating().intValue());
+            answer.setComments(answerReq.getComments());
+            assignment.getAnswers().add(answer);
+        }
+
+        assignment.setStatus(AppraisalStatus.SUBMITTED);
+        assignment.setManagerComments(req.getComments());
+        assignment.setManagerSignature(req.getSignature());
+        assignment.setManagerSignedAt(Instant.now());
+        assignment.setSubmittedAt(Instant.now());
+        assignment.setUpdatedAt(Instant.now());
+
+        // Calculate total score
+        if (!assignment.getAnswers().isEmpty()) {
+            double sum = assignment.getAnswers().stream()
+                    .mapToDouble(a -> a.getRating() != null ? a.getRating() : 0.0)
+                    .sum();
+            
+            double maxRating = (assignment.getTemplate() != null && assignment.getTemplate().getMaxRating() != null) 
+                    ? assignment.getTemplate().getMaxRating() 
+                    : 5.0;
+            
+            assignment.setTotalScore((sum / (assignment.getAnswers().size() * maxRating)) * 100);
+            
+            if (assignment.getTotalScore() >= 90) assignment.setRatingCategory("EXCEPTIONAL");
+            else if (assignment.getTotalScore() >= 75) assignment.setRatingCategory("GOOD");
+            else if (assignment.getTotalScore() >= 50) assignment.setRatingCategory("AVERAGE");
+            else assignment.setRatingCategory("NEEDS_IMPROVEMENT");
+        }
+
+        AppraisalAssignment saved = appraisalAssignmentRepository.save(assignment);
+        
+        auditService.record("SUBMIT_EVALUATION", "AppraisalAssignment", id, userId, roleId, 
+                "Manager submitted evaluation for employee ID: " + assignment.getEmployee().getId(), null);
+        
+        return saved;
     }
 
     @Transactional
@@ -49,7 +144,12 @@ public class AppraisalAssignmentService {
             double sum = assignment.getAnswers().stream()
                     .mapToDouble(a -> a.getRating() != null ? a.getRating() : 0.0)
                     .sum();
-            assignment.setTotalScore(sum / assignment.getAnswers().size() * 20); // Normalize to 100% assuming 5-point scale
+            
+            double maxRating = (assignment.getTemplate() != null && assignment.getTemplate().getMaxRating() != null) 
+                    ? assignment.getTemplate().getMaxRating() 
+                    : 5.0;
+            
+            assignment.setTotalScore((sum / (assignment.getAnswers().size() * maxRating)) * 100);
 
             // Basic Rating Category Logic
             if (assignment.getTotalScore() >= 90) assignment.setRatingCategory("EXCEPTIONAL");

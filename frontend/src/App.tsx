@@ -21,11 +21,14 @@ import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { ManagerKpisPage } from './pages/manager/ManagerKpisPage';
 import { ManagerAppraisalsPage } from './pages/manager/ManagerAppraisalsPage';
+import { ManagerEvaluationPage } from './pages/manager/ManagerEvaluationPage';
 import { MyKpisPage } from './pages/employee/MyKpisPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+import { EmployeeAppraisalsPage } from './pages/employee/EmployeeAppraisalsPage';
+import { EmployeeAppraisalViewPage } from './pages/employee/EmployeeAppraisalViewPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
-import { ProfileSettingsPage } from './pages/ProfileSettingsPage';
+import { UserProfilePage } from './pages/UserProfilePage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
 import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 
@@ -33,6 +36,7 @@ import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 import PipMonitoringPage from './pages/PipMonitoringPage';
 import PipCreatePage from './pages/PipCreatePage';
 import PipDetailPage from './pages/PipDetailPage';
+import PipNotesReviewPage from './pages/hr/PipNotesReviewPage';
 import { CriteriaPage } from './pages/hr/CriteriaPage';
 import { AppraisalsPage } from './pages/hr/AppraisalsPage';
 import { GiveFeedbackPage } from './pages/GiveFeedbackPage';
@@ -57,16 +61,25 @@ import { EditSelfAssessmentTemplatePage } from './pages/self-assessment-form/Edi
 import { MySelfAssessmentFormPage } from './pages/self-assessment-form/MySelfAssessmentFormPage';
 import { EmployeeSelfAssessmentHubPage } from './pages/self-assessment-form/EmployeeSelfAssessmentHubPage';
 import { SelfAssessmentFormReviewPage } from './pages/self-assessment-form/SelfAssessmentFormReviewPage';
+import { SelfAssessmentFormQueuePage } from './pages/self-assessment-form/SelfAssessmentFormQueuePage';
 import { SelfAssessmentActiveFormsPage } from './pages/self-assessment-form/SelfAssessmentActiveFormsPage';
 import { QuestionBankPage } from './pages/self-assessment-form/QuestionBankPage';
 import { SelfAssessmentAssignmentsPage } from './pages/self-assessment-form/SelfAssessmentAssignmentsPage';
 import { AssignSelfAssessmentFormsPage } from './pages/self-assessment-form/AssignSelfAssessmentFormsPage';
 import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
+import { SelfAssessmentAssignedEmployeesPage } from './pages/self-assessment-form/SelfAssessmentAssignedEmployeesPage';
+import { SelfAssessmentScoreRecordsPage } from './pages/self-assessment-form/SelfAssessmentScoreRecordsPage';
 
 // Meetings
 import { MeetingsPage } from './pages/manager/MeetingsPage';
 import { EmployeeMeetingsPage } from './pages/employee/EmployeeMeetingsPage';
 import { MeetingDetailPage } from './pages/meetings/MeetingDetailPage';
+import { NotificationPage } from './pages/NotificationPage';
+
+// Reports Pages
+import ManagerReportsPage from './pages/manager/ReportsPage';
+import HrReportsPage from './pages/hr/ReportsPage';
+import EmployeeReportsPage from './pages/employee/ReportsPage';
 
 const TOAST_DEDUP_MS = 600;
 const recentToastTimestamps = new Map<string, number>();
@@ -146,6 +159,7 @@ function App() {
 
             <Route path="pip-monitoring" element={<PipMonitoringPage />} />
             <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
+            <Route path="pip-notes" element={<PipNotesReviewPage />} />
             <Route path="360-feedback/criteria" element={<CriteriaPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
@@ -159,24 +173,34 @@ function App() {
             <Route path="kpi-history" element={<KpiHistoryPage />} />
             <Route path="kpi-audit-logs" element={<KpiAuditLogsPage />} />
             <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />
-            <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="profile" element={<UserProfilePage />} />
+            <Route path="settings/profile" element={<Navigate to="/hr/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
             <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/assignments" element={<SelfAssessmentAssignmentsPage />} />
-            <Route path="self-assessment/assign-forms" element={<AssignSelfAssessmentFormsPage />} />
+            <Route path="self-assessment/assignments/:templateId/assigned-employees" element={<SelfAssessmentAssignedEmployeesPage />} />
+            <Route
+              path="self-assessment/assign-forms"
+              element={<AssignSelfAssessmentFormsPage />}
+            />
             <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
             <Route
               path="self-assessment/forms/create"
               element={<Navigate to="/hr/self-assessment/templates/create" replace />}
             />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
+            <Route path="self-assessment/review-queue" element={<SelfAssessmentFormQueuePage />} />
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
+            <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
+            <Route path="self-assessment/score-records" element={<SelfAssessmentScoreRecordsPage />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
+            <Route path="notifications" element={<NotificationPage />} />
+            <Route path="reports" element={<HrReportsPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -193,18 +217,25 @@ function App() {
             <Route path="pip/create" element={<PipCreatePage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />
             <Route path="appraisals" element={<ManagerAppraisalsPage />} />
+            <Route path="appraisals/:id/evaluate" element={<ManagerEvaluationPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
-            <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="profile" element={<UserProfilePage />} />
+            <Route path="settings/profile" element={<Navigate to="/manager/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
+            <Route path="self-assessment-forms/review-queue" element={<SelfAssessmentFormQueuePage />} />
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
+            <Route path="self-assessment-forms/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
+            <Route path="self-assessment-forms/score-records" element={<SelfAssessmentScoreRecordsPage />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
+            <Route path="notifications" element={<NotificationPage />} />
+            <Route path="reports" element={<ManagerReportsPage />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>
@@ -219,13 +250,18 @@ function App() {
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
-            <Route path="settings/profile" element={<ProfileSettingsPage />} />
+            <Route path="profile" element={<UserProfilePage />} />
+            <Route path="settings/profile" element={<Navigate to="/employee/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment-forms" element={<EmployeeSelfAssessmentHubPage />} />
             <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
             <Route path="meetings" element={<EmployeeMeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
+            <Route path="notifications" element={<NotificationPage />} />
+            <Route path="appraisals" element={<EmployeeAppraisalsPage />} />
+            <Route path="appraisals/:id/view" element={<EmployeeAppraisalViewPage />} />
+            <Route path="reports" element={<EmployeeReportsPage />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>

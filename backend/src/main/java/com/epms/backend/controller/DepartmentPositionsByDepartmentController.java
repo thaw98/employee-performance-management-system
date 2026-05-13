@@ -22,7 +22,7 @@ public class DepartmentPositionsByDepartmentController {
 	private final DepartmentPositionMappingService mappingService;
 
 	@GetMapping("/{departmentId}/positions")
-	@PreAuthorize("hasRole('HR')")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
 	public ResponseEntity<ApiResponse<List<DepartmentPositionMappingDto>>> getByDepartment(@PathVariable Long departmentId) {
 		return ResponseEntity.ok(ApiResponse.ok("Positions fetched successfully.",
 				mappingService.getMappingsByDepartment(departmentId)));

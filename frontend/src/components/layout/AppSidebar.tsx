@@ -23,9 +23,13 @@ type NavSection = { label: string; items: NavItem[] }
 export function AppSidebar() {
   const role = useAppSelector((s) => s.auth.user?.role)
   const roleId = useAppSelector((s) => s.auth.user?.roleId)
-  const isHr = roleId === 1 || role === 'HR'
-  const isManager = roleId === 2 || roleId === 3 || role === 'DEPARTMENT_HEAD' || role === 'TEAM_HEAD'
   const location = useLocation()
+  
+  // Robust Detection: Check both Role Info and URL Path
+  const isHr = String(roleId) === '1' || role?.toUpperCase() === 'HR'
+  const isManagerPath = location.pathname.startsWith('/manager')
+  const isManager = isManagerPath || String(roleId) === '2' || String(roleId) === '3' || 
+    ['MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'DEPARTMENT HEAD', 'TEAM HEAD', 'DEPT_HEAD', 'TEAM_LEADER'].includes(role?.toUpperCase().replace(/\s+/g, '_') || '')
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
 
@@ -33,7 +37,7 @@ export function AppSidebar() {
     setExpandedSections(prev => ({ ...prev, [path]: !prev[path] }))
   }
 
-  const settingsPath = isHr ? '/hr/settings/profile' : (isManager ? '/manager/settings/profile' : '/employee/settings/profile')
+  const profilePath = isHr ? '/hr/profile' : (isManager ? '/manager/profile' : '/employee/profile')
 
   const navSections: NavSection[] = [
     {
@@ -68,12 +72,16 @@ export function AppSidebar() {
       label: 'Management',
       items: [
         { 
-          name: 'Appraisals', 
-          path: '/hr/appraisals-group', 
+          name: isHr ? 'Appraisals' : (isManager ? 'Appraiser' : 'Appraisee'), 
+          path: isHr ? '/hr/appraisals-group' : (isManager ? '/manager/appraisals-group' : '/manager/appraisals-group'), 
           icon: 'bi-clipboard-check', 
           end: false,
           subItems: [
-            { name: 'Management', path: '/hr/appraisals', icon: 'bi-kanban' }
+            { 
+              name: isHr ? 'Management' : (isManager ? 'Team Appraisals' : 'My Appraisals'), 
+              path: isHr ? '/hr/appraisals' : '/manager/appraisals', 
+              icon: isHr ? 'bi-kanban' : 'bi-people' 
+            }
           ]
         },
         {
@@ -90,17 +98,17 @@ export function AppSidebar() {
         },
         ...(isHr ? [{
           name: 'Self-Assessment',
-          path: '/hr/self-assessment/templates',
+          path: '/hr/self-assessment',
           icon: 'bi-file-earmark-text',
           end: false,
           subItems: [
             { name: 'Template Management', path: '/hr/self-assessment/templates', icon: 'bi-sliders' },
-            { name: 'Assignments overview', path: '/hr/self-assessment/assignments', icon: 'bi-clipboard-check' },
-            { name: 'Assign Self-Assessment Forms', path: '/hr/self-assessment/assign-forms', icon: 'bi-send' },
+            { name: 'Assignments', path: '/hr/self-assessment/assignments', icon: 'bi-clipboard-check' },
             { name: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: 'bi-inbox' },
-            { name: 'Question Bank', path: '/hr/self-assessment/question-bank', icon: 'bi-book' },
-            { name: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: 'bi-list-check' },
-            { name: 'Self Assessment Settings', path: '/hr/self-assessment/settings', icon: 'bi-gear' },
+
+            { name: 'Form Queue', path: '/hr/self-assessment/review-queue', icon: 'bi-list-check' },
+            { name: 'Score Records', path: '/hr/self-assessment/score-records', icon: 'bi-bar-chart' },
+            
           ],
         }] : []),
         { name: 'PIP Monitoring', path: '/hr/pip-monitoring', icon: 'bi-exclamation-triangle', end: false },
@@ -220,7 +228,7 @@ export function AppSidebar() {
 
       <div className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-4 transition-colors duration-300">
         <NavLink
-          to={settingsPath}
+          to={profilePath}
           className={({ isActive }) =>
             `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${isActive
               ? SIDEBAR_LINK_ACTIVE
@@ -231,10 +239,10 @@ export function AppSidebar() {
           {({ isActive }) => (
             <>
               <i
-                className={`bi bi-gear text-base transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
+                className={`bi bi-person-circle text-base transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
                   }`}
               />
-              Settings
+              User Profile
             </>
           )}
         </NavLink>

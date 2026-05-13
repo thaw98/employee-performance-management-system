@@ -1,6 +1,7 @@
 package com.epms.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -46,9 +47,9 @@ public class Pip {
     @JoinColumn(name = "manager_id", nullable = false)
     private Employee manager;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cycle_id")
-    private AppraisalCycle period;
+
+
+
 
     @Column(name = "status", length = 20)
     private String status;
@@ -133,6 +134,10 @@ public class Pip {
 
     @OneToMany(mappedBy = "pip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FollowUpMeeting> followUpMeetings = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "pip", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PipCommunicationNote> communicationNotes = new ArrayList<>();
 
     @Column(name = "total_hours")
     private Integer totalHours;

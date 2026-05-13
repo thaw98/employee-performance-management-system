@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
 public record SetTemplateDeadlineRequest(
-        @NotNull LocalDate deadlineDate
+        @NotNull LocalDate startDate,
+        @NotNull LocalDate deadlineDate,
+        @NotNull LocalDate managerReviewDeadlineDate
 ) {
 }

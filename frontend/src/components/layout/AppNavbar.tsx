@@ -38,6 +38,7 @@ export function AppNavbar() {
 
   const getPageTitle = () => {
     const path = location.pathname
+    if (path.includes('profile')) return 'User Profile'
     if (path.includes('settings')) return 'System Settings'
     if (path.includes('feedback')) return '360° Feedback'
     if (path.includes('performance')) return 'Performance'
@@ -48,8 +49,9 @@ export function AppNavbar() {
 
   const getRolePrefix = () => {
     const userRoleStr = (user?.role || '').toUpperCase()
-    if (userRoleStr === 'HR') return '/hr'
-    if (userRoleStr.includes('HEAD') || userRoleStr.includes('MANAGER') || userRoleStr.includes('LEAD')) return '/manager'
+    const userRoleId = user?.roleId
+    if (userRoleStr === 'HR' || userRoleId === 1) return '/hr'
+    if (userRoleId === 2 || userRoleId === 3 || userRoleStr.includes('HEAD') || userRoleStr.includes('MANAGER') || userRoleStr.includes('LEAD')) return '/manager'
     return '/employee'
   }
 
@@ -118,12 +120,12 @@ export function AppNavbar() {
 
               <div className="p-1.5 space-y-1">
                 <Link
-                  to={`${rolePrefix}/settings/profile`}
+                  to={`${rolePrefix}/profile`}
                   className="flex items-center gap-3 px-3 py-2.5 text-xs font-black text-slate-600 rounded-xl hover:bg-blue-50 hover:text-blue-700 transition-all group"
                   onClick={() => setIsDropdownOpen(false)}
                 >
                   <i className="bi bi-person h-8 w-8 flex items-center justify-center bg-slate-50 rounded-lg group-hover:bg-white border border-transparent group-hover:border-blue-100"></i>
-                  USER SETTINGS
+                  USER PROFILE
                 </Link>
                 <Link
                   to={`${rolePrefix}/settings/system`}

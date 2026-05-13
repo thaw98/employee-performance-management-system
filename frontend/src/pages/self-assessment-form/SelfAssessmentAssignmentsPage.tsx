@@ -1,23 +1,45 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CalendarRange,
+  CalendarDays,
   ChevronDown,
   ChevronRight,
   ClipboardList,
   FileText,
   Layers,
-  Pencil,
   Plus,
   Send,
   Users,
   Sparkles,
   AlertCircle,
   ArrowRight,
+  Eye,
+  X,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useGetActiveReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
-import { useGetAllTemplatesQuery } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
-import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
+import {
+  useGetActiveCycleFormsForHrQuery,
+  useGetAllTemplatesQuery,
+  useSetTemplateDeadlineMutation,
+  type SelfAssessmentFormTemplateDto,
+} from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { SelfAssessmentReviewCycleInfo, formatCycleDate } from './SelfAssessmentReviewCycleInfo';
+import {
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type SortingState,
+} from '@tanstack/react-table';
+import { PaginationBar } from '../../components/common/PaginationBar';
 
 function formatDate(iso?: string | null) {
   if (!iso) return '-';
@@ -30,6 +52,14 @@ function formatDate(iso?: string | null) {
   });
 }
 
+/** US-style display under date inputs (e.g. 04/01/2026) */
+function formatSlashDate(iso: string) {
+  const parts = iso.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return iso;
+  const [y, m, d] = parts;
+  return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`;
+}
+
 export const SelfAssessmentAssignmentsPage: React.FC = () => {
   const { data: activeCycles = [] } = useGetActiveReviewCyclesQuery();
   const {
@@ -37,8 +67,78 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
     isLoading: templatesLoading,
     isError: templatesError,
   } = useGetAllTemplatesQuery();
+  const { data: activeCycleForms } = useGetActiveCycleFormsForHrQuery();
+  const [deadlineModalTemplate, setDeadlineModalTemplate] = useState<SelfAssessmentFormTemplateDto | null>(null);
+  const [modalStartDate, setModalStartDate] = useState('');
+  const [modalEmployeeDeadline, setModalEmployeeDeadline] = useState('');
+  const [modalManagerDeadline, setModalManagerDeadline] = useState('');
+  const [setTemplateDeadline, { isLoading: isSettingDeadline }] = useSetTemplateDeadlineMutation();
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   const activeSubmissionCycle = activeCycles.find((cycle) => cycle.requiresEmployeeSubmission) ?? null;
+
+  useEffect(() => {
+    if (!deadlineModalTemplate || !activeSubmissionCycle) return;
+    const start = activeSubmissionCycle.startDate ?? '';
+    const end = activeSubmissionCycle.endDate ?? '';
+    setModalStartDate(start);
+    setModalEmployeeDeadline(end);
+    setModalManagerDeadline(end);
+  }, [deadlineModalTemplate, activeSubmissionCycle]);
+
+  const closeDeadlineModal = () => setDeadlineModalTemplate(null);
+
+  const managerReviewMinDate = modalEmployeeDeadline || activeSubmissionCycle?.startDate || '';
+
+  const validateModalDates = (): string | null => {
+    if (!activeSubmissionCycle) return 'No active employee-submission review cycle is available';
+    if (!modalStartDate || !modalEmployeeDeadline || !modalManagerDeadline) {
+      return 'Please select start date, employee deadline, and manager review deadline';
+    }
+    if (modalStartDate > modalEmployeeDeadline) {
+      return 'Employee deadline cannot be earlier than the start date.';
+    }
+    if (modalEmployeeDeadline > modalManagerDeadline) {
+      return 'Manager review deadline cannot be earlier than the employee deadline.';
+    }
+    const cycleStartDate = activeSubmissionCycle.startDate;
+    const cycleEndDate = activeSubmissionCycle.endDate;
+    if (
+      [modalStartDate, modalEmployeeDeadline, modalManagerDeadline].some(
+        (date) => date < cycleStartDate || date > cycleEndDate
+      )
+    ) {
+      return 'Start date, employee deadline, and manager deadline must be within the active cycle';
+    }
+    return null;
+  };
+
+  const handleSetDeadlineSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!deadlineModalTemplate) return;
+    const validationError = validateModalDates();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+    try {
+      const result = await setTemplateDeadline({
+        templateId: deadlineModalTemplate.id,
+        request: {
+          startDate: modalStartDate,
+          deadlineDate: modalEmployeeDeadline,
+          managerReviewDeadlineDate: modalManagerDeadline,
+        },
+      }).unwrap();
+      toast.success(
+        `Assigned ${result.createdCount} form(s); skipped ${result.skippedCount} (already in cycle or ineligible).`
+      );
+      closeDeadlineModal();
+    } catch (error: unknown) {
+      const err = error as { data?: { message?: string } };
+      toast.error(err?.data?.message ?? 'Failed to set deadline');
+    }
+  };
 
   const existingTemplatesForActiveCycle = useMemo(() => {
     if (!activeSubmissionCycle) return [];
@@ -60,11 +160,21 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
     () => new Set(existingTemplatesForActiveCycle.map((t) => t.positionName)).size,
     [existingTemplatesForActiveCycle]
   );
-  const totalQuestions = useMemo(
-    () => existingTemplatesForActiveCycle.reduce((sum, t) => sum + t.questions.length, 0),
-    [existingTemplatesForActiveCycle]
-  );
 
+  const assignmentStartDateByTemplateId = useMemo(() => {
+    const map = new Map<number, string>();
+    const forms = activeCycleForms?.forms ?? [];
+
+    forms.forEach((form) => {
+      if (!form.templateId || !form.startDate) return;
+      const existing = map.get(form.templateId);
+      if (!existing || form.startDate < existing) {
+        map.set(form.templateId, form.startDate);
+      }
+    });
+
+    return map;
+  }, [activeCycleForms?.forms]);
   const summaryCards = [
     {
       label: 'Templates',
@@ -93,16 +203,155 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
       ring: 'ring-amber-500/20',
       bgGlow: 'bg-amber-500/10',
     },
-    {
-      label: 'Total Questions',
-      value: totalQuestions,
-      icon: Sparkles,
-      lightBg: 'bg-emerald-50 dark:bg-emerald-950/30',
-      lightIcon: 'text-emerald-600 dark:text-emerald-400',
-      ring: 'ring-emerald-500/20',
-      bgGlow: 'bg-emerald-500/10',
-    },
+
   ];
+
+  type ColumnMeta = { thClassName?: string; tdClassName?: string };
+
+  const columns = useMemo<ColumnDef<SelfAssessmentFormTemplateDto, unknown>[]>(() => {
+    const cols: Array<ColumnDef<SelfAssessmentFormTemplateDto, unknown>> = [
+      {
+        id: 'template',
+        header: 'Template',
+        accessorFn: (row) => row.title,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
+              <FileText size={16} />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-slate-900 dark:text-white max-w-[240px]">
+                {row.original.title}
+              </p>
+              <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 lg:hidden">
+                Start: {formatDate(assignmentStartDateByTemplateId.get(row.original.id) ?? null)}
+              </p>
+            </div>
+          </div>
+        ),
+        meta: { thClassName: 'px-5 py-3.5 text-left', tdClassName: 'px-5 py-4' } satisfies ColumnMeta,
+      },
+      {
+        id: 'department',
+        header: 'Department',
+        accessorFn: (row) => row.departmentName,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1.5">
+            <Users size={12} className="text-slate-400 dark:text-slate-500 shrink-0" />
+            <span className="text-slate-600 dark:text-slate-300 text-xs font-medium truncate max-w-[140px]">
+              {row.original.departmentName}
+            </span>
+          </div>
+        ),
+        meta: { thClassName: 'px-5 py-3.5 text-left', tdClassName: 'px-5 py-4' } satisfies ColumnMeta,
+      },
+      {
+        id: 'position',
+        header: 'Position',
+        accessorFn: (row) => row.positionName,
+        cell: ({ row }) => row.original.positionName,
+        meta: {
+          thClassName: 'px-5 py-3.5 text-left hidden md:table-cell',
+          tdClassName: 'px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 hidden md:table-cell truncate max-w-[130px]',
+        } satisfies ColumnMeta,
+      },
+      {
+        id: 'questions',
+        header: 'Questions',
+        accessorFn: (row) => row.questions.length,
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold tabular-nums text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
+            <Sparkles size={10} className="text-violet-500 dark:text-violet-400" />
+            {row.original.questions.length}
+          </span>
+        ),
+        meta: { thClassName: 'px-5 py-3.5 text-left hidden lg:table-cell', tdClassName: 'px-5 py-4 hidden lg:table-cell' } satisfies ColumnMeta,
+      },
+      {
+        id: 'ratingSystem',
+        header: 'Rating System',
+        accessorFn: (row) => row.ratingSystem,
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+            {row.original.ratingSystem === 'TEN_POINT' ? '10-Point' : '5-Point'}
+          </span>
+        ),
+        meta: { thClassName: 'px-5 py-3.5 text-left hidden lg:table-cell', tdClassName: 'px-5 py-4 hidden lg:table-cell' } satisfies ColumnMeta,
+      },
+      {
+        id: 'startDate',
+        header: 'Start Date',
+        accessorFn: (row) => assignmentStartDateByTemplateId.get(row.id) ?? '',
+        cell: ({ row }) => (
+          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+            {formatDate(assignmentStartDateByTemplateId.get(row.original.id) ?? null)}
+          </span>
+        ),
+        meta: { thClassName: 'px-5 py-3.5 text-left hidden lg:table-cell', tdClassName: 'px-5 py-4 hidden lg:table-cell' } satisfies ColumnMeta,
+      },
+      {
+        id: 'deadlineAssignment',
+        header: 'Deadline Assignment',
+        accessorFn: (row) => (row.isAssignedToDeadline ? 'assigned' : 'not-assigned'),
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.isAssignedToDeadline ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              Already assigned
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
+              Not assigned
+            </span>
+          ),
+        meta: { thClassName: 'px-5 py-3.5 text-left hidden lg:table-cell', tdClassName: 'px-5 py-4 hidden lg:table-cell' } satisfies ColumnMeta,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.isAssignedToDeadline ? (
+            <Link
+              to={`/hr/self-assessment/assignments/${row.original.id}/assigned-employees`}
+              className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+            >
+              <Eye size={13} />
+              View
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setDeadlineModalTemplate(row.original)}
+              className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+            >
+              <CalendarDays size={13} />
+              Assign Deadline
+            </button>
+          ),
+        meta: { thClassName: 'px-5 py-3.5 text-right', tdClassName: 'px-5 py-4 text-right' } satisfies ColumnMeta,
+      },
+    ];
+    return cols;
+  }, [assignmentStartDateByTemplateId]);
+
+  const assignmentTable = useReactTable({
+    data: existingTemplatesForActiveCycle,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    autoResetPageIndex: false,
+    initialState: { pagination: { pageSize: 10 } },
+  });
+
+  useEffect(() => {
+    if (assignmentTable.getState().pagination.pageIndex > 0) {
+      assignmentTable.setPageIndex(0);
+    }
+  }, [existingTemplatesForActiveCycle.length, assignmentTable]);
 
   if (templatesLoading) {
     return (
@@ -323,78 +572,48 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-800/60 dark:to-slate-800/30 dark:border-slate-700/60">
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                    Template
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                    Department
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden md:table-cell">
-                    Position
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
-                    Questions
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
-                    Rating System
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-right text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                    Actions
-                  </th>
-                </tr>
+                {assignmentTable.getHeaderGroups().map((headerGroup) => (
+                  <tr
+                    key={headerGroup.id}
+                    className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-800/60 dark:to-slate-800/30 dark:border-slate-700/60"
+                  >
+                    {headerGroup.headers.map((header) => {
+                      const meta = header.column.columnDef.meta as ColumnMeta | undefined;
+                      const canSort = header.column.getCanSort();
+                      const sorted = header.column.getIsSorted();
+                      return (
+                        <th
+                          key={header.id}
+                          scope="col"
+                          className={`${meta?.thClassName ?? 'px-5 py-3.5 text-left'} text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 ${
+                            canSort ? 'select-none cursor-pointer hover:text-slate-600 dark:hover:text-slate-300' : ''
+                          }`}
+                          onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                        >
+                          <div className={`flex items-center gap-1 ${(meta?.thClassName ?? '').includes('text-right') ? 'justify-end' : ''}`}>
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {sorted === 'asc' ? ' ▲' : sorted === 'desc' ? ' ▼' : ''}
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                ))}
               </thead>
               <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/40">
-                {existingTemplatesForActiveCycle.map((template, index) => (
+                {assignmentTable.getRowModel().rows.map((row) => (
                   <tr
-                    key={template.id}
+                    key={row.id}
                     className="group transition-all duration-200 hover:bg-[#5D5FEF]/[0.02] dark:hover:bg-[#5D5FEF]/[0.04]"
-                    style={{ animationDelay: `${index * 30}ms` }}
                   >
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
-                          <FileText size={16} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-slate-900 dark:text-white max-w-[240px]">
-                            {template.title}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <Users size={12} className="text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span className="text-slate-600 dark:text-slate-300 text-xs font-medium truncate max-w-[140px]">
-                          {template.departmentName}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 hidden md:table-cell truncate max-w-[130px]">
-                      {template.positionName}
-                    </td>
-                    <td className="px-5 py-4 hidden lg:table-cell">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold tabular-nums text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
-                        <Sparkles size={10} className="text-violet-500 dark:text-violet-400" />
-                        {template.questions.length}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 hidden lg:table-cell">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                        {template.ratingSystem === 'TEN_POINT' ? '10-Point' : '5-Point'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <Link
-                        to={`/hr/self-assessment/templates/${template.id}/edit`}
-                        className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
-                      >
-                        <Pencil size={13} />
-                        Edit
-                        <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
-                      </Link>
-                    </td>
+                    {row.getVisibleCells().map((cell) => {
+                      const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
+                      return (
+                        <td key={cell.id} className={meta?.tdClassName ?? 'px-5 py-4'}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -402,6 +621,19 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {activeSubmissionCycle && !templatesError && existingTemplatesForActiveCycle.length > 0 && (
+        <PaginationBar
+          pageIndex={assignmentTable.getState().pagination.pageIndex}
+          pageSize={assignmentTable.getState().pagination.pageSize}
+          pageCount={assignmentTable.getPageCount() || 1}
+          totalItems={existingTemplatesForActiveCycle.length}
+          itemLabel="templates"
+          rowsPerPageOptions={[5, 10, 20, 50]}
+          onPageIndexChange={(next) => assignmentTable.setPageIndex(next)}
+          onPageSizeChange={(nextSize) => assignmentTable.setPageSize(nextSize)}
+        />
+      )}
 
       {/* Bulk Assignment Rules Card */}
       <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '360ms' }}>
@@ -424,6 +656,164 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {deadlineModalTemplate &&
+        activeSubmissionCycle &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+              onClick={closeDeadlineModal}
+              aria-hidden="true"
+            />
+            <div
+              className="fixed inset-0 z-[110] flex items-center justify-center p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="configure-deadlines-title"
+            >
+            <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-800">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-700/60">
+                <div className="min-w-0">
+                  <h2
+                    id="configure-deadlines-title"
+                    className="text-lg font-extrabold tracking-tight text-slate-900 dark:text-white"
+                  >
+                    Configure Deadlines
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Set milestone dates for each stage of the review process
+                  </p>
+                  <p className="mt-2 text-xs font-medium text-slate-400 dark:text-slate-500">
+                    {deadlineModalTemplate.title}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeDeadlineModal}
+                  className="shrink-0 rounded-xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSetDeadlineSubmit} className="p-6">
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
+                    <label
+                      htmlFor="modal-start-date"
+                      className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+                    >
+                      Start Date
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="modal-start-date"
+                        type="date"
+                        value={modalStartDate}
+                        min={activeSubmissionCycle.startDate}
+                        max={activeSubmissionCycle.endDate}
+                        onChange={(event) => setModalStartDate(event.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                      />
+                      <CalendarDays
+                        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                        aria-hidden
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{formatSlashDate(modalStartDate)}</p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
+                    <label
+                      htmlFor="modal-employee-deadline"
+                      className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+                    >
+                      Employee Deadline
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="modal-employee-deadline"
+                        type="date"
+                        value={modalEmployeeDeadline}
+                        min={activeSubmissionCycle.startDate}
+                        max={activeSubmissionCycle.endDate}
+                        onChange={(event) => setModalEmployeeDeadline(event.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                      />
+                      <CalendarDays
+                        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                        aria-hidden
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+                      {formatSlashDate(modalEmployeeDeadline)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/50 p-4 dark:border-slate-700/60 dark:from-slate-800 dark:to-slate-800/50">
+                    <label
+                      htmlFor="modal-manager-deadline"
+                      className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+                    >
+                      Manager Review
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="modal-manager-deadline"
+                        type="date"
+                        value={modalManagerDeadline}
+                        min={managerReviewMinDate || activeSubmissionCycle.startDate}
+                        max={activeSubmissionCycle.endDate}
+                        onChange={(event) => setModalManagerDeadline(event.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                      />
+                      <CalendarDays
+                        className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                        aria-hidden
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">{formatSlashDate(modalManagerDeadline)}</p>
+                  </div>
+                </div>
+
+                {activeSubmissionCycle.endDate && (
+                  <div className="mt-5 rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 dark:border-slate-700/60 dark:bg-slate-800/40">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Final approval
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+                      HR final approval uses the active review cycle end date:{' '}
+                      <span className="font-semibold text-slate-900 dark:text-white">
+                        {formatCycleDate(activeSubmissionCycle.endDate)}.
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={closeDeadlineModal}
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSettingDeadline}
+                    className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60"
+                  >
+                    {isSettingDeadline ? 'Saving…' : 'Assign Deadline'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+          </>,
+          document.body
+        )}
     </div>
   );
 };

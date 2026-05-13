@@ -1,20 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2 } from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2, Building2, Filter, ChevronDown, Award, MessageSquare } from 'lucide-react';
 import { formatDate } from '../../utils/dateUtils';
 import SignatureCanvas from 'react-signature-canvas';
+import { resolveMediaSrc } from '../../utils/mediaUrl';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const PRIMARY = '#0855BF';
 
-interface Answer {
-    id?: number;
-    question?: {
-        id?: number;
-        questionText: string;
-    };
-    comments?: string;
-    rating: number;
+interface Question {
+    id: number;
+    questionText: string;
+    answerType: string;
+    isRequired: boolean;
+}
+
+interface Category {
+    id: number;
+    name: string;
+    description: string;
+    questions: Question[];
+}
+
+interface Template {
+    id: number;
+    name: string;
+    maxRating: number;
+    categories: Category[];
 }
 
 interface Submission {
@@ -24,6 +38,12 @@ interface Submission {
         employeeName: string;
         employeeId?: string;
         department?: {
+            id?: number;
+            name: string;
+            departmentName?: string;
+        };
+        position?: {
+            id?: number;
             name: string;
         };
     };
@@ -31,18 +51,29 @@ interface Submission {
         id?: number;
         name: string;
     };
+    template?: Template;
     totalScore?: number;
     maxPoints?: number;
     ratingCategory?: string;
     status: 'HR_APPROVED' | 'REJECTED' | 'RETURNED' | 'LOCKED' | 'SUBMITTED' | 'PENDING';
     submittedAt?: string;
     answers?: Answer[];
+    managerComments?: string;
+    managerSignature?: string;
+    managerSignedAt?: string;
 }
 
 export function AppraisalSubmissionsPage() {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterDept, setFilterDept] = useState<string | number>('ALL');
+    const [filterPos, setFilterPos] = useState<string | number>('ALL');
+    const [activeTab, setActiveTab] = useState('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
+    const [departments, setDepartments] = useState<any[]>([]);
+    const [positions, setPositions] = useState<any[]>([]);
     const [selectedAsmt, setSelectedAsmt] = useState<Submission | null>(null);
     const [history, setHistory] = useState<any[]>([]);
     const [kpiHistory, setKpiHistory] = useState<any[]>([]);
@@ -53,15 +84,36 @@ export function AppraisalSubmissionsPage() {
     const sigCanvas = useRef<any>(null);
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+    const [defaultSignature, setDefaultSignature] = useState<string | null>(null);
+    const [isUsingSavedSignature, setIsUsingSavedSignature] = useState(false);
+    const [showTopOnly, setShowTopOnly] = useState(false);
+    const [showBottomOnly, setShowBottomOnly] = useState(false);
 
     useEffect(() => {
         fetchSubmissions();
+        fetchDepartments();
+        fetchDefaultSignature();
     }, []);
+
+    useEffect(() => {
+        if (filterDept !== 'ALL') {
+            fetchPositions(filterDept as number);
+        } else {
+            setPositions([]);
+            setFilterPos('ALL');
+        }
+    }, [filterDept]);
 
     useEffect(() => {
         if (selectedAsmt) {
             fetchHistory(selectedAsmt.id);
             fetchKpiHistory(selectedAsmt.employee.id, selectedAsmt.period?.name);
+            
+            // Auto-load default signature for approval
+            if (defaultSignature && !signature) {
+                setSignature(defaultSignature);
+                setIsUsingSavedSignature(true);
+            }
         }
     }, [selectedAsmt]);
 
@@ -85,6 +137,35 @@ export function AppraisalSubmissionsPage() {
             console.error('Fetch error:', err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchDepartments = async () => {
+        try {
+            const resp = await axios.get('/departments');
+            setDepartments(resp.data.data || []);
+        } catch (err) {
+            console.error('Dept fetch error:', err);
+        }
+    };
+
+    const fetchDefaultSignature = async () => {
+        try {
+            const resp = await axios.get('/signatures/default');
+            if (resp.data.success && resp.data.data) {
+                setDefaultSignature(resp.data.data.signatureData);
+            }
+        } catch (err) {
+            console.error("Failed to fetch default signature", err);
+        }
+    };
+
+    const fetchPositions = async (deptId: number) => {
+        try {
+            const resp = await axios.get(`/departments/${deptId}/positions`);
+            setPositions(resp.data.data || []);
+        } catch (err) {
+            console.error('Position fetch error:', err);
         }
     };
 
@@ -127,6 +208,7 @@ export function AppraisalSubmissionsPage() {
             setSelectedAsmt(null);
             setComments('');
             setSignature('');
+            setIsUsingSavedSignature(false);
             sigCanvas.current?.clear();
 
             // Refresh data
@@ -156,7 +238,18 @@ export function AppraisalSubmissionsPage() {
     const handleClearSignature = () => {
         if (sigCanvas.current) {
             sigCanvas.current.clear();
-            setSignature('');
+        }
+        setSignature('');
+        setIsUsingSavedSignature(false);
+    };
+
+    const handleUseDefaultSignature = () => {
+        if (defaultSignature) {
+            setSignature(defaultSignature);
+            setIsUsingSavedSignature(true);
+            toast.success("Default signature applied");
+        } else {
+            toast.error("No default signature found in Settings");
         }
     };
 
@@ -164,14 +257,128 @@ export function AppraisalSubmissionsPage() {
         setSelectedAsmt(null);
         setComments('');
         setSignature('');
+        setIsUsingSavedSignature(false);
         sigCanvas.current?.clear();
         setActionInProgress(null);
     };
 
-    const filteredSubmissions = submissions.filter(s =>
-        s.employee.employeeName.toLowerCase().startsWith(searchTerm.toLowerCase().charAt(0)) ||
-        s.employee.employeeId?.toLowerCase().includes(searchTerm.toLowerCase())
+    const handleExportSummaryPDF = () => {
+        // Filter based on the currently active tab (HR_APPROVED or LOCKED)
+        const targetStatus = activeTab === 'LOCKED' ? 'LOCKED' : 'HR_APPROVED';
+        
+        // Use finalSubmissions (which handles the top-only filtering)
+        const filtered = finalSubmissions.filter(s => s.status === targetStatus);
+
+        if (filtered.length === 0) {
+            toast.error(`No appraisals found to export for ${activeTab === 'LOCKED' ? 'Finalized' : 'Approved'} status.`);
+            return;
+        }
+
+        const doc = new jsPDF('l', 'mm', 'a4');
+        const dateStr = new Date().toLocaleDateString();
+
+        // Header
+        doc.setFillColor(8, 85, 191);
+        doc.rect(0, 0, 297, 40, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text('HR PERFORMANCE SUMMARY REPORT', 15, 20);
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Status: ${targetStatus === 'LOCKED' ? 'FINALIZED' : 'HR APPROVED'}`, 15, 30);
+        doc.text(`Generated on: ${dateStr}`, 15, 35);
+        doc.text(`Filter: ${filterDept === 'ALL' ? 'ALL DEPARTMENTS' : 'DEPARTMENTAL'} | ${filterPos === 'ALL' ? 'ALL POSITIONS' : filterPos.toUpperCase()}`, 282, 35, { align: 'right' });
+
+        const tableData = filtered.map((a, index) => [
+            index + 1,
+            a.employee.employeeName,
+            a.employee.employeeId || 'N/A',
+            a.employee.department?.name || 'N/A',
+            a.employee.position?.name || 'N/A',
+            a.period?.name || 'N/A',
+            `${a.totalScore?.toFixed(1) || '0.0'}%`,
+            a.ratingCategory || 'N/A'
+        ]);
+
+        autoTable(doc, {
+            head: [['NO', 'EMPLOYEE NAME', 'ID', 'DEPARTMENT', 'POSITION', 'PERIOD', 'SCORE %', 'RATING']],
+            body: tableData,
+            startY: 50,
+            theme: 'grid',
+            headStyles: { 
+                fillColor: [30, 41, 59], 
+                textColor: [255, 255, 255],
+                fontSize: 9,
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            styles: { fontSize: 9, cellPadding: 5 },
+            columnStyles: {
+                0: { halign: 'center', cellWidth: 15 },
+                6: { halign: 'center', fontStyle: 'bold' },
+                7: { halign: 'center', fontStyle: 'bold' }
+            },
+            alternateRowStyles: { fillColor: [248, 250, 252] }
+        });
+
+        doc.save(`HR_Performance_Summary_${targetStatus}_${dateStr.replace(/\//g, '-')}.pdf`);
+        toast.success("Summary report exported successfully.");
+    };
+
+    const filteredSubmissions = submissions.filter(s => {
+        const matchesSearch = s.employee.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             s.employee.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const matchesDept = filterDept === 'ALL' || s.employee.department?.id === Number(filterDept);
+        const matchesPos = filterPos === 'ALL' || s.employee.position?.name === filterPos;
+        
+        const matchesStatus = activeTab === 'ALL' || s.status === activeTab;
+        
+        return matchesSearch && matchesDept && matchesPos && matchesStatus;
+    }).sort((a, b) => {
+        const scoreA = a.totalScore ?? 0;
+        const scoreB = b.totalScore ?? 0;
+        return scoreB - scoreA;
+    });
+
+    // Handle Top/Bottom Performers filtering
+    let finalSubmissions = filteredSubmissions;
+    if (showTopOnly || showBottomOnly) {
+        const deptExtremeScores: Record<number, number> = {};
+        
+        // Find max/min score for each department
+        filteredSubmissions.forEach(s => {
+            const deptId = s.employee.department?.id || 0;
+            const score = s.totalScore ?? 0;
+            if (showTopOnly) {
+                if (!deptExtremeScores[deptId] || score > deptExtremeScores[deptId]) {
+                    deptExtremeScores[deptId] = score;
+                }
+            } else if (showBottomOnly) {
+                if (!deptExtremeScores[deptId] || score < deptExtremeScores[deptId]) {
+                    deptExtremeScores[deptId] = score;
+                }
+            }
+        });
+        
+        // Filter to keep only those with the extreme score in their department
+        finalSubmissions = filteredSubmissions.filter(s => {
+            const deptId = s.employee.department?.id || 0;
+            const score = s.totalScore ?? 0;
+            return score === deptExtremeScores[deptId] && score > 0;
+        });
+    }
+
+    const paginatedSubmissions = finalSubmissions.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
     );
+
+    const maxScore = finalSubmissions.length > 0 ? Math.max(...finalSubmissions.map(s => s.totalScore ?? 0)) : 0;
+    const minScore = finalSubmissions.length > 0 ? Math.min(...finalSubmissions.map(s => s.totalScore ?? 0).filter(s => s > 0)) : 0;
 
     const getStatusStyle = (status: string) => {
         switch (status) {
@@ -187,6 +394,8 @@ export function AppraisalSubmissionsPage() {
                 return 'bg-blue-50 text-blue-700 border-blue-200';
             case 'PENDING':
                 return 'bg-purple-50 text-purple-700 border-purple-200';
+            case 'LOCKED':
+                return 'bg-slate-900 text-white border-slate-900';
             default:
                 return 'bg-slate-50 text-slate-500 border-slate-200';
         }
@@ -199,8 +408,31 @@ export function AppraisalSubmissionsPage() {
 
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm shadow-slate-200/50">
+            {/* Status Tabs */}
+            <div className="bg-white p-2 rounded-[28px] border border-slate-100 shadow-sm flex flex-wrap items-center gap-2 px-2 overflow-x-auto">
+                {['ALL', 'PENDING', 'SUBMITTED', 'RETURNED', 'HR_APPROVED', 'REJECTED', 'LOCKED'].map((status) => (
+                    <button
+                        key={status}
+                        onClick={() => {
+                            setActiveTab(status);
+                            setCurrentPage(1);
+                        }}
+                        className={`px-6 py-3 rounded-[20px] text-[10px] font-black uppercase tracking-widest transition-all ${
+                            activeTab === status 
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
+                            : 'text-slate-400 hover:bg-slate-50'
+                        }`}
+                    >
+                        {status === 'LOCKED' ? 'FINALIZED' : status.replace(/_/g, ' ')}
+                        <span className={`ml-2 px-2 py-0.5 rounded-full text-[9px] ${activeTab === status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                            {status === 'ALL' ? submissions.length : submissions.filter(s => s.status === status).length}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            {/* Header with Search & Filters */}
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
                         <h1 className="text-4xl font-black tracking-tight" style={{ color: PRIMARY }}>
@@ -210,15 +442,90 @@ export function AppraisalSubmissionsPage() {
                             Track, review and finalize performance appraisal cycles.
                         </p>
                     </div>
-                    <div className="relative group w-full md:w-80">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search employee..."
-                            className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border-2 border-transparent focus:border-blue-500 focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
+                        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                            {(activeTab === 'HR_APPROVED' || activeTab === 'LOCKED') && (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            setShowTopOnly(!showTopOnly);
+                                            setShowBottomOnly(false);
+                                        }}
+                                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                                            showTopOnly 
+                                            ? 'bg-amber-500 text-white shadow-amber-200' 
+                                            : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        🏆 {showTopOnly ? 'Showing Best Per Dept' : 'Show Top Per Dept'}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowBottomOnly(!showBottomOnly);
+                                            setShowTopOnly(false);
+                                        }}
+                                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                                            showBottomOnly 
+                                            ? 'bg-red-500 text-white shadow-red-200' 
+                                            : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        ⚠️ {showBottomOnly ? 'Showing Bottom Per Dept' : 'Show Bottom Per Dept'}
+                                    </button>
+                                    <button
+                                        onClick={handleExportSummaryPDF}
+                                        className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-slate-200 animate-in zoom-in duration-300"
+                                    >
+                                        <FileText size={16} /> Export Summary (PDF)
+                                    </button>
+                                </>
+                            )}
+                            {/* Search */}
+                        <div className="relative group w-full md:w-64">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder="Search employee..."
+                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Dept Filter */}
+                        <div className="relative min-w-[180px]">
+                            <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                            <select
+                                value={filterDept}
+                                onChange={(e) => {
+                                    setFilterDept(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value));
+                                    setFilterPos('ALL');
+                                }}
+                                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                            >
+                                <option value="ALL">All Departments</option>
+                                {departments.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        </div>
+
+                        {/* Position Filter */}
+                        <div className="relative min-w-[180px]">
+                            <Award className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                            <select
+                                value={filterPos}
+                                onChange={(e) => setFilterPos(e.target.value)}
+                                disabled={filterDept === 'ALL'}
+                                className={`w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100 ${filterDept === 'ALL' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <option value="ALL">All Positions</option>
+                                {positions.map(p => (
+                                    <option key={p.id} value={p.positionName}>{p.positionName}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -253,7 +560,7 @@ export function AppraisalSubmissionsPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredSubmissions.map(sa => (
+                                paginatedSubmissions.map(sa => (
                                     <tr key={sa.id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="p-6">
                                             <div className="flex items-center gap-4">
@@ -261,11 +568,23 @@ export function AppraisalSubmissionsPage() {
                                                     <User size={20} />
                                                 </div>
                                                 <div>
-                                                    <div className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
-                                                        {sa.employee.employeeName}
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+                                                            {sa.employee.employeeName}
+                                                        </div>
+                                                        {sa.totalScore && sa.totalScore > 0 && sa.totalScore === maxScore && showTopOnly && (
+                                                            <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black rounded-md border border-amber-200 animate-bounce shadow-sm">
+                                                                🏆 TOP PERFORMER
+                                                            </span>
+                                                        )}
+                                                        {sa.totalScore && sa.totalScore > 0 && sa.totalScore === minScore && showBottomOnly && (
+                                                            <span className="flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black rounded-md border border-red-200 shadow-sm">
+                                                                ⚠️ NEEDS SUPPORT (PIP)
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">
-                                                        {sa.employee.employeeId || 'N/A'} • {sa.employee.department?.name || 'No Department'}
+                                                        {sa.employee.employeeId || 'N/A'} • {sa.employee.department?.name || 'No Dept'} • <span className="text-blue-500 font-bold">{sa.employee.position?.name || 'No Position'}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -314,6 +633,51 @@ export function AppraisalSubmissionsPage() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Controls */}
+                {finalSubmissions.length > 0 && (
+                    <div className="flex items-center justify-between bg-slate-50 p-6 border-t border-slate-100">
+                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, finalSubmissions.length)} to {Math.min(currentPage * itemsPerPage, finalSubmissions.length)} of {finalSubmissions.length} records
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                disabled={currentPage === 1}
+                                onClick={() => {
+                                    setCurrentPage(prev => prev - 1);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
+                            >
+                                <RotateCcw size={18} className="rotate-180" />
+                            </button>
+                            
+                            {Array.from({ length: Math.ceil(finalSubmissions.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => {
+                                        setCurrentPage(page);
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === page ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+
+                            <button
+                                disabled={currentPage === Math.ceil(finalSubmissions.length / itemsPerPage)}
+                                onClick={() => {
+                                    setCurrentPage(prev => prev + 1);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
+                            >
+                                <RotateCcw size={18} />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Review Modal */}
@@ -377,50 +741,81 @@ export function AppraisalSubmissionsPage() {
                             </div>
 
                             {/* Detailed Answers Section */}
-                            <div className="space-y-4">
-                                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                                    <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
-                                    Detailed Responses
+                            <div className="space-y-6">
+                                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+                                    <div className="w-1.5 h-6 bg-blue-600 rounded-full shadow-sm shadow-blue-500/50" />
+                                    Evaluation Responses
                                 </h4>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {selectedAsmt.answers && selectedAsmt.answers.length > 0 ? (
-                                        selectedAsmt.answers.map((ans, idx) => (
-                                            <div key={ans.id || idx} className="p-5 bg-white rounded-2xl border border-slate-100 hover:border-blue-200 transition-all shadow-sm group">
-                                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                                                    <div className="space-y-3 flex-1">
-                                                        <div className="flex items-start gap-3">
-                                                            <span className="font-black text-slate-200 group-hover:text-blue-200 text-lg">{(idx + 1).toString().padStart(2, '0')}</span>
-                                                            <p className="text-sm font-bold text-slate-700 leading-relaxed">
-                                                                {ans.question?.questionText || 'Question not available'}
-                                                            </p>
-                                                        </div>
-                                                        {ans.comments && (
-                                                            <p className="text-[11px] text-slate-500 italic bg-slate-50 p-3 rounded-xl border border-slate-100 ml-8">
-                                                                "{ans.comments}"
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    
-                                                    {/* Rating Display 5 4 3 2 1 */}
-                                                    <div className="flex items-center gap-1.5 bg-slate-50/50 p-1.5 rounded-2xl border border-slate-100 self-start lg:self-center">
-                                                        {[5, 4, 3, 2, 1].map(num => (
-                                                            <div 
-                                                                key={num}
-                                                                className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center transition-all ${ans.rating === num ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-110 z-10' : 'bg-white text-slate-300 border border-slate-100 opacity-60'}`}
-                                                            >
-                                                                <span className="text-[9px] font-black uppercase tracking-tighter opacity-70 leading-none mb-0.5">{num}</span>
+                                
+                                {selectedAsmt.template?.categories ? (
+                                    <div className="space-y-8">
+                                        {selectedAsmt.template.categories.map((category) => (
+                                            <div key={category.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                                                <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                                                    <h5 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{category.name}</h5>
+                                                    <span className="text-[10px] text-slate-400 italic font-medium">{category.description}</span>
+                                                </div>
+                                                <div className="p-6 space-y-8">
+                                                    {category.questions.map((question, qIdx) => {
+                                                        const answer = selectedAsmt.answers?.find(a => a.question?.id === question.id);
+                                                        const maxRating = selectedAsmt.template?.maxRating || 5;
+
+                                                        return (
+                                                            <div key={question.id} className="space-y-4">
+                                                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                                                                    <div className="flex-1 space-y-1">
+                                                                        <div className="flex items-start gap-3">
+                                                                            <span className="text-xs font-black text-slate-200 mt-0.5">{(qIdx + 1).toString().padStart(2, '0')}</span>
+                                                                            <p className="text-sm font-bold text-slate-700 leading-relaxed">
+                                                                                {question.questionText}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    {/* Rating Display */}
+                                                                    <div className="flex items-center gap-1.5 bg-slate-50/50 p-1.5 rounded-2xl border border-slate-100 self-start lg:self-center">
+                                                                        {[...Array(maxRating)].map((_, i) => {
+                                                                            const num = i + 1;
+                                                                            const isSelected = answer?.rating === num;
+                                                                            return (
+                                                                                <div 
+                                                                                    key={num}
+                                                                                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black transition-all ${
+                                                                                        isSelected 
+                                                                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-500/20 scale-110 z-10' 
+                                                                                        : 'bg-white text-slate-200 border border-slate-100'
+                                                                                    }`}
+                                                                                >
+                                                                                    {num}
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                {answer?.comments && (
+                                                                    <div className="ml-8 flex items-start gap-3 p-4 bg-blue-50/30 rounded-2xl border border-blue-50/50">
+                                                                        <MessageSquare size={14} className="text-blue-400 mt-0.5" />
+                                                                        <p className="text-[11px] text-blue-800 font-medium italic leading-relaxed">
+                                                                            "{answer.comments}"
+                                                                        </p>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        ))}
-                                                    </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="p-10 text-center text-slate-400 font-medium border-2 border-dashed border-slate-200 rounded-3xl">
-                                            Detailed answers not available for preview.
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-16 text-center text-slate-400 font-medium border-4 border-dashed border-slate-50 rounded-[40px] space-y-4">
+                                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
+                                            <Eye size={32} className="opacity-20" />
                                         </div>
-                                    )}
-                                </div>
+                                        <p>No template structure found for this submission.</p>
+                                    </div>
+                                )}
                             </div>
 
                             {/* KPI Revision History Section */}
@@ -509,15 +904,43 @@ export function AppraisalSubmissionsPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     {/* Signature Section */}
                                     <div className="space-y-3">
-                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-2">
-                                            Digital Signature {selectedAsmt.status !== 'HR_APPROVED' && '(Required for Approval)'}
-                                        </label>
-                                        <div className="relative bg-white border-2 border-slate-200 rounded-2xl overflow-hidden group hover:border-slate-300 transition-all">
+                                        <div className="flex items-center justify-between ml-2">
+                                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                                Digital Signature {selectedAsmt.status !== 'HR_APPROVED' && '(Required for Approval)'}
+                                            </label>
+                                            {defaultSignature && (
+                                                <button 
+                                                    onClick={handleUseDefaultSignature}
+                                                    className="text-[9px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1.5"
+                                                    type="button"
+                                                >
+                                                    <RotateCcw size={10} /> Use Saved Signature
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="relative bg-white border-2 border-slate-200 rounded-2xl overflow-hidden group hover:border-slate-300 transition-all h-40">
+                                            {isUsingSavedSignature && signature && (
+                                                <div 
+                                                    className="absolute inset-0 z-10 flex items-center justify-center p-8 bg-white cursor-pointer"
+                                                    onClick={() => setIsUsingSavedSignature(false)}
+                                                >
+                                                    <img 
+                                                        src={resolveMediaSrc(signature)} 
+                                                        alt="Saved Signature" 
+                                                        className="max-w-full max-h-full object-contain opacity-90 transition-transform group-hover:scale-105"
+                                                    />
+                                                    <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw</span>
+                                                    </div>
+                                                </div>
+                                            )}
                                             <SignatureCanvas
                                                 ref={sigCanvas}
+                                                onBegin={() => setIsUsingSavedSignature(false)}
                                                 onEnd={() => {
                                                     if (sigCanvas.current) {
                                                         setSignature(sigCanvas.current.getCanvas().toDataURL());
+                                                        setIsUsingSavedSignature(false);
                                                     }
                                                 }}
                                                 canvasProps={{
@@ -527,10 +950,10 @@ export function AppraisalSubmissionsPage() {
                                             />
                                             <button
                                                 onClick={handleClearSignature}
-                                                className="absolute top-3 right-3 px-3 py-1.5 bg-white border border-slate-200 text-[10px] font-bold uppercase text-slate-500 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all opacity-0 group-hover:opacity-100 shadow-sm"
+                                                className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 transition-all opacity-0 group-hover:opacity-100 rounded-lg z-20 shadow-sm"
                                                 type="button"
                                             >
-                                                Clear
+                                                <RotateCcw size={14} />
                                             </button>
                                         </div>
                                         {signature && (

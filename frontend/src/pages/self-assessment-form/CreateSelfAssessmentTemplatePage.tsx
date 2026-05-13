@@ -25,6 +25,7 @@ import {
   CalendarCheck,
   ClipboardList,
   Crown,
+  Eye,
   GripVertical,
   Layers3,
   Plus,
@@ -56,6 +57,7 @@ import { getRatingOptions, ratingSystemLabels } from '../../features/selfAssessm
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import { formatCycleDate, SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 import { AudienceCard, createCountBadge, formatEmployeeCount } from './SelfAssessmentAudienceCard';
+import { SelfAssessmentTemplatePreviewModal } from './SelfAssessmentTemplatePreviewModal';
 
 interface QuestionFormData {
   title: string;
@@ -166,6 +168,10 @@ type HybridRule = {
   id: string;
   departmentId: number | null;
   positionId: number | null;
+  /** Fallback label when this dept is not in the HR departments list (e.g. inactive). */
+  departmentLabel?: string | null;
+  /** Fallback label when this position is not returned for the department yet. */
+  positionLabel?: string | null;
 };
 
 const createHybridRuleId = () =>
@@ -263,13 +269,26 @@ const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
     [positionsResponse?.data]
   );
 
+  const deptSelectionMissing =
+    rule.departmentId != null &&
+    rule.departmentId > 0 &&
+    !departments.some((d) => d.id === rule.departmentId);
+
+  const positionSelectionMissing =
+    rule.positionId != null &&
+    rule.positionId > 0 &&
+    !rowPositions.some((p) => p.id === rule.positionId);
+
+  const departmentSelectValue =
+    rule.departmentId != null && rule.departmentId > 0 ? String(rule.departmentId) : '';
+
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50/80 p-3 dark:bg-slate-800/50">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
         <div className="relative min-w-[160px] flex-1">
           <select
             aria-label="Department"
-            value={rule.departmentId ?? ''}
+            value={departmentSelectValue}
             onChange={(event) => {
               const value = event.target.value;
               onDepartmentChange(rule.id, value ? Number(value) : null);
@@ -277,6 +296,11 @@ const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
             className={selectBase}
           >
             <option value="">Select department</option>
+            {deptSelectionMissing ? (
+              <option value={String(rule.departmentId)}>
+                {rule.departmentLabel?.trim() || `Department #${rule.departmentId}`}
+              </option>
+            ) : null}
             {departments.map((department) => (
               <option key={department.id} value={department.id}>
                 {department.name}
@@ -296,6 +320,11 @@ const HybridRuleRow: React.FC<HybridRuleRowProps> = ({
             className={selectBase}
           >
             <option value="">All Positions</option>
+            {positionSelectionMissing ? (
+              <option value={String(rule.positionId)}>
+                {rule.positionLabel?.trim() || `Position #${rule.positionId}`}
+              </option>
+            ) : null}
             {rowPositions.length === 0 && rule.departmentId ? (
               <option value="" disabled>
                 No active positions for this department
@@ -347,6 +376,8 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const [copiedSourceTitle, setCopiedSourceTitle] = useState<string | null>(null);
   const [copiedDeletedQuestions, setCopiedDeletedQuestions] = useState<QuestionRequest[]>([]);
   const [copiedRatingSystem, setCopiedRatingSystem] = useState<SelfAssessmentRatingSystem | undefined>(undefined);
+  const [copiedTenPointYesMinRating, setCopiedTenPointYesMinRating] = useState<number | undefined>(undefined);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const { data: reviewCycles = [], isLoading: reviewCyclesLoading } = useGetReviewCyclesQuery({
     requiresEmployeeSubmission: true,
@@ -370,6 +401,10 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
       selectableReviewCycles.find((c) => c.status?.toUpperCase() === 'ACTIVE') ?? selectableReviewCycles[0];
     setSelectedReviewCycleId(activeFirst.id);
   }, [selectableReviewCycles, selectedReviewCycleId]);
+  const selectedReviewCycle = useMemo(
+    () => selectableReviewCycles.find((cycle) => cycle.id === selectedReviewCycleId) ?? null,
+    [selectableReviewCycles, selectedReviewCycleId]
+  );
 
   const { data: departmentsResponse } = useGetDepartmentsQuery();
   const departments = useMemo(
@@ -631,6 +666,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     isLoading: selfAssessmentSettingsLoading,
     isError: selfAssessmentSettingsError,
   } = useGetSelfAssessmentSettingsQuery();
+  const previewRatingSystem = copiedRatingSystem ?? selfAssessmentSettings?.ratingSystem;
+  const previewTenPointYesMinRating =
+    copiedTenPointYesMinRating ?? selfAssessmentSettings?.tenPointYesMinRating;
 
   const [createTemplate, { isLoading: isCreating }] = useCreateTemplateMutation();
   const [checkActiveTemplateConflicts] = useCheckActiveTemplateConflictsMutation();
@@ -649,12 +687,14 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     question.questionText.toLowerCase().includes(questionBankSearch.trim().toLowerCase())
   );
 
-  const { register, control, handleSubmit, getValues, reset } = useForm<QuestionFormData>({
+  const { register, control, handleSubmit, getValues, reset, setValue, watch } = useForm<QuestionFormData>({
     defaultValues: {
       title: '',
       questions: [{ questionText: '' }],
     },
   });
+  const watchedTitle = watch('title');
+  const watchedQuestions = watch('questions');
 
   const { fields, append, remove, move } = useFieldArray({
     control,
@@ -687,6 +727,32 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
         }))
     );
     setCopiedRatingSystem(copiedTemplate.ratingSystem);
+    setCopiedTenPointYesMinRating(copiedTemplate.tenPointYesMinRating);
+
+    const copiedDeptId =
+      typeof copiedTemplate.departmentId === 'number' && copiedTemplate.departmentId > 0
+        ? copiedTemplate.departmentId
+        : null;
+    const copiedPosId =
+      typeof copiedTemplate.positionId === 'number' && copiedTemplate.positionId > 0
+        ? copiedTemplate.positionId
+        : null;
+
+    if (copiedDeptId != null) {
+      setSelectedDepartmentIds([copiedDeptId]);
+      setHybridRules([
+        {
+          id: createHybridRuleId(),
+          departmentId: copiedDeptId,
+          positionId: copiedPosId,
+          departmentLabel: copiedTemplate.departmentName?.trim() || undefined,
+          positionLabel: copiedTemplate.positionName?.trim() || undefined,
+        },
+      ]);
+    }
+    if (copiedPosId != null) {
+      setSelectedGlobalPositionIds([copiedPosId]);
+    }
   }, [copiedTemplate, isPastingCopiedTemplate, reset]);
 
   const handleQuestionDragEnd = (event: DragEndEvent) => {
@@ -716,13 +782,19 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
   const updateHybridRuleDepartment = (ruleId: string, departmentId: number | null) => {
     setHybridRules((rules) =>
-      rules.map((rule) => (rule.id === ruleId ? { ...rule, departmentId, positionId: null } : rule))
+      rules.map((rule) =>
+        rule.id === ruleId
+          ? { ...rule, departmentId, positionId: null, departmentLabel: undefined, positionLabel: undefined }
+          : rule
+      )
     );
   };
 
   const updateHybridRulePosition = (ruleId: string, positionId: number | null) => {
     setHybridRules((rules) =>
-      rules.map((rule) => (rule.id === ruleId ? { ...rule, positionId } : rule))
+      rules.map((rule) =>
+        rule.id === ruleId ? { ...rule, positionId, positionLabel: undefined } : rule
+      )
     );
   };
 
@@ -752,6 +824,48 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
     return hybridPairsDeduped;
   };
+
+  const previewAudienceLabels = useMemo(() => {
+    if (audienceType === 'all') {
+      return allCount > 0 ? [`All Employees (${formatEmployeeCount(allCount)})`] : ['All Employees'];
+    }
+    if (audienceType === 'departments') {
+      return selectedDepartmentIds
+        .map((id) => departmentById.get(id)?.name)
+        .filter((name): name is string => !!name);
+    }
+    if (audienceType === 'positions') {
+      return selectedGlobalPositionIds
+        .map((id) => positionById.get(id)?.name)
+        .filter((name): name is string => !!name);
+    }
+    return hybridRules
+      .filter((rule) => rule.departmentId != null)
+      .map((rule) => {
+        const department = rule.departmentId ? departmentById.get(rule.departmentId)?.name ?? rule.departmentLabel : null;
+        const position =
+          rule.positionId == null ? 'All Positions' : positionById.get(rule.positionId)?.name ?? rule.positionLabel;
+        return department ? `${department} / ${position ?? 'All Positions'}` : '';
+      })
+      .filter(Boolean);
+  }, [
+    allCount,
+    audienceType,
+    departmentById,
+    hybridRules,
+    positionById,
+    selectedDepartmentIds,
+    selectedGlobalPositionIds,
+  ]);
+
+  const previewPrimaryTarget = useMemo(() => {
+    const pairs = getTargetPairs();
+    return pairs[0] ?? null;
+  }, [audienceType, activeEmployeePairs, hybridPairsDeduped, selectedDepartmentIds, selectedGlobalPositionIds]);
+
+  const previewReviewCycleDetail = selectedReviewCycle
+    ? `${formatCycleDate(selectedReviewCycle.startDate)} - ${formatCycleDate(selectedReviewCycle.endDate)}`
+    : null;
 
   const validateAudience = () => {
     if (audienceType === 'departments' && selectedDepartmentIds.length === 0) {
@@ -786,7 +900,12 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
       toast.error('This question is already in the form');
       return;
     }
-    append({ questionText: trimmed });
+    const firstEmptyIndex = existing.findIndex((q) => !q.questionText.trim());
+    if (firstEmptyIndex !== -1) {
+      setValue(`questions.${firstEmptyIndex}.questionText`, trimmed, { shouldDirty: true, shouldValidate: true });
+    } else {
+      append({ questionText: trimmed });
+    }
     setIsQuestionBankOpen(false);
     setQuestionBankSearch('');
     toast.success('Question added to form');
@@ -884,6 +1003,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             deletedQuestions: copiedDeletedQuestions,
             reviewCycleId: selectedReviewCycleId,
             ratingSystem: copiedRatingSystem,
+            tenPointYesMinRating: copiedTenPointYesMinRating,
           }).unwrap();
           createdCount += 1;
         } catch (error: unknown) {
@@ -991,7 +1111,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                       const value = event.target.value;
                       setSelectedReviewCycleId(value ? Number(value) : null);
                     }}
-                    className={`${selectBase} max-w-xl`}
+                    className="max-w-xl w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#5D5FEF] focus:outline-none focus:ring-1 focus:ring-[#5D5FEF] dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                   >
                     {selectableReviewCycles.map((cycle) => {
                       const suffix = reviewCycleOptionSuffix(cycle.status);
@@ -1031,10 +1151,10 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                       <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
                         Could not load settings. Server defaults will apply.
                       </p>
-                    ) : selfAssessmentSettings?.ratingSystem ? (
+                    ) : previewRatingSystem ? (
                       <div className="mt-3 space-y-2">
                         <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                          Scale: <span className="text-slate-900 dark:text-white">{ratingSystemLabels[selfAssessmentSettings.ratingSystem]}</span>
+                          Scale: <span className="text-slate-900 dark:text-white">{ratingSystemLabels[previewRatingSystem]}</span>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2">
                           <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
@@ -1042,7 +1162,11 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                               Yes — scores
                             </dt>
                             <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
-                              {getRatingOptions(selfAssessmentSettings.ratingSystem, 'Yes').join(', ')}
+                              {getRatingOptions(
+                                previewRatingSystem,
+                                'Yes',
+                                previewTenPointYesMinRating,
+                              ).join(', ')}
                             </dd>
                           </div>
                           <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
@@ -1050,7 +1174,11 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                               No — scores
                             </dt>
                             <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
-                              {getRatingOptions(selfAssessmentSettings.ratingSystem, 'No').join(', ')}
+                              {getRatingOptions(
+                                previewRatingSystem,
+                                'No',
+                                previewTenPointYesMinRating,
+                              ).join(', ')}
                             </dd>
                           </div>
                         </div>
@@ -1476,6 +1604,14 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
               Cancel
             </button>
             <button
+              type="button"
+              onClick={() => setIsPreviewOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#5D5FEF]/30 bg-white px-6 py-2.5 text-sm font-bold text-[#5D5FEF] shadow-sm transition-all hover:bg-[#5D5FEF]/[0.04] dark:border-[#5D5FEF]/40 dark:bg-slate-800 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/15"
+            >
+              <Eye size={16} />
+              Preview Template
+            </button>
+            <button
               type="submit"
               disabled={isCreating || selectableReviewCycles.length === 0 || selectedReviewCycleId == null}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 disabled:opacity-50 disabled:shadow-none dark:shadow-[#5D5FEF]/15"
@@ -1489,6 +1625,20 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             </button>
           </div>
         </form>
+
+        <SelfAssessmentTemplatePreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          title={watchedTitle ?? ''}
+          departmentLabel={previewPrimaryTarget?.departmentName ?? null}
+          positionLabel={previewPrimaryTarget?.positionName ?? null}
+          audienceLabels={previewAudienceLabels}
+          reviewCycleLabel={selectedReviewCycle?.name ?? null}
+          reviewCycleDetail={previewReviewCycleDetail}
+          ratingSystem={previewRatingSystem}
+          tenPointYesMinRating={previewTenPointYesMinRating}
+          questions={watchedQuestions ?? []}
+        />
 
         {/* ─── Question Bank Modal ─── */}
         {isQuestionBankOpen && (

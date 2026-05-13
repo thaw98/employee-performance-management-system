@@ -12,6 +12,7 @@ import EmployeeViewModal from '../../../features/hrEmployeeList/components/Emplo
 import EditEmployeeModal from '../../../features/hrEmployeeList/components/EditEmployeeModal'
 import EmployeeImportModal from '../../../features/hrEmployeeList/components/EmployeeImportModal'
 import { TemporaryTransferModal } from '../../../features/hrEmployeeList/components/TemporaryTransferModal'
+import { ReturnModal } from '../../../features/hrEmployeeList/components/ReturnModal'
 import {
   useGetEmployeesQuery,
   useResendPasswordMutation,
@@ -65,6 +66,11 @@ export default function EmployeeListPage() {
   }>({ isOpen: false, employeeId: null, currentStatus: null, probationInfo: null })
 
   const [transferModal, setTransferModal] = useState<{
+    isOpen: boolean
+    employeeId: number | null
+    employeeName: string
+  }>({ isOpen: false, employeeId: null, employeeName: '' })
+  const [returnModal, setReturnModal] = useState<{
     isOpen: boolean
     employeeId: number | null
     employeeName: string
@@ -194,6 +200,19 @@ export default function EmployeeListPage() {
   const handleTransferSuccess = useCallback(() => {
     refetch()
     setTransferModal({ isOpen: false, employeeId: null, employeeName: '' })
+  }, [refetch])
+
+  const handleOpenReturn = useCallback((id: number, name: string) => {
+    setReturnModal({ isOpen: true, employeeId: id, employeeName: name })
+  }, [])
+
+  const handleCloseReturn = useCallback(() => {
+    setReturnModal({ isOpen: false, employeeId: null, employeeName: '' })
+  }, [])
+
+  const handleReturnSuccess = useCallback(() => {
+    refetch()
+    setReturnModal({ isOpen: false, employeeId: null, employeeName: '' })
   }, [refetch])
 
   const handleRetryView = useCallback(() => {
@@ -393,6 +412,7 @@ export default function EmployeeListPage() {
         onView={handleView}
         onEdit={handleEdit}
         onTransfer={handleOpenTransfer}
+        onReturn={handleOpenReturn}
         onResendPassword={openConfirmModal}
         onChangeStatus={handleChangeStatus}
         sorting={sorting}
@@ -539,6 +559,13 @@ export default function EmployeeListPage() {
         employeeName={transferModal.employeeName}
         onClose={handleCloseTransfer}
         onSuccess={handleTransferSuccess}
+      />
+      <ReturnModal
+        isOpen={returnModal.isOpen}
+        employeeId={returnModal.employeeId}
+        employeeName={returnModal.employeeName}
+        onClose={handleCloseReturn}
+        onSuccess={handleReturnSuccess}
       />
 
       {/* Employee Import Modal */}

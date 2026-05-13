@@ -1,6 +1,7 @@
 package com.epms.backend.repository;
 
 import java.util.Optional;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -10,13 +11,15 @@ import com.epms.backend.entity.User;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-	Optional<User> findByEmployee_EmailIgnoreCase(String email);
+	Optional<User> findFirstByEmployee_EmailIgnoreCaseOrderByActiveDescIdAsc(String email);
 
 	Optional<User> findByEmployee_Id(Long employeeId);
 
 	boolean existsByEmployee_EmailIgnoreCase(String email);
 
 	boolean existsByEmployee_Id(Long employeePkId);
+
+	List<User> findByRole_NameIgnoreCase(String roleName);
 
 	@Query("""
 			select u
@@ -26,4 +29,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 			where u.id = :id
 			""")
 	Optional<User> findByIdWithEmployeeDepartment(@Param("id") Long id);
+
+	java.util.List<User> findByRole_IdAndActiveTrue(Long roleId);
 }

@@ -43,11 +43,14 @@ public class PositionServiceImpl implements PositionService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public PositionListResponse getPositions(int page, int size, String search, String positionName, Long roleId,
+	public PositionListResponse getPositions(Integer page, Integer size, String search, String positionName, Long roleId,
 			Long levelCodeId, String sortBy, String sortDir) {
-		Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+		int pageNumber = page == null || page < 0 ? 0 : page;
+		int pageSize = size == null || size <= 0 ? 10 : size;
+		String effectiveSortDir = sortDir == null || sortDir.isBlank() ? "asc" : sortDir;
+		Sort.Direction direction = effectiveSortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
 		Sort sort = Sort.by(direction, mapSortField(sortBy));
-		Pageable pageable = PageRequest.of(page, size, sort);
+		Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
 
 		Specification<Position> spec = buildSpecification(search, positionName, roleId, levelCodeId);
 
@@ -192,7 +195,7 @@ public class PositionServiceImpl implements PositionService {
 	}
 
 	private String mapSortField(String sortBy) {
-		return switch (sortBy) {
+		return switch (sortBy == null ? "" : sortBy) {
 			case "positionCode" -> "code";
 			case "positionName" -> "name";
 			case "levelCodeName" -> "levelCode.code";

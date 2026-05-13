@@ -29,4 +29,8 @@ public interface ReviewCycleRepository extends JpaRepository<ReviewCycle, Long> 
             LocalDate startDate,
             LocalDate endDate
     );
+
+    List<ReviewCycle> findByRequiresEmployeeSubmissionTrueAndStartDate(LocalDate startDate);
+
+    List<ReviewCycle> findByRequiresEmployeeSubmissionTrueAndEndDate(LocalDate endDate);
 }

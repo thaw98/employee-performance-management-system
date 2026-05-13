@@ -24,6 +24,7 @@ import {
   CalendarRange,
   CheckCircle2,
   ClipboardList,
+  Eye,
   FileEdit,
   GripVertical,
   Lock,
@@ -49,6 +50,9 @@ import {
   useGetQuestionBankQuery,
   useUpdateTemplateMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
+import { formatCycleDate } from './SelfAssessmentReviewCycleInfo';
+import { SelfAssessmentTemplatePreviewModal } from './SelfAssessmentTemplatePreviewModal';
 
 interface QuestionFormData {
   title: string;
@@ -231,7 +235,7 @@ const inputBase =
   'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 read-only:cursor-default read-only:bg-slate-50 read-only:text-slate-500 read-only:shadow-none read-only:focus:ring-0 dark:read-only:bg-slate-900/50 dark:read-only:text-slate-400';
 
 const selectBase =
-  'w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 disabled:cursor-not-allowed disabled:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF] dark:disabled:bg-slate-900';
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#5D5FEF] focus:outline-none focus:ring-1 focus:ring-[#5D5FEF] disabled:cursor-not-allowed disabled:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:disabled:bg-slate-900';
 
 const StepBadge: React.FC<{ step: number; label: string; icon: React.ReactNode }> = ({ step, label, icon }) => (
   <div className="flex items-center gap-3">
@@ -261,6 +265,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
   const [isActive, setIsActive] = React.useState(true);
   const [isQuestionBankOpen, setIsQuestionBankOpen] = React.useState(false);
   const [questionBankSearch, setQuestionBankSearch] = React.useState('');
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
 
   const { data: departmentsResponse } = useGetDepartmentsQuery();
   const departments = departmentsResponse?.data || [];
@@ -302,12 +307,38 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
     { includeInactive: false },
     { skip: !isQuestionBankOpen }
   );
+  const { data: reviewCycles = [] } = useGetReviewCyclesQuery();
 
   const filteredQuestionBank = questionBank.filter((question) =>
     question.questionText.toLowerCase().includes(questionBankSearch.trim().toLowerCase())
   );
+  const selectedReviewCycle = React.useMemo(() => {
+    if (!loadedTemplate?.reviewCycleId) {
+      return null;
+    }
+    return reviewCycles.find((cycle) => cycle.id === loadedTemplate.reviewCycleId) ?? null;
+  }, [loadedTemplate?.reviewCycleId, reviewCycles]);
+  const selectedReviewCycleDurationDays = React.useMemo(() => {
+    if (!selectedReviewCycle) {
+      return null;
+    }
+    const start = new Date(`${selectedReviewCycle.startDate}T00:00:00Z`);
+    const end = new Date(`${selectedReviewCycle.endDate}T00:00:00Z`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+      return null;
+    }
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    return Math.floor((end.getTime() - start.getTime()) / oneDayMs) + 1;
+  }, [selectedReviewCycle]);
+  const previewReviewCycleDetail = selectedReviewCycle
+    ? `${formatCycleDate(selectedReviewCycle.startDate)} - ${formatCycleDate(selectedReviewCycle.endDate)}${
+        selectedReviewCycleDurationDays != null
+          ? ` (${selectedReviewCycleDurationDays} day${selectedReviewCycleDurationDays === 1 ? '' : 's'})`
+          : ''
+      }`
+    : null;
 
-  const { register, control, handleSubmit, reset, watch, getValues } = useForm<QuestionFormData>({
+  const { register, control, handleSubmit, reset, watch, getValues, setValue } = useForm<QuestionFormData>({
     defaultValues: {
       title: '',
       questions: [{ questionText: '' }],
@@ -315,6 +346,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
   });
 
   const watchedQuestions = watch('questions');
+  const watchedTitle = watch('title');
 
   const { fields, append, remove, move } = useFieldArray({
     control,
@@ -425,7 +457,12 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
       toast.error('This question is already in the form');
       return;
     }
-    append({ questionText: trimmed, canEdit: true, canDeactivate: true, isManagerAdded: isManager });
+    const firstEmptyIndex = existing.findIndex((q) => !q.questionText.trim());
+    if (firstEmptyIndex !== -1) {
+      setValue(`questions.${firstEmptyIndex}.questionText`, trimmed, { shouldDirty: true, shouldValidate: true });
+    } else {
+      append({ questionText: trimmed, canEdit: true, canDeactivate: true, isManagerAdded: isManager });
+    }
     setIsQuestionBankOpen(false);
     setQuestionBankSearch('');
     toast.success('Question added to form');
@@ -450,6 +487,15 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
   };
 
   const goBack = () => navigate(routeBase);
+  const selectedDepartmentName =
+    loadedTemplate?.departmentName?.trim() ||
+    departments.find((dept) => dept.departmentId === selectedDepartmentId)?.departmentName ||
+    null;
+  const selectedPositionName =
+    loadedTemplate?.positionName?.trim() ||
+    positions.find((position) => position.id === selectedPositionId)?.name ||
+    null;
+  const editPreviewRatingSystem = loadedTemplate?.ratingSystem ?? 'FIVE_POINT';
 
   if (!idValid) {
     return (
@@ -561,6 +607,14 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                     ? loadedTemplate.reviewCycleName
                     : 'Not set (legacy template)'}
                 </p>
+                {selectedReviewCycle && (
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                    {formatCycleDate(selectedReviewCycle.startDate)} - {formatCycleDate(selectedReviewCycle.endDate)}
+                    {selectedReviewCycleDurationDays != null
+                      ? ` (${selectedReviewCycleDurationDays} day${selectedReviewCycleDurationDays === 1 ? '' : 's'})`
+                      : ''}
+                  </p>
+                )}
               </div>
               {loadedTemplate.departmentName && (
                 <div className="hidden items-center gap-2 sm:flex">
@@ -893,6 +947,15 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
                   Cancel
                 </button>
                 <button
+                  type="button"
+                  onClick={() => setIsPreviewOpen(true)}
+                  disabled={!templateReady}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#5D5FEF]/30 bg-white px-6 py-2.5 text-sm font-bold text-[#5D5FEF] shadow-sm transition-all hover:bg-[#5D5FEF]/[0.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#5D5FEF]/40 dark:bg-slate-800 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/15"
+                >
+                  <Eye size={16} />
+                  Preview Template
+                </button>
+                <button
                   type="submit"
                   disabled={isUpdating}
                   className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 disabled:opacity-50 disabled:shadow-none dark:shadow-[#5D5FEF]/15"
@@ -909,9 +972,18 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
 
             {isQuestionEditorReadOnly && (
               <div
-                className="flex justify-end animate-fade-in-up"
+                className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end animate-fade-in-up"
                 style={{ animationDelay: '250ms' }}
               >
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewOpen(true)}
+                  disabled={!templateReady}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#5D5FEF]/30 bg-white px-6 py-2.5 text-sm font-bold text-[#5D5FEF] shadow-sm transition-all hover:bg-[#5D5FEF]/[0.04] disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#5D5FEF]/40 dark:bg-slate-800 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/15"
+                >
+                  <Eye size={16} />
+                  Preview Template
+                </button>
                 <button
                   type="button"
                   onClick={goBack}
@@ -923,6 +995,24 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
             )}
           </form>
         )}
+
+        <SelfAssessmentTemplatePreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          title={watchedTitle ?? ''}
+          departmentLabel={selectedDepartmentName}
+          positionLabel={selectedPositionName}
+          audienceLabels={
+            selectedDepartmentName || selectedPositionName
+              ? [`${selectedDepartmentName ?? 'Department'} / ${selectedPositionName ?? 'Position'}`]
+              : []
+          }
+          reviewCycleLabel={loadedTemplate?.reviewCycleName ?? null}
+          reviewCycleDetail={previewReviewCycleDetail}
+          ratingSystem={editPreviewRatingSystem}
+          tenPointYesMinRating={loadedTemplate?.tenPointYesMinRating}
+          questions={watchedQuestions ?? []}
+        />
 
         {/* ─── Question Bank Modal ─── */}
         {isQuestionBankOpen && (

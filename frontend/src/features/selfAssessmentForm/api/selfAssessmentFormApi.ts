@@ -28,7 +28,9 @@ export interface SelfAssessmentFormTemplateDto {
   reviewCycleName: string | null
   isActive: boolean
   ratingSystem: SelfAssessmentRatingSystem
+  tenPointYesMinRating: number
   isLocked: boolean
+  isAssignedToDeadline: boolean
   questions: QuestionDto[]
   /** Questions soft-deleted from the template; still visible for restore until cleared server-side. */
   deletedQuestions: QuestionDto[]
@@ -70,6 +72,7 @@ export interface CreateTemplateRequest {
   /** Omit or null to use the active employee-submission cycle on the server. */
   reviewCycleId?: number | null
   ratingSystem?: SelfAssessmentRatingSystem
+  tenPointYesMinRating?: number | null
 }
 
 export interface CopiedSelfAssessmentFormTemplateDto {
@@ -77,6 +80,11 @@ export interface CopiedSelfAssessmentFormTemplateDto {
   sourceTemplateId: number
   title: string
   ratingSystem: SelfAssessmentRatingSystem
+  tenPointYesMinRating: number
+  departmentId: number
+  positionId: number
+  departmentName?: string | null
+  positionName?: string | null
   questions: QuestionDto[]
   deletedQuestions: QuestionDto[]
   createdOn: string
@@ -111,6 +119,7 @@ export interface UpdateTemplateRequest {
   isActive: boolean
   questions: QuestionRequest[]
   ratingSystem?: SelfAssessmentRatingSystem
+  tenPointYesMinRating?: number | null
 }
 
 export interface EmployeeInfoDto {
@@ -120,8 +129,10 @@ export interface EmployeeInfoDto {
   email: string
   departmentId: number
   departmentName: string
+  departmentCode: string
   positionId: number
   positionName: string
+  positionCode: string
 }
 
 export interface AnswerDto {
@@ -135,6 +146,8 @@ export interface AnswerDto {
   managerProposedRating: number | null
   managerProposedComment: string | null
   hrAdjustmentApproved: boolean | null
+  finalApprovedYesNo: string | null
+  finalApprovedRating: number | null
 }
 
 export interface AdjustmentDto {
@@ -159,6 +172,8 @@ export interface SelfAssessmentFormDto {
   cycleName: string | null
   title: string
   ratingSystem: SelfAssessmentRatingSystem
+  tenPointYesMinRating: number
+  startDate: string | null
   deadlineDate: string | null
   managerReviewDeadlineDate: string | null
   finalApprovalDeadlineDate: string | null
@@ -169,18 +184,28 @@ export interface SelfAssessmentFormDto {
   ratingCategory: string | null
   employeeRemarks: string | null
   employeeSignatureId: number | null
+  employeeSignatureData: string | null
+  employeeSignatureType: string | null
   employeeSignatureDate: string | null
   overallRemarks: string | null
   managerId: number | null
   managerName: string | null
   managerSignatureId: number | null
+  managerSignatureData: string | null
+  managerSignatureType: string | null
   managerSignatureDate: string | null
   managerComments: string | null
   hrSignatureId: number | null
+  hrSignatureData: string | null
+  hrSignatureType: string | null
   hrSignatureDate: string | null
   hrFinalSignatureId: number | null
+  hrFinalSignatureData: string | null
+  hrFinalSignatureType: string | null
   hrFinalSignatureDate: string | null
   hrAdjustmentSignatureId: number | null
+  hrAdjustmentSignatureData: string | null
+  hrAdjustmentSignatureType: string | null
   hrAdjustmentSignatureDate: string | null
   createdDate: string
   submittedDate: string | null
@@ -189,13 +214,22 @@ export interface SelfAssessmentFormDto {
   employee: EmployeeInfoDto
   answers: AnswerDto[]
   adjustments: AdjustmentDto[]
+  managerRevisedTotalScore: number | null
+  finalApprovedTotalScore: number | null
+  employeeAcknowledgedAt: string | null
+  employeeDisputedAt: string | null
+  employeeDisputeReason: string | null
+  hrReviewRequired: boolean | null
+  hrReviewReason: string | null
 }
 
 export interface FormListDto {
   id: number
+  templateId: number
   title: string
   cycleId: number | null
   cycleName: string | null
+  startDate: string | null
   deadlineDate: string | null
   managerReviewDeadlineDate: string | null
   finalApprovalDeadlineDate: string | null
@@ -219,7 +253,9 @@ export interface CycleInfoDto {
 }
 
 export interface SetTemplateDeadlineRequest {
+  startDate: string
   deadlineDate: string
+  managerReviewDeadlineDate: string
 }
 
 export interface SetTemplateDeadlineResponse {
@@ -236,15 +272,16 @@ export interface SetTemplateDeadlineResponse {
   skippedCount: number
 }
 
-export type SelfAssessmentAssignmentMode = 'ALL_EMPLOYEES' | 'DEPARTMENTS' | 'POSITIONS' | 'HYBRID'
+export type SelfAssessmentAssignmentMode = 'ALL_EMPLOYEES' | 'DEPARTMENTS' | 'POSITIONS' | 'HYBRID' | 'SPECIFIC_EMPLOYEES'
 
 export interface SelfAssessmentAssignmentRequest {
   assignmentMode: SelfAssessmentAssignmentMode
   departmentIds: number[]
   positionIds: number[]
+  employeeIds?: number[]
+  startDate: string
   deadlineDate: string
   managerReviewDeadlineDate: string
-  finalApprovalDeadlineDate: string
 }
 
 export interface SelfAssessmentAssignmentResponse {
@@ -255,19 +292,55 @@ export interface SelfAssessmentAssignmentResponse {
   activeCycle: CycleInfoDto
 }
 
+export type SelfAssessmentAssignmentPreviewStatus = 'NOT_ASSIGNED' | 'ALREADY_ASSIGNED' | 'NO_TEMPLATE'
+
+export interface SelfAssessmentAssignmentPreviewRequest {
+  targets: TemplateTargetPairRequest[]
+  deadlineDate: string
+  managerReviewDeadlineDate: string
+}
+
+export interface SelfAssessmentAssignmentPreviewDto {
+  departmentId: number
+  departmentName: string
+  positionId: number
+  positionName: string
+  templateId: number | null
+  templateTitle: string | null
+  ratingSystem: SelfAssessmentRatingSystem | null
+  questionCount: number
+  assignmentStatus: SelfAssessmentAssignmentPreviewStatus
+  assignedCount: number
+}
+
 export interface ActiveCycleFormsDto {
   activeCycle: CycleInfoDto | null
   forms: FormListDto[]
 }
 
+export interface ScoreRecordDto {
+  id: number
+  employee: EmployeeInfoDto
+  status: string
+  finalApprovedScore: number | null
+  performance: string | null
+  cycleId: number | null
+  cycleName: string | null
+  submittedDate: string | null
+  createdDate: string
+  finalApprovalDate: string | null
+}
+
 export interface SelfAssessmentSettingsDto {
   ratingSystem: SelfAssessmentRatingSystem
+  tenPointYesMinRating: number
   ratingSystemEditable: boolean
   ratingSystemLockReason: string | null
 }
 
 export interface SelfAssessmentSettingsRequest {
   ratingSystem: SelfAssessmentRatingSystem
+  tenPointYesMinRating?: number | null
 }
 
 export interface FormStatusDto {
@@ -309,6 +382,10 @@ export interface ManagerReviewRequest {
   adjustments: ManagerAdjustmentRequest[]
 }
 
+export interface EmployeeDisputeRequest {
+  disputeReason: string
+}
+
 export interface HrApproveManagerReviewRequest {
   /** Optional; server uses the HR user's default signature from Signature Settings. */
   signatureId?: number | null
@@ -317,6 +394,10 @@ export interface HrApproveManagerReviewRequest {
 export interface HrRejectManagerReviewRequest {
   rejectionReason: string
   signatureId?: number | null
+}
+
+export interface HrReturnDisputedReviewRequest {
+  reason: string
 }
 
 export interface HrApproveFormRequest {
@@ -359,8 +440,23 @@ const getOptionalString = (value: unknown) => {
   return typeof value === 'string' ? value : undefined
 }
 
+/** Parses API ids; treats null/undefined/invalid as absent (avoids coalescing JSON null to 0). */
+const parsePositiveId = (value: unknown): number | undefined => {
+  if (value == null || value === '') {
+    return undefined
+  }
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
 const normalizeRatingSystem = (value: unknown): SelfAssessmentRatingSystem => {
   return value === 'TEN_POINT' ? 'TEN_POINT' : 'FIVE_POINT'
+}
+
+const normalizeTenPointYesMinRating = (value: unknown): number => {
+  const numericValue = Number(value ?? 5)
+  if (!Number.isFinite(numericValue)) return 5
+  return Math.min(10, Math.max(2, Math.trunc(numericValue)))
 }
 
 const getResponseData = (response: unknown) => {
@@ -378,8 +474,10 @@ const normalizeEmployeeInfo = (source: UnknownRecord): EmployeeInfoDto => {
     email: getString(source.email),
     departmentId: getNumber(departmentSource?.id ?? source.departmentId),
     departmentName: getString(departmentSource?.departmentName ?? departmentSource?.name ?? source.departmentName, 'N/A'),
+    departmentCode: getString(departmentSource?.departmentCode ?? departmentSource?.code ?? source.departmentCode),
     positionId: getNumber(positionSource?.id ?? source.positionId),
     positionName: getString(positionSource?.positionName ?? positionSource?.name ?? source.positionName, 'N/A'),
+    positionCode: getString(positionSource?.positionCode ?? positionSource?.code ?? source.positionCode),
   }
 }
 
@@ -395,6 +493,8 @@ const normalizeAnswer = (source: UnknownRecord): AnswerDto => {
     managerProposedRating: source.managerProposedRating != null ? getNumber(source.managerProposedRating) : null,
     managerProposedComment: getOptionalString(source.managerProposedComment) ?? null,
     hrAdjustmentApproved: source.hrAdjustmentApproved != null ? getBoolean(source.hrAdjustmentApproved) : null,
+    finalApprovedYesNo: getOptionalString(source.finalApprovedYesNo) ?? null,
+    finalApprovedRating: source.finalApprovedRating != null ? getNumber(source.finalApprovedRating) : null,
   }
 }
 
@@ -425,6 +525,8 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     cycleName: getOptionalString(source.cycleName) ?? null,
     title: getString(source.title, 'Self Assessment Form'),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
+    startDate: getOptionalString(source.startDate) ?? null,
     deadlineDate: getOptionalString(source.deadlineDate) ?? null,
     managerReviewDeadlineDate: getOptionalString(source.managerReviewDeadlineDate) ?? null,
     finalApprovalDeadlineDate: getOptionalString(source.finalApprovalDeadlineDate) ?? null,
@@ -435,18 +537,28 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     ratingCategory: getOptionalString(source.ratingCategory) ?? null,
     employeeRemarks: getOptionalString(source.employeeRemarks) ?? null,
     employeeSignatureId: source.employeeSignatureId != null ? getNumber(source.employeeSignatureId) : null,
+    employeeSignatureData: getOptionalString(source.employeeSignatureData) ?? null,
+    employeeSignatureType: getOptionalString(source.employeeSignatureType) ?? null,
     employeeSignatureDate: getOptionalString(source.employeeSignatureDate) ?? null,
     overallRemarks: getOptionalString(source.overallRemarks) ?? null,
     managerId: source.managerId != null ? getNumber(source.managerId) : null,
     managerName: getOptionalString(source.managerName) ?? null,
     managerSignatureId: source.managerSignatureId != null ? getNumber(source.managerSignatureId) : null,
+    managerSignatureData: getOptionalString(source.managerSignatureData) ?? null,
+    managerSignatureType: getOptionalString(source.managerSignatureType) ?? null,
     managerSignatureDate: getOptionalString(source.managerSignatureDate) ?? null,
     managerComments: getOptionalString(source.managerComments) ?? null,
     hrSignatureId: source.hrSignatureId != null ? getNumber(source.hrSignatureId) : null,
+    hrSignatureData: getOptionalString(source.hrSignatureData) ?? null,
+    hrSignatureType: getOptionalString(source.hrSignatureType) ?? null,
     hrSignatureDate: getOptionalString(source.hrSignatureDate) ?? null,
     hrFinalSignatureId: source.hrFinalSignatureId != null ? getNumber(source.hrFinalSignatureId) : null,
+    hrFinalSignatureData: getOptionalString(source.hrFinalSignatureData) ?? null,
+    hrFinalSignatureType: getOptionalString(source.hrFinalSignatureType) ?? null,
     hrFinalSignatureDate: getOptionalString(source.hrFinalSignatureDate) ?? null,
     hrAdjustmentSignatureId: source.hrAdjustmentSignatureId != null ? getNumber(source.hrAdjustmentSignatureId) : null,
+    hrAdjustmentSignatureData: getOptionalString(source.hrAdjustmentSignatureData) ?? null,
+    hrAdjustmentSignatureType: getOptionalString(source.hrAdjustmentSignatureType) ?? null,
     hrAdjustmentSignatureDate: getOptionalString(source.hrAdjustmentSignatureDate) ?? null,
     createdDate: getString(source.createdDate),
     submittedDate: getOptionalString(source.submittedDate) ?? null,
@@ -454,6 +566,13 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     employee: normalizeEmployeeInfo(isRecord(source.employee) ? source.employee : {}),
     answers: getArray(source.answers).map(a => normalizeAnswer(isRecord(a) ? a : {})),
     adjustments: getArray(source.adjustments).map(a => normalizeAdjustment(isRecord(a) ? a : {})),
+    managerRevisedTotalScore: source.managerRevisedTotalScore != null ? getNumber(source.managerRevisedTotalScore) : null,
+    finalApprovedTotalScore: source.finalApprovedTotalScore != null ? getNumber(source.finalApprovedTotalScore) : null,
+    employeeAcknowledgedAt: getOptionalString(source.employeeAcknowledgedAt) ?? null,
+    employeeDisputedAt: getOptionalString(source.employeeDisputedAt) ?? null,
+    employeeDisputeReason: getOptionalString(source.employeeDisputeReason) ?? null,
+    hrReviewRequired: source.hrReviewRequired != null ? getBoolean(source.hrReviewRequired) : null,
+    hrReviewReason: getOptionalString(source.hrReviewReason) ?? null,
   }
 }
 
@@ -462,9 +581,11 @@ const normalizeFormList = (form: unknown): FormListDto => {
 
   return {
     id: getNumber(source.id),
+    templateId: getNumber(source.templateId),
     title: getString(source.title, 'Self Assessment Form'),
     cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
     cycleName: getOptionalString(source.cycleName) ?? null,
+    startDate: getOptionalString(source.startDate) ?? null,
     deadlineDate: getOptionalString(source.deadlineDate) ?? null,
     managerReviewDeadlineDate: getOptionalString(source.managerReviewDeadlineDate) ?? null,
     finalApprovalDeadlineDate: getOptionalString(source.finalApprovalDeadlineDate) ?? null,
@@ -519,10 +640,32 @@ const normalizeAssignmentResponse = (response: unknown): SelfAssessmentAssignmen
   }
 }
 
+const normalizeAssignmentPreview = (preview: unknown): SelfAssessmentAssignmentPreviewDto => {
+  const source = isRecord(preview) ? preview : {}
+  const assignmentStatus = getString(source.assignmentStatus)
+
+  return {
+    departmentId: getNumber(source.departmentId),
+    departmentName: getString(source.departmentName),
+    positionId: getNumber(source.positionId),
+    positionName: getString(source.positionName),
+    templateId: source.templateId != null ? getNumber(source.templateId) : null,
+    templateTitle: getOptionalString(source.templateTitle) ?? null,
+    ratingSystem: source.ratingSystem != null ? normalizeRatingSystem(source.ratingSystem) : null,
+    questionCount: getNumber(source.questionCount),
+    assignmentStatus:
+      assignmentStatus === 'ALREADY_ASSIGNED' || assignmentStatus === 'NO_TEMPLATE'
+        ? assignmentStatus
+        : 'NOT_ASSIGNED',
+    assignedCount: getNumber(source.assignedCount),
+  }
+}
+
 const normalizeSettings = (settings: unknown): SelfAssessmentSettingsDto => {
   const source = isRecord(settings) ? settings : {}
   return {
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
     ratingSystemEditable: getBoolean(source.ratingSystemEditable, true),
     ratingSystemLockReason: getOptionalString(source.ratingSystemLockReason) ?? null,
   }
@@ -560,7 +703,9 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
     reviewCycleName: getOptionalString(source.reviewCycleName) ?? null,
     isActive: getBoolean(source.isActive),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
     isLocked: getBoolean(source.isLocked),
+    isAssignedToDeadline: getBoolean(source.isAssignedToDeadline, getBoolean(source.isLocked)),
     questions: getArray(source.questions).map(normalizeTemplateQuestion),
     deletedQuestions: getArray(source.deletedQuestions).map(normalizeTemplateQuestion),
     createdOn: getString(source.createdOn),
@@ -571,11 +716,20 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
 const normalizeCopiedTemplate = (template: unknown): CopiedSelfAssessmentFormTemplateDto => {
   const source = isRecord(template) ? template : {}
 
+  const departmentId =
+    parsePositiveId(source.departmentId) ?? parsePositiveId(source.department_id) ?? 0
+  const positionId = parsePositiveId(source.positionId) ?? parsePositiveId(source.position_id) ?? 0
+
   return {
     id: getNumber(source.id),
     sourceTemplateId: getNumber(source.sourceTemplateId),
     title: getString(source.title),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
+    departmentId,
+    positionId,
+    departmentName: getOptionalString(source.departmentName ?? source.department_name) ?? null,
+    positionName: getOptionalString(source.positionName ?? source.position_name) ?? null,
     questions: getArray(source.questions).map(normalizeTemplateQuestion),
     deletedQuestions: getArray(source.deletedQuestions).map(normalizeTemplateQuestion),
     createdOn: getString(source.createdOn),
@@ -613,6 +767,22 @@ const normalizeQuestionBankItem = (question: unknown): QuestionBankDto => {
     createdOn: getString(source.createdOn),
     updatedBy: source.updatedBy != null ? getNumber(source.updatedBy) : null,
     updatedOn: getOptionalString(source.updatedOn) ?? null,
+  }
+}
+
+const normalizeScoreRecord = (record: unknown): ScoreRecordDto => {
+  const source = isRecord(record) ? record : {}
+  return {
+    id: getNumber(source.id),
+    employee: normalizeEmployeeInfo(isRecord(source.employee) ? source.employee : {}),
+    status: getString(source.status),
+    finalApprovedScore: source.finalApprovedScore != null ? getNumber(source.finalApprovedScore) : null,
+    performance: getOptionalString(source.performance) ?? null,
+    cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
+    cycleName: getOptionalString(source.cycleName) ?? null,
+    submittedDate: getOptionalString(source.submittedDate) ?? null,
+    createdDate: getString(source.createdDate),
+    finalApprovalDate: getOptionalString(source.finalApprovalDate) ?? null,
   }
 }
 
@@ -687,6 +857,12 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       },
     }),
 
+    getScoreRecords: builder.query<ScoreRecordDto[], void>({
+      query: () => '/self-assessment-forms/score-records',
+      providesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeScoreRecord),
+    }),
+
     getFormById: builder.query<SelfAssessmentFormDto, number>({
       query: (id) => `/self-assessment-forms/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'SelfAssessmentForm', id }],
@@ -723,6 +899,16 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
+    hrReturnDisputedReview: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrReturnDisputedReviewRequest }>({
+      query: ({ formId, request }) => ({
+        url: `/self-assessment-forms/${formId}/hr-return-disputed-review`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
     hrApproveForm: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrApproveFormRequest }>({
       query: ({ formId, request }) => ({
         url: `/self-assessment-forms/${formId}/hr-approve`,
@@ -743,6 +929,25 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
+    employeeAcknowledge: builder.mutation<SelfAssessmentFormDto, number>({
+      query: (formId) => ({
+        url: `/self-assessment-forms/${formId}/acknowledge`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
+    employeeDispute: builder.mutation<SelfAssessmentFormDto, { formId: number; request: EmployeeDisputeRequest }>({
+      query: ({ formId, request }) => ({
+        url: `/self-assessment-forms/${formId}/dispute`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
     getAllTemplates: builder.query<SelfAssessmentFormTemplateDto[], void>({
       query: () => '/self-assessment-forms/templates',
       providesTags: ['SelfAssessmentTemplates'],
@@ -751,6 +956,7 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
 
     getTemplateById: builder.query<SelfAssessmentFormTemplateDto, number>({
       query: (id) => `/self-assessment-forms/templates/${id}`,
+      providesTags: (_result, _error, id) => [{ type: 'SelfAssessmentTemplates', id }],
       transformResponse: (response: unknown) => normalizeTemplate(getResponseData(response)),
     }),
 
@@ -815,7 +1021,11 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
         method: 'PUT',
         body: request,
       }),
-      invalidatesTags: ['SelfAssessmentForm', 'SelfAssessmentTemplates'],
+      invalidatesTags: (_result, _error, { id }) => [
+        'SelfAssessmentForm',
+        'SelfAssessmentTemplates',
+        { type: 'SelfAssessmentTemplates', id },
+      ],
       transformResponse: (response: unknown) => normalizeTemplate(getResponseData(response)),
     }),
 
@@ -837,6 +1047,16 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['SelfAssessmentForm', 'SelfAssessmentTemplates'],
       transformResponse: (response: unknown) => normalizeAssignmentResponse(getResponseData(response)),
+    }),
+
+    previewSelfAssessmentAssignments: builder.query<SelfAssessmentAssignmentPreviewDto[], SelfAssessmentAssignmentPreviewRequest>({
+      query: (body) => ({
+        url: '/self-assessment-forms/hr/assignments/preview',
+        method: 'POST',
+        body,
+      }),
+      providesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeAssignmentPreview),
     }),
 
     getSelfAssessmentSettings: builder.query<SelfAssessmentSettingsDto, void>({
@@ -909,6 +1129,7 @@ export const {
   useManagerReviewMutation,
   useHrApproveManagerReviewMutation,
   useHrRejectManagerReviewMutation,
+  useHrReturnDisputedReviewMutation,
   useHrApproveFormMutation,
   useHrReopenFormMutation,
   useGetAllTemplatesQuery,
@@ -922,10 +1143,14 @@ export const {
   useUpdateTemplateMutation,
   useSetTemplateDeadlineMutation,
   useAssignSelfAssessmentFormsMutation,
+  usePreviewSelfAssessmentAssignmentsQuery,
   useGetSelfAssessmentSettingsQuery,
   useUpdateSelfAssessmentSettingsMutation,
   useGetQuestionBankQuery,
   useCreateQuestionBankItemMutation,
   useUpdateQuestionBankItemMutation,
   useUpdateQuestionBankItemStatusMutation,
+  useEmployeeAcknowledgeMutation,
+  useEmployeeDisputeMutation,
+  useGetScoreRecordsQuery,
 } = selfAssessmentFormApi

@@ -3,10 +3,10 @@ import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
     Plus, Calendar, Clock, User, CheckCircle, XCircle, 
-    RefreshCw, MessageSquare, Play, Square, Search, Filter,
-    ChevronLeft, ChevronRight, ArrowUpDown, ChevronDown
+    MessageSquare, Play, Square, Search, Filter,
+    ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 export function MeetingsPage() {
     const [meetings, setMeetings] = useState<any[]>([]);
@@ -14,10 +14,14 @@ export function MeetingsPage() {
     const [departments, setDepartments] = useState<any[]>([]);
     const [searchParams, setSearchParams] = useSearchParams();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const location = useLocation();
+    const isHrView = location.pathname.startsWith('/hr/');
+    const hrSection = (searchParams.get('section') || 'schedule') as 'schedule' | 'history';
     const activeTab = (searchParams.get('tab') || 'UPCOMING') as 'UPCOMING' | 'ONGOING' | 'COMPLETED';
     const setActiveTab = (tab: string) => {
-        searchParams.set('tab', tab);
-        setSearchParams(searchParams);
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set('tab', tab);
+        setSearchParams(nextParams);
     };
     const navigate = useNavigate();
 
@@ -80,28 +84,35 @@ export function MeetingsPage() {
 
     useEffect(() => {
         fetchMeetings();
-        fetchEligibleEmployees();
+        if (!isHrView || hrSection === 'schedule') fetchEligibleEmployees();
         fetchDepartments();
         const interval = setInterval(() => {
-            if (activeTab !== 'COMPLETED') fetchMeetings();
+            if ((!isHrView || hrSection === 'schedule') && activeTab !== 'COMPLETED') fetchMeetings();
         }, 30000); 
         return () => clearInterval(interval);
-    }, [activeTab, page, sortBy, selectedDept, subStatus]);
+    }, [activeTab, page, sortBy, selectedDept, subStatus, hrSection, isHrView]);
 
     const fetchMeetings = async () => {
         try {
             let statuses = '';
-            if (activeTab === 'UPCOMING') statuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED';
-            if (activeTab === 'ONGOING') statuses = 'ONGOING';
-            if (activeTab === 'COMPLETED') {
-                if (subStatus === 'ALL') statuses = 'COMPLETED,CANCELLED';
-                else statuses = subStatus;
+            if (isHrView && hrSection === 'history') {
+                statuses = subStatus === 'ALL' ? 'COMPLETED,CANCELLED' : subStatus;
+            } else {
+                if (activeTab === 'UPCOMING') statuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED';
+                if (activeTab === 'ONGOING') statuses = 'ONGOING';
+                if (activeTab === 'COMPLETED') {
+                    if (subStatus === 'ALL') statuses = 'COMPLETED,CANCELLED';
+                    else statuses = subStatus;
+                }
             }
 
-            let url = `/meetings/manager?statuses=${statuses}&page=${page}&size=${pageSize}&sortBy=${sortBy}`;
+            let url = isHrView && hrSection === 'history'
+                ? `/meetings/history?page=${page}&size=${pageSize}&sortBy=${sortBy}`
+                : `/meetings/manager?statuses=${statuses}&page=${page}&size=${pageSize}&sortBy=${sortBy}`;
+            if (statuses) url += `&statuses=${statuses}`;
             if (searchName) url += `&searchName=${encodeURIComponent(searchName)}`;
             if (selectedDept) url += `&departmentId=${selectedDept}`;
-            if (activeTab === 'COMPLETED') {
+            if (activeTab === 'COMPLETED' || (isHrView && hrSection === 'history')) {
                 if (fromDate) url += `&fromDate=${new Date(fromDate).toISOString()}`;
                 if (toDate) url += `&toDate=${new Date(toDate).toISOString()}`;
             }
@@ -202,24 +213,6 @@ export function MeetingsPage() {
         }
     };
 
-    // Cancellation logic
-    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-    const [cancelReason, setCancelReason] = useState('');
-    const [cancelMeetingId, setCancelMeetingId] = useState<number | null>(null);
-
-    const handleCancelSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!cancelMeetingId) return;
-        try {
-            await axios.put(`/meetings/${cancelMeetingId}/cancel`, { reason: cancelReason });
-            toast.success('Meeting cancelled');
-            setIsCancelModalOpen(false);
-            fetchMeetings();
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Failed to cancel meeting');
-        }
-    };
-
     const handleApproveCancel = async (id: number) => {
         try {
             await axios.put(`/meetings/${id}/approve-cancel`);
@@ -238,12 +231,6 @@ export function MeetingsPage() {
         } catch (err) {
             toast.error('Failed to reject cancellation');
         }
-    };
-
-    const openCancelModal = (id: number) => {
-        setCancelMeetingId(id);
-        setCancelReason('');
-        setIsCancelModalOpen(true);
     };
 
     const handleFinishMeeting = (id: number) => {
@@ -279,17 +266,26 @@ export function MeetingsPage() {
         <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <div>
-                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Manager Meetings</h1>
-                    <p className="text-slate-500 font-medium text-sm mt-1">Schedule and manage 1-on-1 meetings with your subordinates</p>
+                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
+                        {isHrView && hrSection === 'history' ? 'Meeting History' : isHrView ? 'Schedule Meeting' : 'Manager Meetings'}
+                    </h1>
+                    <p className="text-slate-500 font-medium text-sm mt-1">
+                        {isHrView && hrSection === 'history'
+                            ? 'Review completed and cancelled meetings across all departments'
+                            : 'Schedule and manage 1-on-1 meetings with your subordinates'}
+                    </p>
                 </div>
-                <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm"
-                >
-                    <Plus size={18} /> Schedule Meeting
-                </button>
+                {(!isHrView || hrSection === 'schedule') && (
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm"
+                    >
+                        <Plus size={18} /> Schedule Meeting
+                    </button>
+                )}
             </div>
 
+            {(!isHrView || hrSection === 'schedule') && (
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-100 w-fit">
                     {['UPCOMING', 'ONGOING', 'COMPLETED'].map(tab => (
@@ -329,19 +325,55 @@ export function MeetingsPage() {
                     </div>
                 )}
             </div>
+            )}
 
-            {activeTab === 'COMPLETED' && showFilters && (
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in slide-in-from-top-2 duration-200">
+            {isHrView && hrSection === 'history' && (
+                <div className="flex items-center gap-2 justify-end">
+                    <div className="relative group flex-1 md:max-w-xs">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                            type="text"
+                            value={searchName}
+                            onChange={(e) => setSearchName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
+                            placeholder="Search employee or manager..."
+                            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`p-2 rounded-xl border transition-all ${showFilters ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600'}`}
+                    >
+                        <Filter size={20} />
+                    </button>
+                </div>
+            )}
+
+            {((activeTab === 'COMPLETED' && (!isHrView || hrSection === 'schedule')) || (isHrView && hrSection === 'history')) && showFilters && (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in slide-in-from-top-2 duration-200">
                     <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Status</label>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Status / Type</label>
                         <select 
                             value={subStatus}
                             onChange={(e) => { setSubStatus(e.target.value); setPage(0); }}
                             className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500"
                         >
-                            <option value="ALL">All (History)</option>
+                            <option value="ALL">{isHrView && hrSection === 'history' ? 'All completed/cancelled' : 'All (History)'}</option>
                             <option value="COMPLETED">Completed Only</option>
                             <option value="CANCELLED">Cancelled Only</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Department</label>
+                        <select
+                            value={selectedDept}
+                            onChange={(e) => { setSelectedDept(e.target.value); setPage(0); }}
+                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500"
+                        >
+                            <option value="">All Departments</option>
+                            {departments.map((dept: any) => (
+                                <option key={dept.id} value={dept.id}>{dept.name}</option>
+                            ))}
                         </select>
                     </div>
                     <div>
@@ -381,11 +413,17 @@ export function MeetingsPage() {
                         <p className="text-slate-500 text-sm mt-2">You don't have any meetings in this category.</p>
                     </div>
                 )}
-                {meetings.map(m => (
+                {meetings.map(m => {
+                    const canOpenDetails =
+                        (isHrView && hrSection === 'history') ||
+                        (!isHrView && (m.status === 'COMPLETED' || m.status === 'CANCELLED'));
+                    const detailPath = isHrView ? `/hr/meetings/${m.id}` : `/manager/meetings/${m.id}`;
+
+                    return (
                     <div 
                         key={m.id} 
-                        onClick={() => (m.status === 'COMPLETED' || m.status === 'CANCELLED') && navigate(`/manager/meetings/${m.id}`)}
-                        className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between transition-all group ${ (m.status === 'COMPLETED' || m.status === 'CANCELLED') ? 'cursor-pointer hover:border-emerald-200' : 'hover:border-emerald-200'}`}
+                        onClick={() => canOpenDetails && navigate(detailPath)}
+                        className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between transition-all group ${canOpenDetails ? 'cursor-pointer hover:border-emerald-200' : 'hover:border-emerald-200'}`}
                     >
                         <div>
                             <div className="flex justify-between items-start mb-4">
@@ -414,7 +452,7 @@ export function MeetingsPage() {
                             </div>
                         </div>
 
-                        {activeTab !== 'COMPLETED' && (
+                        {activeTab !== 'COMPLETED' && (!isHrView || hrSection === 'schedule') && (
                             <div className="space-y-4">
                                 {m.status === 'RESCHEDULE_REQUESTED' && (
                                     <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
@@ -440,7 +478,7 @@ export function MeetingsPage() {
                                 
                                 <div className="flex gap-2 mt-auto">
                                     <button 
-                                        onClick={(e) => { e.stopPropagation(); navigate(`/manager/meetings/${m.id}`); }}
+                                        onClick={(e) => { e.stopPropagation(); navigate(detailPath); }}
                                         className="flex-1 bg-slate-50 border border-slate-200 text-slate-700 py-2 rounded-xl text-sm font-bold hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
                                     >
                                         <MessageSquare size={16} /> Details
@@ -467,17 +505,25 @@ export function MeetingsPage() {
                             </div>
                         )}
                         
-                        {activeTab === 'COMPLETED' && (
+                        {activeTab === 'COMPLETED' && (!isHrView || hrSection === 'schedule') && (
+                            <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Click to view details</span>
+                                <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 group-hover:text-emerald-500 transition-all" />
+                            </div>
+                        )}
+
+                        {isHrView && hrSection === 'history' && (
                             <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Click to view details</span>
                                 <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 group-hover:text-emerald-500 transition-all" />
                             </div>
                         )}
                     </div>
-                ))}
+                    );
+                })}
             </div>
 
-            {activeTab === 'COMPLETED' && totalPages > 1 && (
+            {((activeTab === 'COMPLETED' && (!isHrView || hrSection === 'schedule')) || (isHrView && hrSection === 'history')) && totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 mt-8">
                     <button 
                         disabled={page === 0}
@@ -626,38 +672,6 @@ export function MeetingsPage() {
                                 className="w-full bg-emerald-600 text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-emerald-700 transition-colors shadow-md mt-2"
                             >
                                 Send Proposal
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            )}
-            {/* Cancellation Modal */}
-            {isCancelModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="bg-rose-800 p-6 text-white flex justify-between items-center">
-                            <h2 className="text-xl font-black uppercase tracking-tight">Cancel Meeting</h2>
-                            <button onClick={() => setIsCancelModalOpen(false)} className="text-rose-400 hover:text-white transition-colors">
-                                <XCircle size={24} />
-                            </button>
-                        </div>
-                        <form onSubmit={handleCancelSubmit} className="p-6 space-y-5">
-                            <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Cancellation Reason</label>
-                                <textarea 
-                                    required
-                                    rows={4}
-                                    value={cancelReason}
-                                    onChange={(e) => setCancelReason(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none transition-all resize-none"
-                                    placeholder="Explain why you are cancelling this meeting..."
-                                />
-                            </div>
-                            <button 
-                                type="submit"
-                                className="w-full bg-rose-600 text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-rose-700 transition-colors shadow-md mt-2"
-                            >
-                                Confirm Cancellation
                             </button>
                         </form>
                     </div>

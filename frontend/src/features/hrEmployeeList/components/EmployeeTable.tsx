@@ -8,7 +8,7 @@ import {
   type OnChangeFn,
 } from '@tanstack/react-table'
 import { useMemo, memo } from 'react'
-import { ArrowLeftRight } from 'lucide-react'
+import { ArrowLeftRight, RotateCcw } from 'lucide-react'
 import EmployeeProfileCell from './EmployeeProfileCell'
 import { STAFF_TYPE_PROBATION } from '../../employeeOnboarding/utils/staffType'
 import type { EmployeeListItem } from '../hrEmployeeApi'
@@ -19,6 +19,7 @@ interface EmployeeTableProps {
   onView: (id: number) => void
   onEdit: (id: number) => void
   onTransfer?: (id: number, employeeName: string) => void
+  onReturn?: (id: number, employeeName: string) => void
   onResendPassword: (id: number) => void
   onChangeStatus: (id: number, currentStatus: 'Probation' | 'Permanent' | 'Resigned' | 'Terminated') => void
   sorting: SortingState
@@ -32,6 +33,7 @@ function EmployeeTable({
   onView,
   onEdit,
   onTransfer,
+  onReturn,
   onResendPassword,
   onChangeStatus,
   sorting,
@@ -152,18 +154,29 @@ function EmployeeTable({
                   </button>
 
                   {row.staffTypeId !== STAFF_TYPE_PROBATION && (
-                    <button
-                      onClick={() => onTransfer?.(row.employeeId, row.employeeName)}
-                      disabled={row.currentTransferType === 'TEMPORARY'}
-                      className="p-1 text-amber-500 hover:bg-amber-50 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
-                      title={
-                        row.currentTransferType === 'TEMPORARY'
-                          ? 'Already on temporary assignment — return first'
-                          : 'Temporary Transfer'
-                      }
-                    >
-                      <ArrowLeftRight size={18} />
-                    </button>
+                    <>
+                      <button
+                        onClick={() => onTransfer?.(row.employeeId, row.employeeName)}
+                        disabled={row.currentTransferType === 'TEMPORARY'}
+                        className="p-1 text-amber-500 hover:bg-amber-50 rounded transition-colors disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+                        title={
+                          row.currentTransferType === 'TEMPORARY'
+                            ? 'Already on temporary assignment. Use Return action first, then create a new transfer.'
+                            : 'Temporary Transfer'
+                        }
+                      >
+                        <ArrowLeftRight size={18} />
+                      </button>
+                      {row.currentTransferType === 'TEMPORARY' && (
+                        <button
+                          onClick={() => onReturn?.(row.employeeId, row.employeeName)}
+                          className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                          title="Return from Temporary"
+                        >
+                          <RotateCcw size={18} />
+                        </button>
+                      )}
+                    </>
                   )}
 
                   {row.hasUserAccount && row.mustChangePassword && (
@@ -185,7 +198,7 @@ function EmployeeTable({
 
       return baseColumns
     },
-    [isHR, onView, onEdit, onTransfer, onResendPassword, onChangeStatus]
+    [isHR, onView, onEdit, onTransfer, onReturn, onResendPassword, onChangeStatus]
   )
 
   const table = useReactTable({

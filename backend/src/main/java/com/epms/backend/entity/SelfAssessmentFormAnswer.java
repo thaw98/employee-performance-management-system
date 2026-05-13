@@ -47,4 +47,10 @@ public class SelfAssessmentFormAnswer {
 
     @Column(name = "hr_adjustment_approved")
     private Boolean hrAdjustmentApproved;
+
+    @Column(name = "final_approved_yes_no")
+    private String finalApprovedYesNo;
+
+    @Column(name = "final_approved_rating")
+    private Integer finalApprovedRating;
 }

@@ -5,6 +5,8 @@ import {
   useUpdateProgressMutation,
   useScheduleMeetingMutation,
   useClosePipMutation,
+  useEmployeeSignMutation,
+  useManagerSignMutation,
   useMarkPipCompletedMutation,
   useReopenPipMutation,
   useReviewPipMutation,
@@ -13,33 +15,48 @@ import {
 import { useSelector } from 'react-redux'
 import type { RootState } from '../app/store'
 import { formatDate, formatDateTime } from '../utils/dateUtils'
+import { useGetDefaultSignatureQuery } from '../features/user/userApi'
+import { resolveMediaSrc } from '../utils/mediaUrl'
+import { PipCommunicationNotes } from '../features/pip/components/PipCommunicationNotes'
+import PipUnifiedLog from '../features/pip/components/PipUnifiedLog'
+
+const isImageSignature = (signature?: string) => {
+  if (!signature) return false
+  const value = signature.trim()
+  return value.startsWith('data:image/') || value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://')
+}
 
 export default function PipDetailPage() {
   const { id } = useParams<{ id: string }>()
   const pipId = parseInt(id!)
   const { data: pip, isLoading } = useGetPipByIdQuery(pipId)
   const { user } = useSelector((state: RootState) => state.auth)
+  const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery()
+  const defaultSignature = defaultSigResponse?.data ?? null
+  const hasDefaultSignature = Boolean(defaultSignature?.signatureData)
 
   const [updateProgress] = useUpdateProgressMutation()
   const [scheduleMeeting] = useScheduleMeetingMutation()
   const [closePip] = useClosePipMutation()
+  const [employeeSign, { isLoading: isSigningEmployee }] = useEmployeeSignMutation()
+  const [managerSign, { isLoading: isSigningManager }] = useManagerSignMutation()
   const [markPipCompleted, { isLoading: isMarkingCompleted }] = useMarkPipCompletedMutation()
   const [reopenPip] = useReopenPipMutation()
   const [reviewPip] = useReviewPipMutation()
 
   const employeeRecordId = pip?.employee?.id
-  const { data: trainingHistory } = useGetTrainingHistoryQuery(
+  const { data: trainingHistory, isLoading: isTrainingHistoryLoading } = useGetTrainingHistoryQuery(
     employeeRecordId != null ? String(employeeRecordId) : '',
     {
       skip: employeeRecordId == null,
     },
   )
-
   const [showUpdateModal, setShowUpdateModal] = useState<{ open: boolean; objectiveId: number | null }>({
     open: false,
     objectiveId: null,
   })
   const [updateValue, setUpdateValue] = useState({ percentage: 0, completedHours: 0, feedback: '' })
+  const [trainingHistoryFilter, setTrainingHistoryFilter] = useState<'IN_PROGRESS' | 'ALL'>('IN_PROGRESS')
 
   const [showMeetingModal, setShowMeetingModal] = useState(false)
   const [meetingDate, setMeetingDate] = useState('')
@@ -49,6 +66,8 @@ export default function PipDetailPage() {
 
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [closeData, setCloseData] = useState({ finalOutcome: '', closingRemarks: '' })
+  const [showEmployeeSignModal, setShowEmployeeSignModal] = useState(false)
+  const [showManagerSignModal, setShowManagerSignModal] = useState(false)
 
   const [showReopenModal, setShowReopenModal] = useState(false)
   const [reopenReasonType, setReopenReasonType] = useState('Incomplete Goals')
@@ -56,6 +75,7 @@ export default function PipDetailPage() {
   const [showReviewDenyModal, setShowReviewDenyModal] = useState(false)
   const [showApproveReopenModal, setShowApproveReopenModal] = useState(false)
   const [extendedEndDate, setExtendedEndDate] = useState('')
+  const [minReopenApprovalDate] = useState(() => new Date(Date.now() + 86400000).toISOString().split('T')[0])
   const [reviewReasonType, setReviewReasonType] = useState('Policy Not Met')
   const [reviewCustomReason, setReviewCustomReason] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
@@ -64,9 +84,14 @@ export default function PipDetailPage() {
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
   const isAdmin = userRole === 'HR'
   const isEmployee = userRole === 'EMPLOYEE'
+  const signatureSettingsPath = isAdmin
+    ? '/hr/settings/signature'
+    : isEmployee
+      ? '/employee/settings/signature'
+      : '/manager/settings/signature'
   const getStatusLabel = (status: string) => {
     if (status === 'COMPLETED') return 'Completed'
-    if (status === 'AUTO_CLOSED') return 'Auto Closed'
+    if (status === 'AUTO_CLOSED') return 'auto-close'
     if (status === 'REOPEN_REQUESTED') return 'Reopen Requested'
     return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
   }
@@ -77,6 +102,27 @@ export default function PipDetailPage() {
     if (status === 'REOPEN_REQUESTED') return 'bg-orange-100 text-orange-700'
     if (status === 'DENIED') return 'bg-red-100 text-red-700'
     return 'bg-blue-100 text-blue-700'
+  }
+  const getTrainingStatusClass = (status?: string) => {
+    const normalized = status?.trim().toUpperCase()
+    if (normalized === 'COMPLETED') return 'bg-emerald-100 text-emerald-700'
+    if (normalized === 'IN_PROGRESS') return 'bg-blue-100 text-blue-700'
+    if (normalized === 'NOT_STARTED') return 'bg-slate-100 text-slate-600'
+    return 'bg-amber-100 text-amber-700'
+  }
+  const formatTrainingStatus = (status?: string) => {
+    if (!status) return '-'
+    return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
+  }
+  const filteredTrainingHistory = (trainingHistory ?? []).filter((entry) => {
+    if (trainingHistoryFilter === 'ALL') return true
+    return (entry.completionStatus || entry.status).toUpperCase() === 'IN_PROGRESS'
+  })
+  const getTrainingCompletionPercentage = (percentage?: number, status?: string) => {
+    if (typeof percentage === 'number' && Number.isFinite(percentage)) {
+      return `${percentage}%`
+    }
+    return (status || '').toUpperCase() === 'COMPLETED' ? '100%' : '-'
   }
   const getLocalDateString = (dateString?: string | Date) => {
     if (!dateString) return undefined;
@@ -107,6 +153,33 @@ export default function PipDetailPage() {
 
   const isAverageProgressComplete = Number(pip.overallProgressPercentage) >= 100
   const canMarkCompleted = isDirectManager && pip.status === 'CLOSED' && isAverageProgressComplete
+  const canEmployeeSign = isEmployee
+    && pip.status === 'AUTO_CLOSED'
+    && !pip.finalOutcome
+    && !pip.reopenReason
+    && !pip.employeeSignatureDate
+  const canEmployeeRequestReopen = isEmployee
+    && pip.status === 'AUTO_CLOSED'
+    && !pip.finalOutcome
+    && !pip.reopenReason
+    && !pip.employeeSignatureDate
+  const canManagerSign = isDirectManager
+    && pip.status === 'AUTO_CLOSED'
+    && !pip.finalOutcome
+    && Boolean(pip.employeeSignatureDate)
+    && !pip.managerSignatureDate
+  const canManagerMarkResult = isDirectManager
+    && pip.status === 'AUTO_CLOSED'
+    && !pip.finalOutcome
+    && Boolean(pip.employeeSignatureDate)
+    && Boolean(pip.managerSignatureDate)
+  const canAddCommunicationNote = pip.status === 'ACTIVE' && (isEmployee || isDirectManager)
+  const shouldShowSignatureSummary = Boolean(
+    pip.finalOutcome
+    || pip.employeeSignatureDate
+    || pip.managerSignatureDate
+    || pip.status === 'AUTO_CLOSED'
+  )
 
   const handleUpdateProgress = async () => {
     if (showUpdateModal.objectiveId) {
@@ -164,11 +237,48 @@ export default function PipDetailPage() {
 
     try {
       setActionError(null)
-      await closePip({ pipId, ...closeData }).unwrap()
+      await closePip({
+        pipId,
+        finalOutcome: closeData.finalOutcome,
+        closingRemarks: closeData.closingRemarks,
+      }).unwrap()
       setShowCloseModal(false)
+      setCloseData({ finalOutcome: '', closingRemarks: '' })
     } catch (error: any) {
       console.error('[PIP Detail] Close PIP failed:', error)
       setActionError(error?.data?.message || error?.error || 'Failed to close PIP.')
+    }
+  }
+
+  const handleEmployeeSign = async () => {
+    if (!defaultSignature?.signatureData) {
+      setActionError('Set a default signature in Signature Settings before signing.')
+      return
+    }
+
+    try {
+      setActionError(null)
+      await employeeSign({ pipId }).unwrap()
+      setShowEmployeeSignModal(false)
+    } catch (error: any) {
+      console.error('[PIP Detail] Employee signature failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to sign PIP.')
+    }
+  }
+
+  const handleManagerSign = async () => {
+    if (!defaultSignature?.signatureData) {
+      setActionError('Set a default signature in Signature Settings before signing.')
+      return
+    }
+
+    try {
+      setActionError(null)
+      await managerSign({ pipId }).unwrap()
+      setShowManagerSignModal(false)
+    } catch (error: any) {
+      console.error('[PIP Detail] Manager signature failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to sign PIP.')
     }
   }
 
@@ -270,12 +380,28 @@ export default function PipDetailPage() {
               </button>
             </>
           )}
-          {isDirectManager && pip.status === 'AUTO_CLOSED' && !pip.finalOutcome && (
+          {canManagerMarkResult && (
             <button
               onClick={() => setShowCloseModal(true)}
               className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               <i className="bi bi-check-circle" /> Mark Result
+            </button>
+          )}
+          {canEmployeeSign && (
+            <button
+              onClick={() => setShowEmployeeSignModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <i className="bi bi-pen" /> Sign PIP
+            </button>
+          )}
+          {canManagerSign && (
+            <button
+              onClick={() => setShowManagerSignModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <i className="bi bi-pen" /> Sign PIP
             </button>
           )}
           {canMarkCompleted && (
@@ -287,7 +413,7 @@ export default function PipDetailPage() {
               <i className="bi bi-check2-circle" /> {isMarkingCompleted ? 'Marking...' : 'Mark Completed'}
             </button>
           )}
-          {isEmployee && pip.status === 'AUTO_CLOSED' && !pip.finalOutcome && !pip.reopenReason && (
+          {canEmployeeRequestReopen && (
             <button
               onClick={() => setShowReopenModal(true)}
               className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
@@ -317,9 +443,9 @@ export default function PipDetailPage() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Objectives Section */}
         <div className="lg:col-span-2 space-y-8">
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="max-h-[520px] overflow-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-lg font-bold text-slate-900">Improvement Objectives</h2>
-            <div className="space-y-8">
+            <div className="min-w-[760px] space-y-8">
               {pip.objectives.map((obj) => (
                 <div key={obj.id} className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -400,26 +526,90 @@ export default function PipDetailPage() {
             </div>
           </section>
 
+          <PipCommunicationNotes
+            pipId={pipId}
+            pipStatus={pip.status}
+            canAdd={canAddCommunicationNote}
+            currentUserId={user?.id}
+            isHr={isAdmin}
+            onError={setActionError}
+          />
+
+          <PipUnifiedLog pipId={pip.id} />
+
           {/* Training History Section */}
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex items-center justify-between">
+          <section className="max-h-[560px] overflow-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-bold text-slate-900">Training & Development History</h2>
-              <span className="text-xs text-slate-500">linked to employee improvement goals</span>
+              <div className="inline-flex w-fit rounded-lg border border-slate-200 bg-slate-50 p-1">
+                <button
+                  type="button"
+                  onClick={() => setTrainingHistoryFilter('IN_PROGRESS')}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${trainingHistoryFilter === 'IN_PROGRESS' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  In Progress
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrainingHistoryFilter('ALL')}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${trainingHistoryFilter === 'ALL' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  All
+                </button>
+              </div>
             </div>
-            <div className="space-y-4">
-              {trainingHistory?.map((t) => (
-                <div key={t.id} className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0">
-                  <div>
-                    <p className="font-medium text-slate-800">{t.trainingName}</p>
-                    <p className="text-xs text-slate-500">{formatDate(t.completionDate)}</p>
-                  </div>
-                  <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                    {t.status}
-                  </span>
+            <div>
+              {isTrainingHistoryLoading && (
+                <p className="py-4 text-center text-slate-500">Loading training records...</p>
+              )}
+              {!isTrainingHistoryLoading && filteredTrainingHistory.length > 0 && (
+                <div className="min-w-[980px]">
+                  <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
+                    <thead>
+                      <tr className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        <th className="whitespace-nowrap px-3 py-3">Training</th>
+                        <th className="whitespace-nowrap px-3 py-3">Provider</th>
+                        <th className="whitespace-nowrap px-3 py-3">Start Date</th>
+                        <th className="whitespace-nowrap px-3 py-3">End Date</th>
+                        <th className="whitespace-nowrap px-3 py-3">Status</th>
+                        <th className="whitespace-nowrap px-3 py-3">Completed Hours</th>
+                        <th className="whitespace-nowrap px-3 py-3">Completion %</th>
+                        <th className="min-w-48 px-3 py-3">Feedback / Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredTrainingHistory.map((t) => (
+                        <tr key={t.id} className="align-top">
+                          <td className="px-3 py-4">
+                            <p className="font-medium text-slate-800">{t.trainingName || '-'}</p>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">{t.trainingProvider || '-'}</td>
+                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">{formatDate(t.startDate)}</td>
+                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">{formatDate(t.endDate ?? t.completionDate)}</td>
+                          <td className="whitespace-nowrap px-3 py-4">
+                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getTrainingStatusClass(t.completionStatus || t.status)}`}>
+                              {formatTrainingStatus(t.completionStatus || t.status)}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">
+                            {t.totalCompletedHours ?? pip.completedHours ?? 0} / {pip.totalHours ?? 0}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4">
+                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getTrainingStatusClass(t.completionStatus || t.status)}`}>
+                              {getTrainingCompletionPercentage(t.percentageCompletion, t.completionStatus || t.status)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 text-slate-600">{t.feedbackNotes || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-              {(!trainingHistory || trainingHistory.length === 0) && (
-                <p className="py-4 text-center text-slate-500">No training records found for this employee.</p>
+              )}
+              {!isTrainingHistoryLoading && filteredTrainingHistory.length === 0 && (
+                <p className="py-4 text-center text-slate-500">
+                  {trainingHistoryFilter === 'IN_PROGRESS' ? 'No in-progress training history records found.' : 'No training records found for this employee.'}
+                </p>
               )}
             </div>
           </section>
@@ -482,7 +672,7 @@ export default function PipDetailPage() {
                   <p className="text-lg font-bold text-blue-600">{pip.completedHours}</p>
                 </div>
               </div>
-              {(pip.status === 'CLOSED' || pip.status === 'COMPLETED') && (
+              {pip.finalOutcome && (
                 <>
                   <div className="pt-4 border-t border-slate-100">
                     <p className="text-xs text-slate-500">Final Outcome</p>
@@ -493,6 +683,44 @@ export default function PipDetailPage() {
                     <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.closingRemarks}</p>
                   </div>
                 </>
+              )}
+              {shouldShowSignatureSummary && (
+                <div className="pt-4 border-t border-slate-100 space-y-3">
+                  <div>
+                    <p className="text-xs text-slate-500">Manager Signature</p>
+                    {pip.managerSignature && isImageSignature(pip.managerSignature) ? (
+                      <div className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                        <img
+                          src={resolveMediaSrc(pip.managerSignature)}
+                          alt="Manager signature"
+                          className="max-h-14 max-w-full object-contain"
+                        />
+                      </div>
+                    ) : pip.managerSignature ? (
+                      <p className="text-sm font-medium text-slate-800">{pip.managerSignature}</p>
+                    ) : null}
+                    <p className="mt-1 text-sm font-medium text-slate-800">
+                      {pip.managerSignatureDate ? `Signed on ${formatDateTime(pip.managerSignatureDate)}` : 'Pending'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Employee Signature</p>
+                    {pip.employeeSignature && isImageSignature(pip.employeeSignature) ? (
+                      <div className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                        <img
+                          src={resolveMediaSrc(pip.employeeSignature)}
+                          alt="Employee signature"
+                          className="max-h-14 max-w-full object-contain"
+                        />
+                      </div>
+                    ) : pip.employeeSignature ? (
+                      <p className="text-sm font-medium text-slate-800">{pip.employeeSignature}</p>
+                    ) : null}
+                    <p className="mt-1 text-sm font-medium text-slate-800">
+                      {pip.employeeSignatureDate ? `Signed on ${formatDateTime(pip.employeeSignatureDate)}` : 'Pending'}
+                    </p>
+                  </div>
+                </div>
               )}
               {pip.reopenReason && (
                 <div className="pt-4 border-t border-slate-100">
@@ -527,7 +755,13 @@ export default function PipDetailPage() {
             <h3 className="mb-4 text-lg font-bold">Update Progress</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Percentage Completion</label>
+                <label className="block text-sm font-medium text-slate-700">Latest Percentage</label>
+                <div className="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
+                  {pip.objectives.find((objective) => objective.id === showUpdateModal.objectiveId)?.progressPercentage ?? 0}%
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">New Percentage</label>
                 <div className="mt-1 flex items-center gap-4">
                   <input
                     type="range"
@@ -674,6 +908,94 @@ export default function PipDetailPage() {
         </div>
       )}
 
+      {showEmployeeSignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-bold">Sign PIP Acknowledgement</h3>
+            <div className="space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Default Signature</p>
+                    <p className="mt-1 text-xs text-slate-500">Your signature from Signature Settings will be recorded for this PIP.</p>
+                  </div>
+                  <Link to={signatureSettingsPath} className="shrink-0 text-xs font-semibold text-blue-600 hover:underline">
+                    Signature Settings
+                  </Link>
+                </div>
+                <div className="mt-3 flex min-h-[72px] items-center justify-center rounded-md border border-dashed border-slate-300 bg-white px-3 py-2">
+                  {isDefaultSigLoading ? (
+                    <span className="text-xs text-slate-500">Loading signature...</span>
+                  ) : defaultSignature?.signatureData ? (
+                    <img
+                      src={resolveMediaSrc(defaultSignature.signatureData)}
+                      alt="Your default signature"
+                      className="max-h-14 max-w-full object-contain"
+                    />
+                  ) : (
+                    <p className="text-center text-xs text-slate-500">No default signature yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setShowEmployeeSignModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+              <button
+                onClick={handleEmployeeSign}
+                disabled={isSigningEmployee || isDefaultSigLoading || !hasDefaultSignature}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+              >
+                {isSigningEmployee ? 'Signing...' : 'Sign PIP'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showManagerSignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-bold">Sign PIP Result</h3>
+            <div className="space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Default Signature</p>
+                    <p className="mt-1 text-xs text-slate-500">Your signature from Signature Settings will be recorded for this PIP.</p>
+                  </div>
+                  <Link to={signatureSettingsPath} className="shrink-0 text-xs font-semibold text-blue-600 hover:underline">
+                    Signature Settings
+                  </Link>
+                </div>
+                <div className="mt-3 flex min-h-[72px] items-center justify-center rounded-md border border-dashed border-slate-300 bg-white px-3 py-2">
+                  {isDefaultSigLoading ? (
+                    <span className="text-xs text-slate-500">Loading signature...</span>
+                  ) : defaultSignature?.signatureData ? (
+                    <img
+                      src={resolveMediaSrc(defaultSignature.signatureData)}
+                      alt="Your default signature"
+                      className="max-h-14 max-w-full object-contain"
+                    />
+                  ) : (
+                    <p className="text-center text-xs text-slate-500">No default signature yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setShowManagerSignModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+              <button
+                onClick={handleManagerSign}
+                disabled={isSigningManager || isDefaultSigLoading || !hasDefaultSignature}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+              >
+                {isSigningManager ? 'Signing...' : 'Sign PIP'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showReopenModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
@@ -720,7 +1042,7 @@ export default function PipDetailPage() {
               <label className="block text-sm font-medium text-slate-700">Extended End Date</label>
               <input
                 type="date"
-                min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                min={minReopenApprovalDate}
                 className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
                 value={extendedEndDate}
                 onChange={(e) => setExtendedEndDate(e.target.value)}

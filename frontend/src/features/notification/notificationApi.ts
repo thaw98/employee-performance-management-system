@@ -15,10 +15,34 @@ interface PageResponse<T> {
   size: number;
 }
 
+interface GetNotificationsParams {
+  page?: number;
+  size?: number;
+  status?: 'all' | 'unread' | 'read';
+  source?: string;
+}
+
 export const notificationApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getNotifications: builder.query<ApiResponse<PageResponse<NotificationItem>>, void>({
-      query: () => '/notifications?page=0&size=10',
+    getNotifications: builder.query<ApiResponse<PageResponse<NotificationItem>>, GetNotificationsParams | void>({
+      query: (params) => {
+        const page = params?.page ?? 0;
+        const size = params?.size ?? 10;
+        const searchParams = new URLSearchParams({
+          page: String(page),
+          size: String(size),
+        });
+
+        if (params?.status) {
+          searchParams.set('status', params.status);
+        }
+
+        if (params?.source) {
+          searchParams.set('source', params.source);
+        }
+
+        return `/notifications?${searchParams.toString()}`;
+      },
       providesTags: ['Notification'],
     }),
     getUnreadCount: builder.query<ApiResponse<number>, void>({

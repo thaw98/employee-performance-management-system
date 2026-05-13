@@ -9,9 +9,14 @@ import com.epms.backend.dto.pip.PipCloseRequest;
 import com.epms.backend.dto.pip.PipReopenRequest;
 import com.epms.backend.dto.pip.PipSignatureRequest;
 import com.epms.backend.dto.pip.PipReviewRequest;
+import com.epms.backend.dto.pip.PipCommunicationNoteDto;
+import com.epms.backend.dto.pip.PipCommunicationNotePageDto;
+import com.epms.backend.dto.pip.PipCommunicationNoteRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,9 +25,13 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 
@@ -46,7 +55,10 @@ public class PipService {
     private final FollowUpMeetingRepository meetingRepository;
     private final TrainingRecordRepository trainingRepository;
     private final EmployeeRepository employeeRepository;
+    private final PipCommunicationNoteRepository communicationNoteRepository;
+    private final SignatureRepository signatureRepository;
     private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
     public List<EligibleEmployeeDTO> getLowPerformers(User manager) {
         if (manager.getEmployee() == null) {
@@ -114,11 +126,15 @@ public class PipService {
         pip.setExpectedImprovements(request.getExpectedImprovements());
         pip.setReasonForPlan(request.getReasonForPlan());
 
+        BigDecimal objectiveWeight = BigDecimal.valueOf(100)
+                .divide(BigDecimal.valueOf(request.getObjectives().size()), 2, RoundingMode.HALF_UP);
+
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();
             obj.setDescription(desc);
             obj.setPip(pip);
             obj.setDueDate(request.getEndDate() != null ? request.getEndDate() : LocalDate.now());
+            obj.setWeightPercentage(objectiveWeight);
             obj.setProgressPercentage(0);
             return obj;
         }).toList();
@@ -127,6 +143,7 @@ public class PipService {
 
         Pip savedPip = pipRepository.save(pip);
         syncTrainingRecords(savedPip);
+        notifyPipRelatedUsers(savedPip, manager, "PIP created");
         return savedPip;
     }
 
@@ -228,6 +245,132 @@ public class PipService {
         return pip;
     }
 
+    @Transactional(readOnly = true)
+    public PipCommunicationNotePageDto getPipNotes(Long pipId, String noteType, Pageable pageable, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        PipNoteType parsedNoteType = parseNoteType(noteType, null);
+        Specification<PipCommunicationNote> spec = (root, query, cb) -> {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                jakarta.persistence.criteria.Fetch<PipCommunicationNote, Pip> pipFetch = root.fetch("pip",
+                        jakarta.persistence.criteria.JoinType.LEFT);
+                pipFetch.fetch("employee", jakarta.persistence.criteria.JoinType.LEFT);
+                pipFetch.fetch("manager", jakarta.persistence.criteria.JoinType.LEFT);
+                jakarta.persistence.criteria.Fetch<PipCommunicationNote, User> authorFetch = root.fetch("author",
+                        jakarta.persistence.criteria.JoinType.LEFT);
+                authorFetch.fetch("employee", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("pip").get("id"), pip.getId()));
+            if (parsedNoteType != null) {
+                predicates.add(cb.equal(root.get("noteType"), parsedNoteType));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Page<PipCommunicationNoteDto> page = communicationNoteRepository.findAll(spec, pageable).map(this::toNoteDto);
+        return new PipCommunicationNotePageDto(
+                page.getContent(),
+                page.getTotalPages(),
+                page.getTotalElements(),
+                page.getNumber(),
+                page.hasNext());
+    }
+
+    @Transactional
+    public PipCommunicationNoteDto addPipNote(Long pipId, PipCommunicationNoteRequest request, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!STATUS_ACTIVE.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Notes can only be added to active PIPs");
+        }
+        if (!isDirectManager(pip, actor) && !isPipEmployee(pip, actor)) {
+            throw new RuntimeException("Only the assigned employee or manager can add notes");
+        }
+        if (request == null || request.getContent() == null || request.getContent().trim().isEmpty()) {
+            throw new RuntimeException("Note content is required");
+        }
+
+        PipCommunicationNote note = new PipCommunicationNote();
+        note.setPip(pip);
+        note.setContent(request.getContent().trim());
+        note.setNoteType(parseNoteType(request.getNoteType(), PipNoteType.COMMUNICATION));
+        note.setAuthor(actor);
+        note.setCreatedDate(Instant.now());
+        note.setUpdatedDate(Instant.now());
+        PipCommunicationNote savedNote = communicationNoteRepository.save(note);
+        notifyPipRelatedUsers(pip, actor, (savedNote.getNoteType() == PipNoteType.FOLLOWUP ? "Followup note added" : "Communication note added"));
+        return toNoteDto(savedNote);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PipCommunicationNoteDto> getAllPipNotes(
+            Long employeeId,
+            Long managerId,
+            Long departmentId,
+            String employeeName,
+            String noteType,
+            String pipStatus,
+            LocalDate dateFrom,
+            LocalDate dateTo,
+            Pageable pageable,
+            User actor) {
+        if (!isHr(actor)) {
+            throw new RuntimeException("Only HR can review all PIP notes");
+        }
+        PipNoteType parsedNoteType = parseNoteType(noteType, null);
+
+        Specification<PipCommunicationNote> spec = (root, query, cb) -> {
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                jakarta.persistence.criteria.Fetch<PipCommunicationNote, Pip> pipFetch = root.fetch("pip",
+                        jakarta.persistence.criteria.JoinType.LEFT);
+                pipFetch.fetch("employee", jakarta.persistence.criteria.JoinType.LEFT);
+                pipFetch.fetch("manager", jakarta.persistence.criteria.JoinType.LEFT);
+                jakarta.persistence.criteria.Fetch<PipCommunicationNote, User> authorFetch = root.fetch("author",
+                        jakarta.persistence.criteria.JoinType.LEFT);
+                authorFetch.fetch("employee", jakarta.persistence.criteria.JoinType.LEFT);
+            }
+
+            List<Predicate> predicates = new ArrayList<>();
+            if (employeeId != null) {
+                predicates.add(cb.equal(root.get("pip").get("employee").get("id"), employeeId));
+            }
+            if (managerId != null) {
+                predicates.add(cb.equal(root.get("pip").get("manager").get("id"), managerId));
+            }
+            if (departmentId != null) {
+                predicates.add(cb.equal(root.get("pip").get("employee").get("department").get("id"), departmentId));
+            }
+            if (employeeName != null && !employeeName.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("pip").get("employee").get("employeeName")),
+                        "%" + employeeName.toLowerCase(Locale.ROOT) + "%"));
+            }
+            if (parsedNoteType != null) {
+                predicates.add(cb.equal(root.get("noteType"), parsedNoteType));
+            }
+            if (pipStatus != null && !pipStatus.isBlank()) {
+                predicates.add(cb.equal(root.get("pip").get("status"), normalizeStatus(pipStatus)));
+            }
+            if (dateFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdDate"), dateFrom.atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
+            }
+            if (dateTo != null) {
+                predicates.add(cb.lessThan(root.get("createdDate"), dateTo.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return communicationNoteRepository.findAll(spec, pageable).map(this::toNoteDto);
+    }
+
+    @Transactional
+    public void deletePipNote(Long noteId, User actor) {
+        PipCommunicationNote note = communicationNoteRepository.findById(noteId)
+                .orElseThrow(() -> new RuntimeException("PIP note not found"));
+        if (!isHr(actor) && (note.getAuthor() == null || !note.getAuthor().getId().equals(actor.getId()))) {
+            throw new RuntimeException("Only the note author or HR can delete this note");
+        }
+        communicationNoteRepository.delete(note);
+    }
+
     @Transactional
     public PipObjective updateObjectiveProgress(Long objectiveId, ProgressUpdateRequest request, User updatedBy) {
         PipObjective objective = objectiveRepository.findById(objectiveId)
@@ -256,14 +399,14 @@ public class PipService {
         if (request.getCompletedHours() != null) {
             pip.setCompletedHours(request.getCompletedHours());
         }
-
         pip.setUpdatedDate(Instant.now());
         updatePipProgress(pip);
 
         progressUpdateRepository.save(update);
         pipRepository.save(pip);
         PipObjective savedObjective = objectiveRepository.save(objective);
-        syncTrainingRecord(pip, savedObjective);
+        syncTrainingRecord(pip, savedObjective, request.getFeedback());
+        notifyPipRelatedUsers(pip, updatedBy, "Progress updated");
         return savedObjective;
     }
 
@@ -292,22 +435,7 @@ public class PipService {
 
         FollowUpMeeting savedMeeting = meetingRepository.save(meeting);
 
-        // Send notifications
-        String title = "New PIP Follow-up Meeting Scheduled";
-        String message = String.format("A follow-up meeting has been scheduled for %s at %s",
-                request.getMeetingTime().toLocalDate(),
-                request.getMeetingTime().toLocalTime());
-
-        try {
-            if (pip.getEmployee() != null && pip.getEmployee().getUserAccount() != null) {
-                notificationService.send(pip.getEmployee().getUserAccount(), title, message, "PIP");
-            }
-            if (pip.getManager() != null && pip.getManager().getUserAccount() != null) {
-                notificationService.send(pip.getManager().getUserAccount(), title, message, "PIP");
-            }
-        } catch (Exception ignored) {
-            // Keep meeting creation successful even if notification delivery fails.
-        }
+        notifyPipRelatedUsers(pip, actor, "Follow-up meeting scheduled");
 
         return savedMeeting;
     }
@@ -320,6 +448,12 @@ public class PipService {
         }
         if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
             throw new RuntimeException("The PIP result can only be marked after the PIP is automatically closed");
+        }
+        if (pip.getEmployeeSignatureDate() == null) {
+            throw new RuntimeException("The employee must sign the PIP result before the manager can mark the final result");
+        }
+        if (pip.getManagerSignatureDate() == null) {
+            throw new RuntimeException("The manager must sign the PIP result before marking the final result");
         }
         if (pip.getFinalOutcome() != null && !pip.getFinalOutcome().isBlank()) {
             throw new RuntimeException("The final result has already been marked");
@@ -337,15 +471,14 @@ public class PipService {
         pip.setActualEndDate(pip.getFinalCloseDate());
         pip.setClosingRemarks(request.getClosingRemarks().trim());
         pip.setFinalOutcome(outcome);
-        if (request.getSignature() != null && !request.getSignature().isBlank()) {
-            pip.setManagerSignature(request.getSignature().trim());
-            pip.setManagerSignatureDate(Instant.now());
-        }
+        pip.setStatus(STATUS_CLOSED);
         pip.setReviewReason(null);
         pip.setClosedBy(actor.getEmployee());
         pip.setClosedDate(Instant.now());
         pip.setUpdatedDate(Instant.now());
-        return pipRepository.save(pip);
+        Pip savedPip = pipRepository.save(pip);
+        notifyPipRelatedUsers(savedPip, actor, "PIP result marked");
+        return savedPip;
     }
 
     @Transactional
@@ -357,13 +490,18 @@ public class PipService {
         if (!STATUS_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
             throw new RuntimeException("Only CLOSED PIPs can be marked COMPLETED");
         }
+        if (pip.getEmployeeSignatureDate() == null || pip.getManagerSignatureDate() == null) {
+            throw new RuntimeException("Both employee and manager signatures are required before completion");
+        }
         if (pip.getOverallProgressPercentage() == null
                 || pip.getOverallProgressPercentage().compareTo(BigDecimal.valueOf(100)) < 0) {
             throw new RuntimeException("PIP progress must be 100% before it can be marked COMPLETED");
         }
         pip.setStatus(STATUS_COMPLETED);
         pip.setUpdatedDate(Instant.now());
-        return pipRepository.save(pip);
+        Pip savedPip = pipRepository.save(pip);
+        notifyPipRelatedUsers(savedPip, actor, "PIP completed");
+        return savedPip;
     }
 
     @Transactional
@@ -372,20 +510,49 @@ public class PipService {
         if (!isPipEmployee(pip, actor)) {
             throw new RuntimeException("Only the employee assigned to this PIP can sign it");
         }
-        if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus())) || pip.getFinalOutcome() == null
-                || pip.getFinalOutcome().isBlank()) {
-            throw new RuntimeException("Only automatically closed PIPs with a final result can be signed");
+        if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Only automatically closed PIPs can be signed by the employee");
+        }
+        if (pip.getFinalOutcome() != null && !pip.getFinalOutcome().isBlank()) {
+            throw new RuntimeException("The employee must sign before the final result is marked");
         }
         if (pip.getEmployeeSignatureDate() != null) {
             throw new RuntimeException("This PIP has already been signed by the employee");
         }
-        if (request.getSignature() == null || request.getSignature().trim().isEmpty()) {
-            throw new RuntimeException("Signature is required");
-        }
-        pip.setEmployeeSignature(request.getSignature().trim());
+        String signatureData = getDefaultSignatureData(actor, "signing");
+        pip.setEmployeeSignature(signatureData);
         pip.setEmployeeSignatureDate(Instant.now());
         pip.setUpdatedDate(Instant.now());
-        return pipRepository.save(pip);
+        Pip savedPip = pipRepository.save(pip);
+        notifyPipRelatedUsers(savedPip, actor, "Employee signed PIP");
+        return savedPip;
+    }
+
+    @Transactional
+    public Pip managerSign(Long pipId, PipSignatureRequest request, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!isDirectManager(pip, actor)) {
+            throw new RuntimeException("Only the assigned manager can sign this PIP");
+        }
+        if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Only automatically closed PIPs can be signed by the manager");
+        }
+        if (pip.getEmployeeSignatureDate() == null) {
+            throw new RuntimeException("The employee must sign the PIP result before the manager can sign");
+        }
+        if (pip.getFinalOutcome() != null && !pip.getFinalOutcome().isBlank()) {
+            throw new RuntimeException("The manager must sign before the final result is marked");
+        }
+        if (pip.getManagerSignatureDate() != null) {
+            throw new RuntimeException("This PIP has already been signed by the manager");
+        }
+        String signatureData = getDefaultSignatureData(actor, "signing");
+        pip.setManagerSignature(signatureData);
+        pip.setManagerSignatureDate(Instant.now());
+        pip.setUpdatedDate(Instant.now());
+        Pip savedPip = pipRepository.save(pip);
+        notifyPipRelatedUsers(savedPip, actor, "Manager signed PIP");
+        return savedPip;
     }
 
     @Transactional
@@ -419,7 +586,9 @@ public class PipService {
         pip.setEmployeeSignature(null);
         pip.setEmployeeSignatureDate(null);
         pip.setUpdatedDate(Instant.now());
-        return pipRepository.save(pip);
+        Pip savedPip = pipRepository.save(pip);
+        notifyPipRelatedUsers(savedPip, actor, "Reopen requested");
+        return savedPip;
     }
 
     @Transactional
@@ -467,7 +636,9 @@ public class PipService {
             throw new RuntimeException("Review action must be CONFIRMED or DENIED");
         }
         pip.setUpdatedDate(Instant.now());
-        return pipRepository.save(pip);
+        Pip savedPip = pipRepository.save(pip);
+        notifyPipRelatedUsers(savedPip, actor, "Reopen request " + ("CONFIRMED".equals(action) ? "approved" : "denied"));
+        return savedPip;
     }
 
     @Scheduled(cron = "0 0 0 * * *")
@@ -496,6 +667,10 @@ public class PipService {
     }
 
     private void syncTrainingRecord(Pip pip, PipObjective objective) {
+        syncTrainingRecord(pip, objective, null);
+    }
+
+    private void syncTrainingRecord(Pip pip, PipObjective objective, String feedbackNotes) {
         if (pip == null || objective == null || objective.getDescription() == null
                 || objective.getDescription().trim().isEmpty()) {
             return;
@@ -514,12 +689,16 @@ public class PipService {
                 });
 
         record.setTrainingProvider(pip.getManager() == null ? null : pip.getManager().getEmployeeName());
-        String status = resolveTrainingStatus(objective.getProgressPercentage());
+        String status = resolveTrainingStatus(pip, objective.getProgressPercentage());
         record.setStartDate(pip.getStartDate() == null ? LocalDate.now() : pip.getStartDate());
         record.setEndDate(resolveTrainingEndDate(pip, objective, record, status));
         record.setCompletionStatus(status);
-        record.setCertificationReceived(Boolean.FALSE);
-        record.setNotes("PIP objective #" + (objective.getId() == null ? "pending" : objective.getId()));
+        record.setTotalCompletedHours(pip.getCompletedHours());
+        record.setPercentageCompletion(objective.getProgressPercentage());
+        if (feedbackNotes != null && !feedbackNotes.isBlank()) {
+            record.setFeedbackNotes(feedbackNotes.trim());
+        }
+
         record.setUpdatedDate(Instant.now());
         trainingRepository.save(record);
     }
@@ -529,6 +708,15 @@ public class PipService {
             if ("COMPLETED".equals(record.getCompletionStatus()) && record.getEndDate() != null) {
                 return record.getEndDate();
             }
+            if (pip.getActualEndDate() != null) {
+                return pip.getActualEndDate();
+            }
+            if (pip.getFinalCloseDate() != null) {
+                return pip.getFinalCloseDate();
+            }
+            if (pip.getClosedDate() != null) {
+                return LocalDate.ofInstant(pip.getClosedDate(), java.time.ZoneId.systemDefault());
+            }
             return LocalDate.now();
         }
         if (objective.getDueDate() != null) {
@@ -537,7 +725,11 @@ public class PipService {
         return pip.getEndDate();
     }
 
-    private String resolveTrainingStatus(Integer progressPercentage) {
+    private String resolveTrainingStatus(Pip pip, Integer progressPercentage) {
+        String pipStatus = normalizeStatus(pip.getStatus());
+        if (STATUS_CLOSED.equals(pipStatus) || STATUS_COMPLETED.equals(pipStatus)) {
+            return "COMPLETED";
+        }
         int progress = progressPercentage == null ? 0 : progressPercentage;
         if (progress >= 100) {
             return "COMPLETED";
@@ -552,6 +744,11 @@ public class PipService {
         PipObjective objective = objectiveRepository.findById(objectiveId)
                 .orElseThrow(() -> new RuntimeException("Objective not found"));
         return progressUpdateRepository.findByObjective(objective);
+    }
+
+    public List<PipProgressUpdate> getPipHistory(Long pipId, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        return progressUpdateRepository.findByPipOrderByCreatedDateDesc(pip);
     }
 
     private void updatePipProgress(Pip pip) {
@@ -606,7 +803,8 @@ public class PipService {
             pip.setAutoCloseDate(closeDate);
         }
         pip.setUpdatedDate(Instant.now());
-        pipRepository.save(pip);
+        Pip savedPip = pipRepository.save(pip);
+        notifyPipRelatedUsers(savedPip, pip.getManager() == null ? null : pip.getManager().getUserAccount(), "PIP auto-close");
     }
 
     private void authorizePipAccess(Pip pip, User actor) {
@@ -665,8 +863,120 @@ public class PipService {
         return pip.getReopenReason() != null && !pip.getReopenReason().isBlank();
     }
 
+    private String getDefaultSignatureData(User actor, String action) {
+        return signatureRepository.findByUserAndIsDefaultTrue(actor)
+                .map(Signature::getSignatureData)
+                .filter(signatureData -> signatureData != null && !signatureData.isBlank())
+                .orElseThrow(() -> new RuntimeException(
+                        "No default signature found. Please set up your signature before " + action + "."));
+    }
+
     private boolean isHr(User actor) {
         return actor.getRole() != null && "HR".equalsIgnoreCase(actor.getRole().getName());
+    }
+
+    private PipCommunicationNoteDto toNoteDto(PipCommunicationNote note) {
+        Pip pip = note.getPip();
+        User author = note.getAuthor();
+        Employee authorEmployee = author == null ? null : author.getEmployee();
+        return new PipCommunicationNoteDto(
+                note.getId(),
+                pip == null ? null : pip.getId(),
+                note.getContent(),
+                note.getNoteType() == null ? PipNoteType.COMMUNICATION.name() : note.getNoteType().name(),
+                author == null ? null : new PipCommunicationNoteDto.AuthorDto(
+                        author.getId(),
+                        author.getEmail(),
+                        toAuthorEmployeeDto(authorEmployee)),
+                pip == null ? null : toPipPersonDto(pip.getEmployee()),
+                pip == null ? null : toPipPersonDto(pip.getManager()),
+                pip == null ? null : pip.getStatus(),
+                note.getCreatedDate(),
+                note.getUpdatedDate());
+    }
+
+    private PipNoteType parseNoteType(String value, PipNoteType fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            return PipNoteType.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new RuntimeException("Note type must be COMMUNICATION or FOLLOWUP");
+        }
+    }
+
+    private PipCommunicationNoteDto.EmployeeDto toAuthorEmployeeDto(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        return new PipCommunicationNoteDto.EmployeeDto(
+                employee.getId(),
+                employee.getEmployeeName(),
+                employee.getEmployeeId());
+    }
+
+    private PipCommunicationNoteDto.PipPersonDto toPipPersonDto(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        return new PipCommunicationNoteDto.PipPersonDto(
+                employee.getId(),
+                employee.getEmployeeName(),
+                employee.getEmployeeId(),
+                employee.getDepartment() == null ? null : employee.getDepartment().getId(),
+                employee.getDepartment() == null ? null : employee.getDepartment().getName());
+    }
+
+    private void notifyPipRelatedUsers(Pip pip, User actor, String actionType) {
+        if (pip == null) {
+            return;
+        }
+        try {
+            Set<User> recipients = new LinkedHashSet<>();
+            if (pip.getEmployee() != null && pip.getEmployee().getUserAccount() != null) {
+                recipients.add(pip.getEmployee().getUserAccount());
+            }
+            if (pip.getManager() != null && pip.getManager().getUserAccount() != null) {
+                recipients.add(pip.getManager().getUserAccount());
+            }
+            recipients.addAll(userRepository.findByRole_NameIgnoreCase("HR"));
+            if (actor != null) {
+                recipients.removeIf(user -> user.getId() != null && user.getId().equals(actor.getId()));
+            }
+            String title = isManagerActor(actor) ? "PIP Manager Action: " + actionType : "PIP Update: " + actionType;
+            String message = buildPipNotificationMessage(pip, actor, actionType);
+            recipients.stream()
+                    .filter(user -> user != null && user.isActive())
+                    .forEach(user -> notificationService.send(user, title, message, "PIP"));
+        } catch (Exception ignored) {
+            // PIP actions should not fail because notification delivery failed.
+        }
+    }
+
+    private String buildPipNotificationMessage(Pip pip, User actor, String actionType) {
+        String employeeName = pip.getEmployee() == null ? "Unknown employee" : pip.getEmployee().getEmployeeName();
+        String managerName = pip.getManager() == null ? "Unknown manager" : pip.getManager().getEmployeeName();
+        String timestamp = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")
+                .withZone(ZoneId.systemDefault())
+                .format(Instant.now());
+        String actorLabel = isManagerActor(actor) ? "Manager" : "User";
+        return String.format(
+                "Employee: %s | Manager: %s | %s action: %s | Date/time: %s | PIP reference: PIP #%d",
+                employeeName,
+                managerName,
+                actorLabel,
+                actionType,
+                timestamp,
+                pip.getId());
+    }
+
+    private boolean isManagerActor(User actor) {
+        if (actor == null || actor.getRole() == null || actor.getRole().getName() == null) {
+            return false;
+        }
+        String role = actor.getRole().getName().trim().toUpperCase(Locale.ROOT).replace(" ", "_");
+        return "MANAGER".equals(role) || "DEPARTMENT_HEAD".equals(role) || "TEAM_HEAD".equals(role);
     }
 
     private boolean isManagedBy(Employee employee, Long managerEmployeeId) {

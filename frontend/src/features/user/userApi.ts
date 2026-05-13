@@ -15,6 +15,14 @@ export interface UserProfileDto {
   language?: string
   timezone?: string
   timeFormat?: string
+  staffNo?: string | null
+  fullName?: string | null
+  departmentName?: string | null
+  positionName?: string | null
+  employmentStatus?: string | null
+  gender?: string | null
+  nrcNo?: string | null
+  hireDate?: string | null
 }
 
 export interface ProfilePictureUploadResponseDto {

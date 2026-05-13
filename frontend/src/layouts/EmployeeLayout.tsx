@@ -7,13 +7,13 @@ import {
   ShieldCheck,
   Search,
   RefreshCcw,
-  BellRing,
   TrendingUp,
   Send,
   Inbox,
   History,
   FileText,
-  ClipboardList
+  ClipboardList,
+  BarChart
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -59,6 +59,7 @@ const EmployeeLayout: React.FC = () => {
 
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/employee/dashboard' },
+    { icon: <FileText size={20} />, label: 'Appraisals', path: '/employee/appraisals' },
     { icon: <Target size={20} />, label: 'My KPIs', path: '/employee/kpis' },
     { icon: <TrendingUp size={20} />, label: 'My PIPs', path: '/employee/pip' },
     {
@@ -72,6 +73,7 @@ const EmployeeLayout: React.FC = () => {
       ]
     },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/employee/meetings' },
+    { icon: <BarChart size={20} />, label: 'Reports', path: '/employee/reports' },
     {
       icon: <FileText size={20} />,
       label: 'Self Assessment Form',
@@ -84,7 +86,6 @@ const EmployeeLayout: React.FC = () => {
         },
       ],
     },
-    { icon: <BellRing size={20} />, label: 'Notifications', path: '/employee/notifications' },
   ];
 
   return (
@@ -107,7 +108,7 @@ const EmployeeLayout: React.FC = () => {
         {/* User Profile Card */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800">
            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner flex-shrink-0">
+              <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner shrink-0">
               {user?.profilePictureUrl ? (
                  <img src={resolveProfilePictureSrc(user.profilePictureUrl)} className="w-full h-full object-cover" alt="Profile" />
               ) : (
@@ -127,9 +128,25 @@ const EmployeeLayout: React.FC = () => {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-1 dark:bg-slate-900 transition-colors duration-300">
           {menuItems.map((item) => {
+            const currentPath = `${location.pathname}${location.search}`;
+            const itemPathname = item.path.split('?')[0];
+            const matchesPath = (targetPath: string) => {
+              const [targetPathname, targetQuery] = targetPath.split('?');
+              if (location.pathname !== targetPathname) return false;
+              const currentParams = new URLSearchParams(location.search);
+              if (!targetQuery) {
+                return !currentParams.has('section') && !currentParams.has('action');
+              }
+
+              const targetParams = new URLSearchParams(targetQuery);
+              return Array.from(targetParams.entries()).every(
+                ([key, value]) => currentParams.get(key) === value,
+              );
+            };
             const isActive =
-              location.pathname === item.path ||
-              (item.subItems && item.subItems.some((sub) => location.pathname.startsWith(sub.path)));
+              currentPath === item.path ||
+              location.pathname === itemPathname ||
+              (item.subItems && item.subItems.some((sub) => matchesPath(sub.path)));
 
             if (item.subItems) {
               const isExpanded =
@@ -169,7 +186,7 @@ const EmployeeLayout: React.FC = () => {
                   {isExpanded && (
                     <div className="pl-7 pr-3 space-y-1 mt-1">
                       {item.subItems.map((subItem) => {
-                        const isSubActive = location.pathname === subItem.path;
+                        const isSubActive = matchesPath(subItem.path);
 
                         return (
                           <Link

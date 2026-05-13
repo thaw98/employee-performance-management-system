@@ -24,15 +24,23 @@ public class AppraisalService {
     private final AppraisalAssignmentRepository assignmentRepository;
     private final EmployeeReportingHistoryRepository reportingHistoryRepository;
     private final AppraisalCycleRepository appraisalCycleRepository;
+    private final ReviewCycleRepository reviewCycleRepository;
     private final EmployeeRepository employeeRepository;
+    // private final ReportingManagerResolver reportingManagerResolver;
 
     @Transactional
-    public void distributeAppraisalsToManagers() {
-        List<AppraisalTemplate> activeTemplates = templateRepository.findAllByIsActiveTrue();
-        AppraisalTemplate template = activeTemplates.isEmpty() ? null : activeTemplates.get(activeTemplates.size() - 1);
+    public void distributeAppraisalsToManagers(Long templateId) {
+        AppraisalTemplate template;
+        if (templateId != null) {
+            template = templateRepository.findById(templateId)
+                    .orElseThrow(() -> new RuntimeException("Template not found with ID: " + templateId));
+        } else {
+            List<AppraisalTemplate> activeTemplates = templateRepository.findAllByIsActiveTrue();
+            template = activeTemplates.isEmpty() ? null : activeTemplates.get(activeTemplates.size() - 1);
+        }
 
         if (template == null) {
-            throw new RuntimeException("No active appraisal template found. Please confirm a template first.");
+            throw new RuntimeException("No appraisal template found to distribute.");
         }
 
         if (template.getTargetDepartmentPositions() == null || template.getTargetDepartmentPositions().isEmpty()) {
@@ -42,12 +50,27 @@ public class AppraisalService {
         List<AppraisalCycle> activeCycles = appraisalCycleRepository.findByStatusIgnoreCase("Active");
         AppraisalCycle activeCycle = activeCycles.isEmpty() ? null : activeCycles.get(activeCycles.size() - 1);
 
+        if (template.getReviewCycleId() != null) {
+            ReviewCycle rc = reviewCycleRepository.findById(template.getReviewCycleId()).orElse(null);
+            if (rc != null) {
+                activeCycle = appraisalCycleRepository.findByName(rc.getName()).stream().findFirst().orElse(null);
+                if (activeCycle == null) {
+                    activeCycle = new AppraisalCycle();
+                    activeCycle.setName(rc.getName());
+                    activeCycle.setStatus("Active");
+                    activeCycle.setStartDate(rc.getStartDate());
+                    activeCycle.setEndDate(rc.getEndDate());
+                    activeCycle = appraisalCycleRepository.save(activeCycle);
+                }
+            }
+        }
+
         if (activeCycle == null) {
             AppraisalCycle cycle = new AppraisalCycle();
-            cycle.setName("Annual Appraisal " + java.time.LocalDate.now().getYear());
+            cycle.setName(template.getName() != null ? template.getName() : "Annual Appraisal " + java.time.LocalDate.now().getYear());
             cycle.setStatus("Active");
             cycle.setStartDate(java.time.LocalDate.now());
-            cycle.setEndDate(java.time.LocalDate.now().plusMonths(1));
+            cycle.setEndDate(template.getDeadlineDate() != null ? template.getDeadlineDate() : java.time.LocalDate.now().plusMonths(1));
             activeCycle = appraisalCycleRepository.save(cycle);
         }
 
@@ -66,7 +89,7 @@ public class AppraisalService {
 
             Employee departmentHead = employeeRepository.findById(dept.getManagerId()).orElse(null);
             if (departmentHead == null) {
-                errorLog.append("Department Head with ID ").append(dept.getManagerId()).append(" not found in records. ");
+                errorLog.append("Department Head for '").append(dept.getName()).append("' (ID: ").append(dept.getManagerId()).append(") not found. ");
                 continue;
             }
 
@@ -82,7 +105,8 @@ public class AppraisalService {
 
                 assignment.setEmployee(employee);
                 assignment.setPeriod(activeCycle);
-                assignment.setEvaluator(departmentHead); // Assign to Department Head
+                assignment.setTemplate(template);
+                assignment.setEvaluator(departmentHead); // Assign strictly to Department Head
                 assignment.setStatus(AppraisalStatus.PENDING_MANAGER);
                 assignment.setUpdatedAt(java.time.Instant.now());
 
@@ -96,7 +120,7 @@ public class AppraisalService {
             if (errorLog.length() > 0) {
                 message += "Issues found: " + errorLog.toString();
             } else {
-                message += "Ensure the selected positions have active employees assigned to them.";
+                message += "Ensure the selected positions have active employees assigned to them and departments have heads.";
             }
             throw new RuntimeException(message);
         }
@@ -186,7 +210,7 @@ public class AppraisalService {
     }
 
     @Transactional
-    public void finalizeAppraisal(AppraisalTemplateDto dto) {
+    public AppraisalTemplateDto finalizeAppraisal(AppraisalTemplateDto dto) {
         // Reset all categories finalize flag
         List<AppraisalCategory> allCategories = categoryRepository.findAll();
         allCategories.forEach(c -> c.setIsFinalized(false));
@@ -216,8 +240,10 @@ public class AppraisalService {
         }
 
         template.setMaxRating(dto.getMaxRating() != null ? dto.getMaxRating() : 5);
+        template.setDeadlineDate(dto.getDeadlineDate());
+        template.setReviewCycleId(dto.getReviewCycleId());
 
-        templateRepository.save(template);
+        return mapToTemplateDto(templateRepository.save(template));
     }
 
     public AppraisalTemplateDto getCurrentTemplate() {
@@ -242,6 +268,8 @@ public class AppraisalService {
         dto.setName(t.getName());
         dto.setAssessmentDate(t.getAssessmentDate());
         dto.setEffectiveDate(t.getEffectiveDate());
+        dto.setDeadlineDate(t.getDeadlineDate());
+        dto.setReviewCycleId(t.getReviewCycleId());
         dto.setIsActive(t.getIsActive());
         dto.setCategoryIds(t.getCategories().stream().map(AppraisalCategory::getId).collect(Collectors.toList()));
         if (t.getTargetDepartmentPositions() != null) {
@@ -249,6 +277,7 @@ public class AppraisalService {
                     .collect(Collectors.toList()));
         }
         dto.setMaxRating(t.getMaxRating());
+        dto.setCreatedAt(t.getCreatedAt());
         return dto;
     }
 

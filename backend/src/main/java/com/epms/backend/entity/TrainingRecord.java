@@ -54,11 +54,15 @@ public class TrainingRecord {
     @Column(name = "completion_status")
     private String completionStatus;
 
-    @Column(name = "certification_received")
-    private Boolean certificationReceived;
+    @Column(name = "total_completed_hours")
+    private Integer totalCompletedHours;
 
-    @Column(name = "notes", columnDefinition = "text")
-    private String notes;
+    @Column(name = "percentage_completion")
+    private Integer percentageCompletion;
+
+    @Column(name = "feedback_notes", columnDefinition = "text")
+    private String feedbackNotes;
+
 
     @Column(name = "created_date")
     private Instant createdDate;

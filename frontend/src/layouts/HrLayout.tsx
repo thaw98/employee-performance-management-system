@@ -24,8 +24,6 @@ import {
   History,
   Layers,
   FileText,
-  BookOpen,
-  Settings2,
   ClipboardList
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
@@ -104,30 +102,37 @@ const HrLayout: React.FC = () => {
         { label: 'Feedback History', path: '/hr/360-feedback/history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
-    { icon: <Zap size={20} />, label: 'PIP Management', path: '/hr/pip-monitoring' },
+    {
+      icon: <Zap size={20} />,
+      label: 'PIP',
+      path: '/hr/pip-monitoring',
+      subItems: [
+        { label: 'PIP Management', path: '/hr/pip-monitoring', icon: <List size={16} className="shrink-0" /> },
+        { label: 'Communication Notes', path: '/hr/pip-notes', icon: <FileText size={16} className="shrink-0" /> }
+      ]
+    },
     {
       icon: <FileText size={20} />,
       label: 'Self-Assessment',
       path: '/hr/self-assessment/templates',
       subItems: [
         { label: 'Template Management', path: '/hr/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
-        {
-          label: 'Assignments overview',
-          path: '/hr/self-assessment/assignments',
-          icon: <ClipboardList size={16} className="shrink-0" />,
-        },
-        {
-          label: 'Assign Self-Assessment Forms',
-          path: '/hr/self-assessment/assign-forms',
-          icon: <Send size={16} className="shrink-0" />,
-        },
+        { label: 'Assignments', path: '/hr/self-assessment/assignments', icon: <ClipboardList size={16} className="shrink-0" /> },
         { label: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: <Inbox size={16} className="shrink-0" /> },
-        { label: 'Question Bank', path: '/hr/self-assessment/question-bank', icon: <BookOpen size={16} className="shrink-0" /> },
-        { label: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: <ListChecks size={16} className="shrink-0" /> },
-        { label: 'Self Assessment Settings', path: '/hr/self-assessment/settings', icon: <Settings2 size={16} className="shrink-0" /> }
+
+        { label: 'Form Queue', path: '/hr/self-assessment/review-queue', icon: <ListChecks size={16} className="shrink-0" /> },
+        { label: 'Score Records', path: '/hr/self-assessment/score-records', icon: <BarChart size={16} className="shrink-0" /> },
       ]
     },
-    { icon: <Calendar size={20} />, label: 'Meetings', path: '/hr/meetings' },
+    {
+      icon: <Calendar size={20} />,
+      label: 'Meetings',
+      path: '/hr/meetings?section=schedule',
+      subItems: [
+        { label: 'Schedule Meeting', path: '/hr/meetings?section=schedule', icon: <Calendar size={16} className="shrink-0" /> },
+        { label: 'Meeting History', path: '/hr/meetings?section=history', icon: <History size={16} className="shrink-0" /> }
+      ]
+    },
     { icon: <BarChart size={20} />, label: 'Reports', path: '/hr/reports' }
   ];
 
@@ -175,9 +180,25 @@ const HrLayout: React.FC = () => {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-1 dark:bg-slate-900 transition-colors duration-300">
           {menuItems.map((item) => {
+            const currentPath = `${location.pathname}${location.search}`;
+            const itemPathname = item.path.split('?')[0];
+            const matchesPath = (targetPath: string) => {
+              const [targetPathname, targetQuery] = targetPath.split('?');
+              if (location.pathname !== targetPathname) return false;
+              const currentParams = new URLSearchParams(location.search);
+              if (!targetQuery) {
+                return !currentParams.has('section') && !currentParams.has('action');
+              }
+
+              const targetParams = new URLSearchParams(targetQuery);
+              return Array.from(targetParams.entries()).every(
+                ([key, value]) => currentParams.get(key) === value,
+              );
+            };
             const isActive =
-              location.pathname === item.path ||
-              (item.subItems && item.subItems.some((sub) => location.pathname.startsWith(sub.path)));
+              currentPath === item.path ||
+              location.pathname === itemPathname ||
+              (item.subItems && item.subItems.some((sub) => matchesPath(sub.path)));
 
             if (item.subItems) {
               const isExpanded =
@@ -217,7 +238,7 @@ const HrLayout: React.FC = () => {
                   {isExpanded && (
                     <div className="pl-7 pr-3 space-y-1 mt-1">
                       {item.subItems.map((subItem) => {
-                        const isSubActive = location.pathname === subItem.path;
+                        const isSubActive = matchesPath(subItem.path);
 
                         return (
                           <Link

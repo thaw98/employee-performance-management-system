@@ -23,6 +23,10 @@ import {
   type SelfAssessmentRatingSystem,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
+import {
+  getRatingOptions,
+  tenPointYesMinRatingOptions,
+} from '../../features/selfAssessmentForm/ratingSystem';
 
 type RatingOption = {
   value: SelfAssessmentRatingSystem;
@@ -94,22 +98,26 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
   const [ratingSystem, setRatingSystem] = useState<SelfAssessmentRatingSystem>(
     'FIVE_POINT',
   );
+  const [tenPointYesMinRating, setTenPointYesMinRating] = useState(5);
 
   useEffect(() => {
     if (data?.ratingSystem) {
       setRatingSystem(data.ratingSystem);
+      setTenPointYesMinRating(data.tenPointYesMinRating ?? 5);
     }
-  }, [data?.ratingSystem]);
+  }, [data?.ratingSystem, data?.tenPointYesMinRating]);
 
   const isRatingScaleEditable = data?.ratingSystemEditable ?? true;
   const ratingScaleLockReason =
     data?.ratingSystemLockReason ??
     'Templates already assigned to a deadline keep their existing rating scale.';
-  const isDirty = data?.ratingSystem != null && data.ratingSystem !== ratingSystem;
+  const isDirty =
+    data?.ratingSystem != null &&
+    (data.ratingSystem !== ratingSystem || (data.tenPointYesMinRating ?? 5) !== tenPointYesMinRating);
 
   const handleSave = async () => {
     try {
-      await updateSettings({ ratingSystem }).unwrap();
+      await updateSettings({ ratingSystem, tenPointYesMinRating }).unwrap();
       toast.success('Self-assessment settings saved');
     } catch (saveError) {
       toast.error(
@@ -117,8 +125,6 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
       );
     }
   };
-
-  const selectedOption = ratingOptions.find((o) => o.value === ratingSystem)!;
 
   const infoCards = [
     {
@@ -452,6 +458,54 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                   </p>
                 </div>
               )}
+              {ratingSystem === 'TEN_POINT' && (
+                <div className="mt-5 rounded-xl border border-slate-200/60 bg-white px-4 py-4 shadow-sm dark:border-slate-700/50 dark:bg-slate-900/20">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <label
+                        htmlFor="tenPointYesMinRating"
+                        className="text-sm font-bold text-slate-900 dark:text-white"
+                      >
+                        Detailed Scale Yes Threshold
+                      </label>
+                      <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                        Choose the lowest 1-10 rating that counts as Yes. Ratings below it count as No.
+                      </p>
+                    </div>
+                    <select
+                      id="tenPointYesMinRating"
+                      value={tenPointYesMinRating}
+                      onChange={(event) => setTenPointYesMinRating(Number(event.target.value))}
+                      disabled={!isRatingScaleEditable || isSaving}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 disabled:cursor-not-allowed disabled:opacity-60 md:w-52 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                    >
+                      {tenPointYesMinRatingOptions.map((rating) => (
+                        <option key={rating} value={rating}>
+                          {rating} and above
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-lg border border-emerald-200/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-950/20">
+                      <dt className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        Yes scores
+                      </dt>
+                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
+                        {getRatingOptions('TEN_POINT', 'Yes', tenPointYesMinRating).join(', ')}
+                      </dd>
+                    </div>
+                    <div className="rounded-lg border border-rose-200/60 bg-rose-50/80 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-950/20">
+                      <dt className="text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                        No scores
+                      </dt>
+                      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-800 dark:text-rose-200">
+                        {getRatingOptions('TEN_POINT', 'No', tenPointYesMinRating).join(', ')}
+                      </dd>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Action bar */}
               <div
@@ -487,7 +541,10 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() =>
-                      data?.ratingSystem && setRatingSystem(data.ratingSystem)
+                      data?.ratingSystem && (
+                        setRatingSystem(data.ratingSystem),
+                        setTenPointYesMinRating(data.tenPointYesMinRating ?? 5)
+                      )
                     }
                     disabled={isSaving}
                     className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-700 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"

@@ -13,6 +13,9 @@ import { useLoginMutation } from '../../features/auth/authApi';
 import { setCredentials } from '../../features/auth/authSlice';
 import { getDashboardPath } from '../../utils/dashboardRedirect';
 
+/** Single toast for login failures — avoids stacked duplicates from Strict Mode or double handlers. */
+const LOGIN_CREDENTIALS_TOAST_ID = 'login-credentials-error';
+
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
@@ -26,7 +29,6 @@ export function LoginForm() {
   const dispatch = useDispatch();
   const [login, { isLoading }] = useLoginMutation();
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const {
     register,
@@ -42,8 +44,6 @@ export function LoginForm() {
   });
 
   const onSubmit = async (values: LoginFormValues) => {
-    setError(null);
-
     try {
       const response = await login({
         email: values.email.trim().toLowerCase(),
@@ -51,8 +51,7 @@ export function LoginForm() {
       }).unwrap();
 
       if (!response.success || !response.data) {
-        setError('Invalid email or password');
-        toast.error('Invalid email or password');
+        toast.error('Invalid email or password', { id: LOGIN_CREDENTIALS_TOAST_ID });
         return;
       }
 
@@ -61,6 +60,7 @@ export function LoginForm() {
       // Save credentials to Redux and storage
       dispatch(setCredentials({ token, user, expiresAt, rememberMe: values.rememberMe }));
 
+      toast.dismiss(LOGIN_CREDENTIALS_TOAST_ID);
       toast.success(`Welcome back, ${user.name}!`);
 
       // Check if password change is required
@@ -75,20 +75,12 @@ export function LoginForm() {
 
     } catch (err: any) {
       const errorMessage = err?.data?.message || err?.message || 'Invalid email or password';
-      setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(errorMessage, { id: LOGIN_CREDENTIALS_TOAST_ID });
     }
   };
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-      {error && (
-        <div className="rounded-xl bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100 flex items-center gap-2">
-          <i className="bi bi-exclamation-triangle-fill" />
-          {error}
-        </div>
-      )}
-
       <div className="space-y-4">
         {/* Email Field */}
         <div>

@@ -13,7 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/appraisal-assignments")
 @RequiredArgsConstructor
-@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'EMPLOYEE')")
 public class AppraisalAssignmentController {
 
     private final AppraisalAssignmentService appraisalAssignmentService;
@@ -24,16 +24,51 @@ public class AppraisalAssignmentController {
         return ResponseEntity.ok(ApiResponse.ok("Fetched all assignments", appraisalAssignmentService.getAllAssignments()));
     }
 
+    @GetMapping("/my-assignments")
+    public ResponseEntity<ApiResponse<List<AppraisalAssignment>>> getMyAssignments(Authentication auth) {
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.ok("Fetched my assignments", appraisalAssignmentService.getAssignmentsForEmployee(principal.getEmployeeDbId())));
+    }
+
     @GetMapping("/my-team")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
     public ResponseEntity<ApiResponse<List<AppraisalAssignment>>> getMyTeamAssignments(Authentication auth) {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
-        return ResponseEntity.ok(ApiResponse.ok("Fetched team assignments", 
-            appraisalAssignmentService.getAssignmentsForEvaluator(principal.getEmployeeDbId())));
+        System.out.println("DEBUG: Fetching team assignments for evaluator ID: " + principal.getEmployeeDbId() + " (User: " + principal.getName() + ")");
+        List<AppraisalAssignment> assignments = appraisalAssignmentService.getAssignmentsForEvaluator(principal.getEmployeeDbId());
+        System.out.println("DEBUG: Found " + assignments.size() + " assignments.");
+        return ResponseEntity.ok(ApiResponse.ok("Fetched team assignments", assignments));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<AppraisalAssignment>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Fetched assignment", appraisalAssignmentService.getById(id)));
+    }
+
+    @PostMapping("/{id}/evaluate")
+    public ResponseEntity<ApiResponse<AppraisalAssignment>> submitEvaluation(@PathVariable Long id, 
+                                                                           @RequestBody com.epms.backend.dto.EvaluationRequest req,
+                                                                           Authentication auth) {
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        AppraisalAssignment saved = appraisalAssignmentService.submitEvaluation(id, req, principal.getId(), principal.getRoleId());
+        return ResponseEntity.ok(ApiResponse.ok("Appraisal evaluation submitted", saved));
+    }
+
+    @GetMapping("/{id}/form")
+    public ResponseEntity<ApiResponse<AppraisalAssignment>> getEvaluationForm(@PathVariable Long id) {
+        AppraisalAssignment assignment = appraisalAssignmentService.getById(id);
+        if (assignment == null) {
+            return ResponseEntity.status(404).body(ApiResponse.fail("Appraisal assignment not found"));
+        }
+        // Ensure template and questions are initialized if needed
+        if (assignment.getTemplate() != null && assignment.getTemplate().getCategories() != null) {
+            assignment.getTemplate().getCategories().forEach(c -> {
+                if (c.getQuestions() != null) {
+                    c.getQuestions().size();
+                }
+            });
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Fetched evaluation form", assignment));
     }
 
     @PostMapping("/{id}/approve")

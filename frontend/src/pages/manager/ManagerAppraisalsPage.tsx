@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
     Award, 
     Search, 
     Filter, 
     ChevronRight, 
+    ChevronDown,
     Clock, 
     User, 
     CheckCircle2, 
     AlertCircle, 
     ArrowRight,
     Building2,
-    Calendar
+    Calendar,
+    FileText
 } from 'lucide-react';
 
 interface AppraisalAssignment {
@@ -21,8 +26,8 @@ interface AppraisalAssignment {
         id: number;
         employeeId: string;
         employeeName: string;
-        department?: { name: string };
-        position?: { name: string };
+        department?: { id: number; name: string };
+        position?: { id: number; name: string };
     };
     period: {
         name: string;
@@ -40,6 +45,14 @@ export const ManagerAppraisalsPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('ALL');
+    const [filterPosition, setFilterPosition] = useState('ALL');
+    const [allDepartmentPositions, setAllDepartmentPositions] = useState<string[]>([]);
+    const [showTopOnly, setShowTopOnly] = useState(false);
+    const [showBottomOnly, setShowBottomOnly] = useState(false);
+    
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 6;
 
     useEffect(() => {
         fetchAssignments();
@@ -49,13 +62,98 @@ export const ManagerAppraisalsPage: React.FC = () => {
         try {
             setLoading(true);
             const resp = await axios.get('/appraisal-assignments/my-team');
-            setAssignments(resp.data.data || []);
+            const data = resp.data.data || [];
+            setAssignments(data);
+            
+            // Fetch all positions for this department
+            if (data.length > 0) {
+                const deptId = data[0].employee.department?.id;
+                if (deptId) {
+                    const posResp = await axios.get(`/departments/${deptId}/positions`);
+                    const positions = (posResp.data.data || []).map((m: any) => m.positionName);
+                    setAllDepartmentPositions(Array.from(new Set(positions)) as string[]);
+                }
+            }
         } catch (err) {
             console.error("Failed to fetch assignments", err);
             toast.error("Failed to load appraisals");
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleExportSummaryPDF = () => {
+        // Filter based on the currently active tab (HR_APPROVED or LOCKED)
+        const targetStatus = filterStatus === 'LOCKED' ? 'LOCKED' : 'HR_APPROVED';
+        const filteredByStatus = assignments.filter(a => a.status === targetStatus);
+        
+        const filtered = filteredByStatus.filter(a => {
+            const posName = a.employee.position?.name || (a.employee.position as any)?.positionName;
+            const matchesPosition = filterPosition === 'ALL' || posName === filterPosition;
+            return matchesPosition;
+        }).sort((a, b) => {
+            const scoreA = a.totalScore ?? 0;
+            const scoreB = b.totalScore ?? 0;
+            return scoreB - scoreA;
+        });
+
+        if (filtered.length === 0) {
+            toast.error(`No appraisals found for ${filterPosition === 'ALL' ? 'all positions' : filterPosition}.`);
+            return;
+        }
+
+        const doc = new jsPDF('l', 'mm', 'a4');
+        const deptName = filtered[0].employee.department?.name || (filtered[0].employee.department as any)?.departmentName || 'Department';
+        const dateStr = new Date().toLocaleDateString();
+
+        // Header
+        doc.setFillColor(8, 85, 191);
+        doc.rect(0, 0, 297, 40, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text('PERFORMANCE SUMMARY REPORT', 15, 20);
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Department: ${deptName.toUpperCase()}`, 15, 30);
+        doc.text(`Generated on: ${dateStr}`, 15, 35);
+        doc.text(`Filter: ${targetStatus === 'LOCKED' ? 'FINALIZED' : 'APPROVED'} | Position: ${filterPosition === 'ALL' ? 'ALL POSITIONS' : filterPosition.toUpperCase()}`, 282, 35, { align: 'right' });
+
+        const tableData = filtered.map((a, index) => [
+            index + 1,
+            a.employee.employeeName,
+            a.employee.employeeId,
+            a.employee.position?.name || 'N/A',
+            a.period.name,
+            `${a.totalScore?.toFixed(1) || '0.0'}%`,
+            a.ratingCategory || 'N/A'
+        ]);
+
+        autoTable(doc, {
+            head: [['NO', 'EMPLOYEE NAME', 'STAFF ID', 'POSITION', 'PERIOD', 'SCORE %', 'RATING']],
+            body: tableData,
+            startY: 50,
+            theme: 'grid',
+            headStyles: { 
+                fillColor: [30, 41, 59], 
+                textColor: [255, 255, 255],
+                fontSize: 9,
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            styles: { fontSize: 9, cellPadding: 5 },
+            columnStyles: {
+                0: { halign: 'center', cellWidth: 15 },
+                5: { halign: 'center', fontStyle: 'bold' },
+                6: { halign: 'center', fontStyle: 'bold' }
+            },
+            alternateRowStyles: { fillColor: [248, 250, 252] }
+        });
+
+        doc.save(`Performance_Summary_${deptName}_${dateStr.replace(/\//g, '-')}.pdf`);
+        toast.success("Summary report exported successfully.");
     };
 
     const getStatusStyle = (status: string) => {
@@ -68,17 +166,53 @@ export const ManagerAppraisalsPage: React.FC = () => {
                 return 'bg-emerald-50 text-emerald-600 border-emerald-100';
             case 'REJECTED':
                 return 'bg-red-50 text-red-600 border-red-100';
+            case 'LOCKED':
+                return 'bg-slate-900 text-white border-slate-900';
             default:
                 return 'bg-slate-50 text-slate-400 border-slate-100';
         }
     };
 
+    const uniquePositions = allDepartmentPositions.length > 0 
+        ? allDepartmentPositions 
+        : Array.from(new Set(assignments.map(a => a.employee.position?.name).filter(Boolean))) as string[];
+
     const filteredAssignments = assignments.filter(a => {
         const matchesSearch = a.employee.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                              a.employee.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = filterStatus === 'ALL' || a.status === filterStatus;
-        return matchesSearch && matchesStatus;
+        const matchesPosition = filterPosition === 'ALL' || a.employee.position?.name === filterPosition;
+        return matchesSearch && matchesStatus && matchesPosition;
+    }).sort((a, b) => {
+        const scoreA = a.totalScore ?? 0;
+        const scoreB = b.totalScore ?? 0;
+        return scoreB - scoreA;
     });
+
+    // Handle Top/Bottom Performers filtering for Manager view
+    let finalAssignments = filteredAssignments;
+    if (showTopOnly || showBottomOnly) {
+        // Since manager sees their team (usually one dept), find max/min across current filtered list
+        const scores = filteredAssignments.map(a => a.totalScore ?? 0).filter(s => s > 0);
+        if (scores.length > 0) {
+            const extremeScore = showTopOnly ? Math.max(...scores) : Math.min(...scores);
+            finalAssignments = filteredAssignments.filter(a => (a.totalScore ?? 0) === extremeScore && (a.totalScore ?? 0) > 0);
+        }
+    }
+
+    const maxScoreAcrossFiltered = filteredAssignments.length > 0 ? Math.max(...filteredAssignments.map(a => a.totalScore ?? 0)) : 0;
+    const minScoreAcrossFiltered = filteredAssignments.length > 0 ? Math.min(...filteredAssignments.map(a => a.totalScore ?? 0).filter(s => s > 0)) : 0;
+
+    // Pagination Logic
+    const totalPages = Math.ceil(finalAssignments.length / itemsPerPage);
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = finalAssignments.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterStatus, filterPosition]);
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -107,14 +241,69 @@ export const ManagerAppraisalsPage: React.FC = () => {
                             className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all font-medium text-sm"
                         />
                     </div>
-                    <div className="flex bg-slate-100 p-1.5 rounded-2xl">
-                        {['ALL', 'PENDING_MANAGER', 'SUBMITTED'].map(status => (
+                    
+                    {(filterStatus === 'HR_APPROVED' || filterStatus === 'LOCKED') && (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowTopOnly(!showTopOnly);
+                                    setShowBottomOnly(false);
+                                }}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                                    showTopOnly 
+                                    ? 'bg-amber-500 text-white shadow-amber-200' 
+                                    : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'
+                                }`}
+                            >
+                                🏆 {showTopOnly ? 'Showing Best' : 'Show Top'}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowBottomOnly(!showBottomOnly);
+                                    setShowTopOnly(false);
+                                }}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                                    showBottomOnly 
+                                    ? 'bg-red-500 text-white shadow-red-200' 
+                                    : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'
+                                }`}
+                            >
+                                ⚠️ {showBottomOnly ? 'Showing Bottom' : 'Show Bottom'}
+                            </button>
+                            
+                            <button
+                                onClick={handleExportSummaryPDF}
+                                className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-slate-200 animate-in zoom-in duration-300"
+                            >
+                                <FileText size={16} /> Export Summary (PDF)
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Position Filter */}
+                    <div className="relative">
+                        <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        <select
+                            value={filterPosition}
+                            onChange={(e) => setFilterPosition(e.target.value)}
+                            className="pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all font-black text-[10px] uppercase tracking-widest appearance-none min-w-[160px] text-slate-600"
+                        >
+                            <option value="ALL">All Positions</option>
+                            {uniquePositions.map(pos => (
+                                <option key={pos} value={pos}>{pos}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+
+                    <div className="flex bg-slate-100 p-1.5 rounded-2xl overflow-x-auto">
+                        {['ALL', 'PENDING_MANAGER', 'RETURNED', 'SUBMITTED', 'HR_APPROVED', 'LOCKED'].map(status => (
                             <button
                                 key={status}
                                 onClick={() => setFilterStatus(status)}
-                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === status ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filterStatus === status ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             >
-                                {status.replace('PENDING_', '')}
+                                {status === 'PENDING_MANAGER' ? 'PENDING' : status === 'RETURNED' ? 'RETURNED' : status === 'SUBMITTED' ? 'SUBMITTED' : status === 'HR_APPROVED' ? 'APPROVED' : status === 'LOCKED' ? 'FINALIZED' : 'ALL'}
                             </button>
                         ))}
                     </div>
@@ -141,29 +330,41 @@ export const ManagerAppraisalsPage: React.FC = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredAssignments.map((assignment) => (
+                    {currentItems.map((assignment) => (
                         <div 
                             key={assignment.id}
                             className="group bg-white rounded-[2.5rem] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-amber-100/50 hover:translate-y-[-8px] transition-all duration-500 relative overflow-hidden"
                         >
                             {/* Status Badge */}
                             <div className={`absolute top-6 right-6 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight border ${getStatusStyle(assignment.status)}`}>
-                                {assignment.status.replace('_', ' ')}
+                                {assignment.status === 'LOCKED' ? 'FINALIZED' : assignment.status.replace('_', ' ')}
                             </div>
 
                             <div className="space-y-6">
                                 {/* Employee Profile */}
                                 <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 font-black text-xl border border-slate-100 group-hover:bg-amber-50 group-hover:text-amber-500 transition-colors">
-                                        {assignment.employee.employeeName.charAt(0)}
+                                    <div className={`w-14 h-14 ${assignment.status === 'SUBMITTED' ? 'bg-slate-900 text-white' : 'bg-amber-100 text-amber-700'} rounded-2xl flex items-center justify-center font-black text-xl shadow-inner group-hover:scale-110 transition-transform`}>
+                                        {(assignment.employee.employeeName || assignment.employee.fullName || (assignment.employee as any).full_name || 'E').charAt(0)}
                                     </div>
-                                    <div>
-                                        <h3 className="font-black text-slate-800 uppercase tracking-tight group-hover:text-amber-600 transition-colors">
-                                            {assignment.employee.employeeName}
+                                    <div className="space-y-1">
+                                        <h3 className="text-xl font-black text-slate-900 group-hover:text-[#5D5FEF] transition-colors">
+                                            {assignment.employee.employeeName || assignment.employee.fullName || (assignment.employee as any).full_name || 'N/A'}
                                         </h3>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                                             ID: {assignment.employee.employeeId}
                                         </p>
+                                        <div className="flex gap-2 mt-2">
+                                            {assignment.totalScore && assignment.totalScore > 0 && assignment.totalScore === maxScoreAcrossFiltered && (
+                                                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black rounded-md border border-amber-200 animate-bounce shadow-sm">
+                                                    🏆 TOP PERFORMER
+                                                </span>
+                                            )}
+                                            {assignment.totalScore && assignment.totalScore > 0 && assignment.totalScore === minScoreAcrossFiltered && (
+                                                <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[8px] font-black rounded-md border border-red-200 shadow-sm">
+                                                    ⚠️ NEEDS SUPPORT
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -175,7 +376,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                             <span className="text-[9px] font-black uppercase tracking-widest">Department</span>
                                         </div>
                                         <p className="text-[11px] font-bold text-slate-700 uppercase truncate">
-                                            {assignment.employee.department?.name || 'General'}
+                                            {assignment.employee.department?.name || (assignment.employee.department as any)?.departmentName || 'General'}
                                         </p>
                                     </div>
                                     <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-50">
@@ -207,27 +408,76 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                 </div>
 
                                 {/* Action Button */}
-                                <button 
+                                <Link 
+                                    to={`/manager/appraisals/${assignment.id}/evaluate`}
                                     className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm ${
-                                        assignment.status === 'PENDING_MANAGER'
+                                        (assignment.status === 'PENDING_MANAGER' || assignment.status === 'RETURNED')
                                         ? 'bg-slate-900 text-white hover:bg-amber-600 hover:shadow-lg hover:shadow-amber-200'
-                                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                     }`}
                                 >
-                                    {assignment.status === 'PENDING_MANAGER' ? (
+                                    {(assignment.status === 'PENDING_MANAGER' || assignment.status === 'RETURNED') ? (
                                         <>
-                                            Start Evaluation <ArrowRight size={14} />
+                                            {assignment.status === 'RETURNED' ? 'RE-EVALUATE' : 'Start Evaluation'} <ArrowRight size={14} />
                                         </>
                                     ) : (
                                         <>View Details <ChevronRight size={14} /></>
                                     )}
-                                </button>
+                                </Link>
                             </div>
 
                             {/* Background Decoration */}
                             <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-amber-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity blur-2xl" />
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Pagination Controls */}
+            {!loading && finalAssignments.length > itemsPerPage && (
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-8 border-t border-slate-100">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        Showing <span className="text-slate-900">{indexOfFirstItem + 1}</span> to <span className="text-slate-900">{Math.min(indexOfLastItem, finalAssignments.length)}</span> of <span className="text-slate-900">{finalAssignments.length}</span> assignments
+                    </p>
+                    
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-amber-500 hover:text-amber-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronRight size={18} className="rotate-180" />
+                        </button>
+                        
+                        <div className="flex items-center gap-1">
+                            {[...Array(totalPages)].map((_, i) => {
+                                const pageNum = i + 1;
+                                // Show limited page numbers if totalPages is large
+                                if (totalPages > 7 && (pageNum > 2 && pageNum < totalPages - 1 && Math.abs(pageNum - currentPage) > 1)) {
+                                    if (pageNum === 3 || pageNum === totalPages - 2) return <span key={pageNum} className="px-2 text-slate-300">...</span>;
+                                    return null;
+                                }
+                                
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        className={`w-10 h-10 rounded-xl font-black text-xs transition-all ${currentPage === pageNum ? 'bg-amber-500 text-white shadow-lg shadow-amber-200 scale-110' : 'text-slate-400 hover:bg-slate-50'}`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-amber-500 hover:text-amber-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronRight size={18} />
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

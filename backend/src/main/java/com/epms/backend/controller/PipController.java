@@ -9,12 +9,26 @@ import com.epms.backend.dto.pip.MeetingScheduleRequest;
 import com.epms.backend.dto.pip.PipCloseRequest;
 import com.epms.backend.dto.pip.PipReopenRequest;
 import com.epms.backend.dto.pip.PipReviewRequest;
+import com.epms.backend.dto.pip.PipCommunicationNoteDto;
+import com.epms.backend.dto.pip.PipCommunicationNotePageDto;
+import com.epms.backend.dto.pip.PipCommunicationNoteRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.service.PipReportService;
 import com.epms.backend.service.PipService;
 import com.epms.backend.repository.UserRepository;
+import com.epms.backend.dto.pip.report.PipIndividualReportDto;
+import com.epms.backend.dto.pip.report.PipProgressReportDto;
+import com.epms.backend.dto.pip.report.PipSummaryReportDto;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,6 +43,7 @@ import java.util.List;
 public class PipController {
 
     private final PipService pipService;
+    private final PipReportService pipReportService;
     private final UserRepository userRepository;
 
     @PostMapping
@@ -65,11 +80,133 @@ public class PipController {
         return ResponseEntity.ok(ApiResponse.ok("PIPs retrieved successfully", pips));
     }
 
+    @GetMapping("/{pipId}/report")
+    public ResponseEntity<byte[]> getIndividualPipReport(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long pipId,
+            @RequestParam(defaultValue = "pdf") String format) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        byte[] bytes = pipReportService.generateIndividualPipReport(pipId, format, user);
+        return reportResponse(bytes, "pip_" + pipId + "_report", format);
+    }
+
+    @GetMapping("/report/summary")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<byte[]> getPipSummaryReport(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(defaultValue = "pdf") String format) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        byte[] bytes = pipReportService.generateSummaryReport(status, departmentId, startDate, endDate, format, user);
+        return reportResponse(bytes, "pip_summary_report", format);
+    }
+
+    @GetMapping("/report/progress")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<byte[]> getPipProgressReport(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(defaultValue = "pdf") String format) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        byte[] bytes = pipReportService.generateProgressReport(departmentId, startDate, endDate, format, user);
+        return reportResponse(bytes, "pip_progress_report", format);
+    }
+
+    @GetMapping("/report/summary/data")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<List<PipSummaryReportDto>>> getPipSummaryReportData(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        List<PipSummaryReportDto> data = pipReportService.getPipSummaryReport(status, departmentId, startDate, endDate, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP summary report data retrieved successfully", data));
+    }
+
+    @GetMapping("/report/progress/data")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<PipProgressReportDto>> getPipProgressReportData(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        PipProgressReportDto data = pipReportService.getPipProgressReport(departmentId, startDate, endDate, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP progress report data retrieved successfully", data));
+    }
+
+    @GetMapping("/{pipId}/report/data")
+    public ResponseEntity<ApiResponse<PipIndividualReportDto>> getIndividualPipReportData(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long pipId) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        PipIndividualReportDto data = pipReportService.getIndividualPipReport(pipId, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP individual report data retrieved successfully", data));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Pip>> getPipById(@AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         return ResponseEntity.ok(ApiResponse.ok("PIP retrieved successfully", pipService.getPipById(id, user)));
+    }
+
+    @GetMapping("/{id}/notes")
+    public ResponseEntity<ApiResponse<PipCommunicationNotePageDto>> getPipNotes(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @RequestParam(required = false) String noteType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), Sort.by(Sort.Direction.DESC, "createdDate"));
+        return ResponseEntity.ok(ApiResponse.ok("PIP notes retrieved successfully", pipService.getPipNotes(id, noteType, pageable, user)));
+    }
+
+    @PostMapping("/{id}/notes")
+    @PreAuthorize("hasAnyRole('EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<PipCommunicationNoteDto>> addPipNote(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @RequestBody PipCommunicationNoteRequest request) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        return ResponseEntity.ok(ApiResponse.ok("PIP note added successfully", pipService.addPipNote(id, request, user)));
+    }
+
+    @GetMapping("/notes")
+    @PreAuthorize("hasRole('HR')")
+    public ResponseEntity<ApiResponse<Page<PipCommunicationNoteDto>>> getAllPipNotes(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long managerId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String employeeName,
+            @RequestParam(required = false) String noteType,
+            @RequestParam(required = false) String pipStatus,
+            @RequestParam(required = false) LocalDate dateFrom,
+            @RequestParam(required = false) LocalDate dateTo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), Sort.by(Sort.Direction.DESC, "createdDate"));
+        return ResponseEntity.ok(ApiResponse.ok("PIP notes retrieved successfully",
+                pipService.getAllPipNotes(employeeId, managerId, departmentId, employeeName, noteType, pipStatus, dateFrom, dateTo, pageable, user)));
+    }
+
+    @DeleteMapping("/notes/{noteId}")
+    public ResponseEntity<ApiResponse<Void>> deletePipNote(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long noteId) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        pipService.deletePipNote(noteId, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP note deleted successfully", null));
     }
 
     @PutMapping("/objectives/{objectiveId}/progress")
@@ -131,9 +268,20 @@ public class PipController {
     public ResponseEntity<ApiResponse<Pip>> employeeSign(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
-            @Valid @RequestBody PipSignatureRequest request) {
+            @RequestBody(required = false) PipSignatureRequest request) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         Pip pip = pipService.employeeSign(id, request, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP signed successfully", pip));
+    }
+
+    @PostMapping("/{id}/manager-sign")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<Pip>> managerSign(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @RequestBody(required = false) PipSignatureRequest request) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pip pip = pipService.managerSign(id, request, user);
         return ResponseEntity.ok(ApiResponse.ok("PIP signed successfully", pip));
     }
 
@@ -159,4 +307,28 @@ public class PipController {
         return ResponseEntity.ok(ApiResponse.ok("Objective history retrieved successfully",
                 pipService.getObjectiveHistory(objectiveId)));
     }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<ApiResponse<List<PipProgressUpdate>>> getPipHistory(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        return ResponseEntity.ok(ApiResponse.ok("PIP history retrieved successfully",
+                pipService.getPipHistory(id, user)));
+    }
+
+    private ResponseEntity<byte[]> reportResponse(byte[] bytes, String basename, String format) {
+        boolean excel = "excel".equalsIgnoreCase(format) || "xlsx".equalsIgnoreCase(format);
+        String extension = excel ? "xlsx" : "pdf";
+        MediaType mediaType = excel
+                ? MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                : MediaType.APPLICATION_PDF;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(mediaType);
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename(basename + "_" + LocalDate.now() + "." + extension)
+                .build());
+        return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
 }
