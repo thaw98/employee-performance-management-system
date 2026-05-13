@@ -15,6 +15,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -25,6 +26,18 @@ import java.util.stream.Collectors;
 
 @Service
 public class SelfAssessmentFormService {
+
+    /** Forms visible on HR / manager score-records (in-review and finalized). */
+    private static final EnumSet<SelfAssessmentFormStatus> SCORE_RECORD_VISIBLE_STATUSES = EnumSet.of(
+            SelfAssessmentFormStatus.SUBMITTED,
+            SelfAssessmentFormStatus.APPROVED,
+            SelfAssessmentFormStatus.REOPENED,
+            SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW,
+            SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW,
+            SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL,
+            SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW,
+            SelfAssessmentFormStatus.FINALIZED_LOCKED,
+            SelfAssessmentFormStatus.MANAGER_REVIEWED);
 
     private static final DateTimeFormatter NOTIFICATION_DEADLINE_FORMAT =
             DateTimeFormatter.ofPattern("dd-MM-yyyy");
@@ -660,7 +673,7 @@ Instant now = Instant.now();
 
         if (assignmentMode == AssignmentMode.SPECIFIC_EMPLOYEES) {
             for (Long requestedId : employeeIdSet) {
-                boolean matched = candidates.stream().anyMatch(e -> e.getEmployeeId().equals(requestedId));
+                boolean matched = candidates.stream().anyMatch(e -> requestedId.equals(e.getId()));
                 if (!matched) {
                     skippedIneligible++;
                 }
@@ -1460,25 +1473,6 @@ Instant now = Instant.now();
             ReviewCycle activeCycle,
             LocalDate startDate,
             LocalDate deadlineDate,
-            Instant assignedAt,
-            Long assignedBy) {
-        return createAssignedDraftForm(
-                employee,
-                template,
-                activeCycle,
-                startDate,
-                deadlineDate,
-                null,
-                assignedAt,
-                assignedBy);
-    }
-
-    private SelfAssessmentForm createAssignedDraftForm(
-            Employee employee,
-            SelfAssessmentFormTemplate template,
-            ReviewCycle activeCycle,
-            LocalDate startDate,
-            LocalDate deadlineDate,
             LocalDate managerReviewDeadlineDate,
             Instant assignedAt,
             Long assignedBy) {
@@ -1716,7 +1710,8 @@ Instant now = Instant.now();
             case HYBRID -> departmentId != null && positionId != null
                     && departmentIds.contains(departmentId)
                     && positionIds.contains(positionId);
-            case SPECIFIC_EMPLOYEES -> employeeIds.contains(employee.getEmployeeId());
+            case SPECIFIC_EMPLOYEES ->
+                    employee.getId() != null && employeeIds.contains(employee.getId());
         };
     }
 
@@ -1955,27 +1950,6 @@ Instant now = Instant.now();
                         "Self-Assessment Submitted",
                         "Employee " + employee.getEmployeeName() + " submitted "
                                 + resolveFormDisplayTitle(form) + " for your review.",
-                        "SELF_ASSESSMENT_FORM"));
-    }
-
-    private void sendManagerReviewNotifications(SelfAssessmentForm form) {
-        Employee employee = form.getEmployee();
-        if (employee != null && hasActiveUserAccount(employee)) {
-            notificationService.send(
-                    employee.getUserAccount(),
-                    "Manager Review Completed",
-                    "Your " + resolveFormDisplayTitle(form) + " has been reviewed by your manager.",
-                    "SELF_ASSESSMENT_FORM");
-        }
-
-        User reviewedEmployeeUser = employee != null ? employee.getUserAccount() : null;
-        userRepository.findByRole_IdAndActiveTrue(1L).stream()
-                .filter(hrUser -> reviewedEmployeeUser == null || !hrUser.getId().equals(reviewedEmployeeUser.getId()))
-                .forEach(hrUser -> notificationService.send(
-                        hrUser,
-                        "Manager Review Submitted",
-                        "Manager has reviewed " + (employee != null ? employee.getEmployeeName() : "an employee")
-                                + "'s " + resolveFormDisplayTitle(form) + ".",
                         "SELF_ASSESSMENT_FORM"));
     }
 
@@ -2234,7 +2208,7 @@ Instant now = Instant.now();
 
     private List<ScoreRecordDto> getHrScoreRecords() {
         return formRepository.findAll().stream()
-                .filter(f -> f.getStatus() == SelfAssessmentFormStatus.FINALIZED_LOCKED)
+                .filter(f -> SCORE_RECORD_VISIBLE_STATUSES.contains(f.getStatus()))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
                 .collect(Collectors.toList());
@@ -2244,7 +2218,7 @@ Instant now = Instant.now();
         List<SelfAssessmentForm> allForms = formRepository.findAll();
         Long managerId = manager.getId();
         return allForms.stream()
-                .filter(f -> f.getStatus() == SelfAssessmentFormStatus.FINALIZED_LOCKED)
+                .filter(f -> SCORE_RECORD_VISIBLE_STATUSES.contains(f.getStatus()))
                 .filter(f -> {
                     Employee emp = f.getEmployee();
                     if (emp == null) return false;
@@ -2341,6 +2315,11 @@ Instant now = Instant.now();
                 .collect(Collectors.toList());
 
         String managerName = form.getManager() != null ? form.getManager().getEmployeeName() : null;
+        Signature employeeSignature = resolveSignature(form.getEmployeeSignatureId());
+        Signature managerSignature = resolveSignature(form.getManagerSignatureId());
+        Signature hrSignature = resolveSignature(form.getHrSignatureId());
+        Signature hrFinalSignature = resolveSignature(form.getHrFinalSignatureId());
+        Signature hrAdjustmentSignature = resolveSignature(form.getHrAdjustmentSignatureId());
 
         return new SelfAssessmentFormDto(
                 form.getId(),
@@ -2361,18 +2340,28 @@ Instant now = Instant.now();
                 form.getRatingCategory(),
                 form.getEmployeeRemarks(),
                 form.getEmployeeSignatureId(),
+                signatureData(employeeSignature),
+                signatureType(employeeSignature),
                 form.getEmployeeSignatureDate(),
                 form.getOverallRemarks(),
                 form.getManager() != null ? form.getManager().getId() : null,
                 managerName,
                 form.getManagerSignatureId(),
+                signatureData(managerSignature),
+                signatureType(managerSignature),
                 form.getManagerSignatureDate(),
                 form.getManagerComments(),
                 form.getHrSignatureId(),
+                signatureData(hrSignature),
+                signatureType(hrSignature),
                 form.getHrSignatureDate(),
                 form.getHrFinalSignatureId(),
+                signatureData(hrFinalSignature),
+                signatureType(hrFinalSignature),
                 form.getHrFinalSignatureDate(),
                 form.getHrAdjustmentSignatureId(),
+                signatureData(hrAdjustmentSignature),
+                signatureType(hrAdjustmentSignature),
                 form.getHrAdjustmentSignatureDate(),
                 form.getCreatedDate(),
                 form.getSubmittedDate(),
@@ -2388,6 +2377,21 @@ Instant now = Instant.now();
                 form.getHrReviewRequired(),
                 form.getHrReviewReason()
         );
+    }
+
+    private Signature resolveSignature(Long signatureId) {
+        if (signatureId == null) {
+            return null;
+        }
+        return signatureRepository.findById(signatureId).orElse(null);
+    }
+
+    private String signatureData(Signature signature) {
+        return signature == null ? null : signature.getSignatureData();
+    }
+
+    private String signatureType(Signature signature) {
+        return signature == null ? null : signature.getSignatureType();
     }
 
     private FormListDto toFormListDto(SelfAssessmentForm form) {

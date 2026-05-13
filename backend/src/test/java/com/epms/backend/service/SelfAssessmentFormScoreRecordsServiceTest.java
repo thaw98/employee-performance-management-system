@@ -80,7 +80,7 @@ class SelfAssessmentFormScoreRecordsServiceTest {
     }
 
     @Test
-    void getScoreRecords_hr_returnsAllFinalizedRecords() {
+    void getScoreRecords_hr_returnsWorkflowAndFinalizedRecords() {
         Employee emp1 = employee(1L, 10L, 20L);
         Employee emp2 = employee(2L, 11L, 21L);
         ReviewCycle cycle = cycle();
@@ -89,29 +89,49 @@ class SelfAssessmentFormScoreRecordsServiceTest {
         SelfAssessmentForm finalized = finalizedForm(200L, emp1, tmpl, cycle, 85.5, "Outstanding");
         SelfAssessmentForm draft = formWithStatus(201L, emp2, tmpl, cycle, SelfAssessmentFormStatus.DRAFT);
         SelfAssessmentForm finalized2 = finalizedForm(202L, emp2, tmpl, cycle, 72.0, "Good");
+        SelfAssessmentForm pendingManager = formWithStatus(203L, emp1, tmpl, cycle, SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW);
 
-        when(formRepository.findAll()).thenReturn(List.of(finalized, draft, finalized2));
+        when(formRepository.findAll()).thenReturn(List.of(finalized, draft, finalized2, pendingManager));
 
         List<ScoreRecordDto> records = service.getScoreRecords(emp1, 1L);
 
-        assertEquals(2, records.size());
-        assertTrue(records.stream().allMatch(r -> "FINALIZED_LOCKED".equals(r.status())));
+        assertEquals(3, records.size());
+        assertTrue(records.stream().anyMatch(r -> "FINALIZED_LOCKED".equals(r.status())));
+        assertTrue(records.stream().anyMatch(r -> "PENDING_MANAGER_REVIEW".equals(r.status())));
         assertTrue(records.stream().anyMatch(r -> r.finalApprovedScore() != null && r.finalApprovedScore() == 85.5));
         assertTrue(records.stream().anyMatch(r -> r.finalApprovedScore() != null && r.finalApprovedScore() == 72.0));
     }
 
     @Test
-    void getScoreRecords_hr_noFinalizedForms_returnsEmptyList() {
+    void getScoreRecords_hr_onlyNonVisibleStatuses_returnsEmptyList() {
         Employee emp = employee(1L, 10L, 20L);
         ReviewCycle cycle = cycle();
         SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
         SelfAssessmentForm draft = formWithStatus(200L, emp, tmpl, cycle, SelfAssessmentFormStatus.DRAFT);
+        SelfAssessmentForm notStarted = formWithStatus(201L, emp, tmpl, cycle, SelfAssessmentFormStatus.NOT_STARTED);
 
-        when(formRepository.findAll()).thenReturn(List.of(draft));
+        when(formRepository.findAll()).thenReturn(List.of(draft, notStarted));
 
         List<ScoreRecordDto> records = service.getScoreRecords(emp, 1L);
 
         assertTrue(records.isEmpty());
+    }
+
+    @Test
+    void getScoreRecords_hr_includesSubmittedAndApproved() {
+        Employee emp = employee(1L, 10L, 20L);
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm submitted = formWithStatus(200L, emp, tmpl, cycle, SelfAssessmentFormStatus.SUBMITTED);
+        SelfAssessmentForm approved = formWithStatus(201L, emp, tmpl, cycle, SelfAssessmentFormStatus.APPROVED);
+
+        when(formRepository.findAll()).thenReturn(List.of(submitted, approved));
+
+        List<ScoreRecordDto> records = service.getScoreRecords(emp, 1L);
+
+        assertEquals(2, records.size());
+        assertTrue(records.stream().anyMatch(r -> "SUBMITTED".equals(r.status())));
+        assertTrue(records.stream().anyMatch(r -> "APPROVED".equals(r.status())));
     }
 
     @Test
@@ -135,14 +155,16 @@ class SelfAssessmentFormScoreRecordsServiceTest {
         SelfAssessmentForm finalized1 = finalizedForm(200L, directReport, tmpl, cycle, 90.0, "Outstanding");
         SelfAssessmentForm finalized2 = finalizedForm(201L, deptReport, tmpl, cycle, 65.0, "Meet Requirement");
         SelfAssessmentForm finalized3 = finalizedForm(202L, otherEmp, tmpl, cycle, 80.0, "Good");
+        SelfAssessmentForm pendingEmp = formWithStatus(203L, directReport, tmpl, cycle, SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW);
 
-        when(formRepository.findAll()).thenReturn(List.of(finalized1, finalized2, finalized3));
+        when(formRepository.findAll()).thenReturn(List.of(finalized1, finalized2, finalized3, pendingEmp));
 
         List<ScoreRecordDto> records = service.getScoreRecords(manager, 2L);
 
-        assertEquals(2, records.size());
+        assertEquals(3, records.size());
         assertTrue(records.stream().anyMatch(r -> r.employee().employeeName().equals("Employee 1")));
         assertTrue(records.stream().anyMatch(r -> r.employee().employeeName().equals("Employee 2")));
+        assertTrue(records.stream().anyMatch(r -> "PENDING_EMPLOYEE_REVIEW".equals(r.status())));
     }
 
     @Test

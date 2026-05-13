@@ -66,4 +66,12 @@ public class SelfAssessmentFormTemplate {
         questions.add(question);
         question.setTemplate(this);
     }
+
+    public Long getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(Long createdBy) {
+        this.createdBy = createdBy;
+    }
 }

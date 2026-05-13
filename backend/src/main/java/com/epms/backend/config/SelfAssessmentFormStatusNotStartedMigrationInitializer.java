@@ -1,5 +1,6 @@
 package com.epms.backend.config;
 
+import com.epms.backend.entity.SelfAssessmentFormStatus;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -8,6 +9,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 @Component
 public class SelfAssessmentFormStatusNotStartedMigrationInitializer implements BeanPostProcessor, Ordered {
@@ -39,10 +42,23 @@ public class SelfAssessmentFormStatusNotStartedMigrationInitializer implements B
 
     private void modifyEnumColumnIfNeeded(JdbcTemplate jdbc) {
         String currentType = getColumnType(jdbc, "self_assessment_form", "status");
-        if (currentType == null || !currentType.contains("NOT_STARTED")) {
-            String newDefinition = "ENUM('APPROVED','DRAFT','MANAGER_REVIEWED','NOT_STARTED','NOT_SUBMITTED','REOPENED','SUBMITTED') NOT NULL";
+        if (currentType == null || isMissingStatusValue(currentType)) {
+            String newDefinition = "ENUM(" + buildEnumValuesDefinition() + ") NOT NULL";
             jdbc.execute("ALTER TABLE `self_assessment_form` MODIFY COLUMN `status` " + newDefinition);
         }
+    }
+
+    private boolean isMissingStatusValue(String currentType) {
+        return Arrays.stream(SelfAssessmentFormStatus.values())
+                .map(Enum::name)
+                .anyMatch(status -> !currentType.contains("'" + status + "'"));
+    }
+
+    private String buildEnumValuesDefinition() {
+        return Arrays.stream(SelfAssessmentFormStatus.values())
+                .map(Enum::name)
+                .map(status -> "'" + status + "'")
+                .collect(Collectors.joining(","));
     }
 
     private String getColumnType(JdbcTemplate jdbc, String tableName, String columnName) {

@@ -14,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -38,6 +37,64 @@ public class MeetingController {
         }
     }
 
+    @PostMapping("/request")
+    public ResponseEntity<ApiResponse<MeetingResponse>> requestMeeting(@RequestBody MeetingRequest request) {
+        try {
+            User user = getCurrentUser();
+            MeetingResponse response = meetingService.requestMeeting(user.getEmployee().getId(), request);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Meeting requested successfully", response));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/requestable-managers")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRequestableManagers() {
+        try {
+            User user = getCurrentUser();
+            List<Employee> managers = meetingService.getRequestableManagers(user.getEmployee().getId());
+            List<Map<String, Object>> response = managers.stream().map(e -> Map.<String, Object>of(
+                    "id", e.getId(),
+                    "name", e.getEmployeeName(),
+                    "department", e.getDepartment() != null ? e.getDepartment().getName() : "N/A",
+                    "position", e.getPosition() != null ? e.getPosition().getName() : "N/A"))
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(new ApiResponse<>(true, "Requestable managers fetched", response));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<ApiResponse<Page<MeetingResponse>>> getMeetingHistory(
+            @RequestParam(required = false) String statuses,
+            @RequestParam(required = false) String searchName,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(defaultValue = "latest") String sortBy,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            List<MeetingStatus> statusList = parseStatuses(statuses);
+            java.time.Instant from = (fromDate != null && !fromDate.isBlank()) ? java.time.Instant.parse(fromDate) : null;
+            java.time.Instant to = (toDate != null && !toDate.isBlank()) ? java.time.Instant.parse(toDate) : null;
+            org.springframework.data.domain.Sort sort = switch (sortBy) {
+                case "oldest" -> org.springframework.data.domain.Sort.by("scheduledTime").ascending();
+                case "name_asc" -> org.springframework.data.domain.Sort.by("employee.employeeName").ascending();
+                case "name_desc" -> org.springframework.data.domain.Sort.by("employee.employeeName").descending();
+                default -> org.springframework.data.domain.Sort.by("scheduledTime").descending();
+            };
+
+            Page<MeetingResponse> response = meetingService.getMeetingHistory(
+                    statusList, searchName, departmentId, from, to, PageRequest.of(page, size, sort));
+            return ResponseEntity.ok(new ApiResponse<>(true, "Meeting history fetched", response));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(new ApiResponse<>(false, "Server Error: " + e.getMessage(), null));
+        }
+    }
+
     @GetMapping("/manager")
     public ResponseEntity<ApiResponse<Page<MeetingResponse>>> getManagerMeetings(
             @RequestParam(required = false) String statuses,
@@ -51,7 +108,8 @@ public class MeetingController {
         try {
             User user = getCurrentUser();
             if (user.getEmployee() == null) {
-                return ResponseEntity.badRequest().body(new ApiResponse<>(false, "User is not associated with an employee record", null));
+                return ResponseEntity.badRequest()
+                        .body(new ApiResponse<>(false, "User is not associated with an employee record", null));
             }
             List<MeetingStatus> statusList = null;
             if (statuses != null && !statuses.isBlank()) {
@@ -59,14 +117,18 @@ public class MeetingController {
                         .map(String::trim)
                         .filter(s -> !s.isEmpty())
                         .map(s -> {
-                            try { return MeetingStatus.valueOf(s); }
-                            catch (Exception e) { return null; }
+                            try {
+                                return MeetingStatus.valueOf(s);
+                            } catch (Exception e) {
+                                return null;
+                            }
                         })
                         .filter(java.util.Objects::nonNull)
                         .collect(Collectors.toList());
             }
 
-            java.time.Instant from = (fromDate != null && !fromDate.isBlank()) ? java.time.Instant.parse(fromDate) : null;
+            java.time.Instant from = (fromDate != null && !fromDate.isBlank()) ? java.time.Instant.parse(fromDate)
+                    : null;
             java.time.Instant to = (toDate != null && !toDate.isBlank()) ? java.time.Instant.parse(toDate) : null;
 
             org.springframework.data.domain.Sort sort = switch (sortBy) {
@@ -77,11 +139,12 @@ public class MeetingController {
             };
 
             Page<MeetingResponse> response = meetingService.getManagerMeetings(
-                    user.getEmployee().getId(), statusList, searchName, departmentId, from, to, 
+                    user.getEmployee().getId(), statusList, searchName, departmentId, from, to,
                     PageRequest.of(page, size, sort));
             return ResponseEntity.ok(new ApiResponse<>(true, "Manager meetings fetched", response));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(new ApiResponse<>(false, "Server Error: " + e.getMessage(), null));
+            return ResponseEntity.internalServerError()
+                    .body(new ApiResponse<>(false, "Server Error: " + e.getMessage(), null));
         }
     }
 
@@ -98,7 +161,8 @@ public class MeetingController {
         try {
             User user = getCurrentUser();
             if (user.getEmployee() == null) {
-                return ResponseEntity.badRequest().body(new ApiResponse<>(false, "User is not associated with an employee record", null));
+                return ResponseEntity.badRequest()
+                        .body(new ApiResponse<>(false, "User is not associated with an employee record", null));
             }
             List<MeetingStatus> statusList = null;
             if (statuses != null && !statuses.isBlank()) {
@@ -106,14 +170,18 @@ public class MeetingController {
                         .map(String::trim)
                         .filter(s -> !s.isEmpty())
                         .map(s -> {
-                            try { return MeetingStatus.valueOf(s); }
-                            catch (Exception e) { return null; }
+                            try {
+                                return MeetingStatus.valueOf(s);
+                            } catch (Exception e) {
+                                return null;
+                            }
                         })
                         .filter(java.util.Objects::nonNull)
                         .collect(Collectors.toList());
             }
 
-            java.time.Instant from = (fromDate != null && !fromDate.isBlank()) ? java.time.Instant.parse(fromDate) : null;
+            java.time.Instant from = (fromDate != null && !fromDate.isBlank()) ? java.time.Instant.parse(fromDate)
+                    : null;
             java.time.Instant to = (toDate != null && !toDate.isBlank()) ? java.time.Instant.parse(toDate) : null;
 
             org.springframework.data.domain.Sort sort = switch (sortBy) {
@@ -128,7 +196,8 @@ public class MeetingController {
                     PageRequest.of(page, size, sort));
             return ResponseEntity.ok(new ApiResponse<>(true, "Employee meetings fetched", response));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(new ApiResponse<>(false, "Server Error: " + e.getMessage(), null));
+            return ResponseEntity.internalServerError()
+                    .body(new ApiResponse<>(false, "Server Error: " + e.getMessage(), null));
         }
     }
 
@@ -141,8 +210,8 @@ public class MeetingController {
                     "id", e.getId(),
                     "name", e.getEmployeeName(),
                     "department", e.getDepartment() != null ? e.getDepartment().getName() : "N/A",
-                    "position", e.getPosition() != null ? e.getPosition().getName() : "N/A"
-            )).collect(Collectors.toList());
+                    "position", e.getPosition() != null ? e.getPosition().getName() : "N/A"))
+                    .collect(Collectors.toList());
             return ResponseEntity.ok(new ApiResponse<>(true, "Eligible employees fetched", response));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
@@ -172,7 +241,8 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/reschedule")
-    public ResponseEntity<ApiResponse<MeetingResponse>> requestReschedule(@PathVariable Long id, @RequestBody MeetingRescheduleRequest request) {
+    public ResponseEntity<ApiResponse<MeetingResponse>> requestReschedule(@PathVariable Long id,
+            @RequestBody MeetingRescheduleRequest request) {
         try {
             User user = getCurrentUser();
             MeetingResponse response = meetingService.requestReschedule(id, user.getId(), request);
@@ -194,7 +264,8 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<MeetingResponse>> updateStatus(@PathVariable Long id, @RequestBody MeetingStatusUpdateRequest request) {
+    public ResponseEntity<ApiResponse<MeetingResponse>> updateStatus(@PathVariable Long id,
+            @RequestBody MeetingStatusUpdateRequest request) {
         try {
             User user = getCurrentUser();
             MeetingResponse response = meetingService.updateStatus(id, user.getId(), request.status());
@@ -205,7 +276,8 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/cancel")
-    public ResponseEntity<ApiResponse<MeetingResponse>> cancelMeeting(@PathVariable Long id, @RequestBody MeetingCancelRequest request) {
+    public ResponseEntity<ApiResponse<MeetingResponse>> cancelMeeting(@PathVariable Long id,
+            @RequestBody MeetingCancelRequest request) {
         try {
             User user = getCurrentUser();
             MeetingResponse response = meetingService.cancelMeeting(id, user.getId(), request.reason());
@@ -216,7 +288,8 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/request-cancel")
-    public ResponseEntity<ApiResponse<MeetingResponse>> requestCancel(@PathVariable Long id, @RequestBody MeetingCancelRequest request) {
+    public ResponseEntity<ApiResponse<MeetingResponse>> requestCancel(@PathVariable Long id,
+            @RequestBody MeetingCancelRequest request) {
         try {
             User user = getCurrentUser();
             MeetingResponse response = meetingService.requestCancel(id, user.getId(), request.reason());
@@ -249,7 +322,8 @@ public class MeetingController {
     }
 
     @PutMapping("/{id}/finish")
-    public ResponseEntity<ApiResponse<MeetingResponse>> finishMeeting(@PathVariable Long id, @RequestBody MeetingFinishRequest request) {
+    public ResponseEntity<ApiResponse<MeetingResponse>> finishMeeting(@PathVariable Long id,
+            @RequestBody MeetingFinishRequest request) {
         try {
             User user = getCurrentUser();
             MeetingResponse response = meetingService.finishMeeting(id, user.getId(), request.summaryNotes());
@@ -271,7 +345,8 @@ public class MeetingController {
     }
 
     @PostMapping("/{id}/notes")
-    public ResponseEntity<ApiResponse<MeetingNoteResponse>> addMeetingNote(@PathVariable Long id, @RequestBody MeetingNoteRequest request) {
+    public ResponseEntity<ApiResponse<MeetingNoteResponse>> addMeetingNote(@PathVariable Long id,
+            @RequestBody MeetingNoteRequest request) {
         try {
             User user = getCurrentUser();
             MeetingNoteResponse note = meetingService.addNote(id, user.getId(), request);
@@ -290,5 +365,23 @@ public class MeetingController {
         } catch (NumberFormatException e) {
             throw new RuntimeException("Invalid user ID in security context: " + userIdStr);
         }
+    }
+
+    private List<MeetingStatus> parseStatuses(String statuses) {
+        if (statuses == null || statuses.isBlank()) {
+            return null;
+        }
+        return java.util.Arrays.stream(statuses.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> {
+                    try {
+                        return MeetingStatus.valueOf(s);
+                    } catch (Exception e) {
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
     }
 }

@@ -25,6 +25,7 @@ import {
   CalendarCheck,
   ClipboardList,
   Crown,
+  Eye,
   GripVertical,
   Layers3,
   Plus,
@@ -56,6 +57,7 @@ import { getRatingOptions, ratingSystemLabels } from '../../features/selfAssessm
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 import { formatCycleDate, SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 import { AudienceCard, createCountBadge, formatEmployeeCount } from './SelfAssessmentAudienceCard';
+import { SelfAssessmentTemplatePreviewModal } from './SelfAssessmentTemplatePreviewModal';
 
 interface QuestionFormData {
   title: string;
@@ -375,6 +377,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const [copiedDeletedQuestions, setCopiedDeletedQuestions] = useState<QuestionRequest[]>([]);
   const [copiedRatingSystem, setCopiedRatingSystem] = useState<SelfAssessmentRatingSystem | undefined>(undefined);
   const [copiedTenPointYesMinRating, setCopiedTenPointYesMinRating] = useState<number | undefined>(undefined);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const { data: reviewCycles = [], isLoading: reviewCyclesLoading } = useGetReviewCyclesQuery({
     requiresEmployeeSubmission: true,
@@ -398,6 +401,10 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
       selectableReviewCycles.find((c) => c.status?.toUpperCase() === 'ACTIVE') ?? selectableReviewCycles[0];
     setSelectedReviewCycleId(activeFirst.id);
   }, [selectableReviewCycles, selectedReviewCycleId]);
+  const selectedReviewCycle = useMemo(
+    () => selectableReviewCycles.find((cycle) => cycle.id === selectedReviewCycleId) ?? null,
+    [selectableReviewCycles, selectedReviewCycleId]
+  );
 
   const { data: departmentsResponse } = useGetDepartmentsQuery();
   const departments = useMemo(
@@ -680,12 +687,14 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     question.questionText.toLowerCase().includes(questionBankSearch.trim().toLowerCase())
   );
 
-  const { register, control, handleSubmit, getValues, reset, setValue } = useForm<QuestionFormData>({
+  const { register, control, handleSubmit, getValues, reset, setValue, watch } = useForm<QuestionFormData>({
     defaultValues: {
       title: '',
       questions: [{ questionText: '' }],
     },
   });
+  const watchedTitle = watch('title');
+  const watchedQuestions = watch('questions');
 
   const { fields, append, remove, move } = useFieldArray({
     control,
@@ -815,6 +824,48 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
     return hybridPairsDeduped;
   };
+
+  const previewAudienceLabels = useMemo(() => {
+    if (audienceType === 'all') {
+      return allCount > 0 ? [`All Employees (${formatEmployeeCount(allCount)})`] : ['All Employees'];
+    }
+    if (audienceType === 'departments') {
+      return selectedDepartmentIds
+        .map((id) => departmentById.get(id)?.name)
+        .filter((name): name is string => !!name);
+    }
+    if (audienceType === 'positions') {
+      return selectedGlobalPositionIds
+        .map((id) => positionById.get(id)?.name)
+        .filter((name): name is string => !!name);
+    }
+    return hybridRules
+      .filter((rule) => rule.departmentId != null)
+      .map((rule) => {
+        const department = rule.departmentId ? departmentById.get(rule.departmentId)?.name ?? rule.departmentLabel : null;
+        const position =
+          rule.positionId == null ? 'All Positions' : positionById.get(rule.positionId)?.name ?? rule.positionLabel;
+        return department ? `${department} / ${position ?? 'All Positions'}` : '';
+      })
+      .filter(Boolean);
+  }, [
+    allCount,
+    audienceType,
+    departmentById,
+    hybridRules,
+    positionById,
+    selectedDepartmentIds,
+    selectedGlobalPositionIds,
+  ]);
+
+  const previewPrimaryTarget = useMemo(() => {
+    const pairs = getTargetPairs();
+    return pairs[0] ?? null;
+  }, [audienceType, activeEmployeePairs, hybridPairsDeduped, selectedDepartmentIds, selectedGlobalPositionIds]);
+
+  const previewReviewCycleDetail = selectedReviewCycle
+    ? `${formatCycleDate(selectedReviewCycle.startDate)} - ${formatCycleDate(selectedReviewCycle.endDate)}`
+    : null;
 
   const validateAudience = () => {
     if (audienceType === 'departments' && selectedDepartmentIds.length === 0) {
@@ -1553,6 +1604,14 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
               Cancel
             </button>
             <button
+              type="button"
+              onClick={() => setIsPreviewOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#5D5FEF]/30 bg-white px-6 py-2.5 text-sm font-bold text-[#5D5FEF] shadow-sm transition-all hover:bg-[#5D5FEF]/[0.04] dark:border-[#5D5FEF]/40 dark:bg-slate-800 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/15"
+            >
+              <Eye size={16} />
+              Preview Template
+            </button>
+            <button
               type="submit"
               disabled={isCreating || selectableReviewCycles.length === 0 || selectedReviewCycleId == null}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 disabled:opacity-50 disabled:shadow-none dark:shadow-[#5D5FEF]/15"
@@ -1566,6 +1625,20 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             </button>
           </div>
         </form>
+
+        <SelfAssessmentTemplatePreviewModal
+          isOpen={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          title={watchedTitle ?? ''}
+          departmentLabel={previewPrimaryTarget?.departmentName ?? null}
+          positionLabel={previewPrimaryTarget?.positionName ?? null}
+          audienceLabels={previewAudienceLabels}
+          reviewCycleLabel={selectedReviewCycle?.name ?? null}
+          reviewCycleDetail={previewReviewCycleDetail}
+          ratingSystem={previewRatingSystem}
+          tenPointYesMinRating={previewTenPointYesMinRating}
+          questions={watchedQuestions ?? []}
+        />
 
         {/* ─── Question Bank Modal ─── */}
         {isQuestionBankOpen && (

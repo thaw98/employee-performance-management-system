@@ -87,6 +87,48 @@ public class MeetingService {
         return mapToResponse(meeting);
     }
 
+    @Transactional
+    public MeetingResponse requestMeeting(Long employeeId, MeetingRequest request) {
+        if (request.scheduledTime().isBefore(Instant.now())) {
+            throw new RuntimeException("Cannot request a meeting in the past");
+        }
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+        Employee manager = employee.getManager();
+        if (manager == null) {
+            throw new RuntimeException("No reporting manager is assigned to this employee");
+        }
+        if (manager.getUserAccount() == null) {
+            throw new RuntimeException("The assigned manager does not have a linked user account");
+        }
+
+        Meeting meeting = new Meeting();
+        meeting.setManager(manager);
+        meeting.setEmployee(employee);
+        meeting.setTitle(request.title());
+        meeting.setDescription(request.description());
+        meeting.setScheduledTime(request.scheduledTime());
+        meeting.setDurationMinutes(request.durationMinutes());
+        meeting.setStatus(MeetingStatus.PENDING);
+
+        meeting = meetingRepository.save(meeting);
+
+        notificationService.send(
+                manager.getUserAccount(),
+                "Meeting Requested",
+                employee.getEmployeeName() + " requested a meeting: " + meeting.getTitle(),
+                "MEETING");
+
+        return mapToResponse(meeting);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Employee> getRequestableManagers(Long employeeId) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+        return employee.getManager() == null ? List.of() : List.of(employee.getManager());
+    }
+
     @Transactional(readOnly = true)
     public Page<MeetingResponse> getManagerMeetings(
             Long managerId, 
@@ -117,6 +159,43 @@ public class MeetingService {
                 predicates.add(cb.lessThanOrEqualTo(root.get("scheduledTime"), toDate));
             }
             
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return meetingRepository.findAll(spec, pageable).map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MeetingResponse> getMeetingHistory(
+            List<MeetingStatus> statuses,
+            String searchName,
+            Long departmentId,
+            Instant fromDate,
+            Instant toDate,
+            Pageable pageable) {
+
+        Specification<Meeting> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (statuses != null && !statuses.isEmpty()) {
+                predicates.add(root.get("status").in(statuses));
+            }
+            if (searchName != null && !searchName.isBlank()) {
+                String pattern = "%" + searchName.toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("employee").get("employeeName")), pattern),
+                        cb.like(cb.lower(root.get("manager").get("employeeName")), pattern)));
+            }
+            if (departmentId != null) {
+                predicates.add(cb.equal(root.get("employee").get("department").get("id"), departmentId));
+            }
+            if (fromDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("scheduledTime"), fromDate));
+            }
+            if (toDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("scheduledTime"), toDate));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
@@ -163,7 +242,7 @@ public class MeetingService {
     public MeetingResponse getMeetingDetails(Long id, Long userId) {
         Meeting meeting = meetingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Meeting not found"));
-        verifyParticipant(meeting, userId);
+        verifyParticipantOrHr(meeting, userId);
         return mapToResponse(meeting);
     }
 
@@ -453,7 +532,7 @@ public class MeetingService {
     public List<MeetingNoteResponse> getMeetingNotes(Long meetingId, Long userId) {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new RuntimeException("Meeting not found"));
-        verifyParticipant(meeting, userId);
+        verifyParticipantOrHr(meeting, userId);
 
         return meetingNoteRepository.findByMeetingIdOrderByCreatedDateAsc(meetingId)
                 .stream()
@@ -496,6 +575,21 @@ public class MeetingService {
         if (!managerUserId.equals(userId) && !employeeUserId.equals(userId)) {
             throw new RuntimeException("Access denied to this meeting");
         }
+    }
+
+    private void verifyParticipantOrHr(Meeting meeting, Long userId) {
+        if (isHrUser(userId)) {
+            return;
+        }
+        verifyParticipant(meeting, userId);
+    }
+
+    private boolean isHrUser(Long userId) {
+        return userRepository.findById(userId)
+                .map(User::getRole)
+                .map(Role::getId)
+                .map(roleId -> roleId.equals(1L))
+                .orElse(false);
     }
 
     @Transactional

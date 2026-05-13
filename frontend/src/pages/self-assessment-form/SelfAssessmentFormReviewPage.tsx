@@ -27,6 +27,13 @@ import {
   FileCheck2,
   Edit3,
   Hourglass,
+  FileDown,
+  BarChart3,
+  CalendarDays,
+  ListChecks,
+  TrendingUp,
+  ChevronRight,
+  BadgeCheck,
 } from 'lucide-react';
 import {
   useGetReviewFormsQuery,
@@ -40,6 +47,7 @@ import {
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { getRatingOptions, isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
+import { exportSelfAssessmentReviewPdf } from '../../features/selfAssessmentForm/exportSelfAssessmentReviewPdf';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { formatDateDayMonthYear, formatDateTimeWithSeconds } from '../../utils/dateUtils';
@@ -189,6 +197,21 @@ function getStatusConfig(status: string) {
 const filterControlClass =
   'w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF]';
 
+function ScoreBar({ value, max = 100, color = '#5D5FEF', label }: { value: number; max?: number; color?: string; label?: string }) {
+  const pct = Math.min(100, Math.max(0, (value / max) * 100));
+  return (
+    <div className="w-full">
+      {label && <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5">{label}</p>}
+      <div className="h-2.5 w-full rounded-full bg-slate-100 dark:bg-slate-700/80 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-700 ease-out"
+          style={{ width: `${pct}%`, background: color }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export const SelfAssessmentFormReviewPage: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
   const { formId: formIdParam } = useParams<{ formId?: string }>();
@@ -211,6 +234,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [adjustments, setAdjustments] = useState<ManagerAdjustment[]>([]);
   const [hrReturnReason, setHrReturnReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError } = useGetReviewFormsQuery(undefined, {
     skip: isHr,
@@ -263,29 +287,11 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     });
   }, [forms, searchQuery]);
 
-  const submittedCount = useMemo(
-    () => (forms ?? []).filter((f: any) => {
-      const s = (f.status ?? '').toUpperCase();
-      return s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED' || s === 'PENDING_MANAGER_REVIEW';
-    }).length,
-    [forms],
-  );
-  const reviewedCount = useMemo(
-    () => (forms ?? []).filter((f: any) => {
-      const s = (f.status ?? '').toUpperCase();
-      return s === 'MANAGER_REVIEWED' || s === 'PENDING_EMPLOYEE_REVIEW'
-        || s === 'PENDING_FINAL_APPROVAL' || s === 'PENDING_HR_CALIBRATION_REVIEW';
-    }).length,
-    [forms],
-  );
-  const approvedCount = useMemo(
-    () => (forms ?? []).filter((f: any) => {
-      const s = (f.status ?? '').toUpperCase();
-      return s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED';
-    }).length,
-    [forms],
-  );
   const totalCount = (forms ?? []).length;
+  const canHrReopenForEmployee = useMemo(() => {
+    const s = (selectedForm?.status ?? '').toUpperCase();
+    return s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED';
+  }, [selectedForm?.status]);
 
   const handleManagerAdjustmentChange = (answerId: number, field: keyof ManagerAdjustment, value: string | number) => {
     setAdjustments(prev => {
@@ -412,89 +418,105 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     }
   };
 
+  const handleExportPdf = async () => {
+    if (!selectedForm) return;
+
+    try {
+      setIsExportingPdf(true);
+      await exportSelfAssessmentReviewPdf(selectedForm);
+      toast.success('PDF exported');
+    } catch {
+      toast.error('Failed to export PDF');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const timelineSteps = useMemo(() => {
+    if (!selectedForm) return [];
+    const steps: { label: string; date?: string; done: boolean; active: boolean }[] = [];
+    const s = (selectedForm.status ?? '').toUpperCase();
+    steps.push({ label: 'Created', done: true, active: false });
+    if (selectedForm.createdDate) {
+      steps[0].date = formatDateTimeWithSeconds(selectedForm.createdDate);
+    }
+    const hasSubmitted = ['SUBMITTED', 'EMPLOYEE_SUBMITTED', 'PENDING_MANAGER_REVIEW', 'MANAGER_REVIEWED', 'PENDING_EMPLOYEE_REVIEW', 'PENDING_FINAL_APPROVAL', 'PENDING_HR_CALIBRATION_REVIEW', 'APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
+    steps.push({
+      label: 'Employee Submitted',
+      done: hasSubmitted,
+      active: s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED',
+      date: selectedForm.submittedDate ? formatDateTimeWithSeconds(selectedForm.submittedDate) : undefined,
+    });
+    const hasMgrReview = ['MANAGER_REVIEWED', 'PENDING_EMPLOYEE_REVIEW', 'PENDING_FINAL_APPROVAL', 'PENDING_HR_CALIBRATION_REVIEW', 'APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
+    steps.push({
+      label: 'Manager Review',
+      done: hasMgrReview,
+      active: s === 'MANAGER_REVIEWED' || s === 'PENDING_MANAGER_REVIEW',
+      date: selectedForm.managerSignatureDate ? formatDateTimeWithSeconds(selectedForm.managerSignatureDate) : undefined,
+    });
+    const hasFinal = ['APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
+    steps.push({
+      label: 'HR Final Approval',
+      done: hasFinal,
+      active: s === 'PENDING_FINAL_APPROVAL' || s === 'PENDING_HR_CALIBRATION_REVIEW',
+      date: selectedForm.hrFinalSignatureDate ? formatDateTimeWithSeconds(selectedForm.hrFinalSignatureDate) : undefined,
+    });
+    return steps;
+  }, [selectedForm]);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen px-6 py-6 md:px-8">
+      <div className="min-h-screen px-6 py-6 md:px-10">
         <div className="animate-pulse space-y-6">
-          <div className="h-8 w-72 rounded-lg bg-slate-200 dark:bg-slate-700" />
-          <div className="h-4 w-96 rounded bg-slate-100 dark:bg-slate-800" />
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-28 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+          <div className="h-4 w-48 rounded bg-slate-200 dark:bg-slate-700" />
+          <div className="h-9 w-80 rounded-lg bg-slate-200 dark:bg-slate-700" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-24 rounded-xl bg-slate-100 dark:bg-slate-800" />
             ))}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="h-96 rounded-2xl bg-slate-100 dark:bg-slate-800" />
-            <div className="lg:col-span-2 h-96 rounded-2xl bg-slate-100 dark:bg-slate-800" />
-          </div>
+          <div className="h-72 rounded-2xl bg-slate-100 dark:bg-slate-800" />
         </div>
       </div>
     );
   }
 
-  const summaryCards = [
-    {
-      label: 'Total Pending',
-      value: totalCount,
-      icon: FileText,
-      lightBg: 'bg-blue-50 dark:bg-blue-950/30',
-      lightIcon: 'text-blue-600 dark:text-blue-400',
-      ring: 'ring-blue-500/20',
-      bgGlow: 'bg-blue-500/10',
-    },
-    {
-      label: 'Awaiting Review',
-      value: submittedCount,
-      icon: Hourglass,
-      lightBg: 'bg-sky-50 dark:bg-sky-950/30',
-      lightIcon: 'text-sky-600 dark:text-sky-400',
-      ring: 'ring-sky-500/20',
-      bgGlow: 'bg-sky-500/10',
-    },
-    {
-      label: 'Manager Reviewed',
-      value: reviewedCount,
-      icon: ClipboardCheck,
-      lightBg: 'bg-amber-50 dark:bg-amber-950/30',
-      lightIcon: 'text-amber-600 dark:text-amber-400',
-      ring: 'ring-amber-500/20',
-      bgGlow: 'bg-amber-500/10',
-    },
-    {
-      label: 'Approved',
-      value: approvedCount,
-      icon: CheckCircle2,
-      lightBg: 'bg-emerald-50 dark:bg-emerald-950/30',
-      lightIcon: 'text-emerald-600 dark:text-emerald-400',
-      ring: 'ring-emerald-500/20',
-      bgGlow: 'bg-emerald-500/10',
-    },
-  ];
-
   const selectedStatusConfig = selectedForm ? getStatusConfig(selectedForm.status) : null;
   const SelectedStatusIcon = selectedStatusConfig?.icon ?? FileText;
 
   return (
-    <div className="min-h-screen px-6 py-6 md:px-8 animate-fade-in">
-      <nav className="mb-2 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-        <span className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium">Home</span>
-        <ChevronDown size={10} className="-rotate-90 opacity-50" />
+    <div className="min-h-screen px-6 py-6 md:px-10 animate-fade-in">
+      <button
+        type="button"
+        onClick={() => navigate(reviewQueuePath)}
+        className="group mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#5D5FEF] dark:text-slate-400 dark:hover:text-[#8b8ef7]"
+      >
+        <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-0.5" />
+        Back to Review Queue
+      </button>
+
+      <nav className="mb-5 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+        <Link to={isHr ? '/hr/dashboard' : '/manager/dashboard'} className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium hover:underline">Home</Link>
+        <ChevronRight size={10} className="opacity-50" />
         <span>Self Assessment</span>
-        <ChevronDown size={10} className="-rotate-90 opacity-50" />
+        <ChevronRight size={10} className="opacity-50" />
         <span className="font-semibold text-slate-700 dark:text-slate-200">
           {isHr ? 'HR Compliance Review' : 'Manager Review'}
         </span>
+        {selectedForm && (
+          <>
+            <ChevronRight size={10} className="opacity-50" />
+            <span className="font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[140px]">
+              {selectedForm.employee?.employeeName}
+            </span>
+          </>
+        )}
       </nav>
 
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-start gap-4">
-          <div className="relative">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
-              <ShieldCheck size={22} className="text-white" />
-            </div>
-            <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-[9px] font-bold text-white shadow-sm">
-              {totalCount}
-            </div>
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/20">
+            <ShieldCheck size={20} className="text-white" />
           </div>
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
@@ -507,39 +529,27 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate(reviewQueuePath)}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-        >
-          <FileText size={14} />
-          Open Form Queue
-        </button>
-      </div>
-
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {summaryCards.map((card, i) => (
-          <div
-            key={card.label}
-            className="animate-fade-in-up group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:bg-slate-800/80"
-            style={{ animationDelay: `${i * 60}ms` }}
+        <div className="flex items-center gap-2.5">
+          {selectedForm && (
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={isExportingPdf}
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-3.5 py-2 text-sm font-bold text-white shadow-md shadow-[#5D5FEF]/25 transition hover:shadow-lg hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none dark:shadow-[#5D5FEF]/15"
+            >
+              {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+              Export PDF
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => navigate(reviewQueuePath)}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
-            <div className={`absolute -right-4 -top-4 h-24 w-24 rounded-full ${card.bgGlow} blur-2xl transition-all duration-500 group-hover:scale-150`} />
-            <div className="relative flex items-start justify-between">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                  {card.label}
-                </p>
-                <p className="mt-2 text-3xl font-extrabold tabular-nums text-slate-900 dark:text-white">
-                  {card.value}
-                </p>
-              </div>
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.lightBg} ring-1 ${card.ring}`}>
-                <card.icon size={18} className={card.lightIcon} />
-              </div>
-            </div>
-          </div>
-        ))}
+            <FileText size={14} />
+            Form Queue
+          </button>
+        </div>
       </div>
 
       {managerErrorMessage && (
@@ -671,23 +681,177 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         </div>
         )}
 
-        <div className="lg:col-span-12 space-y-5">
+        <div className={selectedFormId === -1 ? 'lg:col-span-8 xl:col-span-9 space-y-5' : 'lg:col-span-12 space-y-5'}>
           {selectedForm ? (
             <>
-              <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '280ms' }}>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up">
+                <div className="rounded-xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                      <ListChecks size={15} className="text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Questions</span>
+                  </div>
+                  <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{selectedForm.answers?.length ?? 0}</p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/30">
+                      <Star size={15} className="text-amber-500" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Self Score</span>
+                  </div>
+                  {selectedForm.totalScore != null ? (
+                    <div>
+                      <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{selectedForm.totalScore.toFixed(1)}%</p>
+                      <div className="mt-1.5">
+                        <ScoreBar value={selectedForm.totalScore} color="#f59e0b" />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-2xl font-extrabold text-slate-300 dark:text-slate-600">&mdash;</p>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-900/30">
+                      <TrendingUp size={15} className="text-orange-500" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Mgr Revised</span>
+                  </div>
+                  {selectedForm.managerRevisedTotalScore != null ? (
+                    <div>
+                      <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{selectedForm.managerRevisedTotalScore.toFixed(1)}%</p>
+                      <div className="mt-1.5">
+                        <ScoreBar value={selectedForm.managerRevisedTotalScore} color="#f97316" />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-2xl font-extrabold text-slate-300 dark:text-slate-600">&mdash;</p>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30">
+                      <BadgeCheck size={15} className="text-emerald-500" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Final Score</span>
+                  </div>
+                  {selectedForm.finalApprovedTotalScore != null ? (
+                    <div>
+                      <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{selectedForm.finalApprovedTotalScore.toFixed(1)}%</p>
+                      <div className="mt-1.5">
+                        <ScoreBar value={selectedForm.finalApprovedTotalScore} color="#10b981" />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-2xl font-extrabold text-slate-300 dark:text-slate-600">&mdash;</p>
+                  )}
+                </div>
+              </div>
+
+              {selectedForm.totalScore != null && (
+                <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '80ms' }}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <BarChart3 size={15} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Score Comparison</h3>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className="w-24 text-xs font-semibold text-amber-600 dark:text-amber-400">Self</span>
+                      <div className="flex-1">
+                        <ScoreBar value={selectedForm.totalScore} color="#f59e0b" />
+                      </div>
+                      <span className="w-14 text-right text-sm font-bold tabular-nums text-slate-700 dark:text-slate-200">{selectedForm.totalScore.toFixed(1)}%</span>
+                    </div>
+                    {selectedForm.managerRevisedTotalScore != null && (
+                      <div className="flex items-center gap-3">
+                        <span className="w-24 text-xs font-semibold text-orange-600 dark:text-orange-400">Manager</span>
+                        <div className="flex-1">
+                          <ScoreBar value={selectedForm.managerRevisedTotalScore} color="#f97316" />
+                        </div>
+                        <span className="w-14 text-right text-sm font-bold tabular-nums text-slate-700 dark:text-slate-200">{selectedForm.managerRevisedTotalScore.toFixed(1)}%</span>
+                      </div>
+                    )}
+                    {selectedForm.finalApprovedTotalScore != null && (
+                      <div className="flex items-center gap-3">
+                        <span className="w-24 text-xs font-semibold text-emerald-600 dark:text-emerald-400">Final</span>
+                        <div className="flex-1">
+                          <ScoreBar value={selectedForm.finalApprovedTotalScore} color="#10b981" />
+                        </div>
+                        <span className="w-14 text-right text-sm font-bold tabular-nums text-slate-700 dark:text-slate-200">{selectedForm.finalApprovedTotalScore.toFixed(1)}%</span>
+                      </div>
+                    )}
+                  </div>
+                  {selectedForm.ratingCategory && (
+                    <div className="mt-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-700/30">
+                      <Star size={13} className="text-amber-500 fill-amber-500" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Rating Category</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">{selectedForm.ratingCategory}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '120ms' }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <Clock size={17} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Review Timeline</h3>
+                </div>
+                <div className="flex items-center">
+                  {timelineSteps.map((step, i) => (
+                    <React.Fragment key={step.label}>
+                      <div className="flex flex-col items-center min-w-0">
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${
+                          step.done
+                            ? 'border-emerald-500 bg-emerald-500'
+                            : step.active
+                              ? 'border-[#5D5FEF] bg-[#5D5FEF]/10 dark:bg-[#5D5FEF]/20'
+                              : 'border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800'
+                        }`}>
+                          {step.done ? (
+                            <CheckCircle2 size={15} className="text-white" />
+                          ) : step.active ? (
+                            <div className="h-2.5 w-2.5 rounded-full bg-[#5D5FEF]" />
+                          ) : (
+                            <div className="h-2.5 w-2.5 rounded-full bg-slate-300 dark:bg-slate-600" />
+                          )}
+                        </div>
+                        <p className={`mt-2 text-xs font-bold text-center leading-snug ${
+                          step.done ? 'text-emerald-600 dark:text-emerald-400' : step.active ? 'text-[#5D5FEF] dark:text-[#8b8ef7]' : 'text-slate-400 dark:text-slate-500'
+                        }`}>
+                          {step.label}
+                        </p>
+                        {step.date && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-snug text-center px-0.5">{step.date}</p>
+                        )}
+                      </div>
+                      {i < timelineSteps.length - 1 && (
+                        <div className={`flex-1 h-0.5 mx-2 rounded-full transition-all ${
+                          step.done ? 'bg-emerald-300 dark:bg-emerald-700' : 'bg-slate-200 dark:bg-slate-700'
+                        }`} />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-[#5D5FEF]/18 bg-white shadow-sm dark:border-[#8b8ef7]/28 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '160ms' }}>
                 <div className="relative border-b border-slate-100 dark:border-slate-700/60">
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#5D5FEF]/[0.02] via-transparent to-[#5D5FEF]/[0.02] dark:from-[#5D5FEF]/[0.04] dark:via-transparent dark:to-[#5D5FEF]/[0.04]" />
                   <div className="relative px-6 py-5">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex items-start gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/20">
-                          <User size={20} className="text-white" />
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-700 dark:to-slate-800 border border-slate-200/80 dark:border-slate-600/60">
+                          <User size={20} className="text-slate-500 dark:text-slate-400" />
                         </div>
                         <div>
                           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
                             {selectedForm.employee?.employeeName}
                           </h2>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
+                          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
                             <span className="flex items-center gap-1.5">
                               <Building2 size={13} />
                               {selectedForm.employee?.departmentName}
@@ -696,56 +860,21 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                               <ClipboardCheck size={13} />
                               {selectedForm.employee?.positionName}
                             </span>
+                            {selectedForm.assessmentDate && (
+                              <span className="flex items-center gap-1.5">
+                                <CalendarDays size={13} />
+                                {formatDateDayMonthYear(selectedForm.assessmentDate)}
+                              </span>
+                            )}
                           </div>
-                          {selectedForm.assessmentDate && (
-                            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-                              <Clock size={12} />
-                              Assessment: {formatDateDayMonthYear(selectedForm.assessmentDate)}
-                            </div>
-                          )}
                         </div>
                       </div>
 
                       <div className="flex flex-col items-end gap-2">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${selectedStatusConfig?.bg} ${selectedStatusConfig?.text}`}>
+                        <span className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider ${selectedStatusConfig?.bg} ${selectedStatusConfig?.text}`}>
                           <SelectedStatusIcon size={13} />
                           {selectedStatusConfig?.label}
                         </span>
-                        {selectedForm.totalScore !== null && (
-                          <div className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5">
-                            <Star size={14} className="text-amber-500 fill-amber-500" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Self</span>
-                            <span className="text-sm font-extrabold tabular-nums text-amber-700 dark:text-amber-400">
-                              {selectedForm.totalScore.toFixed(1)}%
-                            </span>
-                            {selectedForm.ratingCategory && (
-                              <>
-                                <span className="h-3 w-px bg-amber-300 dark:bg-amber-700" />
-                                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-                                  {selectedForm.ratingCategory}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        )}
-                        {selectedForm.managerRevisedTotalScore != null && (
-                          <div className="flex items-center gap-2 rounded-xl bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5">
-                            <Star size={14} className="text-orange-500 fill-orange-500" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">Mgr Revised</span>
-                            <span className="text-sm font-extrabold tabular-nums text-orange-700 dark:text-orange-400">
-                              {selectedForm.managerRevisedTotalScore.toFixed(1)}%
-                            </span>
-                          </div>
-                        )}
-                        {selectedForm.finalApprovedTotalScore != null && (
-                          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5">
-                            <Star size={14} className="text-emerald-500 fill-emerald-500" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Final</span>
-                            <span className="text-sm font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">
-                              {selectedForm.finalApprovedTotalScore.toFixed(1)}%
-                            </span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -757,7 +886,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                       <FileCheck2 size={16} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
                     </div>
                     <h3 className="text-base font-bold text-slate-900 dark:text-white">Assessment Answers</h3>
-                    <span className="text-xs text-slate-400 dark:text-slate-500">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">
                       {selectedForm.answers?.length ?? 0} questions
                     </span>
                   </div>
@@ -766,19 +895,20 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     {selectedForm.answers?.map((answer: any, index: number) => (
                       <div
                         key={answer.id}
-                        className="group relative rounded-xl border border-slate-200/80 bg-white p-4 transition-all hover:border-slate-300/80 hover:shadow-sm dark:border-slate-700/60 dark:bg-slate-800/40 dark:hover:border-slate-600/80"
+                        className="group relative rounded-xl border border-[#5D5FEF]/22 bg-white p-4 transition-all hover:border-[#5D5FEF]/40 hover:shadow-sm dark:border-[#8b8ef7]/32 dark:bg-slate-900/40 dark:hover:border-[#8b8ef7]/50"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700/60">
-                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Q{index + 1}</span>
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50 border border-[#5D5FEF]/18 dark:border-[#8b8ef7]/28 dark:bg-slate-800/60">
+                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{index + 1}</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2.5">
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2.5 leading-relaxed">
                               {answer.questionText}
                             </p>
-                            <div className="flex flex-wrap items-center gap-3">
-                              <div className="inline-flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 dark:bg-slate-700/40">
+                            <div className="flex flex-wrap items-center gap-2.5">
+                              <div className="inline-flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-1.5 dark:border-slate-700/40 dark:bg-slate-800/50">
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Response</span>
+                                <span className={`h-3.5 w-px bg-slate-200 dark:bg-slate-700`} />
                                 <span className={`text-sm font-bold ${
                                   answer.yesNoAnswer === 'Yes'
                                     ? 'text-emerald-600 dark:text-emerald-400'
@@ -790,32 +920,32 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                 </span>
                               </div>
                               {answer.rating != null && (
-                                <div className="inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-1.5 dark:bg-amber-900/20">
+                                <div className="inline-flex items-center gap-2 rounded-lg border border-amber-200/55 bg-amber-50/80 px-3 py-1.5 dark:border-amber-600/45 dark:bg-amber-900/20">
                                   <Star size={12} className="text-amber-500 fill-amber-500" />
                                   <span className="text-sm font-bold text-amber-700 dark:text-amber-400">{answer.rating}</span>
                                 </div>
                               )}
                             </div>
                             {answer.remarks && (
-                              <div className="mt-2.5 rounded-lg bg-slate-50/80 px-3 py-2 dark:bg-slate-700/30">
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5 font-semibold uppercase tracking-wider">Remarks</p>
-                                <p className="text-sm text-slate-700 dark:text-slate-300">{answer.remarks}</p>
+                              <div className="mt-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2 dark:border-slate-700/40 dark:bg-slate-800/30">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">Remarks</p>
+                                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{answer.remarks}</p>
                               </div>
                             )}
                           </div>
                         </div>
 
                         {answer.managerProposedYesNo && (
-                          <div className="mt-3 ml-10 rounded-xl border border-amber-200/80 bg-amber-50/50 p-3.5 dark:border-amber-700/60 dark:bg-amber-900/20">
+                          <div className="mt-3 ml-10 rounded-xl border border-amber-300/50 bg-amber-50/40 p-3.5 dark:border-amber-600/40 dark:bg-amber-900/15">
                             <div className="flex items-center gap-2 mb-2">
                               <Edit3 size={13} className="text-amber-600 dark:text-amber-400" />
                               <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
                                 Manager Revised Score
                               </span>
                             </div>
-                            <div className="flex flex-wrap gap-3">
-                              <div className="inline-flex items-center gap-2 rounded-lg bg-white px-2.5 py-1.5 dark:bg-slate-800/60">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employee Self Score</span>
+                            <div className="flex flex-wrap gap-2.5">
+                              <div className="inline-flex items-center gap-2 rounded-lg border border-slate-100 bg-white px-2.5 py-1.5 dark:border-slate-700/60 dark:bg-slate-800/60">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employee</span>
                                 <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                                   {answer.yesNoAnswer} ({answer.rating})
                                 </span>
@@ -823,8 +953,8 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                               <div className="flex items-center text-slate-300 dark:text-slate-600">
                                 <ArrowLeft size={12} className="rotate-180" />
                               </div>
-                              <div className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-2.5 py-1.5 dark:bg-amber-800/40">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Manager Revised</span>
+                              <div className="inline-flex items-center gap-2 rounded-lg border border-amber-300/55 bg-amber-100/80 px-2.5 py-1.5 dark:border-amber-600/45 dark:bg-amber-800/30">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Manager</span>
                                 <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
                                   {answer.managerProposedYesNo} ({answer.managerProposedRating})
                                 </span>
@@ -834,8 +964,8 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                   <div className="flex items-center text-slate-300 dark:text-slate-600">
                                     <ArrowLeft size={12} className="rotate-180" />
                                   </div>
-                                  <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 px-2.5 py-1.5 dark:bg-emerald-800/40">
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final Approved</span>
+                                  <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/50 bg-emerald-100/80 px-2.5 py-1.5 dark:border-emerald-600/45 dark:bg-emerald-800/30">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final</span>
                                     <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
                                       {answer.finalApprovedYesNo} ({answer.finalApprovedRating})
                                     </span>
@@ -844,15 +974,15 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                               )}
                             </div>
                             {answer.managerProposedComment && (
-                              <p className="mt-2 text-xs text-slate-600 dark:text-slate-400 italic">
+                              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic border-l-2 border-amber-400/70 dark:border-amber-500/60 pl-2.5">
                                 "{answer.managerProposedComment}"
                               </p>
                             )}
                           </div>
                         )}
                         {!answer.managerProposedYesNo && answer.finalApprovedYesNo && (
-                          <div className="mt-3 ml-10 rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-3 dark:border-emerald-700/60 dark:bg-emerald-900/20">
-                            <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-100 px-2.5 py-1.5 dark:bg-emerald-800/40">
+                          <div className="mt-3 ml-10 rounded-xl border border-emerald-300/50 bg-emerald-50/40 p-3 dark:border-emerald-600/40 dark:bg-emerald-900/15">
+                            <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/50 bg-emerald-100/80 px-2.5 py-1.5 dark:border-emerald-600/45 dark:bg-emerald-800/30">
                               <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final Approved</span>
                               <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
                                 {answer.finalApprovedYesNo} ({answer.finalApprovedRating})
@@ -865,70 +995,83 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                   </div>
                 </div>
 
-                {selectedForm.employeeRemarks && (
-                  <div className="mx-6 mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-700/60 dark:bg-slate-700/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <MessageSquare size={14} className="text-slate-500 dark:text-slate-400" />
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Employee Remarks</h4>
-                    </div>
-                    <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.employeeRemarks}</p>
-                  </div>
-                )}
-                {selectedForm.overallRemarks && (
-                  <div className="mx-6 mb-5 rounded-xl border border-violet-200/80 bg-violet-50/50 p-4 dark:border-violet-700/60 dark:bg-violet-900/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <MessageSquare size={14} className="text-violet-600 dark:text-violet-400" />
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-violet-700 dark:text-violet-400">Overall Remarks</h4>
-                    </div>
-                    <p className="text-sm text-violet-900 dark:text-violet-100 leading-relaxed">{selectedForm.overallRemarks}</p>
-                  </div>
-                )}
-
-                {selectedForm.managerComments && (
-                  <div className="mx-6 mb-5 rounded-xl border border-blue-200/80 bg-blue-50/50 p-4 dark:border-blue-700/60 dark:bg-blue-900/20">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare size={14} className="text-blue-600 dark:text-blue-400" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">Manager Comments</h4>
+                {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason) && (
+                  <div className="border-t border-slate-100 dark:border-slate-700/60">
+                    <div className="px-6 py-4">
+                      <div className="flex items-center gap-2 mb-4">
+                        <MessageSquare size={15} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">Remarks & Comments</h3>
                       </div>
-                      {selectedForm.managerName && (
-                        <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
-                          by {selectedForm.managerName}
-                        </span>
-                      )}
+                      <div className="space-y-3">
+                        {selectedForm.employeeRemarks && (
+                          <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-700/50 dark:bg-slate-800/30">
+                            <div className="flex items-center gap-2 mb-2">
+                              <User size={13} className="text-slate-400" />
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Employee Remarks</h4>
+                            </div>
+                            <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.employeeRemarks}</p>
+                          </div>
+                        )}
+                        {selectedForm.overallRemarks && (
+                          <div className="rounded-xl border border-violet-200/70 bg-violet-50/40 p-4 dark:border-violet-700/50 dark:bg-violet-900/15">
+                            <div className="flex items-center gap-2 mb-2">
+                              <MessageSquare size={13} className="text-violet-500 dark:text-violet-400" />
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">Overall Remarks</h4>
+                            </div>
+                            <p className="text-sm text-violet-800 dark:text-violet-100 leading-relaxed">{selectedForm.overallRemarks}</p>
+                          </div>
+                        )}
+                        {selectedForm.managerComments && (
+                          <div className="rounded-xl border border-blue-200/70 bg-blue-50/40 p-4 dark:border-blue-700/50 dark:bg-blue-900/15">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <ClipboardCheck size={13} className="text-blue-500 dark:text-blue-400" />
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Manager Comments</h4>
+                              </div>
+                              {selectedForm.managerName && (
+                                <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+                                  by {selectedForm.managerName}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.managerComments}</p>
+                            {selectedForm.managerSignatureDate && (
+                              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+                                <Clock size={11} />
+                                Signed on {formatDateTimeWithSeconds(selectedForm.managerSignatureDate)}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {selectedForm.employeeDisputedAt && (
+                          <div className="rounded-xl border border-rose-200/70 bg-rose-50/40 p-4 dark:border-rose-700/50 dark:bg-rose-900/15">
+                            <div className="flex items-center gap-2 mb-2">
+                              <AlertCircle size={13} className="text-rose-500 dark:text-rose-400" />
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Employee Dispute</h4>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                                {formatDateTimeWithSeconds(selectedForm.employeeDisputedAt)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-rose-700 dark:text-rose-200 leading-relaxed">{selectedForm.employeeDisputeReason}</p>
+                          </div>
+                        )}
+                        {selectedForm.hrReviewReason && (
+                          <div className="rounded-xl border border-orange-200/70 bg-orange-50/40 p-4 dark:border-orange-700/50 dark:bg-orange-900/15">
+                            <div className="flex items-center gap-2 mb-2">
+                              <ShieldCheck size={13} className="text-orange-500 dark:text-orange-400" />
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">HR Remarks</h4>
+                            </div>
+                            <p className="text-sm text-orange-700 dark:text-orange-200 leading-relaxed">{selectedForm.hrReviewReason}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.managerComments}</p>
-                    {selectedForm.managerSignatureDate && (
-                      <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-                        <Clock size={11} />
-                        Signed on {formatDateTimeWithSeconds(selectedForm.managerSignatureDate)}
-                      </p>
-                    )}
                   </div>
                 )}
-              {selectedForm.employeeDisputedAt && (
-                <div className="mx-6 mb-5 rounded-xl border border-rose-200/80 bg-rose-50/50 p-4 dark:border-rose-700/60 dark:bg-rose-900/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle size={14} className="text-rose-600 dark:text-rose-400" />
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">Employee Dispute</h4>
-                  </div>
-                  <p className="text-sm text-rose-800 dark:text-rose-200 leading-relaxed">{selectedForm.employeeDisputeReason}</p>
-                </div>
-              )}
-
-              {selectedForm.hrReviewReason && (
-                <div className="mx-6 mb-5 rounded-xl border border-orange-200/80 bg-orange-50/50 p-4 dark:border-orange-700/60 dark:bg-orange-900/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle size={14} className="text-orange-600 dark:text-orange-400" />
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-orange-700 dark:text-orange-400">HR Remarks</h4>
-                  </div>
-                  <p className="text-sm text-orange-800 dark:text-orange-200 leading-relaxed">{selectedForm.hrReviewReason}</p>
-                </div>
-              )}
               </div>
 
               {!isHr && (selectedForm.status === 'SUBMITTED' || selectedForm.status === 'PENDING_MANAGER_REVIEW') && (
-                <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '320ms' }}>
+                <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-md shadow-amber-500/20">
                       <PenLine size={18} className="text-white" />
@@ -1026,16 +1169,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                           </p>
                                         </div>
                                       )}
-                                      {selectedForm.employeeRemarks && (
-                                        <div className="mt-3 rounded-lg bg-white px-3 py-2 dark:bg-slate-800/70">
-                                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                                            Overall Employee Remarks
-                                          </p>
-                                          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
-                                            {selectedForm.employeeRemarks}
-                                          </p>
-                                        </div>
-                                      )}
                                     </div>
 
                                     <div className="space-y-3 rounded-xl border border-amber-200/80 bg-amber-50/40 p-3.5 dark:border-amber-700/60 dark:bg-amber-900/20">
@@ -1098,6 +1231,16 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                             })()}
                           </div>
                         ))}
+                        {selectedForm.employeeRemarks && (
+                          <div className="rounded-xl border border-violet-200/80 bg-violet-50/50 p-4 dark:border-violet-700/60 dark:bg-violet-900/20">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700 dark:text-violet-400">
+                              Overall Employee Remarks
+                            </p>
+                            <p className="mt-1 text-sm text-violet-900 dark:text-violet-100">
+                              {selectedForm.employeeRemarks}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1130,7 +1273,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
               )}
 
               {isHr && (selectedForm.status === 'MANAGER_REVIEWED' || selectedForm.status === 'PENDING_FINAL_APPROVAL' || selectedForm.status === 'PENDING_HR_CALIBRATION_REVIEW') && (
-                <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '320ms' }}>
+                <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
                       <ShieldCheck size={18} className="text-white" />
@@ -1241,14 +1384,16 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                           <CheckCircle2 size={16} />
                           Final Approval
                         </button>
-                        <button
-                          onClick={() => handleHrReopenForm()}
-                          disabled={isReopening || isDefaultSigLoading || !hasDefaultSignature}
-                          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                          {isReopening ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-                          Reopen for Employee
-                        </button>
+                        {canHrReopenForEmployee && (
+                          <button
+                            onClick={() => handleHrReopenForm()}
+                            disabled={isReopening || isDefaultSigLoading || !hasDefaultSignature}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          >
+                            {isReopening ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                            Reopen for Employee
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1258,7 +1403,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
           ) : (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200/60 bg-white py-24 px-4 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '280ms' }}>
               <div className="relative mb-6">
-                <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/60">
+                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/60 border border-slate-200/60 dark:border-slate-700/60">
                   <Eye size={36} className="text-slate-300 dark:text-slate-500" />
                 </div>
                 <div className="absolute -right-2 -bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
