@@ -255,7 +255,7 @@ export function SelfAssessmentScoreRecordsPage() {
   if (isError) {
     return (
       <div className="p-8 text-center">
-        <p className="text-red-500 font-bold">Failed to load score records.</p>
+        <p className="text-red-500 font-bold">Failed to load history.</p>
       </div>
     )
   }
@@ -263,9 +263,9 @@ export function SelfAssessmentScoreRecordsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Score Records</h1>
+        <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">History</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Scores for forms in the review workflow through finalized.
+          Past self-assessment forms from review through finalized, with scores.
         </p>
       </div>
 
@@ -344,7 +344,7 @@ export function SelfAssessmentScoreRecordsPage() {
               {table.getRowModel().rows.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
-                    No score records found.
+                    No history found.
                   </td>
                 </tr>
               ) : (

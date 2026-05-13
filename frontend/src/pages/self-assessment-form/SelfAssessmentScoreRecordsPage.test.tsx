@@ -9,7 +9,7 @@ const scoreRecordsHookMock = vi.fn()
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
-  useLocation: () => ({ pathname: '/hr/self-assessment/score-records' }),
+  useLocation: () => ({ pathname: '/hr/self-assessment/history' }),
   Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
     <a href={to} {...props}>{children}</a>
   ),
@@ -127,7 +127,7 @@ describe('SelfAssessmentScoreRecordsPage', () => {
   it('renders score records table with HR columns', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.getByText('Score Records')).toBeTruthy()
+    expect(screen.getByText('History')).toBeTruthy()
     expect(screen.getByText('Alice Johnson')).toBeTruthy()
     expect(screen.getByText('Bob Smith')).toBeTruthy()
     expect(screen.getAllByText('Engineering').length).toBeGreaterThanOrEqual(1)
@@ -304,14 +304,14 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     scoreRecordsHookMock.mockReturnValue({ data: [], isLoading: false, isError: true })
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.getByText('Failed to load score records.')).toBeTruthy()
+    expect(screen.getByText('Failed to load history.')).toBeTruthy()
   })
 
   it('shows empty state when no records', () => {
     scoreRecordsHookMock.mockReturnValue({ data: [], isLoading: false, isError: false })
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expect(screen.getByText('No score records found.')).toBeTruthy()
+    expect(screen.getByText('No history found.')).toBeTruthy()
   })
 
   it('paginates records correctly', () => {
