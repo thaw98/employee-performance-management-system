@@ -990,6 +990,24 @@ Instant now = Instant.now();
         return toFormDto(form);
     }
 
+    @Transactional(readOnly = true)
+    public SelfAssessmentFormDto getFormByIdForRole(Long formId, Employee employee, Long roleId) {
+        SelfAssessmentForm form = formRepository.findById(formId)
+                .orElseThrow(() -> new RuntimeException("Form not found"));
+
+        if (roleId != null && roleId == 1L) {
+            return toFormDto(form);
+        }
+        if (roleId != null && roleId == 2L && canManagerAccessForm(form, employee)) {
+            return toFormDto(form);
+        }
+        if (roleId != null && (roleId == 3L || roleId == 4L) && isOwnForm(form, employee)) {
+            return toFormDto(form);
+        }
+
+        throw new RuntimeException("You are not authorized to view this form");
+    }
+
     @Transactional
     public SelfAssessmentFormDto managerReview(Long formId, Employee manager, ManagerReviewRequest request) {
         SelfAssessmentForm form = formRepository.findById(formId)
@@ -2203,6 +2221,9 @@ Instant now = Instant.now();
         if (roleId != null && roleId == 2L) {
             return getManagerScoreRecords(employee);
         }
+        if (roleId != null && (roleId == 3L || roleId == 4L)) {
+            return getEmployeeScoreRecords(employee);
+        }
         throw new RuntimeException("Unauthorized");
     }
 
@@ -2216,20 +2237,39 @@ Instant now = Instant.now();
 
     private List<ScoreRecordDto> getManagerScoreRecords(Employee manager) {
         List<SelfAssessmentForm> allForms = formRepository.findAll();
-        Long managerId = manager.getId();
         return allForms.stream()
                 .filter(f -> SCORE_RECORD_VISIBLE_STATUSES.contains(f.getStatus()))
-                .filter(f -> {
-                    Employee emp = f.getEmployee();
-                    if (emp == null) return false;
-                    boolean isDirectReport = emp.getManager() != null && emp.getManager().getId().equals(managerId);
-                    boolean isDepartmentManaged = emp.getDepartment() != null
-                            && managerId.equals(emp.getDepartment().getManagerId());
-                    return isDirectReport || isDepartmentManaged;
-                })
+                .filter(f -> canManagerAccessForm(f, manager))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
                 .collect(Collectors.toList());
+    }
+
+    private List<ScoreRecordDto> getEmployeeScoreRecords(Employee employee) {
+        return formRepository.findAll().stream()
+                .filter(f -> SCORE_RECORD_VISIBLE_STATUSES.contains(f.getStatus()))
+                .filter(f -> isOwnForm(f, employee))
+                .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(this::toScoreRecordDto)
+                .collect(Collectors.toList());
+    }
+
+    private boolean canManagerAccessForm(SelfAssessmentForm form, Employee manager) {
+        if (form == null || manager == null) return false;
+        Employee emp = form.getEmployee();
+        if (emp == null) return false;
+        Long managerId = manager.getId();
+        boolean isDirectReport = emp.getManager() != null && emp.getManager().getId().equals(managerId);
+        boolean isDepartmentManaged = emp.getDepartment() != null
+                && managerId.equals(emp.getDepartment().getManagerId());
+        return isDirectReport || isDepartmentManaged;
+    }
+
+    private boolean isOwnForm(SelfAssessmentForm form, Employee employee) {
+        return form != null
+                && form.getEmployee() != null
+                && employee != null
+                && form.getEmployee().getId().equals(employee.getId());
     }
 
     private ScoreRecordDto toScoreRecordDto(SelfAssessmentForm form) {

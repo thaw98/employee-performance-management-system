@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -186,9 +187,71 @@ class SelfAssessmentFormScoreRecordsServiceTest {
     }
 
     @Test
+    void getScoreRecords_employee_returnsOnlyOwnVisibleRecords() {
+        Employee emp = employee(1L, 10L, 20L);
+        Employee otherEmp = employee(2L, 10L, 20L);
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm ownSubmitted = formWithStatus(200L, emp, tmpl, cycle, SelfAssessmentFormStatus.SUBMITTED);
+        SelfAssessmentForm ownDraft = formWithStatus(201L, emp, tmpl, cycle, SelfAssessmentFormStatus.DRAFT);
+        SelfAssessmentForm otherSubmitted = formWithStatus(202L, otherEmp, tmpl, cycle, SelfAssessmentFormStatus.SUBMITTED);
+        SelfAssessmentForm ownFinalized = finalizedForm(203L, emp, tmpl, cycle, 88.0, "Outstanding");
+
+        when(formRepository.findAll()).thenReturn(List.of(ownSubmitted, ownDraft, otherSubmitted, ownFinalized));
+
+        List<ScoreRecordDto> records = service.getScoreRecords(emp, 3L);
+
+        assertEquals(2, records.size());
+        assertTrue(records.stream().allMatch(r -> r.employee().id().equals(emp.getId())));
+        assertTrue(records.stream().anyMatch(r -> r.id().equals(200L)));
+        assertTrue(records.stream().anyMatch(r -> r.id().equals(203L)));
+    }
+
+    @Test
+    void getScoreRecords_employee_excludesOtherEmployeesForms() {
+        Employee emp = employee(1L, 10L, 20L);
+        Employee otherEmp = employee(2L, 10L, 20L);
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm otherSubmitted = formWithStatus(200L, otherEmp, tmpl, cycle, SelfAssessmentFormStatus.SUBMITTED);
+
+        when(formRepository.findAll()).thenReturn(List.of(otherSubmitted));
+
+        List<ScoreRecordDto> records = service.getScoreRecords(emp, 3L);
+
+        assertTrue(records.isEmpty());
+    }
+
+    @Test
     void getScoreRecords_unauthorizedRole_throwsException() {
         Employee emp = employee(1L, 10L, 20L);
-        assertThrows(RuntimeException.class, () -> service.getScoreRecords(emp, 3L));
+        assertThrows(RuntimeException.class, () -> service.getScoreRecords(emp, 99L));
+    }
+
+    @Test
+    void getFormByIdForRole_employeeCanFetchOwnFormDetail() {
+        Employee emp = employee(1L, 10L, 20L);
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm form = finalizedForm(200L, emp, tmpl, cycle, 88.0, "Outstanding");
+
+        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+
+        assertEquals(200L, service.getFormByIdForRole(200L, emp, 3L).id());
+    }
+
+    @Test
+    void getFormByIdForRole_employeeCannotFetchAnotherEmployeeFormDetail() {
+        Employee emp = employee(1L, 10L, 20L);
+        Employee otherEmp = employee(2L, 10L, 20L);
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm form = finalizedForm(200L, otherEmp, tmpl, cycle, 88.0, "Outstanding");
+
+        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
+
+        assertThrows(RuntimeException.class, () -> service.getFormByIdForRole(200L, emp, 3L));
     }
 
     @Test

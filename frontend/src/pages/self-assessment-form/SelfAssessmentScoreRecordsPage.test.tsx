@@ -220,6 +220,28 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/manager/self-assessment-forms/reviews/1')
   })
 
+  it('hides employee identity columns for Employee role', () => {
+    currentRoleId = 3
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    const headers = screen.getAllByRole('columnheader').map(h => h.textContent)
+    expect(headers.some(h => h.includes('Employee Name'))).toBe(false)
+    expect(headers.some(h => h.includes('Department'))).toBe(false)
+    expect(headers.some(h => h.includes('Position'))).toBe(true)
+    expect(screen.queryByText('Alice Johnson')).toBeNull()
+  })
+
+  it('navigates to employee detail page for Employee role', async () => {
+    currentRoleId = 3
+    const user = userEvent.setup()
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    const viewButtons = screen.getAllByText('View')
+    await user.click(viewButtons[0])
+
+    expect(navigateMock).toHaveBeenCalledWith('/employee/self-assessment-forms/reviews/1')
+  })
+
   it('shows all metric cards for HR role', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 

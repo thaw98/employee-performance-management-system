@@ -25,6 +25,7 @@ import { ProfileDropdown } from '../components/layout/ProfileDropdown';
 import { NotificationBell } from '../components/common/NotificationBell';
 import {
   EMPLOYEE_SELF_ASSESSMENT_BASE_PATH,
+  EMPLOYEE_SELF_ASSESSMENT_HISTORY_PATH,
   EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH,
 } from '../routes/employeeSelfAssessmentRoutes';
 
@@ -83,6 +84,11 @@ const EmployeeLayout: React.FC = () => {
           label: 'My Self Assessment Form',
           path: EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH,
           icon: <ClipboardList size={16} className="shrink-0" />,
+        },
+        {
+          label: 'History',
+          path: EMPLOYEE_SELF_ASSESSMENT_HISTORY_PATH,
+          icon: <History size={16} className="shrink-0" />,
         },
       ],
     },

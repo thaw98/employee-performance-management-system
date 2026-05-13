@@ -96,7 +96,12 @@ export function SelfAssessmentScoreRecordsPage() {
   const navigate = useNavigate()
   const roleId = useSelector((state: RootState) => state.auth.user?.roleId)
   const isHr = roleId === 1
-  const basePath = isHr ? '/hr/self-assessment' : '/manager/self-assessment-forms'
+  const isEmployee = roleId === 3 || roleId === 4
+  const basePath = isHr
+    ? '/hr/self-assessment'
+    : isEmployee
+      ? '/employee/self-assessment-forms'
+      : '/manager/self-assessment-forms'
 
   const { data: records = [], isLoading, isError } = useGetScoreRecordsQuery()
 
@@ -115,13 +120,15 @@ export function SelfAssessmentScoreRecordsPage() {
   }, [records])
 
   const columns = useMemo<ColumnDef<ScoreRecordDto>[]>(() => {
-    const cols: ColumnDef<ScoreRecordDto>[] = [
-      {
+    const cols: ColumnDef<ScoreRecordDto>[] = []
+
+    if (!isEmployee) {
+      cols.push({
         accessorKey: 'employee.employeeName',
         header: 'Employee Name',
         cell: ({ getValue }) => <span className="font-medium text-slate-900 dark:text-slate-100">{getValue() as string || '-'}</span>,
-      },
-    ]
+      })
+    }
 
     if (isHr) {
       cols.push({
@@ -175,7 +182,7 @@ export function SelfAssessmentScoreRecordsPage() {
     )
 
     return cols
-  }, [isHr, navigate, basePath])
+  }, [isHr, isEmployee, navigate, basePath])
 
   const filteredData = useMemo(() => {
     let data = records
@@ -289,7 +296,7 @@ export function SelfAssessmentScoreRecordsPage() {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search employees, departments..."
+              placeholder={isEmployee ? 'Search periods, positions...' : 'Search employees, departments...'}
               value={globalFilter}
               onChange={e => setGlobalFilter(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"

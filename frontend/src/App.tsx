@@ -264,6 +264,8 @@ function App() {
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="self-assessment-forms" element={<EmployeeSelfAssessmentHubPage />} />
             <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
+            <Route path="self-assessment-forms/history" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route path="self-assessment-forms/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="meetings" element={<EmployeeMeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
