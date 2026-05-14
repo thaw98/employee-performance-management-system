@@ -21,7 +21,9 @@ import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.repository.CriteriaRepository;
 import com.epms.backend.repository.EmployeeRepository;
+import com.epms.backend.repository.FeedbackDraftRepository;
 import com.epms.backend.repository.FeedbackRepository;
+import com.epms.backend.repository.ReviewCycleRepository;
 import com.epms.backend.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,6 +31,8 @@ class FeedbackServiceProbationRuleTest {
 
     @Mock
     private FeedbackRepository feedbackRepository;
+    @Mock
+    private FeedbackDraftRepository feedbackDraftRepository;
     @Mock
     private EmployeeRepository employeeRepository;
     @Mock
@@ -41,6 +45,10 @@ class FeedbackServiceProbationRuleTest {
     private NotificationService notificationService;
     @Mock
     private TimeSettingService timeSettingService;
+    @Mock
+    private ReviewCycleService reviewCycleService;
+    @Mock
+    private ReviewCycleRepository reviewCycleRepository;
 
     private FeedbackService feedbackService;
 
@@ -48,12 +56,15 @@ class FeedbackServiceProbationRuleTest {
     void setUp() {
         feedbackService = new FeedbackService(
                 feedbackRepository,
+                feedbackDraftRepository,
                 employeeRepository,
                 reportingManagerResolver,
                 criteriaRepository,
                 userRepository,
                 notificationService,
-                timeSettingService);
+                timeSettingService,
+                reviewCycleService,
+                reviewCycleRepository);
     }
 
     @Test

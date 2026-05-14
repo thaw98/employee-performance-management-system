@@ -71,6 +71,14 @@ function getNotificationTitle(notification: NotificationItem) {
   return notification.source === '360_FEEDBACK' ? '360 Feedback' : notification.title;
 }
 
+function getNotificationActionLabel(notification: NotificationItem) {
+  const text = `${notification.title ?? ''} ${notification.message ?? ''}`.toUpperCase();
+  if (notification.source === '360_FEEDBACK' && (text.includes('NEW REVIEW CYCLE') || text.includes('REVIEW CYCLE HAS STARTED'))) {
+    return 'Open Give Feedback';
+  }
+  return null;
+}
+
 export function NotificationBell() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -294,6 +302,20 @@ export function NotificationBell() {
                   >
                     {formatCreatedAt(notification.createdAt)}
                   </Box>
+                  {getNotificationActionLabel(notification) && (
+                    <Box
+                      component="p"
+                      sx={{
+                        m: 0,
+                        mt: 0.75,
+                        fontSize: 11,
+                        fontWeight: 900,
+                        color: 'rgb(13 148 136)',
+                      }}
+                    >
+                      {getNotificationActionLabel(notification)}
+                    </Box>
+                  )}
                 </Box>
               </ListItemButton>
             ))}

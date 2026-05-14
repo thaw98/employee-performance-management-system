@@ -27,6 +27,10 @@ public class Feedback {
     @JoinColumn(name = "evaluatee_id", nullable = false)
     private Employee evaluatee;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "review_cycle_id")
+    private ReviewCycle reviewCycle;
+
     @Column(name = "evaluator_role", nullable = false, length = 20)
     private String role; // MANAGER, PEER, SUBORDINATE
 

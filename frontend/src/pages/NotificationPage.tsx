@@ -48,6 +48,14 @@ function getNotificationTitle(notification: NotificationItem) {
   return notification.source === '360_FEEDBACK' ? '360 Feedback' : notification.title;
 }
 
+function getNotificationActionLabel(notification: NotificationItem) {
+  const text = `${notification.title ?? ''} ${notification.message ?? ''}`.toUpperCase();
+  if (notification.source === '360_FEEDBACK' && (text.includes('NEW REVIEW CYCLE') || text.includes('REVIEW CYCLE HAS STARTED'))) {
+    return 'Open Give Feedback';
+  }
+  return null;
+}
+
 function getSourceLabel(source: string) {
   return SOURCE_LABELS[source] ?? source;
 }
@@ -279,6 +287,11 @@ export function NotificationPage() {
                   <span className="block mt-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
                     {getSourceLabel(notification.source)}
                   </span>
+                  {getNotificationActionLabel(notification) && (
+                    <span className="inline-flex mt-3 px-3 py-1 rounded-lg bg-teal-100 text-teal-700 text-[11px] font-black uppercase tracking-widest">
+                      {getNotificationActionLabel(notification)}
+                    </span>
+                  )}
                 </span>
               </button>
             ))}
