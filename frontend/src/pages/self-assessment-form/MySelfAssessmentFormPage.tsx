@@ -38,6 +38,7 @@ import {
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
+import { SelfAssessmentSignatureGrid } from '../../features/selfAssessmentForm/components/SelfAssessmentSignatureGrid';
 import { formatDateDayMonthYear } from '../../utils/dateUtils';
 
 interface AnswerFormData {
@@ -1031,6 +1032,25 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               />
             </div>
           </div>
+
+          {formData && (
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800/60">
+              <div className="px-6 py-5">
+                <SelfAssessmentSignatureGrid
+                  employeeName={formData.employee?.employeeName}
+                  managerName={formData.managerName}
+                  employeeSignatureData={formData.employeeSignatureData}
+                  employeeSignatureDate={formData.employeeSignatureDate}
+                  managerSignatureData={formData.managerSignatureData}
+                  managerSignatureDate={formData.managerSignatureDate}
+                  hrSignatureData={formData.hrSignatureData}
+                  hrSignatureDate={formData.hrSignatureDate}
+                  hrFinalSignatureData={formData.hrFinalSignatureData}
+                  hrFinalSignatureDate={formData.hrFinalSignatureDate}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ───── Sticky Action Bar ───── */}

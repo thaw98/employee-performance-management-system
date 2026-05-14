@@ -46,6 +46,7 @@ import {
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { getRatingOptions, isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
+import { SelfAssessmentSignatureGrid } from '../../features/selfAssessmentForm/components/SelfAssessmentSignatureGrid';
 import { exportSelfAssessmentReviewPdf } from '../../features/selfAssessmentForm/exportSelfAssessmentReviewPdf';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
@@ -1045,12 +1046,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                               )}
                             </div>
                             <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.managerComments}</p>
-                            {selectedForm.managerSignatureDate && (
-                              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-                                <Clock size={11} />
-                                Signed on {formatDateTimeWithSeconds(selectedForm.managerSignatureDate)}
-                              </p>
-                            )}
                           </div>
                         )}
                         {selectedForm.employeeDisputedAt && (
@@ -1078,6 +1073,21 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                <div className="border-t border-slate-100 px-6 py-5 dark:border-slate-700/60">
+                  <SelfAssessmentSignatureGrid
+                    employeeName={selectedForm.employee?.employeeName}
+                    managerName={selectedForm.managerName}
+                    employeeSignatureData={selectedForm.employeeSignatureData}
+                    employeeSignatureDate={selectedForm.employeeSignatureDate}
+                    managerSignatureData={selectedForm.managerSignatureData}
+                    managerSignatureDate={selectedForm.managerSignatureDate}
+                    hrSignatureData={selectedForm.hrSignatureData}
+                    hrSignatureDate={selectedForm.hrSignatureDate}
+                    hrFinalSignatureData={selectedForm.hrFinalSignatureData}
+                    hrFinalSignatureDate={selectedForm.hrFinalSignatureDate}
+                  />
+                </div>
               </div>
 
               {!isHr && !isEmployeeDetail && (selectedForm.status === 'SUBMITTED' || selectedForm.status === 'PENDING_MANAGER_REVIEW') && (

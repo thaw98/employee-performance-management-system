@@ -131,6 +131,18 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @GetMapping("/manager/active-cycle")
+    @PreAuthorize("principal.roleId == 2")
+    public ResponseEntity<ApiResponse<ActiveCycleFormsDto>> getActiveCycleFormsForManager(@AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee manager = getEmployeeFromPrincipal(principal);
+            ActiveCycleFormsDto forms = selfAssessmentFormService.getActiveCycleFormsForManager(manager);
+            return ResponseEntity.ok(ApiResponse.ok("Active cycle forms retrieved", forms));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @PostMapping("/hr/assignments")
     @PreAuthorize("principal.roleId == 1")
     public ResponseEntity<ApiResponse<SelfAssessmentAssignmentResponse>> assignSelfAssessmentForms(

@@ -988,6 +988,17 @@ Instant now = Instant.now();
         return new ActiveCycleFormsDto(toCycleInfo(activeCycle), forms);
     }
 
+    @Transactional
+    public ActiveCycleFormsDto getActiveCycleFormsForManager(Employee manager) {
+        ReviewCycle activeCycle = requireActiveCycle();
+        List<FormListDto> forms = formRepository.findByCycleOrderByCreatedDateDesc(activeCycle).stream()
+                .peek(this::normalizeOverdueDraftForm)
+                .filter(form -> canManagerAccessForm(form, manager))
+                .map(this::toFormListDto)
+                .collect(Collectors.toList());
+        return new ActiveCycleFormsDto(toCycleInfo(activeCycle), forms);
+    }
+
     @Transactional(readOnly = true)
     public SelfAssessmentFormDto getFormById(Long formId) {
         SelfAssessmentForm form = formRepository.findById(formId)

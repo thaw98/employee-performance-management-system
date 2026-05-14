@@ -27,8 +27,13 @@ import {
   RotateCcw,
   Lock,
 } from 'lucide-react';
+import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { useGetActiveCycleFormsForHrQuery } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import type { RootState } from '../../app/store';
+import {
+  useGetActiveCycleFormsForHrQuery,
+  useGetActiveCycleFormsForManagerQuery,
+} from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { PaginationBar } from '../../components/common/PaginationBar';
 import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
 
@@ -226,7 +231,11 @@ const filterControlClass =
 
 export const SelfAssessmentActiveFormsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { data, isLoading, isError } = useGetActiveCycleFormsForHrQuery();
+  const roleId = useSelector((state: RootState) => state.auth.user?.roleId);
+  const isManager = roleId === 2;
+  const hrFormsQuery = useGetActiveCycleFormsForHrQuery(undefined, { skip: isManager });
+  const managerFormsQuery = useGetActiveCycleFormsForManagerQuery(undefined, { skip: !isManager });
+  const { data, isLoading, isError } = isManager ? managerFormsQuery : hrFormsQuery;
   const forms = useMemo(() => data?.forms ?? [], [data]);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -288,6 +297,14 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
   const clearAllFilters = () => {
     setSearchQuery('');
     setStatusFilter('all');
+  };
+
+  const viewForm = (formId: number) => {
+    if (isManager) {
+      navigate(`/manager/self-assessment-forms/reviews/${formId}`);
+      return;
+    }
+    navigate('/hr/self-assessment/reviews', { state: { formId } });
   };
 
   const totalCount = forms.length;
@@ -384,10 +401,12 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              Assigned Self-Assessment Forms
+              {isManager ? 'Team Assigned Self-Assessment Forms' : 'Assigned Self-Assessment Forms'}
             </h1>
             <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400 max-w-lg">
-              Monitor and review active-cycle self-assessment forms assigned to employees
+              {isManager
+                ? 'Monitor active-cycle self-assessment forms assigned to your team'
+                : 'Monitor and review active-cycle self-assessment forms assigned to employees'}
             </p>
           </div>
         </div>
@@ -690,7 +709,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                             <td className="px-5 py-4 text-right">
                               <button
                                 type="button"
-                                onClick={() => navigate('/hr/self-assessment/reviews', { state: { formId: form.id } })}
+                                onClick={() => viewForm(form.id)}
                                 className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
                               >
                                 <Eye size={13} />
@@ -803,7 +822,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                             <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-700/40">
                               <button
                                 type="button"
-                                onClick={() => navigate('/hr/self-assessment/reviews', { state: { formId: form.id } })}
+                                onClick={() => viewForm(form.id)}
                                 className="group/btn flex w-full items-center justify-center gap-2 rounded-xl bg-[#5D5FEF]/[0.06] px-4 py-2.5 text-xs font-bold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
                               >
                                 <Eye size={14} />
@@ -866,7 +885,9 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
             <p className="mt-1.5 max-w-sm text-center text-sm text-slate-400 dark:text-slate-500">
               {isError
                 ? 'Unable to load forms. Please try again later.'
-                : 'Assign self-assessment forms to employees to see them here'}
+                : isManager
+                  ? 'Active-cycle forms assigned to your team will appear here'
+                  : 'Assign self-assessment forms to employees to see them here'}
             </p>
           </div>
         )}

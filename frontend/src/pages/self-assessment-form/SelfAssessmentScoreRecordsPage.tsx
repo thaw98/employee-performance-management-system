@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import type { RootState } from '../../app/store'
@@ -12,8 +12,9 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
-import { Eye, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Trophy, BarChart3, FileText, CheckCircle2 } from 'lucide-react'
+import { Eye, Search, Trophy, BarChart3, FileText, CheckCircle2 } from 'lucide-react'
 import { useGetScoreRecordsQuery, type ScoreRecordDto } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi'
+import { PaginationBar } from '../../components/common/PaginationBar'
 
 function ScoreBar({ score }: { score: number | null }) {
   if (score == null) return <span className="text-slate-400">-</span>
@@ -210,8 +211,13 @@ export function SelfAssessmentScoreRecordsPage() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    autoResetPageIndex: false,
     initialState: { pagination: { pageSize: 10 } },
   })
+
+  useEffect(() => {
+    table.setPageIndex(0)
+  }, [cycleFilter, statusFilter, globalFilter])
 
   const visibleRecords = table.getFilteredRowModel().rows.map(row => row.original)
   const scoredVisibleRecords = visibleRecords.filter((r): r is ScoreRecordDto & { finalApprovedScore: number } => r.finalApprovedScore != null)
@@ -374,54 +380,24 @@ export function SelfAssessmentScoreRecordsPage() {
           </table>
         </div>
 
-        <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            >
-              <ChevronsLeft size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount() || 1}
-            </span>
-            <button
-              type="button"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            >
-              <ChevronRight size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            >
-              <ChevronsRight size={16} />
-            </button>
+        {table.getFilteredRowModel().rows.length > 0 && (
+          <div className="border-t border-slate-200 dark:border-slate-700 p-4">
+            <PaginationBar
+              className="mt-0"
+              pageIndex={table.getState().pagination.pageIndex}
+              pageSize={table.getState().pagination.pageSize}
+              pageCount={table.getPageCount() || 1}
+              totalItems={table.getFilteredRowModel().rows.length}
+              itemLabel="forms"
+              rowsPerPageOptions={[5, 10, 20, 50]}
+              onPageIndexChange={next => table.setPageIndex(next)}
+              onPageSizeChange={nextSize => {
+                table.setPageSize(nextSize)
+                table.setPageIndex(0)
+              }}
+            />
           </div>
-          <select
-            value={table.getState().pagination.pageSize}
-            onChange={e => table.setPageSize(Number(e.target.value))}
-            className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300"
-          >
-            {[5, 10, 20, 50].map(size => (
-              <option key={size} value={size}>{size} / page</option>
-            ))}
-          </select>
-        </div>
+        )}
       </div>
     </div>
   )

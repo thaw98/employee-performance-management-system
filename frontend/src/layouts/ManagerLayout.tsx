@@ -19,6 +19,7 @@ import {
   SlidersHorizontal,
   Settings,
   PenLine,
+  ClipboardList,
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -70,7 +71,7 @@ const ManagerLayout: React.FC = () => {
       path: '/manager/self-assessment/templates',
       subItems: [
         { label: 'Templates', path: '/manager/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
-
+        { label: 'Assigned Forms', path: '/manager/self-assessment/forms', icon: <ClipboardList size={16} className="shrink-0" /> },
         { label: 'Form Queue', path: '/manager/self-assessment-forms/review-queue', icon: <ListChecks size={16} className="shrink-0" /> },
         { label: 'History', path: '/manager/self-assessment-forms/history', icon: <History size={16} className="shrink-0" /> }
       ]
