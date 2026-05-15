@@ -9,6 +9,8 @@ import { z } from 'zod'
 import { useCreatePipMutation, useGetEligibleEmployeesQuery, useGetPipsQuery } from '../features/pip/pipApi'
 import type { RootState } from '../app/store'
 
+const BLOCKING_PIP_STATUSES = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'] as const
+
 const pipCreateSchema = z
   .object({
     employeeId: z.coerce.number().int().min(1, 'Employee record ID is required'),
@@ -18,16 +20,29 @@ const pipCreateSchema = z
     objectives: z
       .array(
         z.object({
-          value: z.string().min(1, 'Objective is required'),
+          value: z.string().trim().min(1, 'Objective is required'),
         }),
       )
       .min(1, 'At least one objective is required'),
-    expectedImprovements: z.array(
-      z.object({
-        value: z.string().optional(),
-      }),
-    ),
+    expectedImprovements: z
+      .array(
+        z.object({
+          value: z.string().trim().min(1, 'Expected improvement is required for this objective'),
+        }),
+      )
+      .min(1, 'At least one expected improvement is required'),
     reasonForPlan: z.string().optional(),
+  })
+  .superRefine((values, ctx) => {
+    values.objectives.forEach((objective, index) => {
+      if (objective.value.trim() && !values.expectedImprovements[index]?.value?.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['expectedImprovements', index, 'value'],
+          message: 'Expected improvement is required for this objective',
+        })
+      }
+    })
   })
   .refine((v) => new Date(v.endDate) >= new Date(v.startDate), {
     path: ['endDate'],
@@ -70,13 +85,22 @@ export default function PipCreatePage() {
   const isHr = userRole === 'HR'
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
   const routeBase = isHr ? '/hr/pip-monitoring' : '/manager/pip'
+  const blockedEmployeeIds = useMemo(() => {
+    return new Set(
+      (existingPips || [])
+        .filter((pip) => BLOCKING_PIP_STATUSES.includes(pip.status as (typeof BLOCKING_PIP_STATUSES)[number]))
+        .map((pip) => pip.employee?.employee?.id)
+        .filter((employeeId): employeeId is number => typeof employeeId === 'number' && Number.isFinite(employeeId)),
+    )
+  }, [existingPips])
   const selectableEmployees = useMemo(() => {
     const currentEmployeeId = user?.employeeId == null ? null : String(user.employeeId)
     return (eligibleEmployees || []).filter((employee) => {
+      if (blockedEmployeeIds.has(employee.employeeId)) return false
       if (currentEmployeeId == null) return true
       return String(employee.employeeId) !== currentEmployeeId && String(employee.staffId ?? '') !== currentEmployeeId
     })
-  }, [eligibleEmployees, user?.employeeId])
+  }, [blockedEmployeeIds, eligibleEmployees, user?.employeeId])
 
   useEffect(() => {
     if (isHr && !isManager) {
@@ -154,7 +178,7 @@ export default function PipCreatePage() {
         const employeeId = values.employeeId
         const existingPip = existingPips?.find((pip) => {
           const pipEmployeeId = pip.employee?.employee?.id
-          return pipEmployeeId === employeeId && ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(pip.status)
+          return pipEmployeeId === employeeId && BLOCKING_PIP_STATUSES.includes(pip.status as (typeof BLOCKING_PIP_STATUSES)[number])
         })
 
         if (existingPip) {
@@ -198,7 +222,7 @@ export default function PipCreatePage() {
                 options={selectableEmployees}
                 value={selectableEmployees.find((e) => e.employeeId === field.value) || null}
                 isOptionEqualToValue={(option, value) => option.employeeId === (typeof value === 'number' ? value : value?.employeeId)}
-                getOptionLabel={(option) => `${option.employeeName} (${option.employeeId}${option.staffId ? ` / ${option.staffId}` : ''}) - ${option.departmentName || 'No Department'}`}
+                getOptionLabel={(option) => `${option.employeeName}${option.staffId ? ` (${option.staffId})` : ''} - ${option.departmentName || 'No Department'}`}
                 onChange={(_, data) => field.onChange(data?.employeeId ?? 0)}
                 renderInput={(params) => (
                   <TextField
@@ -214,9 +238,9 @@ export default function PipCreatePage() {
                   return (
                     <li key={key} {...rest}>
                       <Box>
-                        <Typography variant="body1">{option.employeeName}{option.employeeId ? ` (${option.employeeId})` : ''}</Typography>
+                        <Typography variant="body1">{option.employeeName}{option.staffId ? ` (StaffID: ${option.staffId})` : ''}</Typography>
                         <Typography variant="caption" color="text.secondary">
-                          Dept: {option.departmentName} | Staff ID: {option.staffId || 'N/A'} | KPI Score: {option.totalScore?.toFixed(2) ?? 'N/A'}%
+                          Dept: {option.departmentName} | KPI Score: {option.totalScore?.toFixed(2) ?? 'N/A'}%
                         </Typography>
                       </Box>
                     </li>
@@ -300,8 +324,10 @@ export default function PipCreatePage() {
                   render={({ field: expectedImprovementField }) => (
                     <TextField
                       fullWidth
-                      label={`Objective ${index + 1}`}
+                      label={`Expected Improvement ${index + 1}`}
                       {...expectedImprovementField}
+                      error={Boolean(errors.expectedImprovements?.[index]?.value)}
+                      helperText={errors.expectedImprovements?.[index]?.value?.message}
                     />
                   )}
                 />

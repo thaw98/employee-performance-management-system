@@ -63,8 +63,10 @@ public class PipReportService {
 
     private static final String FORMAT_EXCEL = "excel";
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy");
-    private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", Locale.ENGLISH);
-    private static final DateTimeFormatter GENERATED_AT_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", Locale.ENGLISH);
+    private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a",
+            Locale.ENGLISH);
+    private static final DateTimeFormatter GENERATED_AT_FORMAT = DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a",
+            Locale.ENGLISH);
 
     private final PipService pipService;
     private final PipProgressUpdateRepository progressUpdateRepository;
@@ -110,7 +112,7 @@ public class PipReportService {
         log.info("Starting report generation for PIP {} with format {}", pipId, format);
         PipIndividualReportDto report = getIndividualPipReport(pipId, actor);
         log.debug("Report DTO loaded: pipId={}, employee={}, status={}",
-                  report.getPipId(), report.getEmployeeName(), report.getStatus());
+                report.getPipId(), report.getEmployeeName(), report.getStatus());
         if (isExcelFormat(format)) {
             return generateIndividualExcelReport(report);
         }
@@ -156,11 +158,13 @@ public class PipReportService {
         if (isExcelFormat(format)) {
             return generateProgressExcelReport(report);
         }
-Object jasperPrint = fillReport(
+        Object jasperPrint = fillReport(
                 "pip_progress_report.jrxml",
                 List.of(report),
                 Map.of("REPORT_TITLE", "PIP Progress Report",
-                        "FILTER_DESCRIPTION", buildFilterDescription(null, departmentId, startDate, endDate, actor) + " | Position: " + getManagerPositionName(actor),
+                        "FILTER_DESCRIPTION",
+                        buildFilterDescription(null, departmentId, startDate, endDate, actor) + " | Position: "
+                                + getManagerPositionName(actor),
                         "GENERATED_AT", formatGeneratedAt()));
         return export(jasperPrint, format);
     }
@@ -171,55 +175,123 @@ Object jasperPrint = fillReport(
             CellStyle headerStyle = createHeaderStyle(workbook);
             CellStyle textStyle = createTextStyle(workbook);
 
-            Sheet sheet = workbook.createSheet("Individual PIP");
-            int rowIndex = 0;
-            rowIndex = writeTitle(sheet, rowIndex, "Individual PIP Report", 15, titleStyle);
-            rowIndex++;
-            rowIndex = writeHeader(sheet, rowIndex, headerStyle,
-                    "PIP ID", "Employee ID", "Employee Name", "Department", "Position", "Manager", "Manager Department",
-                    "Status", "Start Date", "End Date", "Original End Date", "Actual End Date", "Progress %",
-                    "Completed Hours", "Total Hours", "Final Outcome");
-            writeRow(sheet, rowIndex++, textStyle,
-                    report.getPipId(), report.getEmployeeStaffNo(), report.getEmployeeName(), report.getEmployeeDepartment(),
-                    report.getEmployeePosition(), report.getManagerName(), report.getManagerDepartment(), report.getStatus(),
-                    formatExcelDate(report.getStartDate()), formatExcelDate(report.getEndDate()),
-                    formatExcelDate(report.getOriginalEndDate()), formatExcelDate(report.getActualEndDate()),
-                    report.getOverallProgress(), report.getCompletedHours(), report.getTotalHours(), report.getFinalOutcome());
+            writeIndividualOverviewSheet(workbook, report, titleStyle, headerStyle, textStyle);
+            writeObjectivesSheet(workbook, report, titleStyle, headerStyle, textStyle);
+            writeMeetingsSheet(workbook, report, titleStyle, headerStyle, textStyle);
+            writeProgressUpdatesSheet(workbook, report, titleStyle, headerStyle, textStyle);
 
-            rowIndex += 2;
-            rowIndex = writeTitle(sheet, rowIndex, "Objectives", 5, titleStyle);
-            rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Objective ID", "Description", "Weight %", "Progress %", "Due Date", "Status");
-            for (PipIndividualReportDto.ObjectiveRow objective : safeList(report.getObjectives())) {
-                writeRow(sheet, rowIndex++, textStyle,
-                        objective.getObjectiveId(), objective.getDescription(), objective.getWeightPercentage(),
-                        objective.getProgressPercentage(), formatExcelDate(objective.getDueDate()), objective.getStatus());
-            }
-
-            rowIndex += 2;
-            rowIndex = writeTitle(sheet, rowIndex, "Follow-up Meetings", 4, titleStyle);
-            rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Meeting ID", "Scheduled Date", "Meeting Time", "Status", "Notes");
-            for (PipIndividualReportDto.MeetingRow meeting : safeList(report.getMeetings())) {
-                writeRow(sheet, rowIndex++, textStyle,
-                        meeting.getMeetingId(), formatExcelDate(meeting.getScheduledDate()), formatExcelDateTime(meeting.getMeetingTime()),
-                        meeting.getStatus(), meeting.getNotes());
-            }
-
-            rowIndex += 2;
-            rowIndex = writeTitle(sheet, rowIndex, "Progress Updates", 6, titleStyle);
-            rowIndex = writeHeader(sheet, rowIndex, headerStyle,
-                    "Update ID", "Update Date", "Objective", "Previous %", "New %", "Updated By", "Feedback");
-            for (PipIndividualReportDto.ProgressUpdateRow update : safeList(report.getProgressUpdates())) {
-                writeRow(sheet, rowIndex++, textStyle,
-                        update.getUpdateId(), formatExcelDate(update.getUpdateDate()), update.getObjectiveDescription(),
-                        update.getPreviousPercentage(), update.getNewPercentage(), update.getUpdatedBy(), update.getFeedback());
-            }
-
-            autosize(sheet, 16);
             workbook.write(outputStream);
             return outputStream.toByteArray();
         } catch (IOException e) {
             throw new IllegalStateException("Failed to generate individual PIP Excel report", e);
         }
+    }
+
+    private void writeIndividualOverviewSheet(
+            Workbook workbook,
+            PipIndividualReportDto report,
+            CellStyle titleStyle,
+            CellStyle headerStyle,
+            CellStyle textStyle) {
+        Sheet sheet = workbook.createSheet("Overview");
+        int rowIndex = writeTitle(sheet, 0, "Individual PIP Report", 2, titleStyle) + 1;
+        rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Field", "Value");
+        writeRow(sheet, rowIndex++, textStyle, "PIP ID", report.getPipId());
+        writeRow(sheet, rowIndex++, textStyle, "Employee ID", report.getEmployeeStaffNo());
+        writeRow(sheet, rowIndex++, textStyle, "Employee Name", report.getEmployeeName());
+        writeRow(sheet, rowIndex++, textStyle, "Department", report.getEmployeeDepartment());
+        writeRow(sheet, rowIndex++, textStyle, "Position", report.getEmployeePosition());
+        writeRow(sheet, rowIndex++, textStyle, "Manager", report.getManagerName());
+        writeRow(sheet, rowIndex++, textStyle, "Manager Department", report.getManagerDepartment());
+        writeRow(sheet, rowIndex++, textStyle, "Status", report.getStatus());
+        writeRow(sheet, rowIndex++, textStyle, "Start Date", formatExcelDate(report.getStartDate()));
+        writeRow(sheet, rowIndex++, textStyle, "End Date", formatExcelDate(report.getEndDate()));
+        writeRow(sheet, rowIndex++, textStyle, "Original End Date", formatExcelDate(report.getOriginalEndDate()));
+        writeRow(sheet, rowIndex++, textStyle, "Actual End Date", formatExcelDate(report.getActualEndDate()));
+        writeRow(sheet, rowIndex++, textStyle, "Progress %", report.getOverallProgress());
+        writeRow(sheet, rowIndex++, textStyle, "Completed Hours", report.getCompletedHours());
+        writeRow(sheet, rowIndex++, textStyle, "Total Hours", report.getTotalHours());
+        writeRow(sheet, rowIndex++, textStyle, "Reason For Plan", report.getReasonForPlan());
+        writeRow(sheet, rowIndex++, textStyle, "Expected Improvements", report.getExpectedImprovements());
+        writeRow(sheet, rowIndex++, textStyle, "Final Outcome", report.getFinalOutcome());
+        writeRow(sheet, rowIndex++, textStyle, "Closing Remarks", report.getClosingRemarks());
+        writeRow(sheet, rowIndex++, textStyle, "Employee Signed At", formatExcelDateTime(report.getEmployeeSignatureDate()));
+        writeRow(sheet, rowIndex, textStyle, "Manager Signed At", formatExcelDateTime(report.getManagerSignatureDate()));
+        sheet.createFreezePane(0, 2);
+        autosize(sheet, 2);
+    }
+
+    private void writeObjectivesSheet(
+            Workbook workbook,
+            PipIndividualReportDto report,
+            CellStyle titleStyle,
+            CellStyle headerStyle,
+            CellStyle textStyle) {
+        Sheet sheet = workbook.createSheet("Objectives");
+        int rowIndex = writeTitle(sheet, 0, "Objectives", 6, titleStyle) + 1;
+        rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Objective ID", "Description", "Weight %",
+                "Progress %", "Due Date", "Status");
+        List<PipIndividualReportDto.ObjectiveRow> objectives = safeList(report.getObjectives());
+        if (objectives.isEmpty()) {
+            writeEmptyRow(sheet, rowIndex++, textStyle, 6, "No objectives recorded.");
+        }
+        for (PipIndividualReportDto.ObjectiveRow objective : objectives) {
+            writeRow(sheet, rowIndex++, textStyle,
+                    objective.getObjectiveId(), objective.getDescription(), objective.getWeightPercentage(),
+                    objective.getProgressPercentage(), formatExcelDate(objective.getDueDate()),
+                    objective.getStatus());
+        }
+        sheet.createFreezePane(0, 2);
+        autosize(sheet, 6);
+    }
+
+    private void writeMeetingsSheet(
+            Workbook workbook,
+            PipIndividualReportDto report,
+            CellStyle titleStyle,
+            CellStyle headerStyle,
+            CellStyle textStyle) {
+        Sheet sheet = workbook.createSheet("Follow-up Meetings");
+        int rowIndex = writeTitle(sheet, 0, "Follow-up Meetings", 5, titleStyle) + 1;
+        rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Meeting ID", "Scheduled Date", "Meeting Time",
+                "Status", "Notes");
+        List<PipIndividualReportDto.MeetingRow> meetings = safeList(report.getMeetings());
+        if (meetings.isEmpty()) {
+            writeEmptyRow(sheet, rowIndex++, textStyle, 5, "No follow-up meetings recorded.");
+        }
+        for (PipIndividualReportDto.MeetingRow meeting : meetings) {
+            writeRow(sheet, rowIndex++, textStyle,
+                    meeting.getMeetingId(), formatExcelDate(meeting.getScheduledDate()),
+                    formatExcelDateTime(meeting.getMeetingTime()),
+                    meeting.getStatus(), meeting.getNotes());
+        }
+        sheet.createFreezePane(0, 2);
+        autosize(sheet, 5);
+    }
+
+    private void writeProgressUpdatesSheet(
+            Workbook workbook,
+            PipIndividualReportDto report,
+            CellStyle titleStyle,
+            CellStyle headerStyle,
+            CellStyle textStyle) {
+        Sheet sheet = workbook.createSheet("Progress Updates");
+        int rowIndex = writeTitle(sheet, 0, "Progress Updates", 8, titleStyle) + 1;
+        rowIndex = writeHeader(sheet, rowIndex, headerStyle,
+                "Update ID", "Update Date", "Objective", "Previous %", "New %", "Completed Hours", "Updated By",
+                "Feedback");
+        List<PipIndividualReportDto.ProgressUpdateRow> updates = safeList(report.getProgressUpdates());
+        if (updates.isEmpty()) {
+            writeEmptyRow(sheet, rowIndex++, textStyle, 8, "No progress updates recorded.");
+        }
+        for (PipIndividualReportDto.ProgressUpdateRow update : updates) {
+            writeRow(sheet, rowIndex++, textStyle,
+                    update.getUpdateId(), formatExcelDate(update.getUpdateDate()), update.getObjectiveDescription(),
+                    update.getPreviousPercentage(), update.getNewPercentage(), update.getCompletedHours(),
+                    update.getUpdatedBy(), update.getFeedback());
+        }
+        sheet.createFreezePane(0, 2);
+        autosize(sheet, 8);
     }
 
     private byte[] generateSummaryExcelReport(List<PipSummaryReportDto> rows) {
@@ -237,7 +309,8 @@ Object jasperPrint = fillReport(
             for (PipSummaryReportDto row : rows) {
                 writeRow(sheet, rowIndex++, textStyle,
                         row.getPipId(), row.getEmployeeStaffNo(), row.getEmployeeName(), row.getDepartmentName(),
-                        row.getPositionName(), row.getManagerName(), row.getStatus(), formatExcelDate(row.getStartDate()),
+                        row.getPositionName(), row.getManagerName(), row.getStatus(),
+                        formatExcelDate(row.getStartDate()),
                         formatExcelDate(row.getEndDate()), row.getOverallProgress(), row.getCompletedHours(),
                         row.getTotalHours(), row.getObjectivesCount(), row.getMeetingsCount(), row.getFinalOutcome());
             }
@@ -304,10 +377,12 @@ Object jasperPrint = fillReport(
             Class<?> exporterClass = Class.forName("net.sf.jasperreports.engine.export.ooxml.JRXlsxExporter");
             Class<?> exporterInputClass = Class.forName("net.sf.jasperreports.export.ExporterInput");
             Class<?> exporterOutputClass = Class.forName("net.sf.jasperreports.export.ExporterOutput");
-            Class<?> reportExportConfigurationClass = Class.forName("net.sf.jasperreports.export.ReportExportConfiguration");
+            Class<?> reportExportConfigurationClass = Class
+                    .forName("net.sf.jasperreports.export.ReportExportConfiguration");
             Class<?> simpleExporterInputClass = Class.forName("net.sf.jasperreports.export.SimpleExporterInput");
             Class<?> simpleOutputClass = Class.forName("net.sf.jasperreports.export.SimpleOutputStreamExporterOutput");
-            Class<?> xlsxConfigurationClass = Class.forName("net.sf.jasperreports.export.SimpleXlsxReportConfiguration");
+            Class<?> xlsxConfigurationClass = Class
+                    .forName("net.sf.jasperreports.export.SimpleXlsxReportConfiguration");
 
             Object exporter = exporterClass.getConstructor().newInstance();
             Object exporterInput = simpleExporterInputClass.getConstructor(jasperPrintClass).newInstance(jasperPrint);
@@ -317,7 +392,8 @@ Object jasperPrint = fillReport(
             xlsxConfigurationClass.getMethod("setOnePagePerSheet", Boolean.class).invoke(configuration, Boolean.FALSE);
             xlsxConfigurationClass.getMethod("setDetectCellType", Boolean.class).invoke(configuration, Boolean.TRUE);
             xlsxConfigurationClass.getMethod("setCollapseRowSpan", Boolean.class).invoke(configuration, Boolean.FALSE);
-            xlsxConfigurationClass.getMethod("setWhitePageBackground", Boolean.class).invoke(configuration, Boolean.FALSE);
+            xlsxConfigurationClass.getMethod("setWhitePageBackground", Boolean.class).invoke(configuration,
+                    Boolean.FALSE);
 
             exporterClass.getMethod("setExporterInput", exporterInputClass).invoke(exporter, exporterInput);
             exporterClass.getMethod("setExporterOutput", exporterOutputClass).invoke(exporter, exporterOutput);
@@ -404,6 +480,16 @@ Object jasperPrint = fillReport(
         }
     }
 
+    private void writeEmptyRow(Sheet sheet, int rowIndex, CellStyle style, int columnCount, String message) {
+        Row row = sheet.createRow(rowIndex);
+        Cell cell = row.createCell(0);
+        cell.setCellStyle(style);
+        cell.setCellValue(message);
+        if (columnCount > 1) {
+            sheet.addMergedRegion(new CellRangeAddress(rowIndex, rowIndex, 0, columnCount - 1));
+        }
+    }
+
     private void setCellValue(Cell cell, Object value) {
         if (value == null) {
             cell.setBlank();
@@ -477,7 +563,8 @@ Object jasperPrint = fillReport(
                 .map(this::toObjectiveRow)
                 .toList();
         List<PipIndividualReportDto.MeetingRow> meetings = safeList(pip.getFollowUpMeetings()).stream()
-                .sorted(Comparator.comparing(FollowUpMeeting::getScheduledDate, Comparator.nullsLast(Comparator.naturalOrder())))
+                .sorted(Comparator.comparing(FollowUpMeeting::getScheduledDate,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(this::toMeetingRow)
                 .toList();
         List<PipIndividualReportDto.ProgressUpdateRow> updates = safeList(progressUpdates).stream()
@@ -539,8 +626,10 @@ Object jasperPrint = fillReport(
                 defaultText(pip.getFinalOutcome()));
     }
 
-    private PipProgressReportDto toProgressDto(List<Pip> pips, Long departmentId, LocalDate startDate, LocalDate endDate, User actor) {
-        if (pips == null) pips = List.of();
+    private PipProgressReportDto toProgressDto(List<Pip> pips, Long departmentId, LocalDate startDate,
+            LocalDate endDate, User actor) {
+        if (pips == null)
+            pips = List.of();
         long total = pips.size();
         int totalHours = pips.stream()
                 .map(Pip::getTotalHours)
@@ -553,14 +642,16 @@ Object jasperPrint = fillReport(
                 .mapToInt(Integer::intValue)
                 .sum();
 
-        BigDecimal averageProgress = total == 0 ? BigDecimal.ZERO : pips.stream()
-                .map(Pip::getOverallProgressPercentage)
-                .filter(Objects::nonNull)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
-        BigDecimal hoursCompletion = totalHours == 0 ? BigDecimal.ZERO : BigDecimal.valueOf(completedHours)
-                .multiply(BigDecimal.valueOf(100))
-                .divide(BigDecimal.valueOf(totalHours), 2, RoundingMode.HALF_UP);
+        BigDecimal averageProgress = total == 0 ? BigDecimal.ZERO
+                : pips.stream()
+                        .map(Pip::getOverallProgressPercentage)
+                        .filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
+        BigDecimal hoursCompletion = totalHours == 0 ? BigDecimal.ZERO
+                : BigDecimal.valueOf(completedHours)
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(totalHours), 2, RoundingMode.HALF_UP);
 
         return new PipProgressReportDto(
                 resolveDepartmentScope(pips, departmentId, actor),
@@ -607,7 +698,8 @@ Object jasperPrint = fillReport(
                 update.getNewPercentage(),
                 defaultText(update.getFeedback()),
                 update.getUpdatedBy() == null ? "" : update.getUpdatedBy().getEmployeeName(),
-                update.getCreatedDate());
+                update.getCreatedDate(),
+                update.getCompletedHours());
     }
 
     private String toObjectiveSummary(List<PipIndividualReportDto.ObjectiveRow> objectives) {
@@ -615,7 +707,8 @@ Object jasperPrint = fillReport(
             return "No objectives recorded.";
         }
         return objectives.stream()
-                .map(row -> "- " + row.getDescription() + " | Progress: " + nullSafe(row.getProgressPercentage()) + "% | Due: " + format(row.getDueDate()))
+                .map(row -> "- " + row.getDescription() + " | Progress: " + nullSafe(row.getProgressPercentage())
+                        + "% | Due: " + format(row.getDueDate()))
                 .collect(Collectors.joining("\n"));
     }
 
@@ -624,7 +717,8 @@ Object jasperPrint = fillReport(
             return "No follow-up meetings recorded.";
         }
         return meetings.stream()
-                .map(row -> "- " + formatExcelDateTime(row.getMeetingTime()) + " | " + row.getStatus() + " | " + row.getNotes())
+                .map(row -> "- " + formatExcelDateTime(row.getMeetingTime()) + " | " + row.getStatus() + " | "
+                        + row.getNotes())
                 .collect(Collectors.joining("\n"));
     }
 
@@ -636,7 +730,10 @@ Object jasperPrint = fillReport(
                 .map(row -> "- " + format(row.getUpdateDate()) + " | " + row.getObjectiveDescription()
                         + " | " + nullSafe(row.getPreviousPercentage()) + "% to " + nullSafe(row.getNewPercentage())
                         + "% | Updated by: " + row.getUpdatedBy()
-                        + " | Progress feedback: " + (row.getFeedback() == null || row.getFeedback().isBlank() ? "No feedback." : row.getFeedback()))
+                        + " | Progress feedback: "
+                        + (row.getFeedback() == null || row.getFeedback().isBlank() ? "No feedback."
+                                : row.getFeedback())
+                        + (row.getCompletedHours() != null ? " | Completed Hours: " + row.getCompletedHours() : ""))
                 .collect(Collectors.joining("\n"));
     }
 
@@ -666,7 +763,8 @@ Object jasperPrint = fillReport(
         return "";
     }
 
-    private String buildFilterDescription(String status, Long departmentId, LocalDate startDate, LocalDate endDate, User actor) {
+    private String buildFilterDescription(String status, Long departmentId, LocalDate startDate, LocalDate endDate,
+            User actor) {
         return "Status: " + (status == null || status.isBlank() ? "All" : status)
                 + " | Department: " + resolveDepartmentDisplay(departmentId, actor)
                 + " | Start: " + format(startDate)
@@ -707,7 +805,8 @@ Object jasperPrint = fillReport(
     }
 
     private String departmentName(Employee employee) {
-        return employee == null || employee.getDepartment() == null ? "" : defaultText(employee.getDepartment().getName());
+        return employee == null || employee.getDepartment() == null ? ""
+                : defaultText(employee.getDepartment().getName());
     }
 
     private String positionName(Employee employee) {

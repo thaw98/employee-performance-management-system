@@ -79,5 +79,6 @@ public class PipIndividualReportDto {
         private String feedback;
         private String updatedBy;
         private Instant createdDate;
+        private Integer completedHours;
     }
 }
