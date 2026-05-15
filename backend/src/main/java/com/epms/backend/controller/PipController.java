@@ -14,12 +14,8 @@ import com.epms.backend.dto.pip.PipCommunicationNotePageDto;
 import com.epms.backend.dto.pip.PipCommunicationNoteRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.security.UserPrincipal;
-import com.epms.backend.service.PipReportService;
-import com.epms.backend.service.PipService;
 import com.epms.backend.repository.UserRepository;
-import com.epms.backend.dto.pip.report.PipIndividualReportDto;
-import com.epms.backend.dto.pip.report.PipProgressReportDto;
-import com.epms.backend.dto.pip.report.PipSummaryReportDto;
+import com.epms.backend.service.PipService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -43,7 +39,6 @@ import java.util.List;
 public class PipController {
 
     private final PipService pipService;
-    private final PipReportService pipReportService;
     private final UserRepository userRepository;
 
     @PostMapping
@@ -78,77 +73,6 @@ public class PipController {
         List<Pip> pips = pipService.searchPips(departmentId, positionId, employeeName, status, startDate, endDate,
                 user);
         return ResponseEntity.ok(ApiResponse.ok("PIPs retrieved successfully", pips));
-    }
-
-    @GetMapping("/{pipId}/report")
-    public ResponseEntity<byte[]> getIndividualPipReport(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long pipId,
-            @RequestParam(defaultValue = "pdf") String format) {
-        User user = userRepository.findById(principal.getId()).orElseThrow();
-        byte[] bytes = pipReportService.generateIndividualPipReport(pipId, format, user);
-        return reportResponse(bytes, "pip_" + pipId + "_report", format);
-    }
-
-    @GetMapping("/report/summary")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
-    public ResponseEntity<byte[]> getPipSummaryReport(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) Long departmentId,
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate,
-            @RequestParam(defaultValue = "pdf") String format) {
-        User user = userRepository.findById(principal.getId()).orElseThrow();
-        byte[] bytes = pipReportService.generateSummaryReport(status, departmentId, startDate, endDate, format, user);
-        return reportResponse(bytes, "pip_summary_report", format);
-    }
-
-    @GetMapping("/report/progress")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
-    public ResponseEntity<byte[]> getPipProgressReport(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(required = false) Long departmentId,
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate,
-            @RequestParam(defaultValue = "pdf") String format) {
-        User user = userRepository.findById(principal.getId()).orElseThrow();
-        byte[] bytes = pipReportService.generateProgressReport(departmentId, startDate, endDate, format, user);
-        return reportResponse(bytes, "pip_progress_report", format);
-    }
-
-    @GetMapping("/report/summary/data")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
-    public ResponseEntity<ApiResponse<List<PipSummaryReportDto>>> getPipSummaryReportData(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) Long departmentId,
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate) {
-        User user = userRepository.findById(principal.getId()).orElseThrow();
-        List<PipSummaryReportDto> data = pipReportService.getPipSummaryReport(status, departmentId, startDate, endDate, user);
-        return ResponseEntity.ok(ApiResponse.ok("PIP summary report data retrieved successfully", data));
-    }
-
-    @GetMapping("/report/progress/data")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
-    public ResponseEntity<ApiResponse<PipProgressReportDto>> getPipProgressReportData(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(required = false) Long departmentId,
-            @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate) {
-        User user = userRepository.findById(principal.getId()).orElseThrow();
-        PipProgressReportDto data = pipReportService.getPipProgressReport(departmentId, startDate, endDate, user);
-        return ResponseEntity.ok(ApiResponse.ok("PIP progress report data retrieved successfully", data));
-    }
-
-    @GetMapping("/{pipId}/report/data")
-    public ResponseEntity<ApiResponse<PipIndividualReportDto>> getIndividualPipReportData(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long pipId) {
-        User user = userRepository.findById(principal.getId()).orElseThrow();
-        PipIndividualReportDto data = pipReportService.getIndividualPipReport(pipId, user);
-        return ResponseEntity.ok(ApiResponse.ok("PIP individual report data retrieved successfully", data));
     }
 
     @GetMapping("/{id}")
@@ -315,20 +239,6 @@ public class PipController {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         return ResponseEntity.ok(ApiResponse.ok("PIP history retrieved successfully",
                 pipService.getPipHistory(id, user)));
-    }
-
-    private ResponseEntity<byte[]> reportResponse(byte[] bytes, String basename, String format) {
-        boolean excel = "excel".equalsIgnoreCase(format) || "xlsx".equalsIgnoreCase(format);
-        String extension = excel ? "xlsx" : "pdf";
-        MediaType mediaType = excel
-                ? MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                : MediaType.APPLICATION_PDF;
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(mediaType);
-        headers.setContentDisposition(ContentDisposition.attachment()
-                .filename(basename + "_" + LocalDate.now() + "." + extension)
-                .build());
-        return ResponseEntity.ok().headers(headers).body(bytes);
     }
 
 }

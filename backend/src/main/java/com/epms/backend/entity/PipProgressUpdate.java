@@ -57,6 +57,9 @@ public class PipProgressUpdate {
     @Column(name = "previous_percentage")
     private Integer previousPercentage;
 
+    @Column(name = "completed_hours")
+    private Integer completedHours;
+
     @Transient
     public Integer getNewPercentage() {
         return progressValue == null ? null : progressValue.intValue();

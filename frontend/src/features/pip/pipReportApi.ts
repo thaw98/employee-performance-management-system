@@ -59,7 +59,7 @@ async function downloadPipReport(url: string, params: Record<string, string | nu
 
 export function downloadIndividualPipReport(pipId: number, format: PipReportFormat) {
   return downloadPipReport(
-    `/pips/${pipId}/report`,
+    `/reports/pips/${pipId}`,
     { format },
     `pip-${pipId}-report.${getReportExtension(format)}`,
   )
@@ -67,7 +67,7 @@ export function downloadIndividualPipReport(pipId: number, format: PipReportForm
 
 export function downloadPipSummaryReport(filters: PipReportFilters, format: PipReportFormat) {
   return downloadPipReport(
-    '/pips/report/summary',
+    '/reports/pips/summary',
     { ...filters, format },
     `pip-summary-report.${getReportExtension(format)}`,
   )
@@ -75,7 +75,7 @@ export function downloadPipSummaryReport(filters: PipReportFilters, format: PipR
 
 export function downloadPipProgressReport(filters: Omit<PipReportFilters, 'status'>, format: PipReportFormat) {
   return downloadPipReport(
-    '/pips/report/progress',
+    '/reports/pips/progress',
     { ...filters, format },
     `pip-progress-report.${getReportExtension(format)}`,
   )
@@ -87,7 +87,7 @@ export function downloadPipSummaryReportExport(
   fallbackName?: string
 ) {
   return downloadPipReport(
-    '/pips/report/summary',
+    '/reports/pips/summary',
     { ...filters, format },
     fallbackName ?? `pip-summary-report.${getReportExtension(format)}`,
   )
@@ -99,7 +99,7 @@ export function downloadPipProgressReportExport(
   fallbackName?: string
 ) {
   return downloadPipReport(
-    '/pips/report/progress',
+    '/reports/pips/progress',
     { ...filters, format },
     fallbackName ?? `pip-progress-report.${getReportExtension(format)}`,
   )

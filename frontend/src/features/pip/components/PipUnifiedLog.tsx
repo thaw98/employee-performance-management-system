@@ -45,14 +45,14 @@ export default function PipUnifiedLog({ pipId }: PipUnifiedLogProps) {
         <p className="text-xs text-slate-500 mt-0.5">Timeline of all progress updates and feedback</p>
       </div>
 
-      <div className="p-6">
+      <div className="max-h-[520px] overflow-auto p-6">
         {updates.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-slate-400">
             <i className="bi bi-clock-history text-4xl mb-3 opacity-20"></i>
             <p className="text-sm font-medium">No updates recorded yet.</p>
           </div>
         ) : (
-          <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-slate-100">
+          <div className="relative min-w-[620px] space-y-8 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-slate-100">
             {updates.map((update, index) => (
               <LogEntry key={update.id} update={update} isLatest={index === 0} />
             ))}
@@ -112,13 +112,20 @@ function LogEntry({ update, isLatest }: { update: PipProgressUpdate; isLatest?: 
               style={{ width: `${update.newPercentage}%` }}
             ></div>
           </div>
+
+          {update.completedHours !== undefined && update.completedHours !== null && (
+            <div className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 border border-indigo-100 text-indigo-700">
+              <i className="bi bi-clock-history text-[10px]"></i>
+              <span className="text-xs font-bold">{update.completedHours} hrs</span>
+            </div>
+          )}
         </div>
 
         {update.feedback && (
           <div className="mt-3 relative">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-100 rounded-full"></div>
             <div className="pl-4 py-1">
-              <p className="text-sm text-slate-600 italic leading-relaxed">
+              <p className="break-words text-sm text-slate-600 italic leading-relaxed">
                 "{update.feedback}"
               </p>
               <div className="mt-2 flex items-center gap-2">
