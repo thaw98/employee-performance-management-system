@@ -32,6 +32,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.Arrays;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
 
@@ -69,6 +70,7 @@ public class PipService {
                 .filter(employee -> employee.getId() != null && !employee.getId().equals(managerEmployeeId))
                 .filter(employee -> isManagedBy(employee, managerEmployeeId))
                 .filter(employee -> !isProbationEmployee(employee))
+                .filter(employee -> !hasBlockingPip(employee))
                 .map(employee -> new EligibleEmployeeDTO(
                         employee.getId(),
                         employee.getEmployeeId(),
@@ -92,6 +94,20 @@ public class PipService {
         }
         if (request.getObjectives() == null || request.getObjectives().isEmpty()) {
             throw new RuntimeException("At least one objective is required");
+        }
+        boolean hasBlankObjective = request.getObjectives().stream()
+                .anyMatch(objective -> objective == null || objective.trim().isEmpty());
+        if (hasBlankObjective) {
+            throw new RuntimeException("Objective is required");
+        }
+        if (request.getExpectedImprovements() == null || request.getExpectedImprovements().trim().isEmpty()) {
+            throw new RuntimeException("Expected improvement is required for each objective");
+        }
+        long expectedImprovementCount = Arrays.stream(request.getExpectedImprovements().split("\\R"))
+                .filter(line -> line != null && !line.trim().isEmpty())
+                .count();
+        if (expectedImprovementCount < request.getObjectives().size()) {
+            throw new RuntimeException("Expected improvement is required for each objective");
         }
         Employee employee = employeeRepository.findById(request.getEmployeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
@@ -133,7 +149,7 @@ public class PipService {
 
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();
-            obj.setDescription(desc);
+            obj.setDescription(desc.trim());
             obj.setPip(pip);
             obj.setDueDate(request.getEndDate() != null ? request.getEndDate() : LocalDate.now());
             obj.setWeightPercentage(objectiveWeight);
@@ -373,6 +389,19 @@ public class PipService {
             throw new RuntimeException("Cannot update progress on a closed PIP");
         }
 
+        if (request.getProgressPercentage() != null && request.getProgressPercentage() < (objective.getProgressPercentage() == null ? 0 : objective.getProgressPercentage())) {
+            throw new RuntimeException("New percentage cannot be less than the current percentage (" + objective.getProgressPercentage() + "%).");
+        }
+        if (request.getCompletedHours() != null) {
+            int currentCompleted = pip.getCompletedHours() == null ? 0 : pip.getCompletedHours();
+            if (request.getCompletedHours() < currentCompleted) {
+                throw new RuntimeException("Total completed hours cannot be less than the current total (" + currentCompleted + ").");
+            }
+            if (pip.getTotalHours() != null && request.getCompletedHours() > pip.getTotalHours()) {
+                throw new RuntimeException("Total completed hours cannot exceed the target total (" + pip.getTotalHours() + ").");
+            }
+        }
+
         PipProgressUpdate update = new PipProgressUpdate();
         update.setPip(pip);
         update.setObjective(objective);
@@ -382,6 +411,7 @@ public class PipService {
         update.setUpdatedBy(updatedBy.getEmployee());
         update.setUpdateDate(LocalDate.now());
         update.setCreatedDate(Instant.now());
+        update.setCompletedHours(request.getCompletedHours());
 
         objective.setProgressPercentage(request.getProgressPercentage());
 
@@ -991,6 +1021,11 @@ public class PipService {
         return employee != null
                 && employee.getStaffType() != null
                 && employee.getStaffType().getId() == StaffTypes.PROBATION;
+    }
+
+    private boolean hasBlockingPip(Employee employee) {
+        return pipRepository.existsByEmployeeAndStatusIn(employee,
+                List.of(STATUS_ACTIVE, STATUS_AUTO_CLOSED, STATUS_REOPEN_REQUESTED));
     }
 
     private String normalizeStatus(String status) {

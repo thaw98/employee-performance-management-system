@@ -124,97 +124,97 @@
             </textField>
 
             <staticText>
-                <reportElement x="0" y="126" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c013"/>
+                <reportElement positionType="Float" x="0" y="126" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c013"/>
                 <textElement><font fontName="DejaVu Sans" size="11" isBold="true"/></textElement>
                 <text><![CDATA[Reason for Plan]]></text>
             </staticText>
-            <textField isStretchWithOverflow="true">
-                <reportElement x="0" y="146" width="515" height="42" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c014"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement positionType="Float" x="0" y="146" width="515" height="42" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c014"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA[$F{reasonForPlan} == null || $F{reasonForPlan}.isEmpty() ? "Not specified." : $F{reasonForPlan}]]></textFieldExpression>
             </textField>
 
             <staticText>
-                <reportElement x="0" y="202" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c015"/>
+                <reportElement positionType="Float" x="0" y="202" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c015"/>
                 <textElement><font fontName="DejaVu Sans" size="11" isBold="true"/></textElement>
                 <text><![CDATA[Expected Improvements]]></text>
             </staticText>
-            <textField isStretchWithOverflow="true">
-                <reportElement x="0" y="222" width="515" height="42" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c016"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement positionType="Float" x="0" y="222" width="515" height="42" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c016"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA[$F{expectedImprovements} == null || $F{expectedImprovements}.isEmpty() ? "Not specified." : $F{expectedImprovements}]]></textFieldExpression>
             </textField>
 
             <staticText>
-                <reportElement x="0" y="278" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c017"/>
+                <reportElement positionType="Float" x="0" y="278" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c017"/>
                 <textElement><font fontName="DejaVu Sans" size="11" isBold="true"/></textElement>
                 <text><![CDATA[Objectives]]></text>
             </staticText>
-            <textField isStretchWithOverflow="true">
-                <reportElement x="0" y="298" width="515" height="72" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c018"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement positionType="Float" x="0" y="298" width="515" height="72" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c018"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA[$F{objectivesSummary}]]></textFieldExpression>
             </textField>
 
             <staticText>
-                <reportElement x="0" y="384" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c019"/>
+                <reportElement positionType="Float" x="0" y="384" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c019"/>
                 <textElement><font fontName="DejaVu Sans" size="11" isBold="true"/></textElement>
                 <text><![CDATA[Follow-up Meetings]]></text>
             </staticText>
-            <textField isStretchWithOverflow="true">
-                <reportElement x="0" y="404" width="515" height="58" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c020"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement positionType="Float" x="0" y="404" width="515" height="58" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c020"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA[$F{meetingsSummary}]]></textFieldExpression>
             </textField>
 
             <staticText>
-                <reportElement x="0" y="476" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c021"/>
+                <reportElement positionType="Float" x="0" y="476" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c021"/>
                 <textElement><font fontName="DejaVu Sans" size="11" isBold="true"/></textElement>
                 <text><![CDATA[Progress Updates]]></text>
             </staticText>
-            <textField isStretchWithOverflow="true">
-                <reportElement x="0" y="496" width="515" height="58" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c022"/>
+            <textField textAdjust="StretchHeight">
+                <reportElement positionType="Float" x="0" y="496" width="515" height="58" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c022"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA[$F{progressUpdatesSummary}]]></textFieldExpression>
             </textField>
 
             <line>
-                <reportElement x="0" y="576" width="230" height="1" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c023"/>
+                <reportElement positionType="Float" x="0" y="576" width="230" height="1" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c023"/>
             </line>
             <line>
-                <reportElement x="285" y="576" width="230" height="1" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c024"/>
+                <reportElement positionType="Float" x="285" y="576" width="230" height="1" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c024"/>
             </line>
             <textField>
-                <reportElement x="0" y="582" width="230" height="14" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c025"/>
+                <reportElement positionType="Float" x="0" y="582" width="230" height="14" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c025"/>
                 <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA["Employee Signature" + ($F{employeeSignatureDate} == null ? "" : " | " + $F{employeeSignatureDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", java.util.Locale.ENGLISH)))]]></textFieldExpression>
             </textField>
             <textField>
-                <reportElement x="285" y="582" width="230" height="14" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c026"/>
+                <reportElement positionType="Float" x="285" y="582" width="230" height="14" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c026"/>
                 <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA["Manager Signature" + ($F{managerSignatureDate} == null ? "" : " | " + $F{managerSignatureDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", java.util.Locale.ENGLISH)))]]></textFieldExpression>
             </textField>
             <image scaleImage="RetainShape">
-                <reportElement x="0" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c030">
+                <reportElement positionType="Float" x="0" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c030">
                     <printWhenExpression><![CDATA[$F{employeeSignature} != null && !$F{employeeSignature}.equals("Not signed") && !$F{employeeSignature}.startsWith("/uploads/") && !$F{employeeSignature}.startsWith("uploads/")]]></printWhenExpression>
                 </reportElement>
                 <imageExpression><![CDATA[new java.io.ByteArrayInputStream(java.util.Base64.getDecoder().decode($F{employeeSignature}.substring($F{employeeSignature}.indexOf(",") + 1)))]]></imageExpression>
             </image>
-            <textField isStretchWithOverflow="true">
-                <reportElement x="0" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c032">
+            <textField textAdjust="StretchHeight">
+                <reportElement positionType="Float" x="0" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c032">
                     <printWhenExpression><![CDATA[$F{employeeSignature} == null || $F{employeeSignature}.equals("Not signed") || $F{employeeSignature}.startsWith("/uploads/") || $F{employeeSignature}.startsWith("uploads/")]]></printWhenExpression>
                 </reportElement>
                 <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="DejaVu Sans" size="8"/></textElement>
                 <textFieldExpression><![CDATA["Not signed"]]></textFieldExpression>
             </textField>
             <image scaleImage="RetainShape">
-                <reportElement x="285" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c031">
+                <reportElement positionType="Float" x="285" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c031">
                     <printWhenExpression><![CDATA[$F{managerSignature} != null && !$F{managerSignature}.equals("Not signed") && !$F{managerSignature}.startsWith("/uploads/") && !$F{managerSignature}.startsWith("uploads/")]]></printWhenExpression>
                 </reportElement>
                 <imageExpression><![CDATA[new java.io.ByteArrayInputStream(java.util.Base64.getDecoder().decode($F{managerSignature}.substring($F{managerSignature}.indexOf(",") + 1)))]]></imageExpression>
             </image>
-            <textField isStretchWithOverflow="true">
-                <reportElement x="285" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c033">
+            <textField textAdjust="StretchHeight">
+                <reportElement positionType="Float" x="285" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c033">
                     <printWhenExpression><![CDATA[$F{managerSignature} == null || $F{managerSignature}.equals("Not signed") || $F{managerSignature}.startsWith("/uploads/") || $F{managerSignature}.startsWith("uploads/")]]></printWhenExpression>
                 </reportElement>
                 <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="DejaVu Sans" size="8"/></textElement>

@@ -183,6 +183,22 @@ export default function PipDetailPage() {
 
   const handleUpdateProgress = async () => {
     if (showUpdateModal.objectiveId) {
+      const objective = pip.objectives.find((o) => o.id === showUpdateModal.objectiveId)
+      const latestPercentage = objective?.progressPercentage ?? 0
+
+      if (updateValue.percentage < latestPercentage) {
+        setActionError(`New percentage cannot be less than the current percentage (${latestPercentage}%).`)
+        return
+      }
+      if (updateValue.completedHours < pip.completedHours) {
+        setActionError(`Total completed hours cannot be less than the current total (${pip.completedHours}).`)
+        return
+      }
+      if (updateValue.completedHours > pip.totalHours) {
+        setActionError(`Total completed hours cannot exceed the target total (${pip.totalHours}).`)
+        return
+      }
+
       try {
         setActionError(null)
         await updateProgress({
@@ -505,24 +521,26 @@ export default function PipDetailPage() {
           {/* Follow-up Meetings Section */}
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-lg font-bold text-slate-900">Follow-Up Meetings</h2>
-            <div className="space-y-4">
-              {pip.followUpMeetings?.map((m) => (
-                <div key={m.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                      <i className="bi bi-calendar-check" />
+            <div className="max-h-[360px] overflow-auto pr-1">
+              <div className="min-w-[520px] space-y-4">
+                {pip.followUpMeetings?.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                        <i className="bi bi-calendar-check" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-800">{formatDateTime(m.meetingTime)}</p>
+                        <p className="text-xs text-slate-500">{m.status}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-slate-800">{formatDateTime(m.meetingTime)}</p>
-                      <p className="text-xs text-slate-500">{m.status}</p>
-                    </div>
+                    {m.reminderSent && <span className="text-xs text-green-600 font-medium"><i className="bi bi-bell-fill" /> Reminder sent</span>}
                   </div>
-                  {m.reminderSent && <span className="text-xs text-green-600 font-medium"><i className="bi bi-bell-fill" /> Reminder sent</span>}
-                </div>
-              ))}
-              {(!pip.followUpMeetings || pip.followUpMeetings.length === 0) && (
-                <p className="py-4 text-center text-slate-500">No meetings scheduled yet.</p>
-              )}
+                ))}
+                {(!pip.followUpMeetings || pip.followUpMeetings.length === 0) && (
+                  <p className="py-4 text-center text-slate-500">No meetings scheduled yet.</p>
+                )}
+              </div>
             </div>
           </section>
 
@@ -538,7 +556,7 @@ export default function PipDetailPage() {
           <PipUnifiedLog pipId={pip.id} />
 
           {/* Training History Section */}
-          <section className="max-h-[560px] overflow-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-bold text-slate-900">Training & Development History</h2>
               <div className="inline-flex w-fit rounded-lg border border-slate-200 bg-slate-50 p-1">
@@ -558,7 +576,7 @@ export default function PipDetailPage() {
                 </button>
               </div>
             </div>
-            <div>
+            <div className="max-h-[460px] overflow-auto pr-1">
               {isTrainingHistoryLoading && (
                 <p className="py-4 text-center text-slate-500">Loading training records...</p>
               )}
@@ -765,7 +783,7 @@ export default function PipDetailPage() {
                 <div className="mt-1 flex items-center gap-4">
                   <input
                     type="range"
-                    min="0"
+                    min={pip.objectives.find((objective) => objective.id === showUpdateModal.objectiveId)?.progressPercentage ?? 0}
                     max="100"
                     className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200"
                     value={updateValue.percentage}
@@ -778,6 +796,8 @@ export default function PipDetailPage() {
                 <label className="block text-sm font-medium text-slate-700">Total Completed Hours</label>
                 <input
                   type="number"
+                  min={pip.completedHours}
+                  max={pip.totalHours}
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none"
                   value={updateValue.completedHours}
                   onChange={(e) => setUpdateValue({ ...updateValue, completedHours: parseInt(e.target.value) })}

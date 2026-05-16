@@ -93,6 +93,7 @@ export interface PipProgressUpdate {
   updatedBy: User
   updateDate?: string
   createdAt: string
+  completedHours?: number
 }
 
 export interface PipCommunicationNote {
@@ -209,6 +210,7 @@ export interface PipIndividualReportUpdate {
   feedback: string
   updatedBy: string
   createdDate: string
+  completedHours?: number
 }
 
 export interface PipIndividualReportDto {
@@ -435,6 +437,7 @@ const normalizeProgressUpdate = (update: unknown): PipProgressUpdate => {
     updatedBy: normalizePerson(source.updatedBy),
     updateDate: getOptionalString(source.updateDate),
     createdAt: getString(source.createdAt ?? source.createdDate),
+    completedHours: getNumber(source.completedHours ?? source.completed_hours),
   }
 }
 
@@ -623,7 +626,7 @@ export const pipApi = baseApi.injectEndpoints({
     }),
     getPipSummaryReport: builder.query<PipSummaryReportDto[], { status?: string; departmentId?: number; startDate?: string; endDate?: string }>({
       query: (params) => ({
-        url: '/pips/report/summary/data',
+        url: '/reports/pips/summary/data',
         params: params || undefined,
       }),
       providesTags: ['PIP'],
@@ -631,14 +634,14 @@ export const pipApi = baseApi.injectEndpoints({
     }),
     getPipProgressReport: builder.query<PipProgressReportDto, { departmentId?: number; startDate?: string; endDate?: string }>({
       query: (params) => ({
-        url: '/pips/report/progress/data',
+        url: '/reports/pips/progress/data',
         params: params || undefined,
       }),
       providesTags: ['PIP'],
       transformResponse: (response: unknown) => getResponseData(response) as PipProgressReportDto,
     }),
     getPipIndividualReport: builder.query<PipIndividualReportDto, number>({
-      query: (pipId) => `/pips/${pipId}/report/data`,
+      query: (pipId) => `/reports/pips/${pipId}/data`,
       providesTags: (_result, _error, id) => [{ type: 'PIP', id }],
       transformResponse: (response: unknown) => getResponseData(response) as PipIndividualReportDto,
     }),

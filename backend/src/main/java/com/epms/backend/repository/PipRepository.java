@@ -35,6 +35,8 @@ public interface PipRepository extends JpaRepository<Pip, Long>, JpaSpecificatio
 
     List<Pip> findByEmployeeAndStatusIn(Employee employee, List<String> statuses);
 
+    boolean existsByEmployeeAndStatusIn(Employee employee, List<String> statuses);
+
     List<Pip> findByStatusInAndEndDateLessThanEqual(List<String> statuses, LocalDate endDate);
 
     default List<Pip> findByFilters(String status, Long departmentId, LocalDate startDate, LocalDate endDate) {
