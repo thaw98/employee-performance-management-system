@@ -125,7 +125,10 @@ export function NotificationBell() {
     }
     const destinationPath = getNotificationDestinationPath(notification, location.pathname);
     const isSameDestination = destinationPath === location.pathname;
-    navigate(destinationPath, isSameDestination ? { replace: true, state: { notificationRefreshToken: Date.now() } } : undefined);
+    navigate(destinationPath, {
+      replace: isSameDestination,
+      state: { notificationRefreshToken: Date.now() },
+    });
   };
 
   const handleReadAll = async () => {
@@ -242,16 +245,17 @@ export function NotificationBell() {
           </Box>
         ) : (
           <List disablePadding sx={{ maxHeight: 420, overflowY: 'auto' }}>
-            {filteredNotifications.map((notification) => (
+            {filteredNotifications.map((notification, index) => (
               <ListItemButton
                 key={notification.id}
+                divider={index < filteredNotifications.length - 1}
                 onClick={() => handleNotificationClick(notification)}
                 sx={{
                   alignItems: 'flex-start',
                   gap: 1,
                   px: 2,
                   py: 1.5,
-                  backgroundColor: notification.read ? 'white' : 'rgb(240 253 250)',
+                  backgroundColor: notification.read ? 'white' : 'rgb(225 252 248)',
                 }}
               >
                 <Box

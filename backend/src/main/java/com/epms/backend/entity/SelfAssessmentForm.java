@@ -133,6 +133,9 @@ public class SelfAssessmentForm {
     @Column(name = "hr_review_reason", columnDefinition = "TEXT")
     private String hrReviewReason;
 
+    @Column(name = "hr_review_reason_at")
+    private Instant hrReviewReasonAt;
+
     @Column(name = "requires_hr_review")
     private Boolean requiresHrReview;
 
