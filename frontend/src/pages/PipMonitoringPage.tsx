@@ -69,9 +69,9 @@ type PipExportBundle = {
 
 const formatDateValue = (value?: string) => {
   if (!value) return ''
-  const date = new Date(value)
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 const formatDateTimeValue = (value?: string) => {
@@ -707,10 +707,10 @@ export default function PipMonitoringPage() {
                     </span>
                   </td>
                   <td className="px-6 py-5 text-sm text-slate-600 font-medium">
-                    {new Date(pip.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/')}
+                    {formatDateValue(pip.startDate)}
                   </td>
                   <td className="px-6 py-5 text-sm text-slate-600 font-medium">
-                    {new Date(pip.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/')}
+                    {formatDateValue(pip.endDate)}
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex flex-col gap-1.5">

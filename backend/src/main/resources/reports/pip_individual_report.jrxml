@@ -45,19 +45,10 @@
 
     <title>
         <band height="86">
-            <rectangle>
-                <reportElement x="0" y="0" width="70" height="42" backcolor="#F4F6F8" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c002"/>
-                <graphicElement>
-                    <pen lineColor="#D9DEE3"/>
-                </graphicElement>
-            </rectangle>
-            <staticText>
-                <reportElement x="8" y="13" width="54" height="16" forecolor="#56616D" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c003"/>
-                <textElement textAlignment="Center">
-                    <font fontName="DejaVu Sans" size="8"/>
-                </textElement>
-                <text><![CDATA[LOGO]]></text>
-            </staticText>
+            <image scaleImage="RetainShape" hAlign="Center" vAlign="Middle">
+                <reportElement x="0" y="0" width="70" height="42" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c002"/>
+                <imageExpression><![CDATA[Thread.currentThread().getContextClassLoader().getResourceAsStream("reports/company-logo.png")]]></imageExpression>
+            </image>
             <textField>
                 <reportElement x="82" y="0" width="433" height="28" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c004"/>
                 <textElement>

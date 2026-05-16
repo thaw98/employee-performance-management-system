@@ -60,11 +60,25 @@ function getSourceLabel(source: string) {
   return SOURCE_LABELS[source] ?? source;
 }
 
-function formatMessage(message: string): string {
+function appendMeridiemToPipDateTime(message: string): string {
   return message.replace(
+    /(Date\/time:\s*\d{1,2}\s+[A-Za-z]{3}\s+\d{4}\s+)(\d{1,2}):(\d{2})(?!\s*[AP]M)/u,
+    (_match, prefix, hourText, minute) => {
+      const hour = Number(hourText);
+      if (!Number.isFinite(hour) || hour < 0 || hour > 23) return `${prefix}${hourText}:${minute}`;
+      const hour12 = hour % 12 || 12;
+      const meridiem = hour >= 12 ? 'PM' : 'AM';
+      return `${prefix}${String(hour12).padStart(2, '0')}:${minute} ${meridiem}`;
+    },
+  );
+}
+
+function formatMessage(notification: NotificationItem): string {
+  const normalizedDeadline = notification.message.replace(
     /Deadline:\s*(\d{4})-(\d{2})-(\d{2})\s*$/u,
     (_match, year, month, day) => `Deadline: ${day}-${month}-${year}`,
   );
+  return notification.source === 'PIP' ? appendMeridiemToPipDateTime(normalizedDeadline) : normalizedDeadline;
 }
 
 function formatCreatedAt(value: string) {
@@ -285,7 +299,7 @@ export function NotificationPage() {
                     </span>
                   </span>
                   <span className="block mt-1 text-sm font-semibold text-slate-600 break-words">
-                    {formatMessage(notification.message)}
+                    {formatMessage(notification)}
                   </span>
                   <span className="block mt-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
                     {getSourceLabel(notification.source)}

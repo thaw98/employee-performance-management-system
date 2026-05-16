@@ -47,6 +47,13 @@ const COLORS = {
   REOPEN_REQUESTED: '#3b82f6',
 }
 
+const formatDateValue = (value?: string) => {
+  if (!value) return '-'
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 function getMonthStart() {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
@@ -525,8 +532,8 @@ export default function ReportsPage() {
                               {item.status}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{item.startDate}</td>
-                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{item.endDate}</td>
+                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{formatDateValue(item.startDate)}</td>
+                          <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{formatDateValue(item.endDate)}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
                               <div className="w-16 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -708,7 +715,7 @@ export default function ReportsPage() {
                         Report Period
                       </h3>
                       <p className="text-sm text-slate-600 dark:text-slate-400">
-                        {progressData.periodStart} to {progressData.periodEnd}
+                        {formatDateValue(progressData.periodStart)} to {formatDateValue(progressData.periodEnd)}
                       </p>
                     </div>
                   )}
@@ -771,11 +778,11 @@ export default function ReportsPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="text-xs text-slate-500 mb-1">Start Date</div>
-                      <div className="text-sm text-slate-900 dark:text-slate-100">{individualPipData.startDate}</div>
+                      <div className="text-sm text-slate-900 dark:text-slate-100">{formatDateValue(individualPipData.startDate)}</div>
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="text-xs text-slate-500 mb-1">End Date</div>
-                      <div className="text-sm text-slate-900 dark:text-slate-100">{individualPipData.endDate}</div>
+                      <div className="text-sm text-slate-900 dark:text-slate-100">{formatDateValue(individualPipData.endDate)}</div>
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="text-xs text-slate-500 mb-1">Status</div>
