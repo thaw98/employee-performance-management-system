@@ -580,6 +580,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     hrReviewRequired: source.hrReviewRequired != null ? getBoolean(source.hrReviewRequired) : null,
     hrReviewReason: getOptionalString(source.hrReviewReason) ?? null,
     hrReviewReasonAt: getOptionalString(source.hrReviewReasonAt) ?? null,
+    hrName: getOptionalString(source.hrName) ?? null,
   }
 }
 
