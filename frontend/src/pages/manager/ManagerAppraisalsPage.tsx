@@ -217,7 +217,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="flex flex-col md:flex-col justify-between items-start md:items-start gap-6">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
                         <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200">
@@ -295,8 +295,8 @@ export const ManagerAppraisalsPage: React.FC = () => {
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
-
-                    <div className="flex bg-slate-100 p-1.5 rounded-2xl overflow-x-auto">
+                </div>
+                <div className="flex bg-slate-100 p-1.5 rounded-2xl overflow-x-auto">
                         {['ALL', 'PENDING_MANAGER', 'RETURNED', 'SUBMITTED', 'HR_APPROVED', 'LOCKED'].map(status => (
                             <button
                                 key={status}
@@ -307,7 +307,6 @@ export const ManagerAppraisalsPage: React.FC = () => {
                             </button>
                         ))}
                     </div>
-                </div>
             </div>
 
             {loading ? (
