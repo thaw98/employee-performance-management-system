@@ -6,6 +6,10 @@ export type PipReportFormat = 'pdf' | 'excel'
 type PipReportFilters = {
   status?: string
   departmentId?: number | null
+  positionId?: number | null
+  employeeName?: string
+  employeeId?: number | null
+  pipId?: number | null
   startDate?: string
   endDate?: string
 }
@@ -73,7 +77,7 @@ export function downloadPipSummaryReport(filters: PipReportFilters, format: PipR
   )
 }
 
-export function downloadPipProgressReport(filters: Omit<PipReportFilters, 'status'>, format: PipReportFormat) {
+export function downloadPipProgressReport(filters: PipReportFilters, format: PipReportFormat) {
   return downloadPipReport(
     '/reports/pips/progress',
     { ...filters, format },

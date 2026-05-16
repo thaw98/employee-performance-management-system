@@ -624,7 +624,7 @@ export const pipApi = baseApi.injectEndpoints({
       query: () => '/pips/eligible-employees',
       transformResponse: (response: unknown) => getArray(getResponseData(response)) as EligibleEmployee[],
     }),
-    getPipSummaryReport: builder.query<PipSummaryReportDto[], { status?: string; departmentId?: number; startDate?: string; endDate?: string }>({
+    getPipSummaryReport: builder.query<PipSummaryReportDto[], { status?: string; departmentId?: number; positionId?: number; employeeName?: string; employeeId?: number; pipId?: number; startDate?: string; endDate?: string }>({
       query: (params) => ({
         url: '/reports/pips/summary/data',
         params: params || undefined,
@@ -632,7 +632,7 @@ export const pipApi = baseApi.injectEndpoints({
       providesTags: ['PIP'],
       transformResponse: (response: unknown) => getArray(getResponseData(response)) as PipSummaryReportDto[],
     }),
-    getPipProgressReport: builder.query<PipProgressReportDto, { departmentId?: number; startDate?: string; endDate?: string }>({
+    getPipProgressReport: builder.query<PipProgressReportDto, { status?: string; departmentId?: number; positionId?: number; employeeName?: string; employeeId?: number; pipId?: number; startDate?: string; endDate?: string }>({
       query: (params) => ({
         url: '/reports/pips/progress/data',
         params: params || undefined,
