@@ -54,6 +54,8 @@ class SelfAssessmentFormScoreRecordsServiceTest {
     @Mock
     private AuditService auditService;
     @Mock
+    private AuditLogRepository auditLogRepository;
+    @Mock
     private UserRepository userRepository;
     @Mock
     private NotificationRepository notificationRepository;
@@ -76,6 +78,7 @@ class SelfAssessmentFormScoreRecordsServiceTest {
                 reviewCycleService,
                 notificationService,
                 auditService,
+                auditLogRepository,
                 userRepository,
                 notificationRepository,
                 settingsRepository);

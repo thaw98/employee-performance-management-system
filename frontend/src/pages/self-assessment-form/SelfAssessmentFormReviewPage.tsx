@@ -33,6 +33,8 @@ import {
   TrendingUp,
   ChevronRight,
   BadgeCheck,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
 import {
   useGetReviewFormsQuery,
@@ -41,6 +43,8 @@ import {
   useGetFormByIdQuery,
   useManagerReviewMutation,
   useHrReturnDisputedReviewMutation,
+  useHrApproveManagerReviewMutation,
+  useHrRejectManagerReviewMutation,
   useHrApproveFormMutation,
   useHrReopenFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
@@ -250,6 +254,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [managerComments, setManagerComments] = useState('');
   const [adjustments, setAdjustments] = useState<ManagerAdjustment[]>([]);
   const [hrReturnReason, setHrReturnReason] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
@@ -297,10 +302,14 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
   const [managerReview, { isLoading: isManagerReviewing }] = useManagerReviewMutation();
   const [hrReturnDisputedReview, { isLoading: isHrReturningDispute }] = useHrReturnDisputedReviewMutation();
+  const [hrApproveManagerReview, { isLoading: isHrApproving }] = useHrApproveManagerReviewMutation();
+  const [hrRejectManagerReview, { isLoading: isHrRejecting }] = useHrRejectManagerReviewMutation();
   const [hrApproveForm, { isLoading: isApproving }] = useHrApproveFormMutation();
   const [hrReopenForm, { isLoading: isReopening }] = useHrReopenFormMutation();
 
+  const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [approvalMode, setApprovalMode] = useState<'adjustment' | 'final'>('final');
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery(undefined, {
     skip: !isHr || isEmployeeDetail,
   });
@@ -337,6 +346,13 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     const s = (selectedForm?.status ?? '').toUpperCase();
     return s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED';
   }, [selectedForm?.status]);
+
+  const hasPendingManagerAdjustments = useMemo(
+    () => selectedForm?.answers?.some(
+      (a) => a.managerProposedYesNo && a.hrAdjustmentApproved == null,
+    ) ?? false,
+    [selectedForm?.answers],
+  );
 
   const handleManagerAdjustmentChange = (answerId: number, field: keyof ManagerAdjustment, value: string | number) => {
     setAdjustments(prev => {
@@ -440,6 +456,53 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to return review to manager');
     }
+  };
+
+  const handleHrApproveAdjustment = async () => {
+    if (!selectedFormId || !hasDefaultSignature) {
+      toast.error('Set a default signature in Signature Settings before approving.');
+      return;
+    }
+
+    try {
+      await hrApproveManagerReview({
+        formId: selectedFormId,
+        request: {},
+      }).unwrap();
+      toast.success('Manager adjustments approved');
+      setShowApprovalModal(false);
+      refetchForm();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to approve adjustments');
+    }
+  };
+
+  const handleHrRejectAdjustment = async () => {
+    if (!selectedFormId || !rejectReason.trim() || !hasDefaultSignature) {
+      toast.error('Enter a rejection reason and set a default signature in Signature Settings.');
+      return;
+    }
+
+    try {
+      await hrRejectManagerReview({
+        formId: selectedFormId,
+        request: { rejectionReason: rejectReason },
+      }).unwrap();
+      toast.success('Manager adjustments rejected');
+      setShowRejectModal(false);
+      setRejectReason('');
+      refetchForm();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to reject adjustments');
+    }
+  };
+
+  const handleConfirmApproval = () => {
+    if (approvalMode === 'adjustment') {
+      void handleHrApproveAdjustment();
+      return;
+    }
+    void handleHrApproveForm();
   };
 
   const handleHrApproveForm = async () => {
@@ -1141,6 +1204,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     hrSignatureDate={selectedForm.hrSignatureDate}
                     hrFinalSignatureData={selectedForm.hrFinalSignatureData}
                     hrFinalSignatureDate={selectedForm.hrFinalSignatureDate}
+                    hrName={selectedForm.hrName}
                   />
                 </div>
               </div>
@@ -1396,6 +1460,42 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                       </div>
                     </div>
 
+                    {hasPendingManagerAdjustments && (
+                      <div className="rounded-xl border border-amber-200/80 bg-amber-50/60 p-4 dark:border-amber-700/60 dark:bg-amber-950/20">
+                        <div className="mb-3 flex items-center gap-2">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-200 dark:bg-amber-800">
+                            <AlertCircle size={14} className="text-amber-700 dark:text-amber-300" />
+                          </div>
+                          <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                            Manager has proposed adjustments. Please approve or reject them.
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setApprovalMode('adjustment');
+                              setShowApprovalModal(true);
+                            }}
+                            disabled={isDefaultSigLoading || !hasDefaultSignature}
+                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-500/20 transition-all hover:from-emerald-700 hover:to-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <ThumbsUp size={16} />
+                            Approve Adjustments
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowRejectModal(true)}
+                            disabled={isDefaultSigLoading || !hasDefaultSignature}
+                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-red-500/20 transition-all hover:from-red-700 hover:to-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <ThumbsDown size={16} />
+                            Reject Adjustments
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {selectedForm.status === 'PENDING_HR_CALIBRATION_REVIEW' && (
                       <div className="rounded-xl border border-rose-200/80 bg-rose-50/50 p-4 dark:border-rose-700/60 dark:bg-rose-900/20">
                         <div className="mb-3 flex items-center gap-2">
@@ -1437,7 +1537,10 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                               Send Back to Manager
                             </button>
                             <button
-                              onClick={() => setShowApprovalModal(true)}
+                              onClick={() => {
+                                setApprovalMode('final');
+                                setShowApprovalModal(true);
+                              }}
                               disabled={isDefaultSigLoading || !hasDefaultSignature}
                               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                             >
@@ -1452,7 +1555,10 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     {selectedForm.status !== 'PENDING_HR_CALIBRATION_REVIEW' && (
                       <div className="flex gap-3 flex-wrap pt-2">
                         <button
-                          onClick={() => setShowApprovalModal(true)}
+                          onClick={() => {
+                            setApprovalMode('final');
+                            setShowApprovalModal(true);
+                          }}
                           disabled={isDefaultSigLoading || !hasDefaultSignature}
                           className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
@@ -1521,7 +1627,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
               </div>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-              You are about to give final approval to this self-assessment form. This will finalize the assessment.
+              {approvalMode === 'adjustment'
+                ? 'You are about to approve the manager\'s proposed adjustments. The adjusted scores will be applied as the final approved values.'
+                : 'You are about to give final approval to this self-assessment form. This will finalize the assessment.'}
             </p>
             <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
               <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
@@ -1537,17 +1645,78 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={handleHrApproveForm}
-                disabled={isApproving || isDefaultSigLoading || !hasDefaultSignature}
+                type="button"
+                onClick={handleConfirmApproval}
+                disabled={(approvalMode === 'adjustment' ? isHrApproving : isApproving) || isDefaultSigLoading || !hasDefaultSignature}
                 className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {isApproving ? (
+                {(approvalMode === 'adjustment' ? isHrApproving : isApproving) ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <CheckCircle2 size={16} />
                 )}
-                Confirm Approval
+                {approvalMode === 'adjustment' ? 'Approve Adjustments' : 'Confirm Approval'}
               </button>
+            </div>
+          </div>
+        </div>
+      , portalRoot)}
+
+      {showRejectModal && portalRoot && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowRejectModal(false)} />
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
+            <div className="bg-gradient-to-r from-red-600 to-rose-600 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+                  <XCircle size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Reject Adjustments</h3>
+                  <p className="text-sm text-red-100">Provide a reason for rejection</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4 p-6">
+              <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                Please provide a reason for rejecting the manager&apos;s proposed adjustments.
+              </p>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Rejection Reason
+                </label>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  rows={4}
+                  className={`${filterControlClass} resize-none`}
+                  placeholder="Explain why the adjustments are being rejected..."
+                />
+              </div>
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
+                <p className="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  <PenLine size={12} className="mt-0.5 shrink-0" />
+                  Your default signature will be recorded for this action.
+                </p>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRejectModal(false)}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHrRejectAdjustment}
+                  disabled={isHrRejecting || isDefaultSigLoading || !hasDefaultSignature || !rejectReason.trim()}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-red-600 to-rose-600 shadow-md shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isHrRejecting ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                  Reject Adjustments
+                </button>
+              </div>
             </div>
           </div>
         </div>

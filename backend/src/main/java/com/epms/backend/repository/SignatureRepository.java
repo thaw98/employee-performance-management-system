@@ -14,6 +14,14 @@ public interface SignatureRepository extends JpaRepository<Signature, Long> {
     List<Signature> findByUser(User user);
     Optional<Signature> findByUserAndIsDefaultTrue(User user);
     Optional<Signature> findByIdAndUser(Long id, User user);
+
+    @Query("""
+            SELECT s FROM Signature s
+            JOIN FETCH s.user u
+            JOIN FETCH u.employee
+            WHERE s.id = :id
+            """)
+    Optional<Signature> findByIdWithUserAndEmployee(@Param("id") Long id);
     long countByUser(User user);
 
     @Modifying

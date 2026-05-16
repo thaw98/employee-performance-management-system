@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useRhfAutosave, withRetry, type SaveResult, type Transport } from 'react-hook-form-autosave';
 import { toast } from 'react-hot-toast';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
   Clock,
   FileText,
@@ -21,7 +21,6 @@ import {
   MessageSquare,
   ClipboardCheck,
   Sparkles,
-  PenLine,
   ThumbsUp,
   ThumbsDown,
   Scale,
@@ -40,6 +39,10 @@ import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
 import { SelfAssessmentSignatureGrid } from '../../features/selfAssessmentForm/components/SelfAssessmentSignatureGrid';
+import {
+  InlineDefaultSignaturePad,
+  type InlineDefaultSignaturePadHandle,
+} from '../../components/signature/InlineDefaultSignaturePad';
 import { formatDateDayMonthYear } from '../../utils/dateUtils';
 
 interface AnswerFormData {
@@ -193,14 +196,6 @@ function formatNameCode(name?: string | null, code?: string | null) {
   return displayCode ? `${displayName} (${displayCode})` : displayName;
 }
 
-function getRatingCategory(score: number): string {
-  if (score >= 86) return 'Outstanding';
-  if (score >= 71) return 'Good';
-  if (score >= 60) return 'Meet Requirement';
-  if (score >= 40) return 'Need Improvement';
-  return 'Unsatisfactory';
-}
-
 const DISPUTE_CATEGORY_OTHER = 'other';
 
 const DISPUTE_CATEGORY_OPTIONS: { value: string; label: string }[] = [
@@ -343,8 +338,17 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [disputeCategory, setDisputeCategory] = useState('');
   const [disputeReason, setDisputeReason] = useState('');
+  const [hasPadDrawing, setHasPadDrawing] = useState(false);
+  const [isSavingInlineSignature, setIsSavingInlineSignature] = useState(false);
+  const inlineSignaturePadRef = useRef<InlineDefaultSignaturePadHandle>(null);
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery();
   const hasDefaultSignature = Boolean(defaultSigResponse?.data?.signatureData);
+
+  useEffect(() => {
+    if (!showSubmitConfirm) {
+      setHasPadDrawing(false);
+    }
+  }, [showSubmitConfirm]);
 
   const { data: formStatus, isLoading: statusLoading, refetch: refetchStatus } = useGetMyFormStatusQuery();
   const shouldLoadForm = Boolean(
@@ -449,31 +453,13 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const totalCount = formData?.answers?.length ?? 0;
   const isSubmissionComplete = totalCount > 0 && answeredCount === totalCount;
-  const liveTotalMark = useMemo(() => {
-    if (!totalCount) return null;
-
-    const maxRating = ratingSystem === 'TEN_POINT' ? 10 : 5;
-    const totalPoints = (watchAnswers ?? []).reduce((sum, answer) => {
-      return sum + (answer?.rating ?? 0);
-    }, 0);
-
-    return (totalPoints / (totalCount * maxRating)) * 100;
-  }, [ratingSystem, totalCount, watchAnswers]);
   const serverDisplayScore =
     formData?.finalApprovedTotalScore
     ?? formData?.managerRevisedTotalScore
     ?? formData?.totalScore
     ?? null;
-  const displayedScore =
-    !isReadOnly
-      ? answeredCount > 0 && liveTotalMark != null
-        ? liveTotalMark
-        : null
-      : serverDisplayScore;
-  const displayedScoreCategory =
-    !isReadOnly && displayedScore != null
-      ? getRatingCategory(displayedScore)
-      : (formData?.ratingCategory ?? null);
+  const displayedScore = isReadOnly ? serverDisplayScore : null;
+  const displayedScoreCategory = formData?.ratingCategory ?? null;
 
   const showMetadataStrip =
     Boolean(formData?.employee)
@@ -504,6 +490,19 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       toast.error(error?.message || 'Failed to save draft');
     }
   }, [autosave, refetch]);
+
+  const handleConfirmSubmit = async () => {
+    if (!hasDefaultSignature) {
+      setIsSavingInlineSignature(true);
+      try {
+        const saved = await inlineSignaturePadRef.current?.saveAsDefault();
+        if (!saved) return;
+      } finally {
+        setIsSavingInlineSignature(false);
+      }
+    }
+    await handleSubmit(onSubmitForm)();
+  };
 
   const onSubmitForm = async (data: AnswerFormData) => {
     try {
@@ -1072,6 +1071,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   hrSignatureDate={formData.hrSignatureDate}
                   hrFinalSignatureData={formData.hrFinalSignatureData}
                   hrFinalSignatureDate={formData.hrFinalSignatureDate}
+                  hrName={formData.hrName}
                 />
               </div>
             </div>
@@ -1094,21 +1094,6 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   </span>
                   /{totalCount} answered
                 </p>
-                {answeredCount > 0 && liveTotalMark != null && (
-                  <>
-                    <span className="mx-1 text-slate-300 dark:text-slate-600">·</span>
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      <span className="font-semibold text-slate-600 dark:text-slate-300">Total Mark </span>
-                      <span className="font-bold tabular-nums text-slate-700 dark:text-slate-200">
-                        {liveTotalMark.toFixed(1)}%
-                      </span>
-                      <span className="text-slate-500 dark:text-slate-400">
-                        {' '}
-                        · {getRatingCategory(liveTotalMark)}
-                      </span>
-                    </p>
-                  </>
-                )}
               </div>
               <div className="flex flex-1 items-center justify-end gap-3 sm:flex-initial">
                 <button
@@ -1321,15 +1306,13 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                     Default signature is required before submission.
                   </p>
                   <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
-                    Please set your default signature in Signature Settings to continue.
+                    Sign below. Your signature will be saved as your default when you confirm submission.
                   </p>
-                  <Link
-                    to="/employee/settings/signature"
-                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition-all hover:opacity-90 dark:bg-slate-100 dark:text-slate-900"
-                  >
-                    <PenLine size={13} />
-                    Open Signature Settings
-                  </Link>
+                  <InlineDefaultSignaturePad
+                    ref={inlineSignaturePadRef}
+                    onDrawingChange={setHasPadDrawing}
+                    disabled={isSavingInlineSignature || isSubmitting}
+                  />
                 </div>
               )}
               <div className="mt-4 flex gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-900/15">
@@ -1348,12 +1331,18 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={handleSubmit(onSubmitForm)}
-                disabled={isSubmitting || !isSubmissionComplete || isDefaultSigLoading || !hasDefaultSignature}
+                onClick={handleConfirmSubmit}
+                disabled={
+                  isSubmitting
+                  || isSavingInlineSignature
+                  || !isSubmissionComplete
+                  || isDefaultSigLoading
+                  || (!hasDefaultSignature && !hasPadDrawing)
+                }
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:shadow-lg hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CheckCircle2 size={16} />
-                Confirm Submit
+                {isSavingInlineSignature ? 'Saving signature…' : isSubmitting ? 'Submitting…' : 'Confirm Submit'}
               </button>
             </div>
           </div>

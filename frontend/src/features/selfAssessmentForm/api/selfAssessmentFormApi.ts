@@ -224,6 +224,7 @@ export interface SelfAssessmentFormDto {
   hrReviewRequired: boolean | null
   hrReviewReason: string | null
   hrReviewReasonAt: string | null
+  hrName: string | null
 }
 
 export interface FormListDto {

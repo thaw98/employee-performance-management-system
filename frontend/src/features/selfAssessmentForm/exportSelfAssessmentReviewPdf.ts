@@ -147,7 +147,7 @@ const signatureRows = (form: SelfAssessmentFormDto): SignatureExportItem[] => [
   },
   {
     label: 'HR',
-    name: 'HR Final Approval',
+    name: form.hrName ?? 'HR Department',
     data: form.hrFinalSignatureData ?? form.hrSignatureData,
     date: form.hrFinalSignatureData ? form.hrFinalSignatureDate : form.hrSignatureDate,
   },
@@ -156,6 +156,14 @@ const signatureRows = (form: SelfAssessmentFormDto): SignatureExportItem[] => [
 const scoreValue = (value: number | null | undefined): string => (
   value == null ? '-' : `${value.toFixed(1)}%`
 )
+
+const formatYesNoColumn = (
+  value: string | null | undefined,
+  expected: 'Yes' | 'No',
+): string => {
+  if (!value) return '-'
+  return value.toLowerCase() === expected.toLowerCase() ? formatValue(expected) : '-'
+}
 
 const tableBaseStyles = {
   fontSize: 8,
@@ -371,31 +379,46 @@ export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto)
   autoTable(doc, {
     startY: y,
     theme: 'grid',
-    head: [['#', 'Question', 'Employee', 'Rating', 'Remarks', 'Manager Proposed', 'Final']],
+    head: [
+      [
+        { content: '#', rowSpan: 2 },
+        { content: 'Question', rowSpan: 2 },
+        { content: 'Employee', rowSpan: 2 },
+        { content: 'Rating', rowSpan: 2 },
+        { content: 'Remarks', rowSpan: 2 },
+        { content: 'Manager Proposed', colSpan: 3 },
+        { content: 'Final', colSpan: 3 },
+      ],
+      ['Yes', 'No', 'Rating', 'Yes', 'No', 'Rating'],
+    ],
     body: form.answers.map((answer, index) => [
       index + 1,
       answer.questionText,
       formatValue(answer.yesNoAnswer),
       formatValue(answer.rating),
       answer.remarks ?? '-',
-      answer.managerProposedYesNo
-        ? `${formatValue(answer.managerProposedYesNo)} (${formatValue(answer.managerProposedRating)})`
-        : '-',
-      answer.finalApprovedYesNo
-        ? `${formatValue(answer.finalApprovedYesNo)} (${formatValue(answer.finalApprovedRating)})`
-        : '-',
+      formatYesNoColumn(answer.managerProposedYesNo, 'Yes'),
+      formatYesNoColumn(answer.managerProposedYesNo, 'No'),
+      formatValue(answer.managerProposedRating),
+      formatYesNoColumn(answer.finalApprovedYesNo, 'Yes'),
+      formatYesNoColumn(answer.finalApprovedYesNo, 'No'),
+      formatValue(answer.finalApprovedRating),
     ]),
     styles: { ...tableBaseStyles, fontSize: 7, cellPadding: 1.8 },
     headStyles,
     alternateRowStyles: { fillColor: lightFill },
     columnStyles: {
       0: { cellWidth: 8 },
-      1: { cellWidth: 48 },
-      2: { cellWidth: 18 },
-      3: { cellWidth: 15 },
-      4: { cellWidth: 38 },
-      5: { cellWidth: 28 },
-      6: { cellWidth: 25 },
+      1: { cellWidth: 36 },
+      2: { cellWidth: 14 },
+      3: { cellWidth: 12 },
+      4: { cellWidth: 26 },
+      5: { cellWidth: 12 },
+      6: { cellWidth: 12 },
+      7: { cellWidth: 12 },
+      8: { cellWidth: 12 },
+      9: { cellWidth: 12 },
+      10: { cellWidth: 12 },
     },
     margin: { left: pageMargin, right: pageMargin },
   })
@@ -405,11 +428,25 @@ export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto)
     autoTable(doc, {
       startY: y,
       theme: 'grid',
-      head: [['Question', 'Original', 'Proposed', 'Decision', 'Manager Comment', 'HR Reason']],
+      head: [
+        [
+          { content: 'Question', rowSpan: 2 },
+          { content: 'Original', colSpan: 3 },
+          { content: 'Proposed', colSpan: 3 },
+          { content: 'Decision', rowSpan: 2 },
+          { content: 'Manager Comment', rowSpan: 2 },
+          { content: 'HR Reason', rowSpan: 2 },
+        ],
+        ['Yes', 'No', 'Rating', 'Yes', 'No', 'Rating'],
+      ],
       body: form.adjustments.map(adjustment => [
         adjustment.questionText,
-        `${formatValue(adjustment.originalYesNo)} (${formatValue(adjustment.originalRating)})`,
-        `${formatValue(adjustment.proposedYesNo)} (${formatValue(adjustment.proposedRating)})`,
+        formatYesNoColumn(adjustment.originalYesNo, 'Yes'),
+        formatYesNoColumn(adjustment.originalYesNo, 'No'),
+        formatValue(adjustment.originalRating),
+        formatYesNoColumn(adjustment.proposedYesNo, 'Yes'),
+        formatYesNoColumn(adjustment.proposedYesNo, 'No'),
+        formatValue(adjustment.proposedRating),
         formatValue(adjustment.hrDecision),
         adjustment.managerComment ?? '-',
         adjustment.hrRejectionReason ?? '-',
@@ -417,6 +454,18 @@ export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto)
       styles: { ...tableBaseStyles, fontSize: 7, cellPadding: 1.8 },
       headStyles,
       alternateRowStyles: { fillColor: lightFill },
+      columnStyles: {
+        0: { cellWidth: 38 },
+        1: { cellWidth: 11 },
+        2: { cellWidth: 11 },
+        3: { cellWidth: 11 },
+        4: { cellWidth: 11 },
+        5: { cellWidth: 11 },
+        6: { cellWidth: 11 },
+        7: { cellWidth: 16 },
+        8: { cellWidth: 28 },
+        9: { cellWidth: 28 },
+      },
       margin: { left: pageMargin, right: pageMargin },
     })
   }

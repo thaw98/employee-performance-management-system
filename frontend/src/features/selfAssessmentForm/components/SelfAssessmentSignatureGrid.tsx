@@ -15,6 +15,7 @@ export interface SelfAssessmentSignatureGridProps {
   hrSignatureDate?: string | null;
   hrFinalSignatureData?: string | null;
   hrFinalSignatureDate?: string | null;
+  hrName?: string | null;
 }
 
 function SignatureBlock({
@@ -75,6 +76,7 @@ export const SelfAssessmentSignatureGrid: React.FC<SelfAssessmentSignatureGridPr
   hrSignatureDate,
   hrFinalSignatureData,
   hrFinalSignatureDate,
+  hrName,
 }) => {
   const hrData = hrFinalSignatureData ?? hrSignatureData;
   const hrDate = hrFinalSignatureDate ?? hrSignatureDate;
@@ -115,7 +117,7 @@ export const SelfAssessmentSignatureGrid: React.FC<SelfAssessmentSignatureGridPr
           pending={hrPending}
           signatureData={hrData}
           signatureDate={hrDate}
-          printedName={null}
+          printedName={hrName}
         />
       </div>
     </div>

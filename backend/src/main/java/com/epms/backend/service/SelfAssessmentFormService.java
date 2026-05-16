@@ -55,6 +55,7 @@ public class SelfAssessmentFormService {
     private final ReviewCycleService reviewCycleService;
     private final NotificationService notificationService;
     private final AuditService auditService;
+    private final AuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final SelfAssessmentSettingsRepository settingsRepository;
@@ -71,6 +72,7 @@ public class SelfAssessmentFormService {
             ReviewCycleService reviewCycleService,
             NotificationService notificationService,
             AuditService auditService,
+            AuditLogRepository auditLogRepository,
             UserRepository userRepository,
             NotificationRepository notificationRepository,
             SelfAssessmentSettingsRepository settingsRepository) {
@@ -85,6 +87,7 @@ public class SelfAssessmentFormService {
         this.reviewCycleService = reviewCycleService;
         this.notificationService = notificationService;
         this.auditService = auditService;
+        this.auditLogRepository = auditLogRepository;
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
         this.settingsRepository = settingsRepository;
@@ -1227,7 +1230,7 @@ Instant now = Instant.now();
             throw new RuntimeException("Form is not eligible for HR adjustment approval");
         }
 
-        User hrUser = userRepository.findById(hrUserId)
+        User hrUser = userRepository.findByIdWithEmployeeDepartment(hrUserId)
                 .orElseThrow(() -> new RuntimeException("HR user not found"));
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
@@ -1235,6 +1238,7 @@ Instant now = Instant.now();
 
         form.setHrAdjustmentSignatureId(defaultSig.getId());
         form.setHrAdjustmentSignatureDate(Instant.now());
+        recordHrSigner(form, hrUser);
 
         for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
             if (answer.getManagerProposedYesNo() != null) {
@@ -1276,7 +1280,7 @@ Instant now = Instant.now();
             throw new RuntimeException("Form is not eligible for HR adjustment rejection");
         }
 
-        User hrUser = userRepository.findById(hrUserId)
+        User hrUser = userRepository.findByIdWithEmployeeDepartment(hrUserId)
                 .orElseThrow(() -> new RuntimeException("HR user not found"));
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
@@ -1284,6 +1288,7 @@ Instant now = Instant.now();
 
         form.setHrAdjustmentSignatureId(defaultSig.getId());
         form.setHrAdjustmentSignatureDate(Instant.now());
+        recordHrSigner(form, hrUser);
 
         for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
             answer.setManagerProposedYesNo(null);
@@ -1377,7 +1382,7 @@ Instant now = Instant.now();
             throw new RuntimeException("Form is not eligible for final approval");
         }
 
-        User hrUser = userRepository.findById(hrUserId)
+        User hrUser = userRepository.findByIdWithEmployeeDepartment(hrUserId)
                 .orElseThrow(() -> new RuntimeException("HR user not found"));
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
@@ -1401,6 +1406,7 @@ Instant now = Instant.now();
         calculateFinalApprovedScore(form);
         form.setHrFinalSignatureId(defaultSig.getId());
         form.setHrFinalSignatureDate(Instant.now());
+        recordHrSigner(form, hrUser);
         form.setStatus(SelfAssessmentFormStatus.FINALIZED_LOCKED);
         form.setUpdatedDate(Instant.now());
 
@@ -1428,13 +1434,14 @@ Instant now = Instant.now();
             throw new RuntimeException("Only finalized forms can be reopened");
         }
 
-        User hrUser = userRepository.findById(hrUserId)
+        User hrUser = userRepository.findByIdWithEmployeeDepartment(hrUserId)
                 .orElseThrow(() -> new RuntimeException("HR user not found"));
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before reopening."));
 
         form.setHrSignatureId(defaultSig.getId());
+        recordHrSigner(form, hrUser);
         form.setStatus(SelfAssessmentFormStatus.REOPENED);
         form.setAssessmentDate(null);
         form.setSubmittedDate(null);
@@ -2443,6 +2450,7 @@ Instant now = Instant.now();
         Signature hrSignature = resolveSignature(form.getHrSignatureId());
         Signature hrFinalSignature = resolveSignature(form.getHrFinalSignatureId());
         Signature hrAdjustmentSignature = resolveSignature(form.getHrAdjustmentSignatureId());
+        String hrName = resolveHrName(form, hrFinalSignature, hrSignature, hrAdjustmentSignature);
 
         return new SelfAssessmentFormDto(
                 form.getId(),
@@ -2501,7 +2509,8 @@ Instant now = Instant.now();
                 form.getEmployeeDisputeReason(),
                 form.getHrReviewRequired(),
                 form.getHrReviewReason(),
-                form.getHrReviewReasonAt()
+                form.getHrReviewReasonAt(),
+                hrName
         );
     }
 
@@ -2509,7 +2518,9 @@ Instant now = Instant.now();
         if (signatureId == null) {
             return null;
         }
-        return signatureRepository.findById(signatureId).orElse(null);
+        return signatureRepository.findByIdWithUserAndEmployee(signatureId)
+                .or(() -> signatureRepository.findById(signatureId))
+                .orElse(null);
     }
 
     private String signatureData(Signature signature) {
@@ -2518,6 +2529,82 @@ Instant now = Instant.now();
 
     private String signatureType(Signature signature) {
         return signature == null ? null : signature.getSignatureType();
+    }
+
+    private void recordHrSigner(SelfAssessmentForm form, User hrUser) {
+        String name = displayNameFromUser(hrUser);
+        if (name != null && !name.isBlank()) {
+            form.setHrSignerName(name.trim());
+        }
+    }
+
+    private String displayNameFromUser(User user) {
+        if (user == null) {
+            return null;
+        }
+        if (user.getEmployee() != null) {
+            String name = user.getEmployee().getEmployeeName();
+            if (name != null && !name.isBlank()) {
+                return name.trim();
+            }
+        }
+        return user.getEmail();
+    }
+
+    private String resolveHrName(
+            SelfAssessmentForm form,
+            Signature hrFinalSignature,
+            Signature hrSignature,
+            Signature hrAdjustmentSignature) {
+        if (form.getHrSignerName() != null && !form.getHrSignerName().isBlank()) {
+            return form.getHrSignerName().trim();
+        }
+        Signature displayedHrSignature = hrFinalSignature != null
+                ? hrFinalSignature
+                : hrSignature != null ? hrSignature : hrAdjustmentSignature;
+        String fromSignature = signerNameFromSignature(displayedHrSignature);
+        if (fromSignature != null && !fromSignature.isBlank()) {
+            return fromSignature;
+        }
+        return resolveHrNameFromAudit(form.getId());
+    }
+
+    private String signerNameFromSignature(Signature signature) {
+        if (signature == null || signature.getUser() == null) {
+            return null;
+        }
+        String direct = displayNameFromUser(signature.getUser());
+        if (direct != null && !direct.isBlank()) {
+            return direct;
+        }
+        Long userId = signature.getUser().getId();
+        if (userId == null) {
+            return null;
+        }
+        return userRepository.findByIdWithEmployeeDepartment(userId)
+                .map(this::displayNameFromUser)
+                .orElse(null);
+    }
+
+    private String resolveHrNameFromAudit(Long formId) {
+        if (formId == null) {
+            return null;
+        }
+        Set<String> hrActions = Set.of(
+                AuditActionType.SELF_ASSESSMENT_FORM_HR_APPROVED,
+                AuditActionType.SELF_ASSESSMENT_FORM_HR_APPROVED_ADJUSTMENT,
+                AuditActionType.SELF_ASSESSMENT_FORM_HR_REJECTED_ADJUSTMENT,
+                AuditActionType.SELF_ASSESSMENT_FORM_HR_REOPENED);
+        return auditLogRepository
+                .findByTargetTypeAndTargetIdOrderByCreatedAtDesc(AuditTargetType.SELF_ASSESSMENT_FORM, formId)
+                .stream()
+                .filter(log -> hrActions.contains(log.getActionType()))
+                .map(log -> log.getPerformedByUserId())
+                .filter(Objects::nonNull)
+                .findFirst()
+                .flatMap(userId -> userRepository.findByIdWithEmployeeDepartment(userId))
+                .map(this::displayNameFromUser)
+                .orElse(null);
     }
 
     private FormListDto toFormListDto(SelfAssessmentForm form) {

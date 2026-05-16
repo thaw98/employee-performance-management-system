@@ -112,6 +112,9 @@ public class SelfAssessmentForm {
     @Column(name = "hr_adjustment_signature_date")
     private Instant hrAdjustmentSignatureDate;
 
+    @Column(name = "hr_signer_name", length = 255)
+    private String hrSignerName;
+
     @Column(name = "manager_revised_total_score", precision = 10)
     private Double managerRevisedTotalScore;
 
