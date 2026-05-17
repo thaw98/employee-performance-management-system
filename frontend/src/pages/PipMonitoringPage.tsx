@@ -1,4 +1,6 @@
 import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { useGetPipsQuery, useLazyGetTrainingHistoryQuery } from '../features/pip/pipApi'
 import type { Pip, TrainingRecord } from '../features/pip/pipApi'
 import { skipToken } from '@reduxjs/toolkit/query'
@@ -67,9 +69,9 @@ type PipExportBundle = {
 
 const formatDateValue = (value?: string) => {
   if (!value) return ''
-  const date = new Date(value)
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 const formatDateTimeValue = (value?: string) => {
@@ -86,16 +88,10 @@ const formatDateTimeValue = (value?: string) => {
   })
 }
 
-const htmlEscape = (value: unknown) => String(value ?? '')
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#39;')
-
 const getPipEmployeeName = (pip: Pip) => pip.employee.employee?.employeeName || pip.employee.email || 'N/A'
 const getPipManagerName = (pip: Pip) => pip.manager.employee?.employeeName || pip.manager.email || 'N/A'
-const getPipEmployeeId = (pip: Pip) => pip.employee.employee?.id ?? pip.employee.employeeId ?? ''
+const getPipEmployeeRecordId = (pip: Pip) => pip.employee.employee?.id
+const getPipStaffNo = (pip: Pip) => pip.employee.employeeId || 'N/A'
 const getPipDepartmentName = (pip: Pip) => getDepartmentName(pip.employee.employee as EmployeeDisplay | undefined)
 const getPipPositionName = (pip: Pip) => getPositionName(pip.employee.employee as EmployeeDisplay | undefined)
 const getPipObjectiveSummary = (pip: Pip) => pip.objectives
@@ -105,12 +101,19 @@ const getPipMeetingSummary = (pip: Pip) => (pip.followUpMeetings ?? [])
   .map((meeting) => `${formatDateTimeValue(meeting.meetingTime)} - ${meeting.status}`)
   .join('; ')
 
+const getDateRangeLabel = (startDate: string, endDate: string) => {
+  if (startDate && endDate) return `${formatDateValue(startDate)} to ${formatDateValue(endDate)}`
+  if (startDate) return `From ${formatDateValue(startDate)}`
+  if (endDate) return `Through ${formatDateValue(endDate)}`
+  return 'All dates'
+}
+
 const buildPipExportRows = (bundles: PipExportBundle[]) => ({
   details: [
     [
       'PIP Reference',
       'Employee',
-      'Employee ID',
+      'Staff No',
       'Department',
       'Position',
       'Manager',
@@ -142,7 +145,7 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
     ...bundles.map(({ pip }) => [
       `PIP #${pip.id}`,
       getPipEmployeeName(pip),
-      getPipEmployeeId(pip),
+      getPipStaffNo(pip),
       getPipDepartmentName(pip),
       getPipPositionName(pip),
       getPipManagerName(pip),
@@ -201,6 +204,7 @@ export default function PipMonitoringPage() {
   const [filterPos, setFilterPos] = useState<number | undefined>(undefined)
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [searchName, setSearchName] = useState('')
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | undefined>(undefined)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedPipId, setSelectedPipId] = useState<number | undefined>(undefined)
@@ -290,9 +294,50 @@ export default function PipMonitoringPage() {
   const location = useLocation()
   const canCreate = isManager && !isHr
 
+  const employeeFilterOptions = useMemo(() => {
+    if (!pips) return []
+    return pips
+      .map((pip) => ({
+        id: getPipEmployeeRecordId(pip),
+        name: getPipEmployeeName(pip),
+        department: getPipDepartmentName(pip),
+        staffNo: getPipStaffNo(pip),
+      }))
+      .filter((employee): employee is { id: number; name: string; department: string; staffNo: string } => (
+        typeof employee.id === 'number' && Number.isFinite(employee.id)
+      ))
+      .filter((employee, index, all) => all.findIndex((item) => item.id === employee.id) === index)
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [pips])
+
+  const selectedEmployeeName = selectedEmployeeId == null
+    ? 'All employees'
+    : employeeFilterOptions.find((employee) => employee.id === selectedEmployeeId)?.name ?? `Employee #${selectedEmployeeId}`
+  const selectedDepartmentName = isHr && typeof filterDept === 'number'
+    ? departments.find((department) => department.departmentId === filterDept)?.departmentName ?? `Department #${filterDept}`
+    : isHr
+      ? 'All departments'
+      : managerDepartmentName ?? 'My Department'
+  const selectedPositionName = typeof filterPos === 'number'
+    ? positions.find((position) => position.positionId === filterPos)?.positionName ?? `Position #${filterPos}`
+    : 'All positions'
+  const hasActiveFilters = Boolean(
+    filterDept
+    || filterPos
+    || filterStatus
+    || searchName.trim()
+    || selectedEmployeeId
+    || startDate
+    || endDate
+    || selectedPipId,
+  )
+
   const filteredPips = useMemo(() => {
     if (!pips) return []
-    return pips.slice().sort((a, b) => {
+    return pips.filter((pip) => {
+      if (selectedEmployeeId == null) return true
+      return getPipEmployeeRecordId(pip) === selectedEmployeeId
+    }).sort((a, b) => {
       const isAActive = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(a.status)
       const isBActive = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(b.status)
       if (isAActive && !isBActive) return -1
@@ -302,11 +347,11 @@ export default function PipMonitoringPage() {
       const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime()
       return timeB - timeA
     })
-  }, [pips])
+  }, [pips, selectedEmployeeId])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [filterDept, filterPos, filterStatus, searchName, startDate, endDate, rowsPerPage])
+  }, [filterDept, filterPos, filterStatus, searchName, selectedEmployeeId, startDate, endDate, rowsPerPage])
 
   const totalPages = Math.max(1, Math.ceil(filteredPips.length / rowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -327,6 +372,18 @@ export default function PipMonitoringPage() {
     }))
   }
 
+  const exportSummaryRows = () => [
+    ['Title', 'PIP Monitoring Report'],
+    ['Date Range', getDateRangeLabel(startDate, endDate)],
+    ['Department', selectedDepartmentName],
+    ['Position', selectedPositionName],
+    ['Employee', selectedEmployeeName],
+    ['Status', filterStatus ? filterStatus.replace(/_/g, ' ') : 'All statuses'],
+    ['Search Keyword', searchName.trim() || 'None'],
+    ['PIP Scope', selectedPip ? `PIP #${selectedPip.id}` : 'All matching PIPs'],
+    ['Generated At', formatDateTimeValue(new Date().toISOString())],
+  ]
+
   const handleExportPips = async () => {
     if (exportTargetPips.length === 0) return
     try {
@@ -334,6 +391,7 @@ export default function PipMonitoringPage() {
       const bundles = await getPipExportBundles()
       const rows = buildPipExportRows(bundles)
       const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(exportSummaryRows()), 'Report Criteria')
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows.details), 'PIP Details')
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows.training), 'Training History')
       XLSX.writeFile(workbook, `pip-export-${selectedPip ? `pip-${selectedPip.id}` : 'all'}-${new Date().toISOString().slice(0, 10)}.xlsx`)
@@ -343,71 +401,49 @@ export default function PipMonitoringPage() {
     }
   }
 
-  const renderPrintableTable = (rows: unknown[][]) => `
-    <table>
-      <tbody>
-        ${rows.map((row, index) => `
-          <tr>
-            ${row.map((cell) => index === 0 ? `<th>${htmlEscape(cell)}</th>` : `<td>${htmlEscape(cell)}</td>`).join('')}
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `
-
   const handlePrintPips = async () => {
     if (exportTargetPips.length === 0) return
     try {
       setExportError(null)
       const bundles = exportTargetPips.map((pip) => ({ pip, trainingHistory: [] }))
       const rows = buildPipExportRows(bundles)
-      const printFrame = document.createElement('iframe')
-      printFrame.style.position = 'fixed'
-      printFrame.style.right = '0'
-      printFrame.style.bottom = '0'
-      printFrame.style.width = '0'
-      printFrame.style.height = '0'
-      printFrame.style.border = '0'
-      printFrame.setAttribute('aria-hidden', 'true')
-      document.body.appendChild(printFrame)
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' })
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(18)
+      doc.text('PIP Monitoring Report', 36, 36)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.text(`Range: ${getDateRangeLabel(startDate, endDate)}`, 36, 56)
+      doc.text(`Employee: ${selectedEmployeeName}`, 36, 70)
+      doc.text(`Department: ${selectedDepartmentName}`, 260, 56)
+      doc.text(`Position: ${selectedPositionName}`, 260, 70)
+      doc.text(`Status: ${filterStatus ? filterStatus.replace(/_/g, ' ') : 'All statuses'}`, 520, 56)
+      doc.text(`Generated: ${formatDateTimeValue(new Date().toISOString())}`, 520, 70)
 
-      const printDocument = printFrame.contentDocument || printFrame.contentWindow?.document
-      if (!printDocument || !printFrame.contentWindow) {
-        printFrame.remove()
-        setExportError('Unable to prepare print view. Please try again.')
-        return
-      }
-
-      const cleanup = () => {
-        window.setTimeout(() => printFrame.remove(), 250)
-      }
-
-      printFrame.contentWindow.onafterprint = cleanup
-      printDocument.write(`
-        <html>
-          <head>
-            <title>PIP Details</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; }
-              h1 { font-size: 22px; margin-bottom: 18px; }
-              table { width: 100%; border-collapse: collapse; font-size: 10px; }
-              th, td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; vertical-align: top; }
-              th { background: #f1f5f9; }
-            </style>
-          </head>
-          <body>
-            <h1>PIP Details</h1>
-            ${renderPrintableTable(rows.details)}
-          </body>
-        </html>
-      `)
-      printDocument.close()
-      printFrame.contentWindow.focus()
-      printFrame.contentWindow.print()
-      window.setTimeout(cleanup, 60000)
+      autoTable(doc, {
+        head: [rows.details[0].map((heading) => String(heading))],
+        body: rows.details.slice(1).map((row) => row.map((cell) => String(cell || '-'))),
+        startY: 92,
+        theme: 'grid',
+        styles: {
+          fontSize: 6,
+          cellPadding: 3,
+          overflow: 'linebreak',
+          valign: 'top',
+        },
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+        horizontalPageBreak: true,
+        horizontalPageBreakRepeat: 0,
+        margin: { top: 36, right: 24, bottom: 36, left: 24 },
+      })
+      doc.save(`pip-monitoring-${selectedPip ? `pip-${selectedPip.id}` : 'report'}-${new Date().toISOString().slice(0, 10)}.pdf`)
     } catch (error) {
       console.error('[PIP Monitoring] Print failed:', error)
-      setExportError('Failed to print PIP data.')
+      setExportError('Failed to create PIP PDF.')
     }
   }
 
@@ -452,7 +488,7 @@ export default function PipMonitoringPage() {
                 className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
               >
                 <i className="bi bi-printer" />
-                Print
+                PDF
               </button>
             </>
           )}
@@ -476,7 +512,7 @@ export default function PipMonitoringPage() {
 
       {/* Advanced Filters */}
       <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
           {/* Department Filter - Only for HR or if Manager has multiple (unlikely based on current backend) */}
           {(isHr || isManager) && (
             <div className="flex flex-col gap-2">
@@ -551,6 +587,24 @@ export default function PipMonitoringPage() {
             </div>
           )}
 
+          {(isHr || isManager) && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Employee</label>
+              <select
+                value={selectedEmployeeId || ''}
+                onChange={(e) => setSelectedEmployeeId(e.target.value ? Number(e.target.value) : undefined)}
+                className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">All Employees</option>
+                {employeeFilterOptions.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name} - {employee.staffNo} - {employee.department || 'No Department'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Start Date */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Start Date From</label>
@@ -599,6 +653,7 @@ export default function PipMonitoringPage() {
               setFilterPos(undefined)
               setFilterStatus('')
               setSearchName('')
+              setSelectedEmployeeId(undefined)
               setStartDate('')
               setEndDate('')
               setSelectedPipId(undefined)
@@ -632,7 +687,7 @@ export default function PipMonitoringPage() {
                   <td className="px-6 py-5">
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{emp?.employeeName || 'N/A'}</span>
-                      <span className="text-xs text-slate-400">ID: {emp?.id || 'N/A'}</span>
+                      <span className="text-xs text-slate-400">Staff No: {getPipStaffNo(pip)}</span>
                     </div>
                   </td>
                   <td className="px-6 py-5">
@@ -652,10 +707,10 @@ export default function PipMonitoringPage() {
                     </span>
                   </td>
                   <td className="px-6 py-5 text-sm text-slate-600 font-medium">
-                    {new Date(pip.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/')}
+                    {formatDateValue(pip.startDate)}
                   </td>
                   <td className="px-6 py-5 text-sm text-slate-600 font-medium">
-                    {new Date(pip.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '/')}
+                    {formatDateValue(pip.endDate)}
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex flex-col gap-1.5">
@@ -711,7 +766,7 @@ export default function PipMonitoringPage() {
         </table>
       </div>
 
-      {(isHr || isManager) && exportTargetPips.length > 0 && (
+      {(isHr || isManager) && hasActiveFilters && exportTargetPips.length > 0 && (
         <section className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
           <div className="border-b border-slate-100 px-6 py-4">
             <h2 className="text-lg font-black text-slate-900">Related PIP Detail Overview</h2>

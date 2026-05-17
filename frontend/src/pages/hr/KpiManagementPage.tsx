@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users } from 'lucide-react';
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
@@ -23,6 +23,7 @@ import { ClipboardList, Download, FolderOpen } from 'lucide-react';
 
 export const KpiManagementPage: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialEmpId = searchParams.get('employeeId');
 
   const [mode, setMode] = useState<'individual' | 'position' | 'department'>('individual');
@@ -163,6 +164,12 @@ export const KpiManagementPage: React.FC = () => {
   };
 
   const isSaving = isSavingInd || isSavingPos || isSavingDept;
+
+  const isAlreadyDefined = mode === 'individual'
+    ? (existingKpis && existingKpis.length > 0)
+    : mode === 'position'
+      ? (existingPosKpis && existingPosKpis.length > 0)
+      : (existingDeptKpis && existingDeptKpis.length > 0);
 
   useEffect(() => {
     if (mode === 'individual') {
@@ -306,28 +313,36 @@ export const KpiManagementPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Mode Switcher */}
-      <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
+      {/* Mode Switcher & Category Management */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
+          <button
+            onClick={() => setMode('individual')}
+            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'individual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+          >
+            <User size={14} /> Individual
+          </button>
+          <button
+            onClick={() => setMode('position')}
+            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'position' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+          >
+            <Users size={14} /> Same Position
+          </button>
+          <button
+            onClick={() => setMode('department')}
+            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'department' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+          >
+            <Target size={14} /> Same Department
+          </button>
+        </div>
         <button
-          onClick={() => setMode('individual')}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'individual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
+          onClick={() => navigate('/hr/kpi-categories')}
+          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-indigo-100"
         >
-          <User size={14} /> Individual
-        </button>
-        <button
-          onClick={() => setMode('position')}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'position' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-        >
-          <Users size={14} /> Same Position
-        </button>
-        <button
-          onClick={() => setMode('department')}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'department' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-        >
-          <Target size={14} /> Same Department
+          <FolderOpen size={16} /> Manage Categories
         </button>
       </div>
 
@@ -443,13 +458,17 @@ export const KpiManagementPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <div className="relative">
               <button
-                onClick={() => setShowTemplates(!showTemplates)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-black transition-all hover:bg-slate-50 uppercase tracking-widest shadow-sm"
+                onClick={() => !isAlreadyDefined && setShowTemplates(!showTemplates)}
+                disabled={isAlreadyDefined}
+                className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-black transition-all uppercase tracking-widest shadow-sm ${isAlreadyDefined
+                    ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
               >
                 <ClipboardList size={16} /> Load Template
               </button>
               
-              {showTemplates && (
+              {showTemplates && !isAlreadyDefined && (
                 <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                   <div className="p-3 bg-slate-50 border-b border-slate-100">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available Templates</span>
@@ -476,12 +495,30 @@ export const KpiManagementPage: React.FC = () => {
 
             <button
               onClick={addKpiRow}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-200 uppercase tracking-widest"
+              disabled={isAlreadyDefined}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all shadow-lg uppercase tracking-widest ${isAlreadyDefined
+                  ? 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none'
+                  : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
+                }`}
             >
               <Plus size={16} /> Add KPI Item
             </button>
           </div>
         </div>
+
+        {isAlreadyDefined && (
+          <div className="mx-6 mt-4 p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-3">
+            <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
+              <AlertCircle size={18} />
+            </div>
+            <div>
+              <p className="text-xs font-black text-amber-900 uppercase tracking-tight">KPIs Already Defined</p>
+              <p className="text-xs font-bold text-amber-700/80">
+                Performance targets for this period are already locked. You cannot define new items or modify existing ones on this page.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -504,9 +541,10 @@ export const KpiManagementPage: React.FC = () => {
                   <td className="py-3 px-6">
                     <input
                       type="text"
-                      className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none"
+                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                       placeholder="e.g., Sales Target"
                       value={kpi.name}
+                      readOnly={isAlreadyDefined}
                       onChange={(e) => handleInputChange(idx, 'name', e.target.value)}
                     />
                   </td>
@@ -538,8 +576,9 @@ export const KpiManagementPage: React.FC = () => {
                       </div>
                     ) : (
                       <select
-                        className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none"
+                        className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                         value={kpi.category}
+                        disabled={isAlreadyDefined}
                         onChange={(e) => {
                           if (e.target.value === 'ADD_NEW') {
                             setNewCategoryRows({ ...newCategoryRows, [idx]: true });
@@ -559,18 +598,20 @@ export const KpiManagementPage: React.FC = () => {
                   <td className="py-3 px-6">
                     <input
                       type="text"
-                      className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none"
+                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                       placeholder="90%"
                       value={kpi.target}
+                      readOnly={isAlreadyDefined}
                       onChange={(e) => handleInputChange(idx, 'target', e.target.value)}
                     />
                   </td>
                   <td className="py-3 px-6">
                     <input
                       type="text"
-                      className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none"
+                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                       placeholder="Rate"
                       value={kpi.unit}
+                      readOnly={isAlreadyDefined}
                       onChange={(e) => handleInputChange(idx, 'unit', e.target.value)}
                     />
                   </td>
@@ -588,8 +629,9 @@ export const KpiManagementPage: React.FC = () => {
                   <td className="py-3 px-6 text-center">
                     <input
                       type="number"
-                      className="w-20 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-black text-blue-600 text-center focus:ring-2 focus:ring-blue-200 outline-none"
+                      className={`w-20 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-black text-blue-600 text-center focus:ring-2 focus:ring-blue-200 outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                       value={kpi.weight}
+                      readOnly={isAlreadyDefined}
                       onChange={(e) => handleInputChange(idx, 'weight', Number(e.target.value))}
                     />
                   </td>
@@ -610,8 +652,9 @@ export const KpiManagementPage: React.FC = () => {
                   )}
                   <td className="py-3 px-6 text-center">
                     <button
-                      onClick={() => removeKpiRow(idx)}
-                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                      onClick={() => !isAlreadyDefined && removeKpiRow(idx)}
+                      disabled={isAlreadyDefined}
+                      className={`p-2 rounded-lg transition-all ${isAlreadyDefined ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500 hover:bg-red-50'}`}
                     >
                       <Trash2 size={18} />
                     </button>
@@ -662,21 +705,29 @@ export const KpiManagementPage: React.FC = () => {
 
       <div className="flex justify-end gap-4">
         <button
-          onClick={() => setKpis([])}
-          className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-xs font-black hover:bg-slate-50 transition-all uppercase tracking-widest"
+          onClick={() => !isAlreadyDefined && setKpis([])}
+          disabled={isAlreadyDefined}
+          className={`px-6 py-3 border rounded-2xl text-xs font-black transition-all uppercase tracking-widest ${isAlreadyDefined
+              ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
+              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
         >
           Reset Setup
         </button>
         <button
           onClick={saveAsTemplate}
-          className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 text-indigo-600 rounded-2xl text-xs font-black hover:bg-indigo-50 transition-all uppercase tracking-widest"
+          disabled={isAlreadyDefined}
+          className={`flex items-center gap-2 px-6 py-3 border rounded-2xl text-xs font-black transition-all uppercase tracking-widest ${isAlreadyDefined
+              ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
+              : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50'
+            }`}
         >
           <FolderOpen size={18} /> Save as Template
         </button>
         <button
           onClick={handleSave}
-          disabled={isSaving || totalWeight !== 100}
-          className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-xs font-black transition-all shadow-xl uppercase tracking-widest ${isSaving || totalWeight !== 100
+          disabled={isSaving || totalWeight !== 100 || isAlreadyDefined}
+          className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-xs font-black transition-all shadow-xl uppercase tracking-widest ${isSaving || totalWeight !== 100 || isAlreadyDefined
             ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
             : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
             }`}

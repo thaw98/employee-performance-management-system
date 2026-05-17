@@ -10,9 +10,10 @@ export const formatDate = (dateString: string | undefined): string => {
     if (isNaN(date.getTime())) return dateString
 
     const day = String(date.getDate()).padStart(2, '0')
-    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const month = monthNames[date.getMonth()]
     const year = date.getFullYear()
-    return `${day}/${month}/${year}`
+    return `${day} ${month} ${year}`
   } catch (e) {
     return dateString
   }
@@ -28,9 +29,10 @@ export const formatDateDayMonthYear = (dateString: string | undefined): string =
     const date = new Date(raw.includes('T') ? raw : `${raw}T00:00:00`)
     if (isNaN(date.getTime())) return dateString
     const day = String(date.getDate()).padStart(2, '0')
-    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const month = monthNames[date.getMonth()]
     const year = date.getFullYear()
-    return `${day}/${month}/${year}`
+    return `${day} ${month} ${year}`
   } catch {
     return dateString
   }
@@ -86,8 +88,10 @@ export const formatDateTime = (dateTimeString: string | undefined): string => {
 
   const formattedHours = String(hours).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const monthStr = monthNames[date.getMonth()]
 
-  return `${day}/${month}/${year} ${formattedHours}:${minutes} ${ampm}`
+  return `${day} ${monthStr} ${year} ${formattedHours}:${minutes} ${ampm}`
 }
 
 /**
@@ -109,8 +113,10 @@ export const formatDateTimeWithSeconds = (dateTimeString: string | undefined): s
 
   const minutes = String(date.getMinutes()).padStart(2, '0')
   const seconds = String(date.getSeconds()).padStart(2, '0')
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const monthStr = monthNames[date.getMonth()]
 
-  return `${day}/${month}/${year}, ${hours12}:${minutes}:${seconds} ${ampm}`
+  return `${day} ${monthStr} ${year}, ${hours12}:${minutes}:${seconds} ${ampm}`
 }
 
 /**
@@ -133,6 +139,8 @@ export const formatRemarkDateTime = (dateTimeString: string | undefined): string
   const hours = String(hours12).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
   const seconds = String(date.getSeconds()).padStart(2, '0')
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const monthStr = monthNames[date.getMonth()]
 
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}${ampm}`
+  return `${day} ${monthStr} ${year} ${hours}:${minutes}:${seconds}${ampm}`
 }

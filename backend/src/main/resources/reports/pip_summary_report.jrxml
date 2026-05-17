@@ -15,6 +15,7 @@
     <parameter name="REPORT_TITLE" class="java.lang.String"/>
     <parameter name="FILTER_DESCRIPTION" class="java.lang.String"/>
     <parameter name="GENERATED_AT" class="java.lang.String"/>
+    <parameter name="COMPANY_LOGO" class="java.lang.String"/>
 
     <field name="pipId" class="java.lang.Long"/>
     <field name="employeeStaffNo" class="java.lang.String"/>
@@ -33,23 +34,27 @@
     <field name="finalOutcome" class="java.lang.String"/>
 
     <title>
-        <band height="58">
+        <band height="82">
+            <image scaleImage="RetainShape" hAlign="Center" vAlign="Middle">
+                <reportElement x="0" y="0" width="70" height="42" uuid="6c32ef44-735a-4b18-8a54-a353df4cc028"/>
+                <imageExpression><![CDATA[Thread.currentThread().getContextClassLoader().getResourceAsStream("reports/company-logo.png")]]></imageExpression>
+            </image>
             <textField>
-                <reportElement x="0" y="0" width="782" height="24" uuid="6c32ef44-735a-4b18-8a54-a353df4cc002"/>
+                <reportElement x="82" y="0" width="700" height="24" uuid="6c32ef44-735a-4b18-8a54-a353df4cc002"/>
                 <textElement>
                     <font fontName="DejaVu Sans" size="17" isBold="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
             </textField>
             <textField textAdjust="StretchHeight">
-                <reportElement stretchType="RelativeToTallestObject" x="0" y="27" width="782" height="16" forecolor="#56616D" uuid="6c32ef44-735a-4b18-8a54-a353df4cc003"/>
+                <reportElement stretchType="RelativeToTallestObject" x="82" y="27" width="700" height="40" forecolor="#56616D" uuid="6c32ef44-735a-4b18-8a54-a353df4cc003"/>
                 <textElement>
                     <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{FILTER_DESCRIPTION} + " | Generated: " + $P{GENERATED_AT}]]></textFieldExpression>
             </textField>
             <line>
-                <reportElement positionType="Float" x="0" y="52" width="782" height="1" forecolor="#D9DEE3" uuid="6c32ef44-735a-4b18-8a54-a353df4cc004"/>
+                <reportElement positionType="Float" x="0" y="76" width="782" height="1" forecolor="#D9DEE3" uuid="6c32ef44-735a-4b18-8a54-a353df4cc004"/>
             </line>
         </band>
     </title>
@@ -81,8 +86,8 @@
             <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="240" y="4" width="82" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc026"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{positionName}]]></textFieldExpression></textField>
             <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="326" y="4" width="82" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc018"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{managerName}]]></textFieldExpression></textField>
             <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="412" y="4" width="60" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc019"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{status}]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="476" y="4" width="66" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc020"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{startDate})]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="546" y="4" width="66" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc021"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{endDate})]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="476" y="4" width="66" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc020"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{startDate} == null ? "-" : $F{startDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="546" y="4" width="66" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc021"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{endDate} == null ? "-" : $F{endDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))]]></textFieldExpression></textField>
             <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="616" y="4" width="60" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc022"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{overallProgress}) + "%"]]></textFieldExpression></textField>
             <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="680" y="4" width="50" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc023"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{completedHours}) + "/" + String.valueOf($F{totalHours})]]></textFieldExpression></textField>
             <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="734" y="4" width="44" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc027"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{finalOutcome}]]></textFieldExpression></textField>

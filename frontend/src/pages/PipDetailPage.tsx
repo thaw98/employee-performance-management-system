@@ -56,7 +56,7 @@ export default function PipDetailPage() {
     objectiveId: null,
   })
   const [updateValue, setUpdateValue] = useState({ percentage: 0, completedHours: 0, feedback: '' })
-  const [trainingHistoryFilter, setTrainingHistoryFilter] = useState<'IN_PROGRESS' | 'ALL'>('IN_PROGRESS')
+  const [trainingHistoryFilter, setTrainingHistoryFilter] = useState<'IN_PROGRESS' | 'COMPLETED' | 'NOT_STARTED' | 'ALL'>('IN_PROGRESS')
 
   const [showMeetingModal, setShowMeetingModal] = useState(false)
   const [meetingDate, setMeetingDate] = useState('')
@@ -116,7 +116,7 @@ export default function PipDetailPage() {
   }
   const filteredTrainingHistory = (trainingHistory ?? []).filter((entry) => {
     if (trainingHistoryFilter === 'ALL') return true
-    return (entry.completionStatus || entry.status).toUpperCase() === 'IN_PROGRESS'
+    return (entry.completionStatus || entry.status).toUpperCase() === trainingHistoryFilter
   })
   const getTrainingCompletionPercentage = (percentage?: number, status?: string) => {
     if (typeof percentage === 'number' && Number.isFinite(percentage)) {
@@ -559,21 +559,22 @@ export default function PipDetailPage() {
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-bold text-slate-900">Training & Development History</h2>
-              <div className="inline-flex w-fit rounded-lg border border-slate-200 bg-slate-50 p-1">
-                <button
-                  type="button"
-                  onClick={() => setTrainingHistoryFilter('IN_PROGRESS')}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${trainingHistoryFilter === 'IN_PROGRESS' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  In Progress
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTrainingHistoryFilter('ALL')}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${trainingHistoryFilter === 'ALL' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  All
-                </button>
+              <div className="inline-flex w-fit flex-wrap rounded-lg border border-slate-200 bg-slate-50 p-1">
+                {[
+                  ['IN_PROGRESS', 'In Progress'],
+                  ['COMPLETED', 'Completed'],
+                  ['NOT_STARTED', 'Not Started'],
+                  ['ALL', 'All'],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setTrainingHistoryFilter(value as typeof trainingHistoryFilter)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold ${trainingHistoryFilter === value ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
             <div className="max-h-[460px] overflow-auto pr-1">
@@ -626,7 +627,7 @@ export default function PipDetailPage() {
               )}
               {!isTrainingHistoryLoading && filteredTrainingHistory.length === 0 && (
                 <p className="py-4 text-center text-slate-500">
-                  {trainingHistoryFilter === 'IN_PROGRESS' ? 'No in-progress training history records found.' : 'No training records found for this employee.'}
+                  {trainingHistoryFilter === 'ALL' ? 'No training records found for this employee.' : `No ${formatTrainingStatus(trainingHistoryFilter).toLowerCase()} training history records found.`}
                 </p>
               )}
             </div>

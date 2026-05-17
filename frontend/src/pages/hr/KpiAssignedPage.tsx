@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGetEmployeesKpiStatusQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
@@ -21,6 +21,13 @@ export const KpiAssignedPage: React.FC = () => {
   const [selectedPos, setSelectedPos] = useState<number | undefined>(undefined);
   const [kpiStatus, setKpiStatus] = useState<'DEFINED' | 'NOT_DEFINED' | ''>('');
   const [period, setPeriod] = useState('2026-2027');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [viewMode, searchTerm, selectedDept, selectedPos, kpiStatus, period]);
 
   // Employee Data
   const { data: employeesResponse, isLoading: employeesLoading } = useGetEmployeesKpiStatusQuery({
@@ -48,7 +55,9 @@ export const KpiAssignedPage: React.FC = () => {
     skip: !selectedDept
   });
 
-  const employees = employeesResponse?.data?.content || [];
+  const employees = [...(employeesResponse?.data?.content || [])].sort((a, b) => 
+    (a.employeeName || '').localeCompare(b.employeeName || '')
+  );
   const positionsStatus = positionsStatusResponse || [];
   const departmentsStatus = departmentsStatusResponse || [];
   
@@ -105,6 +114,43 @@ export const KpiAssignedPage: React.FC = () => {
 
   const currentStats = stats[viewMode];
 
+  const paginatedEmployees = employees.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedPositions = filteredPositions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedDepartments = filteredDepartments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const totalPages = viewMode === 'employee' 
+    ? Math.ceil(employees.length / itemsPerPage)
+    : viewMode === 'position' 
+    ? Math.ceil(filteredPositions.length / itemsPerPage)
+    : Math.ceil(filteredDepartments.length / itemsPerPage);
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    return (
+      <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+          Page {currentPage} of {totalPages}
+        </span>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest transition-colors"
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -157,7 +203,10 @@ export const KpiAssignedPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div 
+          onClick={() => setKpiStatus('')}
+          className={`bg-white p-6 rounded-3xl border transition-all cursor-pointer hover:shadow-md ${kpiStatus === '' ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-100 shadow-sm'} flex items-center gap-4`}
+        >
           <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
             {viewMode === 'employee' ? <UserCheck size={24} /> : viewMode === 'position' ? <Users size={24} /> : <LayoutGrid size={24} />}
           </div>
@@ -167,7 +216,10 @@ export const KpiAssignedPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div 
+          onClick={() => setKpiStatus('DEFINED')}
+          className={`bg-white p-6 rounded-3xl border transition-all cursor-pointer hover:shadow-md ${kpiStatus === 'DEFINED' ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-slate-100 shadow-sm'} flex items-center gap-4`}
+        >
           <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
             <CheckCircle2 size={24} />
           </div>
@@ -177,7 +229,10 @@ export const KpiAssignedPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div 
+          onClick={() => setKpiStatus('NOT_DEFINED')}
+          className={`bg-white p-6 rounded-3xl border transition-all cursor-pointer hover:shadow-md ${kpiStatus === 'NOT_DEFINED' ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-100 shadow-sm'} flex items-center gap-4`}
+        >
           <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center">
             <AlertCircle size={24} />
           </div>
@@ -233,15 +288,26 @@ export const KpiAssignedPage: React.FC = () => {
                 </select>
               )}
 
-              <select
-                value={kpiStatus}
-                onChange={(e) => setKpiStatus(e.target.value as any)}
-                className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none font-medium appearance-none"
-              >
-                <option value="">All KPI Status</option>
-                <option value="DEFINED">KPI Defined</option>
-                <option value="NOT_DEFINED">Not Defined</option>
-              </select>
+              <div className="flex bg-slate-100 p-1 rounded-2xl flex-1">
+                <button
+                  onClick={() => setKpiStatus('')}
+                  className={`flex-1 px-4 py-1.5 rounded-xl text-xs font-black transition-all uppercase tracking-tight ${kpiStatus === '' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  All Status
+                </button>
+                <button
+                  onClick={() => setKpiStatus('DEFINED')}
+                  className={`flex-1 px-4 py-1.5 rounded-xl text-xs font-black transition-all uppercase tracking-tight ${kpiStatus === 'DEFINED' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Defined
+                </button>
+                <button
+                  onClick={() => setKpiStatus('NOT_DEFINED')}
+                  className={`flex-1 px-4 py-1.5 rounded-xl text-xs font-black transition-all uppercase tracking-tight ${kpiStatus === 'NOT_DEFINED' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Not Defined
+                </button>
+              </div>
             </div>
 
             {(searchTerm || selectedDept || selectedPos || kpiStatus) && (
@@ -285,7 +351,7 @@ export const KpiAssignedPage: React.FC = () => {
                 </tr>
               ) : (
                 <>
-                  {viewMode === 'employee' && employees.map((emp) => (
+                  {viewMode === 'employee' && paginatedEmployees.map((emp) => (
                     <tr key={emp.employeeId} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
@@ -334,7 +400,7 @@ export const KpiAssignedPage: React.FC = () => {
                     </tr>
                   ))}
 
-                  {viewMode === 'position' && filteredPositions.map((pos, idx) => (
+                  {viewMode === 'position' && paginatedPositions.map((pos, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="py-4 px-6 font-bold text-slate-900 text-sm">
                         {pos.positionName}
@@ -368,7 +434,7 @@ export const KpiAssignedPage: React.FC = () => {
                     </tr>
                   ))}
 
-                  {viewMode === 'department' && filteredDepartments.map((dept, idx) => (
+                  {viewMode === 'department' && paginatedDepartments.map((dept, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="py-4 px-6 font-bold text-slate-900 text-sm">
                         {dept.departmentName}
@@ -415,6 +481,7 @@ export const KpiAssignedPage: React.FC = () => {
               )}
             </tbody>
           </table>
+          {renderPagination()}
         </div>
       </div>
     </div>

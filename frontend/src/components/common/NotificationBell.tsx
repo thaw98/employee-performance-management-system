@@ -31,12 +31,30 @@ import {
   getNotificationsPath,
 } from '../../features/notification/notificationNavigation';
 
+function appendMeridiemToPipDateTime(message: string): string {
+  return message.replace(
+    /(Date\/time:\s*\d{1,2}\s+[A-Za-z]{3}\s+\d{4}\s+)(\d{1,2}):(\d{2})(?!\s*[AP]M)/u,
+    (_match, prefix, hourText, minute) => {
+      const hour = Number(hourText);
+      if (!Number.isFinite(hour) || hour < 0 || hour > 23) return `${prefix}${hourText}:${minute}`;
+      const hour12 = hour % 12 || 12;
+      const meridiem = hour >= 12 ? 'PM' : 'AM';
+      return `${prefix}${String(hour12).padStart(2, '0')}:${minute} ${meridiem}`;
+    },
+  );
+}
+
 /** Legacy notifications stored the deadline as yyyy-mm-dd; normalize to dd-mm-yyyy for display. */
 function formatSelfAssessmentNotificationMessage(message: string): string {
   return message.replace(
     /Deadline:\s*(\d{4})-(\d{2})-(\d{2})\s*$/u,
     (_match, year, month, day) => `Deadline: ${day}-${month}-${year}`,
   );
+}
+
+function formatNotificationMessage(notification: NotificationItem): string {
+  const message = formatSelfAssessmentNotificationMessage(notification.message);
+  return notification.source === 'PIP' ? appendMeridiemToPipDateTime(message) : message;
 }
 
 function formatCreatedAt(value: string) {
@@ -292,7 +310,7 @@ export function NotificationBell() {
                       overflowWrap: 'anywhere',
                     }}
                   >
-                    {formatSelfAssessmentNotificationMessage(notification.message)}
+                    {formatNotificationMessage(notification)}
                   </Box>
                   <Box
                     component="p"

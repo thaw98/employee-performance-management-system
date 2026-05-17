@@ -5,6 +5,13 @@ import { downloadIndividualPipReport } from '../../features/pip/pipReportApi'
 import type { RootState } from '../../app/store'
 import { Download, FileText, Zap } from 'lucide-react'
 
+const formatDateValue = (value?: string) => {
+  if (!value) return '-'
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 export default function ReportsPage() {
   const { user } = useSelector((state: RootState) => state.auth)
 
@@ -117,8 +124,8 @@ export default function ReportsPage() {
                             {pip.status}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{pip.startDate}</td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{pip.endDate}</td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{formatDateValue(pip.startDate)}</td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{formatDateValue(pip.endDate)}</td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <div className="w-16 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Target, X, Save } from 'lucide-react';
-import { useGetManagerTeamQuery, useGetLatestKpisByEmployeeQuery, useUpdateManagerKpiActualsMutation, type Kpi } from '../../features/kpi/kpiApi';
+import { Target, X, Save, AlertCircle, CheckCircle2, History, Calendar } from 'lucide-react';
+import { useGetManagerTeamQuery, useGetLatestKpisByEmployeeQuery, useUpdateManagerKpiActualsMutation, useGetEmployeeKpiHistoryQuery, type Kpi } from '../../features/kpi/kpiApi';
+import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
 const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => void }) => {
@@ -214,19 +215,165 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
   );
 };
 
+const KpiHistoryModal = ({ employee, onClose }: { employee: any, onClose: () => void }) => {
+  const [periodFilter, setPeriodFilter] = useState('');
+  const { data: historyData, isLoading } = useGetEmployeeKpiHistoryQuery({ employeeId: employee.id, period: periodFilter || undefined });
+
+  const renderStatusBadge = (status: string) => {
+    const s = status.toUpperCase();
+    if (s === 'SUBMITTED' || s === 'ACTIVE') {
+      return (
+        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-full border border-emerald-100 uppercase tracking-widest flex items-center gap-1 w-fit">
+          <CheckCircle2 size={10} /> {status}
+        </span>
+      );
+    }
+    if (s === 'DRAFT') {
+      return (
+        <span className="px-2.5 py-1 bg-slate-50 text-slate-500 text-[10px] font-black rounded-full border border-slate-100 uppercase tracking-widest flex items-center gap-1 w-fit">
+           {status}
+        </span>
+      );
+    }
+    return (
+      <span className="px-2.5 py-1 bg-amber-50 text-amber-600 text-[10px] font-black rounded-full border border-amber-100 uppercase tracking-widest flex items-center gap-1 w-fit">
+        <AlertCircle size={10} /> {status}
+      </span>
+    );
+  };
+
+  const groups: Record<string, Kpi[]> = {};
+  if (historyData) {
+    historyData.forEach(item => {
+      const monthYear = item.createdDate ? format(new Date(item.createdDate), 'MMMM yyyy') : 'Unknown Date';
+      if (!groups[monthYear]) groups[monthYear] = [];
+      groups[monthYear].push(item);
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+      <div className="bg-white rounded-3xl shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex justify-between items-center p-6 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+               <History className="text-indigo-600" size={24} />
+               <h2 className="text-xl font-black text-slate-900">KPI History</h2>
+            </div>
+            <p className="text-sm font-medium text-slate-500">Employee: <span className="font-bold text-slate-900">{employee.name}</span></p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-4">
+          <div className="relative w-64">
+             <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+             <input 
+               placeholder="Filter by period (e.g. 2026-2027)" 
+               value={periodFilter}
+               onChange={(e) => setPeriodFilter(e.target.value)}
+               className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none font-bold text-slate-800 shadow-sm"
+             />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-0 bg-white">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-40"><div className="w-6 h-6 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin"></div></div>
+          ) : !historyData || historyData.length === 0 ? (
+            <div className="text-center text-slate-500 py-10 font-medium">No history records found for this employee.</div>
+          ) : (
+            <div className="min-w-full">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200">
+                    <th className="py-4 px-6 border-r border-slate-200">Period</th>
+                    <th className="py-4 px-6 border-r border-slate-200">KPI Name</th>
+                    <th className="py-4 px-4 border-r border-slate-200">Target</th>
+                    <th className="py-4 px-4 text-center border-r border-slate-200">Actual</th>
+                    <th className="py-4 px-4 text-center border-r border-slate-200">Score (%)</th>
+                    <th className="py-4 px-6 border-r border-slate-200">Status</th>
+                    <th className="py-4 px-6">Record Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {Object.entries(groups).map(([month, items]) => (
+                    <React.Fragment key={month}>
+                      <tr className="bg-slate-50/80 group">
+                        <td colSpan={7} className="py-2.5 px-6 border-y border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-6 h-6 bg-indigo-600 text-white rounded-md flex items-center justify-center shadow-sm">
+                               <Calendar size={12} />
+                            </div>
+                            <span className="font-black text-slate-800 text-[10px] uppercase tracking-widest">{month}</span>
+                            <span className="h-px bg-slate-200 flex-1 mx-4"></span>
+                            <span className="px-2 py-0.5 bg-white border border-slate-200 text-[9px] font-black text-slate-400 rounded-full uppercase">
+                              {items.length} Records
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                      {items.map((kpi, idx) => (
+                        <tr key={kpi.id || idx} className={`hover:bg-slate-50/50 transition-colors group ${kpi.recordStatus === 'Archived' ? 'opacity-60 grayscale-[0.2]' : ''}`}>
+                          <td className="py-4 px-6 border-r border-slate-100 font-bold text-slate-900 text-sm">
+                            {kpi.period}
+                          </td>
+                          <td className="py-4 px-6 border-r border-slate-100">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{kpi.name}</span>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">{kpi.category}</span>
+                            </div>
+                          </td>
+                          <td className="py-4 px-4 border-r border-slate-100">
+                            <span className="text-xs font-bold text-slate-700">{kpi.target} {kpi.unit}</span>
+                          </td>
+                          <td className="py-4 px-4 text-center border-r border-slate-100">
+                            <span className="text-xs font-bold text-slate-900">{kpi.actual || '-'}</span>
+                          </td>
+                          <td className="py-4 px-4 text-center border-r border-slate-100">
+                             <span className="text-xs font-black text-emerald-600">{kpi.score || '-'}</span>
+                          </td>
+                          <td className="py-4 px-6 border-r border-slate-100">
+                            {renderStatusBadge(kpi.status || 'SUBMITTED')}
+                          </td>
+                          <td className="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase">
+                            {kpi.createdDate ? format(new Date(kpi.createdDate), 'dd MMM yyyy') : '-'}
+                            <div className={`mt-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase border w-fit ${kpi.recordStatus === 'Active' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                              {kpi.recordStatus}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export function ManagerKpisPage() {
   const { data: teamData, isLoading: isTeamLoading } = useGetManagerTeamQuery();
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [selectedHistoryEmployee, setSelectedHistoryEmployee] = useState<any>(null);
 
-  const teamMembers = teamData ? teamData.map((emp, idx) => ({
-    id: emp.id,
-    name: emp.name,
-    role: emp.role,
-    status: emp.status || 'ACTIVE',
-    score: 0,
-    initial: emp.name ? emp.name.charAt(0) : 'U',
-    color: ['bg-amber-100 text-amber-700', 'bg-blue-100 text-blue-700', 'bg-emerald-100 text-emerald-700', 'bg-purple-100 text-purple-700'][idx % 4]
-  })) : [];
+  const teamMembers = teamData ? [...teamData]
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    .map((emp, idx) => ({
+      id: emp.id,
+      name: emp.name,
+      role: emp.role,
+      status: emp.status || 'ACTIVE',
+      score: 0,
+      initial: emp.name ? emp.name.charAt(0) : 'U',
+      color: ['bg-amber-100 text-amber-700', 'bg-blue-100 text-blue-700', 'bg-emerald-100 text-emerald-700', 'bg-purple-100 text-purple-700'][idx % 4]
+    })) : [];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 max-w-5xl mx-auto">
@@ -265,9 +412,32 @@ export function ManagerKpisPage() {
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{member.role}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="flex items-center gap-2 text-blue-600 text-xs font-bold">
-                  Update Actuals <Target size={14} />
+              <div className="flex items-center gap-4">
+                {member.status === 'PENDING' ? (
+                  <span className="px-2.5 py-1 bg-rose-50 text-rose-600 text-[10px] font-black rounded-full border border-rose-100 uppercase tracking-widest flex items-center gap-1.5 w-fit shadow-sm">
+                    <AlertCircle size={10} />
+                    NOT DEFINED
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-full border border-emerald-100 uppercase tracking-widest flex items-center gap-1.5 w-fit shadow-sm">
+                    <CheckCircle2 size={10} />
+                    DEFINED
+                  </span>
+                )}
+                <div className="text-right flex items-center gap-2">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setSelectedHistoryEmployee(member); }}
+                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                    title="View KPI History"
+                  >
+                    <History size={18} />
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setSelectedEmployee(member); }}
+                    className="flex items-center gap-2 text-blue-600 text-xs font-bold p-2 hover:bg-blue-50 rounded-xl transition-all"
+                  >
+                    Update Actuals <Target size={14} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -277,6 +447,9 @@ export function ManagerKpisPage() {
 
       {selectedEmployee && (
         <KpiEditModal employee={selectedEmployee} onClose={() => setSelectedEmployee(null)} />
+      )}
+      {selectedHistoryEmployee && (
+        <KpiHistoryModal employee={selectedHistoryEmployee} onClose={() => setSelectedHistoryEmployee(null)} />
       )}
     </div>
   );

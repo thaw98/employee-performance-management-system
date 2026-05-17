@@ -14,6 +14,7 @@
     <parameter name="REPORT_TITLE" class="java.lang.String"/>
     <parameter name="FILTER_DESCRIPTION" class="java.lang.String"/>
     <parameter name="GENERATED_AT" class="java.lang.String"/>
+    <parameter name="COMPANY_LOGO" class="java.lang.String"/>
 
     <field name="departmentName" class="java.lang.String"/>
     <field name="positionName" class="java.lang.String"/>
@@ -32,13 +33,17 @@
 
     <title>
         <band height="72">
+            <image scaleImage="RetainShape" hAlign="Center" vAlign="Middle">
+                <reportElement x="0" y="0" width="70" height="42" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c027"/>
+                <imageExpression><![CDATA[Thread.currentThread().getContextClassLoader().getResourceAsStream("reports/company-logo.png")]]></imageExpression>
+            </image>
             <textField>
-                <reportElement x="0" y="0" width="515" height="28" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c002"/>
+                <reportElement x="82" y="0" width="433" height="28" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c002"/>
                 <textElement><font fontName="DejaVu Sans" size="18" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
             </textField>
             <textField textAdjust="StretchHeight">
-                <reportElement stretchType="RelativeToTallestObject" x="0" y="31" width="515" height="16" forecolor="#56616D" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c003"/>
+                <reportElement stretchType="RelativeToTallestObject" x="82" y="31" width="433" height="16" forecolor="#56616D" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c003"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
                 <textFieldExpression><![CDATA[$P{FILTER_DESCRIPTION} + " | Generated: " + $P{GENERATED_AT}]]></textFieldExpression>
             </textField>

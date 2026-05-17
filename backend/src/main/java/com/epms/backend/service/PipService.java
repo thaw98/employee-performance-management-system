@@ -981,7 +981,7 @@ public class PipService {
     private String buildPipNotificationMessage(Pip pip, User actor, String actionType) {
         String employeeName = pip.getEmployee() == null ? "Unknown employee" : pip.getEmployee().getEmployeeName();
         String managerName = pip.getManager() == null ? "Unknown manager" : pip.getManager().getEmployeeName();
-        String timestamp = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")
+        String timestamp = DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", Locale.ENGLISH)
                 .withZone(ZoneId.systemDefault())
                 .format(Instant.now());
         String actorLabel = isManagerActor(actor) ? "Manager" : "User";

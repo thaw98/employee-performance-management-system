@@ -200,7 +200,7 @@ export default function PipCreatePage() {
     <div className="mx-auto max-w-2xl p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Create New PIP</h1>
-        <p className="text-slate-500">Initiate a Performance Improvement Plan for an employee.</p>
+        <p className="text-slate-500">Create a respectful, measurable Performance Improvement Plan focused on support, accountability, and growth.</p>
       </div>
 
       <Box component="form" onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -295,9 +295,10 @@ export default function PipCreatePage() {
                     <TextField
                       fullWidth
                       label={`Objective ${index + 1}`}
+                      placeholder="Example: Improve report accuracy to the agreed standard by the end of the PIP period."
                       {...objectiveField}
                       error={Boolean(errors.objectives?.[index]?.value)}
-                      helperText={errors.objectives?.[index]?.value?.message}
+                      helperText={errors.objectives?.[index]?.value?.message || 'Use SMART wording: specific action, measurable standard, owner, timeline, and result.'}
                     />
                   )}
                 />
@@ -325,9 +326,10 @@ export default function PipCreatePage() {
                     <TextField
                       fullWidth
                       label={`Expected Improvement ${index + 1}`}
+                      placeholder="Example: Submit work with no more than one material revision per deliverable."
                       {...expectedImprovementField}
                       error={Boolean(errors.expectedImprovements?.[index]?.value)}
-                      helperText={errors.expectedImprovements?.[index]?.value?.message}
+                      helperText={errors.expectedImprovements?.[index]?.value?.message || 'State how improvement will be measured during the PIP period.'}
                     />
                   )}
                 />
@@ -355,7 +357,8 @@ export default function PipCreatePage() {
             multiline
             rows={3}
             {...register('reasonForPlan')}
-            helperText="Explain the reason for initiating this PIP."
+            placeholder="Describe the performance issues factually and respectfully, then state that management will provide regular feedback, check-ins, and reasonable support."
+            helperText="Include performance issues, timeline context, support from management, and positive encouragement."
           />
         </Stack>
 

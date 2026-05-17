@@ -45,6 +45,9 @@ public class DepartmentKpi {
     @Column(name = "weighted_score")
     private BigDecimal weightedScore;
 
+    @Column(name = "total_department_score")
+    private BigDecimal totalDepartmentScore;
+
     @Column(nullable = false)
     private String period;
 
