@@ -56,10 +56,10 @@ export function LoginForm() {
         return;
       }
 
-      const { token, user } = response.data;
+      const { token, user, expiresAt } = response.data;
 
       // Save credentials to Redux and storage
-      dispatch(setCredentials({ token, user, rememberMe: values.rememberMe }));
+      dispatch(setCredentials({ token, user, expiresAt, rememberMe: values.rememberMe }));
 
       toast.success(`Welcome back, ${user.name}!`);
 

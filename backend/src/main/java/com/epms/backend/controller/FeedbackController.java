@@ -17,8 +17,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 @RestController
@@ -68,22 +71,37 @@ public class FeedbackController {
     }
 
     @GetMapping("/eligible-evaluatees")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getEligible(@RequestParam String role) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getEligible(@RequestParam String role) {
         try {
             User user = getCurrentUser();
             List<Employee> eligible = feedbackService.getEligibleEvaluatees(user.getEmployee().getId(), role);
-            
-            List<Map<String, Object>> result = eligible.stream().map(e -> {
-                Map<String, Object> m = new java.util.HashMap<>();
+
+            // Calculate current role count
+            TimeSettingDto cycle = timeSettingService.getCurrentCycleRange();
+            Instant start = cycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+            Instant end = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant();
+            long roleCount = feedbackService.countFeedbacksByRoleInCycle(user.getEmployee().getId(), role, start, end);
+
+            List<Map<String, Object>> list = eligible.stream().map(e -> {
+                boolean given = feedbackService.isFeedbackGivenInCurrentCycle(user.getEmployee().getId(), e.getId());
+                Map<String, Object> m = new HashMap<>();
                 m.put("id", e.getId());
                 m.put("name", e.getEmployeeName());
                 m.put("staffNo", e.getEmployeeId());
                 m.put("position", e.getPosition() != null ? e.getPosition().getName() : "N/A");
                 m.put("department", e.getDepartment() != null ? e.getDepartment().getName() : "N/A");
+                m.put("profilePictureUrl", e.getProfilePictureUrl());
+                m.put("given", given);
+                m.put("statusText", given ? "Feedback already given" : "Not given yet");
                 return m;
             }).collect(Collectors.toList());
 
-            return ResponseEntity.ok(new ApiResponse<>(true, "Eligible evaluatees fetched", result));
+            Map<String, Object> response = new HashMap<>();
+            response.put("evaluatees", list);
+            response.put("roleFeedbackCount", roleCount);
+            response.put("roleFeedbackLimit", 5);
+
+            return ResponseEntity.ok(new ApiResponse<>(true, "Eligible evaluatees fetched", response));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Eligible Load Error: " + e.getMessage(), null));
         }
@@ -95,11 +113,12 @@ public class FeedbackController {
             User user = getCurrentUser();
             Employee e = user.getEmployee();
             if (e == null) throw new RuntimeException("Evaluator employee record missing");
-            
-            Map<String, Object> info = new java.util.HashMap<>();
+
+            Map<String, Object> info = new HashMap<>();
             info.put("name", e.getEmployeeName());
             info.put("position", e.getPosition() != null ? e.getPosition().getName() : "N/A");
             info.put("department", e.getDepartment() != null ? e.getDepartment().getName() : "N/A");
+            info.put("profilePictureUrl", e.getProfilePictureUrl());
             info.put("date", LocalDate.now().toString());
             return ResponseEntity.ok(new ApiResponse<>(true, "Evaluator info fetched", info));
         } catch (Exception e) {
@@ -131,7 +150,11 @@ public class FeedbackController {
             if (dto.getYearType() == null || dto.getDuration() == null) {
                 return ResponseEntity.badRequest().body(new ApiResponse<>(false, "Required fields cannot be empty", null));
             }
-            return ResponseEntity.ok(new ApiResponse<>(true, "Settings saved successfully", timeSettingService.saveSettings(dto)));
+            User user = getCurrentUser();
+            Long roleId = user.getRole() != null ? user.getRole().getId() : null;
+            return ResponseEntity.ok(new ApiResponse<>(true, "Settings saved successfully", timeSettingService.saveSettings(dto, user.getId(), roleId)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Error saving settings: " + e.getMessage(), null));
         }

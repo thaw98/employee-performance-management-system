@@ -1,6 +1,7 @@
 package com.epms.backend.security;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
@@ -39,6 +40,10 @@ public class JwtService {
 				.expiration(expiry)
 				.signWith(signingKey)
 				.compact();
+	}
+
+	public Instant calculateExpirationInstant() {
+		return Instant.ofEpochMilli(System.currentTimeMillis() + expirationMs);
 	}
 
 	public String extractSubject(String token) throws JwtException {

@@ -1,8 +1,22 @@
-import { useState, useEffect, useRef } from 'react'
-import { Monitor, Moon, Sun, Globe, Accessibility, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, Clock, AlertTriangle, X, Calendar, Info, CheckCircle2 } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { Moon, Sun, Globe, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, Clock, AlertTriangle, X, Calendar } from 'lucide-react'
 import axios from '../app/axiosInstance'
 import { toast } from 'react-hot-toast'
 import { useGetProfileQuery, useUpdateProfileMutation, useUpdateWallpaperMutation, useDeleteWallpaperMutation } from '../features/user/userApi'
+
+type ReviewCycle = {
+  id: number | null
+  name: string
+  cycleType: string
+  yearLabel: string
+  sequenceNo: number
+  startDate: string
+  endDate: string
+  requiresEmployeeSubmission: boolean
+  rollupMethod: string | null
+  status: 'UPCOMING' | 'ACTIVE' | 'CLOSED' | string
+  isActive: boolean
+}
 
 export function SystemSettingsPage() {
   const { data: profileResponse } = useGetProfileQuery()
@@ -14,36 +28,21 @@ export function SystemSettingsPage() {
   const [theme, setTheme] = useState<'light' | 'dark' | 'wallpaper'>('light')
   const [timezone, setTimezone] = useState('UTC+06:30 (Yangon)')
   const [timeFormat, setTimeFormat] = useState('12h')
-  const [compactMode, setCompactMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [pendingWallpaper, setPendingWallpaper] = useState<File | 'remove' | null>(null)
-  const [currentTime, setCurrentTime] = useState(new Date())
   const [showResetModal, setShowResetModal] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
 
   // Global Time Configuration States (HR Only)
   const [yearType, setYearType] = useState('Calendar Year')
+  const [appliedYearType, setAppliedYearType] = useState('Calendar Year')
+  const [pendingYearType, setPendingYearType] = useState<string | null>(null)
+  const [settingsStartDate, setSettingsStartDate] = useState<string | null>(null)
   const [duration, setDuration] = useState('1 Year')
-  const [customMonths, setCustomMonths] = useState(3)
   const [loadingGlobal, setLoadingGlobal] = useState(false)
+  const [cyclePreview, setCyclePreview] = useState<ReviewCycle[]>([])
+  const [showSaveModal, setShowSaveModal] = useState(false)
   const isHR = profileResponse?.data?.role === 'HR'
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const formatTime = (date: Date, offsetHours: number, offsetMinutes: number = 0) => {
-    const utc = date.getTime() + (date.getTimezoneOffset() * 60000)
-    const newDate = new Date(utc + (3600000 * offsetHours) + (60000 * offsetMinutes))
-    return newDate.toLocaleTimeString('en-US', { 
-        hour12: timeFormat === '12h', 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
-    })
-  }
 
   useEffect(() => {
     if (profileResponse?.data?.theme) {
@@ -56,7 +55,7 @@ export function SystemSettingsPage() {
       setTimeFormat(profileResponse.data.timeFormat)
     }
 
-    if (isHR) {
+    if (isHR && !isSaving) {
       fetchGlobalTimeSettings()
     }
   }, [profileResponse, isHR])
@@ -65,10 +64,15 @@ export function SystemSettingsPage() {
     try {
       setLoadingGlobal(true)
       const resp = await axios.get('/feedback/time-settings')
-      if (resp.data.success) {
+      if (resp.data.success && resp.data.data) {
         setYearType(resp.data.data.yearType)
-        setDuration(resp.data.data.duration)
+        setAppliedYearType(resp.data.data.yearType)
+        setPendingYearType(resp.data.data.pendingYearType ?? null)
+        setSettingsStartDate(resp.data.data.startDate ?? null)
+        const savedDuration = resp.data.data.duration
+        setDuration(savedDuration === 'Both' ? '6 Months' : savedDuration)
       }
+      await fetchCyclePreview()
     } catch (err) {
       console.error("Failed to load global time settings", err)
     } finally {
@@ -76,47 +80,19 @@ export function SystemSettingsPage() {
     }
   }
 
-  const getAllCycles = () => {
-    const isBudget = yearType === 'Budget Year'
-    const durationMonths = duration.includes('Months') ? parseInt(duration.split(' ')[0]) : 12
-    const startMonth = isBudget ? 3 : 0 // April is 3, Jan is 0
-    
-    const cycles = []
-    const today = new Date()
-    const currentYear = today.getFullYear()
-    
-    // We treat the "Year" as starting from startMonth of currentYear
-    // For Budget Year, if today is Jan-Mar, the "Cycle Year" started April last year.
-    // However, for simplicity in "Preview", we show cycles for the organizational year that contains today.
-    
-    let orgYearStart = new Date(currentYear, startMonth, 1)
-    if (isBudget && today < orgYearStart) {
-      orgYearStart.setFullYear(currentYear - 1)
+  const fetchCyclePreview = async () => {
+    const resp = await axios.get('/review-cycles/current-year/preview')
+    if (resp.data.success) {
+      setCyclePreview(resp.data.data)
     }
-    
-    for (let i = 0; i < 12; i += durationMonths) {
-      const cycleStart = new Date(orgYearStart)
-      cycleStart.setMonth(orgYearStart.getMonth() + i)
-      
-      const cycleEnd = new Date(cycleStart)
-      cycleEnd.setMonth(cycleStart.getMonth() + durationMonths)
-      cycleEnd.setDate(0)
-      
-      const isCurrent = today >= cycleStart && today <= cycleEnd
-      
-      cycles.push({
-        start: cycleStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        end: cycleEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        isCurrent
-      })
-      
-      if (durationMonths >= 12) break
-    }
-    
-    return cycles
   }
 
-  const cycles = getAllCycles()
+  const getPeriodType = () => {
+    if (duration === 'Both') return 'SEMI_ANNUAL'
+    if (duration === '6 Months') return 'SEMI_ANNUAL'
+    if (duration === '1 Year') return 'ANNUAL'
+    return null
+  }
 
   const handleThemeChange = (newTheme: 'light' | 'dark' | 'wallpaper') => {
     setTheme(newTheme)
@@ -138,6 +114,12 @@ export function SystemSettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
+      // 1. Save Global Time Settings first (HR Only)
+      if (isHR) {
+        await axios.post('/feedback/time-settings', { yearType, duration })
+      }
+
+      // 2. Then save Personal Profile Settings
       if (pendingWallpaper === 'remove') {
           await deleteWallpaper().unwrap()
           if (theme === 'wallpaper') {
@@ -154,20 +136,210 @@ export function SystemSettingsPage() {
       }
 
       if (isHR) {
-        await axios.post('/feedback/time-settings', { yearType, duration })
+        const resp = await axios.post('/feedback/time-settings', { yearType, duration, periodType: getPeriodType() })
+        if (resp.data.success) {
+          setYearType(resp.data.data.yearType)
+          setAppliedYearType(resp.data.data.yearType)
+          setPendingYearType(resp.data.data.pendingYearType ?? null)
+          setSettingsStartDate(resp.data.data.startDate ?? null)
+          const savedDuration = resp.data.data.duration
+          setDuration(savedDuration === 'Both' ? '6 Months' : savedDuration)
+        }
+        await fetchCyclePreview()
       }
 
       setPendingWallpaper(null)
-      setSaved(true)
-
-      setTimeout(() => setSaved(false), 3000)
-    } catch (err) {
+      toast.success(isHR ? 'Settings saved. Current duration is applied and future year type is queued when needed.' : 'Changes saved!')
+    } catch (err: any) {
       console.error("Failed to save system settings", err)
-      alert("Failed to save settings.")
+      const message = err?.response?.data?.message || 'Failed to save settings.'
+      toast.error(message)
     } finally {
       setIsSaving(false)
+      setShowSaveModal(false)
     }
   }
+
+  const formatDate = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).replace(',', '')
+
+  const getDisplayStatus = (cycle: ReviewCycle): 'UPCOMING' | 'ACTIVE' | 'CLOSED' => {
+    const rawStatus = String(cycle.status ?? '').toUpperCase()
+    if (rawStatus === 'UPCOMING' || rawStatus === 'ACTIVE' || rawStatus === 'CLOSED') {
+      return rawStatus
+    }
+
+    const today = new Date()
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+    const start = new Date(`${cycle.startDate}T00:00:00`)
+    const end = new Date(`${cycle.endDate}T00:00:00`)
+
+    if (todayDateOnly < start) return 'UPCOMING'
+    if (todayDateOnly > end) return 'CLOSED'
+    return 'ACTIVE'
+  }
+
+  const buildLocalCyclePreview = (selectedYearType: string, selectedDuration: string): ReviewCycle[] => {
+    const today = new Date()
+    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+    const currentCycleStarted = settingsStartDate
+      ? todayDateOnly >= new Date(`${settingsStartDate}T00:00:00`)
+      : true
+    const previewYearType = currentCycleStarted ? appliedYearType : selectedYearType
+
+    const getCurrentYearStart = () => {
+      if (currentCycleStarted && settingsStartDate) {
+        return new Date(`${settingsStartDate}T00:00:00`)
+      }
+      if (previewYearType === 'Budget Year') {
+        const aprFirst = new Date(todayDateOnly.getFullYear(), 3, 1)
+        return todayDateOnly < aprFirst
+          ? new Date(todayDateOnly.getFullYear() - 1, 3, 1)
+          : aprFirst
+      }
+      return new Date(todayDateOnly.getFullYear(), 0, 1)
+    }
+
+    const start = getCurrentYearStart()
+    const end = new Date(start.getFullYear() + 1, start.getMonth(), start.getDate() - 1)
+    const yearLabel = previewYearType === 'Budget Year'
+      ? `${start.getFullYear()}-${start.getFullYear() + 1}`
+      : `${start.getFullYear()}`
+
+    const parseMonths = () => {
+      if (!selectedDuration.includes('Months')) return 12
+      const parsed = Number.parseInt(selectedDuration.split(' ')[0] ?? '', 10)
+      if (Number.isNaN(parsed)) return 12
+      return Math.max(1, Math.min(12, parsed))
+    }
+
+    const getStatus = (s: Date, e: Date): ReviewCycle['status'] => {
+      if (todayDateOnly < s) return 'UPCOMING'
+      if (todayDateOnly > e) return 'CLOSED'
+      return 'ACTIVE'
+    }
+
+    const toISODate = (d: Date) => {
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+    const hasChildren = selectedDuration !== '1 Year'
+    const baseCycles: ReviewCycle[] = []
+    const annualStatus = getStatus(start, end)
+
+    baseCycles.push({
+      id: null,
+      name: `Annual Cycle ${start.getMonth() === 0 ? start.getFullYear() : yearLabel}`,
+      cycleType: 'ANNUAL',
+      yearLabel,
+      sequenceNo: 0,
+      startDate: toISODate(start),
+      endDate: toISODate(end),
+      requiresEmployeeSubmission: !hasChildren,
+      rollupMethod: 'AVERAGE',
+      status: annualStatus,
+      isActive: annualStatus === 'ACTIVE',
+    })
+
+    if (selectedDuration === '1 Year') {
+      return baseCycles
+    }
+
+    const months = parseMonths()
+    const childCount = Math.max(1, Math.ceil(12 / months))
+    const children: ReviewCycle[] = []
+
+    for (let i = 0; i < childCount; i += 1) {
+      const childStart = new Date(start.getFullYear(), start.getMonth() + (i * months), start.getDate())
+      let childEnd = new Date(childStart.getFullYear(), childStart.getMonth() + months, childStart.getDate() - 1)
+      if (childEnd > end) childEnd = end
+
+      const status = getStatus(childStart, childEnd)
+      const cycleType = months === 3 ? 'QUARTERLY' : months === 6 ? 'SEMI_ANNUAL' : 'CUSTOM'
+      const name = (months === 3 || months === 6)
+        ? `Q${i + 1} ${yearLabel}`
+        : `Cycle ${i + 1} ${yearLabel}`
+
+      children.push({
+        id: null,
+        name,
+        cycleType,
+        yearLabel,
+        sequenceNo: i + 1,
+        startDate: toISODate(childStart),
+        endDate: toISODate(childEnd),
+        requiresEmployeeSubmission: true,
+        rollupMethod: null,
+        status,
+        isActive: status === 'ACTIVE',
+      })
+
+      if (childEnd >= end) break
+    }
+
+    return [...baseCycles, ...children]
+  }
+
+  const cycles = useMemo(() => {
+    if (loadingGlobal && cyclePreview.length > 0) {
+      return cyclePreview
+    }
+    return buildLocalCyclePreview(yearType, duration)
+  }, [yearType, duration, loadingGlobal, cyclePreview, appliedYearType, settingsStartDate])
+
+  const displayCycles = useMemo(() => {
+    if (cycles.length === 0) return cycles
+    if (cycles.some((cycle) => getDisplayStatus(cycle) === 'UPCOMING')) return cycles
+
+    const sorted = [...cycles].sort((a, b) => {
+      const aEnd = new Date(`${a.endDate}T00:00:00`).getTime()
+      const bEnd = new Date(`${b.endDate}T00:00:00`).getTime()
+      return aEnd - bEnd
+    })
+
+    const baseCycle =
+      [...sorted].reverse().find((c) => c.requiresEmployeeSubmission) ??
+      sorted[sorted.length - 1]
+
+    if (!baseCycle) return cycles
+
+    const baseStart = new Date(`${baseCycle.startDate}T00:00:00`)
+    const baseEnd = new Date(`${baseCycle.endDate}T00:00:00`)
+    const oneDayMs = 24 * 60 * 60 * 1000
+    const spanMs = Math.max(oneDayMs, baseEnd.getTime() - baseStart.getTime() + oneDayMs)
+    const nextStart = new Date(baseEnd.getTime() + oneDayMs)
+    const nextEnd = new Date(nextStart.getTime() + spanMs - oneDayMs)
+    const toISODate = (d: Date) => d.toISOString().slice(0, 10)
+
+    const qMatch = baseCycle.name.match(/^Q(\d+)\s+(.+)$/i)
+    const nextName = qMatch
+      ? `Q${Number(qMatch[1]) + 1} ${qMatch[2]}`
+      : `Next ${baseCycle.name}`
+
+    const syntheticUpcoming: ReviewCycle = {
+      ...baseCycle,
+      id: null,
+      sequenceNo: (baseCycle.sequenceNo ?? 0) + 1,
+      name: nextName,
+      startDate: toISODate(nextStart),
+      endDate: toISODate(nextEnd),
+      status: 'UPCOMING',
+      isActive: false,
+    }
+
+    return [...cycles, syntheticUpcoming]
+  }, [cycles])
+
+  const savedCycleStarted = settingsStartDate
+    ? new Date() >= new Date(`${settingsStartDate}T00:00:00`)
+    : true
+  const yearTypeWillBePending = isHR && yearType !== appliedYearType && savedCycleStarted
 
   const handleReset = async () => {
     setIsResetting(true)
@@ -181,11 +353,10 @@ export function SystemSettingsPage() {
       }).unwrap()
 
       setShowResetModal(false)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+      toast.success('Changes saved!')
     } catch (err) {
       console.error("Reset failed", err)
-      alert("Failed to reset settings.")
+      toast.error('Failed to reset settings.')
     } finally {
       setIsResetting(false)
     }
@@ -313,7 +484,7 @@ export function SystemSettingsPage() {
             <div className="p-8">
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
-                  <Calendar size={20} />
+                  {loadingGlobal ? <Loader2 size={20} className="animate-spin" /> : <Calendar size={20} />}
                 </div>
                 <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Time Settings Configuration <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-400 px-2 py-0.5 rounded-full uppercase tracking-tighter">Global</span></h2>
               </div>
@@ -340,17 +511,22 @@ export function SystemSettingsPage() {
                         </button>
                       ))}
                     </div>
+                    {(yearTypeWillBePending || pendingYearType) && (
+                      <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 pl-1">
+                        Pending for next cycle: {yearTypeWillBePending ? yearType : pendingYearType}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Duration Cycle</label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {['6 Months', '1 Year', 'Custom'].map((dur) => (
                         <button
                           key={dur}
                           onClick={() => {
                             if (dur === 'Custom') {
-                              setDuration(`${customMonths} Months`)
+                              setDuration('3 Months')
                             } else {
                               setDuration(dur)
                             }
@@ -404,42 +580,66 @@ export function SystemSettingsPage() {
                       {/* Decorative Background Element */}
                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 -mr-10 -mt-10 rounded-full blur-2xl" />
                       
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center">
                          <div className="flex items-center gap-3">
                             <div className="p-2 bg-white/20 rounded-xl">
                                <Clock size={16} />
                             </div>
-                            <div className="text-[10px] font-black uppercase tracking-widest">Active Cycle Summary</div>
-                         </div>
-                         <div className="text-[10px] bg-emerald-400/20 text-emerald-200 px-2 py-1 rounded-lg font-bold border border-emerald-400/20">
-                            {yearType}
+                            <div className="text-[10px] font-black uppercase tracking-widest">Review Cycles</div>
                          </div>
                       </div>
 
                       <div className="space-y-3 relative z-10">
-                         {cycles.map((c, idx) => (
-                           <div 
+                         {displayCycles.map((c, idx) => {
+                           const displayStatus = getDisplayStatus(c)
+
+                           return (
+                           <div
                              key={idx} 
                              className={`p-4 rounded-2xl transition-all duration-300 flex items-center justify-between border ${
-                               c.isCurrent 
-                               ? 'bg-white text-emerald-900 border-white shadow-lg scale-[1.02]' 
+                               displayStatus === 'ACTIVE'
+                               ? 'bg-white text-emerald-900 border-white shadow-lg scale-[1.02]'
+                               : displayStatus === 'UPCOMING'
+                               ? 'bg-emerald-950/35 border-emerald-500/20 text-emerald-100/75 backdrop-blur-[1px]'
                                : 'bg-emerald-800/40 border-emerald-700/50 text-emerald-100/60'
                              }`}
                            >
                               <div className="flex flex-col">
-                                 <span className={`text-[10px] font-black uppercase tracking-tighter ${c.isCurrent ? 'text-emerald-600' : 'text-emerald-400/50'}`}>
-                                    Cycle {idx + 1}
+                                 <span className={`text-[10px] font-black uppercase tracking-tighter ${
+                                   displayStatus === 'ACTIVE'
+                                     ? 'text-emerald-600'
+                                     : displayStatus === 'UPCOMING'
+                                     ? 'text-emerald-300/55'
+                                     : 'text-emerald-400/50'
+                                 }`}>
+                                    {c.name}
                                  </span>
-                                 <span className="text-sm font-black tracking-tight">{c.start} — {c.end}</span>
+                                 <span className={`text-sm font-black tracking-tight ${displayStatus === 'UPCOMING' ? 'text-emerald-100/75' : ''}`}>
+                                   {formatDate(c.startDate)} - {formatDate(c.endDate)}
+                                 </span>
+                                 <span className={`text-[9px] font-black uppercase tracking-widest ${displayStatus === 'UPCOMING' ? 'text-emerald-200/45' : 'opacity-70'}`}>
+                                   {c.requiresEmployeeSubmission ? 'Employee submission' : 'Annual roll-up'} - {c.cycleType}
+                                 </span>
                               </div>
-                              {c.isCurrent && (
-                                <div className="flex items-center gap-1.5 bg-emerald-100 text-emerald-600 px-2.5 py-1 rounded-full animate-pulse">
-                                   <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                                   <span className="text-[9px] font-black uppercase tracking-widest">Active Now</span>
-                                </div>
-                              )}
+                              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${
+                                displayStatus === 'ACTIVE' ? 'bg-emerald-100 text-emerald-600' :
+                                displayStatus === 'UPCOMING' ? 'bg-sky-50 text-sky-700 shadow-sm' : 'bg-slate-100 text-slate-500'
+                              }`}>
+                                 <div className={`w-1.5 h-1.5 rounded-full ${
+                                   displayStatus === 'ACTIVE' ? 'bg-emerald-500' :
+                                   displayStatus === 'UPCOMING' ? 'bg-sky-500' : 'bg-slate-400'
+                                 }`} />
+                                 <span className="text-[9px] font-black uppercase tracking-widest">
+                                   {displayStatus === 'ACTIVE' ? 'Active' : displayStatus === 'UPCOMING' ? 'Upcoming' : 'Closed'}
+                                 </span>
+                              </div>
                            </div>
-                         ))}
+                         )})}
+                         {displayCycles.length === 0 && (
+                           <div className="p-4 rounded-2xl bg-emerald-800/40 border border-emerald-700/50 text-emerald-100/70 text-xs font-bold">
+                             Save time settings to refresh the API preview.
+                           </div>
+                         )}
                       </div>
                     </div>
                   </div>
@@ -450,12 +650,6 @@ export function SystemSettingsPage() {
 
         {/* Action Bar */}
         <div className="pt-6 flex justify-end gap-3">
-           {saved && (
-             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-xl animate-in slide-in-from-right-4">
-                <Save size={16} />
-                Changes saved!
-             </div>
-           )}
            <button 
              onClick={() => setShowResetModal(true)}
              className="px-6 py-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl text-sm font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all flex items-center gap-2 transform active:scale-95"
@@ -464,7 +658,7 @@ export function SystemSettingsPage() {
               Reset to Defaults
            </button>
            <button 
-             onClick={handleSave}
+             onClick={() => isHR ? setShowSaveModal(true) : handleSave()}
              disabled={isSaving}
              className="px-8 py-3 bg-blue-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-600/30 hover:shadow-xl hover:shadow-blue-600/40 hover:-translate-y-0.5 transition-all flex items-center gap-2 transform active:scale-95 disabled:opacity-50 disabled:hover:translate-y-0"
            >
@@ -516,6 +710,46 @@ export function SystemSettingsPage() {
            >
               <X size={20} />
            </button>
+        </div>
+      </div>
+    )}
+
+    {showSaveModal && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => !isSaving && setShowSaveModal(false)} />
+        <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-white/20 relative z-10 overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="p-8 pb-4 text-center">
+            <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-6 scale-110 shadow-inner">
+              <Calendar size={40} strokeWidth={2.5} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Save Time Settings?</h3>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm leading-relaxed mb-6">
+              Duration changes apply to the current cycle after save. {yearTypeWillBePending ? `${yearType} will be queued for the next generated cycle.` : 'The selected year type will be saved with the current rules.'}
+            </p>
+          </div>
+          <div className="p-8 pt-4 flex flex-col gap-3">
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm transition-all shadow-lg shadow-emerald-600/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              Confirm Save
+            </button>
+            <button
+              onClick={() => setShowSaveModal(false)}
+              disabled={isSaving}
+              className="w-full py-4 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-95 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+          <button
+            onClick={() => !isSaving && setShowSaveModal(false)}
+            className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          >
+            <X size={20} />
+          </button>
         </div>
       </div>
     )}

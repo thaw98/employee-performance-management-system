@@ -26,10 +26,23 @@ import {
   useMarkAllNotificationsAsReadMutation,
   useMarkNotificationAsReadMutation,
 } from '../../features/notification/notificationApi';
+import { EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH } from '../../routes/employeeSelfAssessmentRoutes';
 
 function getFeedbackPath(pathname: string) {
   const prefix = pathname.split('/').filter(Boolean)[0] || 'employee';
   return `/${prefix}/360-feedback/received`;
+}
+
+function getSelfAssessmentPath() {
+  return EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH;
+}
+
+/** Legacy notifications stored the deadline as yyyy-mm-dd; normalize to dd-mm-yyyy for display. */
+function formatSelfAssessmentNotificationMessage(message: string): string {
+  return message.replace(
+    /Deadline:\s*(\d{4})-(\d{2})-(\d{2})\s*$/u,
+    (_match, year, month, day) => `Deadline: ${day}-${month}-${year}`,
+  );
 }
 
 function formatCreatedAt(value: string) {
@@ -108,7 +121,7 @@ export function NotificationBell() {
         dispatch(setUnreadCount(unreadCount));
       }
     }
-    navigate(getFeedbackPath(location.pathname));
+    navigate(notification.source === 'SELF_ASSESSMENT_FORM' ? getSelfAssessmentPath() : getFeedbackPath(location.pathname));
   };
 
   const handleReadAll = async () => {
@@ -268,7 +281,7 @@ export function NotificationBell() {
                       overflowWrap: 'anywhere',
                     }}
                   >
-                    {notification.message}
+                    {formatSelfAssessmentNotificationMessage(notification.message)}
                   </Box>
                   <Box
                     component="p"

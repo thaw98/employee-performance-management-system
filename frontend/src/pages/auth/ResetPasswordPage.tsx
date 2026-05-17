@@ -62,8 +62,8 @@ export function ResetPasswordPage() {
       }
 
       // Auto-login: use the exact same flow as LoginForm
-      const { token, user } = res.data;
-      dispatch(setCredentials({ token, user, rememberMe: false }));
+      const { token, user, expiresAt } = res.data;
+      dispatch(setCredentials({ token, user, expiresAt, rememberMe: false }));
 
       setHasResetSucceeded(true);
       toast.success('Password reset successful!');

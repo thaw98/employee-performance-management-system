@@ -246,6 +246,7 @@ public class ForgotPasswordService {
         LoginResponseDto loginResponse = new LoginResponseDto();
         loginResponse.setToken(token);
         loginResponse.setTokenType("Bearer");
+        loginResponse.setExpiresAt(jwtService.calculateExpirationInstant());
         loginResponse.setUser(authUser);
 
         log.info("Forgot password reset successful + auto-login for {}", email);

@@ -59,4 +59,11 @@ public class AppraisalCategoryController {
     public ResponseEntity<ApiResponse<List<AppraisalTemplateDto>>> getAllTemplates() {
         return ResponseEntity.ok(ApiResponse.ok("All templates fetched successfully", appraisalService.getAllTemplates()));
     }
+
+    @PostMapping("/distribute")
+    @PreAuthorize("hasAnyRole('HR')")
+    public ResponseEntity<ApiResponse<Void>> distributeToManagers() {
+        appraisalService.distributeAppraisalsToManagers();
+        return ResponseEntity.ok(ApiResponse.ok("Appraisals distributed to managers successfully", null));
+    }
 }

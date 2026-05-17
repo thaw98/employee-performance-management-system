@@ -129,6 +129,7 @@ export function CreateEmployeeAccountPage() {
       hireDate: today,
       departmentId: null,
       departmentPositionId: null,
+      assignAsDepartmentManager: false,
     },
     mode: 'onBlur',
   })
@@ -174,6 +175,15 @@ export function CreateEmployeeAccountPage() {
     typeof departmentId === 'number' ? departmentId : skipToken,
   )
   const positions = posRes?.data ?? []
+  const departmentPositionId = useWatch({ control, name: 'departmentPositionId' })
+  const selectedDepartment = useMemo(
+    () => departments.find((department) => department.departmentId === departmentId) ?? null,
+    [departmentId, departments],
+  )
+  const selectedPosition = useMemo(
+    () => positions.find((position) => position.id === departmentPositionId) ?? null,
+    [departmentPositionId, positions],
+  )
 
   const emailVal = watch('email')
   const staffVal = watch('staffNo')
@@ -455,6 +465,9 @@ export function CreateEmployeeAccountPage() {
           hireDate: v.hireDate,
           departmentId: v.departmentId!,
           departmentPositionId: v.departmentPositionId!,
+          assignAsDepartmentManager: selectedPosition?.roleId === 2 && selectedDepartment?.managerId == null
+            ? Boolean(v.assignAsDepartmentManager)
+            : false,
           profilePictureUrl,
         }).unwrap()
         if (!res.success || !res.data) {
@@ -468,13 +481,16 @@ export function CreateEmployeeAccountPage() {
           email: res.data.email,
         })
         setSuccessOpen(true)
+        if (res.data.managerAssignmentWarning) {
+          toast(res.data.managerAssignmentWarning)
+        }
         toast.success(res.data.message || 'Employee account created')
       } catch (e: unknown) {
         const err = e as { data?: { message?: string } }
         toast.error(err.data?.message || 'Could not create account')
       }
     },
-    [createAccount, emailDup, staffDup, nrcDup, checkEmail, checkStaff, checkStaffNrc, profilePhotoFile, setError, uploadProfilePicture],
+    [createAccount, emailDup, staffDup, nrcDup, checkEmail, checkStaff, checkStaffNrc, profilePhotoFile, setError, uploadProfilePicture, selectedDepartment, selectedPosition],
   )
 
   const resetFlow = async () => {
@@ -513,6 +529,7 @@ export function CreateEmployeeAccountPage() {
       hireDate: today,
       departmentId: null,
       departmentPositionId: null,
+      assignAsDepartmentManager: false,
     })
     setStep(1)
     setEmailDup('idle')
@@ -684,6 +701,7 @@ export function CreateEmployeeAccountPage() {
                   positions={positions}
                   departmentLoading={deptLoading}
                   positionLoading={posLoading}
+                  selectedDepartment={selectedDepartment}
                 />
               ) : null}
               {step === 4 ? (
@@ -692,7 +710,7 @@ export function CreateEmployeeAccountPage() {
                   nrcPreview={nrcPreview}
                   fatherNrcPreview={fatherNrcPreview}
                   spouseNrcPreview={spouseNrcPreview}
-                  linkedRoleName={undefined}
+                  linkedRoleName={selectedPosition?.roleName}
                 />
               ) : null}
             </div>

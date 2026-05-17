@@ -11,21 +11,22 @@ import {
   Search,
   RefreshCcw,
   Zap,
-  ClipboardList,
   Building2,
   Briefcase,
   List,
   UserPlus,
   SlidersHorizontal,
   ListChecks,
-  ClipboardCheck,
-  MessageCircleQuestionMark,
   LayoutGrid,
   Inbox,
   ListFilter,
   Send,
   History,
-  Layers
+  Layers,
+  FileText,
+  BookOpen,
+  Settings2,
+  ClipboardList
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -77,17 +78,9 @@ const HrLayout: React.FC = () => {
       path: '/hr/kpi-management',
       subItems: [
         { label: 'KPI Modeler', path: '/hr/kpi-management', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
-        { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} className="shrink-0" /> }
-      ]
-    },
-    {
-      icon: <ClipboardList size={20} />,
-      label: 'Self Assessments',
-      path: '/hr/assessments',
-      subItems: [
-        { label: 'My Assessment', path: '/hr/my-assessment', icon: <ClipboardCheck size={16} className="shrink-0" /> },
-        { label: 'Compliance Review', path: '/hr/assessments', icon: <ShieldCheck size={16} className="shrink-0" /> },
-        { label: 'Question', path: '/hr/assessment-subitems', icon: <MessageCircleQuestionMark size={16} className="shrink-0" /> }
+        { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} className="shrink-0" /> },
+        { label: 'Category List', path: '/hr/kpi-categories', icon: <LayoutGrid size={16} className="shrink-0" /> },
+        { label: 'History', path: '/hr/kpi-history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
     {
@@ -111,6 +104,28 @@ const HrLayout: React.FC = () => {
       ]
     },
     { icon: <Zap size={20} />, label: 'PIP Management', path: '/hr/pip-monitoring' },
+    {
+      icon: <FileText size={20} />,
+      label: 'Self-Assessment',
+      path: '/hr/self-assessment/templates',
+      subItems: [
+        { label: 'Template Management', path: '/hr/self-assessment/templates', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
+        {
+          label: 'Assignments overview',
+          path: '/hr/self-assessment/assignments',
+          icon: <ClipboardList size={16} className="shrink-0" />,
+        },
+        {
+          label: 'Assign Self-Assessment Forms',
+          path: '/hr/self-assessment/assign-forms',
+          icon: <Send size={16} className="shrink-0" />,
+        },
+        { label: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: <Inbox size={16} className="shrink-0" /> },
+        { label: 'Question Bank', path: '/hr/self-assessment/question-bank', icon: <BookOpen size={16} className="shrink-0" /> },
+        { label: 'Compliance Review', path: '/hr/self-assessment/reviews', icon: <ListChecks size={16} className="shrink-0" /> },
+        { label: 'Self Assessment Settings', path: '/hr/self-assessment/settings', icon: <Settings2 size={16} className="shrink-0" /> }
+      ]
+    },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/hr/meetings' },
     { icon: <BarChart size={20} />, label: 'Reports', path: '/hr/reports' }
   ];

@@ -28,4 +28,5 @@ public class EmployeeListItemResponseDto {
     private String employmentStatus;
     private String employeeActiveStatus; // ACTIVE, RESIGNED, TERMINATED
     private String currentTransferType;
+    private Boolean hasKpis;
 }
