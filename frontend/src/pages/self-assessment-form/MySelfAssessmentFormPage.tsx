@@ -26,6 +26,7 @@ import {
   Scale,
 } from 'lucide-react';
 import { RemarkCommentHeader } from '../../features/selfAssessmentForm/components/RemarkCommentHeader';
+import { YesNoRatingDisplay } from '../../features/selfAssessmentForm/components/YesNoRatingDisplay';
 import {
   useGetMyFormStatusQuery,
   useGetMyCurrentFormQuery,
@@ -973,46 +974,31 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                             Employee Self Score
                           </span>
-                          <p className="mt-1 text-sm font-bold text-slate-700 dark:text-slate-200">
-                            {answer.yesNoAnswer}{' '}
-                            <span className="font-medium text-slate-400 dark:text-slate-500">
-                              ({answer.rating})
-                            </span>
-                          </p>
+                          <div className="mt-1.5">
+                            <YesNoRatingDisplay yesNo={answer.yesNoAnswer} rating={answer.rating} />
+                          </div>
                         </div>
                         <div className="rounded-xl border border-amber-300/70 bg-white px-3.5 py-3 ring-1 ring-amber-200/50 dark:border-amber-700/60 dark:bg-amber-950/30 dark:ring-amber-900/30">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
                             Manager Revised Score
                           </span>
-                          <p className="mt-1 text-sm font-bold text-amber-800 dark:text-amber-200">
-                            {answer.managerProposedYesNo ? (
-                              <>
-                                {answer.managerProposedYesNo}{' '}
-                                <span className="font-medium text-amber-500">
-                                  ({answer.managerProposedRating})
-                                </span>
-                              </>
-                            ) : (
-                              <span className="font-medium text-slate-400 dark:text-slate-500">—</span>
-                            )}
-                          </p>
+                          <div className="mt-1.5">
+                            <YesNoRatingDisplay
+                              yesNo={answer.managerProposedYesNo}
+                              rating={answer.managerProposedRating}
+                            />
+                          </div>
                         </div>
                         <div className={`rounded-xl border px-3.5 py-3 ${answer.finalApprovedYesNo ? 'border-emerald-300/70 bg-white ring-1 ring-emerald-200/50 dark:border-emerald-700/60 dark:bg-emerald-950/30 dark:ring-emerald-900/30' : 'border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800/80'}`}>
                           <span className={`text-[10px] font-bold uppercase tracking-wider ${answer.finalApprovedYesNo ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
                             Final Approved Score
                           </span>
-                          <p className="mt-1 text-sm font-bold text-emerald-800 dark:text-emerald-200">
-                            {answer.finalApprovedYesNo ? (
-                              <>
-                                {answer.finalApprovedYesNo}{' '}
-                                <span className="font-medium text-emerald-500">
-                                  ({answer.finalApprovedRating})
-                                </span>
-                              </>
-                            ) : (
-                              <span className="font-medium text-slate-400 dark:text-slate-500">—</span>
-                            )}
-                          </p>
+                          <div className="mt-1.5">
+                            <YesNoRatingDisplay
+                              yesNo={answer.finalApprovedYesNo}
+                              rating={answer.finalApprovedRating}
+                            />
+                          </div>
                         </div>
                       </div>
                       {answer.managerProposedComment && (
@@ -1020,7 +1006,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                             Manager Comment
                           </span>
-                          <p className="mt-1 text-sm leading-snug text-slate-600 dark:text-slate-300">
+                          <p className="mt-1.5 text-base font-semibold leading-relaxed text-slate-800 dark:text-slate-200">
                             {answer.managerProposedComment}
                           </p>
                         </div>
