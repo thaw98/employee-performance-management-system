@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -242,6 +243,7 @@ class SelfAssessmentFormAssignmentServiceTest {
 
         assertEquals(SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW, form.getStatus());
         assertEquals("Please revise the rating evidence", form.getHrReviewReason());
+        assertNotNull(form.getHrReviewReasonAt());
         assertEquals("Employee disagrees with rating", form.getEmployeeDisputeReason());
         assertEquals(null, form.getManagerSignatureId());
         assertEquals(null, form.getManagerComments());
@@ -577,46 +579,58 @@ class SelfAssessmentFormAssignmentServiceTest {
     }
 
     @Test
-    void managerReview_withAdjustmentsMatchingSelfScores_skipsEmployeeNotifiesHr() {
+    void managerReview_rejectsAdjustmentsMatchingCurrentAnswer() {
         ReviewCycle cycle = cycle();
         Employee manager = employee(2L, 10L, 20L);
         Employee employee = employee(1L, 10L, 20L);
         employee.setManager(manager);
-        employee.setEmployeeName("Jane Doe");
         SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
         form.getAnswers().get(0).setYesNoAnswer("Yes");
         form.getAnswers().get(0).setRating(5);
 
-        User activeHrUser = new User();
-        activeHrUser.setId(101L);
-        activeHrUser.setActive(true);
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+        when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
+                .thenReturn(Optional.of(signature(manager.getUserAccount())));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.managerReview(
+                form.getId(),
+                manager,
+                new ManagerReviewRequest(
+                        "Looks good",
+                        List.of(new ManagerAdjustmentRequest(501L, "Yes", 5, "Agree with self rating")))));
+
+        assertEquals("Proposed adjustment must differ from the employee's current answer", ex.getMessage());
+        verify(adjustmentRepository, never()).save(any());
+    }
+
+    @Test
+    void managerReview_allowsAdjustmentsWhenOnlyRatingDiffers() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+        form.getAnswers().get(0).setYesNoAnswer("Yes");
+        form.getAnswers().get(0).setRating(5);
 
         when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
         when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
                 .thenReturn(Optional.of(signature(manager.getUserAccount())));
         when(formRepository.save(form)).thenReturn(form);
         when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
-        when(userRepository.findByRole_IdAndActiveTrue(1L)).thenReturn(List.of(activeHrUser));
 
         service.managerReview(
                 form.getId(),
                 manager,
                 new ManagerReviewRequest(
-                        "Looks good",
-                        List.of(new ManagerAdjustmentRequest(501L, "Yes", 5, "Agree with self rating"))));
+                        "Rating calibration",
+                        List.of(new ManagerAdjustmentRequest(501L, "Yes", 4, "Lower rating"))));
 
-        assertEquals(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL, form.getStatus());
-        verify(notificationService, never()).send(
+        verify(adjustmentRepository).save(any());
+        verify(notificationService).send(
                 eq(employee.getUserAccount()),
                 eq("Manager Review Completed"),
                 any(),
-                eq("SELF_ASSESSMENT_FORM"),
-                any());
-        verify(notificationService).send(
-                eq(activeHrUser),
-                eq("Self-Assessment Pending Final Approval"),
-                eq("Jane Doe's self-assessment for Template: manager completed review with no score changes. "
-                        + "Final HR approval is required."),
                 eq("SELF_ASSESSMENT_FORM"),
                 eq(form.getId()));
     }

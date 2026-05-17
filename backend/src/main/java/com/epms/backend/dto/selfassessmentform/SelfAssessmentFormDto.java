@@ -9,6 +9,8 @@ public record SelfAssessmentFormDto(
         Long templateId,
         Long cycleId,
         String cycleName,
+        LocalDate cycleStartDate,
+        LocalDate cycleEndDate,
         String title,
         String ratingSystem,
         Integer tenPointYesMinRating,
@@ -58,5 +60,6 @@ public record SelfAssessmentFormDto(
         Instant employeeDisputedAt,
         String employeeDisputeReason,
         Boolean hrReviewRequired,
-        String hrReviewReason
+        String hrReviewReason,
+        Instant hrReviewReasonAt
 ) {}

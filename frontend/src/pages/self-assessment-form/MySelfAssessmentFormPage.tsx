@@ -26,6 +26,7 @@ import {
   ThumbsDown,
   Scale,
 } from 'lucide-react';
+import { RemarkCommentHeader } from '../../features/selfAssessmentForm/components/RemarkCommentHeader';
 import {
   useGetMyFormStatusQuery,
   useGetMyCurrentFormQuery,
@@ -150,7 +151,7 @@ function StatusBadge({ status }: { status: string | undefined | null }) {
     >
       <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
       {c.icon}
-      {status.replace('_', ' ')}
+      {status.replace(/_/g, ' ')}
     </span>
   );
 }
@@ -773,7 +774,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
         </div>
       )}
 
-      {(formData?.employeeRemarks || formData?.overallRemarks || formData?.managerComments || formData?.hrReviewReason) && (
+      {(formData?.employeeRemarks || formData?.overallRemarks || formData?.managerComments || formData?.hrReviewReason || formData?.employeeDisputeReason) && (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800/60">
           <div className="flex items-start gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-6 py-4 dark:border-slate-700 dark:from-slate-800/80 dark:to-slate-800/40">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm">
@@ -789,43 +790,67 @@ export const MySelfAssessmentFormPage: React.FC = () => {
             </div>
           </div>
           <div className="space-y-3 px-6 py-5">
+            {formData?.hrReviewReason && (
+              <div className="rounded-xl border border-orange-200/80 bg-orange-50/60 px-4 py-3 dark:border-orange-700/60 dark:bg-orange-900/20">
+                <RemarkCommentHeader
+                  title="HR Remarks"
+                  dateTime={formData.hrReviewReasonAt}
+                  titleClassName="text-[10px] font-bold uppercase tracking-widest text-orange-700 dark:text-orange-300"
+                  dateClassName="text-xs font-semibold tabular-nums text-orange-700 dark:text-orange-300"
+                />
+                <p className="text-sm leading-relaxed text-orange-900 dark:text-orange-100">
+                  {formData.hrReviewReason}
+                </p>
+              </div>
+            )}
             {formData?.employeeRemarks && (
               <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 px-4 py-3 dark:border-slate-700/60 dark:bg-slate-700/20">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                  Employee Remarks
-                </p>
-                <p className="mt-1.5 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+                <RemarkCommentHeader
+                  title="Employee Remarks"
+                  dateTime={formData.submittedDate ?? formData.employeeSignatureDate}
+                  titleClassName="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400"
+                />
+                <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">
                   {formData.employeeRemarks}
                 </p>
               </div>
             )}
             {formData?.overallRemarks && (
               <div className="rounded-xl border border-violet-200/80 bg-violet-50/60 px-4 py-3 dark:border-violet-700/60 dark:bg-violet-900/20">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700 dark:text-violet-300">
-                  Overall Remarks
-                </p>
-                <p className="mt-1.5 text-sm leading-relaxed text-violet-900 dark:text-violet-100">
+                <RemarkCommentHeader
+                  title="Overall Remarks"
+                  dateTime={formData.submittedDate ?? formData.employeeSignatureDate}
+                  titleClassName="text-[10px] font-bold uppercase tracking-widest text-violet-700 dark:text-violet-300"
+                  dateClassName="text-xs font-semibold tabular-nums text-violet-700 dark:text-violet-300"
+                />
+                <p className="text-sm leading-relaxed text-violet-900 dark:text-violet-100">
                   {formData.overallRemarks}
                 </p>
               </div>
             )}
             {formData?.managerComments && (
               <div className="rounded-xl border border-blue-200/80 bg-blue-50/60 px-4 py-3 dark:border-blue-700/60 dark:bg-blue-900/20">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-700 dark:text-blue-300">
-                  Manager Remarks
-                </p>
-                <p className="mt-1.5 text-sm leading-relaxed text-blue-900 dark:text-blue-100">
+                <RemarkCommentHeader
+                  title="Manager Remarks"
+                  dateTime={formData.managerSignatureDate}
+                  titleClassName="text-[10px] font-bold uppercase tracking-widest text-blue-700 dark:text-blue-300"
+                  dateClassName="text-xs font-semibold tabular-nums text-blue-700 dark:text-blue-300"
+                />
+                <p className="text-sm leading-relaxed text-blue-900 dark:text-blue-100">
                   {formData.managerComments}
                 </p>
               </div>
             )}
-            {formData?.hrReviewReason && (
-              <div className="rounded-xl border border-orange-200/80 bg-orange-50/60 px-4 py-3 dark:border-orange-700/60 dark:bg-orange-900/20">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-orange-700 dark:text-orange-300">
-                  HR Remarks
-                </p>
-                <p className="mt-1.5 text-sm leading-relaxed text-orange-900 dark:text-orange-100">
-                  {formData.hrReviewReason}
+            {formData?.employeeDisputeReason && (
+              <div className="rounded-xl border border-rose-200/80 bg-rose-50/60 px-4 py-3 dark:border-rose-700/60 dark:bg-rose-900/20">
+                <RemarkCommentHeader
+                  title="Employee Dispute"
+                  dateTime={formData.employeeDisputedAt}
+                  titleClassName="text-[10px] font-bold uppercase tracking-widest text-rose-700 dark:text-rose-300"
+                  dateClassName="text-xs font-semibold tabular-nums text-rose-700 dark:text-rose-300"
+                />
+                <p className="text-sm leading-relaxed text-rose-900 dark:text-rose-100">
+                  {formData.employeeDisputeReason}
                 </p>
               </div>
             )}

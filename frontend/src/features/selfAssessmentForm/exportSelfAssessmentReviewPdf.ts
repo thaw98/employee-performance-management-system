@@ -65,6 +65,29 @@ const formatValue = (value: unknown): string => {
   return humanizeEnumLikeString(String(value))
 }
 
+/** ISO calendar date (YYYY-MM-DD) to DD/MM/YYYY for PDF. */
+const formatCycleCalendarDate = (value: string | null | undefined): string | null => {
+  if (!value?.trim()) return null
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
+  if (!match) return value.trim()
+  return `${match[3]}/${match[2]}/${match[1]}`
+}
+
+const formatCycleForPdf = (form: SelfAssessmentFormDto): string => {
+  const name = form.cycleName?.trim() || null
+  const start = formatCycleCalendarDate(form.cycleStartDate)
+  const end = formatCycleCalendarDate(form.cycleEndDate)
+
+  if (!start && !end) {
+    return name ?? '-'
+  }
+
+  const range = start && end ? `${start} - ${end}` : start ?? end ?? ''
+
+  if (!name) return range
+  return `${name} (${range})`
+}
+
 const lastTableY = (doc: jsPDF): number => {
   const finalY = (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY
   return typeof finalY === 'number' ? finalY : pageMargin
@@ -336,7 +359,7 @@ export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto)
 
   y = addInfoSection(doc, 'Assessment Information', [
     ['Title', form.title ?? '-'],
-    ['Cycle', form.cycleName ?? '-'],
+    ['Cycle', formatCycleForPdf(form)],
     ['Assessment date', formatDate(form.assessmentDate)],
     ['Submitted date', formatDate(form.submittedDate)],
     ['Created date', formatDate(form.createdDate)],

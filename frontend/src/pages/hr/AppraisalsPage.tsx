@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import {
@@ -22,6 +22,7 @@ import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, ChevronDown, HelpC
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { SelfAssessmentReviewCycleInfo, formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 
 const PRIMARY = '#0855BF';
 
@@ -74,6 +75,7 @@ interface ReviewCycleDto {
     startDate: string;
     endDate: string;
     status: string;
+    yearLabel?: string;
 }
 
 interface SortableCategoryRowProps {
@@ -166,6 +168,19 @@ function SortableQuestionRow({ question, index, onEdit, onDelete }: SortableQues
         </tr>
     );
 }
+
+const StepBadge = ({ step, label, icon }: { step: number; label: string; icon: React.ReactNode }) => (
+    <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-100">
+            <span className="text-xs font-black italic">{step}</span>
+        </div>
+        <div className="flex items-center gap-2">
+            <div className="text-blue-600">{icon}</div>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">{label}</h3>
+        </div>
+        <div className="flex-1 h-px bg-slate-100 ml-4"></div>
+    </div>
+);
 
 interface ConfirmedAppraisalViewProps {
     categories: Category[]; // Selected categories
@@ -686,6 +701,25 @@ export function AppraisalsPage() {
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
+    const selectedCycle = useMemo(() => 
+        reviewCycles.find(c => c.id === selectedCycleId), 
+    [reviewCycles, selectedCycleId]);
+
+    // Ensure dates are within cycle range when cycle changes
+    useEffect(() => {
+        if (selectedCycle) {
+            if (assessmentDate < selectedCycle.startDate || assessmentDate > selectedCycle.endDate) {
+                setAssessmentDate(selectedCycle.startDate);
+            }
+            if (effectiveDate < selectedCycle.startDate || effectiveDate > selectedCycle.endDate) {
+                setEffectiveDate(selectedCycle.startDate);
+            }
+            if (deadlineDate > selectedCycle.endDate) {
+                setDeadlineDate(selectedCycle.endDate);
+            }
+        }
+    }, [selectedCycleId]);
+
     const fetchCategories = async () => {
         try {
             const resp = await axios.get('/appraisal-categories');
@@ -783,8 +817,20 @@ export function AppraisalsPage() {
 
     const fetchReviewCycles = async () => {
         try {
-            const resp = await axios.get('/review-cycles');
-            setReviewCycles(resp.data.data || []);
+            const resp = await axios.get('/review-cycles?requiresEmployeeSubmission=true');
+            const cycles: ReviewCycleDto[] = resp.data.data || [];
+            setReviewCycles(cycles);
+
+            // Auto-select active cycle if none selected and not in "history" mode
+            if (!selectedCycleId && cycles.length > 0) {
+                const activeCycle = cycles.find(c => c.status?.toUpperCase() === 'ACTIVE');
+                if (activeCycle) {
+                    setSelectedCycleId(activeCycle.id);
+                    setAssessmentDate(activeCycle.startDate);
+                    setEffectiveDate(activeCycle.startDate);
+                    setDeadlineDate(activeCycle.endDate);
+                }
+            }
         } catch (err) {
             console.error("Failed to fetch review cycles", err);
         }
@@ -1252,15 +1298,22 @@ export function AppraisalsPage() {
                     )}
                 </div>
             ) : activeTab === 'confirmed' ? (
-                <div className="space-y-6">
-                    <div className="bg-white p-2 rounded-[28px] border border-slate-100 shadow-sm flex flex-wrap items-center gap-2 px-2 animate-in fade-in slide-in-from-top-4 print:hidden">
-                        {/* Review Cycle Card */}
-                        <div className={`flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border-2 transition-all group ${!selectedCycleId ? 'border-slate-100 hover:border-blue-100' : 'border-blue-200 bg-white'}`}>
-                            <div className={`w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform ${!selectedCycleId ? 'text-slate-400' : 'text-blue-600'}`}>
-                                <RotateCcw size={22} />
+                <div className="space-y-12 pb-20">
+                    {/* TOP INFO BANNER */}
+                    <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                        <SelfAssessmentReviewCycleInfo />
+                    </div>
+
+                    {/* STEP 1: CYCLE SELECTION */}
+                    <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <StepBadge step={1} label="Cycle Selection" icon={<RotateCcw size={18} />} />
+                        
+                        <div className={`flex items-center gap-6 p-6 rounded-[32px] border-2 transition-all ${!selectedCycleId ? 'bg-slate-50/50 border-slate-100' : 'bg-blue-50/20 border-blue-100'}`}>
+                            <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center shadow-sm ${!selectedCycleId ? 'bg-white text-slate-300' : 'bg-white text-blue-600'}`}>
+                                <Calendar size={32} />
                             </div>
-                            <div className="flex-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Review Cycle (Optional)</p>
+                            <div className="flex-1 space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Choose Active Review Cycle</label>
                                 <div className="relative">
                                     <select 
                                         value={selectedCycleId || ''}
@@ -1276,124 +1329,97 @@ export function AppraisalsPage() {
                                                 }
                                             }
                                         }}
-                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer appearance-none"
+                                        className="w-full text-xl font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer appearance-none"
                                     >
-                                        <option value="">Manual Date Entry</option>
+                                        <option value="">Manual Date Entry (Not Recommended)</option>
                                         {reviewCycles.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name} ({c.status})</option>
+                                            <option key={c.id} value={c.id}>
+                                                {c.name} ({c.yearLabel || 'N/A'}) — {formatCycleDate(c.startDate)} to {formatCycleDate(c.endDate)}
+                                            </option>
                                         ))}
                                     </select>
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300">
+                                        <ChevronDown size={24} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <p className="mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-4">
+                            Selecting a cycle will automatically sync all appraisal dates and timelines.
+                        </p>
+                    </div>
 
-                        {/* Connection Arrow/Line */}
-                        <div className="hidden lg:flex items-center justify-center w-10 text-slate-200">
-                            <ArrowRight size={20} strokeWidth={3} />
-                        </div>
+                    {/* STEP 2: APPRAISAL DETAILS */}
+                    <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+                        <StepBadge step={2} label="Appraisal Details" icon={<Clock size={18} />} />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {/* Assessment Date Card */}
+                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!assessmentDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-transparent hover:border-blue-100'}`}>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <Calendar size={12} className="text-blue-500" /> Assessment Date {!assessmentDate && '*'}
+                                </p>
+                                <input 
+                                    type="date" 
+                                    value={assessmentDate}
+                                    min={selectedCycle?.startDate}
+                                    max={selectedCycle?.endDate}
+                                    onChange={(e) => setAssessmentDate(e.target.value)}
+                                    className="w-full text-sm font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                                />
+                            </div>
 
-                        {/* Assessment Date Card */}
-                        <div className={`flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border-2 transition-all group ${!assessmentDate ? 'border-red-100 bg-red-50/10' : 'border-transparent hover:border-blue-100 hover:bg-white'}`}>
-                            <div className={`w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform ${!assessmentDate ? 'text-red-500' : 'text-blue-600'}`}>
-                                <Calendar size={22} />
+                            {/* Effective Date Card */}
+                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!effectiveDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-transparent hover:border-emerald-100'}`}>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <Clock size={12} className="text-emerald-500" /> Effective Date {!effectiveDate && '*'}
+                                </p>
+                                <input 
+                                    type="date" 
+                                    value={effectiveDate}
+                                    min={selectedCycle?.startDate || assessmentDate}
+                                    max={selectedCycle?.endDate}
+                                    onChange={(e) => setEffectiveDate(e.target.value)}
+                                    className="w-full text-sm font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                                />
                             </div>
-                            <div className="flex-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Assessment Date {!assessmentDate && '*'}</p>
-                                <div className="relative">
-                                    <input 
-                                        type="date" 
-                                        value={assessmentDate}
-                                        onChange={(e) => setAssessmentDate(e.target.value)}
-                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
-                                    />
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Connection Arrow/Line */}
-                        <div className="hidden lg:flex items-center justify-center w-10 text-slate-200">
-                            <ArrowRight size={20} strokeWidth={3} />
-                        </div>
+                            {/* Deadline Date Card */}
+                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!deadlineDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-transparent hover:border-amber-100'}`}>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <Clock size={12} className="text-amber-500" /> Deadline Date {!deadlineDate && '*'}
+                                </p>
+                                <input 
+                                    type="date" 
+                                    value={deadlineDate}
+                                    min={effectiveDate || assessmentDate}
+                                    onChange={(e) => setDeadlineDate(e.target.value)}
+                                    className="w-full text-sm font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
+                                />
+                            </div>
 
-                        {/* Effective Date Card */}
-                        <div className={`flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border-2 transition-all group ${!effectiveDate ? 'border-red-100 bg-red-50/10' : 'border-transparent hover:border-emerald-100 hover:bg-white'}`}>
-                            <div className={`w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform ${!effectiveDate ? 'text-red-500' : 'text-emerald-600'}`}>
-                                <Clock size={22} />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Effective Date {!effectiveDate && '*'}</p>
-                                <div className="relative">
-                                    <input 
-                                        type="date" 
-                                        value={effectiveDate}
-                                        min={assessmentDate}
-                                        onChange={(e) => setEffectiveDate(e.target.value)}
-                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Connection Arrow/Line */}
-                        <div className="hidden lg:flex items-center justify-center w-10 text-slate-200">
-                            <ArrowRight size={20} strokeWidth={3} />
-                        </div>
-
-                        {/* Deadline Date Card */}
-                        <div className={`flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border-2 transition-all group ${!deadlineDate ? 'border-red-100 bg-red-50/10' : 'border-transparent hover:border-amber-100 hover:bg-white'}`}>
-                            <div className={`w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform ${!deadlineDate ? 'text-red-500' : 'text-amber-600'}`}>
-                                <Clock size={22} />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Deadline Date {!deadlineDate && '*'}</p>
-                                <div className="relative">
-                                    <input 
-                                        type="date" 
-                                        value={deadlineDate}
-                                        min={effectiveDate || assessmentDate}
-                                        onChange={(e) => setDeadlineDate(e.target.value)}
-                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Rating Scale Selection */}
-                        <div className="flex-1 min-w-[240px] flex items-center gap-5 p-5 bg-slate-50/50 rounded-[22px] border border-transparent hover:border-blue-100 hover:bg-white transition-all group">
-                            <div className="w-12 h-12 bg-white text-[#0855BF] rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                                <FileSpreadsheet size={22} />
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em] mb-1">Rating Scale (1 to ?)</p>
-                                <div className="relative">
-                                    <select 
-                                        value={maxRating}
-                                        onChange={(e) => setMaxRating(Number(e.target.value))}
-                                        className="w-full text-base font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer appearance-none"
-                                    >
-                                        <option value={10}>1 to 10 Scale</option>
-                                        <option value={5}>1 to 5 Scale</option>
-                                        <option value={4}>1 to 4 Scale</option>
-                                        <option value={3}>1 to 3 Scale</option>
-                                    </select>
-                                </div>
+                            {/* Rating Scale */}
+                            <div className="p-6 rounded-[32px] border-2 bg-slate-50/50 border-transparent hover:border-blue-100 transition-all">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <FileSpreadsheet size={12} className="text-blue-500" /> Rating Scale (1 to ?)
+                                </p>
+                                <select 
+                                    value={maxRating}
+                                    onChange={(e) => setMaxRating(Number(e.target.value))}
+                                    className="w-full text-sm font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer appearance-none"
+                                >
+                                    <option value={10}>1 to 10 Scale</option>
+                                    <option value={5}>1 to 5 Scale</option>
+                                    <option value={4}>1 to 4 Scale</option>
+                                    <option value={3}>1 to 3 Scale</option>
+                                </select>
                             </div>
                         </div>
                     </div>
 
-                    {/* TARGET AUDIENCE SELECTION - Premium UI */}
-                    <div className={`bg-white p-8 rounded-[32px] border-2 shadow-sm space-y-6 animate-in fade-in slide-in-from-bottom-4 transition-all ${selectedPositionIds.length === 0 ? 'border-red-100' : 'border-slate-100'}`}>
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${selectedPositionIds.length === 0 ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-600'}`}>
-                                    <Users size={24} />
-                                </div>
-                                <div className="space-y-1">
-                                    <h3 className="font-black text-slate-800 uppercase tracking-tight">Target Audience {selectedPositionIds.length === 0 && '*'}</h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assign this form to specific organizational positions</p>
-                                </div>
-                            </div>
-                        </div>
+                    {/* STEP 3: TARGET AUDIENCE */}
+                    <div className={`p-8 rounded-[40px] border-2 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200 bg-white ${selectedPositionIds.length === 0 ? 'border-red-100' : 'border-slate-100'}`}>
+                        <StepBadge step={3} label="Target Audience" icon={<Users size={18} />} />
 
                         <div className="flex flex-col lg:flex-row gap-0 bg-slate-50/50 rounded-[32px] border border-slate-100 overflow-hidden min-h-[500px]">
                             {/* Left Side: Departments List */}
@@ -1550,7 +1576,10 @@ export function AppraisalsPage() {
                         </div>
                     </div>
 
-                    <ConfirmedAppraisalView
+                    {/* STEP 4: CATEGORIES & QUESTIONS */}
+                    <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
+                        <StepBadge step={4} label="Review Categories" icon={<FileText size={18} />} />
+                        <ConfirmedAppraisalView
                         categories={categories.filter(c => confirmedCategories.includes(c.id!))}
                         allAvailableCategories={categories}
                         assessmentDate={assessmentDate}
@@ -1566,6 +1595,7 @@ export function AppraisalsPage() {
                         allPositions={allPositions}
                         templateId={null} // Null for draft mode
                     />
+                    </div>
                 </div>
             ) : activeTab === 'category' ? (
                 <div className="space-y-6">
