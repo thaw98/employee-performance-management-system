@@ -157,7 +157,10 @@ export const KpiAssignedPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div 
+          onClick={() => setKpiStatus('')}
+          className={`bg-white p-6 rounded-3xl border transition-all cursor-pointer hover:shadow-md ${kpiStatus === '' ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-100 shadow-sm'} flex items-center gap-4`}
+        >
           <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
             {viewMode === 'employee' ? <UserCheck size={24} /> : viewMode === 'position' ? <Users size={24} /> : <LayoutGrid size={24} />}
           </div>
@@ -167,7 +170,10 @@ export const KpiAssignedPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div 
+          onClick={() => setKpiStatus('DEFINED')}
+          className={`bg-white p-6 rounded-3xl border transition-all cursor-pointer hover:shadow-md ${kpiStatus === 'DEFINED' ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-slate-100 shadow-sm'} flex items-center gap-4`}
+        >
           <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
             <CheckCircle2 size={24} />
           </div>
@@ -177,7 +183,10 @@ export const KpiAssignedPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
+        <div 
+          onClick={() => setKpiStatus('NOT_DEFINED')}
+          className={`bg-white p-6 rounded-3xl border transition-all cursor-pointer hover:shadow-md ${kpiStatus === 'NOT_DEFINED' ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-100 shadow-sm'} flex items-center gap-4`}
+        >
           <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center">
             <AlertCircle size={24} />
           </div>
@@ -233,15 +242,26 @@ export const KpiAssignedPage: React.FC = () => {
                 </select>
               )}
 
-              <select
-                value={kpiStatus}
-                onChange={(e) => setKpiStatus(e.target.value as any)}
-                className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none font-medium appearance-none"
-              >
-                <option value="">All KPI Status</option>
-                <option value="DEFINED">KPI Defined</option>
-                <option value="NOT_DEFINED">Not Defined</option>
-              </select>
+              <div className="flex bg-slate-100 p-1 rounded-2xl flex-1">
+                <button
+                  onClick={() => setKpiStatus('')}
+                  className={`flex-1 px-4 py-1.5 rounded-xl text-xs font-black transition-all uppercase tracking-tight ${kpiStatus === '' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  All Status
+                </button>
+                <button
+                  onClick={() => setKpiStatus('DEFINED')}
+                  className={`flex-1 px-4 py-1.5 rounded-xl text-xs font-black transition-all uppercase tracking-tight ${kpiStatus === 'DEFINED' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Defined
+                </button>
+                <button
+                  onClick={() => setKpiStatus('NOT_DEFINED')}
+                  className={`flex-1 px-4 py-1.5 rounded-xl text-xs font-black transition-all uppercase tracking-tight ${kpiStatus === 'NOT_DEFINED' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Not Defined
+                </button>
+              </div>
             </div>
 
             {(searchTerm || selectedDept || selectedPos || kpiStatus) && (

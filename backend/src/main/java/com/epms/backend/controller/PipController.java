@@ -90,8 +90,10 @@ public class PipController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
-        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), Sort.by(Sort.Direction.DESC, "createdDate"));
-        return ResponseEntity.ok(ApiResponse.ok("PIP notes retrieved successfully", pipService.getPipNotes(id, noteType, pageable, user)));
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1),
+                Sort.by(Sort.Direction.DESC, "createdDate"));
+        return ResponseEntity.ok(ApiResponse.ok("PIP notes retrieved successfully",
+                pipService.getPipNotes(id, noteType, pageable, user)));
     }
 
     @PostMapping("/{id}/notes")
@@ -101,7 +103,8 @@ public class PipController {
             @PathVariable Long id,
             @RequestBody PipCommunicationNoteRequest request) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
-        return ResponseEntity.ok(ApiResponse.ok("PIP note added successfully", pipService.addPipNote(id, request, user)));
+        return ResponseEntity
+                .ok(ApiResponse.ok("PIP note added successfully", pipService.addPipNote(id, request, user)));
     }
 
     @GetMapping("/notes")
@@ -119,9 +122,11 @@ public class PipController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
-        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1), Sort.by(Sort.Direction.DESC, "createdDate"));
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1),
+                Sort.by(Sort.Direction.DESC, "createdDate"));
         return ResponseEntity.ok(ApiResponse.ok("PIP notes retrieved successfully",
-                pipService.getAllPipNotes(employeeId, managerId, departmentId, employeeName, noteType, pipStatus, dateFrom, dateTo, pageable, user)));
+                pipService.getAllPipNotes(employeeId, managerId, departmentId, employeeName, noteType, pipStatus,
+                        dateFrom, dateTo, pageable, user)));
     }
 
     @DeleteMapping("/notes/{noteId}")
