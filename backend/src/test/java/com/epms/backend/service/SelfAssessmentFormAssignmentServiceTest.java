@@ -29,6 +29,7 @@ import com.epms.backend.entity.SelfAssessmentRatingSystem;
 import com.epms.backend.entity.SelfAssessmentSettings;
 import com.epms.backend.entity.Signature;
 import com.epms.backend.entity.User;
+import com.epms.backend.repository.AuditLogRepository;
 import com.epms.backend.repository.DepartmentRepository;
 import com.epms.backend.repository.CopiedSelfAssessmentFormTemplateRepository;
 import com.epms.backend.repository.EmployeeRepository;
@@ -88,6 +89,8 @@ class SelfAssessmentFormAssignmentServiceTest {
     @Mock
     private AuditService auditService;
     @Mock
+    private AuditLogRepository auditLogRepository;
+    @Mock
     private UserRepository userRepository;
     @Mock
     private NotificationRepository notificationRepository;
@@ -110,6 +113,7 @@ class SelfAssessmentFormAssignmentServiceTest {
                 reviewCycleService,
                 notificationService,
                 auditService,
+                auditLogRepository,
                 userRepository,
                 notificationRepository,
                 settingsRepository);

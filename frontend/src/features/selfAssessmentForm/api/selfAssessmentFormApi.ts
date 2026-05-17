@@ -224,6 +224,7 @@ export interface SelfAssessmentFormDto {
   hrReviewRequired: boolean | null
   hrReviewReason: string | null
   hrReviewReasonAt: string | null
+  hrName: string | null
 }
 
 export interface FormListDto {
@@ -579,6 +580,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     hrReviewRequired: source.hrReviewRequired != null ? getBoolean(source.hrReviewRequired) : null,
     hrReviewReason: getOptionalString(source.hrReviewReason) ?? null,
     hrReviewReasonAt: getOptionalString(source.hrReviewReasonAt) ?? null,
+    hrName: getOptionalString(source.hrName) ?? null,
   }
 }
 

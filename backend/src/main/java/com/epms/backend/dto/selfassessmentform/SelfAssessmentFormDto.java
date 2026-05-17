@@ -61,5 +61,6 @@ public record SelfAssessmentFormDto(
         String employeeDisputeReason,
         Boolean hrReviewRequired,
         String hrReviewReason,
-        Instant hrReviewReasonAt
+        Instant hrReviewReasonAt,
+        String hrName
 ) {}

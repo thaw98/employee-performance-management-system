@@ -1,3 +1,4 @@
+import React from 'react'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -100,6 +101,8 @@ const mocks = vi.hoisted(() => {
     submitForm: vi.fn(),
     employeeAcknowledge: vi.fn(),
     employeeDispute: vi.fn(),
+    hasDefaultSignature: true,
+    saveInlineSignature: vi.fn(async () => true),
   }
 })
 
@@ -169,9 +172,28 @@ vi.mock('../../features/selfAssessmentForm/ratingSystem', () => ({
 
 vi.mock('../../features/user/userApi', () => ({
   useGetDefaultSignatureQuery: () => ({
-    data: { data: { signatureData: 'signed' } },
+    data: mocks.hasDefaultSignature ? { data: { signatureData: 'signed' } } : { data: null },
     isLoading: false,
   }),
+}))
+
+vi.mock('../../components/signature/InlineDefaultSignaturePad', () => ({
+  InlineDefaultSignaturePad: React.forwardRef(
+    (
+      { onDrawingChange }: { onDrawingChange?: (hasDrawing: boolean) => void },
+      ref: React.Ref<{ saveAsDefault: () => Promise<boolean>; hasDrawing: () => boolean }>,
+    ) => {
+      React.useImperativeHandle(ref, () => ({
+        saveAsDefault: mocks.saveInlineSignature,
+        hasDrawing: () => true,
+      }))
+      return (
+        <button type="button" onClick={() => onDrawingChange?.(true)}>
+          Mock signature pad
+        </button>
+      )
+    },
+  ),
 }))
 
 describe('MySelfAssessmentFormPage autosave', () => {
@@ -213,6 +235,9 @@ describe('MySelfAssessmentFormPage autosave', () => {
     mocks.editableFormData.answers[0].managerProposedYesNo = null
     mocks.editableFormData.answers[0].managerProposedRating = null
     mocks.editableFormData.answers[0].managerProposedComment = null
+    mocks.hasDefaultSignature = true
+    mocks.saveInlineSignature.mockReset()
+    mocks.saveInlineSignature.mockResolvedValue(true)
   })
 
   it('renders multi-word status labels without underscores', async () => {
@@ -298,18 +323,15 @@ describe('MySelfAssessmentFormPage autosave', () => {
     expect(toast.error).not.toHaveBeenCalled()
   })
 
-  it('shows total mark from current answer ratings', async () => {
+  it('does not show live total mark while editing answers', async () => {
     mocks.editableFormData.answers[0].yesNoAnswer = 'Yes'
     mocks.editableFormData.answers[0].rating = 4
 
     renderPage()
-    const totalMarkLabels = await screen.findAllByText('Total Mark')
-    const totalMarkCard = totalMarkLabels
-      .map((label) => label.closest('div'))
-      .find((card) => (card?.textContent ?? '').includes('80.0%'))
 
-    expect(totalMarkCard?.textContent ?? '').toContain('80.0%')
-    expect(totalMarkCard?.textContent ?? '').toContain('Good')
+    expect(await screen.findByText('Did you meet your goals?')).toBeTruthy()
+    expect(screen.queryByText('Total Mark')).toBeNull()
+    expect(screen.queryByText(/80\.0%/)).toBeNull()
   })
 
   it('shows manager review actions for expired forms pending employee review', async () => {
@@ -351,6 +373,39 @@ describe('MySelfAssessmentFormPage autosave', () => {
     await waitFor(() => {
       expect(mocks.employeeAcknowledge).toHaveBeenCalledWith(1)
       expect(toast.success).toHaveBeenCalledWith('You have acknowledged the manager review')
+    })
+  })
+
+  it('shows an inline signature pad when no default signature exists', async () => {
+    const user = userEvent.setup()
+    mocks.hasDefaultSignature = false
+    mocks.editableFormData.answers[0].yesNoAnswer = 'Yes'
+    mocks.editableFormData.answers[0].rating = 4
+
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Submit Assessment' }))
+    expect(screen.getByText('Confirm Submission')).toBeTruthy()
+    expect(screen.getByText(/Sign below\. Your signature will be saved as your default/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Mock signature pad' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Open Signature Settings/i })).toBeNull()
+  })
+
+  it('saves inline signature before submitting when no default signature exists', async () => {
+    const user = userEvent.setup()
+    mocks.hasDefaultSignature = false
+    mocks.editableFormData.answers[0].yesNoAnswer = 'Yes'
+    mocks.editableFormData.answers[0].rating = 4
+
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Submit Assessment' }))
+    await user.click(screen.getByRole('button', { name: 'Mock signature pad' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm Submit' }))
+
+    await waitFor(() => {
+      expect(mocks.saveInlineSignature).toHaveBeenCalledTimes(1)
+      expect(mocks.submitForm).toHaveBeenCalledTimes(1)
     })
   })
 
