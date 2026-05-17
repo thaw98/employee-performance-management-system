@@ -35,6 +35,8 @@ public class SelfAssessmentFormService {
             SelfAssessmentFormStatus.REOPENED,
             SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW,
             SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW,
+            SelfAssessmentFormStatus.PENDING_EMPLOYEE_RETAKE,
+            SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW,
             SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL,
             SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW,
             SelfAssessmentFormStatus.FINALIZED_LOCKED,
@@ -947,7 +949,8 @@ Instant now = Instant.now();
                 .filter(f -> f.getStatus() == SelfAssessmentFormStatus.SUBMITTED ||
                         f.getStatus() == SelfAssessmentFormStatus.MANAGER_REVIEWED ||
                         f.getStatus() == SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW ||
-                        f.getStatus() == SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW)
+                        f.getStatus() == SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW ||
+                        f.getStatus() == SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW)
                 .map(this::toFormListDto)
                 .collect(Collectors.toList());
     }
@@ -963,8 +966,7 @@ Instant now = Instant.now();
                 .filter(f -> f.getCycle().equals(activeCycle))
                 .peek(this::normalizeOverdueDraftForm)
                 .filter(f -> f.getStatus() == SelfAssessmentFormStatus.MANAGER_REVIEWED ||
-                        f.getStatus() == SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL ||
-                        f.getStatus() == SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW)
+                        f.getStatus() == SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL)
                 .map(this::toFormListDto)
                 .collect(Collectors.toList());
     }
@@ -1144,6 +1146,208 @@ Instant now = Instant.now();
             sendManagerReviewNotificationsNew(saved, anyScoreChanged, hasManagerAdjustments);
         }
 
+        return toFormDto(saved);
+    }
+
+    @Transactional
+    public SelfAssessmentFormDto managerRequestRetake(Long formId, Employee manager, ManagerRetakeRequest request) {
+        SelfAssessmentForm form = formRepository.findById(formId)
+                .orElseThrow(() -> new RuntimeException("Form not found"));
+
+        if (!canManagerReview(form, manager)) {
+            throw new RuntimeException("You are not authorized to request a retake for this form");
+        }
+        if (form.getStatus() != SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW
+                && form.getStatus() != SelfAssessmentFormStatus.SUBMITTED) {
+            throw new RuntimeException("Form is not pending manager review");
+        }
+        if (Boolean.TRUE.equals(form.getRetakeRequestUsed())) {
+            throw new RuntimeException("A retake has already been requested for this form");
+        }
+        if (request.retakeRequests() == null || request.retakeRequests().isEmpty()) {
+            throw new RuntimeException("Select at least one question for retake");
+        }
+
+        Map<Long, SelfAssessmentFormAnswer> answersById = form.getAnswers().stream()
+                .collect(Collectors.toMap(SelfAssessmentFormAnswer::getId, a -> a));
+        Set<Long> selectedAnswerIds = new HashSet<>();
+        for (RetakeQuestionRequest retake : request.retakeRequests()) {
+            if (retake.answerId() == null || !answersById.containsKey(retake.answerId())) {
+                throw new RuntimeException("Retake request contains an invalid answer");
+            }
+            if (retake.comment() == null || retake.comment().trim().isBlank()) {
+                throw new RuntimeException("A warning comment is required for each retake question");
+            }
+            if (!selectedAnswerIds.add(retake.answerId())) {
+                throw new RuntimeException("Duplicate retake question selected");
+            }
+        }
+
+        Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount())
+                .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before requesting a retake."));
+
+        Instant now = Instant.now();
+        form.setManager(manager);
+        form.setManagerSignatureId(defaultSig.getId());
+        form.setManagerSignatureDate(now);
+        form.setManagerComments(request.comments());
+        form.setRetakeRequestedAt(now);
+        form.setRetakeSubmittedAt(null);
+        form.setRetakeRequestUsed(true);
+        form.setManagerApprovedRetakeAt(null);
+        form.setUpdatedDate(now);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_EMPLOYEE_RETAKE);
+
+        for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
+            answer.setRetakeRequested(false);
+            answer.setRetakeRequestComment(null);
+            answer.setRetakeYesNoAnswer(null);
+            answer.setRetakeRating(null);
+            answer.setRetakeReason(null);
+            answer.setRetakeSubmittedAt(null);
+            answer.setRetakeApproved(null);
+        }
+        for (RetakeQuestionRequest retake : request.retakeRequests()) {
+            SelfAssessmentFormAnswer answer = answersById.get(retake.answerId());
+            answer.setRetakeRequested(true);
+            answer.setRetakeRequestComment(retake.comment().trim());
+        }
+
+        SelfAssessmentForm saved = formRepository.save(form);
+        auditService.record(
+                AuditActionType.SELF_ASSESSMENT_FORM_MANAGER_REVIEWED,
+                AuditTargetType.SELF_ASSESSMENT_FORM,
+                saved.getId(),
+                manager.getUserAccount().getId(),
+                null,
+                "Manager requested a one-time retake for selected self-assessment questions",
+                null);
+        sendEmployeeRetakeNotification(saved);
+        return toFormDto(saved);
+    }
+
+    @Transactional
+    public SelfAssessmentFormDto employeeSubmitRetake(Long formId, Employee employee, EmployeeRetakeSubmitRequest request) {
+        SelfAssessmentForm form = formRepository.findById(formId)
+                .orElseThrow(() -> new RuntimeException("Form not found"));
+
+        if (!form.getEmployee().getId().equals(employee.getId())) {
+            throw new RuntimeException("You are not authorized to retake this form");
+        }
+        if (form.getStatus() != SelfAssessmentFormStatus.PENDING_EMPLOYEE_RETAKE) {
+            throw new RuntimeException("Form is not pending employee retake");
+        }
+
+        List<SelfAssessmentFormAnswer> retakeAnswers = form.getAnswers().stream()
+                .filter(a -> Boolean.TRUE.equals(a.getRetakeRequested()))
+                .toList();
+        if (retakeAnswers.isEmpty()) {
+            throw new RuntimeException("No questions are marked for retake");
+        }
+        if (request.answers() == null) {
+            throw new RuntimeException("Retake answers are required");
+        }
+
+        Map<Long, EmployeeRetakeAnswerRequest> submittedById = new HashMap<>();
+        for (EmployeeRetakeAnswerRequest answerRequest : request.answers()) {
+            if (answerRequest.answerId() != null) {
+                submittedById.put(answerRequest.answerId(), answerRequest);
+            }
+        }
+
+        SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
+        int tenPointYesMinRating = resolveSavedTenPointYesMinRating(form.getTenPointYesMinRating());
+        Instant now = Instant.now();
+        for (SelfAssessmentFormAnswer answer : retakeAnswers) {
+            EmployeeRetakeAnswerRequest retake = submittedById.get(answer.getId());
+            if (retake == null) {
+                throw new RuntimeException("Submit a retake response for every warned question");
+            }
+            if (!ratingSystem.isValidYesNo(retake.yesNoAnswer()) || retake.yesNoAnswer() == null
+                    || retake.rating() == null
+                    || !ratingSystem.isValidRating(retake.yesNoAnswer(), retake.rating(), tenPointYesMinRating)) {
+                throw new RuntimeException("Retake rating does not match the form rating system");
+            }
+            if (retake.reason() == null || retake.reason().trim().isBlank()) {
+                throw new RuntimeException("A retake reason is required for every warned question");
+            }
+            answer.setRetakeYesNoAnswer(retake.yesNoAnswer());
+            answer.setRetakeRating(retake.rating());
+            answer.setRetakeReason(retake.reason().trim());
+            answer.setRetakeSubmittedAt(now);
+            answer.setRetakeApproved(null);
+        }
+
+        form.setRetakeSubmittedAt(now);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW);
+        form.setUpdatedDate(now);
+        SelfAssessmentForm saved = formRepository.save(form);
+
+        auditService.record(
+                AuditActionType.SELF_ASSESSMENT_FORM_SUBMITTED,
+                AuditTargetType.SELF_ASSESSMENT_FORM,
+                saved.getId(),
+                employee.getUserAccount().getId(),
+                null,
+                "Employee submitted retake answers for selected self-assessment questions",
+                null);
+        sendManagerRetakeSubmittedNotification(saved);
+        return toFormDto(saved);
+    }
+
+    @Transactional
+    public SelfAssessmentFormDto managerApproveRetake(Long formId, Employee manager, ManagerApproveRetakeRequest request) {
+        SelfAssessmentForm form = formRepository.findById(formId)
+                .orElseThrow(() -> new RuntimeException("Form not found"));
+
+        if (!canManagerReview(form, manager)) {
+            throw new RuntimeException("You are not authorized to approve this retake");
+        }
+        if (form.getStatus() != SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW) {
+            throw new RuntimeException("Form is not pending retake manager review");
+        }
+
+        Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount())
+                .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before approving the retake."));
+
+        Instant now = Instant.now();
+        form.setManager(manager);
+        form.setManagerSignatureId(defaultSig.getId());
+        form.setManagerSignatureDate(now);
+        if (request != null && request.comments() != null) {
+            form.setManagerComments(request.comments());
+        }
+
+        for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
+            if (Boolean.TRUE.equals(answer.getRetakeRequested())) {
+                if (answer.getRetakeYesNoAnswer() == null || answer.getRetakeRating() == null) {
+                    throw new RuntimeException("All requested retake questions must be submitted before approval");
+                }
+                answer.setFinalApprovedYesNo(answer.getRetakeYesNoAnswer());
+                answer.setFinalApprovedRating(answer.getRetakeRating());
+                answer.setRetakeApproved(true);
+            } else {
+                answer.setFinalApprovedYesNo(answer.getYesNoAnswer());
+                answer.setFinalApprovedRating(answer.getRating());
+            }
+        }
+
+        calculateFinalApprovedScore(form);
+        form.setManagerRevisedTotalScore(form.getFinalApprovedTotalScore());
+        form.setManagerApprovedRetakeAt(now);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL);
+        form.setUpdatedDate(now);
+
+        SelfAssessmentForm saved = formRepository.save(form);
+        auditService.record(
+                AuditActionType.SELF_ASSESSMENT_FORM_MANAGER_REVIEWED,
+                AuditTargetType.SELF_ASSESSMENT_FORM,
+                saved.getId(),
+                manager.getUserAccount().getId(),
+                null,
+                "Manager approved retake answers. Score: " + saved.getFinalApprovedTotalScore(),
+                null);
+        sendHrFinalApprovalNotification(saved, false);
         return toFormDto(saved);
     }
 
@@ -1376,9 +1580,7 @@ Instant now = Instant.now();
         SelfAssessmentForm form = formRepository.findById(formId)
                 .orElseThrow(() -> new RuntimeException("Form not found"));
 
-        if (form.getStatus() != SelfAssessmentFormStatus.MANAGER_REVIEWED
-                && form.getStatus() != SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL
-                && form.getStatus() != SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW) {
+        if (form.getStatus() != SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL) {
             throw new RuntimeException("Form is not eligible for final approval");
         }
 
@@ -1388,12 +1590,15 @@ Instant now = Instant.now();
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before approving."));
 
-        // Populate finalApproved fields if not already set by hrApproveManagerReview
+        // Populate finalApproved fields if manager approval did not already do so.
         boolean finalApprovedMissing = form.getAnswers().stream()
                 .allMatch(a -> a.getFinalApprovedYesNo() == null);
         if (finalApprovedMissing) {
             for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
-                if (answer.getManagerProposedYesNo() != null) {
+                if (Boolean.TRUE.equals(answer.getRetakeRequested()) && answer.getRetakeYesNoAnswer() != null) {
+                    answer.setFinalApprovedYesNo(answer.getRetakeYesNoAnswer());
+                    answer.setFinalApprovedRating(answer.getRetakeRating());
+                } else if (answer.getManagerProposedYesNo() != null) {
                     answer.setFinalApprovedYesNo(answer.getManagerProposedYesNo());
                     answer.setFinalApprovedRating(answer.getManagerProposedRating());
                 } else {
@@ -1932,6 +2137,8 @@ Instant now = Instant.now();
                 || status == SelfAssessmentFormStatus.APPROVED
                 || status == SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW
                 || status == SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW
+                || status == SelfAssessmentFormStatus.PENDING_EMPLOYEE_RETAKE
+                || status == SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW
                 || status == SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL
                 || status == SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW
                 || status == SelfAssessmentFormStatus.FINALIZED_LOCKED;
@@ -1990,6 +2197,32 @@ Instant now = Instant.now();
                     "SELF_ASSESSMENT_FORM",
                     form.getId());
         }
+    }
+
+    private void sendEmployeeRetakeNotification(SelfAssessmentForm form) {
+        Employee employee = form.getEmployee();
+        if (employee != null && hasActiveUserAccount(employee)) {
+            notificationService.send(
+                    employee.getUserAccount(),
+                    "Self-Assessment Retake Requested",
+                    "Your manager requested a retake for selected questions on "
+                            + resolveFormDisplayTitle(form) + ". Please update only the warned questions.",
+                    "SELF_ASSESSMENT_FORM",
+                    form.getId());
+        }
+    }
+
+    private void sendManagerRetakeSubmittedNotification(SelfAssessmentForm form) {
+        Employee employee = form.getEmployee();
+        resolveManagerRecipient(employee)
+                .ifPresent(manager -> notificationService.send(
+                        manager.getUserAccount(),
+                        "Self-Assessment Retake Submitted",
+                        (employee != null ? employee.getEmployeeName() : "An employee")
+                                + " submitted retake answers for "
+                                + resolveFormDisplayTitle(form) + ".",
+                        "SELF_ASSESSMENT_FORM",
+                        form.getId()));
     }
 
     /**
@@ -2423,7 +2656,14 @@ Instant now = Instant.now();
                         a.getManagerProposedComment(),
                         a.getHrAdjustmentApproved(),
                         a.getFinalApprovedYesNo(),
-                        a.getFinalApprovedRating()
+                        a.getFinalApprovedRating(),
+                        Boolean.TRUE.equals(a.getRetakeRequested()),
+                        a.getRetakeRequestComment(),
+                        a.getRetakeYesNoAnswer(),
+                        a.getRetakeRating(),
+                        a.getRetakeReason(),
+                        a.getRetakeSubmittedAt(),
+                        a.getRetakeApproved()
                 ))
                 .collect(Collectors.toList());
 
@@ -2507,6 +2747,10 @@ Instant now = Instant.now();
                 form.getEmployeeAcknowledgedAt(),
                 form.getEmployeeDisputedAt(),
                 form.getEmployeeDisputeReason(),
+                form.getRetakeRequestedAt(),
+                form.getRetakeSubmittedAt(),
+                Boolean.TRUE.equals(form.getRetakeRequestUsed()),
+                form.getManagerApprovedRetakeAt(),
                 form.getHrReviewRequired(),
                 form.getHrReviewReason(),
                 form.getHrReviewReasonAt(),

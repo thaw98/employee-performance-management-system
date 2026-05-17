@@ -12,5 +12,12 @@ public record AnswerDto(
         String managerProposedComment,
         Boolean hrAdjustmentApproved,
         String finalApprovedYesNo,
-        Integer finalApprovedRating
+        Integer finalApprovedRating,
+        Boolean retakeRequested,
+        String retakeRequestComment,
+        String retakeYesNoAnswer,
+        Integer retakeRating,
+        String retakeReason,
+        java.time.Instant retakeSubmittedAt,
+        Boolean retakeApproved
 ) {}

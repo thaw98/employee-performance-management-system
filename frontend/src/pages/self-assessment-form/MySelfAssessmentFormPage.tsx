@@ -24,6 +24,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   Scale,
+  RotateCcw,
 } from 'lucide-react';
 import { RemarkCommentHeader } from '../../features/selfAssessmentForm/components/RemarkCommentHeader';
 import { YesNoRatingDisplay } from '../../features/selfAssessmentForm/components/YesNoRatingDisplay';
@@ -34,6 +35,7 @@ import {
   useSubmitFormMutation,
   useEmployeeAcknowledgeMutation,
   useEmployeeDisputeMutation,
+  useEmployeeRetakeSubmitMutation,
   type SaveDraftRequest,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
@@ -51,7 +53,8 @@ interface AnswerFormData {
     id: number;
     yesNoAnswer: string | null;
     rating: number | null;
-    remarks: string | null;
+	    remarks: string | null;
+	    retakeReason?: string | null;
   }[];
   employeeRemarks: string | null;
 }
@@ -92,12 +95,24 @@ function StatusBadge({ status }: { status: string | undefined | null }) {
       dot: 'bg-sky-500',
       icon: <Send size={13} />,
     },
-    PENDING_EMPLOYEE_REVIEW: {
+	    PENDING_EMPLOYEE_REVIEW: {
       bg: 'bg-amber-50 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-800/60',
       text: 'text-amber-800 dark:text-amber-300',
       dot: 'bg-amber-500',
       icon: <Scale size={13} />,
-    },
+	    },
+	    PENDING_EMPLOYEE_RETAKE: {
+	      bg: 'bg-amber-50 ring-amber-200 dark:bg-amber-900/20 dark:ring-amber-800/60',
+	      text: 'text-amber-800 dark:text-amber-300',
+	      dot: 'bg-amber-500',
+	      icon: <RotateCcw size={13} />,
+	    },
+	    PENDING_RETAKE_MANAGER_REVIEW: {
+	      bg: 'bg-sky-50 ring-sky-200 dark:bg-sky-900/20 dark:ring-sky-800/60',
+	      text: 'text-sky-800 dark:text-sky-300',
+	      dot: 'bg-sky-500',
+	      icon: <ClipboardCheck size={13} />,
+	    },
     PENDING_FINAL_APPROVAL: {
       bg: 'bg-blue-50 ring-blue-200 dark:bg-blue-900/20 dark:ring-blue-800/60',
       text: 'text-blue-800 dark:text-blue-300',
@@ -363,6 +378,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const [submitForm, { isLoading: isSubmitting }] = useSubmitFormMutation();
   const [employeeAcknowledge, { isLoading: isAcknowledging }] = useEmployeeAcknowledgeMutation();
   const [employeeDispute, { isLoading: isDisputing }] = useEmployeeDisputeMutation();
+  const [employeeRetakeSubmit, { isLoading: isSubmittingRetake }] = useEmployeeRetakeSubmitMutation();
 
   const form = useForm<AnswerFormData>({
     defaultValues: {
@@ -380,13 +396,14 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     reset,
   } = form;
 
-  const isReadOnly = formData?.status !== 'DRAFT' && formData?.status !== 'REOPENED';
+  const isRetakeMode = formData?.status === 'PENDING_EMPLOYEE_RETAKE';
+  const isReadOnly = formData?.status !== 'DRAFT' && formData?.status !== 'REOPENED' && !isRetakeMode;
   const deadlineBlocksDraftWork = Boolean(
     formStatus?.deadlinePassed
       && (formStatus?.status === 'DRAFT' || formStatus?.status === 'NOT_SUBMITTED'),
   );
   const editsBlockedByDeadline = deadlineBlocksDraftWork;
-  const autosaveDisabled = statusLoading || formLoading || !formData || isReadOnly || editsBlockedByDeadline;
+  const autosaveDisabled = statusLoading || formLoading || !formData || isReadOnly || isRetakeMode || editsBlockedByDeadline;
 
   const draftTransport = useMemo<Transport>(() => {
     const transport: Transport = async (payload) => {
@@ -425,9 +442,10 @@ export const MySelfAssessmentFormPage: React.FC = () => {
         answers: formData.answers.map((a) => ({
           id: a.id,
           yesNoAnswer: a.yesNoAnswer,
-          rating: a.rating,
-          remarks: a.remarks || '',
-        })),
+	          rating: a.rating,
+	          remarks: a.remarks || '',
+	          retakeReason: a.retakeReason || '',
+	        })),
         employeeRemarks: formData.employeeRemarks || '',
       });
     }
@@ -452,7 +470,8 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     watchAnswers?.filter((a) => (a.yesNoAnswer === 'Yes' || a.yesNoAnswer === 'No') && a.rating != null)
       .length ?? 0;
 
-  const totalCount = formData?.answers?.length ?? 0;
+	  const totalCount = formData?.answers?.length ?? 0;
+	  const retakeCount = formData?.answers?.filter(a => a.retakeRequested).length ?? 0;
   const isSubmissionComplete = totalCount > 0 && answeredCount === totalCount;
   const serverDisplayScore =
     formData?.finalApprovedTotalScore
@@ -529,11 +548,47 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     }
   };
 
+	  const onRetakeSubmit = async (data: AnswerFormData) => {
+	    if (!formData?.id) return;
+	    const retakeAnswers = formData.answers
+	      .map((answer, index) => ({ answer, value: data.answers[index] }))
+	      .filter(item => item.answer.retakeRequested);
+	    if (retakeAnswers.length === 0) {
+	      toast.error('No questions are marked for retake');
+	      return;
+	    }
+	    const incomplete = retakeAnswers.some(({ value }) =>
+	      (value?.yesNoAnswer !== 'Yes' && value?.yesNoAnswer !== 'No')
+	      || value?.rating == null
+	      || !value?.retakeReason?.trim(),
+	    );
+	    if (incomplete) {
+	      toast.error('Each warned question requires Yes/No, rating, and reason');
+	      return;
+	    }
+	    try {
+	      await employeeRetakeSubmit({
+	        formId: formData.id,
+	        request: {
+	          answers: retakeAnswers.map(({ answer, value }) => ({
+	            answerId: answer.id,
+	            yesNoAnswer: value.yesNoAnswer as string,
+	            rating: value.rating as number,
+	            reason: value.retakeReason?.trim() ?? '',
+	          })),
+	        },
+	      }).unwrap();
+	      toast.success('Retake submitted');
+	      refetch();
+	    } catch (error: any) {
+	      toast.error(error?.data?.message || 'Failed to submit retake');
+	    }
+	  };
+
   const onAcknowledge = async () => {
     if (!formData?.id) return;
     try {
       await employeeAcknowledge(formData.id).unwrap();
-      toast.success('You have acknowledged the manager review');
       setShowAcknowledgeConfirm(false);
       refetch();
     } catch (error: any) {
@@ -543,28 +598,15 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const onDispute = async () => {
     if (!formData?.id) return;
-    if (!disputeCategory) {
-      toast.error('Please select a dispute reason');
-      return;
-    }
-    const isOther = disputeCategory === DISPUTE_CATEGORY_OTHER;
-    const trimmedDetail = disputeReason.trim();
-    if (isOther && !trimmedDetail) {
-      toast.error('Please provide a reason for your dispute');
-      return;
-    }
     const optionLabel = DISPUTE_CATEGORY_OPTIONS.find((o) => o.value === disputeCategory)?.label;
-    const disputeReasonPayload = isOther ? trimmedDetail : (optionLabel ?? '').trim();
+    const disputeReasonPayload = disputeCategory === DISPUTE_CATEGORY_OTHER ? disputeReason.trim() : (optionLabel ?? '').trim();
     if (!disputeReasonPayload) {
-      toast.error('Please select a dispute reason');
+      toast.error('Please provide a reason for your dispute');
       return;
     }
     try {
       await employeeDispute({ formId: formData.id, request: { disputeReason: disputeReasonPayload } }).unwrap();
-      toast.success('Your dispute has been submitted to HR');
       setShowDisputeModal(false);
-      setDisputeCategory('');
-      setDisputeReason('');
       refetch();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to submit dispute');
@@ -606,6 +648,10 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   if (formStatus?.status === 'NOT_ASSIGNED') {
     return <StateCard icon={<FileText size={32} />} title="No Assigned Form" message={formStatus?.message} />;
+  }
+
+  if (!formData) {
+    return <StateCard icon={<FileText size={32} />} title="No Form Available" message={formStatus?.message} />;
   }
 
   const departmentDisplay = formatNameCode(formData?.employee?.departmentName, formData?.employee?.departmentCode);
@@ -703,13 +749,27 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       </div>
 
       {/* ───── Progress ───── */}
-      {totalCount > 0 && !isReadOnly && (
+      {totalCount > 0 && !isReadOnly && !isRetakeMode && (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800/60">
           <ProgressBar current={answeredCount} total={totalCount} />
         </div>
       )}
 
       {/* ───── Read-only Banner ───── */}
+      {isRetakeMode && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-800/60 dark:bg-amber-900/20">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+            <RotateCcw size={16} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">Retake requested</p>
+            <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300/90">
+              Update the {retakeCount} warned question{retakeCount === 1 ? '' : 's'}. Other questions are read-only.
+            </p>
+          </div>
+        </div>
+      )}
+
       {isReadOnly && formData?.status !== 'PENDING_EMPLOYEE_REVIEW' && (
         <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-blue-50 px-5 py-4 dark:border-sky-800/60 dark:from-sky-900/20 dark:to-blue-900/15">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300">
@@ -725,7 +785,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       )}
 
       {/* ───── Pending Employee Review Panel ───── */}
-      {formData?.status === 'PENDING_EMPLOYEE_REVIEW' && (
+      {false && formData?.status === 'PENDING_EMPLOYEE_REVIEW' && (
         <div className="overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/40 shadow-sm dark:border-amber-800/60 dark:from-amber-900/20 dark:to-orange-900/10">
           <div className="flex items-center gap-3 border-b border-amber-200/70 bg-amber-100/60 px-5 py-3.5 dark:border-amber-800/50 dark:bg-amber-900/30">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500 text-white shadow-sm">
@@ -736,18 +796,18 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               <p className="text-xs text-amber-700 dark:text-amber-300">Please review the updated scores and respond before your performance discussion.</p>
             </div>
           </div>
-          {formData.managerRevisedTotalScore != null && (
+	          {formData?.managerRevisedTotalScore != null && (
             <div className="grid grid-cols-2 gap-px border-b border-amber-200/60 bg-amber-200/30 dark:border-amber-800/40 dark:bg-amber-900/20">
               <div className="bg-amber-50/80 px-5 py-3 dark:bg-amber-950/30">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Your Self Score</p>
                 <p className="mt-0.5 text-lg font-bold text-amber-900 dark:text-amber-100">
-                  {formData.totalScore?.toFixed(1)}%
+	                  {formData?.totalScore?.toFixed(1)}%
                 </p>
               </div>
               <div className="bg-amber-50/80 px-5 py-3 dark:bg-amber-950/30">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Manager Revised Score</p>
                 <p className="mt-0.5 text-lg font-bold text-amber-900 dark:text-amber-100">
-                  {formData.managerRevisedTotalScore.toFixed(1)}%
+	                  {formData?.managerRevisedTotalScore?.toFixed(1)}%
                 </p>
               </div>
             </div>
@@ -866,6 +926,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               const yn = watchAnswers?.[index]?.yesNoAnswer;
               const rating = watchAnswers?.[index]?.rating;
               const isAnswered = (yn === 'Yes' || yn === 'No') && rating != null;
+              const canEditQuestion = !isReadOnly && (!isRetakeMode || answer.retakeRequested);
               return (
                 <div
                   key={answer.id}
@@ -897,7 +958,15 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   </div>
 
                   {/* Question body */}
-                  <div className="space-y-6 px-6 py-6">
+	                  <div className="space-y-6 px-6 py-6">
+	                    {answer.retakeRequested && (
+	                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/60 dark:bg-amber-900/20">
+	                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-300">Manager Warning</p>
+	                        <p className="mt-1 text-sm font-semibold text-amber-900 dark:text-amber-100">
+	                          {answer.retakeRequestComment || 'Please retake this question.'}
+	                        </p>
+	                      </div>
+	                    )}
                     {/* Yes / No */}
                     <div>
                       <label className="mb-2.5 block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
@@ -906,7 +975,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                       <YesNoToggle
                         value={watchAnswers?.[index]?.yesNoAnswer}
                         onChange={(v) => handleYesNoChange(index, v, watchAnswers?.[index]?.rating)}
-                        disabled={isReadOnly}
+	                        disabled={!canEditQuestion}
                       />
                     </div>
 
@@ -933,7 +1002,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                               }
                               field.onChange(rating);
                             }}
-                            disabled={isReadOnly}
+	                            disabled={!canEditQuestion}
                           />
                         )}
                       />
@@ -950,13 +1019,27 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                       </label>
                       <textarea
                         {...register(`answers.${index}.remarks` as const)}
-                        disabled={isReadOnly}
+	                        disabled={!canEditQuestion}
                         rows={2}
                         placeholder="Add any remarks for this question…"
                         className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-100/60 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500 dark:focus:border-emerald-500 dark:focus:bg-slate-900 dark:focus:ring-emerald-900/40"
                       />
-                    </div>
-                  </div>
+	                    </div>
+	                    {isRetakeMode && answer.retakeRequested && (
+	                      <div>
+	                        <label className="mb-2.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+	                          <MessageSquare size={12} />
+	                          Retake Reason (required)
+	                        </label>
+	                        <textarea
+	                          {...register(`answers.${index}.retakeReason` as const)}
+	                          rows={3}
+	                          placeholder="Explain your retake response..."
+	                          className="w-full resize-none rounded-xl border border-amber-200 bg-amber-50/30 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-amber-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-amber-100/60 dark:border-amber-700/60 dark:bg-amber-900/10 dark:text-white dark:placeholder-slate-500"
+	                        />
+	                      </div>
+	                    )}
+	                  </div>
 
                   {/* Score Revisions */}
                   {(answer.managerProposedYesNo || answer.finalApprovedYesNo) && (
@@ -1035,7 +1118,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
             <div className="px-6 py-6">
               <textarea
                 {...register('employeeRemarks')}
-                disabled={isReadOnly}
+	                disabled={isReadOnly || isRetakeMode}
                 rows={4}
                 placeholder="Share any additional thoughts, context, or feedback you'd like to include…"
                 className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-100/60 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500 dark:focus:border-emerald-500 dark:focus:bg-slate-900 dark:focus:ring-emerald-900/40"
@@ -1082,23 +1165,25 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                 </p>
               </div>
               <div className="flex flex-1 items-center justify-end gap-3 sm:flex-initial">
-                <button
-                  type="button"
-                  onClick={onSaveNow}
-                  disabled={autosave.isSaving || !autosave.hasPendingChanges}
+	                {!isRetakeMode && (
+	                <button
+	                  type="button"
+	                  onClick={onSaveNow}
+	                  disabled={autosave.isSaving || !autosave.hasPendingChanges}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-px hover:bg-slate-50 hover:shadow disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:disabled:hover:bg-slate-800"
                 >
-                  <Save size={15} />
-                  {autosave.isSaving ? 'Saving...' : 'Save Now'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowSubmitConfirm(true)}
-                  disabled={isSubmitting || !isSubmissionComplete}
+	                  <Save size={15} />
+	                  {autosave.isSaving ? 'Saving...' : 'Save Now'}
+	                </button>
+	                )}
+	                <button
+	                  type="button"
+	                  onClick={() => isRetakeMode ? handleSubmit(onRetakeSubmit)() : setShowSubmitConfirm(true)}
+	                  disabled={isRetakeMode ? isSubmittingRetake : (isSubmitting || !isSubmissionComplete)}
                   className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 ring-1 ring-emerald-600/20 transition-all hover:-translate-y-px hover:shadow-lg hover:shadow-emerald-500/30 disabled:translate-y-0 disabled:opacity-50"
                 >
                   <Send size={15} />
-                  Submit Assessment
+	                  {isRetakeMode ? 'Submit Retake' : 'Submit Assessment'}
                 </button>
               </div>
             </div>
