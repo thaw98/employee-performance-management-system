@@ -2,29 +2,33 @@ package com.epms.backend.config;
 
 import javax.sql.DataSource;
 
-import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;
-import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @Slf4j
-public class PipSignatureSchemaMigrationInitializer implements BeanPostProcessor {
+public class PipSignatureSchemaMigrationInitializer implements CommandLineRunner {
+
+    private final DataSource dataSource;
+
+    public PipSignatureSchemaMigrationInitializer(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     @Override
-    public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-        if (!"dataSource".equals(beanName) || !(bean instanceof DataSource dataSource)) {
-            return bean;
-        }
+    public void run(String... args) {
         try {
             migrate(dataSource);
         } catch (Exception e) {
             throw new BeanCreationException("PIP signature schema migration failed", e);
         }
-        return bean;
     }
 
     private void migrate(DataSource dataSource) {
