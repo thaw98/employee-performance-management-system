@@ -14,11 +14,14 @@ import {
   Sparkles,
   AlertCircle,
   ArrowRight,
+  CheckCircle,
   Eye,
   X,
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
+  List,
+  LayoutGrid,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -74,6 +77,8 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
   const [modalManagerDeadline, setModalManagerDeadline] = useState('');
   const [setTemplateDeadline, { isLoading: isSettingDeadline }] = useSetTemplateDeadlineMutation();
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [deadlineTab, setDeadlineTab] = useState<'all' | 'not-assigned' | 'assigned'>('all');
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
   const activeSubmissionCycle = activeCycles.find((cycle) => cycle.requiresEmployeeSubmission) ?? null;
 
@@ -160,6 +165,19 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
     () => new Set(existingTemplatesForActiveCycle.map((t) => t.positionName)).size,
     [existingTemplatesForActiveCycle]
   );
+
+  const deadlineTabCounts = useMemo(() => {
+    const all = existingTemplatesForActiveCycle.length;
+    const assigned = existingTemplatesForActiveCycle.filter((t) => t.isAssignedToDeadline).length;
+    const notAssigned = all - assigned;
+    return { all, assigned, notAssigned };
+  }, [existingTemplatesForActiveCycle]);
+
+  const filteredTemplates = useMemo(() => {
+    if (deadlineTab === 'assigned') return existingTemplatesForActiveCycle.filter((t) => t.isAssignedToDeadline);
+    if (deadlineTab === 'not-assigned') return existingTemplatesForActiveCycle.filter((t) => !t.isAssignedToDeadline);
+    return existingTemplatesForActiveCycle;
+  }, [existingTemplatesForActiveCycle, deadlineTab]);
 
   const assignmentStartDateByTemplateId = useMemo(() => {
     const map = new Map<number, string>();
@@ -336,7 +354,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
   }, [assignmentStartDateByTemplateId]);
 
   const assignmentTable = useReactTable({
-    data: existingTemplatesForActiveCycle,
+    data: filteredTemplates,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
@@ -351,7 +369,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
     if (assignmentTable.getState().pagination.pageIndex > 0) {
       assignmentTable.setPageIndex(0);
     }
-  }, [existingTemplatesForActiveCycle.length, assignmentTable]);
+  }, [filteredTemplates.length, assignmentTable]);
 
   if (templatesLoading) {
     return (
@@ -499,6 +517,32 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-900/50">
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                  viewMode === 'table'
+                    ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <List size={13} />
+                Table
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                  viewMode === 'grid'
+                    ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <LayoutGrid size={13} />
+                Grid
+              </button>
+            </div>
             <Link
               to="/hr/self-assessment/templates/create"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
@@ -515,6 +559,51 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
             </Link>
           </div>
         </div>
+
+        {/* Deadline Assignment Tabs */}
+        {activeSubmissionCycle && !templatesError && existingTemplatesForActiveCycle.length > 0 && (
+          <div className="border-b border-slate-100 px-6 pb-4 pt-2 dark:border-slate-700/60">
+            <div
+              role="tablist"
+              aria-label="Deadline assignment status filter"
+              className="inline-flex rounded-xl border border-slate-200 bg-slate-50/50 p-1 dark:border-slate-700 dark:bg-slate-800/60"
+            >
+              {([
+                { id: 'all' as const, label: 'All', icon: Layers, count: deadlineTabCounts.all },
+                { id: 'not-assigned' as const, label: 'Not Assigned', icon: AlertCircle, count: deadlineTabCounts.notAssigned },
+                { id: 'assigned' as const, label: 'Already Assigned', icon: CheckCircle, count: deadlineTabCounts.assigned },
+              ]).map((tab) => {
+                const Icon = tab.icon;
+                const isActive = deadlineTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => {
+                      setDeadlineTab(tab.id);
+                      assignmentTable.setPageIndex(0);
+                    }}
+                    className={`inline-flex min-h-9 items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+                      isActive
+                        ? 'bg-[#5D5FEF] text-white shadow-sm shadow-[#5D5FEF]/20'
+                        : 'text-slate-500 hover:bg-white hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'
+                    }`}
+                  >
+                    <Icon size={14} />
+                    {tab.label}
+                    <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-500 dark:bg-slate-600 dark:text-slate-400'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {!activeSubmissionCycle ? (
           <div className="flex flex-col items-center justify-center py-24 px-4">
@@ -567,6 +656,28 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
               Create Template
               <ArrowRight size={14} className="opacity-0 -ml-2 transition-all group-hover:opacity-100 group-hover:ml-0" />
             </Link>
+          </div>
+        ) : filteredTemplates.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/60">
+              {deadlineTab === 'assigned' ? (
+                <CheckCircle size={28} className="text-slate-300 dark:text-slate-500" />
+              ) : (
+                <AlertCircle size={28} className="text-slate-300 dark:text-slate-500" />
+              )}
+            </div>
+            <p className="mt-4 text-sm font-bold text-slate-700 dark:text-slate-200">
+              {deadlineTab === 'assigned'
+                ? 'No templates with assigned deadlines'
+                : 'All templates have deadlines assigned'}
+            </p>
+            <button
+              type="button"
+              onClick={() => setDeadlineTab('all')}
+              className="mt-3 text-xs font-semibold text-[#5D5FEF] hover:underline dark:text-[#8b8ef7]"
+            >
+              View all templates
+            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -622,12 +733,12 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
         )}
       </div>
 
-      {activeSubmissionCycle && !templatesError && existingTemplatesForActiveCycle.length > 0 && (
+      {activeSubmissionCycle && !templatesError && filteredTemplates.length > 0 && (
         <PaginationBar
           pageIndex={assignmentTable.getState().pagination.pageIndex}
           pageSize={assignmentTable.getState().pagination.pageSize}
           pageCount={assignmentTable.getPageCount() || 1}
-          totalItems={existingTemplatesForActiveCycle.length}
+          totalItems={filteredTemplates.length}
           itemLabel="templates"
           rowsPerPageOptions={[5, 10, 20, 50]}
           onPageIndexChange={(next) => assignmentTable.setPageIndex(next)}

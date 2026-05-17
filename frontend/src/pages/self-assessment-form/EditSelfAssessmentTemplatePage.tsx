@@ -331,11 +331,7 @@ export const EditSelfAssessmentTemplatePage: React.FC = () => {
     return Math.floor((end.getTime() - start.getTime()) / oneDayMs) + 1;
   }, [selectedReviewCycle]);
   const previewReviewCycleDetail = selectedReviewCycle
-    ? `${formatCycleDate(selectedReviewCycle.startDate)} - ${formatCycleDate(selectedReviewCycle.endDate)}${
-        selectedReviewCycleDurationDays != null
-          ? ` (${selectedReviewCycleDurationDays} day${selectedReviewCycleDurationDays === 1 ? '' : 's'})`
-          : ''
-      }`
+    ? `${formatCycleDate(selectedReviewCycle.startDate)} - ${formatCycleDate(selectedReviewCycle.endDate)}`
     : null;
 
   const { register, control, handleSubmit, reset, watch, getValues, setValue } = useForm<QuestionFormData>({
