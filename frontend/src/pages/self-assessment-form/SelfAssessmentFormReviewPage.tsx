@@ -55,6 +55,7 @@ import {
 } from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
 import { SelfAssessmentSignatureGrid } from '../../features/selfAssessmentForm/components/SelfAssessmentSignatureGrid';
+import { YesNoRatingDisplay } from '../../features/selfAssessmentForm/components/YesNoRatingDisplay';
 import { exportSelfAssessmentReviewPdf } from '../../features/selfAssessmentForm/exportSelfAssessmentReviewPdf';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
@@ -206,6 +207,16 @@ function getStatusConfig(status: string) {
 const filterControlClass =
   'w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF]';
 
+const HR_ADJUSTMENT_REJECTION_REASONS = [
+  'Adjustment not supported by evidence',
+  'Adjustment inconsistent with employee self-rating',
+  'Adjustment exceeds calibration guidelines',
+  'Manager comment insufficient or unclear',
+  'Requires manager revision before approval',
+] as const;
+
+const HR_ADJUSTMENT_REJECTION_OTHER = 'Other';
+
 function ScoreBar({ value, max = 100, color = '#5D5FEF', label }: { value: number; max?: number; color?: string; label?: string }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
   return (
@@ -254,6 +265,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [managerComments, setManagerComments] = useState('');
   const [adjustments, setAdjustments] = useState<ManagerAdjustment[]>([]);
   const [hrReturnReason, setHrReturnReason] = useState('');
+  const [rejectReasonType, setRejectReasonType] = useState<string>(HR_ADJUSTMENT_REJECTION_REASONS[0]);
   const [rejectReason, setRejectReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -477,20 +489,32 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     }
   };
 
+  const resetRejectModal = () => {
+    setRejectReasonType(HR_ADJUSTMENT_REJECTION_REASONS[0]);
+    setRejectReason('');
+    setShowRejectModal(false);
+  };
+
+  const resolvedRejectReason =
+    rejectReasonType === HR_ADJUSTMENT_REJECTION_OTHER ? rejectReason.trim() : rejectReasonType;
+
   const handleHrRejectAdjustment = async () => {
-    if (!selectedFormId || !rejectReason.trim() || !hasDefaultSignature) {
-      toast.error('Enter a rejection reason and set a default signature in Signature Settings.');
+    if (!selectedFormId || !resolvedRejectReason || !hasDefaultSignature) {
+      toast.error(
+        rejectReasonType === HR_ADJUSTMENT_REJECTION_OTHER
+          ? 'Enter a custom rejection reason and set a default signature in Signature Settings.'
+          : 'Select a rejection reason and set a default signature in Signature Settings.',
+      );
       return;
     }
 
     try {
       await hrRejectManagerReview({
         formId: selectedFormId,
-        request: { rejectionReason: rejectReason },
+        request: { rejectionReason: resolvedRejectReason },
       }).unwrap();
       toast.success('Manager adjustments rejected');
-      setShowRejectModal(false);
-      setRejectReason('');
+      resetRejectModal();
       refetchForm();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to reject adjustments');
@@ -1014,7 +1038,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                           leading={<ClipboardCheck size={13} className="text-blue-500 dark:text-blue-400" />}
                         />
                         {selectedForm.managerName && (
-                          <p className="mb-2 text-[10px] font-semibold text-slate-400 dark:text-slate-500">by {selectedForm.managerName}</p>
+                          <p className="mb-2 text-xs font-semibold text-slate-400 dark:text-slate-500">by {selectedForm.managerName}</p>
                         )}
                         <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.managerComments}</p>
                       </div>
@@ -1142,18 +1166,18 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                             <div className="flex flex-wrap gap-2.5">
                               <div className="inline-flex items-center gap-2 rounded-lg border border-slate-100 bg-white px-2.5 py-1.5 dark:border-slate-700/60 dark:bg-slate-800/60">
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employee</span>
-                                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                  {answer.yesNoAnswer} ({answer.rating})
-                                </span>
+                                <YesNoRatingDisplay yesNo={answer.yesNoAnswer} rating={answer.rating} size="sm" />
                               </div>
                               <div className="flex items-center text-slate-300 dark:text-slate-600">
                                 <ArrowLeft size={12} className="rotate-180" />
                               </div>
                               <div className="inline-flex items-center gap-2 rounded-lg border border-amber-300/55 bg-amber-100/80 px-2.5 py-1.5 dark:border-amber-600/45 dark:bg-amber-800/30">
                                 <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Manager</span>
-                                <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
-                                  {answer.managerProposedYesNo} ({answer.managerProposedRating})
-                                </span>
+                                <YesNoRatingDisplay
+                                  yesNo={answer.managerProposedYesNo}
+                                  rating={answer.managerProposedRating}
+                                  size="sm"
+                                />
                               </div>
                               {answer.finalApprovedYesNo && (
                                 <>
@@ -1162,27 +1186,32 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                                   </div>
                                   <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/50 bg-emerald-100/80 px-2.5 py-1.5 dark:border-emerald-600/45 dark:bg-emerald-800/30">
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final</span>
-                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                                      {answer.finalApprovedYesNo} ({answer.finalApprovedRating})
-                                    </span>
+                                    <YesNoRatingDisplay
+                                      yesNo={answer.finalApprovedYesNo}
+                                      rating={answer.finalApprovedRating}
+                                      size="sm"
+                                    />
                                   </div>
                                 </>
                               )}
                             </div>
                             {answer.managerProposedComment && (
-                              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic border-l-2 border-amber-400/70 dark:border-amber-500/60 pl-2.5">
-                                "{answer.managerProposedComment}"
+                              <p className="mt-3 border-l-4 border-slate-400 pl-3 text-base font-semibold leading-relaxed text-slate-800 dark:border-slate-500 dark:text-slate-200">
+                                &ldquo;{answer.managerProposedComment}&rdquo;
                               </p>
                             )}
                           </div>
                         )}
                         {!answer.managerProposedYesNo && answer.finalApprovedYesNo && (
                           <div className="mt-3 ml-10 rounded-xl border border-emerald-300/50 bg-emerald-50/40 p-3 dark:border-emerald-600/40 dark:bg-emerald-900/15">
-                            <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-300/50 bg-emerald-100/80 px-2.5 py-1.5 dark:border-emerald-600/45 dark:bg-emerald-800/30">
+                            <div className="inline-flex items-center gap-2.5 rounded-lg border border-emerald-300/50 bg-emerald-100/80 px-3 py-2 dark:border-emerald-600/45 dark:bg-emerald-800/30">
                               <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Final Approved</span>
-                              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                                {answer.finalApprovedYesNo} ({answer.finalApprovedRating})
-                              </span>
+                              <span className="h-3.5 w-px bg-emerald-300/70 dark:bg-emerald-600/50" aria-hidden />
+                              <YesNoRatingDisplay
+                                yesNo={answer.finalApprovedYesNo}
+                                rating={answer.finalApprovedRating}
+                                size="sm"
+                              />
                             </div>
                           </div>
                         )}
@@ -1485,7 +1514,11 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setShowRejectModal(true)}
+                            onClick={() => {
+                              setRejectReasonType(HR_ADJUSTMENT_REJECTION_REASONS[0]);
+                              setRejectReason('');
+                              setShowRejectModal(true);
+                            }}
                             disabled={isDefaultSigLoading || !hasDefaultSignature}
                             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-red-500/20 transition-all hover:from-red-700 hover:to-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
                           >
@@ -1613,7 +1646,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         </div>
       </div>
 
-      {showApprovalModal && portalRoot && createPortal(
+      {isHr && !isEmployeeDetail && showApprovalModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowApprovalModal(false)} />
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
@@ -1664,7 +1697,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
       {showRejectModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowRejectModal(false)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={resetRejectModal} />
           <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
             <div className="bg-gradient-to-r from-red-600 to-rose-600 px-6 py-4">
               <div className="flex items-center gap-3">
@@ -1685,14 +1718,38 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
                   Rejection Reason
                 </label>
-                <textarea
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  rows={4}
-                  className={`${filterControlClass} resize-none`}
-                  placeholder="Explain why the adjustments are being rejected..."
-                />
+                <select
+                  value={rejectReasonType}
+                  onChange={(e) => {
+                    setRejectReasonType(e.target.value);
+                    if (e.target.value !== HR_ADJUSTMENT_REJECTION_OTHER) {
+                      setRejectReason('');
+                    }
+                  }}
+                  className={filterControlClass}
+                >
+                  {HR_ADJUSTMENT_REJECTION_REASONS.map((reason) => (
+                    <option key={reason} value={reason}>
+                      {reason}
+                    </option>
+                  ))}
+                  <option value={HR_ADJUSTMENT_REJECTION_OTHER}>{HR_ADJUSTMENT_REJECTION_OTHER}</option>
+                </select>
               </div>
+              {rejectReasonType === HR_ADJUSTMENT_REJECTION_OTHER && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Custom Reason
+                  </label>
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    rows={4}
+                    className={`${filterControlClass} resize-none`}
+                    placeholder="Explain why the adjustments are being rejected..."
+                  />
+                </div>
+              )}
               <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
                 <p className="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                   <PenLine size={12} className="mt-0.5 shrink-0" />
@@ -1702,7 +1759,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowRejectModal(false)}
+                  onClick={resetRejectModal}
                   className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all"
                 >
                   Cancel
@@ -1710,7 +1767,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleHrRejectAdjustment}
-                  disabled={isHrRejecting || isDefaultSigLoading || !hasDefaultSignature || !rejectReason.trim()}
+                  disabled={isHrRejecting || isDefaultSigLoading || !hasDefaultSignature || !resolvedRejectReason}
                   className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-red-600 to-rose-600 shadow-md shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isHrRejecting ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
