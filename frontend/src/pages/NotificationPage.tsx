@@ -168,7 +168,10 @@ export function NotificationPage() {
 
     const destinationPath = getNotificationDestinationPath(notification, location.pathname);
     const isSameDestination = destinationPath === location.pathname;
-    navigate(destinationPath, isSameDestination ? { replace: true, state: { notificationRefreshToken: Date.now() } } : undefined);
+    navigate(destinationPath, {
+      replace: isSameDestination,
+      state: { notificationRefreshToken: Date.now() },
+    });
   };
 
   const handleMarkAllRead = async () => {
@@ -263,8 +266,8 @@ export function NotificationPage() {
                 key={notification.id}
                 type="button"
                 onClick={() => handleNotificationClick(notification)}
-                className={`w-full text-left px-6 py-5 border-b border-slate-100 last:border-b-0 flex gap-4 transition-colors hover:bg-teal-50/60 ${
-                  notification.read ? 'bg-white' : 'bg-teal-50/40'
+                className={`w-full text-left px-6 py-5 border-b border-slate-100 last:border-b-0 flex gap-4 transition-colors hover:bg-teal-50/70 ${
+                  notification.read ? 'bg-white' : 'bg-teal-50/55'
                 }`}
               >
                 <span

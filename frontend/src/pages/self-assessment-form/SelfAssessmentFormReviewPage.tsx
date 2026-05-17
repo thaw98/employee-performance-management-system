@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-hot-toast';
 import {
@@ -44,13 +44,18 @@ import {
   useHrApproveFormMutation,
   useHrReopenFormMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
-import { getRatingOptions, isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
+import {
+  getRatingOptions,
+  isManagerAdjustmentDifferentFromAnswer,
+  isRatingValidForAnswer,
+} from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentRatingPicker } from '../../features/selfAssessmentForm/components/SelfAssessmentRatingPicker';
 import { SelfAssessmentSignatureGrid } from '../../features/selfAssessmentForm/components/SelfAssessmentSignatureGrid';
 import { exportSelfAssessmentReviewPdf } from '../../features/selfAssessmentForm/exportSelfAssessmentReviewPdf';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { formatDateDayMonthYear, formatDateTimeWithSeconds } from '../../utils/dateUtils';
+import { RemarkCommentHeader } from '../../features/selfAssessmentForm/components/RemarkCommentHeader';
 import { useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { RootState } from '../../app/store';
@@ -248,18 +253,47 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
-  const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError } = useGetReviewFormsQuery(undefined, {
+  const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError, refetch: refetchManagerForms } = useGetReviewFormsQuery(undefined, {
     skip: isHr || isEmployeeDetail,
   });
-  const { data: hrForms, isLoading: hrFormsLoading } = useGetHrReviewFormsQuery(undefined, {
+  const { data: hrForms, isLoading: hrFormsLoading, refetch: refetchHrForms } = useGetHrReviewFormsQuery(undefined, {
     skip: !isHr || Boolean(selectedFormId),
   });
-  const { data: allForms, isLoading: allFormsLoading } = useGetAllFormsForHrQuery(undefined, {
+  const { data: allForms, isLoading: allFormsLoading, refetch: refetchAllForms } = useGetAllFormsForHrQuery(undefined, {
     skip: !isHr || !selectedFormId,
   });
   const { data: selectedForm, isLoading: selectedFormLoading, refetch: refetchForm } = useGetFormByIdQuery(selectedFormId!, {
     skip: !selectedFormId,
   });
+
+  useEffect(() => {
+    if (urlFormId != null) {
+      setSelectedFormId(urlFormId);
+    }
+  }, [urlFormId]);
+
+  useEffect(() => {
+    const refreshToken = (location.state as { notificationRefreshToken?: number } | null)?.notificationRefreshToken;
+    if (!refreshToken || !selectedFormId) {
+      return;
+    }
+
+    void refetchForm();
+    if (isHr) {
+      void (selectedFormId ? refetchAllForms() : refetchHrForms());
+    } else if (!isEmployeeDetail) {
+      void refetchManagerForms();
+    }
+  }, [
+    location.state,
+    selectedFormId,
+    refetchForm,
+    refetchManagerForms,
+    refetchHrForms,
+    refetchAllForms,
+    isHr,
+    isEmployeeDetail,
+  ]);
 
   const [managerReview, { isLoading: isManagerReviewing }] = useManagerReviewMutation();
   const [hrReturnDisputedReview, { isLoading: isHrReturningDispute }] = useHrReturnDisputedReviewMutation();
@@ -335,22 +369,38 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const handleSubmitManagerReview = async () => {
     if (!selectedFormId) return;
 
-    if (adjustments.length > 0) {
-      const missingComments = adjustments.filter(a => !a.comment.trim());
+    const completeAdjustments = showAdjustments
+      ? adjustments.filter(a => a.proposedYesNo && a.proposedRating > 0)
+      : [];
+
+    if (showAdjustments) {
+      if (completeAdjustments.length === 0) {
+        toast.error('Add at least one adjustment proposal');
+        return;
+      }
+      const missingComments = completeAdjustments.filter(a => !a.comment.trim());
       if (missingComments.length > 0) {
         toast.error('All adjustments must have a comment');
         return;
       }
-      const invalidRatings = adjustments.filter(
-        a => a.proposedYesNo && a.proposedRating && !isRatingValidForAnswer(
+      const invalidRatings = completeAdjustments.filter(
+        a => !isRatingValidForAnswer(
           selectedForm?.ratingSystem,
           a.proposedYesNo,
           a.proposedRating,
           selectedForm?.tenPointYesMinRating,
-        )
+        ),
       );
       if (invalidRatings.length > 0) {
         toast.error('One or more proposed ratings do not match the selected response');
+        return;
+      }
+      const unchangedAdjustments = completeAdjustments.filter(adj => {
+        const answer = selectedForm?.answers?.find((a: { id: number }) => a.id === adj.answerId);
+        return answer && !isManagerAdjustmentDifferentFromAnswer(answer, adj);
+      });
+      if (unchangedAdjustments.length > 0) {
+        toast.error('Each proposed adjustment must differ from the current answer (change Yes/No or rating)');
         return;
       }
     }
@@ -360,7 +410,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         formId: selectedFormId,
         request: {
           comments: managerComments,
-          adjustments: adjustments.filter(a => a.proposedYesNo && a.proposedRating),
+          adjustments: completeAdjustments,
         },
       }).unwrap();
       toast.success('Review submitted successfully');
@@ -850,6 +900,78 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 </div>
               </div>
 
+              {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason) && (
+                <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '140ms' }}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <MessageSquare size={15} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Remarks & Comments</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {selectedForm.hrReviewReason && (
+                      <div className="rounded-xl border border-orange-200/70 bg-orange-50/40 p-4 dark:border-orange-700/50 dark:bg-orange-900/15">
+                        <RemarkCommentHeader
+                          title="HR Remarks"
+                          dateTime={selectedForm.hrReviewReasonAt}
+                          titleClassName="text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400"
+                          dateClassName="text-xs font-semibold tabular-nums text-orange-700 dark:text-orange-300"
+                          leading={<ShieldCheck size={13} className="text-orange-500 dark:text-orange-400" />}
+                        />
+                        <p className="text-sm text-orange-700 dark:text-orange-200 leading-relaxed">{selectedForm.hrReviewReason}</p>
+                      </div>
+                    )}
+                    {selectedForm.employeeRemarks && (
+                      <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-700/50 dark:bg-slate-800/30">
+                        <RemarkCommentHeader
+                          title="Employee Remarks"
+                          dateTime={selectedForm.submittedDate ?? selectedForm.employeeSignatureDate}
+                          leading={<User size={13} className="text-slate-400" />}
+                        />
+                        <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.employeeRemarks}</p>
+                      </div>
+                    )}
+                    {selectedForm.overallRemarks && (
+                      <div className="rounded-xl border border-violet-200/70 bg-violet-50/40 p-4 dark:border-violet-700/50 dark:bg-violet-900/15">
+                        <RemarkCommentHeader
+                          title="Overall Remarks"
+                          dateTime={selectedForm.submittedDate ?? selectedForm.employeeSignatureDate}
+                          titleClassName="text-xs font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400"
+                          dateClassName="text-xs font-semibold tabular-nums text-violet-700 dark:text-violet-300"
+                          leading={<MessageSquare size={13} className="text-violet-500 dark:text-violet-400" />}
+                        />
+                        <p className="text-sm text-violet-800 dark:text-violet-100 leading-relaxed">{selectedForm.overallRemarks}</p>
+                      </div>
+                    )}
+                    {selectedForm.managerComments && (
+                      <div className="rounded-xl border border-blue-200/70 bg-blue-50/40 p-4 dark:border-blue-700/50 dark:bg-blue-900/15">
+                        <RemarkCommentHeader
+                          title="Manager Comments"
+                          dateTime={selectedForm.managerSignatureDate}
+                          titleClassName="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400"
+                          dateClassName="text-xs font-semibold tabular-nums text-blue-700 dark:text-blue-300"
+                          leading={<ClipboardCheck size={13} className="text-blue-500 dark:text-blue-400" />}
+                        />
+                        {selectedForm.managerName && (
+                          <p className="mb-2 text-[10px] font-semibold text-slate-400 dark:text-slate-500">by {selectedForm.managerName}</p>
+                        )}
+                        <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.managerComments}</p>
+                      </div>
+                    )}
+                    {selectedForm.employeeDisputedAt && (
+                      <div className="rounded-xl border border-rose-200/70 bg-rose-50/40 p-4 dark:border-rose-700/50 dark:bg-rose-900/15">
+                        <RemarkCommentHeader
+                          title="Employee Dispute"
+                          dateTime={selectedForm.employeeDisputedAt}
+                          titleClassName="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400"
+                          dateClassName="text-xs font-semibold tabular-nums text-rose-700 dark:text-rose-300"
+                          leading={<AlertCircle size={13} className="text-rose-500 dark:text-rose-400" />}
+                        />
+                        <p className="text-sm text-rose-700 dark:text-rose-200 leading-relaxed">{selectedForm.employeeDisputeReason}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="overflow-hidden rounded-2xl border border-[#5D5FEF]/18 bg-white shadow-sm dark:border-[#8b8ef7]/28 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '160ms' }}>
                 <div className="relative border-b border-slate-100 dark:border-slate-700/60">
                   <div className="relative px-6 py-5">
@@ -1006,73 +1128,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                   </div>
                 </div>
 
-                {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason) && (
-                  <div className="border-t border-slate-100 dark:border-slate-700/60">
-                    <div className="px-6 py-4">
-                      <div className="flex items-center gap-2 mb-4">
-                        <MessageSquare size={15} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">Remarks & Comments</h3>
-                      </div>
-                      <div className="space-y-3">
-                        {selectedForm.employeeRemarks && (
-                          <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-4 dark:border-slate-700/50 dark:bg-slate-800/30">
-                            <div className="flex items-center gap-2 mb-2">
-                              <User size={13} className="text-slate-400" />
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Employee Remarks</h4>
-                            </div>
-                            <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.employeeRemarks}</p>
-                          </div>
-                        )}
-                        {selectedForm.overallRemarks && (
-                          <div className="rounded-xl border border-violet-200/70 bg-violet-50/40 p-4 dark:border-violet-700/50 dark:bg-violet-900/15">
-                            <div className="flex items-center gap-2 mb-2">
-                              <MessageSquare size={13} className="text-violet-500 dark:text-violet-400" />
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">Overall Remarks</h4>
-                            </div>
-                            <p className="text-sm text-violet-800 dark:text-violet-100 leading-relaxed">{selectedForm.overallRemarks}</p>
-                          </div>
-                        )}
-                        {selectedForm.managerComments && (
-                          <div className="rounded-xl border border-blue-200/70 bg-blue-50/40 p-4 dark:border-blue-700/50 dark:bg-blue-900/15">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <ClipboardCheck size={13} className="text-blue-500 dark:text-blue-400" />
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Manager Comments</h4>
-                              </div>
-                              {selectedForm.managerName && (
-                                <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
-                                  by {selectedForm.managerName}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{selectedForm.managerComments}</p>
-                          </div>
-                        )}
-                        {selectedForm.employeeDisputedAt && (
-                          <div className="rounded-xl border border-rose-200/70 bg-rose-50/40 p-4 dark:border-rose-700/50 dark:bg-rose-900/15">
-                            <div className="flex items-center gap-2 mb-2">
-                              <AlertCircle size={13} className="text-rose-500 dark:text-rose-400" />
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">Employee Dispute</h4>
-                              <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                                {formatDateTimeWithSeconds(selectedForm.employeeDisputedAt)}
-                              </span>
-                            </div>
-                            <p className="text-sm text-rose-700 dark:text-rose-200 leading-relaxed">{selectedForm.employeeDisputeReason}</p>
-                          </div>
-                        )}
-                        {selectedForm.hrReviewReason && (
-                          <div className="rounded-xl border border-orange-200/70 bg-orange-50/40 p-4 dark:border-orange-700/50 dark:bg-orange-900/15">
-                            <div className="flex items-center gap-2 mb-2">
-                              <ShieldCheck size={13} className="text-orange-500 dark:text-orange-400" />
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">HR Remarks</h4>
-                            </div>
-                            <p className="text-sm text-orange-700 dark:text-orange-200 leading-relaxed">{selectedForm.hrReviewReason}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 <div className="border-t border-slate-100 px-6 py-5 dark:border-slate-700/60">
                   <SelfAssessmentSignatureGrid

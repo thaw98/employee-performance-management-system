@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -1050,6 +1051,7 @@ Instant now = Instant.now();
         form.setEmployeeDisputeReason(null);
         form.setHrReviewRequired(null);
         form.setHrReviewReason(null);
+        form.setHrReviewReasonAt(null);
         form.setRequiresHrReview(null);
         form.setUpdatedDate(Instant.now());
 
@@ -1065,6 +1067,11 @@ Instant now = Instant.now();
                 }
                 for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
                     if (answer.getId().equals(adj.answerId())) {
+                        if (Objects.equals(adj.proposedYesNo(), answer.getYesNoAnswer())
+                                && Objects.equals(adj.proposedRating(), answer.getRating())) {
+                            throw new RuntimeException(
+                                    "Proposed adjustment must differ from the employee's current answer");
+                        }
                         if (!adj.proposedYesNo().equals(answer.getYesNoAnswer())
                                 || !adj.proposedRating().equals(answer.getRating())) {
                             anyScoreChanged = true;
@@ -1339,6 +1346,7 @@ Instant now = Instant.now();
         form.setEmployeeAcknowledgedAt(null);
         form.setHrReviewRequired(true);
         form.setHrReviewReason(reason);
+        form.setHrReviewReasonAt(Instant.now());
         form.setStatus(SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW);
         form.setUpdatedDate(Instant.now());
 
@@ -1442,6 +1450,7 @@ Instant now = Instant.now();
         form.setEmployeeDisputeReason(null);
         form.setHrReviewRequired(null);
         form.setHrReviewReason(null);
+        form.setHrReviewReasonAt(null);
         form.setRequiresHrReview(null);
         form.setAffectsCompensationOrPip(null);
         form.setCompanyPolicyRequiresHrApproval(null);
@@ -2440,6 +2449,8 @@ Instant now = Instant.now();
                 form.getTemplate().getId(),
                 form.getCycle() != null ? form.getCycle().getId() : null,
                 form.getCycle() != null ? form.getCycle().getName() : null,
+                form.getCycle() != null ? form.getCycle().getStartDate() : null,
+                form.getCycle() != null ? form.getCycle().getEndDate() : null,
                 resolveFormDisplayTitle(form),
                 SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem()).name(),
                 resolveSavedTenPointYesMinRating(form.getTenPointYesMinRating()),
@@ -2489,7 +2500,8 @@ Instant now = Instant.now();
                 form.getEmployeeDisputedAt(),
                 form.getEmployeeDisputeReason(),
                 form.getHrReviewRequired(),
-                form.getHrReviewReason()
+                form.getHrReviewReason(),
+                form.getHrReviewReasonAt()
         );
     }
 

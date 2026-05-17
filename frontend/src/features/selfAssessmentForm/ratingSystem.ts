@@ -52,3 +52,13 @@ export const isRatingValidForAnswer = (
   if (!yesNoAnswer || rating == null) return true
   return getRatingOptions(ratingSystem, yesNoAnswer, tenPointYesMinRating).includes(rating)
 }
+
+/** Proposed adjustment must change Yes/No and/or rating vs the employee's saved answer. */
+export const isManagerAdjustmentDifferentFromAnswer = (
+  current: { yesNoAnswer?: string | null; rating?: number | null },
+  proposed: { proposedYesNo: string; proposedRating: number },
+) => {
+  const sameYesNo = proposed.proposedYesNo === (current.yesNoAnswer ?? '')
+  const sameRating = proposed.proposedRating === (current.rating ?? null)
+  return !(sameYesNo && sameRating)
+}

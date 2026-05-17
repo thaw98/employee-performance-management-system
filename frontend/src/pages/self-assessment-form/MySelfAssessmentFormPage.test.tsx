@@ -82,6 +82,7 @@ const mocks = vi.hoisted(() => {
     employeeDisputeReason: null,
     hrReviewRequired: null,
     hrReviewReason: null,
+    hrReviewReasonAt: null,
   }
 
   return {
@@ -212,6 +213,15 @@ describe('MySelfAssessmentFormPage autosave', () => {
     mocks.editableFormData.answers[0].managerProposedYesNo = null
     mocks.editableFormData.answers[0].managerProposedRating = null
     mocks.editableFormData.answers[0].managerProposedComment = null
+  })
+
+  it('renders multi-word status labels without underscores', async () => {
+    mocks.editableFormData.status = 'PENDING_HR_CALIBRATION_REVIEW'
+
+    renderPage()
+
+    expect(await screen.findByText('PENDING HR CALIBRATION REVIEW')).toBeTruthy()
+    expect(screen.queryByText(/PENDING_HR/)).toBeNull()
   })
 
   it('does not show total mark until at least one question is fully answered', async () => {

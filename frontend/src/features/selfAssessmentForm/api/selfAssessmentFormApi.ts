@@ -170,6 +170,8 @@ export interface SelfAssessmentFormDto {
   templateId: number
   cycleId: number | null
   cycleName: string | null
+  cycleStartDate: string | null
+  cycleEndDate: string | null
   title: string
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
@@ -221,6 +223,7 @@ export interface SelfAssessmentFormDto {
   employeeDisputeReason: string | null
   hrReviewRequired: boolean | null
   hrReviewReason: string | null
+  hrReviewReasonAt: string | null
 }
 
 export interface FormListDto {
@@ -523,6 +526,8 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     templateId: getNumber(source.templateId),
     cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
     cycleName: getOptionalString(source.cycleName) ?? null,
+    cycleStartDate: getOptionalString(source.cycleStartDate) ?? null,
+    cycleEndDate: getOptionalString(source.cycleEndDate) ?? null,
     title: getString(source.title, 'Self Assessment Form'),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
@@ -573,6 +578,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     employeeDisputeReason: getOptionalString(source.employeeDisputeReason) ?? null,
     hrReviewRequired: source.hrReviewRequired != null ? getBoolean(source.hrReviewRequired) : null,
     hrReviewReason: getOptionalString(source.hrReviewReason) ?? null,
+    hrReviewReasonAt: getOptionalString(source.hrReviewReasonAt) ?? null,
   }
 }
 

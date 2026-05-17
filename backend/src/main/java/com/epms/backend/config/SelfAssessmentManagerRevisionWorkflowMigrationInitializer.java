@@ -41,7 +41,11 @@ public class SelfAssessmentManagerRevisionWorkflowMigrationInitializer implement
         addColumnIfMissing(jdbc, "self_assessment_form", "employee_dispute_reason", "TEXT NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "hr_review_required", "TINYINT(1) NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "hr_review_reason", "TEXT NULL");
+        addColumnIfMissing(jdbc, "self_assessment_form", "hr_review_reason_at", "DATETIME(6) NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "requires_hr_review", "TINYINT(1) NULL");
+        jdbc.update(
+                "UPDATE self_assessment_form SET hr_review_reason_at = updated_date "
+                        + "WHERE hr_review_reason IS NOT NULL AND TRIM(hr_review_reason) <> '' AND hr_review_reason_at IS NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "affects_compensation_or_pip", "TINYINT(1) NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "company_policy_requires_hr_approval", "TINYINT(1) NULL");
 
