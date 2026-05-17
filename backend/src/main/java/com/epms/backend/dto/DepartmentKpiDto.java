@@ -16,6 +16,7 @@ public class DepartmentKpiDto {
     private BigDecimal weight;
     private BigDecimal score;
     private BigDecimal weightedScore;
+    private BigDecimal totalDepartmentScore;
     private String period;
     private String status;
     private String recordStatus;

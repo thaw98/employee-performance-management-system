@@ -232,6 +232,14 @@ public class KpiService {
             updatedKpis.add(kpi);
         }
 
+        BigDecimal totalDeptScore = updatedKpis.stream()
+                .map(k -> k.getWeightedScore() != null ? k.getWeightedScore() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        for (DepartmentKpi kpi : updatedKpis) {
+            kpi.setTotalDepartmentScore(totalDeptScore);
+        }
+
         departmentKpiRepository.saveAll(updatedKpis);
         
         auditService.record(AuditActionType.KPI_UPDATED, AuditTargetType.DEPARTMENT_KPI, departmentId, hrUserId,
@@ -427,6 +435,14 @@ public class KpiService {
             kpi.setStatus(status);
 
             updatedKpis.add(kpi);
+        }
+
+        BigDecimal kpiTotalScore = updatedKpis.stream()
+                .map(k -> k.getWeightedScore() != null ? k.getWeightedScore() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        for (EmployeeKpi kpi : updatedKpis) {
+            kpi.setKpiTotalScore(kpiTotalScore);
         }
 
         kpiRepository.saveAll(updatedKpis);
@@ -716,6 +732,7 @@ public class KpiService {
         dto.setWeight(kpi.getWeight());
         dto.setScore(kpi.getScore());
         dto.setWeightedScore(kpi.getWeightedScore());
+        dto.setKpiTotalScore(kpi.getKpiTotalScore());
         dto.setPeriod(kpi.getPeriod());
         dto.setStatus(kpi.getStatus());
         dto.setRecordStatus(kpi.getRecordStatus());
@@ -757,6 +774,7 @@ public class KpiService {
         dto.setWeight(entity.getWeight());
         dto.setScore(entity.getScore());
         dto.setWeightedScore(entity.getWeightedScore());
+        dto.setTotalDepartmentScore(entity.getTotalDepartmentScore());
         dto.setPeriod(entity.getPeriod());
         dto.setStatus(entity.getStatus());
         dto.setRecordStatus(entity.getRecordStatus());

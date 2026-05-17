@@ -77,7 +77,7 @@ const HrLayout: React.FC = () => {
       subItems: [
         { label: 'KPI Modeler', path: '/hr/kpi-management', icon: <SlidersHorizontal size={16} className="shrink-0" /> },
         { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} className="shrink-0" /> },
-        { label: 'Category List', path: '/hr/kpi-categories', icon: <LayoutGrid size={16} className="shrink-0" /> },
+        //{ label: 'Category List', path: '/hr/kpi-categories', icon: <LayoutGrid size={16} className="shrink-0" /> },
         { label: 'History', path: '/hr/kpi-history', icon: <History size={16} className="shrink-0" /> },
         { label: 'Audit Logs', path: '/hr/kpi-audit-logs', icon: <ClipboardList size={16} className="shrink-0" /> }
       ]
@@ -133,7 +133,15 @@ const HrLayout: React.FC = () => {
         { label: 'Meeting History', path: '/hr/meetings?section=history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
-    { icon: <BarChart size={20} />, label: 'Reports', path: '/hr/reports' }
+    {
+      icon: <BarChart size={20} />,
+      label: 'Reports',
+      path: '/hr/reports',
+      subItems: [
+        { label: 'PIP Reports', path: '/hr/reports', icon: <BarChart size={16} className="shrink-0" /> },
+        { label: 'KPI Reports', path: '/hr/kpi-reports', icon: <Target size={16} className="shrink-0" /> }
+      ]
+    }
   ];
 
   return (
@@ -160,9 +168,9 @@ const HrLayout: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner">
               {user?.profilePictureUrl ? (
-                 <img src={resolveProfilePictureSrc(user.profilePictureUrl)} className="w-full h-full object-cover" alt="Profile" />
+                <img src={resolveProfilePictureSrc(user.profilePictureUrl)} className="w-full h-full object-cover" alt="Profile" />
               ) : (
-                 user?.name?.charAt(0)
+                user?.name?.charAt(0)
               )}
             </div>
             <div className="flex-1 min-w-0">

@@ -45,6 +45,9 @@ public class EmployeeKpi {
     @Column(name = "weighted_score")
     private BigDecimal weightedScore;
 
+    @Column(name = "kpi_total_score")
+    private BigDecimal kpiTotalScore;
+
     @Column(nullable = false)
     private String period; // e.g. "2026-2027"
 

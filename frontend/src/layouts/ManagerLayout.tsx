@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Users,
+  User,
   Target,
   Award,
   Calendar,
@@ -60,9 +61,15 @@ const ManagerLayout: React.FC = () => {
     ...(authUser?.roleId === 2
       ? [{ icon: <Users size={20} />, label: 'Employees', path: '/manager/employees' }]
       : []),
-    { icon: <Target size={20} />, label: 'KPIs', path: '/manager/kpis' },
-    { icon: <History size={20} />, label: 'KPI History', path: '/manager/kpi-history' },
-    { icon: <Target size={20} />, label: 'My KPIs', path: '/manager/my-kpis' },
+    {
+      icon: <Target size={20} />,
+      label: 'KPI',
+      path: '/manager/kpis',
+      subItems: [
+        { label: 'KPIs', path: '/manager/kpis', icon: <ListChecks size={16} className="shrink-0" /> },
+        { label: 'My KPIs', path: '/manager/my-kpis', icon: <User size={16} className="shrink-0" /> }
+      ]
+    },
     { icon: <Zap size={20} />, label: 'Team PIPs', path: '/manager/pip' },
     { icon: <Award size={20} />, label: 'Appraisals', path: '/manager/appraisals' },
     {
@@ -121,9 +128,9 @@ const ManagerLayout: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner shrink-0">
               {user?.profilePictureUrl ? (
-                 <img src={resolveProfilePictureSrc(user.profilePictureUrl)} className="w-full h-full object-cover" alt="Profile" />
+                <img src={resolveProfilePictureSrc(user.profilePictureUrl)} className="w-full h-full object-cover" alt="Profile" />
               ) : (
-                 user?.name?.charAt(0)
+                user?.name?.charAt(0)
               )}
             </div>
             <div className="flex-1 min-w-0">
