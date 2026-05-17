@@ -670,7 +670,13 @@ public class PipService {
     }
 
     private boolean isManagedBy(Employee employee, Long managerEmployeeId) {
-        if (employee == null || managerEmployeeId == null || employee.getDepartment() == null) {
+        if (employee == null || managerEmployeeId == null) {
+            return false;
+        }
+        if (employee.getManager() != null && employee.getManager().getId().equals(managerEmployeeId)) {
+            return true;
+        }
+        if (employee.getDepartment() == null) {
             return false;
         }
         Long departmentManagerId = employee.getDepartment().getManagerId();

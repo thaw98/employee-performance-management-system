@@ -1344,8 +1344,12 @@ public class SelfAssessmentFormService {
     }
 
     private boolean canManagerReview(SelfAssessmentForm form, Employee manager) {
-        return form.getEmployee().getDepartment().getManagerId() != null
-                && form.getEmployee().getDepartment().getManagerId().equals(manager.getId());
+        Employee subject = form.getEmployee();
+        if (subject.getManager() != null && subject.getManager().getId().equals(manager.getId())) {
+            return true;
+        }
+        return subject.getDepartment().getManagerId() != null
+                && subject.getDepartment().getManagerId().equals(manager.getId());
     }
 
     private QuestionDto mapTemplateQuestionToDto(SelfAssessmentFormTemplateQuestion q) {

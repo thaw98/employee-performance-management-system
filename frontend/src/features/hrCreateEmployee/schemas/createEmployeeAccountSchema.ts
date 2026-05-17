@@ -317,6 +317,8 @@ export const editEmployeeSchema = z
     departmentId: z.number().nullable(),
     departmentPositionId: z.number().nullable(),
     positionId: z.number().nullable().optional(),
+    /** Direct reporting manager (employee.manager_id); omit when unchanged in draft-style payloads */
+    managerId: z.number().nullable().optional(),
 
     // ── probation — optional ────────────────────────────────────────────────
     probationStartDate: z.string().optional(),

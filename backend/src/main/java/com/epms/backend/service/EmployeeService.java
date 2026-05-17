@@ -47,6 +47,7 @@ public class EmployeeService {
 	private final StaffTypeRepository staffTypeRepository;
 	private final UserRepository userRepository;
 	private final PositionRoleResolutionService positionRoleResolutionService;
+	private final ReportingManagerResolver reportingManagerResolver;
 
 	@Transactional
 	public EmployeeInfoResponseDto saveDraft(EmployeeDraftRequestDto request, UserPrincipal principal) {
@@ -163,6 +164,7 @@ public class EmployeeService {
 		applyProbation(employee, request.getProbationDays(), request.getProbationEndDate());
 		applyFather(employee, request.getFatherName(), request.getFatherNrcNo(), request.getFatherOccupation());
 		applyEmergencyContact(employee, request.getEmergencyPhone(), request.getEmergencyRelation());
+		applyReportingManager(employee, request.getManagerId(), false);
 	}
 
 	private void applyCompleted(Employee employee, EmployeeInfoRequestDto request, UserPrincipal principal, boolean isCreate) {
@@ -183,6 +185,7 @@ public class EmployeeService {
 		applyProbation(employee, request.getProbationDays(), request.getProbationEndDate());
 		applyFather(employee, request.getFatherName(), request.getFatherNrcNo(), request.getFatherOccupation());
 		applyEmergencyContact(employee, request.getEmergencyPhone(), request.getEmergencyRelation());
+		applyReportingManager(employee, request.getManagerId(), true);
 	}
 
 	private void applyDepartmentAndPosition(Employee employee, Long departmentId, Long positionId, boolean required) {
@@ -287,6 +290,21 @@ public class EmployeeService {
 		father.setFatherName(normalizedName);
 		father.setFatherNrcNo(normalizedNrcNo);
 		father.setFatherOccupation(normalizedOccupation);
+	}
+
+	private void applyReportingManager(Employee employee, Long managerId, boolean required) {
+		if (managerId == null) {
+			if (required) {
+				employee.setManager(null);
+			}
+			return;
+		}
+		if (employee.getId() != null && employee.getId().equals(managerId)) {
+			throw new IllegalArgumentException("Employee cannot be their own manager");
+		}
+		Employee mgr = employeeRepository.findById(managerId)
+				.orElseThrow(() -> new IllegalArgumentException("Manager not found"));
+		employee.setManager(mgr);
 	}
 
 	private void applyEmergencyContact(Employee employee, String phone, String relation) {
@@ -420,7 +438,7 @@ public class EmployeeService {
 	}
 
 	private EmployeeInfoResponseDto toDto(Employee employee) {
-		Employee manager = resolveDepartmentManager(employee);
+		Employee manager = reportingManagerResolver.resolve(employee);
 		return EmployeeInfoResponseDto.builder()
 				.id(employee.getId())
 				.employeeId(employee.getEmployeeId())
@@ -449,14 +467,4 @@ public class EmployeeService {
 				.build();
 	}
 
-	private Employee resolveDepartmentManager(Employee employee) {
-		if (employee.getDepartment() == null || employee.getDepartment().getManagerId() == null) {
-			return null;
-		}
-		Long managerId = employee.getDepartment().getManagerId();
-		if (employee.getId() != null && employee.getId().equals(managerId)) {
-			return null;
-		}
-		return employeeRepository.findById(managerId).orElse(null);
-	}
 }

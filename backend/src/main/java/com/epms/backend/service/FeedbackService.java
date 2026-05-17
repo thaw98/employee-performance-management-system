@@ -23,6 +23,7 @@ public class FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
     private final EmployeeRepository employeeRepository;
+    private final ReportingManagerResolver reportingManagerResolver;
     private final CriteriaRepository criteriaRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
@@ -138,20 +139,13 @@ public class FeedbackService {
     private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity) {
         FeedbackHistoryDto dto = mapToHistoryDto(entity);
         Employee evaluatee = entity.getEvaluatee();
-        Employee manager = resolveDepartmentManager(evaluatee);
+        Employee manager = reportingManagerResolver.resolve(evaluatee);
         boolean directManagerFeedback = manager != null
                 && entity.getEvaluator() != null
                 && manager.getId().equals(entity.getEvaluator().getId());
 
         dto.setEvaluatorName(directManagerFeedback ? entity.getEvaluator().getEmployeeName() : "Anonymous");
         return dto;
-    }
-
-    private Employee resolveDepartmentManager(Employee employee) {
-        if (employee == null || employee.getDepartment() == null || employee.getDepartment().getManagerId() == null) {
-            return null;
-        }
-        return employeeRepository.findById(employee.getDepartment().getManagerId()).orElse(null);
     }
 
     public List<com.epms.backend.dto.FeedbackDetailDto> getFeedbackDetails(Long feedbackId) {
@@ -216,19 +210,6 @@ public class FeedbackService {
         return employee != null
                 && employee.getStaffType() != null
                 && employee.getStaffType().getId() == StaffTypes.PROBATION;
-    }
-
-    public boolean isFeedbackGivenInCurrentCycle(Long evaluatorId, Long evaluateeId) {
-        com.epms.backend.dto.TimeSettingDto cycle = timeSettingService.getCurrentCycleRange();
-        Instant cycleStart = cycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant cycleEnd = cycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1)
-                .toInstant();
-        return feedbackRepository.existsByEvaluatorIdAndEvaluateeIdAndCreatedDateBetween(evaluatorId, evaluateeId,
-                cycleStart, cycleEnd);
-    }
-
-    public long countFeedbacksByRoleInCycle(Long evaluatorId, String role, Instant start, Instant end) {
-        return feedbackRepository.countByEvaluatorIdAndRoleAndCreatedDateBetween(evaluatorId, role, start, end);
     }
 
 }
