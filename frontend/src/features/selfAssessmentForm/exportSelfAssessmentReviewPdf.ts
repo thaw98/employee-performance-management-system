@@ -1,6 +1,10 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import type { SelfAssessmentFormDto } from './api/selfAssessmentFormApi'
+import type {
+  SelfAssessmentAttemptAnswerDto,
+  SelfAssessmentFormDto,
+  SelfAssessmentSubmissionAttemptDto,
+} from './api/selfAssessmentFormApi'
 import { resolveMediaSrc } from '../../utils/mediaUrl'
 
 interface SignatureExportItem {
@@ -8,6 +12,10 @@ interface SignatureExportItem {
   name: string
   data: string | null
   date: string | null
+}
+
+export interface ExportSelfAssessmentReviewPdfOptions {
+  roleId?: number
 }
 
 const pageMargin = 14
@@ -31,7 +39,6 @@ const humanizeAllCapsToken = (token: string): string => {
   return token
 }
 
-/** Turn API enums (e.g. FINALIZED_LOCKED) into readable PDF text (no underscores, no all-caps). */
 const humanizeEnumLikeString = (raw: string): string => {
   const text = raw.trim()
   if (!text) return text
@@ -43,7 +50,6 @@ const humanizeEnumLikeString = (raw: string): string => {
   return parts.map(humanizeAllCapsToken).join(' ')
 }
 
-/** PDF dates: DD/MM/YYYY and local 12-hour time with seconds (e.g. 11:05:09PM), not locale-dependent. */
 const formatDate = (value: string | null | undefined): string => {
   if (!value) return '-'
   const date = new Date(value)
@@ -65,7 +71,6 @@ const formatValue = (value: unknown): string => {
   return humanizeEnumLikeString(String(value))
 }
 
-/** ISO calendar date (YYYY-MM-DD) to DD/MM/YYYY for PDF. */
 const formatCycleCalendarDate = (value: string | null | undefined): string | null => {
   if (!value?.trim()) return null
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
@@ -157,14 +162,6 @@ const scoreValue = (value: number | null | undefined): string => (
   value == null ? '-' : `${value.toFixed(1)}%`
 )
 
-const formatYesNoColumn = (
-  value: string | null | undefined,
-  expected: 'Yes' | 'No',
-): string => {
-  if (!value) return '-'
-  return value.toLowerCase() === expected.toLowerCase() ? formatValue(expected) : '-'
-}
-
 const tableBaseStyles = {
   fontSize: 8,
   cellPadding: 2.4,
@@ -177,6 +174,134 @@ const headStyles = {
   fillColor: navy,
   textColor: [255, 255, 255] as [number, number, number],
   fontStyle: 'bold' as const,
+}
+
+const isEmployeeExportRole = (roleId?: number): boolean => roleId === 3 || roleId === 4
+
+const buildAttemptAnswerRows = (
+  answers: SelfAssessmentAttemptAnswerDto[],
+  includeRetakeReason: boolean,
+): Array<Array<string | number>> => answers.map((answer, index) => {
+  const row: Array<string | number> = [
+    index + 1,
+    answer.questionText,
+    formatValue(answer.yesNoAnswer),
+    formatValue(answer.rating),
+    answer.remarks?.trim() || '-',
+  ]
+  if (includeRetakeReason) {
+    row.push(answer.retakeReason?.trim() || '-')
+  }
+  return row
+})
+
+const buildSubmissionAttemptsFallback = (
+  form: SelfAssessmentFormDto,
+): SelfAssessmentSubmissionAttemptDto[] => {
+  const sortedAnswers = [...form.answers].sort((a, b) => a.sortOrder - b.sortOrder)
+  const attempts: SelfAssessmentSubmissionAttemptDto[] = []
+
+  if (form.submittedDate) {
+    attempts.push({
+      attemptNumber: 1,
+      submittedAt: form.submittedDate,
+      retakeReason: null,
+      answers: sortedAnswers.map(answer => ({
+        answerId: answer.id,
+        questionText: answer.questionText,
+        sortOrder: answer.sortOrder,
+        yesNoAnswer: answer.yesNoAnswer,
+        rating: answer.rating,
+        remarks: answer.remarks,
+        retakeReason: null,
+      })),
+    })
+  }
+
+  const hasRetakeSubmission = Boolean(form.retakeSubmittedAt)
+    || sortedAnswers.some(answer => answer.retakeYesNoAnswer != null)
+  if (hasRetakeSubmission) {
+    const retakeSubmittedAt = form.retakeSubmittedAt
+      ?? sortedAnswers
+        .map(answer => answer.retakeSubmittedAt)
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1)
+      ?? null
+
+    const retakeReasons = sortedAnswers
+      .map(answer => answer.retakeReason?.trim())
+      .filter((value): value is string => Boolean(value))
+    const uniqueRetakeReasons = [...new Set(retakeReasons)]
+
+    attempts.push({
+      attemptNumber: attempts.length + 1,
+      submittedAt: retakeSubmittedAt,
+      retakeReason: uniqueRetakeReasons.length > 0 ? uniqueRetakeReasons.join('; ') : null,
+      answers: sortedAnswers.map(answer => {
+        if (answer.retakeRequested && answer.retakeYesNoAnswer != null) {
+          return {
+            answerId: answer.id,
+            questionText: answer.questionText,
+            sortOrder: answer.sortOrder,
+            yesNoAnswer: answer.retakeYesNoAnswer,
+            rating: answer.retakeRating,
+            remarks: answer.remarks,
+            retakeReason: answer.retakeReason,
+          }
+        }
+        return {
+          answerId: answer.id,
+          questionText: answer.questionText,
+          sortOrder: answer.sortOrder,
+          yesNoAnswer: answer.yesNoAnswer,
+          rating: answer.rating,
+          remarks: answer.remarks,
+          retakeReason: null,
+        }
+      }),
+    })
+  }
+
+  return attempts
+}
+
+const resolveSubmissionAttempts = (form: SelfAssessmentFormDto): SelfAssessmentSubmissionAttemptDto[] => {
+  if (form.submissionAttempts?.length) {
+    return [...form.submissionAttempts].sort((a, b) => a.attemptNumber - b.attemptNumber)
+  }
+  return buildSubmissionAttemptsFallback(form)
+}
+
+const resolveAttemptsForExport = (
+  form: SelfAssessmentFormDto,
+  roleId?: number,
+): SelfAssessmentSubmissionAttemptDto[] => {
+  const attempts = resolveSubmissionAttempts(form)
+  if (attempts.length === 0) {
+    return [{
+      attemptNumber: 1,
+      submittedAt: form.submittedDate,
+      retakeReason: null,
+      answers: [...form.answers]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(answer => ({
+          answerId: answer.id,
+          questionText: answer.questionText,
+          sortOrder: answer.sortOrder,
+          yesNoAnswer: answer.yesNoAnswer,
+          rating: answer.rating,
+          remarks: answer.remarks,
+          retakeReason: null,
+        })),
+    }]
+  }
+
+  if (isEmployeeExportRole(roleId)) {
+    return [attempts[attempts.length - 1]]
+  }
+
+  return attempts
 }
 
 const addReportHeader = (doc: jsPDF, form: SelfAssessmentFormDto): number => {
@@ -266,8 +391,6 @@ const addScoreSummary = (doc: jsPDF, form: SelfAssessmentFormDto, y: number): nu
     body: [
       ['Self score', scoreValue(form.totalScore)],
       ['Rating category', formatValue(form.ratingCategory)],
-      ['Manager revised score', scoreValue(form.managerRevisedTotalScore)],
-      ['Final approved score', scoreValue(form.finalApprovedTotalScore)],
     ],
     styles: tableBaseStyles,
     headStyles,
@@ -353,8 +476,102 @@ const addSectionTitle = (doc: jsPDF, title: string, y: number): number => {
   return nextY + 5
 }
 
-export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto): Promise<void> {
+const addAttemptMetadata = (
+  doc: jsPDF,
+  attempt: SelfAssessmentSubmissionAttemptDto,
+  y: number,
+): number => {
+  const rows: Array<[string, string]> = [
+    ['Attempt #', String(attempt.attemptNumber)],
+    ['Submitted At', formatDate(attempt.submittedAt)],
+  ]
+
+  autoTable(doc, {
+    startY: y,
+    theme: 'grid',
+    body: rows,
+    styles: tableBaseStyles,
+    alternateRowStyles: { fillColor: lightFill },
+    columnStyles: {
+      0: { cellWidth: 34, fontStyle: 'bold', textColor: navy, fillColor: sectionFill },
+      1: { cellWidth: 'auto' },
+    },
+    margin: { left: pageMargin, right: pageMargin },
+  })
+
+  return lastTableY(doc) + 5
+}
+
+const addAnswerTable = (
+  doc: jsPDF,
+  answers: SelfAssessmentAttemptAnswerDto[],
+  y: number,
+  attemptNumber: number,
+): number => {
+  const includeRetakeReason = attemptNumber > 1
+  const head = includeRetakeReason
+    ? [['#', 'Question', 'Employee', 'Rating', 'Remarks', 'Retake Reason']]
+    : [['#', 'Question', 'Employee', 'Rating', 'Remarks']]
+
+  autoTable(doc, {
+    startY: y,
+    theme: 'grid',
+    head,
+    body: buildAttemptAnswerRows(answers, includeRetakeReason),
+    styles: { ...tableBaseStyles, fontSize: 7.5, cellPadding: 2 },
+    headStyles,
+    alternateRowStyles: { fillColor: lightFill },
+    columnStyles: includeRetakeReason
+      ? {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 48 },
+          2: { cellWidth: 20 },
+          3: { cellWidth: 16 },
+          4: { cellWidth: 28 },
+          5: { cellWidth: 'auto' },
+        }
+      : {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 62 },
+          2: { cellWidth: 22 },
+          3: { cellWidth: 18 },
+          4: { cellWidth: 'auto' },
+        },
+    margin: { left: pageMargin, right: pageMargin },
+  })
+
+  return lastTableY(doc) + 8
+}
+
+const addAssessmentAnswers = (
+  doc: jsPDF,
+  attempts: SelfAssessmentSubmissionAttemptDto[],
+  y: number,
+): number => {
+  let cursor = addSectionTitle(doc, 'Assessment Answers', y + 2)
+  const showAttemptHistory = attempts.length > 1
+
+  attempts.forEach((attempt, index) => {
+    if (showAttemptHistory) {
+      cursor = addSectionTitle(
+        doc,
+        `Attempt #${attempt.attemptNumber}`,
+        index === 0 ? cursor : lastTableY(doc) + 6,
+      )
+      cursor = addAttemptMetadata(doc, attempt, cursor)
+    }
+    cursor = addAnswerTable(doc, attempt.answers, cursor, attempt.attemptNumber)
+  })
+
+  return cursor
+}
+
+export async function exportSelfAssessmentReviewPdf(
+  form: SelfAssessmentFormDto,
+  options: ExportSelfAssessmentReviewPdfOptions = {},
+): Promise<void> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const attempts = resolveAttemptsForExport(form, options.roleId)
 
   let y = addReportHeader(doc, form)
 
@@ -374,145 +591,35 @@ export async function exportSelfAssessmentReviewPdf(form: SelfAssessmentFormDto)
   ], y)
 
   y = addScoreSummary(doc, form, y)
+  y = addAssessmentAnswers(doc, attempts, y)
 
-  y = addSectionTitle(doc, 'Assessment Answers', y + 2)
-  autoTable(doc, {
-    startY: y,
-    theme: 'grid',
-    head: [
-      [
-        { content: '#', rowSpan: 2 },
-        { content: 'Question', rowSpan: 2 },
-        { content: 'Employee', rowSpan: 2 },
-        { content: 'Rating', rowSpan: 2 },
-        { content: 'Remarks', rowSpan: 2 },
-        { content: 'Manager Proposed', colSpan: 3 },
-        { content: 'Final', colSpan: 3 },
-      ],
-      ['Yes', 'No', 'Rating', 'Yes', 'No', 'Rating'],
-    ],
-    body: form.answers.map((answer, index) => [
-      index + 1,
-      answer.questionText,
-      formatValue(answer.yesNoAnswer),
-      formatValue(answer.rating),
-      answer.remarks ?? '-',
-      formatYesNoColumn(answer.managerProposedYesNo, 'Yes'),
-      formatYesNoColumn(answer.managerProposedYesNo, 'No'),
-      formatValue(answer.managerProposedRating),
-      formatYesNoColumn(answer.finalApprovedYesNo, 'Yes'),
-      formatYesNoColumn(answer.finalApprovedYesNo, 'No'),
-      formatValue(answer.finalApprovedRating),
-    ]),
-    styles: { ...tableBaseStyles, fontSize: 7, cellPadding: 1.8 },
-    headStyles,
-    alternateRowStyles: { fillColor: lightFill },
-    columnStyles: {
-      0: { cellWidth: 8 },
-      1: { cellWidth: 36 },
-      2: { cellWidth: 14 },
-      3: { cellWidth: 12 },
-      4: { cellWidth: 26 },
-      5: { cellWidth: 12 },
-      6: { cellWidth: 12 },
-      7: { cellWidth: 12 },
-      8: { cellWidth: 12 },
-      9: { cellWidth: 12 },
-      10: { cellWidth: 12 },
-    },
-    margin: { left: pageMargin, right: pageMargin },
-  })
+  const remarks = [
+    ['Employee Remarks:', form.employeeRemarks ?? '-'],
+    ['Overall Remarks:', form.overallRemarks ?? '-'],
+  ].filter(([, value]) => value !== '-')
 
-  if (form.adjustments.length > 0) {
-    y = addSectionTitle(doc, 'Adjustment Records', lastTableY(doc) + 9)
+  if (remarks.length > 0) {
+    y = addSectionTitle(doc, 'Remarks', lastTableY(doc) + 4)
     autoTable(doc, {
       startY: y,
       theme: 'grid',
-      head: [
-        [
-          { content: 'Question', rowSpan: 2 },
-          { content: 'Original', colSpan: 3 },
-          { content: 'Proposed', colSpan: 3 },
-          { content: 'Decision', rowSpan: 2 },
-          { content: 'Manager Comment', rowSpan: 2 },
-          { content: 'HR Reason', rowSpan: 2 },
-        ],
-        ['Yes', 'No', 'Rating', 'Yes', 'No', 'Rating'],
-      ],
-      body: form.adjustments.map(adjustment => [
-        adjustment.questionText,
-        formatYesNoColumn(adjustment.originalYesNo, 'Yes'),
-        formatYesNoColumn(adjustment.originalYesNo, 'No'),
-        formatValue(adjustment.originalRating),
-        formatYesNoColumn(adjustment.proposedYesNo, 'Yes'),
-        formatYesNoColumn(adjustment.proposedYesNo, 'No'),
-        formatValue(adjustment.proposedRating),
-        formatValue(adjustment.hrDecision),
-        adjustment.managerComment ?? '-',
-        adjustment.hrRejectionReason ?? '-',
-      ]),
-      styles: { ...tableBaseStyles, fontSize: 7, cellPadding: 1.8 },
-      headStyles,
+      body: remarks,
+      styles: tableBaseStyles,
       alternateRowStyles: { fillColor: lightFill },
       columnStyles: {
-        0: { cellWidth: 38 },
-        1: { cellWidth: 11 },
-        2: { cellWidth: 11 },
-        3: { cellWidth: 11 },
-        4: { cellWidth: 11 },
-        5: { cellWidth: 11 },
-        6: { cellWidth: 11 },
-        7: { cellWidth: 16 },
-        8: { cellWidth: 28 },
-        9: { cellWidth: 28 },
+        0: {
+          cellWidth: 42,
+          fontStyle: 'bold',
+          fillColor: navy,
+          textColor: [255, 255, 255] as [number, number, number],
+        },
+        1: { cellWidth: 'auto' },
       },
       margin: { left: pageMargin, right: pageMargin },
     })
   }
 
-  const remarks = [
-    ['Employee Remarks', form.employeeRemarks ?? '-'],
-    ['Manager Comments', form.managerComments ?? '-'],
-    ['Overall Remarks', form.overallRemarks ?? '-'],
-    ['HR Remarks', form.hrReviewReason ?? '-'],
-    ['Employee Dispute Reason', form.employeeDisputeReason ?? '-'],
-  ].filter(([, value]) => value !== '-')
-
-  if (remarks.length > 0) {
-    y = addSectionTitle(doc, 'Remarks', lastTableY(doc) + 9)
-    autoTable(doc, {
-      startY: y,
-      theme: 'grid',
-      head: [['Type', 'Text']],
-      body: remarks,
-      styles: tableBaseStyles,
-      headStyles,
-      alternateRowStyles: { fillColor: lightFill },
-      columnStyles: { 0: { cellWidth: 42, fontStyle: 'bold' } },
-      margin: { left: pageMargin, right: pageMargin },
-    })
-  }
-
-  y = await drawSignatures(doc, form, lastTableY(doc) + 10)
-
-  const workflowRows = [
-    ['HR workflow', form.hrSignatureData ? 'Signed' : 'Not signed', formatDate(form.hrSignatureDate)],
-    ['HR adjustment/reopen', form.hrAdjustmentSignatureData ? 'Signed' : 'Not signed', formatDate(form.hrAdjustmentSignatureDate)],
-  ].filter(([, signed]) => signed === 'Signed')
-
-  if (workflowRows.length > 0) {
-    autoTable(doc, {
-      startY: ensureSpace(doc, y, 25),
-      theme: 'grid',
-      head: [['Workflow Signature', 'Status', 'Date']],
-      body: workflowRows,
-      styles: tableBaseStyles,
-      headStyles,
-      alternateRowStyles: { fillColor: lightFill },
-      margin: { left: pageMargin, right: pageMargin },
-    })
-  }
-
+  await drawSignatures(doc, form, lastTableY(doc) + 10)
   addPageFooters(doc)
   doc.save(`self-assessment-review-${form.id}.pdf`)
 }

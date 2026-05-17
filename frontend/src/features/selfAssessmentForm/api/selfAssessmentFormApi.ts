@@ -135,6 +135,23 @@ export interface EmployeeInfoDto {
   positionCode: string
 }
 
+export interface SelfAssessmentAttemptAnswerDto {
+  answerId: number
+  questionText: string
+  sortOrder: number
+  yesNoAnswer: string | null
+  rating: number | null
+  remarks: string | null
+  retakeReason: string | null
+}
+
+export interface SelfAssessmentSubmissionAttemptDto {
+  attemptNumber: number
+  submittedAt: string | null
+  retakeReason: string | null
+  answers: SelfAssessmentAttemptAnswerDto[]
+}
+
 export interface AnswerDto {
   id: number
   questionText: string
@@ -236,6 +253,7 @@ export interface SelfAssessmentFormDto {
   hrReviewReason: string | null
   hrReviewReasonAt: string | null
   hrName: string | null
+  submissionAttempts: SelfAssessmentSubmissionAttemptDto[]
 }
 
 export interface FormListDto {
@@ -545,6 +563,23 @@ const normalizeAnswer = (source: UnknownRecord): AnswerDto => {
   }
 }
 
+const normalizeAttemptAnswer = (source: UnknownRecord): SelfAssessmentAttemptAnswerDto => ({
+  answerId: getNumber(source.answerId ?? source.id),
+  questionText: getString(source.questionText),
+  sortOrder: getNumber(source.sortOrder),
+  yesNoAnswer: getOptionalString(source.yesNoAnswer) ?? null,
+  rating: source.rating != null ? getNumber(source.rating) : null,
+  remarks: getOptionalString(source.remarks) ?? null,
+  retakeReason: getOptionalString(source.retakeReason) ?? null,
+})
+
+const normalizeSubmissionAttempt = (source: UnknownRecord): SelfAssessmentSubmissionAttemptDto => ({
+  attemptNumber: getNumber(source.attemptNumber),
+  submittedAt: getOptionalString(source.submittedAt) ?? null,
+  retakeReason: getOptionalString(source.retakeReason) ?? null,
+  answers: getArray(source.answers).map(a => normalizeAttemptAnswer(isRecord(a) ? a : {})),
+})
+
 const normalizeAdjustment = (source: UnknownRecord): AdjustmentDto => {
   return {
     id: getNumber(source.id),
@@ -628,6 +663,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     hrReviewReason: getOptionalString(source.hrReviewReason) ?? null,
     hrReviewReasonAt: getOptionalString(source.hrReviewReasonAt) ?? null,
     hrName: getOptionalString(source.hrName) ?? null,
+    submissionAttempts: getArray(source.submissionAttempts).map(a => normalizeSubmissionAttempt(isRecord(a) ? a : {})),
   }
 }
 

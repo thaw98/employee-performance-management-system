@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useRhfAutosave, withRetry, type SaveResult, type Transport } from 'react-hook-form-autosave';
 import { toast } from 'react-hot-toast';
 import { useLocation } from 'react-router-dom';
@@ -350,11 +350,13 @@ function YesNoToggle({
 export const MySelfAssessmentFormPage: React.FC = () => {
   const location = useLocation();
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showRetakeSubmitConfirm, setShowRetakeSubmitConfirm] = useState(false);
   const [showAcknowledgeConfirm, setShowAcknowledgeConfirm] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
   const [disputeCategory, setDisputeCategory] = useState('');
   const [disputeReason, setDisputeReason] = useState('');
   const [hasPadDrawing, setHasPadDrawing] = useState(false);
+  const [needsInlineSignature, setNeedsInlineSignature] = useState(false);
   const [isSavingInlineSignature, setIsSavingInlineSignature] = useState(false);
   const inlineSignaturePadRef = useRef<InlineDefaultSignaturePadHandle>(null);
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery();
@@ -363,8 +365,13 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   useEffect(() => {
     if (!showSubmitConfirm) {
       setHasPadDrawing(false);
+      setNeedsInlineSignature(false);
+      return;
     }
-  }, [showSubmitConfirm]);
+    if (!isDefaultSigLoading && !hasDefaultSignature) {
+      setNeedsInlineSignature(true);
+    }
+  }, [showSubmitConfirm, isDefaultSigLoading, hasDefaultSignature]);
 
   const { data: formStatus, isLoading: statusLoading, refetch: refetchStatus } = useGetMyFormStatusQuery();
   const shouldLoadForm = Boolean(
@@ -395,6 +402,9 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     watch,
     reset,
   } = form;
+
+  const watchAnswers = watch('answers');
+  const employeeRemarksLen = String(useWatch({ control, name: 'employeeRemarks' }) ?? '').length;
 
   const isRetakeMode = formData?.status === 'PENDING_EMPLOYEE_RETAKE';
   const isReadOnly = formData?.status !== 'DRAFT' && formData?.status !== 'REOPENED' && !isRetakeMode;
@@ -462,7 +472,6 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     }
   }, [location.state, refetch, refetchStatus, shouldLoadForm]);
 
-  const watchAnswers = watch('answers');
   const ratingSystem = formData?.ratingSystem ?? 'FIVE_POINT';
   const tenPointYesMinRating = formData?.tenPointYesMinRating ?? 5;
 
@@ -511,17 +520,40 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     }
   }, [autosave, refetch]);
 
+  const handleConfirmRetakeSubmit = () => {
+    void handleSubmit(
+      onRetakeSubmit,
+      () => {
+        toast.error('Please complete all warned questions before submitting.');
+      },
+    )();
+  };
+
   const handleConfirmSubmit = async () => {
-    if (!hasDefaultSignature) {
-      setIsSavingInlineSignature(true);
-      try {
-        const saved = await inlineSignaturePadRef.current?.saveAsDefault();
+    try {
+      if (needsInlineSignature && !hasDefaultSignature) {
+        const pad = inlineSignaturePadRef.current;
+        if (!pad) {
+          toast.error('Signature pad is not ready. Please try again.');
+          return;
+        }
+        setIsSavingInlineSignature(true);
+        const saved = await pad.saveAsDefault();
         if (!saved) return;
-      } finally {
-        setIsSavingInlineSignature(false);
       }
+
+      await handleSubmit(
+        onSubmitForm,
+        () => {
+          toast.error('Please complete all questions before submitting.');
+        },
+      )();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to submit form';
+      toast.error(message);
+    } finally {
+      setIsSavingInlineSignature(false);
     }
-    await handleSubmit(onSubmitForm)();
   };
 
   const onSubmitForm = async (data: AnswerFormData) => {
@@ -579,6 +611,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 	        },
 	      }).unwrap();
 	      toast.success('Retake submitted');
+	      setShowRetakeSubmitConfirm(false);
 	      refetch();
 	    } catch (error: any) {
 	      toast.error(error?.data?.message || 'Failed to submit retake');
@@ -1008,7 +1041,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                       />
                     </div>
 
-                    {/* Remarks */}
+{/* Remarks */}
                     <div>
                       <label className="mb-2.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                         <MessageSquare size={12} />
@@ -1017,14 +1050,28 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                           (optional)
                         </span>
                       </label>
-                      <textarea
-                        {...register(`answers.${index}.remarks` as const)}
-	                        disabled={!canEditQuestion}
-                        rows={2}
-                        placeholder="Add any remarks for this question…"
-                        className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-100/60 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500 dark:focus:border-emerald-500 dark:focus:bg-slate-900 dark:focus:ring-emerald-900/40"
+                      <Controller
+                        name={`answers.${index}.remarks`}
+                        control={control}
+                        render={({ field }) => {
+                          const remarksLen = String(field.value ?? '').length;
+                          return (
+                            <>
+                              <textarea
+                                {...field}
+                                disabled={!canEditQuestion}
+                                rows={2}
+                                placeholder="Add any remarks for this question…"
+                                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-100/60 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500 dark:focus:border-emerald-500 dark:focus:bg-slate-900 dark:focus:ring-emerald-900/40"
+                              />
+                              <div className="mt-1 flex items-start justify-end">
+                                <span className="shrink-0 text-xs text-slate-400">{remarksLen}/500</span>
+                              </div>
+                            </>
+                          );
+                        }}
                       />
-	                    </div>
+                    </div>
 	                    {isRetakeMode && answer.retakeRequested && (
 	                      <div>
 	                        <label className="mb-2.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
@@ -1115,14 +1162,17 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="px-6 py-6">
+<div className="px-6 py-6">
               <textarea
                 {...register('employeeRemarks')}
-	                disabled={isReadOnly || isRetakeMode}
+                disabled={isReadOnly || isRetakeMode}
                 rows={4}
                 placeholder="Share any additional thoughts, context, or feedback you'd like to include…"
                 className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-100/60 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500 dark:focus:border-emerald-500 dark:focus:bg-slate-900 dark:focus:ring-emerald-900/40"
               />
+              <div className="mt-1 flex items-start justify-end">
+                <span className="shrink-0 text-xs text-slate-400">{employeeRemarksLen}/500</span>
+              </div>
             </div>
           </div>
 
@@ -1178,7 +1228,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 	                )}
 	                <button
 	                  type="button"
-	                  onClick={() => isRetakeMode ? handleSubmit(onRetakeSubmit)() : setShowSubmitConfirm(true)}
+	                  onClick={() => (isRetakeMode ? setShowRetakeSubmitConfirm(true) : setShowSubmitConfirm(true))}
 	                  disabled={isRetakeMode ? isSubmittingRetake : (isSubmitting || !isSubmissionComplete)}
                   className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 ring-1 ring-emerald-600/20 transition-all hover:-translate-y-px hover:shadow-lg hover:shadow-emerald-500/30 disabled:translate-y-0 disabled:opacity-50"
                 >
@@ -1341,6 +1391,67 @@ export const MySelfAssessmentFormPage: React.FC = () => {
         </div>
       )}
 
+      {/* ───── Retake Submit Confirmation Modal ───── */}
+      {showRetakeSubmitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20">
+                  <Send size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
+                    Confirm Retake Submission
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    This action cannot be undone
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRetakeSubmitConfirm(false)}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-6 py-5">
+              <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                Are you sure you want to submit your retake responses? Your manager will be notified to review them.
+              </p>
+              <div className="mt-4 flex gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-900/15">
+                <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                <p className="text-sm leading-snug font-medium text-amber-800 dark:text-amber-200">
+                  You will not be able to edit your retake answers after submission.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4 dark:border-slate-700 dark:bg-slate-900/40">
+              <button
+                type="button"
+                onClick={() => setShowRetakeSubmitConfirm(false)}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRetakeSubmit}
+                disabled={isSubmittingRetake}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:shadow-lg hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <CheckCircle2 size={16} />
+                {isSubmittingRetake ? 'Submitting…' : 'Confirm Submit Retake'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ───── Confirmation Modal ───── */}
       {showSubmitConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
@@ -1371,7 +1482,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
                 Are you ready to submit your completed self-assessment?
               </p>
-              {!isDefaultSigLoading && !hasDefaultSignature && (
+              {needsInlineSignature && (
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3.5 dark:border-amber-800/60 dark:bg-amber-900/20">
                   <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
                     Default signature is required before submission.
@@ -1396,19 +1507,21 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
             <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4 dark:border-slate-700 dark:bg-slate-900/40">
               <button
+                type="button"
                 onClick={() => setShowSubmitConfirm(false)}
                 className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmSubmit}
                 disabled={
                   isSubmitting
                   || isSavingInlineSignature
                   || !isSubmissionComplete
                   || isDefaultSigLoading
-                  || (!hasDefaultSignature && !hasPadDrawing)
+                  || (needsInlineSignature && !hasPadDrawing)
                 }
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:shadow-lg hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
               >

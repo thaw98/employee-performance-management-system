@@ -2201,15 +2201,23 @@ Instant now = Instant.now();
 
     private void sendEmployeeRetakeNotification(SelfAssessmentForm form) {
         Employee employee = form.getEmployee();
-        if (employee != null && hasActiveUserAccount(employee)) {
-            notificationService.send(
-                    employee.getUserAccount(),
-                    "Self-Assessment Retake Requested",
-                    "Your manager requested a retake for selected questions on "
-                            + resolveFormDisplayTitle(form) + ". Please update only the warned questions.",
-                    "SELF_ASSESSMENT_FORM",
-                    form.getId());
+        resolveActiveEmployeeUser(employee).ifPresent(user -> notificationService.send(
+                user,
+                "Self-Assessment Retake Requested",
+                "Your manager requested a retake for selected questions on "
+                        + resolveFormDisplayTitle(form) + ". Please update only the warned questions.",
+                "SELF_ASSESSMENT_FORM",
+                form.getId()));
+    }
+
+    private Optional<User> resolveActiveEmployeeUser(Employee employee) {
+        if (employee == null || employee.getId() == null) {
+            return Optional.empty();
         }
+        if (hasActiveUserAccount(employee)) {
+            return Optional.of(employee.getUserAccount());
+        }
+        return userRepository.findByEmployee_Id(employee.getId()).filter(User::isActive);
     }
 
     private void sendManagerRetakeSubmittedNotification(SelfAssessmentForm form) {
@@ -2628,6 +2636,86 @@ Instant now = Instant.now();
         return value == null || value.isBlank() ? "-" : value;
     }
 
+    private List<SelfAssessmentSubmissionAttemptDto> buildSubmissionAttempts(SelfAssessmentForm form) {
+        List<SelfAssessmentFormAnswer> sortedAnswers = form.getAnswers().stream()
+                .sorted(Comparator.comparing(SelfAssessmentFormAnswer::getSortOrder))
+                .toList();
+
+        List<SelfAssessmentSubmissionAttemptDto> attempts = new ArrayList<>();
+
+        if (form.getSubmittedDate() != null) {
+            List<SelfAssessmentAttemptAnswerDto> originalAnswers = sortedAnswers.stream()
+                    .map(a -> new SelfAssessmentAttemptAnswerDto(
+                            a.getId(),
+                            a.getQuestionText(),
+                            a.getSortOrder(),
+                            a.getYesNoAnswer(),
+                            a.getRating(),
+                            a.getRemarks(),
+                            null
+                    ))
+                    .toList();
+            attempts.add(new SelfAssessmentSubmissionAttemptDto(
+                    1,
+                    form.getSubmittedDate(),
+                    null,
+                    originalAnswers
+            ));
+        }
+
+        boolean hasRetakeSubmission = form.getRetakeSubmittedAt() != null
+                || sortedAnswers.stream().anyMatch(a -> a.getRetakeYesNoAnswer() != null);
+        if (hasRetakeSubmission) {
+            Instant retakeSubmittedAt = form.getRetakeSubmittedAt() != null
+                    ? form.getRetakeSubmittedAt()
+                    : sortedAnswers.stream()
+                            .map(SelfAssessmentFormAnswer::getRetakeSubmittedAt)
+                            .filter(Objects::nonNull)
+                            .max(Instant::compareTo)
+                            .orElse(null);
+
+            List<SelfAssessmentAttemptAnswerDto> retakeAnswers = sortedAnswers.stream()
+                    .map(a -> {
+                        if (Boolean.TRUE.equals(a.getRetakeRequested()) && a.getRetakeYesNoAnswer() != null) {
+                            return new SelfAssessmentAttemptAnswerDto(
+                                    a.getId(),
+                                    a.getQuestionText(),
+                                    a.getSortOrder(),
+                                    a.getRetakeYesNoAnswer(),
+                                    a.getRetakeRating(),
+                                    a.getRemarks(),
+                                    a.getRetakeReason()
+                            );
+                        }
+                        return new SelfAssessmentAttemptAnswerDto(
+                                a.getId(),
+                                a.getQuestionText(),
+                                a.getSortOrder(),
+                                a.getYesNoAnswer(),
+                                a.getRating(),
+                                a.getRemarks(),
+                                null
+                        );
+                    })
+                    .toList();
+
+            String aggregateRetakeReason = sortedAnswers.stream()
+                    .map(SelfAssessmentFormAnswer::getRetakeReason)
+                    .filter(reason -> reason != null && !reason.isBlank())
+                    .distinct()
+                    .collect(Collectors.joining("; "));
+
+            attempts.add(new SelfAssessmentSubmissionAttemptDto(
+                    attempts.size() + 1,
+                    retakeSubmittedAt,
+                    aggregateRetakeReason.isBlank() ? null : aggregateRetakeReason,
+                    retakeAnswers
+            ));
+        }
+
+        return attempts;
+    }
+
     private SelfAssessmentFormDto toFormDto(SelfAssessmentForm form) {
         Employee emp = form.getEmployee();
         EmployeeInfoDto employeeInfo = new EmployeeInfoDto(
@@ -2754,7 +2842,8 @@ Instant now = Instant.now();
                 form.getHrReviewRequired(),
                 form.getHrReviewReason(),
                 form.getHrReviewReasonAt(),
-                hrName
+                hrName,
+                buildSubmissionAttempts(form)
         );
     }
 

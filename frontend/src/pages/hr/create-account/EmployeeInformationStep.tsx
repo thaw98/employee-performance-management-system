@@ -18,7 +18,7 @@ const RELIGIONS = ['Buddhist', 'Christian', 'Muslim', 'Hindu'] as const
 const EMPLOYEE_NAME_MAX_LENGTH = 50
 
 /** Optional + plus up to 15 digits; matches createEmployeeAccountSchema phone regex. */
-const PHONE_INPUT_MAX_LENGTH = 16
+const PHONE_INPUT_MAX_LENGTH = 20
 
 type Dup = 'idle' | 'checking' | 'exists' | 'available'
 
@@ -99,8 +99,10 @@ export function EmployeeInformationStep({
   readOnlyStaffNo = false,
 }: EmployeeInformationStepProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
+  const phoneNoLen = String(useWatch({ control, name: 'phoneNo' }) ?? '').length
   const employeeNameLen = String(useWatch({ control, name: 'employeeName' }) ?? '').length
-  const currentStaffNo = String(useWatch({ control, name: 'staffNo' }) ?? '')
+  const addressLen = String(useWatch({ control, name: 'address' }) ?? '').length
+  const currentStaffNo = String(useWatch({ control, name: 'staffNo' }) ?? '').length
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -357,9 +359,12 @@ export function EmployeeInformationStep({
             placeholder="+95xxxxxxxxx or 09xxxxxxxx"
             {...register('phoneNo')}
           />
-          {errors.phoneNo?.message ? (
-            <p className="mt-1 text-xs text-red-600">{String(errors.phoneNo.message)}</p>
-          ) : null}
+          <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
+            <span className={errors.phoneNo ? 'text-red-600' : ''}>
+              {errors.phoneNo?.message ? String(errors.phoneNo.message) : null}
+            </span>
+            <span className="shrink-0 text-slate-400">{phoneNoLen}/{PHONE_INPUT_MAX_LENGTH}</span>
+          </div>
         </div>
 
         <div className="md:col-span-2">
@@ -384,13 +389,17 @@ export function EmployeeInformationStep({
           <textarea
             id="address"
             rows={3}
+            maxLength={500}
             className={`${errors.address ? inputError : inputNormal} resize-none`}
             placeholder="Street address, city, region"
             {...register('address')}
           />
-          {errors.address?.message ? (
-            <p className="mt-1 text-xs text-red-600">{String(errors.address.message)}</p>
-          ) : null}
+          <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
+            <span className={errors.address ? 'text-red-600' : ''}>
+              {errors.address?.message ? String(errors.address.message) : null}
+            </span>
+            <span className="shrink-0 text-slate-400">{addressLen}/500</span>
+          </div>
         </div>
 
         <div className="md:col-span-2">

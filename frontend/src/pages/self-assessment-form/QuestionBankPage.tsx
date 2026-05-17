@@ -297,6 +297,9 @@ export const QuestionBankPage: React.FC = () => {
                           <p className="font-medium text-slate-900 dark:text-white">
                             {question.questionText}
                           </p>
+                          <span className="shrink-0 text-xs text-slate-400">
+                            {question.questionText?.length ?? 0}/100
+                          </span>
                         </div>
                       </td>
                       <td className="px-5 py-4 text-center">

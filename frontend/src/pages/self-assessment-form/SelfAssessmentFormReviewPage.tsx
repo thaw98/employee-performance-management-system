@@ -41,6 +41,7 @@ import {
   useGetHrReviewFormsQuery,
   useGetAllFormsForHrQuery,
   useGetFormByIdQuery,
+  useManagerReviewMutation,
   useManagerRequestRetakeMutation,
   useManagerApproveRetakeMutation,
   useHrReturnDisputedReviewMutation,
@@ -240,6 +241,61 @@ function ScoreBar({ value, max = 100, color = '#5D5FEF', label }: { value: numbe
   );
 }
 
+function ManagerReviewDeadlineDisplay({ date }: { date: string | null }) {
+  if (!date) return null;
+
+  const parts = date.split('-').map(Number);
+  const deadline = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const isOverdue = Boolean(deadline && deadline < now);
+  const isToday = Boolean(deadline && deadline.getTime() === now.getTime());
+  const isSoon = Boolean(
+    deadline && !isOverdue && !isToday && (deadline.getTime() - now.getTime()) < 7 * 86400000,
+  );
+
+  const containerClass = isOverdue
+    ? 'border-red-200/70 bg-red-50/50 dark:border-red-800/50 dark:bg-red-900/20'
+    : isToday || isSoon
+      ? 'border-amber-200/70 bg-amber-50/50 dark:border-amber-800/50 dark:bg-amber-900/20'
+      : 'border-blue-200/70 bg-blue-50/40 dark:border-blue-800/50 dark:bg-blue-900/20';
+
+  const textClass = isOverdue
+    ? 'text-red-700 dark:text-red-300'
+    : isToday || isSoon
+      ? 'text-amber-700 dark:text-amber-300'
+      : 'text-blue-700 dark:text-blue-300';
+
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border px-4 py-3.5 ${containerClass}`}>
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+        isOverdue
+          ? 'bg-red-100 dark:bg-red-900/40'
+          : isToday || isSoon
+            ? 'bg-amber-100 dark:bg-amber-900/40'
+            : 'bg-blue-100 dark:bg-blue-900/40'
+      }`}>
+        {isOverdue ? (
+          <AlertCircle size={18} className="text-red-600 dark:text-red-400" />
+        ) : (
+          <Clock size={18} className={isToday || isSoon ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'} />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+          Manager Review Deadline
+        </p>
+        <p className={`text-sm font-bold ${textClass}`}>
+          {formatDateDayMonthYear(date)}
+          {isOverdue && <span className="ml-2 text-xs font-semibold uppercase tracking-wide">Overdue</span>}
+          {isToday && !isOverdue && <span className="ml-2 text-xs font-semibold uppercase tracking-wide">Due today</span>}
+          {isSoon && !isToday && !isOverdue && <span className="ml-2 text-xs font-semibold uppercase tracking-wide">Due soon</span>}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export const SelfAssessmentFormReviewPage: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
   const { formId: formIdParam } = useParams<{ formId?: string }>();
@@ -247,6 +303,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const navigate = useNavigate();
   const isHr = user?.roleId === 1;
   const isEmployeeDetail = location.pathname.startsWith('/employee/self-assessment-forms') || user?.roleId === 3 || user?.roleId === 4;
+  const isManagerView = !isHr && !isEmployeeDetail;
   const reviewQueuePath = isHr
     ? '/hr/self-assessment/review-queue'
     : isEmployeeDetail
@@ -320,6 +377,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     isEmployeeDetail,
   ]);
 
+  const [managerReview, { isLoading: isApprovingReview }] = useManagerReviewMutation();
   const [managerRequestRetake, { isLoading: isRequestingRetake }] = useManagerRequestRetakeMutation();
   const [managerApproveRetake, { isLoading: isApprovingRetake }] = useManagerApproveRetakeMutation();
   const [hrReturnDisputedReview, { isLoading: isHrReturningDispute }] = useHrReturnDisputedReviewMutation();
@@ -330,9 +388,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [showManagerApproveModal, setShowManagerApproveModal] = useState(false);
+  const [showManagerApproveRetakeModal, setShowManagerApproveRetakeModal] = useState(false);
+  const [showManagerRetakeModal, setShowManagerRetakeModal] = useState(false);
   const [approvalMode, setApprovalMode] = useState<'adjustment' | 'final'>('final');
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery(undefined, {
-    skip: !isHr || isEmployeeDetail,
+    skip: isEmployeeDetail,
   });
   const defaultSignature = defaultSigResponse?.data ?? null;
   const hasDefaultSignature = Boolean(defaultSignature);
@@ -391,17 +452,67 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     });
   };
 
-  const handleSubmitRetakeRequest = async () => {
+  const handleApproveReview = async () => {
     if (!selectedFormId) return;
-    const retakeRequests = Object.entries(retakeComments).map(([answerId, comment]) => ({
+    if (!hasDefaultSignature) {
+      toast.error('Set a default signature in Signature Settings before approving.');
+      return;
+    }
+
+    try {
+      await managerReview({
+        formId: selectedFormId,
+        request: {
+          comments: managerComments.trim() || '',
+          adjustments: [],
+        },
+      }).unwrap();
+      toast.success('Review approved. HR has been notified for final approval.');
+      setShowManagerApproveModal(false);
+      setManagerComments('');
+      setRetakeComments({});
+      setShowAdjustments(false);
+      refetchForm();
+      if (!isEmployeeDetail) {
+        void refetchManagerForms();
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to approve review');
+    }
+  };
+
+  const buildRetakeRequests = () =>
+    Object.entries(retakeComments).map(([answerId, comment]) => ({
       answerId: Number(answerId),
       comment: comment.trim(),
     }));
+
+  const openManagerRetakeModal = () => {
+    const retakeRequests = buildRetakeRequests();
     if (retakeRequests.length === 0) {
       toast.error('Select at least one question for retake');
       return;
     }
-    if (retakeRequests.some(r => !r.comment)) {
+    if (retakeRequests.some((r) => !r.comment)) {
+      toast.error('Add a warning comment for each selected question');
+      return;
+    }
+    setShowManagerRetakeModal(true);
+  };
+
+  const handleSubmitRetakeRequest = async () => {
+    if (!selectedFormId) return;
+    if (!hasDefaultSignature) {
+      toast.error('Set a default signature in Signature Settings before requesting a retake.');
+      return;
+    }
+
+    const retakeRequests = buildRetakeRequests();
+    if (retakeRequests.length === 0) {
+      toast.error('Select at least one question for retake');
+      return;
+    }
+    if (retakeRequests.some((r) => !r.comment)) {
       toast.error('Add a warning comment for each selected question');
       return;
     }
@@ -411,11 +522,15 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         formId: selectedFormId,
         request: { comments: managerComments, retakeRequests },
       }).unwrap();
-      toast.success('Retake requested');
+      toast.success('Retake requested. The employee has been notified.');
+      setShowManagerRetakeModal(false);
       setManagerComments('');
       setRetakeComments({});
       setShowAdjustments(false);
       refetchForm();
+      if (!isEmployeeDetail) {
+        void refetchManagerForms();
+      }
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to request retake');
     }
@@ -426,7 +541,11 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     try {
       await managerApproveRetake({ formId: selectedFormId, request: { comments: managerComments || undefined } }).unwrap();
       toast.success('Retake approved');
+      setShowManagerApproveRetakeModal(false);
       refetchForm();
+      if (!isEmployeeDetail) {
+        void refetchManagerForms();
+      }
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to approve retake');
     }
@@ -559,7 +678,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
     try {
       setIsExportingPdf(true);
-      await exportSelfAssessmentReviewPdf(selectedForm);
+      await exportSelfAssessmentReviewPdf(selectedForm, { roleId: user?.roleId });
       toast.success('PDF exported');
     } catch {
       toast.error('Failed to export PDF');
@@ -820,6 +939,10 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         <div className={selectedFormId === -1 ? 'lg:col-span-8 xl:col-span-9 space-y-5' : 'lg:col-span-12 space-y-5'}>
           {selectedForm ? (
             <>
+              {isManagerView && selectedForm.managerReviewDeadlineDate && (
+                <ManagerReviewDeadlineDisplay date={selectedForm.managerReviewDeadlineDate} />
+              )}
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up">
                 <div className="rounded-xl border border-slate-200/60 bg-white p-4 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
                   <div className="flex items-center gap-2.5 mb-2.5">
@@ -975,7 +1098,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                 </div>
               </div>
 
-              {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason) && (
+              {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason || (!isHr && !isEmployeeDetail && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW')) && (
                 <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '140ms' }}>
                   <div className="flex items-center gap-2 mb-4">
                     <MessageSquare size={15} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
@@ -1041,6 +1164,37 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                           leading={<AlertCircle size={13} className="text-rose-500 dark:text-rose-400" />}
                         />
                         <p className="text-sm text-rose-700 dark:text-rose-200 leading-relaxed">{selectedForm.employeeDisputeReason}</p>
+                      </div>
+                    )}
+                    {!isHr && !isEmployeeDetail && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW' && (
+                      <div className="overflow-hidden rounded-xl border border-emerald-200/70 bg-emerald-50/30 dark:border-emerald-700/50 dark:bg-emerald-900/15">
+                        <div className="flex items-center gap-3 border-b border-emerald-100 px-4 py-3 dark:border-emerald-800/50">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 shadow-md shadow-emerald-500/20">
+                            <ClipboardCheck size={16} className="text-white" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white">Review Retake</h4>
+                            <p className="text-xs text-slate-400 dark:text-slate-500">Approve the submitted retake or schedule a meeting</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap justify-end gap-3 p-4">
+                          <button
+                            type="button"
+                            onClick={handleScheduleMeeting}
+                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700/60"
+                          >
+                            <CalendarDays size={16} />
+                            Schedule Meeting
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowManagerApproveRetakeModal(true)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-xl"
+                          >
+                            <CheckCircle2 size={16} />
+                            Approve
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1270,7 +1424,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Submit Your Review</h3>
-	                      <p className="text-xs text-slate-400 dark:text-slate-500">Provide feedback or request a one-time retake for selected questions</p>
+	                      <p className="text-xs text-slate-400 dark:text-slate-500">
+                        Approve the employee&apos;s answers, or request a one-time retake for selected questions
+                      </p>
                     </div>
                   </div>
 
@@ -1408,8 +1564,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-700/40">
+                    <div className="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-700/40">
                       <button
+                        type="button"
                         onClick={() => {
                           setManagerComments('');
 	                          setRetakeComments({});
@@ -1420,53 +1577,28 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                         Reset
                       </button>
                       <button
-	                        onClick={handleSubmitRetakeRequest}
-	                        disabled={isRequestingRetake}
+                        type="button"
+                        onClick={() => setShowManagerApproveModal(true)}
+                        disabled={showAdjustments}
+                        title={showAdjustments ? 'Turn off Request Retake to approve' : 'Approve employee answers'}
+                        className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        <CheckCircle2 size={16} />
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+	                        onClick={openManagerRetakeModal}
+	                        disabled={!showAdjustments}
+                        title={!showAdjustments ? 'Enable Request Retake to select questions' : undefined}
                         className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
-	                        {isRequestingRetake ? (
-	                          <Loader2 size={16} className="animate-spin" />
-	                        ) : (
-	                          <Send size={16} />
-	                        )}
+	                        <Send size={16} />
 	                        Request Retake
                       </button>
                     </div>
                   </div>
                 </div>
-	              )}
-
-	              {!isHr && !isEmployeeDetail && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW' && (
-	                <div className="overflow-hidden rounded-2xl border border-emerald-200/70 bg-white shadow-sm dark:border-emerald-800/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-	                  <div className="flex items-center gap-3 border-b border-emerald-100 px-6 py-4 dark:border-emerald-800/50">
-	                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 shadow-md shadow-emerald-500/20">
-	                      <ClipboardCheck size={18} className="text-white" />
-	                    </div>
-	                    <div>
-	                      <h3 className="text-base font-bold text-slate-900 dark:text-white">Review Retake</h3>
-	                      <p className="text-xs text-slate-400 dark:text-slate-500">Approve the submitted retake or schedule a meeting</p>
-	                    </div>
-	                  </div>
-	                  <div className="flex flex-wrap justify-end gap-3 p-6">
-	                    <button
-	                      type="button"
-	                      onClick={handleScheduleMeeting}
-	                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700/60"
-	                    >
-	                      <CalendarDays size={16} />
-	                      Schedule Meeting
-	                    </button>
-	                    <button
-	                      type="button"
-	                      onClick={handleManagerApproveRetake}
-	                      disabled={isApprovingRetake}
-	                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-	                    >
-	                      {isApprovingRetake ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-	                      Approve
-	                    </button>
-	                  </div>
-	                </div>
 	              )}
 
 	              {isHr && !isEmployeeDetail && selectedForm.status === 'PENDING_FINAL_APPROVAL' && (
@@ -1675,6 +1807,203 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         </div>
       </div>
 
+      {!isHr && !isEmployeeDetail && showManagerRetakeModal && portalRoot && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !isRequestingRetake && setShowManagerRetakeModal(false)}
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/30">
+                <Send size={20} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Confirm Retake Request</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500">The employee will be notified</p>
+              </div>
+            </div>
+            <p className="mb-2 text-sm text-slate-600 dark:text-slate-400">
+              You are requesting a one-time retake from
+              {' '}
+              <span className="font-semibold text-slate-900 dark:text-white">
+                {selectedForm?.employee?.employeeName ?? 'this employee'}
+              </span>
+              {' '}
+              for {buildRetakeRequests().length} selected question{buildRetakeRequests().length === 1 ? '' : 's'}.
+              The employee will receive a notification to update only the warned questions.
+            </p>
+            <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
+              <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <PenLine size={12} />
+                Your default signature will be recorded for this action.
+              </p>
+              {isMissingDefaultSignature && (
+                <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                  No default signature set.{' '}
+                  <Link to="/manager/settings/signature" className="text-[#5D5FEF] underline">
+                    Open Signature Settings
+                  </Link>
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowManagerRetakeModal(false)}
+                disabled={isRequestingRetake}
+                className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSubmitRetakeRequest()}
+                disabled={isRequestingRetake || isDefaultSigLoading || !hasDefaultSignature}
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isRequestingRetake ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Send size={16} />
+                )}
+                Confirm Retake
+              </button>
+            </div>
+          </div>
+        </div>
+      , portalRoot)}
+
+      {!isHr && !isEmployeeDetail && showManagerApproveRetakeModal && portalRoot && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !isApprovingRetake && setShowManagerApproveRetakeModal(false)}
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+                <CheckCircle2 size={20} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Confirm Retake Approval</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500">This will notify HR for final approval</p>
+              </div>
+            </div>
+            <p className="mb-2 text-sm text-slate-600 dark:text-slate-400">
+              You are approving
+              {' '}
+              <span className="font-semibold text-slate-900 dark:text-white">
+                {selectedForm?.employee?.employeeName ?? 'this employee'}
+              </span>
+              &apos;s submitted retake answers. The form will move to HR for final approval.
+            </p>
+            <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
+              <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <PenLine size={12} />
+                Your default signature will be recorded for this action.
+              </p>
+              {isMissingDefaultSignature && (
+                <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                  No default signature set.{' '}
+                  <Link to="/manager/settings/signature" className="text-[#5D5FEF] underline">
+                    Open Signature Settings
+                  </Link>
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowManagerApproveRetakeModal(false)}
+                disabled={isApprovingRetake}
+                className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleManagerApproveRetake()}
+                disabled={isApprovingRetake || isDefaultSigLoading || !hasDefaultSignature}
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isApprovingRetake ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <CheckCircle2 size={16} />
+                )}
+                Confirm Approval
+              </button>
+            </div>
+          </div>
+        </div>
+      , portalRoot)}
+
+      {!isHr && !isEmployeeDetail && showManagerApproveModal && portalRoot && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !isApprovingReview && setShowManagerApproveModal(false)}
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
+            <div className="mb-5 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+                <CheckCircle2 size={20} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Confirm Approval</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500">This will notify HR for final approval</p>
+              </div>
+            </div>
+            <p className="mb-2 text-sm text-slate-600 dark:text-slate-400">
+              You are approving
+              {' '}
+              <span className="font-semibold text-slate-900 dark:text-white">
+                {selectedForm?.employee?.employeeName ?? 'this employee'}
+              </span>
+              &apos;s self-assessment. Active HR users will receive a notification to complete final approval.
+            </p>
+            <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
+              <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <PenLine size={12} />
+                Your default signature will be recorded for this action.
+              </p>
+              {isMissingDefaultSignature && (
+                <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                  No default signature set.{' '}
+                  <Link to="/manager/settings/signature" className="text-[#5D5FEF] underline">
+                    Open Signature Settings
+                  </Link>
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowManagerApproveModal(false)}
+                disabled={isApprovingReview}
+                className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleApproveReview()}
+                disabled={isApprovingReview || isDefaultSigLoading || !hasDefaultSignature}
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isApprovingReview ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <CheckCircle2 size={16} />
+                )}
+                Confirm Approval
+              </button>
+            </div>
+          </div>
+        </div>
+      , portalRoot)}
+
       {isHr && !isEmployeeDetail && showApprovalModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowApprovalModal(false)} />
@@ -1691,8 +2020,13 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
               {approvalMode === 'adjustment'
                 ? 'You are about to approve the manager\'s proposed adjustments. The adjusted scores will be applied as the final approved values.'
-                : 'You are about to give final approval to this self-assessment form. This will finalize the assessment.'}
+                : 'You are about to give final approval to this self-assessment form. The assessment will be finalized and the form will be locked.'}
             </p>
+            {approvalMode !== 'adjustment' && (
+              <p className="mb-5 text-xs text-slate-500 dark:text-slate-400">
+                No further edits will be allowed unless HR reopens the form.
+              </p>
+            )}
             <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
               <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                 <PenLine size={12} />
