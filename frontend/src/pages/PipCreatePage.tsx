@@ -11,21 +11,6 @@ import type { RootState } from '../app/store'
 
 const BLOCKING_PIP_STATUSES = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'] as const
 
-const PROFESSIONAL_PIP_TEMPLATE = {
-  reasonForPlan:
-    'This Performance Improvement Plan is intended to provide clear expectations, structured support, and a fair opportunity for sustained improvement. Recent performance has not consistently met the role expectations in the areas outlined below. The goal of this plan is to help the employee close those gaps through measurable actions, regular feedback, and management support.',
-  objectives: [
-    'Improve the quality and accuracy of assigned work by reducing recurring errors and submitting deliverables that meet agreed standards by the end of the PIP period.',
-    'Strengthen ownership of deadlines by completing assigned tasks within agreed timelines and proactively communicating risks at least one business day before a deadline may be affected.',
-    'Demonstrate consistent collaboration and communication by participating constructively in follow-up discussions and applying feedback from the manager after each review meeting.',
-  ],
-  expectedImprovements: [
-    'Work output should meet the required quality standard with no more than one material revision requested per deliverable during the review period.',
-    'At least 90% of assigned tasks should be completed on or before the agreed due date, with timely escalation when support or clarification is needed.',
-    'Progress updates should be shared during each scheduled check-in, including completed actions, blockers, and next steps agreed with the manager.',
-  ],
-}
-
 const pipCreateSchema = z
   .object({
     employeeId: z.coerce.number().int().min(1, 'Employee record ID is required'),
@@ -127,7 +112,6 @@ export default function PipCreatePage() {
     control,
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<PipCreateFormValues>({
     resolver: zodResolver(pipCreateSchema) as Resolver<PipCreateFormValues>,
@@ -142,12 +126,11 @@ export default function PipCreatePage() {
     },
   })
 
-  const { fields, append, remove, replace } = useFieldArray({ control, name: 'objectives' })
+  const { fields, append, remove } = useFieldArray({ control, name: 'objectives' })
   const {
     fields: expectedImprovementFields,
     append: appendExpectedImprovement,
     remove: removeExpectedImprovement,
-    replace: replaceExpectedImprovement,
   } = useFieldArray({ control, name: 'expectedImprovements' })
 
   const handleAddObjective = () => {
@@ -158,12 +141,6 @@ export default function PipCreatePage() {
   const handleRemoveObjective = (index: number) => {
     remove(index)
     removeExpectedImprovement(index)
-  }
-
-  const applyProfessionalTemplate = () => {
-    replace(PROFESSIONAL_PIP_TEMPLATE.objectives.map((value) => ({ value })))
-    replaceExpectedImprovement(PROFESSIONAL_PIP_TEMPLATE.expectedImprovements.map((value) => ({ value })))
-    setValue('reasonForPlan', PROFESSIONAL_PIP_TEMPLATE.reasonForPlan, { shouldDirty: true, shouldValidate: true })
   }
 
   const onSubmit = async (values: PipCreateFormValues) => {
@@ -229,16 +206,6 @@ export default function PipCreatePage() {
       <Box component="form" onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
         <Stack spacing={2}>
           {submitError ? <Alert severity="error">{submitError}</Alert> : null}
-          <Alert
-            severity="info"
-            action={
-              <Button color="inherit" size="small" onClick={applyProfessionalTemplate}>
-                Use wording
-              </Button>
-            }
-          >
-            Use formal, fair language that states the performance gap, expected improvement, SMART measures, management support, and an encouraging path forward.
-          </Alert>
           <TextField
             label="Manager"
             value={user?.name || user?.email || 'Current manager'}
