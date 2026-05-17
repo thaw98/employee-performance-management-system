@@ -2,8 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { useGetKpiHistorySummaryQuery } from '../../features/kpi/kpiApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Target, Users, Building2, TrendingUp, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { Target, Users, Building2, TrendingUp, ChevronLeft, ChevronRight, Filter, FileSpreadsheet } from 'lucide-react';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx-js-style';
+import { toast } from 'react-hot-toast';
 
 const COLORS = ['#0855BF', '#10B981', '#F59E0B', '#6366F1', '#EC4899', '#8B5CF6', '#14B8A6', '#F43F5E'];
 
@@ -24,12 +26,198 @@ export default function KpiReportsPage() {
     return data.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
   }, [summaryData, selectedDept]);
 
+  const handleExportExcel = () => {
+    try {
+      const data: any[] = [];
+
+      // Row 1: Title "Kpi Report"
+      data.push(['Kpi Report', '', '', '', '', '', '']);
+      
+      // Row 2: "Kpi Period - Month Year" & "Export Date - Day Month Year"
+      const periodStr = format(new Date(), 'MMMM yyyy');
+      const todayStr = format(new Date(), 'dd MMM yyyy'); // Standard Day Month Year constraint
+      data.push([
+        `Kpi Period - ${periodStr}`, 
+        '', 
+        '', 
+        '', 
+        '', 
+        `Export Date - ${todayStr}`, 
+        ''
+      ]);
+
+      // Row 3: Headers exactly as in the layout
+      data.push([
+        'No',
+        'Employee Name',
+        'Staff Number',
+        'Manager Name',
+        'Department',
+        'Position',
+        'Total Score'
+      ]);
+
+      // Row 4+: Data rows
+      filteredData.forEach((item, index) => {
+        data.push([
+          index + 1, // No
+          item.employeeName,
+          item.staffNo || `EMP-${item.employeeId}`,
+          item.managerName || '-',
+          item.departmentName,
+          item.positionName,
+          item.totalScore !== undefined && item.totalScore !== null 
+            ? `${Number(item.totalScore).toFixed(2)}%` 
+            : '-'
+        ]);
+      });
+      
+      // Bottom Row: Total Employee
+      data.push([
+        '', 
+        '', 
+        '', 
+        '', 
+        '', 
+        'Total Employee', 
+        filteredData.length
+      ]);
+      
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      
+      // Apply merges
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // Row 1: Merge A1:G1 for Title
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // Row 2: Merge A2:E2 for Period
+        { s: { r: 1, c: 5 }, e: { r: 1, c: 6 } }  // Row 2: Merge F2:G2 for Export Date
+      ];
+
+      // Adjust column widths to make sure text is not cut off
+      ws['!cols'] = [
+        { wch: 8 },  // No
+        { wch: 25 }, // Employee Name
+        { wch: 15 }, // Staff Number
+        { wch: 25 }, // Manager Name
+        { wch: 20 }, // Department
+        { wch: 20 }, // Position
+        { wch: 15 }  // Total Score / Total Count
+      ];
+
+      // Set print options for A4 Portrait paper size
+      ws['!pageSetup'] = {
+        paperSize: 9, // A4 Paper
+        orientation: 'portrait'
+      };
+
+      // Apply Excel Cell Styling
+      const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+      
+      for (let r = 0; r < data.length; r++) {
+        for (let c = 0; c < 7; c++) {
+          const cellRef = `${cols[c]}${r + 1}`;
+          // Ensure cell exists
+          if (!ws[cellRef]) {
+            ws[cellRef] = { t: 's', v: '' };
+          }
+          
+          const cell = ws[cellRef];
+          
+          // Row 1: Main Title "Kpi Report"
+          if (r === 0) {
+            cell.s = {
+              font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: 'FFFFFF' } },
+              fill: { fgColor: { rgb: 'F97316' } }, // Premium Orange
+              alignment: { horizontal: 'center', vertical: 'center' }
+            };
+          }
+          // Row 2: "Kpi Period - Month Year" & "Export Date - Day Month Year"
+          else if (r === 1) {
+            cell.s = {
+              font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: 'EA580C' } },
+              fill: { fgColor: { rgb: 'FFF7ED' } }, // Pale Orange
+              alignment: { 
+                horizontal: c < 5 ? 'left' : 'right', 
+                vertical: 'center' 
+              },
+              border: {
+                bottom: { style: 'thin', color: { rgb: 'FED7AA' } }
+              }
+            };
+          }
+          // Row 3: Headers exactly as in the layout
+          else if (r === 2) {
+            cell.s = {
+              font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: 'EA580C' } }, // Dark Orange
+              fill: { fgColor: { rgb: 'FFEDD5' } }, // Light Orange
+              alignment: { horizontal: 'center', vertical: 'center' },
+              border: {
+                top: { style: 'medium', color: { rgb: 'EA580C' } },
+                bottom: { style: 'medium', color: { rgb: 'EA580C' } },
+                left: { style: 'thin', color: { rgb: 'FFEDD5' } },
+                right: { style: 'thin', color: { rgb: 'FFEDD5' } }
+              }
+            };
+          }
+          // Bottom Row: Total Employee
+          else if (r === data.length - 1) {
+            cell.s = {
+              font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: '0F172A' } },
+              fill: { fgColor: { rgb: 'F8FAFC' } }, // Soft Slate Gray
+              alignment: { 
+                horizontal: c === 5 || c === 6 ? 'right' : 'left', 
+                vertical: 'center' 
+              },
+              border: {
+                top: { style: 'double', color: { rgb: '94A3B8' } },
+                bottom: { style: 'medium', color: { rgb: '64748B' } },
+                left: { style: 'thin', color: { rgb: 'E2E8F0' } },
+                right: { style: 'thin', color: { rgb: 'E2E8F0' } }
+              }
+            };
+          }
+          // Data Rows (Row 4 to Row data.length - 2)
+          else {
+            let align = 'left';
+            if (c === 1 || c === 3) align = 'center'; // Center Employee Name and Manager Name
+            else if (c === 2 || c === 6) align = 'right'; // Right-align Staff Number & Scores (No is left-aligned)
+            
+            cell.s = {
+              font: { name: 'Segoe UI', sz: 10, color: { rgb: '334155' } },
+              alignment: { horizontal: align, vertical: 'center' },
+              border: {
+                bottom: { style: 'thin', color: { rgb: 'F1F5F9' } },
+                left: { style: 'thin', color: { rgb: 'F1F5F9' } },
+                right: { style: 'thin', color: { rgb: 'F1F5F9' } }
+              }
+            };
+            
+            // Format Total Score highlight
+            if (c === 6 && cell.v && cell.v !== '-') {
+              cell.s.font.bold = true;
+              cell.s.font.color = { rgb: '10B981' }; // Success Emerald Green for score rates
+            }
+          }
+        }
+      }
+      
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "KPI Report");
+      
+      const deptSuffix = selectedDept ? `_${selectedDept.replace(/\s+/g, '_')}` : '';
+      XLSX.writeFile(wb, `KPI_Performance_Report${deptSuffix}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+      toast.success('Excel report exported successfully!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to export Excel report');
+    }
+  };
+
   const stats = useMemo(() => {
     const totalRecords = filteredData.length;
     const totalEmployees = new Set(filteredData.map(s => s.employeeId)).size;
     const totalDepartments = new Set(filteredData.map(s => s.departmentName)).size;
     const totalKpis = filteredData.reduce((acc, curr) => acc + (curr.totalKpis || 0), 0);
-    
+
     return { totalRecords, totalEmployees, totalDepartments, totalKpis };
   }, [filteredData]);
 
@@ -56,7 +244,7 @@ export default function KpiReportsPage() {
         // Ignore parsing errors
       }
     });
-    
+
     return Object.entries(groups).map(([month, count]) => ({
       name: month,
       Records: count
@@ -78,27 +266,38 @@ export default function KpiReportsPage() {
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">KPI Reports Overview</h1>
           <p className="text-sm font-medium text-slate-500 mt-1">Analytics and distribution of Key Performance Indicators across the organization</p>
         </div>
-        
-        {/* Department Filter */}
-        <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-2xl border border-slate-100 shadow-sm">
-          <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
-            <Filter size={16} />
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Department Filter */}
+          <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-2xl border border-slate-100 shadow-sm">
+            <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+              <Filter size={16} />
+            </div>
+            <select
+              value={selectedDept}
+              onChange={(e) => {
+                setSelectedDept(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="bg-transparent border-none text-sm font-bold text-slate-700 outline-none focus:ring-0 cursor-pointer min-w-[200px]"
+            >
+              <option value="">All Departments</option>
+              {departments.map((dept) => (
+                <option key={dept.departmentId} value={dept.departmentName}>
+                  {dept.departmentName}
+                </option>
+              ))}
+            </select>
           </div>
-          <select
-            value={selectedDept}
-            onChange={(e) => {
-              setSelectedDept(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="bg-transparent border-none text-sm font-bold text-slate-700 outline-none focus:ring-0 cursor-pointer min-w-[200px]"
+
+          {/* Export to Excel Button */}
+          <button
+            onClick={handleExportExcel}
+            className="flex items-center gap-2.5 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-emerald-100 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
-            <option value="">All Departments</option>
-            {departments.map((dept) => (
-              <option key={dept.departmentId} value={dept.departmentName}>
-                {dept.departmentName}
-              </option>
-            ))}
-          </select>
+            <FileSpreadsheet size={16} />
+            <span>Export Excel</span>
+          </button>
         </div>
       </div>
 
@@ -167,7 +366,7 @@ export default function KpiReportsPage() {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
                 </PieChart>
@@ -189,20 +388,20 @@ export default function KpiReportsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={timelineChartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
                     tick={{ fontSize: 12, fill: '#64748b', fontWeight: 600 }}
                     dy={10}
                   />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
                     tick={{ fontSize: 12, fill: '#64748b', fontWeight: 600 }}
                     dx={-10}
                   />
-                  <Tooltip 
+                  <Tooltip
                     cursor={{ fill: '#f8fafc' }}
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
