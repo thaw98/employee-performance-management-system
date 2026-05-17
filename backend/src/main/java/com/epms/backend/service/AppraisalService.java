@@ -67,10 +67,12 @@ public class AppraisalService {
 
         if (activeCycle == null) {
             AppraisalCycle cycle = new AppraisalCycle();
-            cycle.setName(template.getName() != null ? template.getName() : "Annual Appraisal " + java.time.LocalDate.now().getYear());
+            cycle.setName(template.getName() != null ? template.getName()
+                    : "Annual Appraisal " + java.time.LocalDate.now().getYear());
             cycle.setStatus("Active");
             cycle.setStartDate(java.time.LocalDate.now());
-            cycle.setEndDate(template.getDeadlineDate() != null ? template.getDeadlineDate() : java.time.LocalDate.now().plusMonths(1));
+            cycle.setEndDate(template.getDeadlineDate() != null ? template.getDeadlineDate()
+                    : java.time.LocalDate.now().plusMonths(1));
             activeCycle = appraisalCycleRepository.save(cycle);
         }
 
@@ -80,7 +82,8 @@ public class AppraisalService {
         for (DepartmentPosition mapping : template.getTargetDepartmentPositions()) {
             // Find Department Head for this specific department
             Department dept = mapping.getDepartment();
-            if (dept == null) continue;
+            if (dept == null)
+                continue;
 
             if (dept.getManagerId() == null) {
                 errorLog.append("Department '").append(dept.getName()).append("' has no Department Head assigned. ");
@@ -89,14 +92,16 @@ public class AppraisalService {
 
             Employee departmentHead = employeeRepository.findById(dept.getManagerId()).orElse(null);
             if (departmentHead == null) {
-                errorLog.append("Department Head for '").append(dept.getName()).append("' (ID: ").append(dept.getManagerId()).append(") not found. ");
+                errorLog.append("Department Head for '").append(dept.getName()).append("' (ID: ")
+                        .append(dept.getManagerId()).append(") not found. ");
                 continue;
             }
 
             List<Employee> employees = employeeRepository.findByDepartmentPosition_Id(mapping.getId());
             for (Employee employee : employees) {
                 // Skip if the employee is the department head themselves
-                if (employee.getId().equals(departmentHead.getId())) continue;
+                if (employee.getId().equals(departmentHead.getId()))
+                    continue;
 
                 // Create or Update Assignment
                 AppraisalAssignment assignment = assignmentRepository

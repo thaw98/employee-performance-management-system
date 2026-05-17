@@ -120,14 +120,12 @@ public class KpiService {
 
         User performer = userRepository.findById(performerUserId).orElseThrow();
 
-        // Soft delete: Archive existing active KPIs for this specific employee and
-        // period
+        // Check if active KPIs already exist for this employee and period
         List<EmployeeKpi> existingActive = kpiRepository.findByEmployee_IdAndPeriodAndRecordStatus(employeeId, period,
                 "Active");
-        for (EmployeeKpi k : existingActive) {
-            k.setRecordStatus("Archived");
+        if (!existingActive.isEmpty()) {
+            throw new IllegalStateException("KPIs are already defined for " + employee.getEmployeeName() + " for period " + period + ". Overwriting is not allowed.");
         }
-        kpiRepository.saveAll(existingActive);
 
         List<EmployeeKpi> kpis = kpiDtos.stream().map(dto -> {
             EmployeeKpi kpi = new EmployeeKpi();
@@ -514,13 +512,12 @@ public class KpiService {
         Long posId = dtoList.get(0).getPositionId();
         String period = dtoList.get(0).getPeriod();
 
-        // Soft delete: Archive existing active position KPIs
+        // Check if active position KPIs already exist
         List<PositionKpi> existingActive = positionKpiRepository
                 .findByDepartmentIdAndPositionIdAndPeriodAndRecordStatus(deptId, posId, period, "Active");
-        for (PositionKpi k : existingActive) {
-            k.setRecordStatus("Archived");
+        if (!existingActive.isEmpty()) {
+            throw new IllegalStateException("KPIs are already defined for this position and period. Overwriting is not allowed.");
         }
-        positionKpiRepository.saveAll(existingActive);
 
         Department dept = departmentRepository.findById(deptId).orElseThrow();
         Position pos = positionRepository.findById(posId).orElseThrow();
@@ -576,13 +573,12 @@ public class KpiService {
         Long deptId = dtoList.get(0).getDepartmentId();
         String period = dtoList.get(0).getPeriod();
 
-        // Soft delete: Archive existing active department KPIs
+        // Check if active department KPIs already exist
         List<DepartmentKpi> existingActive = departmentKpiRepository.findByDepartmentIdAndPeriodAndRecordStatus(deptId,
                 period, "Active");
-        for (DepartmentKpi k : existingActive) {
-            k.setRecordStatus("Archived");
+        if (!existingActive.isEmpty()) {
+            throw new IllegalStateException("KPIs are already defined for this department and period. Overwriting is not allowed.");
         }
-        departmentKpiRepository.saveAll(existingActive);
 
         Department dept = departmentRepository.findById(deptId).orElseThrow();
         User performer = userRepository.findById(performerUserId).orElseThrow();
