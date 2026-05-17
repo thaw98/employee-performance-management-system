@@ -44,11 +44,16 @@ public class ReportController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) String employeeName,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long pipId,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate,
             @RequestParam(defaultValue = "pdf") String format) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
-        byte[] bytes = pipReportService.generateSummaryReport(status, departmentId, startDate, endDate, format, user);
+        byte[] bytes = pipReportService.generateSummaryReport(status, departmentId, positionId, employeeName,
+                employeeId, pipId, startDate, endDate, format, user);
         return reportResponse(bytes, "pip_summary_report", format);
     }
 
@@ -56,12 +61,18 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
     public ResponseEntity<byte[]> getPipProgressReport(
             @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String status,
             @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) String employeeName,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long pipId,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate,
             @RequestParam(defaultValue = "pdf") String format) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
-        byte[] bytes = pipReportService.generateProgressReport(departmentId, startDate, endDate, format, user);
+        byte[] bytes = pipReportService.generateProgressReport(status, departmentId, positionId, employeeName,
+                employeeId, pipId, startDate, endDate, format, user);
         return reportResponse(bytes, "pip_progress_report", format);
     }
 
@@ -71,10 +82,15 @@ public class ReportController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) String employeeName,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long pipId,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
-        List<PipSummaryReportDto> data = pipReportService.getPipSummaryReport(status, departmentId, startDate, endDate, user);
+        List<PipSummaryReportDto> data = pipReportService.getPipSummaryReport(status, departmentId, positionId,
+                employeeName, employeeId, pipId, startDate, endDate, user);
         return ResponseEntity.ok(ApiResponse.ok("PIP summary report data retrieved successfully", data));
     }
 
@@ -82,11 +98,17 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
     public ResponseEntity<ApiResponse<PipProgressReportDto>> getPipProgressReportData(
             @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String status,
             @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) String employeeName,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long pipId,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
-        PipProgressReportDto data = pipReportService.getPipProgressReport(departmentId, startDate, endDate, user);
+        PipProgressReportDto data = pipReportService.getPipProgressReport(status, departmentId, positionId,
+                employeeName, employeeId, pipId, startDate, endDate, user);
         return ResponseEntity.ok(ApiResponse.ok("PIP progress report data retrieved successfully", data));
     }
 

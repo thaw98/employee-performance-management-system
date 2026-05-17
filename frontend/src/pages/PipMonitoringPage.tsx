@@ -90,7 +90,8 @@ const formatDateTimeValue = (value?: string) => {
 
 const getPipEmployeeName = (pip: Pip) => pip.employee.employee?.employeeName || pip.employee.email || 'N/A'
 const getPipManagerName = (pip: Pip) => pip.manager.employee?.employeeName || pip.manager.email || 'N/A'
-const getPipEmployeeId = (pip: Pip) => pip.employee.employee?.id ?? pip.employee.employeeId ?? ''
+const getPipEmployeeRecordId = (pip: Pip) => pip.employee.employee?.id
+const getPipStaffNo = (pip: Pip) => pip.employee.employeeId || 'N/A'
 const getPipDepartmentName = (pip: Pip) => getDepartmentName(pip.employee.employee as EmployeeDisplay | undefined)
 const getPipPositionName = (pip: Pip) => getPositionName(pip.employee.employee as EmployeeDisplay | undefined)
 const getPipObjectiveSummary = (pip: Pip) => pip.objectives
@@ -112,7 +113,7 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
     [
       'PIP Reference',
       'Employee',
-      'Employee ID',
+      'Staff No',
       'Department',
       'Position',
       'Manager',
@@ -144,7 +145,7 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
     ...bundles.map(({ pip }) => [
       `PIP #${pip.id}`,
       getPipEmployeeName(pip),
-      getPipEmployeeId(pip),
+      getPipStaffNo(pip),
       getPipDepartmentName(pip),
       getPipPositionName(pip),
       getPipManagerName(pip),
@@ -297,11 +298,12 @@ export default function PipMonitoringPage() {
     if (!pips) return []
     return pips
       .map((pip) => ({
-        id: getPipEmployeeId(pip),
+        id: getPipEmployeeRecordId(pip),
         name: getPipEmployeeName(pip),
         department: getPipDepartmentName(pip),
+        staffNo: getPipStaffNo(pip),
       }))
-      .filter((employee): employee is { id: number; name: string; department: string } => (
+      .filter((employee): employee is { id: number; name: string; department: string; staffNo: string } => (
         typeof employee.id === 'number' && Number.isFinite(employee.id)
       ))
       .filter((employee, index, all) => all.findIndex((item) => item.id === employee.id) === index)
@@ -334,7 +336,7 @@ export default function PipMonitoringPage() {
     if (!pips) return []
     return pips.filter((pip) => {
       if (selectedEmployeeId == null) return true
-      return getPipEmployeeId(pip) === selectedEmployeeId
+      return getPipEmployeeRecordId(pip) === selectedEmployeeId
     }).sort((a, b) => {
       const isAActive = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(a.status)
       const isBActive = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(b.status)
@@ -596,7 +598,7 @@ export default function PipMonitoringPage() {
                 <option value="">All Employees</option>
                 {employeeFilterOptions.map((employee) => (
                   <option key={employee.id} value={employee.id}>
-                    {employee.name} - {employee.department || 'No Department'}
+                    {employee.name} - {employee.staffNo} - {employee.department || 'No Department'}
                   </option>
                 ))}
               </select>
@@ -685,7 +687,7 @@ export default function PipMonitoringPage() {
                   <td className="px-6 py-5">
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{emp?.employeeName || 'N/A'}</span>
-                      <span className="text-xs text-slate-400">ID: {emp?.id || 'N/A'}</span>
+                      <span className="text-xs text-slate-400">Staff No: {getPipStaffNo(pip)}</span>
                     </div>
                   </td>
                   <td className="px-6 py-5">

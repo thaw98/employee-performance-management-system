@@ -242,22 +242,20 @@ export default function ReportsPage() {
           <div className="flex gap-1 p-1">
             <button
               onClick={() => setActiveTab('summary')}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === 'summary'
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'summary'
                   ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                   : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
+                }`}
             >
               <FileText size={18} />
               Summary Report
             </button>
             <button
               onClick={() => setActiveTab('progress')}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === 'progress'
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'progress'
                   ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                   : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
+                }`}
             >
               <BarChart3 size={18} />
               Progress Report
@@ -311,25 +309,7 @@ export default function ReportsPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div></div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleDownloadSummaryReport('pdf')}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
-                  >
-                    <Download size={16} />
-                    Export PDF
-                  </button>
-                  <button
-                    onClick={() => handleDownloadSummaryReport('excel')}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg"
-                  >
-                    <FileText size={16} />
-                    Export Excel
-                  </button>
-                </div>
-              </div>
+
 
               {statusChartData.length > 0 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -414,12 +394,11 @@ export default function ReportsPage() {
                           <td className="py-3 px-4 text-slate-900 dark:text-slate-100">{item.departmentName}</td>
                           <td className="py-3 px-4 text-slate-900 dark:text-slate-100">{item.managerName}</td>
                           <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              item.status === 'ACTIVE' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                              item.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                              item.status === 'CLOSED' || item.status === 'AUTO_CLOSED' ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' :
-                              'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                            }`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.status === 'ACTIVE' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                item.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                  item.status === 'CLOSED' || item.status === 'AUTO_CLOSED' ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' :
+                                    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                              }`}>
                               {item.status}
                             </span>
                           </td>
@@ -494,8 +473,7 @@ export default function ReportsPage() {
                 <div className="text-center py-8 text-slate-500">Loading...</div>
               ) : progressData ? (
                 <>
-                  <div className="flex items-center justify-between mb-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{progressData.totalPips}</div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">Total PIPs</div>
@@ -513,23 +491,6 @@ export default function ReportsPage() {
                       <div className="text-sm text-slate-500 dark:text-slate-400">Closed</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    <button
-                      onClick={() => handleDownloadProgressReport('pdf')}
-                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
-                    >
-                      <Download size={16} />
-                      Export PDF
-                    </button>
-                    <button
-                      onClick={() => handleDownloadProgressReport('excel')}
-                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg"
-                    >
-                      <FileText size={16} />
-                      Export Excel
-                    </button>
-                  </div>
-                </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
@@ -695,11 +656,10 @@ export default function ReportsPage() {
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="text-xs text-slate-500 mb-1">Status</div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        individualPipData.status === 'ACTIVE' ? 'bg-amber-100 text-amber-700' :
-                        individualPipData.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                        'bg-slate-100 text-slate-600'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${individualPipData.status === 'ACTIVE' ? 'bg-amber-100 text-amber-700' :
+                          individualPipData.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                            'bg-slate-100 text-slate-600'
+                        }`}>
                         {individualPipData.status}
                       </span>
                     </div>

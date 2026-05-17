@@ -14,6 +14,7 @@ import {
   Legend,
 } from 'recharts'
 import {
+  useGetPipsQuery,
   useGetPipSummaryReportQuery,
   useGetPipProgressReportQuery,
   useGetPipIndividualReportQuery,
@@ -24,9 +25,10 @@ import {
   downloadPipSummaryReport,
   type PipReportFormat,
 } from '../../features/pip/pipReportApi'
-import { useGetDepartmentsQuery } from '../../features/hrCreateEmployee/hrEmployeeAccountApi'
+import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../../features/hrCreateEmployee/hrEmployeeAccountApi'
 import type { RootState } from '../../app/store'
 import { Download, FileText, BarChart3, Filter, X, Calendar, User, Target, Clock, TrendingUp } from 'lucide-react'
+import { skipToken } from '@reduxjs/toolkit/query'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -59,6 +61,10 @@ export default function ReportsPage() {
   const { user } = useSelector((state: RootState) => state.auth)
   const [activeTab, setActiveTab] = useState<'summary' | 'progress'>('summary')
   const [statusFilter, setStatusFilter] = useState('')
+  const [positionId, setPositionId] = useState<number | undefined>(undefined)
+  const [employeeName, setEmployeeName] = useState('')
+  const [employeeId, setEmployeeId] = useState<number | undefined>(undefined)
+  const [pipId, setPipId] = useState<number | undefined>(undefined)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [reportDownload, setReportDownload] = useState<string | null>(null)
@@ -70,17 +76,23 @@ export default function ReportsPage() {
     return (user as any).departmentId || (user as any).employee?.department?.id
   }, [user])
 
-  const { data: summaryData = [], isLoading: isLoadingSummary } = useGetPipSummaryReportQuery({
+  const reportFilters = {
     status: statusFilter || undefined,
     departmentId,
+    positionId,
+    employeeName: employeeName.trim() || undefined,
+    employeeId,
+    pipId,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
+  }
+
+  const { data: summaryData = [], isLoading: isLoadingSummary } = useGetPipSummaryReportQuery({
+    ...reportFilters,
   })
 
   const { data: progressData, isLoading: isLoadingProgress } = useGetPipProgressReportQuery({
-    departmentId,
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
+    ...reportFilters,
   })
 
   const [selectedPipId, setSelectedPipId] = useState<number | null>(null)
@@ -89,6 +101,48 @@ export default function ReportsPage() {
     queryEnabled ? selectedPipId : 0,
     { skip: !queryEnabled }
   )
+  const { data: positionsResponse } = useGetDepartmentPositionsQuery(departmentId !== undefined ? departmentId : skipToken)
+  const { data: pips = [] } = useGetPipsQuery({
+    departmentId,
+    positionId,
+    employeeName: employeeName.trim() || undefined,
+    status: statusFilter || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  })
+
+  const positionOptions = useMemo(() => {
+    return (positionsResponse?.data ?? [])
+      .filter((position) => typeof position.positionId === 'number')
+      .map((position) => ({
+        id: position.positionId,
+        name: position.positionName || 'Unnamed Position',
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [positionsResponse])
+
+  const employeeOptions = useMemo(() => {
+    return pips
+      .map((pip) => ({
+        id: pip.employee.employee?.id,
+        name: pip.employee.employee?.employeeName || pip.employee.email || 'N/A',
+        staffNo: pip.employee.employeeId || 'N/A',
+      }))
+      .filter((employee): employee is { id: number; name: string; staffNo: string } => (
+        typeof employee.id === 'number' && Number.isFinite(employee.id)
+      ))
+      .filter((employee, index, all) => all.findIndex((item) => item.id === employee.id) === index)
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [pips])
+
+  const pipOptions = useMemo(() => {
+    return pips
+      .map((pip) => ({
+        id: pip.id,
+        employeeName: pip.employee.employee?.employeeName || pip.employee.email || 'N/A',
+      }))
+      .sort((a, b) => b.id - a.id)
+  }, [pips])
 
   const handleDownloadReport = (pipId: number, format: 'pdf' | 'excel') => {
     downloadIndividualPipReport(pipId, format).catch((error: any) => {
@@ -102,10 +156,7 @@ export default function ReportsPage() {
       setReportDownload(`summary-${format}`)
       await downloadPipSummaryReport(
         {
-          status: statusFilter || undefined,
-          departmentId,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
+          ...reportFilters,
         },
         format,
       )
@@ -121,11 +172,7 @@ export default function ReportsPage() {
     try {
       setReportDownload(`progress-${format}`)
       await downloadPipProgressReport(
-        {
-          departmentId,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-        },
+        reportFilters,
         format
       )
     } catch (error: any) {
@@ -181,6 +228,10 @@ export default function ReportsPage() {
 
   const clearFilters = () => {
     setStatusFilter('')
+    setPositionId(undefined)
+    setEmployeeName('')
+    setEmployeeId(undefined)
+    setPipId(undefined)
     setStartDate('')
     setEndDate('')
   }
@@ -210,7 +261,7 @@ export default function ReportsPage() {
           <Filter size={18} className="text-slate-500" />
           <span className="font-semibold text-slate-700 dark:text-slate-300">Filters</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
           <div>
             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Status</label>
             <select
@@ -224,7 +275,54 @@ export default function ReportsPage() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Start Date</label>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Position</label>
+            <select
+              value={positionId ?? ''}
+              onChange={(e) => {
+                setPositionId(e.target.value ? Number(e.target.value) : undefined)
+                setEmployeeId(undefined)
+                setPipId(undefined)
+              }}
+              className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            >
+              <option value="">All Positions</option>
+              {positionOptions.map((position) => (
+                <option key={position.id} value={position.id}>{position.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Employee Name</label>
+            <input
+              type="text"
+              value={employeeName}
+              onChange={(e) => {
+                setEmployeeName(e.target.value)
+                setEmployeeId(undefined)
+                setPipId(undefined)
+              }}
+              placeholder="Search..."
+              className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Employee</label>
+            <select
+              value={employeeId ?? ''}
+              onChange={(e) => {
+                setEmployeeId(e.target.value ? Number(e.target.value) : undefined)
+                setPipId(undefined)
+              }}
+              className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            >
+              <option value="">All Employees</option>
+              {employeeOptions.map((employee) => (
+                <option key={employee.id} value={employee.id}>{employee.name} - {employee.staffNo}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Start Date From</label>
             <input
               type="date"
               value={startDate}
@@ -233,13 +331,26 @@ export default function ReportsPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">End Date</label>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">End Date To</label>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">PIP</label>
+            <select
+              value={pipId ?? ''}
+              onChange={(e) => setPipId(e.target.value ? Number(e.target.value) : undefined)}
+              className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            >
+              <option value="">All PIPs</option>
+              {pipOptions.map((pip) => (
+                <option key={pip.id} value={pip.id}>PIP #{pip.id} - {pip.employeeName}</option>
+              ))}
+            </select>
           </div>
           <div className="flex items-end">
             <button

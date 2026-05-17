@@ -86,10 +86,15 @@ public class PipReportService {
     public List<PipSummaryReportDto> getPipSummaryReport(
             String status,
             Long departmentId,
+            Long positionId,
+            String employeeName,
+            Long employeeId,
+            Long pipId,
             LocalDate startDate,
             LocalDate endDate,
             User actor) {
-        return pipService.searchPips(departmentId, null, null, status, startDate, endDate, actor)
+        return filterReportPips(status, departmentId, positionId, employeeName, employeeId, pipId, startDate, endDate,
+                actor)
                 .stream()
                 .sorted(Comparator.comparing(Pip::getStartDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toSummaryDto)
@@ -98,11 +103,17 @@ public class PipReportService {
 
     @Transactional(readOnly = true)
     public PipProgressReportDto getPipProgressReport(
+            String status,
             Long departmentId,
+            Long positionId,
+            String employeeName,
+            Long employeeId,
+            Long pipId,
             LocalDate startDate,
             LocalDate endDate,
             User actor) {
-        List<Pip> pips = pipService.searchPips(departmentId, null, null, null, startDate, endDate, actor);
+        List<Pip> pips = filterReportPips(status, departmentId, positionId, employeeName, employeeId, pipId, startDate,
+                endDate, actor);
         PipProgressReportDto progressDto = toProgressDto(pips, departmentId, startDate, endDate, actor);
         return progressDto;
     }
@@ -130,11 +141,16 @@ public class PipReportService {
     public byte[] generateSummaryReport(
             String status,
             Long departmentId,
+            Long positionId,
+            String employeeName,
+            Long employeeId,
+            Long pipId,
             LocalDate startDate,
             LocalDate endDate,
             String format,
             User actor) {
-        List<PipSummaryReportDto> rows = getPipSummaryReport(status, departmentId, startDate, endDate, actor);
+        List<PipSummaryReportDto> rows = getPipSummaryReport(status, departmentId, positionId, employeeName,
+                employeeId, pipId, startDate, endDate, actor);
         if (isExcelFormat(format)) {
             return generateSummaryExcelReport(rows);
         }
@@ -142,19 +158,26 @@ public class PipReportService {
                 "pip_summary_report.jrxml",
                 rows,
                 Map.of("REPORT_TITLE", "PIP Summary Report",
-                        "FILTER_DESCRIPTION", buildFilterDescription(status, departmentId, startDate, endDate, actor),
+                        "FILTER_DESCRIPTION", buildFilterDescription(status, departmentId, positionId, employeeName,
+                                employeeId, pipId, startDate, endDate, actor),
                         "GENERATED_AT", formatGeneratedAt()));
         return export(jasperPrint, format);
     }
 
     @Transactional(readOnly = true)
     public byte[] generateProgressReport(
+            String status,
             Long departmentId,
+            Long positionId,
+            String employeeName,
+            Long employeeId,
+            Long pipId,
             LocalDate startDate,
             LocalDate endDate,
             String format,
             User actor) {
-        PipProgressReportDto report = getPipProgressReport(departmentId, startDate, endDate, actor);
+        PipProgressReportDto report = getPipProgressReport(status, departmentId, positionId, employeeName, employeeId,
+                pipId, startDate, endDate, actor);
         if (isExcelFormat(format)) {
             return generateProgressExcelReport(report);
         }
@@ -163,8 +186,8 @@ public class PipReportService {
                 List.of(report),
                 Map.of("REPORT_TITLE", "PIP Progress Report",
                         "FILTER_DESCRIPTION",
-                        buildFilterDescription(null, departmentId, startDate, endDate, actor) + " | Position: "
-                                + getManagerPositionName(actor),
+                        buildFilterDescription(status, departmentId, positionId, employeeName, employeeId, pipId,
+                                startDate, endDate, actor),
                         "GENERATED_AT", formatGeneratedAt()));
         return export(jasperPrint, format);
     }
@@ -763,12 +786,31 @@ public class PipReportService {
         return "";
     }
 
-    private String buildFilterDescription(String status, Long departmentId, LocalDate startDate, LocalDate endDate,
-            User actor) {
+    private List<Pip> filterReportPips(String status, Long departmentId, Long positionId, String employeeName,
+            Long employeeId, Long pipId, LocalDate startDate, LocalDate endDate, User actor) {
+        return pipService.searchPips(departmentId, positionId, employeeName, status, startDate, endDate, actor)
+                .stream()
+                .filter(pip -> pipId == null || (pip.getId() != null && pip.getId().equals(pipId)))
+                .filter(pip -> employeeId == null
+                        || (pip.getEmployee() != null && pip.getEmployee().getId() != null
+                                && pip.getEmployee().getId().equals(employeeId)))
+                .toList();
+    }
+
+    private String buildFilterDescription(String status, Long departmentId, Long positionId, String employeeName,
+            Long employeeId, Long pipId, LocalDate startDate, LocalDate endDate, User actor) {
         return "Status: " + (status == null || status.isBlank() ? "All" : status)
                 + " | Department: " + resolveDepartmentDisplay(departmentId, actor)
+                + " | Position: " + resolvePositionDisplay(positionId)
+                + " | Employee Name: " + (employeeName == null || employeeName.isBlank() ? "All" : employeeName.trim())
+                + " | Employee: " + (employeeId == null ? "All" : "Employee #" + employeeId)
+                + " | PIP: " + (pipId == null ? "All" : "PIP #" + pipId)
                 + " | Start: " + format(startDate)
                 + " | End: " + format(endDate);
+    }
+
+    private String resolvePositionDisplay(Long positionId) {
+        return positionId == null ? "All" : "Position #" + positionId;
     }
 
     private long countByStatus(List<Pip> pips, String status) {
