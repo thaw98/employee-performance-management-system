@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useGetKpiAuditLogsQuery } from '../../features/audit/auditApi';
 import { 
   ClipboardList, 
@@ -19,6 +19,12 @@ export const KpiAuditLogsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [filterType, setFilterType] = useState<string>('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterType]);
 
   const { data: auditLogs, isLoading, isError } = useGetKpiAuditLogsQuery();
 
@@ -35,6 +41,9 @@ export const KpiAuditLogsPage: React.FC = () => {
       return matchesSearch && matchesFilter;
     });
   }, [auditLogs, searchTerm, filterType]);
+
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const paginatedLogs = filteredLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const toggleExpand = (id: number) => {
     setExpandedRow(expandedRow === id ? null : id);
@@ -109,7 +118,7 @@ export const KpiAuditLogsPage: React.FC = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-100/50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-200">
-                <th className="py-5 px-6">Timestamp</th>
+                <th className="py-5 px-6">Date and Time</th>
                 <th className="py-5 px-6">Performed By</th>
                 <th className="py-5 px-6">Action</th>
                 <th className="py-5 px-6">Target Type</th>
@@ -143,7 +152,7 @@ export const KpiAuditLogsPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log) => (
+                paginatedLogs.map((log) => (
                   <React.Fragment key={log.id}>
                     <tr 
                       onClick={() => toggleExpand(log.id)}
@@ -152,7 +161,7 @@ export const KpiAuditLogsPage: React.FC = () => {
                       <td className="py-4 px-6 whitespace-nowrap">
                         <div className="flex flex-col">
                           <span className="text-sm font-bold text-slate-900">
-                            {format(new Date(log.createdAt), 'MMM dd, yyyy')}
+                            {format(new Date(log.createdAt), 'dd MMM yyyy')}
                           </span>
                           <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
                             <Clock size={10} /> {format(new Date(log.createdAt), 'HH:mm:ss')}
@@ -193,47 +202,13 @@ export const KpiAuditLogsPage: React.FC = () => {
                       <tr className="bg-slate-50/50">
                         <td colSpan={6} className="p-0 border-b border-slate-100">
                           <div className="p-6 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 gap-6">
                               <div className="space-y-3">
                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Log Details</h4>
                                 <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
                                   <p className="text-sm text-slate-700 leading-relaxed font-medium">
                                     {log.description}
                                   </p>
-                                </div>
-                              </div>
-                              <div className="space-y-3">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Technical Metadata</h4>
-                                <div className="space-y-2">
-                                  {log.metadataJson && (
-                                    <div className="bg-slate-900 text-slate-300 rounded-2xl p-4 font-mono text-[11px] overflow-x-auto shadow-inner">
-                                      <p className="text-slate-500 mb-2 font-bold uppercase tracking-widest text-[9px]">Metadata:</p>
-                                      <pre className="whitespace-pre-wrap">
-                                        {JSON.stringify(JSON.parse(log.metadataJson), null, 2)}
-                                      </pre>
-                                    </div>
-                                  )}
-                                  {log.beforeData && (
-                                    <div className="bg-slate-900 text-slate-300 rounded-2xl p-4 font-mono text-[11px] overflow-x-auto shadow-inner border-l-4 border-rose-500">
-                                      <p className="text-slate-500 mb-2 font-bold uppercase tracking-widest text-[9px]">Before Data:</p>
-                                      <pre className="whitespace-pre-wrap">
-                                        {log.beforeData.startsWith('{') ? JSON.stringify(JSON.parse(log.beforeData), null, 2) : log.beforeData}
-                                      </pre>
-                                    </div>
-                                  )}
-                                  {log.afterData && (
-                                    <div className="bg-slate-900 text-slate-300 rounded-2xl p-4 font-mono text-[11px] overflow-x-auto shadow-inner border-l-4 border-emerald-500">
-                                      <p className="text-slate-500 mb-2 font-bold uppercase tracking-widest text-[9px]">After Data:</p>
-                                      <pre className="whitespace-pre-wrap">
-                                        {log.afterData.startsWith('{') ? JSON.stringify(JSON.parse(log.afterData), null, 2) : log.afterData}
-                                      </pre>
-                                    </div>
-                                  )}
-                                  {!log.metadataJson && !log.beforeData && !log.afterData && (
-                                    <div className="bg-slate-100 text-slate-400 rounded-2xl p-4 text-[11px] font-medium italic">
-                                      No technical metadata available for this action.
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -255,6 +230,29 @@ export const KpiAuditLogsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {!isLoading && !isError && totalPages > 1 && (
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              Page {currentPage} of {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest transition-colors"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

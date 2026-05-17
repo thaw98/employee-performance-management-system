@@ -12,6 +12,7 @@ export interface Kpi {
   weight: number
   score?: number
   weightedScore?: number
+  kpiTotalScore?: number
   period: string
   status: string
   recordStatus?: string
@@ -47,6 +48,7 @@ export interface DepartmentKpi {
   weight: number
   score?: number
   weightedScore?: number
+  totalDepartmentScore?: number
   period: string
   status?: string
   recordStatus?: string
@@ -69,11 +71,14 @@ export interface DepartmentKpiStatus {
 export interface KpiHistorySummary {
   employeeId: number;
   employeeName: string;
+  staffNo?: string;
+  managerName?: string;
   departmentName: string;
   positionName: string;
   totalKpis: number;
   period: string;
   createdDate: string;
+  totalScore?: number;
 }
 
 export const kpiApi = baseApi.injectEndpoints({

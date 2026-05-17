@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users } from 'lucide-react';
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
@@ -23,6 +23,7 @@ import { ClipboardList, Download, FolderOpen } from 'lucide-react';
 
 export const KpiManagementPage: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialEmpId = searchParams.get('employeeId');
 
   const [mode, setMode] = useState<'individual' | 'position' | 'department'>('individual');
@@ -312,28 +313,36 @@ export const KpiManagementPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Mode Switcher */}
-      <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
+      {/* Mode Switcher & Category Management */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
+          <button
+            onClick={() => setMode('individual')}
+            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'individual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+          >
+            <User size={14} /> Individual
+          </button>
+          <button
+            onClick={() => setMode('position')}
+            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'position' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+          >
+            <Users size={14} /> Same Position
+          </button>
+          <button
+            onClick={() => setMode('department')}
+            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'department' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+          >
+            <Target size={14} /> Same Department
+          </button>
+        </div>
         <button
-          onClick={() => setMode('individual')}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'individual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
+          onClick={() => navigate('/hr/kpi-categories')}
+          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-indigo-100"
         >
-          <User size={14} /> Individual
-        </button>
-        <button
-          onClick={() => setMode('position')}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'position' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-        >
-          <Users size={14} /> Same Position
-        </button>
-        <button
-          onClick={() => setMode('department')}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'department' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-        >
-          <Target size={14} /> Same Department
+          <FolderOpen size={16} /> Manage Categories
         </button>
       </div>
 

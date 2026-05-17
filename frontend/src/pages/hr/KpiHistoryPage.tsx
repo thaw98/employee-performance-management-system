@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   useGetEmployeeKpiHistoryQuery, 
   useGetPositionKpiHistoryQuery, 
@@ -20,6 +20,13 @@ export const KpiHistoryPage: React.FC = () => {
   const [selectedPosId, setSelectedPosId] = useState<number | null>(null);
   const [periodFilter, setPeriodFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, selectedEmployeeId, selectedDeptId, selectedPosId, periodFilter, searchTerm]);
 
   // Fetch reference data
   const { data: employeesData } = useGetEmployeesQuery({ size: 1000 });
@@ -45,7 +52,9 @@ export const KpiHistoryPage: React.FC = () => {
     { skip: activeTab !== 'position' || !selectedDeptId || !selectedPosId }
   );
 
-  const employees = employeesData?.data?.content || [];
+  const employees = [...(employeesData?.data?.content || [])].sort((a, b) => 
+    (a.employeeName || '').localeCompare(b.employeeName || '')
+  );
   const departments = departmentsData?.data || [];
   const positions = positionsData?.data?.content || [];
 
@@ -86,6 +95,33 @@ export const KpiHistoryPage: React.FC = () => {
     );
   };
 
+  const renderPagination = (totalPages: number) => {
+    if (totalPages <= 1) return null;
+    return (
+      <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+          Page {currentPage} of {totalPages}
+        </span>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest transition-colors"
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const renderSummaryTable = (data: any[], isLoading: boolean) => {
     if (isLoading) return <div className="p-12 text-center text-slate-400 font-bold uppercase tracking-widest">Loading global history...</div>;
     if (!data || data.length === 0) return (
@@ -97,8 +133,12 @@ export const KpiHistoryPage: React.FC = () => {
       </div>
     );
 
+    const sortedData = [...data].sort((a, b) => (a.employeeName || '').localeCompare(b.employeeName || ''));
+    const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+    const paginatedData = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
     const groups: Record<string, any[]> = {};
-    data.forEach(item => {
+    paginatedData.forEach(item => {
       const monthYear = item.createdDate ? format(new Date(item.createdDate), 'MMMM yyyy') : 'Unknown Date';
       if (!groups[monthYear]) groups[monthYear] = [];
       groups[monthYear].push(item);
@@ -153,7 +193,7 @@ export const KpiHistoryPage: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase">
-                      {item.createdDate ? format(new Date(item.createdDate), 'MMM dd, yyyy') : '-'}
+                      {item.createdDate ? format(new Date(item.createdDate), 'dd MMM yyyy') : '-'}
                     </td>
                     <td className="py-4 px-6 text-right">
                        <button 
@@ -170,6 +210,7 @@ export const KpiHistoryPage: React.FC = () => {
             ))}
           </tbody>
         </table>
+        {renderPagination(totalPages)}
       </div>
     );
   };
@@ -185,12 +226,16 @@ export const KpiHistoryPage: React.FC = () => {
       </div>
     );
 
+    const sortedData = [...data].sort((a, b) => (a.employeeName || '').localeCompare(b.employeeName || ''));
+    const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+    const paginatedData = sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
     // Grouping Logic for detailed view
     let groupedContent: React.ReactNode;
     
     if (!periodFilter) {
       const groups: Record<string, any[]> = {};
-      data.forEach(item => {
+      paginatedData.forEach(item => {
         const monthYear = item.createdDate ? format(new Date(item.createdDate), 'MMMM yyyy') : 'Unknown Date';
         if (!groups[monthYear]) groups[monthYear] = [];
         groups[monthYear].push(item);
@@ -216,7 +261,7 @@ export const KpiHistoryPage: React.FC = () => {
         </React.Fragment>
       ));
     } else {
-      groupedContent = data.map(item => renderRow(item));
+      groupedContent = paginatedData.map(item => renderRow(item));
     }
 
     return (
@@ -240,6 +285,7 @@ export const KpiHistoryPage: React.FC = () => {
             {groupedContent}
           </tbody>
         </table>
+        {renderPagination(totalPages)}
       </div>
     );
   };
@@ -264,7 +310,7 @@ export const KpiHistoryPage: React.FC = () => {
         </span>
       </td>
       <td className="py-4 px-6 text-[10px] font-bold text-slate-400 uppercase">
-        {item.createdDate ? format(new Date(item.createdDate), 'MMM dd, yyyy') : '-'}
+        {item.createdDate ? format(new Date(item.createdDate), 'dd MMM yyyy') : '-'}
       </td>
     </tr>
   );
