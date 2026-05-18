@@ -74,7 +74,7 @@ const personalContactShape = z.object({
   nrcType: z.string(g).min(1, g),
   nrcNumber: z.string(g).regex(/^[0-9]{6}$/, g),
   gender: z.enum(['Male', 'Female'], g),
-  race: z.string(g).min(1, g).max(100, g),
+  race: z.string(g).min(1, g).max(50, g),
   religionId: z.number(g).positive(g),
   dateOfBirth: z
     .string(g)

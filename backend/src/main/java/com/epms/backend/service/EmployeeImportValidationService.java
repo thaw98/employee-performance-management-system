@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.epms.backend.dto.hr.EmployeeImportRowErrorDto;
 import com.epms.backend.dto.hr.EmployeeImportValidationResponseDto;
+import com.epms.backend.entity.Gender;
 import com.epms.backend.entity.EmployeeImportSession;
 import com.epms.backend.entity.EmployeeImportSessionItem;
 import com.epms.backend.entity.EmployeeReligion;
@@ -34,6 +35,7 @@ import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.util.ExcelCellReaderUtil;
+import com.epms.backend.util.PersonNameNormalizer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -203,35 +205,36 @@ public class EmployeeImportValidationService {
     private Map<String, Object> parseRow(Row row) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("staffNo",                    ExcelCellReaderUtil.readString(row.getCell(0)));
-        data.put("fullName",                   ExcelCellReaderUtil.readString(row.getCell(1)));
-        data.put("staffNrcNo",                 ExcelCellReaderUtil.readString(row.getCell(2)));
-        data.put("email",                      ExcelCellReaderUtil.readString(row.getCell(3)));
-        data.put("department",                 ExcelCellReaderUtil.readString(row.getCell(4)));
-        data.put("position",                   ExcelCellReaderUtil.readString(row.getCell(5)));
-        data.put("phoneNumber",                ExcelCellReaderUtil.readString(row.getCell(6)));
-        data.put("gender",                     ExcelCellReaderUtil.readString(row.getCell(7)));
-        LocalDate dob = ExcelCellReaderUtil.readDate(row.getCell(8));
+        data.put("title",                      ExcelCellReaderUtil.readString(row.getCell(1)));
+        data.put("fullName",                   ExcelCellReaderUtil.readString(row.getCell(2)));
+        data.put("staffNrcNo",                 ExcelCellReaderUtil.readString(row.getCell(3)));
+        data.put("email",                      ExcelCellReaderUtil.readString(row.getCell(4)));
+        data.put("department",                 ExcelCellReaderUtil.readString(row.getCell(5)));
+        data.put("position",                   ExcelCellReaderUtil.readString(row.getCell(6)));
+        data.put("phoneNumber",                ExcelCellReaderUtil.readString(row.getCell(7)));
+        data.put("gender",                     ExcelCellReaderUtil.readString(row.getCell(8)));
+        LocalDate dob = ExcelCellReaderUtil.readDate(row.getCell(9));
         data.put("dateOfBirth",  dob != null ? dob.toString() : "");
-        LocalDate hd = ExcelCellReaderUtil.readDate(row.getCell(9));
+        LocalDate hd = ExcelCellReaderUtil.readDate(row.getCell(10));
         data.put("hireDate",     hd  != null ? hd.toString()  : "");
-        data.put("staffType",                  ExcelCellReaderUtil.readString(row.getCell(10)));
-        LocalDate psd = ExcelCellReaderUtil.readDate(row.getCell(11));
+        data.put("staffType",                  ExcelCellReaderUtil.readString(row.getCell(11)));
+        LocalDate psd = ExcelCellReaderUtil.readDate(row.getCell(12));
         data.put("probationStartDate", psd != null ? psd.toString() : "");
-        LocalDate ped = ExcelCellReaderUtil.readDate(row.getCell(12));
+        LocalDate ped = ExcelCellReaderUtil.readDate(row.getCell(13));
         data.put("probationEndDate",   ped != null ? ped.toString() : "");
-        data.put("address",                    ExcelCellReaderUtil.readString(row.getCell(13)));
-        data.put("race",                       ExcelCellReaderUtil.readString(row.getCell(14)));
-        data.put("employmentStatus",           ExcelCellReaderUtil.readString(row.getCell(15)));
-        data.put("religion",                   ExcelCellReaderUtil.readString(row.getCell(16)));
-        data.put("emergencyContactRelationship", ExcelCellReaderUtil.readString(row.getCell(17)));
-        data.put("emergencyContactPhone",      ExcelCellReaderUtil.readString(row.getCell(18)));
-        data.put("fatherName",                 ExcelCellReaderUtil.readString(row.getCell(19)));
-        data.put("fatherNrcNo",                ExcelCellReaderUtil.readString(row.getCell(20)));
-        data.put("fatherOccupation",           ExcelCellReaderUtil.readString(row.getCell(21)));
-        data.put("maritalStatus",              ExcelCellReaderUtil.readString(row.getCell(22)));
-        data.put("spouseName",                 ExcelCellReaderUtil.readString(row.getCell(23)));
-        data.put("spouseNrc",                  ExcelCellReaderUtil.readString(row.getCell(24)));
-        data.put("profilePictureUrl",          ExcelCellReaderUtil.readString(row.getCell(25)));
+        data.put("address",                    ExcelCellReaderUtil.readString(row.getCell(14)));
+        data.put("race",                       ExcelCellReaderUtil.readString(row.getCell(15)));
+        data.put("employmentStatus",           ExcelCellReaderUtil.readString(row.getCell(16)));
+        data.put("religion",                   ExcelCellReaderUtil.readString(row.getCell(17)));
+        data.put("emergencyContactRelationship", ExcelCellReaderUtil.readString(row.getCell(18)));
+        data.put("emergencyContactPhone",      ExcelCellReaderUtil.readString(row.getCell(19)));
+        data.put("fatherName",                 ExcelCellReaderUtil.readString(row.getCell(20)));
+        data.put("fatherNrcNo",                ExcelCellReaderUtil.readString(row.getCell(21)));
+        data.put("fatherOccupation",           ExcelCellReaderUtil.readString(row.getCell(22)));
+        data.put("maritalStatus",              ExcelCellReaderUtil.readString(row.getCell(23)));
+        data.put("spouseName",                 ExcelCellReaderUtil.readString(row.getCell(24)));
+        data.put("spouseNrc",                  ExcelCellReaderUtil.readString(row.getCell(25)));
+        data.put("profilePictureUrl",          ExcelCellReaderUtil.readString(row.getCell(26)));
         return data;
     }
 
@@ -281,9 +284,6 @@ public class EmployeeImportValidationService {
             }
         }
 
-        requireField(errors, row, "fullName", "full_name is required");
-        requireMaxLength(errors, row, "fullName", 50, "full_name must be at most 50 characters");
-
         String dept = trimOrEmpty(row, "department");
         if (dept.isEmpty()) {
             errors.add("department is required");
@@ -306,10 +306,24 @@ public class EmployeeImportValidationService {
         }
 
         String gender = trimOrEmpty(row, "gender");
+        Gender parsedGender = null;
         if (gender.isEmpty()) {
             errors.add("gender is required");
         } else if (!gender.equals("Male") && !gender.equals("Female")) {
             errors.add("gender must be Male or Female");
+        } else {
+            parsedGender = Gender.valueOf(gender);
+        }
+
+        String normalizedFullName = parsedGender == null
+                ? PersonNameNormalizer.normalize(trimOrEmpty(row, "fullName"))
+                : PersonNameNormalizer.normalizeEmployeeName(trimOrEmpty(row, "fullName"), parsedGender);
+        if (normalizedFullName.isEmpty()) {
+            errors.add("full_name is required");
+        } else if (normalizedFullName.length() > 50) {
+            errors.add("full_name must be at most 50 characters after title is applied");
+        } else {
+            row.put("fullName", normalizedFullName);
         }
 
         String dob = trimOrEmpty(row, "dateOfBirth");
@@ -379,7 +393,7 @@ public class EmployeeImportValidationService {
 
     private boolean isRowFullyEmpty(Row row) {
         if (row == null) return true;
-        for (int c = 0; c < 26; c++) {
+        for (int c = 0; c < 27; c++) {
             if (!ExcelCellReaderUtil.isCellBlank(row.getCell(c))) return false;
         }
         return true;

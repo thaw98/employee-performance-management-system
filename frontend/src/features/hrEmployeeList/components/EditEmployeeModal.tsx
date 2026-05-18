@@ -231,6 +231,7 @@ export default function EditEmployeeModal({
         staffNrcNo: `${v.nrcStateCode}/${v.nrcTownshipCode}(${v.nrcType})${v.nrcNumber}`,
         gender: v.gender,
         religion: v.religion,
+        race: v.race?.trim(),
         maritalStatus: v.maritalStatus,
         spouseName: v.maritalStatus === 'Married' ? v.spouseName : undefined,
         spouseNrc:

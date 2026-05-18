@@ -2,7 +2,7 @@ import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
 import { z } from 'zod'
 
 import { getNrcTownships } from '../../employeeOnboarding/utils/nrcData'
-import { toTitleCasePersonName } from '../../../utils/personName'
+import { toTitleCasePersonName, withGenderTitle } from '../../../utils/personName'
 
 const townships = getNrcTownships()
 
@@ -164,7 +164,7 @@ export const employeeInformationSchema = z
       .refine((val) => ['Buddhist', 'Christian', 'Muslim', 'Hindu'].includes(val), {
         message: 'Invalid religion',
       }),
-    race: z.string().trim().min(1, 'Race is required').max(100),
+    race: z.string().trim().min(1, 'Race is required').max(50, 'Max 50 characters'),
     nrcStateCode: z.string().optional(),
     nrcTownshipCode: z.string().optional(),
     nrcType: z.string().optional(),
@@ -182,6 +182,13 @@ export const employeeInformationSchema = z
     }
     nrcPartsRefine(val, ctx)
     nrcTownshipRefine(val, ctx)
+    if (withGenderTitle(val.employeeName, val.gender).length > 50) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Max 50 characters after title is applied',
+        path: ['employeeName'],
+      })
+    }
   })
 
 /** Father table plus emergency_contact. */
@@ -295,7 +302,7 @@ export const editEmployeeSchema = z
     dateOfBirth: z.string().optional(),
     phoneNo:     z.string().trim().optional(),
     address:     z.string().trim().max(2000).optional(),
-    race: z.string().trim().max(100).optional(),
+    race: z.string().trim().max(50, 'Max 50 characters').optional(),
     religion:    z.string().optional(),
 
     // ── NRC — all optional (validated together below) ───────────────────────
@@ -392,4 +399,3 @@ export const editEmployeeSchema = z
   })
 
 export type EditEmployeeFormValues = z.infer<typeof editEmployeeSchema>
-

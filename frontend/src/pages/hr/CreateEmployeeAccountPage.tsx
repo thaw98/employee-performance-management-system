@@ -22,7 +22,7 @@ import {
   type CreateEmployeeAccountFormValues,
 } from '../../features/hrCreateEmployee/schemas/createEmployeeAccountSchema'
 import { useAppSelector } from '../../app/hooks'
-import { toTitleCasePersonName } from '../../utils/personName'
+import { toTitleCasePersonName, withGenderTitle } from '../../utils/personName'
 import { CreateEmployeeSuccessModal } from './create-account/CreateEmployeeSuccessModal'
 import { EmployeeInformationStep } from './create-account/EmployeeInformationStep'
 import { EmploymentInformationStep } from './create-account/EmploymentInformationStep'
@@ -442,7 +442,7 @@ export function CreateEmployeeAccountPage() {
         const fatherOcc = v.fatherOccupation.trim()
         const res = await createAccount({
           staffNo: staffNorm,
-          employeeName: v.employeeName.trim(),
+          employeeName: withGenderTitle(v.employeeName, v.gender),
           gender: v.gender,
           email: emailNorm,
           dateOfBirth: v.dateOfBirth,

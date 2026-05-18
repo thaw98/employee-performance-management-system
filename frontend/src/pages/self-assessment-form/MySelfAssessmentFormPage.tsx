@@ -1057,7 +1057,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                           const remarksLen = String(field.value ?? '').length;
                           return (
                             <>
-                              <textarea
+                              <Textarea
                                 {...field}
                                 disabled={!canEditQuestion}
                                 rows={2}

@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 public class EmployeeExportService {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-    private static final int[] TEXT_COLUMNS = { 6, 8, 9, 11, 12, 18, 24 };
+    private static final int[] TEXT_COLUMNS = { 7, 9, 10, 12, 13, 19, 25 };
 
     private final EmployeeRepository employeeRepository;
     private final EmployeeImportTemplateService templateService;
@@ -74,31 +74,32 @@ public class EmployeeExportService {
         EmployeeProbation probation = employee.getProbation();
 
         write(row, 0, employee.getEmployeeId(), textStyle);
-        write(row, 1, employee.getEmployeeName(), null);
-        write(row, 2, employee.getStaffNrcNo(), null);
-        write(row, 3, employee.getEmail(), null);
-        write(row, 4, employee.getDepartment() != null ? employee.getDepartment().getName() : null, null);
-        write(row, 5, employee.getPosition() != null ? employee.getPosition().getName() : null, null);
-        write(row, 6, employee.getPhoneNo(), textStyle);
-        write(row, 7, employee.getGender() != null ? employee.getGender().name() : null, null);
-        write(row, 8, formatDate(employee.getDateOfBirth()), textStyle);
-        write(row, 9, formatDate(employee.getDateOfJoining()), textStyle);
-        write(row, 10, employee.getStaffType() != null ? employee.getStaffType().getName() : null, null);
-        write(row, 11, probation != null ? formatDate(probation.getProbationStartDate()) : null, textStyle);
-        write(row, 12, probation != null ? formatDate(probation.getProbationEndDate()) : null, textStyle);
-        write(row, 13, employee.getAddress(), null);
-        write(row, 14, employee.getRace(), null);
-        write(row, 15, formatEmploymentStatus(employee.getEmploymentStatus()), null);
-        write(row, 16, formatReligion(employee.getReligion()), null);
-        write(row, 17, employee.getEmergencyContact() != null ? employee.getEmergencyContact().getRelation() : null, null);
-        write(row, 18, employee.getEmergencyContact() != null ? employee.getEmergencyContact().getEmergencyPhone() : null, textStyle);
-        write(row, 19, employee.getFather() != null ? employee.getFather().getFatherName() : null, null);
-        write(row, 20, employee.getFather() != null ? employee.getFather().getFatherNrcNo() : null, null);
-        write(row, 21, employee.getFather() != null ? employee.getFather().getFatherOccupation() : null, null);
-        write(row, 22, employee.getMaritalStatus() != null ? employee.getMaritalStatus().name() : null, null);
-        write(row, 23, employee.getSpouse() != null ? employee.getSpouse().getSpouseName() : null, null);
-        write(row, 24, employee.getSpouse() != null ? employee.getSpouse().getSpouseNrc() : null, textStyle);
-        write(row, 25, employee.getProfilePictureUrl(), null);
+        write(row, 1, employee.getGender() != null ? titleForGender(employee.getGender().name()) : null, null);
+        write(row, 2, employee.getEmployeeName(), null);
+        write(row, 3, employee.getStaffNrcNo(), null);
+        write(row, 4, employee.getEmail(), null);
+        write(row, 5, employee.getDepartment() != null ? employee.getDepartment().getName() : null, null);
+        write(row, 6, employee.getPosition() != null ? employee.getPosition().getName() : null, null);
+        write(row, 7, employee.getPhoneNo(), textStyle);
+        write(row, 8, employee.getGender() != null ? employee.getGender().name() : null, null);
+        write(row, 9, formatDate(employee.getDateOfBirth()), textStyle);
+        write(row, 10, formatDate(employee.getDateOfJoining()), textStyle);
+        write(row, 11, employee.getStaffType() != null ? employee.getStaffType().getName() : null, null);
+        write(row, 12, probation != null ? formatDate(probation.getProbationStartDate()) : null, textStyle);
+        write(row, 13, probation != null ? formatDate(probation.getProbationEndDate()) : null, textStyle);
+        write(row, 14, employee.getAddress(), null);
+        write(row, 15, employee.getRace(), null);
+        write(row, 16, formatEmploymentStatus(employee.getEmploymentStatus()), null);
+        write(row, 17, formatReligion(employee.getReligion()), null);
+        write(row, 18, employee.getEmergencyContact() != null ? employee.getEmergencyContact().getRelation() : null, null);
+        write(row, 19, employee.getEmergencyContact() != null ? employee.getEmergencyContact().getEmergencyPhone() : null, textStyle);
+        write(row, 20, employee.getFather() != null ? employee.getFather().getFatherName() : null, null);
+        write(row, 21, employee.getFather() != null ? employee.getFather().getFatherNrcNo() : null, null);
+        write(row, 22, employee.getFather() != null ? employee.getFather().getFatherOccupation() : null, null);
+        write(row, 23, employee.getMaritalStatus() != null ? employee.getMaritalStatus().name() : null, null);
+        write(row, 24, employee.getSpouse() != null ? employee.getSpouse().getSpouseName() : null, null);
+        write(row, 25, employee.getSpouse() != null ? employee.getSpouse().getSpouseNrc() : null, textStyle);
+        write(row, 26, employee.getProfilePictureUrl(), null);
     }
 
     private void write(Row row, int columnIndex, String value, CellStyle style) {
@@ -119,6 +120,10 @@ public class EmployeeExportService {
 
     private String formatDate(LocalDate date) {
         return date == null ? "" : DATE_FORMAT.format(date);
+    }
+
+    private String titleForGender(String gender) {
+        return "Male".equals(gender) ? "U" : "Female".equals(gender) ? "Daw" : "";
     }
 
     private Row getOrCreateRow(Sheet sheet, int rowIndex) {

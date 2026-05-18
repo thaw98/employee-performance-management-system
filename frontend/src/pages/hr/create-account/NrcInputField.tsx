@@ -45,7 +45,7 @@ export function NrcInputField({ control, errors, setValue }: NrcInputFieldProps)
         className={`mb-1 block text-sm font-medium ${hasError ? 'text-red-600' : 'text-slate-700'}`}
         htmlFor="nrc-state"
       >
-        NRC Number
+        NRC Number <span className="text-red-400">*</span>
       </label>
       <div
         className={`flex items-stretch overflow-hidden rounded-lg border bg-white transition-colors ${

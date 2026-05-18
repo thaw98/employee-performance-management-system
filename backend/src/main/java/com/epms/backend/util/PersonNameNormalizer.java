@@ -2,6 +2,8 @@ package com.epms.backend.util;
 
 import java.util.Locale;
 
+import com.epms.backend.entity.Gender;
+
 /**
  * Normalizes person display names: trim, collapse whitespace, title-case each word.
  * e.g. {@code "Khant  ko Ko"} → {@code "Khant Ko Ko"}.
@@ -31,6 +33,20 @@ public final class PersonNameNormalizer {
 			sb.append(titleCaseWord(part));
 		}
 		return sb.toString();
+	}
+
+	public static String normalizeEmployeeName(String raw, Gender gender) {
+		String normalized = normalize(raw);
+		if (normalized.isEmpty() || hasTitlePrefix(normalized) || gender == null) {
+			return normalized;
+		}
+		String title = gender == Gender.Male ? "U" : "Daw";
+		return title + " " + normalized;
+	}
+
+	private static boolean hasTitlePrefix(String name) {
+		String lower = name.toLowerCase(Locale.ROOT);
+		return lower.startsWith("u ") || lower.startsWith("daw ");
 	}
 
 	private static String titleCaseWord(String word) {
