@@ -10,6 +10,7 @@ import { getSignatureErrorMessage } from './signatureErrorUtils'
 import {
   estimateDataUrlBytes,
   exportSignatureDataUrl,
+  trimSignatureCanvas,
 } from './signatureCanvasUtils'
 
 const MAX_DRAWN_SIGNATURE_REQUEST_BYTES = 3 * 1024 * 1024
@@ -52,37 +53,36 @@ export const InlineDefaultSignaturePad = forwardRef<
       return false
     }
 
-    const canvas = pad.getCanvas()
-    if (canvas.width < 2 || canvas.height < 2) {
-      toast.error('Signature pad is not ready yet. Please wait a moment and try again.')
-      return false
-    }
-
-    const trimmedCanvas = pad.getTrimmedCanvas()
-    const dataUrl = exportSignatureDataUrl(trimmedCanvas)
-    if (estimateDataUrlBytes(dataUrl) > MAX_DRAWN_SIGNATURE_REQUEST_BYTES) {
-      toast.error('Signature is too detailed. Please draw a simpler signature and try again.')
-      return false
-    }
-
     try {
+      const canvas = pad.getCanvas()
+      if (canvas.width < 2 || canvas.height < 2) {
+        toast.error('Signature pad is not ready yet. Please wait a moment and try again.')
+        return false
+      }
+
+      const trimmedCanvas = trimSignatureCanvas(canvas)
+      const dataUrl = exportSignatureDataUrl(trimmedCanvas)
+      if (estimateDataUrlBytes(dataUrl) > MAX_DRAWN_SIGNATURE_REQUEST_BYTES) {
+        toast.error('Signature is too detailed. Please draw a simpler signature and try again.')
+        return false
+      }
+
       const saved = await saveDrawnSignature({ signaturePngDataUrl: dataUrl }).unwrap()
       const savedSignature = saved?.data
-      if (!savedSignature?.id) {
+      const savedSignatureId = savedSignature?.id
+      if (!savedSignatureId) {
         toast.error('Signature saved, but could not set it as default.')
         return false
       }
       if (!savedSignature.isDefault) {
-        await setDefaultSignature(savedSignature.id).unwrap()
+        await setDefaultSignature(savedSignatureId).unwrap()
       }
-      pad.clear()
-      notifyDrawingChange()
       return true
     } catch (error: unknown) {
       toast.error(getSignatureErrorMessage(error, 'Failed to save signature. Please try again.'))
       return false
     }
-  }, [notifyDrawingChange, saveDrawnSignature, setDefaultSignature])
+  }, [saveDrawnSignature, setDefaultSignature])
 
   useImperativeHandle(ref, () => ({
     saveAsDefault,

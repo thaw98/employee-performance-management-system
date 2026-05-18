@@ -5,7 +5,9 @@ import com.epms.backend.dto.selfassessmentform.AnswerRequest;
 import com.epms.backend.dto.selfassessmentform.ActiveCycleFormsDto;
 import com.epms.backend.dto.selfassessmentform.CreateTemplateRequest;
 import com.epms.backend.dto.selfassessmentform.ManagerAdjustmentRequest;
+import com.epms.backend.dto.selfassessmentform.ManagerRetakeRequest;
 import com.epms.backend.dto.selfassessmentform.ManagerReviewRequest;
+import com.epms.backend.dto.selfassessmentform.RetakeQuestionRequest;
 import com.epms.backend.dto.selfassessmentform.HrReturnDisputedReviewRequest;
 import com.epms.backend.dto.selfassessmentform.QuestionRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentRequest;
@@ -537,6 +539,38 @@ class SelfAssessmentFormAssignmentServiceTest {
 
         assertEquals("Proposed rating does not match the form rating system", ex.getMessage());
         verify(adjustmentRepository, never()).save(any());
+    }
+
+    @Test
+    void managerRequestRetake_notifiesEmployeeAndSetsPendingEmployeeRetake() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        employee.setEmployeeName("Jane Doe");
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+        when(signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount()))
+                .thenReturn(Optional.of(signature(manager.getUserAccount())));
+        when(formRepository.save(form)).thenReturn(form);
+
+        service.managerRequestRetake(
+                form.getId(),
+                manager,
+                new ManagerRetakeRequest(
+                        "Please revise",
+                        List.of(new RetakeQuestionRequest(501L, "Clarify your rating"))));
+
+        assertEquals(SelfAssessmentFormStatus.PENDING_EMPLOYEE_RETAKE, form.getStatus());
+        assertTrue(form.getAnswers().get(0).getRetakeRequested());
+        verify(notificationService).send(
+                eq(employee.getUserAccount()),
+                eq("Self-Assessment Retake Requested"),
+                eq("Your manager requested a retake for selected questions on "
+                        + "Template. Please update only the warned questions."),
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(form.getId()));
     }
 
     @Test

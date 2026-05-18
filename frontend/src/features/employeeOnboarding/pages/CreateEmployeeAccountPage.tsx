@@ -36,6 +36,7 @@ import { useUploadProfilePictureMutation } from '../../../features/user/userApi'
 
 const MAX_PHONE_INPUT_LENGTH = 16 // optional "+" plus up to 15 digits
 const EMPLOYEE_NAME_MAX_LENGTH = 50
+const RACE_MAX_LENGTH = 50
 
 const STEP1_FIELD_NAMES: FieldPath<EmployeeInfoFormValues>[] = [
   'employeeId',
@@ -335,6 +336,7 @@ export function CreateEmployeeAccountPage() {
   const probationDurationWatch = watch('probationDuration')
   const probationStartForEnd = watch('probationStartDate') || watch('dateOfJoining')
   const employeeNameLength = (watch('employeeName') ?? '').length
+  const raceLength = (watch('race') ?? '').length
   const computedPresetProbationEndIso =
     isProbationStaff &&
     probationDurationWatch &&
@@ -739,9 +741,17 @@ export function CreateEmployeeAccountPage() {
                 <TextField
                   fullWidth
                   label="Race *"
+                  slotProps={{ htmlInput: { maxLength: RACE_MAX_LENGTH } }}
                   {...register('race')}
                   error={Boolean(errors.race)}
-                  helperText={errors.race?.message}
+                  helperText={
+                    <span className="flex w-full items-start justify-between gap-2">
+                      <span>{errors.race?.message}</span>
+                      <span className="shrink-0 text-slate-400">
+                        {raceLength}/{RACE_MAX_LENGTH}
+                      </span>
+                    </span>
+                  }
                 />
                 <Controller
                   control={control}
@@ -779,10 +789,17 @@ export function CreateEmployeeAccountPage() {
                 <TextField
                   fullWidth
                   label="Race *"
-                  slotProps={{ htmlInput: { maxLength: 100 } }}
+                  slotProps={{ htmlInput: { maxLength: RACE_MAX_LENGTH } }}
                   {...register('race')}
                   error={Boolean(errors.race)}
-                  helperText={errors.race?.message}
+                  helperText={
+                    <span className="flex w-full items-start justify-between gap-2">
+                      <span>{errors.race?.message}</span>
+                      <span className="shrink-0 text-slate-400">
+                        {raceLength}/{RACE_MAX_LENGTH}
+                      </span>
+                    </span>
+                  }
                 />
               </div>
             </div>

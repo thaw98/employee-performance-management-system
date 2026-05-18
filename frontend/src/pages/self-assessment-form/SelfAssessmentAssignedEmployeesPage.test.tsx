@@ -107,7 +107,9 @@ describe('SelfAssessmentAssignedEmployeesPage', () => {
       'href',
       '/hr/self-assessment/assignments'
     )
-    expect(screen.getByText('Aye Aye (EMP-200)')).toBeInTheDocument()
+    expect(screen.getByText('Aye Aye')).toBeInTheDocument()
+    expect(screen.getByText('EMP-200')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Staff No.' })).toBeInTheDocument()
     expect(screen.getByText('Engineering')).toBeInTheDocument()
     expect(screen.getByText('Developer')).toBeInTheDocument()
     expect(screen.getByText('May 5, 2026')).toBeInTheDocument()
@@ -115,6 +117,10 @@ describe('SelfAssessmentAssignedEmployeesPage', () => {
     expect(screen.getByText('May 15, 2026')).toBeInTheDocument()
     expect(screen.getByText('May 20, 2026')).toBeInTheDocument()
     expect(screen.getByText('Not Submitted')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'View' })).toHaveAttribute(
+      'href',
+      '/hr/self-assessment/reviews/500'
+    )
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 

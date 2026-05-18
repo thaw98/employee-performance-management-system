@@ -97,6 +97,8 @@ describe('SelfAssessmentActiveFormsPage', () => {
     expect(hrActiveCycleHookMock).toHaveBeenCalledWith(undefined, { skip: true })
     expect(screen.getByText('Team Assigned Self-Assessment Forms')).toBeTruthy()
     expect(screen.getByText('Aye Aye')).toBeTruthy()
+    expect(screen.getByText('Manager Review Deadline')).toBeTruthy()
+    expect(screen.getByText('May 20, 2026')).toBeTruthy()
   })
 
   it('routes manager View to the manager review detail page', async () => {

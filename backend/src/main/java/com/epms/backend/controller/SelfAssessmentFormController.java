@@ -233,6 +233,53 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @PostMapping("/{id}/manager-request-retake")
+    @PreAuthorize("principal.roleId == 2")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> managerRequestRetake(
+            @PathVariable Long id,
+            @Valid @RequestBody ManagerRetakeRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee manager = getEmployeeFromPrincipal(principal);
+            SelfAssessmentFormDto form = selfAssessmentFormService.managerRequestRetake(id, manager, request);
+            return ResponseEntity.ok(ApiResponse.ok("Retake requested", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/retake-submit")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> employeeSubmitRetake(
+            @PathVariable Long id,
+            @Valid @RequestBody EmployeeRetakeSubmitRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee employee = getEmployeeFromPrincipal(principal);
+            SelfAssessmentFormDto form = selfAssessmentFormService.employeeSubmitRetake(id, employee, request);
+            return ResponseEntity.ok(ApiResponse.ok("Retake submitted", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/manager-approve-retake")
+    @PreAuthorize("principal.roleId == 2")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> managerApproveRetake(
+            @PathVariable Long id,
+            @RequestBody(required = false) ManagerApproveRetakeRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee manager = getEmployeeFromPrincipal(principal);
+            SelfAssessmentFormDto form = selfAssessmentFormService.managerApproveRetake(
+                    id,
+                    manager,
+                    request == null ? new ManagerApproveRetakeRequest(null) : request);
+            return ResponseEntity.ok(ApiResponse.ok("Retake approved", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/hr-approve-manager-review")
     @PreAuthorize("principal.roleId == 1")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrApproveManagerReview(

@@ -12,13 +12,15 @@ import { Camera, Upload, Trash2, RefreshCw, Hash, User, Globe } from 'lucide-rea
 
 import type { CreateEmployeeAccountFormValues } from '../../../features/hrCreateEmployee/schemas/createEmployeeAccountSchema'
 import { NrcInputField } from './NrcInputField'
+import { titleForGender, withGenderTitle } from '../../../utils/personName'
 
 const RELIGIONS = ['Buddhist', 'Christian', 'Muslim', 'Hindu'] as const
 
 const EMPLOYEE_NAME_MAX_LENGTH = 50
+const RACE_MAX_LENGTH = 50
 
 /** Optional + plus up to 15 digits; matches createEmployeeAccountSchema phone regex. */
-const PHONE_INPUT_MAX_LENGTH = 16
+const PHONE_INPUT_MAX_LENGTH = 20
 
 type Dup = 'idle' | 'checking' | 'exists' | 'available'
 
@@ -99,8 +101,14 @@ export function EmployeeInformationStep({
   readOnlyStaffNo = false,
 }: EmployeeInformationStepProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
-  const employeeNameLen = String(useWatch({ control, name: 'employeeName' }) ?? '').length
-  const currentStaffNo = String(useWatch({ control, name: 'staffNo' }) ?? '')
+  const phoneNoLen = String(useWatch({ control, name: 'phoneNo' }) ?? '').length
+  const employeeNameValue = String(useWatch({ control, name: 'employeeName' }) ?? '')
+  const genderValue = useWatch({ control, name: 'gender' })
+  const nameTitle = titleForGender(genderValue)
+  const employeeNameLen = withGenderTitle(employeeNameValue, genderValue).length
+  const addressLen = String(useWatch({ control, name: 'address' }) ?? '').length
+  const raceLen = String(useWatch({ control, name: 'race' }) ?? '').length
+  const currentStaffNo = String(useWatch({ control, name: 'staffNo' }) ?? '').length
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -282,17 +290,27 @@ export function EmployeeInformationStep({
       <div className="grid gap-5 md:grid-cols-2">
         <SectionHeader icon={User} title="Personal Information" />
 
-        <div>
+        <div className="md:col-span-2">
           <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="employeeName">
             Full Name <span className="text-red-400">*</span>
           </label>
-          <input
-            id="employeeName"
-            className={errors.employeeName ? inputError : inputNormal}
-            placeholder="Enter full name"
-            maxLength={EMPLOYEE_NAME_MAX_LENGTH}
-            {...register('employeeName')}
-          />
+          <div className="grid gap-3 sm:grid-cols-[110px_1fr]">
+            <input
+              aria-label="Title"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500 outline-none"
+              value={nameTitle}
+              placeholder="Title"
+              disabled
+              readOnly
+            />
+            <input
+              id="employeeName"
+              className={errors.employeeName ? inputError : inputNormal}
+              placeholder="Enter employee name"
+              maxLength={EMPLOYEE_NAME_MAX_LENGTH}
+              {...register('employeeName')}
+            />
+          </div>
           <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
             <span className={errors.employeeName ? 'text-red-600' : ''}>
               {errors.employeeName?.message ? String(errors.employeeName.message) : null}
@@ -344,7 +362,7 @@ export function EmployeeInformationStep({
           ) : null}
         </div>
 
-        <div>
+        <div className="md:col-span-2">
           <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="phoneNo">
             Phone Number <span className="text-red-400">*</span>
           </label>
@@ -357,9 +375,12 @@ export function EmployeeInformationStep({
             placeholder="+95xxxxxxxxx or 09xxxxxxxx"
             {...register('phoneNo')}
           />
-          {errors.phoneNo?.message ? (
-            <p className="mt-1 text-xs text-red-600">{String(errors.phoneNo.message)}</p>
-          ) : null}
+          <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
+            <span className={errors.phoneNo ? 'text-red-600' : ''}>
+              {errors.phoneNo?.message ? String(errors.phoneNo.message) : null}
+            </span>
+            <span className="shrink-0 text-slate-400">{phoneNoLen}/{PHONE_INPUT_MAX_LENGTH}</span>
+          </div>
         </div>
 
         <div className="md:col-span-2">
@@ -368,13 +389,17 @@ export function EmployeeInformationStep({
           </label>
           <input
             id="race"
+            maxLength={RACE_MAX_LENGTH}
             className={errors.race ? inputError : inputNormal}
             placeholder="e.g. Burmese"
             {...register('race')}
           />
-          {errors.race?.message ? (
-            <p className="mt-1 text-xs text-red-600">{String(errors.race.message)}</p>
-          ) : null}
+          <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
+            <span className={errors.race ? 'text-red-600' : ''}>
+              {errors.race?.message ? String(errors.race.message) : null}
+            </span>
+            <span className="shrink-0 text-slate-400">{raceLen}/{RACE_MAX_LENGTH}</span>
+          </div>
         </div>
 
         <div className="md:col-span-2">
@@ -384,13 +409,17 @@ export function EmployeeInformationStep({
           <textarea
             id="address"
             rows={3}
+            maxLength={500}
             className={`${errors.address ? inputError : inputNormal} resize-none`}
             placeholder="Street address, city, region"
             {...register('address')}
           />
-          {errors.address?.message ? (
-            <p className="mt-1 text-xs text-red-600">{String(errors.address.message)}</p>
-          ) : null}
+          <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
+            <span className={errors.address ? 'text-red-600' : ''}>
+              {errors.address?.message ? String(errors.address.message) : null}
+            </span>
+            <span className="shrink-0 text-slate-400">{addressLen}/500</span>
+          </div>
         </div>
 
         <div className="md:col-span-2">

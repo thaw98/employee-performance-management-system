@@ -73,7 +73,7 @@ public class EmployeeImportTemplateService {
      * 25  profile_picture_url       (optional)
      */
     private static final String[] HEADERS = {
-            "staff_no", "full_name", "staff_nrc_no", "email", "department", "position",
+            "staff_no", "title", "full_name", "staff_nrc_no", "email", "department", "position",
             "phone_number", "gender", "date_of_birth", "hire_date", "staff_type",
             "probation_start_date", "probation_end_date",
             "address", "race", "employment_status", "religion",
@@ -89,8 +89,10 @@ public class EmployeeImportTemplateService {
             .map(EmployeeReligion::toApiLabel).toArray(String[]::new);
 
     /** Columns that must be Text format to preserve leading zeros. */
-    private static final int[] TEXT_FORMAT_COLS = { 6, 18 };
-    private static final int[] DATE_FORMAT_COLS = { 8, 9, 11, 12 };
+    private static final int TITLE_COL = 1;
+    private static final int GENDER_COL = 8;
+    private static final int[] TEXT_FORMAT_COLS = { 7, 19 };
+    private static final int[] DATE_FORMAT_COLS = { 9, 10, 12, 13 };
 
     @Transactional(readOnly = true)
     public byte[] generateTemplate() {
@@ -115,10 +117,24 @@ public class EmployeeImportTemplateService {
             short textFmt = wb.createDataFormat().getFormat("@");
             CellStyle textStyle = wb.createCellStyle();
             textStyle.setDataFormat(textFmt);
+            textStyle.setLocked(false);
 
             short dateFmt = wb.createDataFormat().getFormat("dd-mm-yyyy");
             CellStyle dateStyle = wb.createCellStyle();
             dateStyle.setDataFormat(dateFmt);
+            dateStyle.setLocked(false);
+
+            CellStyle unlockedStyle = wb.createCellStyle();
+            unlockedStyle.setLocked(false);
+
+            CellStyle titleCellStyle = wb.createCellStyle();
+            titleCellStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+            titleCellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            titleCellStyle.setBorderBottom(BorderStyle.THIN);
+            titleCellStyle.setBorderTop(BorderStyle.THIN);
+            titleCellStyle.setBorderLeft(BorderStyle.THIN);
+            titleCellStyle.setBorderRight(BorderStyle.THIN);
+            titleCellStyle.setLocked(true);
 
             // ─── 1. Instructions sheet ────────────────────────────────────────────
             Sheet instrSheet = wb.createSheet("Instructions");
@@ -136,7 +152,8 @@ public class EmployeeImportTemplateService {
 
             String[] sampleRow1 = {
                     "1",                              // staff_no
-                    "Aung Aung",                      // full_name
+                    "U",                              // title
+                    "Zaw Aung",                       // full_name
                     "12/TAMANA(N)123456",             // staff_nrc_no
                     "aungaung@example.com",           // email
                     deptSample,                       // department
@@ -166,7 +183,8 @@ public class EmployeeImportTemplateService {
             // Row 2 — Permanent example (probation fields left blank)
             String[] sampleRow2 = {
                     "2",                              // staff_no
-                    "Aye Aye",                        // full_name
+                    "Daw",                            // title
+                    "Thu Zar",                        // full_name
                     "12/KAMAYA(N)789012",             // staff_nrc_no
                     "ayeaye@example.com",             // email
                     deptSample,                       // department
@@ -243,12 +261,19 @@ public class EmployeeImportTemplateService {
             empSheet.createFreezePane(0, 1);
 
             // Apply text/date formats on employees sheet
+            for (int col = 0; col < HEADERS.length; col++) {
+                if (col != TITLE_COL) {
+                    empSheet.setDefaultColumnStyle(col, unlockedStyle);
+                }
+            }
             for (int col : TEXT_FORMAT_COLS) {
                 empSheet.setDefaultColumnStyle(col, textStyle);
             }
             for (int col : DATE_FORMAT_COLS) {
                 empSheet.setDefaultColumnStyle(col, dateStyle);
             }
+            applyTitleFormulas(empSheet, titleCellStyle, 1, 1000);
+            empSheet.protectSheet("title");
 
             // ─── 4. Lookups sheet (hidden) ────────────────────────────────────────
             Sheet lookupSheet = wb.createSheet("Lookups");
@@ -312,13 +337,13 @@ public class EmployeeImportTemplateService {
             createNamedRange(wb, "MaritalStatusList", "Lookups", 0, 6, MARITAL_STATUSES.length - 1, 6);
 
             // ─── Dropdown validations on Employees sheet ──────────────────────────
-            addDropdown(empSheet, "DeptList",      1, 1000, 4,  4);   // department
-            addDropdown(empSheet, "PosList",       1, 1000, 5,  5);   // position
-            addDropdown(empSheet, "GenderList",    1, 1000, 7,  7);   // gender
-            addDropdown(empSheet, "StaffTypeList", 1, 1000, 10, 10);  // staff_type
-            addDropdown(empSheet, "StatusList",    1, 1000, 15, 15);  // employment_status
-            addDropdown(empSheet, "ReligionList",  1, 1000, 16, 16);  // religion
-            addDropdown(empSheet, "MaritalStatusList", 1, 1000, 22, 22); // marital_status
+            addDropdown(empSheet, "DeptList",      1, 1000, 5,  5);   // department
+            addDropdown(empSheet, "PosList",       1, 1000, 6,  6);   // position
+            addDropdown(empSheet, "GenderList",    1, 1000, 8,  8);   // gender
+            addDropdown(empSheet, "StaffTypeList", 1, 1000, 11, 11);  // staff_type
+            addDropdown(empSheet, "StatusList",    1, 1000, 16, 16);  // employment_status
+            addDropdown(empSheet, "ReligionList",  1, 1000, 17, 17);  // religion
+            addDropdown(empSheet, "MaritalStatusList", 1, 1000, 23, 23); // marital_status
             for (int col : DATE_FORMAT_COLS) {
                 addDateValidation(empSheet, 1, 1000, col, col);
             }
@@ -340,11 +365,29 @@ public class EmployeeImportTemplateService {
             cell.setCellValue(HEADERS[i]);
             cell.setCellStyle(headerStyle);
             // wider for address/address-like columns
-            int width = (i == 0 || i == 1 || i == 2 || i == 3) ? 4200
-                    : i == 25 ? 9000
-                    : (i == 14 || i == 20) ? 8000
+            int width = i == TITLE_COL ? 2200
+                    : (i == 0 || i == 2 || i == 3 || i == 4) ? 4200
+                    : i == 26 ? 9000
+                    : (i == 15 || i == 21) ? 8000
                     : 5500;
             sheet.setColumnWidth(i, width);
+        }
+    }
+
+    private void applyTitleFormulas(Sheet sheet, CellStyle titleCellStyle, int firstRow, int lastRow) {
+        for (int rowIndex = firstRow; rowIndex <= lastRow; rowIndex++) {
+            Row row = sheet.getRow(rowIndex);
+            if (row == null) {
+                row = sheet.createRow(rowIndex);
+            }
+            Cell cell = row.getCell(TITLE_COL);
+            if (cell == null) {
+                cell = row.createCell(TITLE_COL);
+            }
+            int excelRow = rowIndex + 1;
+            cell.setCellFormula(String.format("IF(%s%d=\"Male\",\"U\",IF(%s%d=\"Female\",\"Daw\",\"\"))",
+                    col(GENDER_COL), excelRow, col(GENDER_COL), excelRow));
+            cell.setCellStyle(titleCellStyle);
         }
     }
 
@@ -402,47 +445,48 @@ public class EmployeeImportTemplateService {
             { "", "normal" },
             { "STEP 2 — COLUMN GUIDE", "bold" },
             { "  Col A  staff_no               Optional. Leave blank to auto-generate.", "normal" },
-            { "  Col B  full_name              Required. Max 50 characters.", "normal" },
-            { "  Col C  staff_nrc_no           Required. Employee NRC number (e.g. 12/TAMANA(N)123456). Must be unique.", "normal" },
-            { "  Col D  email                  Required. Must be a valid and unique email address.", "normal" },
-            { "  Col E  department             Required. Select from dropdown.", "normal" },
-            { "  Col F  position               Required. Select from dropdown.", "normal" },
-            { "  Col G  phone_number           Required. Format: 09XXXXXXXXX or +95XXXXXXXXX.", "normal" },
-            { "  Col H  gender                 Required. Select from dropdown: Male | Female.", "normal" },
-            { "  Col I  date_of_birth          Required. Use Excel Date Picker or enter a valid date. Display format: dd-mm-yyyy.", "normal" },
-            { "  Col J  hire_date              Required. Use Excel Date Picker or enter a valid date. Display format: dd-mm-yyyy.", "normal" },
-            { "  Col K  staff_type             Required. Select from dropdown.", "normal" },
-            { "  Col L  probation_start_date   Required if staff_type=Probation. Use Excel Date Picker. Display format: dd-mm-yyyy.", "normal" },
-            { "  Col M  probation_end_date     Required if staff_type=Probation. Use Excel Date Picker. Display format: dd-mm-yyyy.", "normal" },
-            { "  Col N  address                Required. Current residential address.", "normal" },
-            { "  Col O  race                   Required. e.g. Bamar.", "normal" },
-            { "  Col P  employment_status      Required. Select from dropdown (ACTIVE).", "normal" },
-            { "  Col Q  religion               Required. Select from dropdown.", "normal" },
-            { "  Col R  emergency_contact_relationship  Required. e.g. Sister, Mother.", "normal" },
-            { "  Col S  emergency_contact_phone  Required. Format: 09XXXXXXXXX or +95XXXXXXXXX.", "normal" },
-            { "  Col T  father_name            Required.", "normal" },
-            { "  Col U  father_nrc_no          Required. Father NRC number.", "normal" },
-            { "  Col V  father_occupation      Required. Father occupation (e.g. Farmer, Teacher).", "normal" },
-            { "  Col W  marital_status          Required. Single or Married.", "normal" },
-            { "  Col X  spouse_name             Required if marital_status=Married.", "normal" },
-            { "  Col Y  spouse_nrc              Required if marital_status=Married.", "normal" },
-            { "  Col Z  profile_picture_url     Optional. Public or system profile picture URL.", "normal" },
+            { "  Col B  title                  Locked. Auto-fills U for Male and Daw for Female.", "normal" },
+            { "  Col C  full_name              Required. Enter the name with or without U/Daw; max 50 characters after title is applied.", "normal" },
+            { "  Col D  staff_nrc_no           Required. Employee NRC number (e.g. 12/TAMANA(N)123456). Must be unique.", "normal" },
+            { "  Col E  email                  Required. Must be a valid and unique email address.", "normal" },
+            { "  Col F  department             Required. Select from dropdown.", "normal" },
+            { "  Col G  position               Required. Select from dropdown.", "normal" },
+            { "  Col H  phone_number           Required. Format: 09XXXXXXXXX or +95XXXXXXXXX.", "normal" },
+            { "  Col I  gender                 Required. Select from dropdown: Male | Female.", "normal" },
+            { "  Col J  date_of_birth          Required. Use Excel Date Picker or enter a valid date. Display format: dd-mm-yyyy.", "normal" },
+            { "  Col K  hire_date              Required. Use Excel Date Picker or enter a valid date. Display format: dd-mm-yyyy.", "normal" },
+            { "  Col L  staff_type             Required. Select from dropdown.", "normal" },
+            { "  Col M  probation_start_date   Required if staff_type=Probation. Use Excel Date Picker. Display format: dd-mm-yyyy.", "normal" },
+            { "  Col N  probation_end_date     Required if staff_type=Probation. Use Excel Date Picker. Display format: dd-mm-yyyy.", "normal" },
+            { "  Col O  address                Required. Current residential address.", "normal" },
+            { "  Col P  race                   Required. e.g. Bamar.", "normal" },
+            { "  Col Q  employment_status      Required. Select from dropdown (ACTIVE).", "normal" },
+            { "  Col R  religion               Required. Select from dropdown.", "normal" },
+            { "  Col S  emergency_contact_relationship  Required. e.g. Sister, Mother.", "normal" },
+            { "  Col T  emergency_contact_phone  Required. Format: 09XXXXXXXXX or +95XXXXXXXXX.", "normal" },
+            { "  Col U  father_name            Required.", "normal" },
+            { "  Col V  father_nrc_no          Required. Father NRC number.", "normal" },
+            { "  Col W  father_occupation      Required. Father occupation (e.g. Farmer, Teacher).", "normal" },
+            { "  Col X  marital_status          Required. Single or Married.", "normal" },
+            { "  Col Y  spouse_name             Required if marital_status=Married.", "normal" },
+            { "  Col Z  spouse_nrc              Required if marital_status=Married.", "normal" },
+            { "  Col AA profile_picture_url     Optional. Public or system profile picture URL.", "normal" },
             { "", "normal" },
             { "STEP 3 — PROBATION FIELDS", "bold" },
-            { "  If staff_type is 'Probation', you MUST fill cols L, M (start/end dates).", "normal" },
-            { "  If staff_type is 'Permanent', leave cols L, M blank (they will be ignored).", "normal" },
+            { "  If staff_type is 'Probation', you MUST fill cols M, N (start/end dates).", "normal" },
+            { "  If staff_type is 'Permanent', leave cols M, N blank (they will be ignored).", "normal" },
             { "", "normal" },
             { "STEP 4 — DROPDOWN COLUMNS", "bold" },
-            { "  Use the dropdown arrows in columns E, F, H, K, P, Q, W to pick valid values.", "normal" },
+            { "  Use the dropdown arrows in columns F, G, I, L, Q, R, X to pick valid values.", "normal" },
             { "  Typing a value not in the list will cause that row to fail validation.", "normal" },
             { "", "normal" },
             { "STEP 5 — DATE FORMAT", "bold" },
-            { "  Columns I, J, L, M are formatted as Excel Date cells.", "normal" },
+            { "  Columns J, K, M, N are formatted as Excel Date cells.", "normal" },
             { "  Use Excel Date Picker for these columns, or type a valid date and let Excel store it as a date.", "normal" },
             { "  Dates will display as dd-mm-yyyy. Example: 15-06-1995 (15 June 1995).", "normal" },
             { "", "normal" },
             { "STEP 6 — PHONE NUMBER FORMAT", "bold" },
-            { "  Columns G, S are pre-formatted as Text so leading zeros are preserved.", "normal" },
+            { "  Columns H, T are pre-formatted as Text so leading zeros are preserved.", "normal" },
             { "  Valid formats:  09123456789  or  +9512345678", "normal" },
             { "", "normal" },
             { "STEP 7 — VALIDATION & IMPORT FLOW", "bold" },

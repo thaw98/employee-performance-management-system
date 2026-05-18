@@ -39,6 +39,7 @@ import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.StaffTypeRepository;
 import com.epms.backend.repository.UserRepository;
 import com.epms.backend.security.UserPrincipal;
+import com.epms.backend.util.PersonNameNormalizer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -157,7 +158,7 @@ public class EmployeeImportCommitService {
             UserPrincipal principal) {
 
         String staffNo = strOrEmpty(row, "staffNo");
-        String fullName = strOrEmpty(row, "fullName").trim();
+        String rawFullName = strOrEmpty(row, "fullName").trim();
         String staffNrcNo = strOrEmpty(row, "staffNrcNo").trim();
         String email = strOrEmpty(row, "email").trim().toLowerCase(Locale.ROOT);
         String deptName = strOrEmpty(row, "department").trim();
@@ -193,6 +194,13 @@ public class EmployeeImportCommitService {
         if (staffType == null) throw new IllegalArgumentException("Staff type not found: " + staffTypeName);
 
         Gender gender = Gender.valueOf(genderStr);
+        String fullName = PersonNameNormalizer.normalizeEmployeeName(rawFullName, gender);
+        if (fullName.isEmpty()) {
+            throw new IllegalArgumentException("full_name is required");
+        }
+        if (fullName.length() > 50) {
+            throw new IllegalArgumentException("full_name must be at most 50 characters after title is applied");
+        }
         MaritalStatus maritalStatus = MaritalStatus.valueOf(maritalStatusStr);
         LocalDate dob = dobStr.isEmpty() ? null : LocalDate.parse(dobStr);
         LocalDate hireDate = hireDateStr.isEmpty() ? null : LocalDate.parse(hireDateStr);

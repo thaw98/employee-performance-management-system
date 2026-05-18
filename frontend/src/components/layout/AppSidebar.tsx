@@ -106,7 +106,7 @@ export function AppSidebar() {
             { name: 'Assignments', path: '/hr/self-assessment/assignments', icon: 'bi-clipboard-check' },
             { name: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: 'bi-inbox' },
 
-            { name: 'Form Queue', path: '/hr/self-assessment/review-queue', icon: 'bi-list-check' },
+            { name: 'Review Submissions', path: '/hr/self-assessment/review-queue', icon: 'bi-list-check' },
             { name: 'History', path: '/hr/self-assessment/history', icon: 'bi-clock-history' },
             
           ],

@@ -96,11 +96,11 @@ function getStatusConfig(status: string) {
   if (s === 'MANAGER_REVIEW' || s === 'IN_MANAGER_REVIEW' || s === 'PENDING_MANAGER_REVIEW') {
     return {
       label: 'Manager Review',
-      bg: 'bg-amber-100 dark:bg-amber-900/30',
-      text: 'text-amber-700 dark:text-amber-400',
-      dot: 'bg-amber-500',
+      bg: 'bg-indigo-100 dark:bg-indigo-900/30',
+      text: 'text-indigo-700 dark:text-indigo-400',
+      dot: 'bg-indigo-500',
       icon: Hourglass,
-      cardAccent: 'border-l-amber-500',
+      cardAccent: 'border-l-indigo-500',
     };
   }
   if (s === 'MANAGER_COMPLETED' || s === 'MANAGER_APPROVED' || s === 'MANAGER_REVIEWED') {
@@ -198,15 +198,25 @@ function getStatusConfig(status: string) {
   };
 }
 
-function DeadlineIndicator({ date }: { date: string | null }) {
-  if (!date) return <span className="text-slate-300 dark:text-slate-600">-</span>;
+function getDeadlineState(date: string | null) {
+  if (!date) {
+    return { deadline: null as Date | null, isOverdue: false, isToday: false, isSoon: false };
+  }
   const parts = date.split('-').map(Number);
   const deadline = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : null;
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  const isOverdue = deadline && deadline < now;
-  const isToday = deadline && deadline.getTime() === now.getTime();
-  const isSoon = deadline && !isOverdue && !isToday && (deadline.getTime() - now.getTime()) < 7 * 86400000;
+  const isOverdue = Boolean(deadline && deadline < now);
+  const isToday = Boolean(deadline && deadline.getTime() === now.getTime());
+  const isSoon = Boolean(
+    deadline && !isOverdue && !isToday && deadline.getTime() - now.getTime() < 7 * 86400000,
+  );
+  return { deadline, isOverdue, isToday, isSoon };
+}
+
+function DeadlineIndicator({ date }: { date: string | null }) {
+  if (!date) return <span className="text-slate-300 dark:text-slate-600">-</span>;
+  const { isOverdue, isToday, isSoon } = getDeadlineState(date);
 
   return (
     <div className="flex items-center gap-1.5">
@@ -222,6 +232,41 @@ function DeadlineIndicator({ date }: { date: string | null }) {
       <span className={`text-xs font-medium ${isOverdue ? 'text-red-600 dark:text-red-400' : isToday ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400'}`}>
         {formatDate(date)}
       </span>
+    </div>
+  );
+}
+
+function ManagerReviewDeadlineCell({ date }: { date: string | null }) {
+  if (!date) {
+    return <span className="text-xs text-slate-400 dark:text-slate-500">Not set</span>;
+  }
+
+  const { isOverdue, isToday, isSoon } = getDeadlineState(date);
+  const statusLabel = isOverdue ? 'Overdue' : isToday ? 'Due today' : isSoon ? 'Due soon' : null;
+  const containerClass = isOverdue
+    ? 'border-red-200/80 bg-red-50/90 dark:border-red-800/60 dark:bg-red-900/25'
+    : isToday || isSoon
+      ? 'border-amber-200/80 bg-amber-50/90 dark:border-amber-800/60 dark:bg-amber-900/25'
+      : 'border-blue-200/70 bg-blue-50/70 dark:border-blue-800/50 dark:bg-blue-900/20';
+  const textClass = isOverdue
+    ? 'text-red-700 dark:text-red-300'
+    : isToday || isSoon
+      ? 'text-amber-700 dark:text-amber-300'
+      : 'text-blue-700 dark:text-blue-300';
+
+  return (
+    <div className={`inline-flex min-w-[9.5rem] flex-col gap-1 rounded-lg border px-2.5 py-2 ${containerClass}`}>
+      <div className="flex items-center gap-1.5">
+        {isOverdue ? (
+          <AlertCircle size={12} className="shrink-0 text-red-600 dark:text-red-400" />
+        ) : (
+          <Clock size={12} className={`shrink-0 ${isToday || isSoon ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`} />
+        )}
+        <span className={`text-xs font-bold ${textClass}`}>{formatDate(date)}</span>
+      </div>
+      {statusLabel && (
+        <span className={`text-[10px] font-bold uppercase tracking-wide ${textClass}`}>{statusLabel}</span>
+      )}
     </div>
   );
 }
@@ -626,11 +671,21 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                         <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden lg:table-cell">
                           Position
                         </th>
-                        <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden xl:table-cell">
+                        <th
+                          scope="col"
+                          className={`px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 ${
+                            isManager ? 'hidden lg:table-cell' : 'hidden xl:table-cell'
+                          }`}
+                        >
                           Employee Deadline
                         </th>
-                        <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 hidden xl:table-cell">
-                          Manager Review
+                        <th
+                          scope="col"
+                          className={`px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 ${
+                            isManager ? '' : 'hidden xl:table-cell'
+                          }`}
+                        >
+                          {isManager ? 'Manager Review Deadline' : 'Manager Review'}
                         </th>
 
                         <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
@@ -693,11 +748,15 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                             <td className="px-5 py-4 text-xs font-medium text-slate-600 dark:text-slate-300 hidden lg:table-cell truncate max-w-[130px]">
                               {form.employee.positionName}
                             </td>
-                            <td className="px-5 py-4 hidden xl:table-cell">
+                            <td className={`px-5 py-4 ${isManager ? 'hidden lg:table-cell' : 'hidden xl:table-cell'}`}>
                               <DeadlineIndicator date={form.deadlineDate} />
                             </td>
-                            <td className="px-5 py-4 hidden xl:table-cell">
-                              <DeadlineIndicator date={form.managerReviewDeadlineDate} />
+                            <td className={`px-5 py-4 ${isManager ? '' : 'hidden xl:table-cell'}`}>
+                              {isManager ? (
+                                <ManagerReviewDeadlineCell date={form.managerReviewDeadlineDate} />
+                              ) : (
+                                <DeadlineIndicator date={form.managerReviewDeadlineDate} />
+                              )}
                             </td>
 
                             <td className="px-5 py-4">
@@ -803,20 +862,37 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                             </div>
 
                             {/* Deadlines */}
-                            <div className="mt-3 grid grid-cols-3 gap-2">
-                              <div className="rounded-lg bg-slate-50/80 px-2.5 py-2 dark:bg-slate-700/30">
-                                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Deadline</p>
-<DeadlineIndicator date={form.deadlineDate} />
+                            {isManager ? (
+                              <div className="mt-3 space-y-2">
+                                <div className="rounded-lg border border-blue-200/60 bg-blue-50/40 px-3 py-2.5 dark:border-blue-800/50 dark:bg-blue-900/20">
+                                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-700/80 dark:text-blue-300/80">
+                                    Manager Review Deadline
+                                  </p>
+                                  <ManagerReviewDeadlineCell date={form.managerReviewDeadlineDate} />
+                                </div>
+                                <div className="rounded-lg bg-slate-50/80 px-2.5 py-2 dark:bg-slate-700/30">
+                                  <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                    Employee Deadline
+                                  </p>
+                                  <DeadlineIndicator date={form.deadlineDate} />
+                                </div>
                               </div>
-                              <div className="rounded-lg bg-slate-50/80 px-2.5 py-2 dark:bg-slate-700/30">
-                                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Manager</p>
-<DeadlineIndicator date={form.managerReviewDeadlineDate} />
+                            ) : (
+                              <div className="mt-3 grid grid-cols-3 gap-2">
+                                <div className="rounded-lg bg-slate-50/80 px-2.5 py-2 dark:bg-slate-700/30">
+                                  <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Deadline</p>
+                                  <DeadlineIndicator date={form.deadlineDate} />
+                                </div>
+                                <div className="rounded-lg bg-slate-50/80 px-2.5 py-2 dark:bg-slate-700/30">
+                                  <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Manager</p>
+                                  <DeadlineIndicator date={form.managerReviewDeadlineDate} />
+                                </div>
+                                <div className="rounded-lg bg-slate-50/80 px-2.5 py-2 dark:bg-slate-700/30">
+                                  <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Final</p>
+                                  <DeadlineIndicator date={form.finalApprovalDeadlineDate} />
+                                </div>
                               </div>
-                              <div className="rounded-lg bg-slate-50/80 px-2.5 py-2 dark:bg-slate-700/30">
-                                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Final</p>
-<DeadlineIndicator date={form.finalApprovalDeadlineDate} />
-                              </div>
-                            </div>
+                            )}
 
                             {/* Action */}
                             <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-700/40">
