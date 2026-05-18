@@ -72,6 +72,7 @@ interface SortableQuestionRowProps {
   onRemove: (index: number) => void;
   onSaveToBank: (index: number) => void;
   isSavingToBank: boolean;
+  questionLength: number;
 }
 
 const SortableQuestionRow: React.FC<SortableQuestionRowProps> = ({
@@ -82,6 +83,7 @@ const SortableQuestionRow: React.FC<SortableQuestionRowProps> = ({
   onRemove,
   onSaveToBank,
   isSavingToBank,
+  questionLength,
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: fieldId,
@@ -118,8 +120,12 @@ const SortableQuestionRow: React.FC<SortableQuestionRowProps> = ({
       <input
         {...register(`questions.${index}.questionText` as const)}
         placeholder={`Question ${index + 1}`}
+        maxLength={100}
         className="min-w-0 flex-1 rounded-lg border-0 bg-transparent px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:text-white dark:placeholder:text-slate-500"
       />
+      <span className="shrink-0 text-xs text-slate-400">
+        {questionLength}/100
+      </span>
 
       <button
         type="button"
@@ -1193,12 +1199,18 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">
                   Template Title
                 </label>
-                <input
-                  {...register('title')}
-                  type="text"
-                  placeholder="e.g. Q1 Performance Self-Evaluation"
-                  className={inputBase}
-                />
+                <div className="relative">
+                  <input
+                    {...register('title')}
+                    type="text"
+                    maxLength={50}
+                    placeholder="e.g. Q1 Performance Self-Evaluation"
+                    className={inputBase}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                    {watchedTitle.length}/50
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -1575,6 +1587,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                       onRemove={remove}
                       onSaveToBank={handleSaveQuestionToBank}
                       isSavingToBank={isSavingToQuestionBank}
+                      questionLength={watchedQuestions[index]?.questionText?.length ?? 0}
                     />
                   ))}
                 </div>

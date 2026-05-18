@@ -144,12 +144,15 @@ export function SelfAssessmentScoreRecordsPage() {
       })
     }
 
-    cols.push(
-      {
+    if (!isEmployee) {
+      cols.push({
         accessorKey: 'employee.positionName',
         header: 'Position',
         cell: ({ getValue }) => <span>{getValue() as string || '-'}</span>,
-      },
+      })
+    }
+
+    cols.push(
       {
         id: 'period',
         header: 'Period',

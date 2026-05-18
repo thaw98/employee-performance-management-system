@@ -33,10 +33,17 @@ const inputNormal = `${inputBase} border-slate-200`
 const inputError = `${inputBase} border-red-300 bg-red-50/30`
 
 /** Matches Step 1 Phone Number and phone validation (+ optional + 8–15 digits). */
-const PHONE_INPUT_MAX_LENGTH = 16
+const PHONE_INPUT_MAX_LENGTH = 20
+const NAME_MAX_LENGTH = 50
+const RELATION_MAX_LENGTH = 20
 
 export function FamilyEmergencyStep({ register, control, errors, setValue }: FamilyEmergencyStepProps) {
   const maritalStatus = useWatch({ control, name: 'maritalStatus' })
+  const spouseNameLen = String(useWatch({ control, name: 'spouseName' }) ?? '').length
+  const fatherNameLen = String(useWatch({ control, name: 'fatherName' }) ?? '').length
+  const fatherOccLen = String(useWatch({ control, name: 'fatherOccupation' }) ?? '').length
+  const emergencyPhoneLen = String(useWatch({ control, name: 'emergencyPhone' }) ?? '').length
+  const emergencyRelationLen = String(useWatch({ control, name: 'emergencyRelation' }) ?? '').length
 
   useEffect(() => {
     if (maritalStatus === 'Married') return
@@ -134,7 +141,7 @@ export function FamilyEmergencyStep({ register, control, errors, setValue }: Fam
                 id="spouse-name"
                 type="text"
                 autoComplete="off"
-                maxLength={100}
+                maxLength={NAME_MAX_LENGTH}
                 className={errors.spouseName ? inputError : inputNormal}
                 {...register('spouseName', {
                   onBlur: (e) => {
@@ -143,9 +150,12 @@ export function FamilyEmergencyStep({ register, control, errors, setValue }: Fam
                   },
                 })}
               />
-              {errors.spouseName?.message ? (
-                <p className="mt-1 text-xs text-red-600">{String(errors.spouseName.message)}</p>
-              ) : null}
+              <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
+                <span className={errors.spouseName ? 'text-red-600' : ''}>
+                  {errors.spouseName?.message ? String(errors.spouseName.message) : null}
+                </span>
+                <span className="shrink-0 text-slate-400">{spouseNameLen}/{NAME_MAX_LENGTH}</span>
+              </div>
             </div>
           </div>
           <div className="md:col-span-2">
@@ -164,7 +174,7 @@ export function FamilyEmergencyStep({ register, control, errors, setValue }: Fam
             id="father-name"
             type="text"
             autoComplete="off"
-            maxLength={100}
+            maxLength={NAME_MAX_LENGTH}
             className={errors.fatherName ? inputError : inputNormal}
             {...register('fatherName', {
               onBlur: (e) => {
@@ -173,23 +183,31 @@ export function FamilyEmergencyStep({ register, control, errors, setValue }: Fam
               },
             })}
           />
-          {errors.fatherName?.message ? <p className="mt-1 text-xs text-red-600">{String(errors.fatherName.message)}</p> : null}
+          <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
+            <span className={errors.fatherName ? 'text-red-600' : ''}>
+              {errors.fatherName?.message ? String(errors.fatherName.message) : null}
+            </span>
+            <span className="shrink-0 text-slate-400">{fatherNameLen}/{NAME_MAX_LENGTH}</span>
+          </div>
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="father-occupation">
-            Father&apos;s occupation <span className="text-red-500">*</span>
+            Father&apos;s occupation
           </label>
           <input
             id="father-occupation"
             type="text"
             autoComplete="off"
-            maxLength={100}
+            maxLength={NAME_MAX_LENGTH}
             className={errors.fatherOccupation ? inputError : inputNormal}
             {...register('fatherOccupation')}
           />
-          {errors.fatherOccupation?.message ? (
-            <p className="mt-1 text-xs text-red-600">{String(errors.fatherOccupation.message)}</p>
-          ) : null}
+          <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
+            <span className={errors.fatherOccupation ? 'text-red-600' : ''}>
+              {errors.fatherOccupation?.message ? String(errors.fatherOccupation.message) : null}
+            </span>
+            <span className="shrink-0 text-slate-400">{fatherOccLen}/{NAME_MAX_LENGTH}</span>
+          </div>
         </div>
       </div>
       <div className="md:col-span-2">
@@ -212,9 +230,12 @@ export function FamilyEmergencyStep({ register, control, errors, setValue }: Fam
             className={errors.emergencyPhone ? inputError : inputNormal}
             {...register('emergencyPhone')}
           />
-          {errors.emergencyPhone?.message ? (
-            <p className="mt-1 text-xs text-red-600">{String(errors.emergencyPhone.message)}</p>
-          ) : null}
+          <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
+            <span className={errors.emergencyPhone ? 'text-red-600' : ''}>
+              {errors.emergencyPhone?.message ? String(errors.emergencyPhone.message) : null}
+            </span>
+            <span className="shrink-0 text-slate-400">{emergencyPhoneLen}/{PHONE_INPUT_MAX_LENGTH}</span>
+          </div>
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="emergency-relation">
@@ -224,14 +245,17 @@ export function FamilyEmergencyStep({ register, control, errors, setValue }: Fam
             id="emergency-relation"
             type="text"
             autoComplete="off"
-            maxLength={50}
+            maxLength={RELATION_MAX_LENGTH}
             placeholder="e.g. Spouse, Parent, Sibling"
             className={errors.emergencyRelation ? inputError : inputNormal}
             {...register('emergencyRelation')}
           />
-          {errors.emergencyRelation?.message ? (
-            <p className="mt-1 text-xs text-red-600">{String(errors.emergencyRelation.message)}</p>
-          ) : null}
+          <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
+            <span className={errors.emergencyRelation ? 'text-red-600' : ''}>
+              {errors.emergencyRelation?.message ? String(errors.emergencyRelation.message) : null}
+            </span>
+            <span className="shrink-0 text-slate-400">{emergencyRelationLen}/{RELATION_MAX_LENGTH}</span>
+          </div>
         </div>
       </div>
     </div>

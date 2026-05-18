@@ -135,6 +135,23 @@ export interface EmployeeInfoDto {
   positionCode: string
 }
 
+export interface SelfAssessmentAttemptAnswerDto {
+  answerId: number
+  questionText: string
+  sortOrder: number
+  yesNoAnswer: string | null
+  rating: number | null
+  remarks: string | null
+  retakeReason: string | null
+}
+
+export interface SelfAssessmentSubmissionAttemptDto {
+  attemptNumber: number
+  submittedAt: string | null
+  retakeReason: string | null
+  answers: SelfAssessmentAttemptAnswerDto[]
+}
+
 export interface AnswerDto {
   id: number
   questionText: string
@@ -148,6 +165,13 @@ export interface AnswerDto {
   hrAdjustmentApproved: boolean | null
   finalApprovedYesNo: string | null
   finalApprovedRating: number | null
+  retakeRequested: boolean
+  retakeRequestComment: string | null
+  retakeYesNoAnswer: string | null
+  retakeRating: number | null
+  retakeReason: string | null
+  retakeSubmittedAt: string | null
+  retakeApproved: boolean | null
 }
 
 export interface AdjustmentDto {
@@ -221,10 +245,15 @@ export interface SelfAssessmentFormDto {
   employeeAcknowledgedAt: string | null
   employeeDisputedAt: string | null
   employeeDisputeReason: string | null
+  retakeRequestedAt: string | null
+  retakeSubmittedAt: string | null
+  retakeRequestUsed: boolean
+  managerApprovedRetakeAt: string | null
   hrReviewRequired: boolean | null
   hrReviewReason: string | null
   hrReviewReasonAt: string | null
   hrName: string | null
+  submissionAttempts: SelfAssessmentSubmissionAttemptDto[]
 }
 
 export interface FormListDto {
@@ -386,6 +415,31 @@ export interface ManagerReviewRequest {
   adjustments: ManagerAdjustmentRequest[]
 }
 
+export interface RetakeQuestionRequest {
+  answerId: number
+  comment: string
+}
+
+export interface ManagerRetakeRequest {
+  comments?: string | null
+  retakeRequests: RetakeQuestionRequest[]
+}
+
+export interface EmployeeRetakeAnswerRequest {
+  answerId: number
+  yesNoAnswer: string
+  rating: number
+  reason: string
+}
+
+export interface EmployeeRetakeSubmitRequest {
+  answers: EmployeeRetakeAnswerRequest[]
+}
+
+export interface ManagerApproveRetakeRequest {
+  comments?: string | null
+}
+
 export interface EmployeeDisputeRequest {
   disputeReason: string
 }
@@ -499,8 +553,32 @@ const normalizeAnswer = (source: UnknownRecord): AnswerDto => {
     hrAdjustmentApproved: source.hrAdjustmentApproved != null ? getBoolean(source.hrAdjustmentApproved) : null,
     finalApprovedYesNo: getOptionalString(source.finalApprovedYesNo) ?? null,
     finalApprovedRating: source.finalApprovedRating != null ? getNumber(source.finalApprovedRating) : null,
+    retakeRequested: getBoolean(source.retakeRequested),
+    retakeRequestComment: getOptionalString(source.retakeRequestComment) ?? null,
+    retakeYesNoAnswer: getOptionalString(source.retakeYesNoAnswer) ?? null,
+    retakeRating: source.retakeRating != null ? getNumber(source.retakeRating) : null,
+    retakeReason: getOptionalString(source.retakeReason) ?? null,
+    retakeSubmittedAt: getOptionalString(source.retakeSubmittedAt) ?? null,
+    retakeApproved: source.retakeApproved != null ? getBoolean(source.retakeApproved) : null,
   }
 }
+
+const normalizeAttemptAnswer = (source: UnknownRecord): SelfAssessmentAttemptAnswerDto => ({
+  answerId: getNumber(source.answerId ?? source.id),
+  questionText: getString(source.questionText),
+  sortOrder: getNumber(source.sortOrder),
+  yesNoAnswer: getOptionalString(source.yesNoAnswer) ?? null,
+  rating: source.rating != null ? getNumber(source.rating) : null,
+  remarks: getOptionalString(source.remarks) ?? null,
+  retakeReason: getOptionalString(source.retakeReason) ?? null,
+})
+
+const normalizeSubmissionAttempt = (source: UnknownRecord): SelfAssessmentSubmissionAttemptDto => ({
+  attemptNumber: getNumber(source.attemptNumber),
+  submittedAt: getOptionalString(source.submittedAt) ?? null,
+  retakeReason: getOptionalString(source.retakeReason) ?? null,
+  answers: getArray(source.answers).map(a => normalizeAttemptAnswer(isRecord(a) ? a : {})),
+})
 
 const normalizeAdjustment = (source: UnknownRecord): AdjustmentDto => {
   return {
@@ -577,10 +655,15 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     employeeAcknowledgedAt: getOptionalString(source.employeeAcknowledgedAt) ?? null,
     employeeDisputedAt: getOptionalString(source.employeeDisputedAt) ?? null,
     employeeDisputeReason: getOptionalString(source.employeeDisputeReason) ?? null,
+    retakeRequestedAt: getOptionalString(source.retakeRequestedAt) ?? null,
+    retakeSubmittedAt: getOptionalString(source.retakeSubmittedAt) ?? null,
+    retakeRequestUsed: getBoolean(source.retakeRequestUsed),
+    managerApprovedRetakeAt: getOptionalString(source.managerApprovedRetakeAt) ?? null,
     hrReviewRequired: source.hrReviewRequired != null ? getBoolean(source.hrReviewRequired) : null,
     hrReviewReason: getOptionalString(source.hrReviewReason) ?? null,
     hrReviewReasonAt: getOptionalString(source.hrReviewReasonAt) ?? null,
     hrName: getOptionalString(source.hrName) ?? null,
+    submissionAttempts: getArray(source.submissionAttempts).map(a => normalizeSubmissionAttempt(isRecord(a) ? a : {})),
   }
 }
 
@@ -900,6 +983,36 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
+    managerRequestRetake: builder.mutation<SelfAssessmentFormDto, { formId: number; request: ManagerRetakeRequest }>({
+      query: ({ formId, request }) => ({
+        url: `/self-assessment-forms/${formId}/manager-request-retake`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
+    employeeRetakeSubmit: builder.mutation<SelfAssessmentFormDto, { formId: number; request: EmployeeRetakeSubmitRequest }>({
+      query: ({ formId, request }) => ({
+        url: `/self-assessment-forms/${formId}/retake-submit`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
+    managerApproveRetake: builder.mutation<SelfAssessmentFormDto, { formId: number; request?: ManagerApproveRetakeRequest }>({
+      query: ({ formId, request }) => ({
+        url: `/self-assessment-forms/${formId}/manager-approve-retake`,
+        method: 'POST',
+        body: request ?? {},
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
     hrApproveManagerReview: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrApproveManagerReviewRequest }>({
       query: ({ formId, request }) => ({
         url: `/self-assessment-forms/${formId}/hr-approve-manager-review`,
@@ -1149,6 +1262,9 @@ export const {
   useGetActiveCycleFormsForManagerQuery,
   useGetFormByIdQuery,
   useManagerReviewMutation,
+  useManagerRequestRetakeMutation,
+  useEmployeeRetakeSubmitMutation,
+  useManagerApproveRetakeMutation,
   useHrApproveManagerReviewMutation,
   useHrRejectManagerReviewMutation,
   useHrReturnDisputedReviewMutation,

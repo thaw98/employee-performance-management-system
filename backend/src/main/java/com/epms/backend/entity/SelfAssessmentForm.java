@@ -130,6 +130,18 @@ public class SelfAssessmentForm {
     @Column(name = "employee_dispute_reason", columnDefinition = "TEXT")
     private String employeeDisputeReason;
 
+    @Column(name = "retake_requested_at")
+    private Instant retakeRequestedAt;
+
+    @Column(name = "retake_submitted_at")
+    private Instant retakeSubmittedAt;
+
+    @Column(name = "retake_request_used")
+    private Boolean retakeRequestUsed = false;
+
+    @Column(name = "manager_approved_retake_at")
+    private Instant managerApprovedRetakeAt;
+
     @Column(name = "hr_review_required")
     private Boolean hrReviewRequired;
 

@@ -308,7 +308,7 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
         <ChevronRight size={10} className="opacity-50" />
         <span>Self Assessment</span>
         <ChevronRight size={10} className="opacity-50" />
-        <span className="font-semibold text-slate-700 dark:text-slate-200">Form Queue</span>
+        <span className="font-semibold text-slate-700 dark:text-slate-200">Review Submissions</span>
       </nav>
 
       <div className="mb-8 flex items-center gap-5">
@@ -322,7 +322,7 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
         </div>
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            Form Queue
+            Review Submissions
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Review and manage submitted self-assessment forms
@@ -430,8 +430,8 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
                 <BarChart3 size={16} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-900 dark:text-white">Review Queue</h2>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Review Queue</h2>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
                   {filteredForms.length} of {totalCount} forms
                 </p>
               </div>
@@ -443,7 +443,7 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
                 placeholder="Search by name, dept, position..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-slate-200/80 bg-slate-50/50 px-3.5 py-2 pl-9 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-[#5D5FEF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-900/50 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#5D5FEF] dark:focus:bg-slate-800"
+                className="w-full rounded-xl border border-slate-200/80 bg-slate-50/50 px-3.5 py-2 pl-9 text-base text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-[#5D5FEF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-900/50 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#5D5FEF] dark:focus:bg-slate-800"
               />
               {searchQuery && (
                 <button
@@ -476,7 +476,7 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTab(tab.key)}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-all ${
                     isActive
                       ? 'bg-[#5D5FEF]/10 text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]'
                       : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-slate-200'
@@ -485,7 +485,7 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
                   <tab.icon size={12} />
                   {tab.label}
                   <span
-                    className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold tabular-nums ${
+                    className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
                       isActive
                         ? 'bg-[#5D5FEF]/20 text-[#5D5FEF] dark:bg-[#5D5FEF]/30 dark:text-[#8b8ef7]'
                         : 'bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-500'

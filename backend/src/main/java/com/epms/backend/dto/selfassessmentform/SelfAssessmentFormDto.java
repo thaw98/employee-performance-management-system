@@ -59,8 +59,13 @@ public record SelfAssessmentFormDto(
         Instant employeeAcknowledgedAt,
         Instant employeeDisputedAt,
         String employeeDisputeReason,
+        Instant retakeRequestedAt,
+        Instant retakeSubmittedAt,
+        Boolean retakeRequestUsed,
+        Instant managerApprovedRetakeAt,
         Boolean hrReviewRequired,
         String hrReviewReason,
         Instant hrReviewReasonAt,
-        String hrName
+        String hrName,
+        List<SelfAssessmentSubmissionAttemptDto> submissionAttempts
 ) {}

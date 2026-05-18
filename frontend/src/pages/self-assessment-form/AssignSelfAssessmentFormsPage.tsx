@@ -52,11 +52,93 @@ function toggleId(values: number[], id: number) {
   return values.includes(id) ? values.filter((value) => value !== id) : [...values, id];
 }
 
+function formatAssignmentSuccessMessage({
+  createdCount,
+  skippedExistingCount,
+  skippedNoTemplateCount,
+  skippedIneligibleCount,
+}: {
+  createdCount: number;
+  skippedExistingCount: number;
+  skippedNoTemplateCount: number;
+  skippedIneligibleCount: number;
+}): string {
+  const formLabel = createdCount === 1 ? 'form' : 'forms';
+  const assignedText =
+    createdCount > 0
+      ? `${createdCount} self-assessment ${formLabel} assigned successfully`
+      : 'No new self-assessment forms were assigned';
+
+  const skipReasons: string[] = [];
+  if (skippedExistingCount > 0) {
+    const deadlineLabel = skippedExistingCount === 1 ? 'this deadline' : 'these deadlines';
+    skipReasons.push(`${skippedExistingCount} already assigned for ${deadlineLabel}`);
+  }
+  if (skippedNoTemplateCount > 0) {
+    skipReasons.push(`${skippedNoTemplateCount} without a matching template`);
+  }
+  if (skippedIneligibleCount > 0) {
+    skipReasons.push(`${skippedIneligibleCount} ineligible`);
+  }
+
+  if (skipReasons.length === 0) {
+    return `${assignedText}.`;
+  }
+
+  const totalSkipped = skippedExistingCount + skippedNoTemplateCount + skippedIneligibleCount;
+  const employeeLabel = totalSkipped === 1 ? 'employee' : 'employees';
+  return `${assignedText}. ${totalSkipped} ${employeeLabel} skipped (${skipReasons.join('; ')}).`;
+}
+
 type HybridRule = {
   id: string;
   departmentId: number;
   positionId: number;
 };
+
+function collectDepartmentPositionTargets(
+  employees: EmployeeListItem[],
+  departmentIdByName: Map<string, number>,
+  positionIdByName: Map<string, number>,
+  matchesTarget: (departmentId: number, positionId: number) => boolean,
+) {
+  const pairs = new Map<string, { departmentId: number; positionId: number }>();
+  employees.forEach((employee) => {
+    const departmentId = departmentIdByName.get(normalizeLookupKey(employee.departmentName));
+    const positionId = positionIdByName.get(normalizeLookupKey(employee.positionName));
+    if (departmentId == null || positionId == null || !matchesTarget(departmentId, positionId)) {
+      return;
+    }
+    pairs.set(`${departmentId}-${positionId}`, { departmentId, positionId });
+  });
+  return [...pairs.values()];
+}
+
+function previewTargetKey(departmentId: number, positionId: number) {
+  return `${departmentId}-${positionId}`;
+}
+
+function buildEffectiveHybridRules(
+  hybridRules: HybridRule[],
+  hybridRuleDepartmentId: number | null,
+  hybridRulePositionId: number | null,
+): HybridRule[] {
+  const targetByKey = new Map<string, HybridRule>();
+  hybridRules.forEach((rule) => {
+    targetByKey.set(`${rule.departmentId}-${rule.positionId}`, rule);
+  });
+  if (hybridRuleDepartmentId && hybridRulePositionId) {
+    const key = `${hybridRuleDepartmentId}-${hybridRulePositionId}`;
+    if (!targetByKey.has(key)) {
+      targetByKey.set(key, {
+        id: `pending-${key}`,
+        departmentId: hybridRuleDepartmentId,
+        positionId: hybridRulePositionId,
+      });
+    }
+  }
+  return [...targetByKey.values()];
+}
 
 const previewGroups: Array<{
   status: SelfAssessmentAssignmentPreviewStatus;
@@ -115,15 +197,47 @@ function StepIndicator({ step, label, active }: { step: number; label: string; a
   );
 }
 
-function HybridPreviewCard({ item }: { item: SelfAssessmentAssignmentPreviewDto }) {
+function AssignmentPreviewCard({
+  item,
+  assignmentMode,
+  employeeNamesByTargetKey,
+}: {
+  item: SelfAssessmentAssignmentPreviewDto;
+  assignmentMode: SelfAssessmentAssignmentMode;
+  employeeNamesByTargetKey: Map<string, string[]>;
+}) {
   const hasTemplate = item.assignmentStatus !== 'NO_TEMPLATE';
+  const targetKey = previewTargetKey(item.departmentId, item.positionId);
+  const employeeNames = employeeNamesByTargetKey.get(targetKey) ?? [];
+
+  const title = (() => {
+    if (assignmentMode === 'DEPARTMENTS') return item.departmentName;
+    if (assignmentMode === 'POSITIONS') return item.positionName;
+    if (assignmentMode === 'SPECIFIC_EMPLOYEES') {
+      return employeeNames.length > 0 ? employeeNames.join(', ') : item.departmentName;
+    }
+    return `${item.departmentName} + ${item.positionName}`;
+  })();
+
+  const contextLine = (() => {
+    if (assignmentMode === 'DEPARTMENTS') return item.positionName;
+    if (assignmentMode === 'POSITIONS') return item.departmentName;
+    if (assignmentMode === 'SPECIFIC_EMPLOYEES') {
+      return `${item.departmentName} · ${item.positionName}`;
+    }
+    return null;
+  })();
+
   return (
     <div className="rounded-lg border border-slate-200/70 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-800/60">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
-            {item.departmentName} + {item.positionName}
-          </p>
+          <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{title}</p>
+          {contextLine && (
+            <p className="mt-0.5 truncate text-xs font-medium text-slate-600 dark:text-slate-300">
+              {contextLine}
+            </p>
+          )}
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             {hasTemplate ? item.templateTitle : 'No matching template for the active employee-submission cycle'}
           </p>
@@ -251,16 +365,60 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
     [activeEmployees, positionById, positionIds]
   );
 
-  const hybridAudienceCount = useMemo(
-    () =>
-      activeEmployees.filter((employee) => {
+  const effectiveHybridRules = useMemo(
+    () => buildEffectiveHybridRules(hybridRules, hybridRuleDepartmentId, hybridRulePositionId),
+    [hybridRuleDepartmentId, hybridRulePositionId, hybridRules],
+  );
+
+  const hybridSummary = useMemo(() => {
+    const cumulative = new Set<number>();
+    const lines: Array<{ label: string; count: number }> = [];
+
+    for (const rule of effectiveHybridRules) {
+      let count = 0;
+      activeEmployees.forEach((employee) => {
         const did = departmentIdByName.get(normalizeLookupKey(employee.departmentName));
         const pid = positionIdByName.get(normalizeLookupKey(employee.positionName));
-        if (!did || !pid) return false;
-        return hybridRules.some((rule) => rule.departmentId === did && rule.positionId === pid);
-      }).length,
-    [activeEmployees, departmentIdByName, hybridRules, positionIdByName]
-  );
+        if (!did || !pid || did !== rule.departmentId || pid !== rule.positionId) {
+          return;
+        }
+        count += 1;
+        if (employee.employeeId != null) {
+          cumulative.add(employee.employeeId);
+        }
+      });
+
+      lines.push({
+        label: `${departmentById.get(rule.departmentId) ?? 'Unknown department'} + ${
+          positionById.get(rule.positionId) ?? 'Unknown position'
+        }`,
+        count,
+      });
+    }
+
+    const totalUnique =
+      cumulative.size > 0
+        ? cumulative.size
+        : activeEmployees.filter((employee) => {
+            const did = departmentIdByName.get(normalizeLookupKey(employee.departmentName));
+            const pid = positionIdByName.get(normalizeLookupKey(employee.positionName));
+            if (!did || !pid) return false;
+            return effectiveHybridRules.some(
+              (rule) => rule.departmentId === did && rule.positionId === pid,
+            );
+          }).length;
+
+    return { lines, totalUnique };
+  }, [
+    activeEmployees,
+    departmentById,
+    departmentIdByName,
+    effectiveHybridRules,
+    positionById,
+    positionIdByName,
+  ]);
+
+  const hybridAudienceCount = hybridSummary.totalUnique;
 
   const employeeCountByDepartmentId = useMemo(() => {
     const map = new Map<number, number>();
@@ -306,49 +464,116 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
   const cycleEnd = activeSubmissionCycle?.endDate ?? '';
   const managerReviewMinDate = deadlineDate || cycleStart;
 
-  const hybridPreviewTargets = useMemo(() => {
-    if (assignmentMode !== 'HYBRID') return [];
-
-    const targetByKey = new Map<string, { departmentId: number; positionId: number }>();
-    if (hybridRuleDepartmentId && hybridRulePositionId) {
-      targetByKey.set(`${hybridRuleDepartmentId}-${hybridRulePositionId}`, {
-        departmentId: hybridRuleDepartmentId,
-        positionId: hybridRulePositionId,
-      });
-    }
-    hybridRules.forEach((rule) => {
-      targetByKey.set(`${rule.departmentId}-${rule.positionId}`, {
+  const assignmentPreviewTargets = useMemo(() => {
+    if (assignmentMode === 'HYBRID') {
+      return effectiveHybridRules.map((rule) => ({
         departmentId: rule.departmentId,
         positionId: rule.positionId,
-      });
-    });
+      }));
+    }
+    if (assignmentMode === 'DEPARTMENTS' && departmentIds.length > 0) {
+      const selectedDepartmentIds = new Set(departmentIds);
+      return collectDepartmentPositionTargets(
+        activeEmployees,
+        departmentIdByName,
+        positionIdByName,
+        (departmentId) => selectedDepartmentIds.has(departmentId),
+      );
+    }
+    if (assignmentMode === 'POSITIONS' && positionIds.length > 0) {
+      const selectedPositionIds = new Set(positionIds);
+      return collectDepartmentPositionTargets(
+        activeEmployees,
+        departmentIdByName,
+        positionIdByName,
+        (_departmentId, positionId) => selectedPositionIds.has(positionId),
+      );
+    }
+    if (assignmentMode === 'SPECIFIC_EMPLOYEES' && selectedEmployeeIds.length > 0) {
+      const selectedIds = new Set(selectedEmployeeIds);
+      return collectDepartmentPositionTargets(
+        activeEmployees.filter((employee) => selectedIds.has(employee.employeeId)),
+        departmentIdByName,
+        positionIdByName,
+        () => true,
+      );
+    }
+    return [];
+  }, [
+    activeEmployees,
+    assignmentMode,
+    departmentIdByName,
+    departmentIds,
+    effectiveHybridRules,
+    positionIdByName,
+    positionIds,
+    selectedEmployeeIds,
+  ]);
 
-    return [...targetByKey.values()];
-  }, [assignmentMode, hybridRuleDepartmentId, hybridRulePositionId, hybridRules]);
+  const employeeNamesByTargetKey = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (assignmentMode !== 'SPECIFIC_EMPLOYEES') return map;
+
+    const selectedIds = new Set(selectedEmployeeIds);
+    activeEmployees.forEach((employee) => {
+      if (!selectedIds.has(employee.employeeId)) return;
+      const departmentId = departmentIdByName.get(normalizeLookupKey(employee.departmentName));
+      const positionId = positionIdByName.get(normalizeLookupKey(employee.positionName));
+      if (departmentId == null || positionId == null) return;
+
+      const key = previewTargetKey(departmentId, positionId);
+      const names = map.get(key) ?? [];
+      names.push(employee.employeeName);
+      map.set(key, names);
+    });
+    return map;
+  }, [activeEmployees, assignmentMode, departmentIdByName, positionIdByName, selectedEmployeeIds]);
+
+  const showsAssignmentPreview =
+    assignmentMode === 'DEPARTMENTS' ||
+    assignmentMode === 'POSITIONS' ||
+    assignmentMode === 'SPECIFIC_EMPLOYEES' ||
+    assignmentMode === 'HYBRID';
+
+  const previewSelectionEmptyMessage = (() => {
+    if (assignmentMode === 'DEPARTMENTS') {
+      return 'Select at least one department to preview matching active-cycle templates.';
+    }
+    if (assignmentMode === 'POSITIONS') {
+      return 'Select at least one position to preview matching active-cycle templates.';
+    }
+    if (assignmentMode === 'SPECIFIC_EMPLOYEES') {
+      return 'Select at least one employee to preview matching active-cycle templates.';
+    }
+    return 'Choose a department and position pair or add a hybrid rule to preview templates.';
+  })();
 
   const previewQueryArg =
-    assignmentMode === 'HYBRID' && deadlineDate && managerReviewDeadlineDate && hybridPreviewTargets.length > 0
+    showsAssignmentPreview &&
+    deadlineDate &&
+    managerReviewDeadlineDate &&
+    assignmentPreviewTargets.length > 0
       ? {
-          targets: hybridPreviewTargets,
+          targets: assignmentPreviewTargets,
           deadlineDate,
           managerReviewDeadlineDate,
         }
       : skipToken;
 
   const {
-    data: hybridPreview = [],
+    data: assignmentPreview = [],
     isFetching: isPreviewFetching,
     isError: isPreviewError,
   } = usePreviewSelfAssessmentAssignmentsQuery(previewQueryArg);
 
-  const hybridPreviewByStatus = useMemo(() => {
+  const assignmentPreviewByStatus = useMemo(() => {
     const groups = new Map<SelfAssessmentAssignmentPreviewStatus, SelfAssessmentAssignmentPreviewDto[]>();
     previewGroups.forEach((group) => groups.set(group.status, []));
-    hybridPreview.forEach((item) => {
+    assignmentPreview.forEach((item) => {
       groups.get(item.assignmentStatus)?.push(item);
     });
     return groups;
-  }, [hybridPreview]);
+  }, [assignmentPreview]);
 
   const currentAudienceCount = useMemo(() => {
     if (assignmentMode === 'DEPARTMENTS') return departmentAudienceCount;
@@ -362,17 +587,18 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
     if (assignmentMode === 'DEPARTMENTS') return `${departmentIds.length} department${departmentIds.length === 1 ? '' : 's'}`;
     if (assignmentMode === 'POSITIONS') return `${positionIds.length} position${positionIds.length === 1 ? '' : 's'}`;
     if (assignmentMode === 'HYBRID') {
-      return `${hybridRules.length} rule${hybridRules.length === 1 ? '' : 's'}`;
+      if (effectiveHybridRules.length === 0) return 'No rules selected';
+      return `${effectiveHybridRules.length} rule${effectiveHybridRules.length === 1 ? '' : 's'}`;
     }
     if (assignmentMode === 'SPECIFIC_EMPLOYEES') return `${selectedEmployeeIds.length} employee${selectedEmployeeIds.length === 1 ? '' : 's'}`;
     return 'All eligible employees';
-  }, [assignmentMode, departmentIds.length, hybridRules.length, positionIds.length, selectedEmployeeIds.length]);
+  }, [assignmentMode, departmentIds.length, effectiveHybridRules.length, positionIds.length, selectedEmployeeIds.length]);
 
   const validate = () => {
     if (!activeSubmissionCycle) return 'No active employee-submission review cycle is available';
     if (assignmentMode === 'DEPARTMENTS' && departmentIds.length === 0) return 'Please select at least one department';
     if (assignmentMode === 'POSITIONS' && positionIds.length === 0) return 'Please select at least one position';
-    if (assignmentMode === 'HYBRID' && hybridRules.length === 0) {
+    if (assignmentMode === 'HYBRID' && effectiveHybridRules.length === 0) {
       return 'Please add at least one hybrid rule';
     }
     if (assignmentMode === 'SPECIFIC_EMPLOYEES' && selectedEmployeeIds.length === 0) {
@@ -409,7 +635,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
         let skippedNoTemplateCount = 0;
         let skippedIneligibleCount = 0;
 
-        for (const rule of hybridRules) {
+        for (const rule of effectiveHybridRules) {
           const result = await assignForms({
             assignmentMode: 'HYBRID',
             departmentIds: [rule.departmentId],
@@ -425,7 +651,12 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
         }
 
         toast.success(
-          `Created ${createdCount}; skipped ${skippedExistingCount} existing, ${skippedNoTemplateCount} without templates, and ${skippedIneligibleCount} ineligible.`,
+          formatAssignmentSuccessMessage({
+            createdCount,
+            skippedExistingCount,
+            skippedNoTemplateCount,
+            skippedIneligibleCount,
+          }),
         );
       } else {
         const result = await assignForms({
@@ -438,7 +669,12 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
           managerReviewDeadlineDate,
         }).unwrap();
         toast.success(
-          `Created ${result.createdCount}; skipped ${result.skippedExistingCount} existing and ${result.skippedNoTemplateCount} without templates.`,
+          formatAssignmentSuccessMessage({
+            createdCount: result.createdCount,
+            skippedExistingCount: result.skippedExistingCount,
+            skippedNoTemplateCount: result.skippedNoTemplateCount,
+            skippedIneligibleCount: result.skippedIneligibleCount,
+          }),
         );
       }
       if (onAssignmentSuccess) {
@@ -650,7 +886,12 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
               <StepIndicator
                 step={2}
                 label="Selection"
-                active={showDepartments || showPositions || showEmployees || (assignmentMode === 'HYBRID' && hybridRules.length > 0)}
+                active={
+                  showDepartments ||
+                  showPositions ||
+                  showEmployees ||
+                  (assignmentMode === 'HYBRID' && effectiveHybridRules.length > 0)
+                }
               />
               <div className="h-px w-4 bg-slate-200 dark:bg-slate-700" />
               <StepIndicator step={3} label="Deadlines" active />
@@ -791,13 +1032,29 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-4 text-sm dark:border-slate-700 dark:bg-slate-900/50">
                   <p className="mb-1.5 text-sm font-bold uppercase tracking-wide text-[#5D5FEF] dark:text-[#8b8ef7]">Summary</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Add rules above to preview matched employees based on each department and position pair.
-                  </p>
+                  {hybridSummary.lines.length === 0 ? (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Add rules above to preview matched employees based on each department and position pair.
+                    </p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {hybridSummary.lines.map((line) => (
+                        <li
+                          key={line.label}
+                          className="flex items-center justify-between gap-3 text-sm"
+                        >
+                          <span className="font-medium text-slate-700 dark:text-slate-200">{line.label}</span>
+                          <span className="shrink-0 tabular-nums text-slate-500 dark:text-slate-400">
+                            {formatEmployeeCount(line.count)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   <div className="mt-3 flex items-center justify-between text-sm">
                     <span className="text-slate-500 dark:text-slate-400">Total unique:</span>
                     <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-semibold tabular-nums text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                      {formatEmployeeCount(currentAudienceCount)}
+                      {formatEmployeeCount(hybridSummary.totalUnique)}
                     </span>
                   </div>
                 </div>
@@ -1256,7 +1513,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
             )}
           </section>
 
-          {assignmentMode === 'HYBRID' && (
+          {showsAssignmentPreview && (
             <section className="animate-fade-in-up">
               <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-50 dark:from-cyan-900/30 dark:to-cyan-800/20">
@@ -1274,9 +1531,9 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
                   Select both employee and manager review deadlines to preview matching active-cycle templates.
                 </div>
-              ) : hybridPreviewTargets.length === 0 ? (
+              ) : assignmentPreviewTargets.length === 0 ? (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
-                  Choose a department and position pair or add a hybrid rule to preview templates.
+                  {previewSelectionEmptyMessage}
                 </div>
               ) : isPreviewError ? (
                 <div className="flex items-center gap-2 rounded-xl border border-rose-200/70 bg-rose-50/70 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/20 dark:text-rose-300">
@@ -1286,7 +1543,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
               ) : (
                 <div className="grid gap-3 lg:grid-cols-3">
                   {previewGroups.map((group) => {
-                    const items = hybridPreviewByStatus.get(group.status) ?? [];
+                    const items = assignmentPreviewByStatus.get(group.status) ?? [];
                     return (
                       <div
                         key={group.status}
@@ -1311,9 +1568,11 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                         ) : items.length > 0 ? (
                           <div className="space-y-2">
                             {items.map((item) => (
-                              <HybridPreviewCard
+                              <AssignmentPreviewCard
                                 key={`${item.departmentId}-${item.positionId}-${item.assignmentStatus}`}
                                 item={item}
+                                assignmentMode={assignmentMode}
+                                employeeNamesByTargetKey={employeeNamesByTargetKey}
                               />
                             ))}
                           </div>
@@ -1339,20 +1598,27 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
                   <Target size={18} className="text-white" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                     Assignment Target
                   </p>
                   <p className="text-sm font-bold text-slate-900 dark:text-white">
                     {selectedSummary}
                   </p>
+                  {assignmentMode === 'HYBRID' && hybridSummary.lines.length > 0 && (
+                    <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+                      {hybridSummary.lines.map((line) => line.label).join(' · ')}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-slate-500 dark:text-slate-400">Estimated reach:</span>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#5D5FEF]/10 to-[#7C7EF5]/10 px-3 py-1 text-sm font-extrabold text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/20 dark:text-[#8b8ef7]">
                   <Users size={13} />
-                  {formatEmployeeCount(currentAudienceCount)}
+                  {formatEmployeeCount(
+                    assignmentMode === 'HYBRID' ? hybridSummary.totalUnique : currentAudienceCount,
+                  )}
                 </span>
               </div>
             </div>

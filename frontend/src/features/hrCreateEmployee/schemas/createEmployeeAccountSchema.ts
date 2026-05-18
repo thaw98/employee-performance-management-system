@@ -152,12 +152,12 @@ export const employeeInformationSchema = z
       .transform(toTitleCasePersonName),
     gender: z.enum(['Male', 'Female'], { message: 'Gender is required' }),
     dateOfBirth: z.string().min(1, 'Date of birth is required'),
-    phoneNo: z.string().trim().min(1, 'Phone is required').regex(phoneRe, 'Invalid phone format'),
+    phoneNo: z.string().trim().min(1, 'Phone is required').regex(phoneRe, 'Invalid phone format').max(20, 'Max 20 characters'),
     address: z
       .string()
       .trim()
       .min(1, 'Address is required')
-      .max(2000, 'Address must be at most 2000 characters'),
+      .max(500, 'Address must be at most 500 characters'),
     religion: z
       .string()
       .min(1, 'Religion is required')
@@ -175,6 +175,11 @@ export const employeeInformationSchema = z
     if (!isBefore(dob, startOfTodayLocal())) {
       ctx.addIssue({ code: 'custom', message: 'Date of birth must be in the past', path: ['dateOfBirth'] })
     }
+    const age18 = startOfTodayLocal()
+    age18.setFullYear(age18.getFullYear() - 18)
+    if (!isBefore(dob, startOfTodayLocal()) || !isBefore(dob, age18)) {
+      ctx.addIssue({ code: 'custom', message: 'Employee must be at least 18 years old', path: ['dateOfBirth'] })
+    }
     nrcPartsRefine(val, ctx)
     nrcTownshipRefine(val, ctx)
   })
@@ -183,7 +188,11 @@ export const employeeInformationSchema = z
 export const familyEmergencyInformationSchema = z
   .object({
     maritalStatus: z.enum(['Single', 'Married'], { message: 'Marital status is required' }),
-    spouseName: z.string().optional(),
+    spouseName: z
+      .string()
+      .trim()
+      .min(1, 'Spouse name is required')
+      .max(50, 'Max 50 characters'),
     spouseNrcStateCode: z.string().optional(),
     spouseNrcTownshipCode: z.string().optional(),
     spouseNrcType: z.string().optional(),
@@ -192,19 +201,19 @@ export const familyEmergencyInformationSchema = z
       .string()
       .trim()
       .min(1, 'Father name is required')
-      .max(100)
+      .max(50)
       .transform(toTitleCasePersonName),
     fatherNrcStateCode: z.string().optional(),
     fatherNrcTownshipCode: z.string().optional(),
     fatherNrcType: z.string().optional(),
     fatherNrcNumber: z.string().optional(),
-    fatherOccupation: z.string().trim().max(100),
-    emergencyPhone: z.string().trim().min(1, 'Emergency phone is required').regex(phoneRe, 'Invalid phone format'),
+    fatherOccupation: z.string().trim().max(50),
+    emergencyPhone: z.string().trim().min(1, 'Emergency phone is required').regex(phoneRe, 'Invalid phone format').max(20, 'Max 20 characters'),
     emergencyRelation: z
       .string()
       .trim()
       .min(1, 'Relationship is required')
-      .max(50, 'Max 50 characters'),
+      .max(20, 'Max 20 characters'),
   })
   .superRefine((val, ctx) => {
     fatherNrcPartsRefine(val, ctx)
@@ -213,8 +222,8 @@ export const familyEmergencyInformationSchema = z
       const sn = String(val.spouseName ?? '').trim()
       if (!sn) {
         ctx.addIssue({ code: 'custom', message: 'Spouse name is required', path: ['spouseName'] })
-      } else if (sn.length > 100) {
-        ctx.addIssue({ code: 'custom', message: 'Max 100 characters', path: ['spouseName'] })
+      } else if (sn.length > 50) {
+        ctx.addIssue({ code: 'custom', message: 'Max 50 characters', path: ['spouseName'] })
       }
       spouseNrcPartsRefine(val, ctx)
       spouseNrcTownshipRefine(val, ctx)

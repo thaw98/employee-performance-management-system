@@ -53,4 +53,25 @@ public class SelfAssessmentFormAnswer {
 
     @Column(name = "final_approved_rating")
     private Integer finalApprovedRating;
+
+    @Column(name = "retake_requested")
+    private Boolean retakeRequested = false;
+
+    @Column(name = "retake_request_comment", columnDefinition = "TEXT")
+    private String retakeRequestComment;
+
+    @Column(name = "retake_yes_no_answer")
+    private String retakeYesNoAnswer;
+
+    @Column(name = "retake_rating")
+    private Integer retakeRating;
+
+    @Column(name = "retake_reason", columnDefinition = "TEXT")
+    private String retakeReason;
+
+    @Column(name = "retake_submitted_at")
+    private java.time.Instant retakeSubmittedAt;
+
+    @Column(name = "retake_approved")
+    private Boolean retakeApproved;
 }
