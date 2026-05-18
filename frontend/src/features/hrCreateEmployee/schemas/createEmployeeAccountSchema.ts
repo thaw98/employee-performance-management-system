@@ -2,7 +2,7 @@ import { addDays, format, isBefore, parseISO, startOfDay } from 'date-fns'
 import { z } from 'zod'
 
 import { getNrcTownships } from '../../employeeOnboarding/utils/nrcData'
-import { toTitleCasePersonName } from '../../../utils/personName'
+import { toTitleCasePersonName, withGenderTitle } from '../../../utils/personName'
 
 const townships = getNrcTownships()
 
@@ -182,6 +182,13 @@ export const employeeInformationSchema = z
     }
     nrcPartsRefine(val, ctx)
     nrcTownshipRefine(val, ctx)
+    if (withGenderTitle(val.employeeName, val.gender).length > 50) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Max 50 characters after title is applied',
+        path: ['employeeName'],
+      })
+    }
   })
 
 /** Father table plus emergency_contact. */
@@ -392,4 +399,3 @@ export const editEmployeeSchema = z
   })
 
 export type EditEmployeeFormValues = z.infer<typeof editEmployeeSchema>
-

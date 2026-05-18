@@ -1,6 +1,6 @@
 import { UserCheck, Briefcase, ShieldCheck, HeartHandshake } from 'lucide-react'
 import type { CreateEmployeeAccountFormValues } from '../../../features/hrCreateEmployee/schemas/createEmployeeAccountSchema'
-import { toTitleCasePersonName } from '../../../utils/personName'
+import { toTitleCasePersonName, withGenderTitle } from '../../../utils/personName'
 
 interface ReviewConfirmStepProps {
   values: CreateEmployeeAccountFormValues
@@ -50,7 +50,7 @@ export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview, spouse
           <dl className="grid gap-1 sm:grid-cols-2">
             <ReviewRow label="Staff Number" value={values.staffNo.trim()} mono />
             <ReviewRow label="Email" value={values.email} />
-            <ReviewRow label="Full Name" value={toTitleCasePersonName(values.employeeName ?? '') || '—'} />
+            <ReviewRow label="Full Name" value={withGenderTitle(values.employeeName ?? '', values.gender) || '—'} />
             <ReviewRow label="Gender" value={values.gender || '—'} />
             <ReviewRow label="Date of Birth" value={formatLongDate(values.dateOfBirth)} />
             <ReviewRow label="Phone" value={values.phoneNo} />

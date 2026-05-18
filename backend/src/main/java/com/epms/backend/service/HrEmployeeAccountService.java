@@ -86,8 +86,8 @@ public class HrEmployeeAccountService {
 		}
 
 		String email = normalizeEmail(request.getEmail());
-		String employeeName = PersonNameNormalizer.normalize(request.getEmployeeName());
 		Gender gender = parseGender(request.getGender());
+		String employeeName = PersonNameNormalizer.normalizeEmployeeName(request.getEmployeeName(), gender);
 		String address = requireTrimmed(request.getAddress(), "Address is required");
 		validatePersonName(employeeName);
 		validatePastDate(request.getDateOfBirth(), "Date of birth must be in the past");

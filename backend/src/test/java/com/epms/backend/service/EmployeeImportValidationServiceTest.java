@@ -1,6 +1,7 @@
 package com.epms.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -95,6 +96,41 @@ class EmployeeImportValidationServiceTest {
 
         assertFalse(errors.contains("spouse_name is required when marital_status is Married"));
         assertFalse(errors.contains("spouse_nrc is required when marital_status is Married"));
+    }
+
+    @Test
+    void validateRow_acceptsRawNameAndStoresPrefixedName() throws Exception {
+        Map<String, Object> row = validBaseRow();
+        row.put("fullName", "zaw aung");
+        row.put("gender", "Male");
+
+        List<String> errors = invokeValidateRow(row);
+
+        assertTrue(errors.isEmpty());
+        assertEquals("U Zaw Aung", row.get("fullName"));
+    }
+
+    @Test
+    void validateRow_doesNotDoublePrefixExistingTitle() throws Exception {
+        Map<String, Object> row = validBaseRow();
+        row.put("fullName", "U Zaw Aung");
+        row.put("gender", "Male");
+
+        List<String> errors = invokeValidateRow(row);
+
+        assertTrue(errors.isEmpty());
+        assertEquals("U Zaw Aung", row.get("fullName"));
+    }
+
+    @Test
+    void validateRow_rejectsNameLongerThanLimitAfterTitle() throws Exception {
+        Map<String, Object> row = validBaseRow();
+        row.put("fullName", "A".repeat(49));
+        row.put("gender", "Male");
+
+        List<String> errors = invokeValidateRow(row);
+
+        assertTrue(errors.contains("full_name must be at most 50 characters after title is applied"));
     }
 
     @SuppressWarnings("unchecked")

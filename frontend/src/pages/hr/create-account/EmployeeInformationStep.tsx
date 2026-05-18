@@ -12,6 +12,7 @@ import { Camera, Upload, Trash2, RefreshCw, Hash, User, Globe } from 'lucide-rea
 
 import type { CreateEmployeeAccountFormValues } from '../../../features/hrCreateEmployee/schemas/createEmployeeAccountSchema'
 import { NrcInputField } from './NrcInputField'
+import { titleForGender, withGenderTitle } from '../../../utils/personName'
 
 const RELIGIONS = ['Buddhist', 'Christian', 'Muslim', 'Hindu'] as const
 
@@ -100,7 +101,10 @@ export function EmployeeInformationStep({
 }: EmployeeInformationStepProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
   const phoneNoLen = String(useWatch({ control, name: 'phoneNo' }) ?? '').length
-  const employeeNameLen = String(useWatch({ control, name: 'employeeName' }) ?? '').length
+  const employeeNameValue = String(useWatch({ control, name: 'employeeName' }) ?? '')
+  const genderValue = useWatch({ control, name: 'gender' })
+  const nameTitle = titleForGender(genderValue)
+  const employeeNameLen = withGenderTitle(employeeNameValue, genderValue).length
   const addressLen = String(useWatch({ control, name: 'address' }) ?? '').length
   const currentStaffNo = String(useWatch({ control, name: 'staffNo' }) ?? '').length
 
@@ -284,17 +288,27 @@ export function EmployeeInformationStep({
       <div className="grid gap-5 md:grid-cols-2">
         <SectionHeader icon={User} title="Personal Information" />
 
-        <div>
+        <div className="md:col-span-2">
           <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="employeeName">
             Full Name <span className="text-red-400">*</span>
           </label>
-          <input
-            id="employeeName"
-            className={errors.employeeName ? inputError : inputNormal}
-            placeholder="Enter full name"
-            maxLength={EMPLOYEE_NAME_MAX_LENGTH}
-            {...register('employeeName')}
-          />
+          <div className="grid gap-3 sm:grid-cols-[110px_1fr]">
+            <input
+              aria-label="Title"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500 outline-none"
+              value={nameTitle}
+              placeholder="Title"
+              disabled
+              readOnly
+            />
+            <input
+              id="employeeName"
+              className={errors.employeeName ? inputError : inputNormal}
+              placeholder="Enter employee name"
+              maxLength={EMPLOYEE_NAME_MAX_LENGTH}
+              {...register('employeeName')}
+            />
+          </div>
           <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
             <span className={errors.employeeName ? 'text-red-600' : ''}>
               {errors.employeeName?.message ? String(errors.employeeName.message) : null}
