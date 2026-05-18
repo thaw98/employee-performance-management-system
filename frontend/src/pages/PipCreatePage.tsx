@@ -100,7 +100,7 @@ export default function PipCreatePage() {
       if (currentEmployeeId == null) return true
       return String(employee.employeeId) !== currentEmployeeId && String(employee.staffId ?? '') !== currentEmployeeId
     })
-  }, [blockedEmployeeIds, eligibleEmployees, user?.employeeId])
+  }, [blockedEmployeeIds, eligibleEmployees, user])
 
   useEffect(() => {
     if (isHr && !isManager) {
@@ -253,7 +253,7 @@ export default function PipCreatePage() {
             type="number"
             label="Total Hours"
             fullWidth
-            slotProps={{ htmlInput: { min: 1 } }}
+            slotProps={{ htmlInput: { min: 1, dir: 'ltr', style: { textAlign: 'left' } } }}
             {...register('totalHours', { valueAsNumber: true })}
             error={Boolean(errors.totalHours)}
             helperText={errors.totalHours?.message}
