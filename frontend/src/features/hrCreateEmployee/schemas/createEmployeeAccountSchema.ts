@@ -164,7 +164,7 @@ export const employeeInformationSchema = z
       .refine((val) => ['Buddhist', 'Christian', 'Muslim', 'Hindu'].includes(val), {
         message: 'Invalid religion',
       }),
-    race: z.string().trim().min(1, 'Race is required').max(100),
+    race: z.string().trim().min(1, 'Race is required').max(50, 'Max 50 characters'),
     nrcStateCode: z.string().optional(),
     nrcTownshipCode: z.string().optional(),
     nrcType: z.string().optional(),
@@ -302,7 +302,7 @@ export const editEmployeeSchema = z
     dateOfBirth: z.string().optional(),
     phoneNo:     z.string().trim().optional(),
     address:     z.string().trim().max(2000).optional(),
-    race: z.string().trim().max(100).optional(),
+    race: z.string().trim().max(50, 'Max 50 characters').optional(),
     religion:    z.string().optional(),
 
     // ── NRC — all optional (validated together below) ───────────────────────

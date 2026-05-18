@@ -75,6 +75,7 @@ export interface EmployeeUpdateRequest {
   staffNrcNo?: string
   gender?: string
   religion?: string
+  race?: string
   maritalStatus?: 'Single' | 'Married'
   spouseName?: string
   spouseNrc?: string

@@ -17,6 +17,7 @@ import { titleForGender, withGenderTitle } from '../../../utils/personName'
 const RELIGIONS = ['Buddhist', 'Christian', 'Muslim', 'Hindu'] as const
 
 const EMPLOYEE_NAME_MAX_LENGTH = 50
+const RACE_MAX_LENGTH = 50
 
 /** Optional + plus up to 15 digits; matches createEmployeeAccountSchema phone regex. */
 const PHONE_INPUT_MAX_LENGTH = 20
@@ -106,6 +107,7 @@ export function EmployeeInformationStep({
   const nameTitle = titleForGender(genderValue)
   const employeeNameLen = withGenderTitle(employeeNameValue, genderValue).length
   const addressLen = String(useWatch({ control, name: 'address' }) ?? '').length
+  const raceLen = String(useWatch({ control, name: 'race' }) ?? '').length
   const currentStaffNo = String(useWatch({ control, name: 'staffNo' }) ?? '').length
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -360,7 +362,7 @@ export function EmployeeInformationStep({
           ) : null}
         </div>
 
-        <div>
+        <div className="md:col-span-2">
           <label className="mb-1.5 block text-sm font-semibold text-slate-700" htmlFor="phoneNo">
             Phone Number <span className="text-red-400">*</span>
           </label>
@@ -387,13 +389,17 @@ export function EmployeeInformationStep({
           </label>
           <input
             id="race"
+            maxLength={RACE_MAX_LENGTH}
             className={errors.race ? inputError : inputNormal}
             placeholder="e.g. Burmese"
             {...register('race')}
           />
-          {errors.race?.message ? (
-            <p className="mt-1 text-xs text-red-600">{String(errors.race.message)}</p>
-          ) : null}
+          <div className="mt-1 flex w-full items-start justify-between gap-2 text-xs">
+            <span className={errors.race ? 'text-red-600' : ''}>
+              {errors.race?.message ? String(errors.race.message) : null}
+            </span>
+            <span className="shrink-0 text-slate-400">{raceLen}/{RACE_MAX_LENGTH}</span>
+          </div>
         </div>
 
         <div className="md:col-span-2">
