@@ -18,7 +18,8 @@ export interface ExportSelfAssessmentReviewPdfOptions {
   roleId?: number
 }
 
-const pageMargin = 14
+/** A4 side margins: 0.5 in (12.7 mm) on each side. */
+const pageMargin = 0.5 * 25.4
 const navy: [number, number, number] = [28, 40, 65]
 const slate: [number, number, number] = [88, 99, 115]
 const lightFill: [number, number, number] = [245, 247, 250]
@@ -424,46 +425,57 @@ const addPageFooters = (doc: jsPDF): void => {
 }
 
 const drawSignatures = async (doc: jsPDF, form: SelfAssessmentFormDto, startY: number): Promise<number> => {
-  let y = ensureSpace(doc, startY, 52)
+  const signatureBlockHeight = 36
+  let y = ensureSpace(doc, startY, signatureBlockHeight)
   const pageWidth = doc.internal.pageSize.getWidth()
   const usableWidth = pageWidth - pageMargin * 2
   const columnWidth = usableWidth / 3
   const items = signatureRows(form)
+  const cardH = 28
+  const cardPad = 2.2
+  const colGap = 2
 
-  doc.setFontSize(12)
+  doc.setFontSize(9.5)
   doc.setFont('helvetica', 'bold')
   doc.text('Final Record Signatures', pageMargin, y)
-  y += 6
+  y += 4.5
 
   for (let index = 0; index < items.length; index += 1) {
     const item = items[index]
     const x = pageMargin + index * columnWidth
+    const cardW = columnWidth - colGap
     doc.setDrawColor(215, 220, 230)
-    doc.roundedRect(x, y, columnWidth - 3, 39, 1.5, 1.5)
-    doc.setFontSize(9)
+    doc.roundedRect(x, y, cardW, cardH, 1, 1)
+    doc.setFontSize(7.5)
     doc.setFont('helvetica', 'bold')
-    doc.text(item.label, x + 3, y + 6)
+    doc.text(item.label, x + cardPad, y + 4.8)
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8)
-    doc.text(item.name, x + 3, y + 11, { maxWidth: columnWidth - 9 })
+    doc.setFontSize(6.8)
+    doc.text(item.name, x + cardPad, y + 8.6, { maxWidth: cardW - cardPad * 2 })
 
     const dataUrl = await signatureToDataUrl(item.data)
+    const imgW = cardW - cardPad * 2 - 1
+    const imgH = 8.5
+    const imgY = y + 10.2
     if (dataUrl) {
       try {
-        doc.addImage(dataUrl, inferImageFormat(dataUrl), x + 4, y + 14, columnWidth - 11, 13)
+        doc.addImage(dataUrl, inferImageFormat(dataUrl), x + cardPad + 0.5, imgY, imgW, imgH)
       } catch {
-        doc.text('Signature image unavailable', x + 3, y + 21)
+        doc.setFontSize(6.5)
+        doc.text('Signature image unavailable', x + cardPad, imgY + imgH * 0.45)
       }
     } else {
-      doc.text('Not signed', x + 3, y + 21)
+      doc.setFontSize(6.5)
+      doc.text('Not signed', x + cardPad, imgY + imgH * 0.45)
     }
 
     doc.setTextColor(95, 105, 120)
-    doc.text(`Signed: ${formatDate(item.date)}`, x + 3, y + 34, { maxWidth: columnWidth - 8 })
+    doc.setFontSize(6)
+    doc.text(`Signed: ${formatDate(item.date)}`, x + cardPad, y + cardH - 2.2, { maxWidth: cardW - cardPad * 2 })
     doc.setTextColor(0, 0, 0)
   }
 
-  return y + 45
+  return y + cardH + 5
 }
 
 const addSectionTitle = (doc: jsPDF, title: string, y: number): number => {
@@ -570,7 +582,7 @@ export async function exportSelfAssessmentReviewPdf(
   form: SelfAssessmentFormDto,
   options: ExportSelfAssessmentReviewPdfOptions = {},
 ): Promise<void> {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const attempts = resolveAttemptsForExport(form, options.roleId)
 
   let y = addReportHeader(doc, form)
