@@ -103,7 +103,15 @@ const ManagerLayout: React.FC = () => {
       ]
     },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/manager/meetings' },
-    { icon: <BarChart size={20} />, label: 'Reports', path: '/manager/reports' },
+    {
+      icon: <BarChart size={20} />,
+      label: 'Reports',
+      path: '/manager/reports',
+      subItems: [
+        { label: 'PIP Report', path: '/manager/reports', icon: <BarChart size={16} className="shrink-0" /> },
+        { label: 'Feedback Report', path: '/manager/reports/feedback', icon: <RefreshCcw size={16} className="shrink-0" /> },
+      ],
+    },
   ];
 
   return (
@@ -192,9 +200,11 @@ const ManagerLayout: React.FC = () => {
                   {isExpanded && (
                     <div className="pl-7 pr-3 space-y-1 mt-1">
                       {item.subItems.map((subItem) => {
-                        const isSubActive =
-                          location.pathname === subItem.path ||
-                          location.pathname.startsWith(`${subItem.path}/`);
+                        const isReportRoot = subItem.path === '/manager/reports';
+                        const isSubActive = isReportRoot
+                          ? location.pathname === subItem.path
+                          : location.pathname === subItem.path ||
+                            location.pathname.startsWith(`${subItem.path}/`);
 
                         return (
                           <Link

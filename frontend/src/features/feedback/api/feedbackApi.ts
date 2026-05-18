@@ -64,6 +64,76 @@ export interface TimeSettingDto {
   periods?: unknown[]
 }
 
+export interface ReportDepartmentDto {
+  departmentId: number
+  departmentName: string
+}
+
+export interface CriteriaAverageDto {
+  criteriaId: number
+  criteriaName: string
+  average: number
+}
+
+export interface EmployeeRankingDto {
+  employeeId: number
+  employeeName: string
+  averageScore: number
+}
+
+export interface EmployeeCriteriaAverageDto {
+  criteriaId: number
+  criteriaName: string
+  average: number
+}
+
+export interface EmployeeFeedbackDetailReportDto {
+  employeeId: number
+  employeeName: string
+  departmentId: number
+  departmentName: string
+  totalAverageScore: number
+  criteriaAverages: EmployeeCriteriaAverageDto[]
+}
+
+export interface TopBottomEmployeeSummaryDto {
+  topEmployee: EmployeeRankingDto | null
+  bottomEmployee: EmployeeRankingDto | null
+}
+
+export interface DepartmentAverageDto {
+  departmentId: number
+  departmentName: string
+  averageScore: number
+}
+
+export interface DepartmentTrendPoint {
+  period: string
+  average: number
+}
+
+export interface DepartmentTrendDto {
+  departmentId: number
+  departmentName: string
+  points: DepartmentTrendPoint[]
+}
+
+export interface FeedbackReportFilters {
+  from?: string
+  to?: string
+}
+
+export interface DepartmentFeedbackReportFilters extends FeedbackReportFilters {
+  departmentId: number
+  criteriaId?: number
+  order?: 'asc' | 'desc'
+}
+
+export interface EmployeeFeedbackDetailFilters extends FeedbackReportFilters {
+  departmentId: number
+  employeeId: number
+}
+
 export const feedbackApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getFeedbackRoles: builder.query<ApiResponse<DepartmentPositionDto[]>, void>({
@@ -97,6 +167,71 @@ export const feedbackApi = baseApi.injectEndpoints({
         )
       },
     }),
+    getFeedbackReportDepartments: builder.query<ApiResponse<ReportDepartmentDto[]>, void>({
+      query: () => '/feedback/reports/manager-departments',
+    }),
+    getCriteriaAverages: builder.query<ApiResponse<CriteriaAverageDto[]>, { departmentId: number; from?: string; to?: string }>({
+        query: (params) => {
+          const { departmentId, from, to } = params
+          const qs = []
+          if (from) qs.push(`from=${from}`)
+          if (to) qs.push(`to=${to}`)
+          const q = qs.length ? `?${qs.join('&')}` : ''
+          return `/feedback/reports/department/${departmentId}/criteria-averages${q}`
+        },
+      }),
+    getEmployeeRanking: builder.query<ApiResponse<EmployeeRankingDto[]>, DepartmentFeedbackReportFilters>({
+        query: (params) => {
+          const { departmentId, from, to, criteriaId, order } = params
+          const qs: string[] = []
+          if (from) qs.push(`from=${from}`)
+          if (to) qs.push(`to=${to}`)
+          if (criteriaId) qs.push(`criteriaId=${criteriaId}`)
+          if (order) qs.push(`order=${order}`)
+          const q = qs.length ? `?${qs.join('&')}` : ''
+          return `/feedback/reports/department/${departmentId}/employee-ranking${q}`
+        },
+      }),
+    getEmployeeFeedbackDetail: builder.query<ApiResponse<EmployeeFeedbackDetailReportDto>, EmployeeFeedbackDetailFilters>({
+      query: ({ departmentId, employeeId, from, to }) => {
+        const qs: string[] = []
+        if (from) qs.push(`from=${from}`)
+        if (to) qs.push(`to=${to}`)
+        const q = qs.length ? `?${qs.join('&')}` : ''
+        return `/feedback/reports/department/${departmentId}/employee/${employeeId}${q}`
+      },
+    }),
+    getTopBottomEmployees: builder.query<ApiResponse<TopBottomEmployeeSummaryDto>, (FeedbackReportFilters & { departmentId?: number }) | void>({
+      query: (params) => {
+        const { departmentId, from, to } = params || {}
+        const qs: string[] = []
+        if (departmentId) qs.push(`departmentId=${departmentId}`)
+        if (from) qs.push(`from=${from}`)
+        if (to) qs.push(`to=${to}`)
+        const q = qs.length ? `?${qs.join('&')}` : ''
+        return `/feedback/reports/top-bottom-employees${q}`
+      },
+    }),
+    getAveragesByDepartment: builder.query<ApiResponse<DepartmentAverageDto[]>, FeedbackReportFilters | void>({
+        query: (params) => {
+          const { from, to } = params || {}
+          const qs: string[] = []
+          if (from) qs.push(`from=${from}`)
+          if (to) qs.push(`to=${to}`)
+          const q = qs.length ? `?${qs.join('&')}` : ''
+          return `/feedback/reports/averages-by-department${q}`
+        },
+      }),
+    getDepartmentTrends: builder.query<ApiResponse<DepartmentTrendDto[]>, FeedbackReportFilters | void>({
+        query: (params) => {
+          const { from, to } = params || {}
+          const qs: string[] = []
+          if (from) qs.push(`from=${from}`)
+          if (to) qs.push(`to=${to}`)
+          const q = qs.length ? `?${qs.join('&')}` : ''
+          return `/feedback/reports/trends${q}`
+        },
+      }),
   }),
 })
 
@@ -107,4 +242,11 @@ export const {
   useSubmitFeedbackMutation,
   useGetFeedbackHistoryQuery,
   useGetTimeSettingsQuery,
+  useGetFeedbackReportDepartmentsQuery,
+  useGetCriteriaAveragesQuery,
+  useGetEmployeeRankingQuery,
+  useGetEmployeeFeedbackDetailQuery,
+  useGetTopBottomEmployeesQuery,
+  useGetAveragesByDepartmentQuery,
+  useGetDepartmentTrendsQuery,
 } = feedbackApi

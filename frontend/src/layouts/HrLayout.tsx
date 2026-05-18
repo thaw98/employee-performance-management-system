@@ -139,7 +139,8 @@ const HrLayout: React.FC = () => {
       path: '/hr/reports',
       subItems: [
         { label: 'PIP Reports', path: '/hr/reports', icon: <BarChart size={16} className="shrink-0" /> },
-        { label: 'KPI Reports', path: '/hr/kpi-reports', icon: <Target size={16} className="shrink-0" /> }
+        { label: 'KPI Reports', path: '/hr/kpi-reports', icon: <Target size={16} className="shrink-0" /> },
+        { label: 'Feedback Report', path: '/hr/reports/feedback', icon: <RefreshCcw size={16} className="shrink-0" /> }
       ]
     }
   ];
