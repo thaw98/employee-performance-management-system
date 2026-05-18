@@ -679,6 +679,78 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
               View all templates
             </button>
           </div>
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2 xl:grid-cols-3">
+            {assignmentTable.getRowModel().rows.map((row) => {
+              const t = row.original;
+              return (
+                <div
+                  key={row.id}
+                  className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:bg-slate-800/80"
+                >
+                  <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#5D5FEF]/5 blur-2xl transition-all duration-500 group-hover:scale-150 dark:bg-[#5D5FEF]/10" />
+                  <div className="relative">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
+                          <FileText size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-slate-900 dark:text-white">{t.title}</p>
+                          <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                            {t.departmentName} &middot; {t.positionName}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold tabular-nums text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
+                        <Sparkles size={10} className="text-violet-500 dark:text-violet-400" />
+                        {t.questions.length} Qs
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        {t.ratingSystem === 'TEN_POINT' ? '10-Point' : '5-Point'}
+                      </span>
+                      {t.isAssignedToDeadline ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                          Already assigned
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
+                          Not assigned
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        Start: {formatDate(assignmentStartDateByTemplateId.get(t.id) ?? null)}
+                      </span>
+                      {t.isAssignedToDeadline ? (
+                        <Link
+                          to={`/hr/self-assessment/assignments/${t.id}/assigned-employees`}
+                          className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                        >
+                          <Eye size={13} />
+                          View
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setDeadlineModalTemplate(t)}
+                          className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                        >
+                          <CalendarDays size={13} />
+                          Assign Deadline
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">

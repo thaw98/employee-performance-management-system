@@ -61,6 +61,7 @@ public class SelfAssessmentFormService {
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final SelfAssessmentSettingsRepository settingsRepository;
+    private final ReportingManagerResolver reportingManagerResolver;
 
     public SelfAssessmentFormService(
             SelfAssessmentFormTemplateRepository templateRepository,
@@ -77,7 +78,8 @@ public class SelfAssessmentFormService {
             AuditLogRepository auditLogRepository,
             UserRepository userRepository,
             NotificationRepository notificationRepository,
-            SelfAssessmentSettingsRepository settingsRepository) {
+            SelfAssessmentSettingsRepository settingsRepository,
+            ReportingManagerResolver reportingManagerResolver) {
         this.templateRepository = templateRepository;
         this.copiedTemplateRepository = copiedTemplateRepository;
         this.formRepository = formRepository;
@@ -93,6 +95,7 @@ public class SelfAssessmentFormService {
         this.userRepository = userRepository;
         this.notificationRepository = notificationRepository;
         this.settingsRepository = settingsRepository;
+        this.reportingManagerResolver = reportingManagerResolver;
     }
 
     @Transactional
@@ -574,6 +577,17 @@ Instant now = Instant.now();
                     "A self-assessment form has been assigned to you. Deadline: "
                             + request.deadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
                     "SELF_ASSESSMENT_FORM");
+
+            Employee manager = reportingManagerResolver.resolve(employee);
+            if (manager != null && manager.getUserAccount() != null) {
+                notificationService.send(
+                        manager.getUserAccount(),
+                        "New Self-Assessment Pending Your Review",
+                        "Employee " + employee.getEmployeeName() + " has a self-assessment form assigned. "
+                                + "Start Date: " + request.startDate().format(NOTIFICATION_DEADLINE_FORMAT)
+                                + ". Manager Review Deadline: " + request.managerReviewDeadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
+                        "SELF_ASSESSMENT_FORM");
+            }
         }
 
         auditService.record(
@@ -676,6 +690,17 @@ Instant now = Instant.now();
                     "A self-assessment form has been assigned to you. Deadline: "
                             + request.deadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
                     "SELF_ASSESSMENT_FORM");
+
+            Employee manager = reportingManagerResolver.resolve(employee);
+            if (manager != null && manager.getUserAccount() != null) {
+                notificationService.send(
+                        manager.getUserAccount(),
+                        "New Self-Assessment Pending Your Review",
+                        "Employee " + employee.getEmployeeName() + " has a self-assessment form assigned. "
+                                + "Start Date: " + request.startDate().format(NOTIFICATION_DEADLINE_FORMAT)
+                                + ". Manager Review Deadline: " + request.managerReviewDeadlineDate().format(NOTIFICATION_DEADLINE_FORMAT),
+                        "SELF_ASSESSMENT_FORM");
+            }
         }
 
         if (assignmentMode == AssignmentMode.SPECIFIC_EMPLOYEES) {

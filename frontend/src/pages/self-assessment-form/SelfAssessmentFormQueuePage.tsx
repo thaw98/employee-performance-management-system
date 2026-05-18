@@ -308,7 +308,7 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
         <ChevronRight size={10} className="opacity-50" />
         <span>Self Assessment</span>
         <ChevronRight size={10} className="opacity-50" />
-        <span className="font-semibold text-slate-700 dark:text-slate-200">Form Queue</span>
+        <span className="font-semibold text-slate-700 dark:text-slate-200">Review Submissions</span>
       </nav>
 
       <div className="mb-8 flex items-center gap-5">
@@ -322,7 +322,7 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
         </div>
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            Form Queue
+            Review Submissions
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Review and manage submitted self-assessment forms

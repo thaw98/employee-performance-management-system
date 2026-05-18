@@ -801,7 +801,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
               className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               <FileText size={14} />
-              Form Queue
+Review Submissions
             </button>
           )}
         </div>
@@ -1799,7 +1799,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
                   onClick={() => navigate(reviewQueuePath)}
                   className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#5D5FEF]/[0.06] px-4 py-2 text-sm font-semibold text-[#5D5FEF] transition hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
                 >
-                  Open Form Queue
+                  Open Review Submissions
                 </button>
               )}
             </div>
