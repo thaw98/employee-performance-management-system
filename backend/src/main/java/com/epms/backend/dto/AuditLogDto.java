@@ -23,4 +23,12 @@ public class AuditLogDto {
     private String beforeData;
     private String afterData;
     private Instant createdAt;
+    private Long employeeDbId;
+    private String employeeId;
+    private String employeeName;
+    private String formTitle;
+    private String formStatus;
+    private Long cycleId;
+    private String cycleName;
+    private String templateTitle;
 }

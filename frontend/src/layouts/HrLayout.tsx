@@ -122,6 +122,7 @@ const HrLayout: React.FC = () => {
 
         { label: 'Review Submissions', path: '/hr/self-assessment/review-queue', icon: <ListChecks size={16} className="shrink-0" /> },
         { label: 'History', path: '/hr/self-assessment/history', icon: <History size={16} className="shrink-0" /> },
+        { label: 'Audit Logs', path: '/hr/self-assessment/audit-logs', icon: <ClipboardList size={16} className="shrink-0" /> },
       ]
     },
     {

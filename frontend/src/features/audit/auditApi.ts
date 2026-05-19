@@ -17,6 +17,14 @@ export interface AuditLog {
   beforeData: string
   afterData: string
   createdAt: string
+  employeeDbId?: number | null
+  employeeId?: string | null
+  employeeName?: string | null
+  formTitle?: string | null
+  formStatus?: string | null
+  cycleId?: number | null
+  cycleName?: string | null
+  templateTitle?: string | null
 }
 
 export const auditApi = baseApi.injectEndpoints({
@@ -26,7 +34,12 @@ export const auditApi = baseApi.injectEndpoints({
       transformResponse: (response: ApiResponse<AuditLog[]>) => response.data,
       providesTags: ['AuditLog'],
     }),
+    getSelfAssessmentAuditLogs: builder.query<AuditLog[], void>({
+      query: () => '/audit-logs/self-assessment',
+      transformResponse: (response: ApiResponse<AuditLog[]>) => response.data,
+      providesTags: ['AuditLog'],
+    }),
   }),
 })
 
-export const { useGetKpiAuditLogsQuery } = auditApi
+export const { useGetKpiAuditLogsQuery, useGetSelfAssessmentAuditLogsQuery } = auditApi

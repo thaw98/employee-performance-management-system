@@ -108,6 +108,7 @@ export function AppSidebar() {
 
             { name: 'Review Submissions', path: '/hr/self-assessment/review-queue', icon: 'bi-list-check' },
             { name: 'History', path: '/hr/self-assessment/history', icon: 'bi-clock-history' },
+            { name: 'Audit Logs', path: '/hr/self-assessment/audit-logs', icon: 'bi-clipboard-data' },
             
           ],
         }] : []),
