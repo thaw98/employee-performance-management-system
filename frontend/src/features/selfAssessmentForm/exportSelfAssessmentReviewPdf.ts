@@ -18,8 +18,8 @@ export interface ExportSelfAssessmentReviewPdfOptions {
   roleId?: number
 }
 
-/** A4 side margins: 0.5 in (12.7 mm) on each side. */
-const pageMargin = 0.5 * 25.4
+/** A4 side margins: 0.3 in (7.62 mm) on each side. */
+const pageMargin = 0.3 * 25.4
 const navy: [number, number, number] = [28, 40, 65]
 const slate: [number, number, number] = [88, 99, 115]
 const lightFill: [number, number, number] = [245, 247, 250]
@@ -310,24 +310,24 @@ const addReportHeader = (doc: jsPDF, form: SelfAssessmentFormDto): number => {
   const contentWidth = pageWidth - pageMargin * 2
 
   doc.setFillColor(...navy)
-  doc.rect(0, 0, pageWidth, 34, 'F')
+  doc.rect(0, 0, pageWidth, 26, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(17)
-  doc.text('Self-Assessment Review Report', pageMargin, 15)
+  doc.setFontSize(15)
+  doc.text('Self-Assessment Review Report', pageMargin, 11)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.text('Review Record', pageMargin, 22)
+  doc.setFontSize(8)
+  doc.text('Review Record', pageMargin, 17)
 
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
-  doc.text(`Form ID: ${form.id}`, pageWidth - pageMargin, 14, { align: 'right' })
+  doc.setFontSize(8.5)
+  doc.text(`Form ID: ${form.id}`, pageWidth - pageMargin, 10, { align: 'right' })
   doc.setFont('helvetica', 'normal')
-  doc.text(`Exported: ${formatDate(new Date().toISOString())}`, pageWidth - pageMargin, 21, { align: 'right' })
+  doc.text(`Exported: ${formatDate(new Date().toISOString())}`, pageWidth - pageMargin, 16, { align: 'right' })
 
   doc.setTextColor(0, 0, 0)
   autoTable(doc, {
-    startY: 41,
+    startY: 32,
     theme: 'plain',
     body: [
       [
@@ -390,7 +390,9 @@ const addScoreSummary = (doc: jsPDF, form: SelfAssessmentFormDto, y: number): nu
     theme: 'grid',
     head: [['Metric', 'Value']],
     body: [
-      ['Self score', scoreValue(form.totalScore)],
+      ['Self Score', scoreValue(form.totalScore)],
+      ['Manager Revised', scoreValue(form.managerRevisedTotalScore)],
+      ['Final Score', scoreValue(form.finalApprovedTotalScore)],
       ['Rating category', formatValue(form.ratingCategory)],
     ],
     styles: tableBaseStyles,
