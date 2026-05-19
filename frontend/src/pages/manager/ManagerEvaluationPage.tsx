@@ -15,8 +15,10 @@ import {
     Calendar,
     ArrowRight,
     AlertCircle,
-    RotateCcw
+    RotateCcw,
+    Clock
 } from 'lucide-react';
+import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 import SignatureCanvas from 'react-signature-canvas';
 import { useRef } from 'react';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
@@ -51,6 +53,9 @@ interface Assignment {
         name: string;
         maxRating: number;
         categories: Category[];
+        assessmentDate?: string;
+        effectiveDate?: string;
+        deadlineDate?: string;
     };
     status: string;
     managerComments?: string;
@@ -305,6 +310,12 @@ export const ManagerEvaluationPage: React.FC = () => {
                                 <span className="flex items-center gap-1.5"><ShieldCheck size={16} /> {posName}</span>
                                 <span className="flex items-center gap-1.5 text-slate-300">|</span>
                                 <span className="flex items-center gap-1.5"><Calendar size={16} /> {assignment.template?.name || 'N/A'}</span>
+                                {assignment.template?.assessmentDate && (
+                                    <>
+                                        <span className="flex items-center gap-1.5 text-slate-300">|</span>
+                                        <span className="flex items-center gap-1.5"><Clock size={16} /> {formatCycleDate(assignment.template.assessmentDate)}</span>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -335,7 +346,8 @@ export const ManagerEvaluationPage: React.FC = () => {
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="flex gap-2">
                                                 {[...Array(assignment.template?.maxRating || 5)].map((_, i) => {
-                                                    const ratingValue = i + 1;
+                                                    const maxRating = assignment.template?.maxRating || 5;
+                                                    const ratingValue = maxRating - i;
                                                     const isSelected = answers[question.id]?.rating === ratingValue;
                                                     return (
                                                         <button

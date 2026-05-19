@@ -19,6 +19,7 @@ import {
     Calendar,
     FileText
 } from 'lucide-react';
+import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 
 interface AppraisalAssignment {
     id: number;
@@ -104,7 +105,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
 
         const doc = new jsPDF('l', 'mm', 'a4');
         const deptName = filtered[0].employee.department?.name || (filtered[0].employee.department as any)?.departmentName || 'Department';
-        const dateStr = new Date().toLocaleDateString();
+        const dateStr = formatCycleDate(new Date().toISOString().split('T')[0]);
 
         // Header
         doc.setFillColor(8, 85, 191);
@@ -401,7 +402,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                     <div className="flex items-center justify-between text-[11px]">
                                         <span className="font-bold text-slate-400 uppercase">Deadline:</span>
                                         <span className="font-black text-slate-700 uppercase tracking-tighter italic">
-                                            {new Date(assignment.period.endDate).toLocaleDateString()}
+                                            {formatCycleDate(assignment.period.endDate)}
                                         </span>
                                     </div>
                                 </div>

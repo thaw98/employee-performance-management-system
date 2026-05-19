@@ -26,7 +26,8 @@ public class AppraisalService {
     private final AppraisalCycleRepository appraisalCycleRepository;
     private final ReviewCycleRepository reviewCycleRepository;
     private final EmployeeRepository employeeRepository;
-    // private final ReportingManagerResolver reportingManagerResolver;
+    private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
     @Transactional
     public void distributeAppraisalsToManagers(Long templateId) {
@@ -76,6 +77,7 @@ public class AppraisalService {
 
         int count = 0;
         StringBuilder errorLog = new StringBuilder();
+        java.util.Set<Long> notifiedManagers = new java.util.HashSet<>();
 
         for (DepartmentPosition mapping : template.getTargetDepartmentPositions()) {
             // Find Department Head for this specific department
@@ -89,11 +91,27 @@ public class AppraisalService {
 
             Employee departmentHead = employeeRepository.findById(dept.getManagerId()).orElse(null);
             if (departmentHead == null) {
+                System.out.println("DEBUG: Department Head not found for dept ID: " + dept.getManagerId());
                 errorLog.append("Department Head for '").append(dept.getName()).append("' (ID: ").append(dept.getManagerId()).append(") not found. ");
                 continue;
             }
+            System.out.println("DEBUG: Found Department Head: " + departmentHead.getEmployeeName() + " (ID: " + departmentHead.getId() + ")");
 
-            List<Employee> employees = employeeRepository.findByDepartmentPosition_Id(mapping.getId());
+            // Try to find the manager user account early
+            User managerUser = userRepository.findByEmployee_Id(departmentHead.getId())
+                .orElseGet(() -> {
+                    if (departmentHead.getEmail() != null) {
+                        return userRepository.findFirstByEmployee_EmailIgnoreCaseOrderByActiveDescIdAsc(departmentHead.getEmail()).orElse(null);
+                    }
+                    return null;
+                });
+
+            // Using direct department and position IDs for more reliable lookup
+            List<Employee> employees = employeeRepository.findByDepartment_IdAndPosition_Id(dept.getId(), mapping.getPosition().getId());
+            System.out.println("DEBUG: Mapping ID: " + mapping.getId() + " - Found " + employees.size() + " employees for " + dept.getName() + " / " + mapping.getPosition().getName());
+            
+            boolean hasAssignmentsInThisMapping = false;
+
             for (Employee employee : employees) {
                 // Skip if the employee is the department head themselves
                 if (employee.getId().equals(departmentHead.getId())) continue;
@@ -112,6 +130,23 @@ public class AppraisalService {
 
                 assignmentRepository.save(assignment);
                 count++;
+                hasAssignmentsInThisMapping = true;
+            }
+
+            // Send Notification to Manager if assignments were created for this mapping
+            if (hasAssignmentsInThisMapping && managerUser != null && !notifiedManagers.contains(departmentHead.getId())) {
+                try {
+                    System.out.println("DEBUG: Sending Notification to Manager: " + managerUser.getEmail() + " for dept: " + dept.getName());
+                    String title = "New Appraisals Assigned";
+                    String message = String.format("HR has distributed the '%s' appraisal forms. You have new appraisals to evaluate for %s department.", 
+                        template.getName(), dept.getName());
+                    notificationService.send(managerUser, title, message, "APPRAISAL", template.getId());
+                    notifiedManagers.add(departmentHead.getId());
+                } catch (Exception e) {
+                    System.out.println("DEBUG: Failed to send notification: " + e.getMessage());
+                }
+            } else if (hasAssignmentsInThisMapping && managerUser == null) {
+                System.out.println("DEBUG: Cannot send notification - User account not found for manager: " + departmentHead.getEmployeeName());
             }
         }
 
