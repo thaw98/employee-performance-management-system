@@ -228,7 +228,8 @@ public class FeedbackController {
     public ResponseEntity<ApiResponse<List<com.epms.backend.dto.FeedbackReportDtos.CriteriaAverageDto>>> getCriteriaAverages(
             @PathVariable Long departmentId,
             @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Long reviewCycleId
     ) {
         try {
             User user = getCurrentUser();
@@ -238,10 +239,31 @@ public class FeedbackController {
 
             LocalDate fromDate = from != null && !from.isBlank() ? LocalDate.parse(from) : null;
             LocalDate toDate = to != null && !to.isBlank() ? LocalDate.parse(to) : null;
-            List<com.epms.backend.dto.FeedbackReportDtos.CriteriaAverageDto> data = feedbackService.getCriteriaAveragesForDepartment(departmentId, fromDate, toDate);
+            List<com.epms.backend.dto.FeedbackReportDtos.CriteriaAverageDto> data = feedbackService.getCriteriaAveragesForDepartment(departmentId, fromDate, toDate, reviewCycleId);
             return ResponseEntity.ok(new ApiResponse<>(true, "Criteria averages fetched", data));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Criteria Averages Error: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/reports/criteria-averages")
+    public ResponseEntity<ApiResponse<List<com.epms.backend.dto.FeedbackReportDtos.CriteriaAverageDto>>> getCompanyCriteriaAverages(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Long reviewCycleId
+    ) {
+        try {
+            User user = getCurrentUser();
+            if (!isHr(user)) {
+                return ResponseEntity.status(403).body(new ApiResponse<>(false, "Access denied", null));
+            }
+
+            LocalDate fromDate = from != null && !from.isBlank() ? LocalDate.parse(from) : null;
+            LocalDate toDate = to != null && !to.isBlank() ? LocalDate.parse(to) : null;
+            List<com.epms.backend.dto.FeedbackReportDtos.CriteriaAverageDto> data = feedbackService.getCriteriaAveragesForDepartment(null, fromDate, toDate, reviewCycleId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Company criteria averages fetched", data));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Company Criteria Averages Error: " + e.getMessage(), null));
         }
     }
 
@@ -251,7 +273,8 @@ public class FeedbackController {
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
             @RequestParam(required = false) Long criteriaId,
-            @RequestParam(required = false, defaultValue = "desc") String order
+            @RequestParam(required = false, defaultValue = "desc") String order,
+            @RequestParam(required = false) Long reviewCycleId
     ) {
         try {
             User user = getCurrentUser();
@@ -262,7 +285,7 @@ public class FeedbackController {
             LocalDate fromDate = from != null && !from.isBlank() ? LocalDate.parse(from) : null;
             LocalDate toDate = to != null && !to.isBlank() ? LocalDate.parse(to) : null;
             boolean asc = "asc".equalsIgnoreCase(order);
-            List<com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto> data = feedbackService.getEmployeeRankingForDepartment(departmentId, fromDate, toDate, criteriaId, asc);
+            List<com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto> data = feedbackService.getEmployeeRankingForDepartment(departmentId, fromDate, toDate, criteriaId, asc, reviewCycleId);
             return ResponseEntity.ok(new ApiResponse<>(true, "Employee ranking fetched", data));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Employee Ranking Error: " + e.getMessage(), null));
@@ -274,7 +297,8 @@ public class FeedbackController {
             @PathVariable Long departmentId,
             @PathVariable Long employeeId,
             @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Long reviewCycleId
     ) {
         try {
             User user = getCurrentUser();
@@ -288,10 +312,34 @@ public class FeedbackController {
             LocalDate fromDate = from != null && !from.isBlank() ? LocalDate.parse(from) : null;
             LocalDate toDate = to != null && !to.isBlank() ? LocalDate.parse(to) : null;
             com.epms.backend.dto.FeedbackReportDtos.EmployeeFeedbackDetailReportDto data =
-                    feedbackService.getEmployeeFeedbackDetailForDepartment(departmentId, employeeId, fromDate, toDate);
+                    feedbackService.getEmployeeFeedbackDetailForDepartment(departmentId, employeeId, fromDate, toDate, reviewCycleId);
             return ResponseEntity.ok(new ApiResponse<>(true, "Employee feedback detail fetched", data));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Employee Feedback Detail Error: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/reports/employee-ranking")
+    public ResponseEntity<ApiResponse<List<com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto>>> getCompanyEmployeeRanking(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Long criteriaId,
+            @RequestParam(required = false, defaultValue = "desc") String order,
+            @RequestParam(required = false) Long reviewCycleId
+    ) {
+        try {
+            User user = getCurrentUser();
+            if (!isHr(user)) {
+                return ResponseEntity.status(403).body(new ApiResponse<>(false, "Access denied", null));
+            }
+
+            LocalDate fromDate = from != null && !from.isBlank() ? LocalDate.parse(from) : null;
+            LocalDate toDate = to != null && !to.isBlank() ? LocalDate.parse(to) : null;
+            boolean asc = "asc".equalsIgnoreCase(order);
+            List<com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto> data = feedbackService.getEmployeeRankingForDepartment(null, fromDate, toDate, criteriaId, asc, reviewCycleId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Company employee ranking fetched", data));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Company Employee Ranking Error: " + e.getMessage(), null));
         }
     }
 
@@ -299,7 +347,8 @@ public class FeedbackController {
     public ResponseEntity<ApiResponse<com.epms.backend.dto.FeedbackReportDtos.TopBottomEmployeeSummaryDto>> getTopBottomEmployees(
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Long reviewCycleId
     ) {
         try {
             User user = getCurrentUser();
@@ -318,7 +367,7 @@ public class FeedbackController {
             LocalDate fromDate = from != null && !from.isBlank() ? LocalDate.parse(from) : null;
             LocalDate toDate = to != null && !to.isBlank() ? LocalDate.parse(to) : null;
             com.epms.backend.dto.FeedbackReportDtos.TopBottomEmployeeSummaryDto data =
-                    feedbackService.getTopBottomEmployeeSummary(scopedDepartmentId, fromDate, toDate);
+                    feedbackService.getTopBottomEmployeeSummary(scopedDepartmentId, fromDate, toDate, reviewCycleId);
             return ResponseEntity.ok(new ApiResponse<>(true, "Top and bottom employees fetched", data));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Top Bottom Employee Error: " + e.getMessage(), null));
@@ -328,7 +377,8 @@ public class FeedbackController {
     @GetMapping("/reports/averages-by-department")
     public ResponseEntity<ApiResponse<List<com.epms.backend.dto.FeedbackReportDtos.DepartmentAverageDto>>> getAveragesByDepartment(
             @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Long reviewCycleId
     ) {
         try {
             User user = getCurrentUser();
@@ -338,7 +388,7 @@ public class FeedbackController {
 
             LocalDate fromDate = from != null && !from.isBlank() ? LocalDate.parse(from) : null;
             LocalDate toDate = to != null && !to.isBlank() ? LocalDate.parse(to) : null;
-            List<com.epms.backend.dto.FeedbackReportDtos.DepartmentAverageDto> data = feedbackService.getAverageByDepartment(fromDate, toDate);
+            List<com.epms.backend.dto.FeedbackReportDtos.DepartmentAverageDto> data = feedbackService.getAverageByDepartment(fromDate, toDate, reviewCycleId);
             return ResponseEntity.ok(new ApiResponse<>(true, "Averages by department fetched", data));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Averages By Department Error: " + e.getMessage(), null));
@@ -348,7 +398,9 @@ public class FeedbackController {
     @GetMapping("/reports/trends")
     public ResponseEntity<ApiResponse<List<com.epms.backend.dto.FeedbackReportDtos.DepartmentTrendDto>>> getDepartmentTrends(
             @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Long fromReviewCycleId,
+            @RequestParam(required = false) Long toReviewCycleId
     ) {
         try {
             User user = getCurrentUser();
@@ -358,10 +410,41 @@ public class FeedbackController {
 
             LocalDate fromDate = from != null && !from.isBlank() ? LocalDate.parse(from) : null;
             LocalDate toDate = to != null && !to.isBlank() ? LocalDate.parse(to) : null;
-            List<com.epms.backend.dto.FeedbackReportDtos.DepartmentTrendDto> data = feedbackService.getDepartmentTrends(fromDate, toDate);
+            List<com.epms.backend.dto.FeedbackReportDtos.DepartmentTrendDto> data = feedbackService.getDepartmentTrends(fromDate, toDate, fromReviewCycleId, toReviewCycleId);
             return ResponseEntity.ok(new ApiResponse<>(true, "Department trends fetched", data));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Trends Error: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/reports/export-data")
+    public ResponseEntity<ApiResponse<List<com.epms.backend.dto.FeedbackReportDtos.EmployeeFeedbackDetailReportDto>>> getFeedbackReportExportData(
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Long reviewCycleId
+    ) {
+        try {
+            User user = getCurrentUser();
+            Long scopedDepartmentId = departmentId;
+            if (!isHr(user)) {
+                scopedDepartmentId = user.getEmployee() != null && user.getEmployee().getDepartment() != null
+                        ? user.getEmployee().getDepartment().getId()
+                        : null;
+                if (scopedDepartmentId == null) {
+                    return ResponseEntity.status(403).body(new ApiResponse<>(false, "Access denied", null));
+                }
+            } else if (departmentId != null && !departmentRepository.existsById(departmentId)) {
+                return ResponseEntity.badRequest().body(new ApiResponse<>(false, "Department not found", null));
+            }
+
+            LocalDate fromDate = from != null && !from.isBlank() ? LocalDate.parse(from) : null;
+            LocalDate toDate = to != null && !to.isBlank() ? LocalDate.parse(to) : null;
+            List<com.epms.backend.dto.FeedbackReportDtos.EmployeeFeedbackDetailReportDto> data =
+                    feedbackService.getEmployeeFeedbackDetailsForReport(scopedDepartmentId, fromDate, toDate, reviewCycleId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "Feedback report export data fetched", data));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Feedback Report Export Error: " + e.getMessage(), null));
         }
     }
 

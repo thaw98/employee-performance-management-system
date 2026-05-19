@@ -45,13 +45,25 @@ public class FeedbackReportDtos {
     public static class EmployeeRankingDto {
         private Long employeeId;
         private String employeeName;
+        private Long departmentId;
+        private String departmentName;
         private Double averageScore;
 
         public EmployeeRankingDto() {}
 
         public EmployeeRankingDto(Long employeeId, String employeeName, Double averageScore) {
+            this(employeeId, employeeName, null, null, averageScore);
+        }
+
+        public EmployeeRankingDto(Long employeeId, String employeeName, String departmentName, Double averageScore) {
+            this(employeeId, employeeName, null, departmentName, averageScore);
+        }
+
+        public EmployeeRankingDto(Long employeeId, String employeeName, Long departmentId, String departmentName, Double averageScore) {
             this.employeeId = employeeId;
             this.employeeName = employeeName;
+            this.departmentId = departmentId;
+            this.departmentName = departmentName;
             this.averageScore = averageScore;
         }
 
@@ -59,6 +71,10 @@ public class FeedbackReportDtos {
         public void setEmployeeId(Long employeeId) { this.employeeId = employeeId; }
         public String getEmployeeName() { return employeeName; }
         public void setEmployeeName(String employeeName) { this.employeeName = employeeName; }
+        public Long getDepartmentId() { return departmentId; }
+        public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
+        public String getDepartmentName() { return departmentName; }
+        public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
         public Double getAverageScore() { return averageScore; }
         public void setAverageScore(Double averageScore) { this.averageScore = averageScore; }
     }

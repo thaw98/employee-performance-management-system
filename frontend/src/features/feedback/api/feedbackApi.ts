@@ -78,6 +78,8 @@ export interface CriteriaAverageDto {
 export interface EmployeeRankingDto {
   employeeId: number
   employeeName: string
+  departmentId?: number | null
+  departmentName?: string | null
   averageScore: number
 }
 
@@ -121,10 +123,11 @@ export interface DepartmentTrendDto {
 export interface FeedbackReportFilters {
   from?: string
   to?: string
+  reviewCycleId?: number
 }
 
 export interface DepartmentFeedbackReportFilters extends FeedbackReportFilters {
-  departmentId: number
+  departmentId?: number
   criteriaId?: number
   order?: 'asc' | 'desc'
 }
@@ -132,6 +135,11 @@ export interface DepartmentFeedbackReportFilters extends FeedbackReportFilters {
 export interface EmployeeFeedbackDetailFilters extends FeedbackReportFilters {
   departmentId: number
   employeeId: number
+}
+
+export interface DepartmentTrendFilters extends FeedbackReportFilters {
+  fromReviewCycleId?: number
+  toReviewCycleId?: number
 }
 
 export const feedbackApi = baseApi.injectEndpoints({
@@ -170,68 +178,91 @@ export const feedbackApi = baseApi.injectEndpoints({
     getFeedbackReportDepartments: builder.query<ApiResponse<ReportDepartmentDto[]>, void>({
       query: () => '/feedback/reports/manager-departments',
     }),
-    getCriteriaAverages: builder.query<ApiResponse<CriteriaAverageDto[]>, { departmentId: number; from?: string; to?: string }>({
+    getCriteriaAverages: builder.query<ApiResponse<CriteriaAverageDto[]>, { departmentId?: number; from?: string; to?: string; reviewCycleId?: number }>({
         query: (params) => {
           const { departmentId, from, to } = params
           const qs = []
           if (from) qs.push(`from=${from}`)
           if (to) qs.push(`to=${to}`)
+          if (params.reviewCycleId) qs.push(`reviewCycleId=${params.reviewCycleId}`)
           const q = qs.length ? `?${qs.join('&')}` : ''
-          return `/feedback/reports/department/${departmentId}/criteria-averages${q}`
+          return departmentId
+            ? `/feedback/reports/department/${departmentId}/criteria-averages${q}`
+            : `/feedback/reports/criteria-averages${q}`
         },
       }),
     getEmployeeRanking: builder.query<ApiResponse<EmployeeRankingDto[]>, DepartmentFeedbackReportFilters>({
         query: (params) => {
-          const { departmentId, from, to, criteriaId, order } = params
+          const { departmentId, from, to, criteriaId, order, reviewCycleId } = params
           const qs: string[] = []
           if (from) qs.push(`from=${from}`)
           if (to) qs.push(`to=${to}`)
           if (criteriaId) qs.push(`criteriaId=${criteriaId}`)
           if (order) qs.push(`order=${order}`)
+          if (reviewCycleId) qs.push(`reviewCycleId=${reviewCycleId}`)
           const q = qs.length ? `?${qs.join('&')}` : ''
-          return `/feedback/reports/department/${departmentId}/employee-ranking${q}`
+          return departmentId
+            ? `/feedback/reports/department/${departmentId}/employee-ranking${q}`
+            : `/feedback/reports/employee-ranking${q}`
         },
       }),
     getEmployeeFeedbackDetail: builder.query<ApiResponse<EmployeeFeedbackDetailReportDto>, EmployeeFeedbackDetailFilters>({
-      query: ({ departmentId, employeeId, from, to }) => {
+      query: ({ departmentId, employeeId, from, to, reviewCycleId }) => {
         const qs: string[] = []
         if (from) qs.push(`from=${from}`)
         if (to) qs.push(`to=${to}`)
+        if (reviewCycleId) qs.push(`reviewCycleId=${reviewCycleId}`)
         const q = qs.length ? `?${qs.join('&')}` : ''
         return `/feedback/reports/department/${departmentId}/employee/${employeeId}${q}`
       },
     }),
     getTopBottomEmployees: builder.query<ApiResponse<TopBottomEmployeeSummaryDto>, (FeedbackReportFilters & { departmentId?: number }) | void>({
       query: (params) => {
-        const { departmentId, from, to } = params || {}
+        const { departmentId, from, to, reviewCycleId } = params || {}
         const qs: string[] = []
         if (departmentId) qs.push(`departmentId=${departmentId}`)
         if (from) qs.push(`from=${from}`)
         if (to) qs.push(`to=${to}`)
+        if (reviewCycleId) qs.push(`reviewCycleId=${reviewCycleId}`)
         const q = qs.length ? `?${qs.join('&')}` : ''
         return `/feedback/reports/top-bottom-employees${q}`
       },
     }),
     getAveragesByDepartment: builder.query<ApiResponse<DepartmentAverageDto[]>, FeedbackReportFilters | void>({
         query: (params) => {
-          const { from, to } = params || {}
+          const { from, to, reviewCycleId } = params || {}
           const qs: string[] = []
           if (from) qs.push(`from=${from}`)
           if (to) qs.push(`to=${to}`)
+          if (reviewCycleId) qs.push(`reviewCycleId=${reviewCycleId}`)
           const q = qs.length ? `?${qs.join('&')}` : ''
           return `/feedback/reports/averages-by-department${q}`
         },
       }),
-    getDepartmentTrends: builder.query<ApiResponse<DepartmentTrendDto[]>, FeedbackReportFilters | void>({
+    getDepartmentTrends: builder.query<ApiResponse<DepartmentTrendDto[]>, DepartmentTrendFilters | void>({
         query: (params) => {
-          const { from, to } = params || {}
+          const { from, to, fromReviewCycleId, toReviewCycleId } = params || {}
           const qs: string[] = []
           if (from) qs.push(`from=${from}`)
           if (to) qs.push(`to=${to}`)
+          if (fromReviewCycleId) qs.push(`fromReviewCycleId=${fromReviewCycleId}`)
+          if (toReviewCycleId) qs.push(`toReviewCycleId=${toReviewCycleId}`)
           const q = qs.length ? `?${qs.join('&')}` : ''
           return `/feedback/reports/trends${q}`
         },
       }),
+    getFeedbackReportExportData: builder.query<ApiResponse<EmployeeFeedbackDetailReportDto[]>, (FeedbackReportFilters & { departmentId?: number }) | void>({
+      query: (params) => {
+        const { departmentId, from, to, reviewCycleId } = params || {}
+        const qs: string[] = []
+        if (departmentId) qs.push(`departmentId=${departmentId}`)
+        if (from) qs.push(`from=${from}`)
+        if (to) qs.push(`to=${to}`)
+        if (reviewCycleId) qs.push(`reviewCycleId=${reviewCycleId}`)
+        const q = qs.length ? `?${qs.join('&')}` : ''
+        return `/feedback/reports/export-data${q}`
+      },
+    }),
   }),
 })
 
@@ -249,4 +280,5 @@ export const {
   useGetTopBottomEmployeesQuery,
   useGetAveragesByDepartmentQuery,
   useGetDepartmentTrendsQuery,
+  useLazyGetFeedbackReportExportDataQuery,
 } = feedbackApi
