@@ -5,7 +5,7 @@ export function formatCycleDate(iso: string) {
   const parts = iso.split('-').map(Number);
   if (parts.length !== 3 || parts.some(Number.isNaN)) return iso;
   const [y, m, d] = parts;
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
