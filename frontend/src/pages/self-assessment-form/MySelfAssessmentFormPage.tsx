@@ -1057,8 +1057,9 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                           const remarksLen = String(field.value ?? '').length;
                           return (
                             <>
-                              <Textarea
+                              <textarea
                                 {...field}
+                                value={field.value ?? ''}
                                 disabled={!canEditQuestion}
                                 rows={2}
                                 placeholder="Add any remarks for this question…"
