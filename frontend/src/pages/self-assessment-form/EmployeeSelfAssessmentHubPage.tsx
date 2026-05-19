@@ -28,7 +28,7 @@ export const EmployeeSelfAssessmentHubPage: React.FC = () => {
               Your form
             </p>
             <p className="text-lg font-black text-slate-900 dark:text-slate-100 truncate">
-              My Self Assessment Form
+              My Form
             </p>
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
               Open, edit, and submit your responses

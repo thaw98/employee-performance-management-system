@@ -81,7 +81,7 @@ const EmployeeLayout: React.FC = () => {
       path: EMPLOYEE_SELF_ASSESSMENT_BASE_PATH,
       subItems: [
         {
-          label: 'My Self Assessment Form',
+          label: 'My Form',
           path: EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH,
           icon: <ClipboardList size={16} className="shrink-0" />,
         },

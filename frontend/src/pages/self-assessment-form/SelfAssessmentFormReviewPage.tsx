@@ -1775,17 +1775,6 @@ Review Submissions
 
 	                    {true && (
                       <div className="flex gap-3 flex-wrap pt-2">
-                        {canHrRequestManagerRetake && (
-                          <button
-                            type="button"
-                            onClick={() => setShowAdjustments((prev) => !prev)}
-                            aria-pressed={showAdjustments}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700/60 transition-all"
-                          >
-                            <RotateCcw size={16} />
-                            Request Retake
-                          </button>
-                        )}
                         {canHrScheduleManagerMeeting && (
                           <button
                             type="button"

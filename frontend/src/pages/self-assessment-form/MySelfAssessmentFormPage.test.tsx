@@ -285,11 +285,11 @@ describe('MySelfAssessmentFormPage autosave', () => {
     })
   })
 
-  it('flushes pending changes from Save Now', async () => {
+  it('flushes pending changes from Save Draft', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: 'Save Now' }))
+    await user.click(await screen.findByRole('button', { name: 'Save Draft' }))
 
     await waitFor(() => {
       expect(mocks.flush).toHaveBeenCalledTimes(1)
@@ -309,7 +309,7 @@ describe('MySelfAssessmentFormPage autosave', () => {
         dirtyFields: { employeeRemarks: true },
       }),
     ).toBe(false)
-    expect(screen.queryByRole('button', { name: 'Save Now' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save Draft' })).toBeNull()
   })
 
   it('disables submit when rating is missing after Yes/No is selected', async () => {
@@ -420,7 +420,7 @@ describe('MySelfAssessmentFormPage autosave', () => {
 
       expect(await screen.findByText('Deadline Passed')).toBeTruthy()
       expect(screen.queryByText('Manager Review Completed')).toBeNull()
-      expect(screen.queryByRole('button', { name: 'Save Now' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Save Draft' })).toBeNull()
     },
   )
 })
