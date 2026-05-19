@@ -46,25 +46,32 @@ public class MeetingService {
                 .orElseThrow(() -> new RuntimeException("Manager not found"));
         Employee employee = employeeRepository.findById(request.employeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
+        boolean isHrScheduler = isHrEmployee(manager);
 
-        boolean isSameDepartment = manager.getDepartment() != null && employee.getDepartment() != null &&
-                manager.getDepartment().getId().equals(employee.getDepartment().getId());
-        boolean isDirectSubordinate = employee.getManager() != null
-                && employee.getManager().getId().equals(manager.getId());
+        if (isHrScheduler) {
+            if (employee.getEmploymentStatus() != EmployeeStatus.ACTIVE) {
+                throw new RuntimeException("Can only schedule meetings with active employees");
+            }
+        } else {
+            boolean isSameDepartment = manager.getDepartment() != null && employee.getDepartment() != null &&
+                    manager.getDepartment().getId().equals(employee.getDepartment().getId());
+            boolean isDirectSubordinate = employee.getManager() != null
+                    && employee.getManager().getId().equals(manager.getId());
 
-        if (!isSameDepartment && !isDirectSubordinate) {
-            throw new RuntimeException(
-                    "Can only schedule meetings with employees from your department or your direct subordinates");
-        }
+            if (!isSameDepartment && !isDirectSubordinate) {
+                throw new RuntimeException(
+                        "Can only schedule meetings with employees from your department or your direct subordinates");
+            }
 
-        if (manager.getPosition() == null || employee.getPosition() == null ||
-                manager.getPosition().getLevelCode() == null || employee.getPosition().getLevelCode() == null) {
-            throw new RuntimeException("Both participants must have an assigned position and level code");
-        }
+            if (manager.getPosition() == null || employee.getPosition() == null ||
+                    manager.getPosition().getLevelCode() == null || employee.getPosition().getLevelCode() == null) {
+                throw new RuntimeException("Both participants must have an assigned position and level code");
+            }
 
-        if (manager.getPosition().getLevelCode().getId() >= employee.getPosition().getLevelCode().getId()) {
-            throw new RuntimeException(
-                    "Can only schedule meetings with employees whose level code is lower than yours");
+            if (manager.getPosition().getLevelCode().getId() >= employee.getPosition().getLevelCode().getId()) {
+                throw new RuntimeException(
+                        "Can only schedule meetings with employees whose level code is lower than yours");
+            }
         }
 
         Meeting meeting = new Meeting();
@@ -545,6 +552,10 @@ public class MeetingService {
         Employee manager = employeeRepository.findById(managerId)
                 .orElseThrow(() -> new RuntimeException("Manager not found"));
 
+        if (isHrEmployee(manager)) {
+            return getHrEligibleEmployees(managerId);
+        }
+
         if (manager.getPosition() == null || manager.getPosition().getLevelCode() == null) {
             return List.of();
         }
@@ -567,6 +578,22 @@ public class MeetingService {
                 .filter(e -> e.getPosition().getLevelCode().getId() > managerLevelId)
                 .filter(e -> !e.getId().equals(manager.getId()))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Employee> getHrEligibleEmployees(Long hrEmployeeId) {
+        return employeeRepository.findAll().stream()
+                .filter(e -> e.getEmploymentStatus() == EmployeeStatus.ACTIVE)
+                .filter(e -> e.getUserAccount() != null && e.getUserAccount().isActive())
+                .filter(e -> hrEmployeeId == null || !e.getId().equals(hrEmployeeId))
+                .collect(Collectors.toList());
+    }
+
+    private boolean isHrEmployee(Employee employee) {
+        return employee != null
+                && employee.getUserAccount() != null
+                && employee.getUserAccount().getRole() != null
+                && Long.valueOf(1L).equals(employee.getUserAccount().getRole().getId());
     }
 
     private void verifyParticipant(Meeting meeting, Long userId) {

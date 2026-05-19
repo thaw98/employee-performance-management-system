@@ -248,6 +248,20 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @PostMapping("/{id}/hr-request-retake")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrRequestRetake(
+            @PathVariable Long id,
+            @Valid @RequestBody ManagerRetakeRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SelfAssessmentFormDto form = selfAssessmentFormService.hrRequestRetake(id, request, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Retake requested", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/retake-submit")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> employeeSubmitRetake(
             @PathVariable Long id,

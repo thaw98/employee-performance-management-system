@@ -10,5 +10,6 @@ public record EmployeeInfoDto(
         String departmentCode,
         Long positionId,
         String positionName,
-        String positionCode
+        String positionCode,
+        Long roleId
 ) {}

@@ -1192,6 +1192,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   hrFinalSignatureData={formData.hrFinalSignatureData}
                   hrFinalSignatureDate={formData.hrFinalSignatureDate}
                   hrName={formData.hrName}
+                  isManagerSelfAssessment={formData.employee?.roleId === 2}
                 />
               </div>
             </div>

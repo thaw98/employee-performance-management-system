@@ -1,5 +1,8 @@
 import type { NotificationItem } from './notificationSlice';
-import { EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH } from '../../routes/employeeSelfAssessmentRoutes';
+import {
+  EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH,
+  MANAGER_SELF_ASSESSMENT_MY_FORM_PATH,
+} from '../../routes/employeeSelfAssessmentRoutes';
 
 function getRolePrefix(pathname: string) {
   return pathname.split('/').filter(Boolean)[0] || 'employee';
@@ -18,8 +21,20 @@ function isFeedbackCycleStartNotification(notification: NotificationNavigationIn
   return searchableText.includes('NEW REVIEW CYCLE') || searchableText.includes('REVIEW CYCLE HAS STARTED');
 }
 
-export function getSelfAssessmentPath(pathname: string, formId?: number | null) {
+function isManagerSelfAssessmentOwnFormNotification(notification: NotificationNavigationInput) {
+  const searchableText = `${notification.title ?? ''} ${notification.message ?? ''}`.toUpperCase();
+  return (
+    searchableText.includes('RETAKE REQUESTED') ||
+    searchableText.includes('ASSIGNED') ||
+    searchableText.includes('MY FORM')
+  ) && !searchableText.includes('FOR YOUR REVIEW');
+}
+
+export function getSelfAssessmentPath(pathname: string, formId?: number | null, notification?: NotificationNavigationInput) {
   if (pathname.startsWith('/manager')) {
+    if (notification && isManagerSelfAssessmentOwnFormNotification(notification)) {
+      return MANAGER_SELF_ASSESSMENT_MY_FORM_PATH;
+    }
     return formId ? `/manager/self-assessment-forms/reviews/${formId}` : '/manager/self-assessment-forms/review-queue';
   }
 
@@ -107,7 +122,7 @@ export function getNotificationDestinationPath(notification: NotificationNavigat
   const source = normalizeNotificationSource(notification.source) || resolveLegacySource(notification);
 
   if (source === 'SELF_ASSESSMENT_FORM') {
-    return getSelfAssessmentPath(pathname, notification.targetId);
+    return getSelfAssessmentPath(pathname, notification.targetId, notification);
   }
 
   if (source === 'MEETING') {

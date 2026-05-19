@@ -243,6 +243,7 @@ function App() {
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
+            <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
             <Route path="self-assessment-forms/review-queue" element={<SelfAssessmentFormQueuePage />} />
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment-forms/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
