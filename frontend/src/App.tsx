@@ -83,6 +83,7 @@ import { NotificationPage } from './pages/NotificationPage';
 import ManagerReportsPage from './pages/manager/ReportsPage';
 import HrReportsPage from './pages/hr/ReportsPage';
 import EmployeeReportsPage from './pages/employee/ReportsPage';
+import FeedbackReportPage from './pages/reports/FeedbackReportPage';
 
 const TOAST_DEDUP_MS = 600;
 const recentToastTimestamps = new Map<string, number>();
@@ -211,6 +212,7 @@ function App() {
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
             <Route path="reports" element={<HrReportsPage />} />
+            <Route path="reports/feedback" element={<FeedbackReportPage mode="hr" />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -251,6 +253,7 @@ function App() {
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
             <Route path="reports" element={<ManagerReportsPage />} />
+            <Route path="reports/feedback" element={<FeedbackReportPage mode="manager" />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>

@@ -92,6 +92,21 @@ export function MeetingsPage() {
         return () => clearInterval(interval);
     }, [activeTab, page, sortBy, selectedDept, subStatus, hrSection, isHrView]);
 
+    useEffect(() => {
+        const requestedEmployeeId = searchParams.get('employeeId');
+        const requestedDescription = searchParams.get('meetingDescription');
+        if (requestedDescription) {
+            setDescription(requestedDescription);
+            setTitle(requestedDescription);
+        }
+        if (requestedEmployeeId && eligibleEmployees.length > 0 && eligibleEmployees.some(emp => String(emp.id) === requestedEmployeeId)) {
+            setEmployeeId(requestedEmployeeId);
+            setIsModalOpen(true);
+        } else if (requestedDescription) {
+            setIsModalOpen(true);
+        }
+    }, [eligibleEmployees, searchParams]);
+
     const fetchMeetings = async () => {
         try {
             let statuses = '';

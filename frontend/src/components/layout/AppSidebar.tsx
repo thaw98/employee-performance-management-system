@@ -149,7 +149,10 @@ export function AppSidebar() {
             </div>
             <nav className="space-y-1">
               {section.items.map((item) => {
-                const isActiveOrChild = location.pathname.startsWith(item.path)
+                const isReportsRoot = item.path === '/hr/reports'
+                const isActiveOrChild = isReportsRoot
+                  ? location.pathname === item.path
+                  : location.pathname.startsWith(item.path)
                 const isExpanded = expandedSections[item.path] !== undefined ? expandedSections[item.path] : isActiveOrChild
 
                 return (

@@ -21,6 +21,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 @Service
 public class FeedbackService {
@@ -58,6 +61,425 @@ public class FeedbackService {
         this.timeSettingService = timeSettingService;
         this.reviewCycleService = reviewCycleService;
         this.reviewCycleRepository = reviewCycleRepository;
+    }
+
+    /* Reporting helpers */
+    public List<com.epms.backend.dto.FeedbackReportDtos.CriteriaAverageDto> getCriteriaAveragesForDepartment(Long departmentId, LocalDate fromDate, LocalDate toDate) {
+        return getCriteriaAveragesForDepartment(departmentId, fromDate, toDate, null);
+    }
+
+    public List<com.epms.backend.dto.FeedbackReportDtos.CriteriaAverageDto> getCriteriaAveragesForDepartment(Long departmentId, LocalDate fromDate, LocalDate toDate, Long reviewCycleId) {
+        Instant start = fromDate != null ? fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant() : Instant.EPOCH;
+        Instant end = toDate != null ? toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant() : Instant.now();
+
+        ReviewCycle reviewCycle = reviewCycleId != null ? reviewCycleRepository.findById(reviewCycleId).orElse(null) : null;
+
+        List<Feedback> feedbacks = feedbackRepository.findAll().stream()
+                .filter(f -> f.getEvaluatee() != null && f.getEvaluatee().getDepartment() != null)
+                .filter(f -> departmentId == null || f.getEvaluatee().getDepartment().getId().equals(departmentId))
+                .filter(f -> matchesReviewCycle(f, reviewCycle))
+                .filter(f -> !f.getCreatedDate().isBefore(start) && !f.getCreatedDate().isAfter(end))
+                .collect(Collectors.toList());
+
+        Map<Long, double[]> agg = new HashMap<>(); // criteriaId -> [sum, count]
+        Map<Long, String> names = new HashMap<>();
+
+        for (Feedback f : feedbacks) {
+            if (f.getDetails() == null) continue;
+            for (FeedbackDetail d : f.getDetails()) {
+                Long cid = d.getCriteria().getId();
+                names.putIfAbsent(cid, d.getCriteria().getName());
+                double[] arr = agg.computeIfAbsent(cid, k -> new double[2]);
+                arr[0] += d.getRating();
+                arr[1] += 1;
+            }
+        }
+
+        return agg.entrySet().stream()
+                .map(e -> new com.epms.backend.dto.FeedbackReportDtos.CriteriaAverageDto(
+                        e.getKey(),
+                        names.get(e.getKey()),
+                        e.getValue()[1] > 0 ? e.getValue()[0] / e.getValue()[1] : 0d
+                ))
+                .sorted((a, b) -> a.getCriteriaName().compareToIgnoreCase(b.getCriteriaName()))
+                .collect(Collectors.toList());
+    }
+
+    public List<com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto> getEmployeeRankingForDepartment(Long departmentId, LocalDate fromDate, LocalDate toDate, Long criteriaId, boolean asc) {
+        return getEmployeeRankingForDepartment(departmentId, fromDate, toDate, criteriaId, asc, null);
+    }
+
+    public List<com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto> getEmployeeRankingForDepartment(Long departmentId, LocalDate fromDate, LocalDate toDate, Long criteriaId, boolean asc, Long reviewCycleId) {
+        Instant start = fromDate != null ? fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant() : Instant.EPOCH;
+        Instant end = toDate != null ? toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant() : Instant.now();
+
+        ReviewCycle reviewCycle = reviewCycleId != null ? reviewCycleRepository.findById(reviewCycleId).orElse(null) : null;
+
+        List<Feedback> feedbacks = feedbackRepository.findAll().stream()
+                .filter(f -> f.getEvaluatee() != null && f.getEvaluatee().getDepartment() != null)
+                .filter(f -> departmentId == null || f.getEvaluatee().getDepartment().getId().equals(departmentId))
+                .filter(f -> matchesReviewCycle(f, reviewCycle))
+                .filter(f -> !f.getCreatedDate().isBefore(start) && !f.getCreatedDate().isAfter(end))
+                .collect(Collectors.toList());
+
+        Map<Long, double[]> agg = new HashMap<>(); // empId -> [sum, count]
+        Map<Long, String> names = new HashMap<>();
+        Map<Long, Long> departmentIds = new HashMap<>();
+        Map<Long, String> departmentNames = new HashMap<>();
+
+        for (Feedback f : feedbacks) {
+            Long eid = f.getEvaluatee().getId();
+            names.putIfAbsent(eid, f.getEvaluatee().getEmployeeName());
+            departmentIds.putIfAbsent(eid, f.getEvaluatee().getDepartment().getId());
+            departmentNames.putIfAbsent(eid, f.getEvaluatee().getDepartment().getName());
+            if (criteriaId == null) {
+                double[] arr = agg.computeIfAbsent(eid, k -> new double[2]);
+                arr[0] += f.getScore() != null ? f.getScore() : 0d;
+                arr[1] += 1;
+            } else {
+                // average only ratings for the specified criteria across feedback details
+                if (f.getDetails() == null) continue;
+                double sum = 0; double cnt = 0;
+                for (FeedbackDetail d : f.getDetails()) {
+                    if (d.getCriteria() != null && d.getCriteria().getId().equals(criteriaId)) {
+                        sum += d.getRating(); cnt += 1;
+                    }
+                }
+                if (cnt > 0) {
+                    double[] arr = agg.computeIfAbsent(eid, k -> new double[2]);
+                    arr[0] += (sum / cnt) * 20.0; // convert rating (1-5) to percentage-like scale comparable to f.getScore()
+                    arr[1] += 1;
+                }
+            }
+        }
+
+        List<com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto> result = agg.entrySet().stream()
+                .map(e -> new com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto(
+                        e.getKey(),
+                        names.get(e.getKey()),
+                        departmentIds.get(e.getKey()),
+                        departmentNames.get(e.getKey()),
+                        e.getValue()[1] > 0 ? e.getValue()[0] / e.getValue()[1] : 0d
+                ))
+                .sorted((a, b) -> asc ? Double.compare(a.getAverageScore(), b.getAverageScore()) : Double.compare(b.getAverageScore(), a.getAverageScore()))
+                .collect(Collectors.toList());
+
+        return result;
+    }
+
+    public boolean employeeBelongsToDepartment(Long employeeId, Long departmentId) {
+        return employeeRepository.findById(employeeId)
+                .map(employee -> employee.getDepartment() != null && employee.getDepartment().getId().equals(departmentId))
+                .orElse(false);
+    }
+
+    public com.epms.backend.dto.FeedbackReportDtos.EmployeeFeedbackDetailReportDto getEmployeeFeedbackDetailForDepartment(
+            Long departmentId,
+            Long employeeId,
+            LocalDate fromDate,
+            LocalDate toDate) {
+        return getEmployeeFeedbackDetailForDepartment(departmentId, employeeId, fromDate, toDate, null);
+    }
+
+    public com.epms.backend.dto.FeedbackReportDtos.EmployeeFeedbackDetailReportDto getEmployeeFeedbackDetailForDepartment(
+            Long departmentId,
+            Long employeeId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            Long reviewCycleId) {
+        Instant start = fromDate != null ? fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant() : Instant.EPOCH;
+        Instant end = toDate != null ? toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant() : Instant.now();
+
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        ReviewCycle reviewCycle = reviewCycleId != null ? reviewCycleRepository.findById(reviewCycleId).orElse(null) : null;
+
+        List<Feedback> feedbacks = feedbackRepository.findAll().stream()
+                .filter(f -> f.getEvaluatee() != null && f.getEvaluatee().getId().equals(employeeId))
+                .filter(f -> f.getEvaluatee().getDepartment() != null
+                        && f.getEvaluatee().getDepartment().getId().equals(departmentId))
+                .filter(f -> matchesReviewCycle(f, reviewCycle))
+                .filter(f -> !f.getCreatedDate().isBefore(start) && !f.getCreatedDate().isAfter(end))
+                .collect(Collectors.toList());
+
+        Map<Long, double[]> criteriaAgg = new HashMap<>();
+        Map<Long, String> criteriaNames = new HashMap<>();
+        double total = 0d;
+        double count = 0d;
+
+        for (Feedback feedback : feedbacks) {
+            if (feedback.getDetails() == null) continue;
+            for (FeedbackDetail detail : feedback.getDetails()) {
+                if (detail.getCriteria() == null || detail.getRating() == null) continue;
+                Long criteriaId = detail.getCriteria().getId();
+                criteriaNames.putIfAbsent(criteriaId, detail.getCriteria().getName());
+                double[] arr = criteriaAgg.computeIfAbsent(criteriaId, key -> new double[2]);
+                arr[0] += detail.getRating();
+                arr[1] += 1;
+                total += detail.getRating();
+                count += 1;
+            }
+        }
+
+        List<com.epms.backend.dto.FeedbackReportDtos.EmployeeCriteriaAverageDto> criteriaAverages = criteriaAgg.entrySet().stream()
+                .map(entry -> new com.epms.backend.dto.FeedbackReportDtos.EmployeeCriteriaAverageDto(
+                        entry.getKey(),
+                        criteriaNames.get(entry.getKey()),
+                        entry.getValue()[1] > 0 ? entry.getValue()[0] / entry.getValue()[1] : 0d
+                ))
+                .sorted((a, b) -> a.getCriteriaName().compareToIgnoreCase(b.getCriteriaName()))
+                .collect(Collectors.toList());
+
+        Department department = employee.getDepartment();
+        return new com.epms.backend.dto.FeedbackReportDtos.EmployeeFeedbackDetailReportDto(
+                employee.getId(),
+                employee.getEmployeeName(),
+                department != null ? department.getId() : null,
+                department != null ? department.getName() : null,
+                count > 0 ? total / count : 0d,
+                criteriaAverages);
+    }
+
+    public com.epms.backend.dto.FeedbackReportDtos.TopBottomEmployeeSummaryDto getTopBottomEmployeeSummary(
+            Long departmentId,
+            LocalDate fromDate,
+            LocalDate toDate) {
+        return getTopBottomEmployeeSummary(departmentId, fromDate, toDate, null);
+    }
+
+    public com.epms.backend.dto.FeedbackReportDtos.TopBottomEmployeeSummaryDto getTopBottomEmployeeSummary(
+            Long departmentId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            Long reviewCycleId) {
+        Instant start = fromDate != null ? fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant() : Instant.EPOCH;
+        Instant end = toDate != null ? toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant() : Instant.now();
+
+        ReviewCycle reviewCycle = reviewCycleId != null ? reviewCycleRepository.findById(reviewCycleId).orElse(null) : null;
+
+        List<Feedback> feedbacks = feedbackRepository.findAll().stream()
+                .filter(f -> f.getEvaluatee() != null && f.getEvaluatee().getDepartment() != null)
+                .filter(f -> departmentId == null || f.getEvaluatee().getDepartment().getId().equals(departmentId))
+                .filter(f -> matchesReviewCycle(f, reviewCycle))
+                .filter(f -> !f.getCreatedDate().isBefore(start) && !f.getCreatedDate().isAfter(end))
+                .collect(Collectors.toList());
+
+        Map<Long, double[]> agg = new HashMap<>();
+        Map<Long, String> names = new HashMap<>();
+        Map<Long, Long> departmentIds = new HashMap<>();
+        Map<Long, String> departmentNames = new HashMap<>();
+
+        for (Feedback feedback : feedbacks) {
+            Long employeeId = feedback.getEvaluatee().getId();
+            names.putIfAbsent(employeeId, feedback.getEvaluatee().getEmployeeName());
+            departmentIds.putIfAbsent(employeeId, feedback.getEvaluatee().getDepartment().getId());
+            departmentNames.putIfAbsent(employeeId, feedback.getEvaluatee().getDepartment().getName());
+            double[] arr = agg.computeIfAbsent(employeeId, key -> new double[2]);
+            arr[0] += feedback.getScore() != null ? feedback.getScore() : 0d;
+            arr[1] += 1;
+        }
+
+        List<com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto> employees = agg.entrySet().stream()
+                .map(entry -> new com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto(
+                        entry.getKey(),
+                        names.get(entry.getKey()),
+                        departmentIds.get(entry.getKey()),
+                        departmentNames.get(entry.getKey()),
+                        entry.getValue()[1] > 0 ? entry.getValue()[0] / entry.getValue()[1] : 0d))
+                .sorted((a, b) -> Double.compare(b.getAverageScore(), a.getAverageScore()))
+                .collect(Collectors.toList());
+
+        com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto top = employees.isEmpty() ? null : employees.get(0);
+        com.epms.backend.dto.FeedbackReportDtos.EmployeeRankingDto bottom = employees.isEmpty() ? null : employees.get(employees.size() - 1);
+        return new com.epms.backend.dto.FeedbackReportDtos.TopBottomEmployeeSummaryDto(top, bottom);
+    }
+
+    public List<com.epms.backend.dto.FeedbackReportDtos.DepartmentAverageDto> getAverageByDepartment(LocalDate fromDate, LocalDate toDate) {
+        return getAverageByDepartment(fromDate, toDate, null);
+    }
+
+    public List<com.epms.backend.dto.FeedbackReportDtos.DepartmentAverageDto> getAverageByDepartment(LocalDate fromDate, LocalDate toDate, Long reviewCycleId) {
+        Instant start = fromDate != null ? fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant() : Instant.EPOCH;
+        Instant end = toDate != null ? toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant() : Instant.now();
+
+        ReviewCycle reviewCycle = reviewCycleId != null ? reviewCycleRepository.findById(reviewCycleId).orElse(null) : null;
+
+        List<Feedback> feedbacks = feedbackRepository.findAll().stream()
+                .filter(f -> f.getEvaluatee() != null && f.getEvaluatee().getDepartment() != null)
+                .filter(f -> matchesReviewCycle(f, reviewCycle))
+                .filter(f -> !f.getCreatedDate().isBefore(start) && !f.getCreatedDate().isAfter(end))
+                .collect(Collectors.toList());
+
+        Map<Long, double[]> agg = new HashMap<>(); // deptId -> [sum, count]
+        Map<Long, String> names = new HashMap<>();
+
+        for (Feedback f : feedbacks) {
+            Long did = f.getEvaluatee().getDepartment().getId();
+            names.putIfAbsent(did, f.getEvaluatee().getDepartment().getName());
+            double[] arr = agg.computeIfAbsent(did, k -> new double[2]);
+            arr[0] += f.getScore();
+            arr[1] += 1;
+        }
+
+        return agg.entrySet().stream()
+                .map(e -> new com.epms.backend.dto.FeedbackReportDtos.DepartmentAverageDto(
+                        e.getKey(),
+                        names.get(e.getKey()),
+                        e.getValue()[1] > 0 ? e.getValue()[0] / e.getValue()[1] : 0d
+                ))
+                .sorted((a, b) -> b.getAverageScore().compareTo(a.getAverageScore()))
+                .collect(Collectors.toList());
+    }
+
+    public List<com.epms.backend.dto.FeedbackReportDtos.DepartmentTrendDto> getDepartmentTrends(LocalDate fromDate, LocalDate toDate) {
+        return getDepartmentTrends(fromDate, toDate, null, null);
+    }
+
+    public List<com.epms.backend.dto.FeedbackReportDtos.DepartmentTrendDto> getDepartmentTrends(LocalDate fromDate, LocalDate toDate, Long fromReviewCycleId, Long toReviewCycleId) {
+        Instant start = fromDate != null ? fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant() : Instant.EPOCH;
+        Instant end = toDate != null ? toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant() : Instant.now();
+        ReviewCycle fromCycle = fromReviewCycleId != null ? reviewCycleRepository.findById(fromReviewCycleId).orElse(null) : null;
+        ReviewCycle toCycle = toReviewCycleId != null ? reviewCycleRepository.findById(toReviewCycleId).orElse(null) : null;
+
+        List<Feedback> feedbacks = feedbackRepository.findAll().stream()
+                .filter(f -> f.getEvaluatee() != null && f.getEvaluatee().getDepartment() != null)
+                .filter(f -> isFeedbackWithinCycleRange(f, fromCycle, toCycle))
+                .filter(f -> !f.getCreatedDate().isBefore(start) && !f.getCreatedDate().isAfter(end))
+                .collect(Collectors.toList());
+
+        boolean annualTrend = isAnnualCycle(fromCycle) || isAnnualCycle(toCycle);
+        Map<String, ReviewCycle> cycleLookup = new HashMap<>();
+        for (Feedback feedback : feedbacks) {
+            ReviewCycle cycle = getTrendCycle(feedback, annualTrend);
+            String period = getFeedbackCycleLabel(feedback, annualTrend);
+            if (cycle != null) {
+                cycleLookup.putIfAbsent(period, cycle);
+            }
+        }
+
+        List<String> periods = feedbacks.stream()
+                .map(feedback -> getFeedbackCycleLabel(feedback, annualTrend))
+                .distinct()
+                .sorted((left, right) -> compareFeedbackCycleLabels(left, right, cycleLookup))
+                .collect(Collectors.toList());
+
+        Map<Long, Map<String, double[]>> data = new LinkedHashMap<>();
+        Map<Long, String> deptNames = new HashMap<>();
+
+        for (Feedback f : feedbacks) {
+            Long did = f.getEvaluatee().getDepartment().getId();
+            deptNames.putIfAbsent(did, f.getEvaluatee().getDepartment().getName());
+            String period = getFeedbackCycleLabel(f, annualTrend);
+            Map<String, double[]> per = data.computeIfAbsent(did, k -> new LinkedHashMap<>());
+            double[] arr = per.computeIfAbsent(period, k -> new double[2]);
+            arr[0] += f.getScore() != null ? f.getScore() : 0d; arr[1] += 1;
+        }
+
+        List<com.epms.backend.dto.FeedbackReportDtos.DepartmentTrendDto> result = new ArrayList<>();
+        for (Map.Entry<Long, Map<String,double[]>> entry : data.entrySet()) {
+            Long did = entry.getKey();
+            List<com.epms.backend.dto.FeedbackReportDtos.DepartmentTrendPoint> points = new ArrayList<>();
+            Map<String,double[]> per = entry.getValue();
+            for (String period : periods) {
+                double[] arr = per.getOrDefault(period, new double[2]);
+                double avg = arr[1] > 0 ? arr[0] / arr[1] : 0d;
+                points.add(new com.epms.backend.dto.FeedbackReportDtos.DepartmentTrendPoint(period, avg));
+            }
+            result.add(new com.epms.backend.dto.FeedbackReportDtos.DepartmentTrendDto(did, deptNames.get(did), points));
+        }
+
+        return result;
+    }
+
+    public List<com.epms.backend.dto.FeedbackReportDtos.EmployeeFeedbackDetailReportDto> getEmployeeFeedbackDetailsForReport(
+            Long departmentId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            Long reviewCycleId) {
+        return getEmployeeRankingForDepartment(departmentId, fromDate, toDate, null, false, reviewCycleId).stream()
+                .filter(employee -> employee.getDepartmentId() != null)
+                .map(employee -> getEmployeeFeedbackDetailForDepartment(
+                        employee.getDepartmentId(),
+                        employee.getEmployeeId(),
+                        fromDate,
+                        toDate,
+                        reviewCycleId))
+                .collect(Collectors.toList());
+    }
+
+    private boolean isFeedbackWithinCycleRange(Feedback feedback, ReviewCycle fromCycle, ReviewCycle toCycle) {
+        ReviewCycle feedbackCycle = feedback.getReviewCycle();
+        LocalDate start = feedbackCycle != null
+                ? feedbackCycle.getStartDate()
+                : LocalDate.ofInstant(feedback.getCreatedDate(), ZoneId.systemDefault());
+        if (fromCycle != null && start.isBefore(fromCycle.getStartDate())) {
+            return false;
+        }
+        return toCycle == null || !start.isAfter(toCycle.getEndDate());
+    }
+
+    private boolean matchesReviewCycle(Feedback feedback, ReviewCycle reviewCycle) {
+        if (reviewCycle == null) {
+            return true;
+        }
+        ReviewCycle feedbackCycle = feedback.getReviewCycle();
+        if (feedbackCycle != null) {
+            return feedbackCycle.getId().equals(reviewCycle.getId());
+        }
+        LocalDate feedbackDate = LocalDate.ofInstant(feedback.getCreatedDate(), ZoneId.systemDefault());
+        return !feedbackDate.isBefore(reviewCycle.getStartDate()) && !feedbackDate.isAfter(reviewCycle.getEndDate());
+    }
+
+    private String getFeedbackCycleLabel(Feedback feedback) {
+        return getFeedbackCycleLabel(feedback, false);
+    }
+
+    private String getFeedbackCycleLabel(Feedback feedback, boolean annualTrend) {
+        ReviewCycle cycle = getTrendCycle(feedback, annualTrend);
+        if (cycle != null) {
+            if (cycle.getName() != null && !cycle.getName().isBlank()) {
+                return cycle.getName();
+            }
+            if (cycle.getCode() != null && !cycle.getCode().isBlank()) {
+                return cycle.getCode();
+            }
+        }
+        return "Unassigned Cycle";
+    }
+
+    private ReviewCycle getTrendCycle(Feedback feedback, boolean annualTrend) {
+        ReviewCycle cycle = feedback.getReviewCycle();
+        if (!annualTrend || cycle == null) {
+            return cycle;
+        }
+        if (isAnnualCycle(cycle)) {
+            return cycle;
+        }
+        return cycle.getParentCycle() != null ? cycle.getParentCycle() : cycle;
+    }
+
+    private boolean isAnnualCycle(ReviewCycle cycle) {
+        return cycle != null && ReviewCycle.CycleType.ANNUAL.equals(cycle.getCycleType());
+    }
+
+    private int compareFeedbackCycleLabels(String left, String right, Map<String, ReviewCycle> cycleLookup) {
+        ReviewCycle leftCycle = cycleLookup.get(left);
+        ReviewCycle rightCycle = cycleLookup.get(right);
+        if (leftCycle != null && rightCycle != null) {
+            int startCompare = leftCycle.getStartDate().compareTo(rightCycle.getStartDate());
+            if (startCompare != 0) {
+                return startCompare;
+            }
+            return left.compareToIgnoreCase(right);
+        }
+        if (leftCycle != null) {
+            return -1;
+        }
+        if (rightCycle != null) {
+            return 1;
+        }
+        return left.compareToIgnoreCase(right);
     }
 
     @Transactional
