@@ -322,6 +322,7 @@ public class PipReportService {
             CellStyle titleStyle = createTitleStyle(workbook);
             CellStyle headerStyle = createHeaderStyle(workbook);
             CellStyle textStyle = createTextStyle(workbook);
+            CellStyle summaryStyle = createSummaryStyle(workbook);
 
             Sheet sheet = workbook.createSheet("PIP Summary");
             int rowIndex = writeTitle(sheet, 0, "PIP Summary Report", 12, titleStyle) + 1;
@@ -337,6 +338,7 @@ public class PipReportService {
                         formatExcelDate(row.getEndDate()), row.getOverallProgress(), row.getCompletedHours(),
                         row.getTotalHours(), row.getObjectivesCount(), row.getMeetingsCount(), row.getFinalOutcome());
             }
+            writeSummaryCountRow(sheet, rowIndex, summaryStyle, 15, "Total Employee", rows.size());
 
             autosize(sheet, 15);
             workbook.write(outputStream);
@@ -475,6 +477,22 @@ public class PipReportService {
         return style;
     }
 
+    private CellStyle createSummaryStyle(Workbook workbook) {
+        Font font = workbook.createFont();
+        font.setBold(true);
+        CellStyle style = workbook.createCellStyle();
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.RIGHT);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setBorderTop(BorderStyle.DOUBLE);
+        style.setBorderBottom(BorderStyle.MEDIUM);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        return style;
+    }
+
     private int writeTitle(Sheet sheet, int rowIndex, String title, int lastColumn, CellStyle style) {
         Row row = sheet.createRow(rowIndex++);
         Cell cell = row.createCell(0);
@@ -500,6 +518,20 @@ public class PipReportService {
             Cell cell = row.createCell(i);
             cell.setCellStyle(style);
             setCellValue(cell, values[i]);
+        }
+    }
+
+    private void writeSummaryCountRow(Sheet sheet, int rowIndex, CellStyle style, int columnCount, String label,
+            int count) {
+        Row row = sheet.createRow(rowIndex);
+        for (int i = 0; i < columnCount; i++) {
+            Cell cell = row.createCell(i);
+            cell.setCellStyle(style);
+            if (i == columnCount - 2) {
+                cell.setCellValue(label);
+            } else if (i == columnCount - 1) {
+                cell.setCellValue(count);
+            }
         }
     }
 
