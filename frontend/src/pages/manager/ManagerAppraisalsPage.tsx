@@ -343,11 +343,11 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                 {/* Employee Profile */}
                                 <div className="flex items-center gap-4">
                                     <div className={`w-14 h-14 ${assignment.status === 'SUBMITTED' ? 'bg-slate-900 text-white' : 'bg-amber-100 text-amber-700'} rounded-2xl flex items-center justify-center font-black text-xl shadow-inner group-hover:scale-110 transition-transform`}>
-                                        {(assignment.employee.employeeName || assignment.employee.fullName || (assignment.employee as any).full_name || 'E').charAt(0)}
+                                        {(assignment.employee.employeeName || 'E').charAt(0)}
                                     </div>
                                     <div className="space-y-1">
                                         <h3 className="text-xl font-black text-slate-900 group-hover:text-[#5D5FEF] transition-colors">
-                                            {assignment.employee.employeeName || assignment.employee.fullName || (assignment.employee as any).full_name || 'N/A'}
+                                            {assignment.employee.employeeName || 'N/A'}
                                         </h3>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                                             ID: {assignment.employee.employeeId}
