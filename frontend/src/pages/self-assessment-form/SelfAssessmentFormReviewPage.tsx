@@ -1773,43 +1773,31 @@ Review Submissions
                       </div>
                     )}
 
-	                    {true && (
-                      <div className="flex gap-3 flex-wrap pt-2">
-                        {canHrScheduleManagerMeeting && (
-                          <button
-                            type="button"
-                            onClick={handleScheduleMeeting}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700/60 transition-all"
-                          >
-                            <CalendarDays size={16} />
-                            Schedule Meeting
-                          </button>
-                        )}
+                    {canHrRequestManagerRetake && (
+                      <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-700/60 dark:bg-slate-700/20">
                         <button
-                          onClick={() => {
-                            setApprovalMode('final');
-                            setShowApprovalModal(true);
-                          }}
-                          disabled={isDefaultSigLoading || !hasDefaultSignature}
-                          className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          type="button"
+                          onClick={() => setShowAdjustments((prev) => !prev)}
+                          aria-pressed={showAdjustments}
+                          className="flex w-full items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5D5FEF]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800"
                         >
-                          <CheckCircle2 size={16} />
-                          Approve and Finalize
+                          <div className={`relative flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${showAdjustments ? 'bg-[#5D5FEF]' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                            <div className={`absolute h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${showAdjustments ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
+                          </div>
+                          <div>
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                              Request Retake
+                            </span>
+                            <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">
+                              Select questions and add a warning comment for each retake request
+                            </p>
+                          </div>
                         </button>
-                        {canHrReopenForEmployee && (
-                          <button
-                            onClick={() => handleHrReopenForm()}
-                            disabled={isReopening || isDefaultSigLoading || !hasDefaultSignature}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                          >
-                            {isReopening ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-                            Reopen for Employee
-                          </button>
-                        )}
                       </div>
                     )}
+
                     {canHrRequestManagerRetake && showAdjustments && (
-                      <div className="space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-700/60 dark:bg-slate-700/20">
+                      <div className="space-y-3">
                         <div className="flex items-center gap-2">
                           <SlidersHorizontal size={14} className="text-amber-600 dark:text-amber-400" />
                           <p className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
@@ -1834,31 +1822,72 @@ Review Submissions
                                   />
                                   Request manager retake for this question
                                 </label>
-                                <textarea
-                                  value={retakeComments[answer.id] || ''}
-                                  onChange={(e) => handleRetakeCommentChange(answer.id, e.target.value)}
-                                  disabled={!isSelected}
-                                  rows={3}
-                                  className={filterControlClass}
-                                  placeholder="Explain what the manager should revisit"
-                                />
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                    Warning Comment <span className="text-red-500">*</span>
+                                  </label>
+                                  <textarea
+                                    value={retakeComments[answer.id] || ''}
+                                    onChange={(e) => handleRetakeCommentChange(answer.id, e.target.value)}
+                                    disabled={!isSelected}
+                                    rows={3}
+                                    className={filterControlClass}
+                                    placeholder="Explain what the manager should revisit"
+                                  />
+                                </div>
                               </div>
                             </div>
                           );
                         })}
-                        <div className="flex justify-end">
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-700/40">
+                        {canHrScheduleManagerMeeting && (
+                          <button
+                            type="button"
+                            onClick={handleScheduleMeeting}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700/60 transition-all"
+                          >
+                            <CalendarDays size={16} />
+                            Schedule Meeting
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setApprovalMode('final');
+                            setShowApprovalModal(true);
+                          }}
+                          disabled={isDefaultSigLoading || !hasDefaultSignature || showAdjustments}
+                          title={showAdjustments ? 'Turn off Request Retake to approve' : 'Approve and finalize'}
+                          className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          <CheckCircle2 size={16} />
+                          Approve and Finalize
+                        </button>
+                        {canHrRequestManagerRetake && (
                           <button
                             type="button"
                             onClick={openManagerRetakeModal}
-                            disabled={isRetakeRequesting}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            disabled={!showAdjustments || isRetakeRequesting}
+                            title={!showAdjustments ? 'Enable Request Retake to select questions' : undefined}
+                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                           >
                             <Send size={16} />
-                            Send Retake Request
+                            Request Retake
                           </button>
-                        </div>
+                        )}
+                        {canHrReopenForEmployee && (
+                          <button
+                            onClick={() => handleHrReopenForm()}
+                            disabled={isReopening || isDefaultSigLoading || !hasDefaultSignature}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          >
+                            {isReopening ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                            Reopen for Employee
+                          </button>
+                        )}
                       </div>
-                    )}
                   </div>
                 </div>
               )}
