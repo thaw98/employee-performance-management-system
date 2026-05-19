@@ -229,8 +229,9 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
         
         // Form Info
         data.push(['PERFORMANCE APPRAISAL FORM']);
-        data.push(['Assessment Date:', assessmentDate]);
-        data.push(['Effective Date:', effectiveDate]);
+        data.push(['Assessment Date:', formatCycleDate(assessmentDate)]);
+        data.push(['Effective Date:', formatCycleDate(effectiveDate)]);
+        data.push(['Deadline Date:', formatCycleDate(deadlineDate)]);
         data.push([]); // Spacer
 
         // Table Headers
@@ -275,9 +276,9 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
         // Add Metadata
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Assessment Date: ${assessmentDate}`, 14, 30);
-        doc.text(`Effective Date: ${effectiveDate}`, 14, 35);
-        doc.text(`Deadline: ${deadlineDate}`, 14, 40);
+        doc.text(`Assessment Date: ${formatCycleDate(assessmentDate)}`, 14, 30);
+        doc.text(`Effective Date: ${formatCycleDate(effectiveDate)}`, 14, 35);
+        doc.text(`Deadline: ${formatCycleDate(deadlineDate)}`, 14, 40);
 
         // Prepare Table Data
         const ratingNumbers = Array.from({ length: maxRating }, (_, i) => (maxRating - i).toString());
@@ -332,7 +333,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
             }
         });
 
-        doc.save(`Appraisal_Form_${assessmentDate}.pdf`);
+        doc.save(`Appraisal_Form_${formatCycleDate(assessmentDate)}.pdf`);
         toast.success('PDF generated successfully');
     };
 
@@ -358,9 +359,9 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                         </p>
                         {isFinalizedView && (
                             <div className="flex gap-4 mt-2">
-                                <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tight">ASMT: {assessmentDate}</span>
-                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md uppercase tracking-tight">EFF: {effectiveDate}</span>
-                                <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-md uppercase tracking-tight">DEADLINE: {deadlineDate}</span>
+                                <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tight">ASMT: {formatCycleDate(assessmentDate)}</span>
+                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md uppercase tracking-tight">EFF: {formatCycleDate(effectiveDate)}</span>
+                                <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-md uppercase tracking-tight">DEADLINE: {formatCycleDate(deadlineDate)}</span>
                                 {reviewCycleId && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tight">CYCLE ID: {reviewCycleId}</span>}
                                 <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md uppercase tracking-tight">SCALE: 1-{maxRating}</span>
                             </div>
@@ -695,6 +696,7 @@ export function AppraisalsPage() {
 
     // Target Audience State
     const [allPositions, setAllPositions] = useState<DepartmentPositionMapping[]>([]);
+    const [employeeCounts, setEmployeeCounts] = useState<Record<string, number>>({});
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -810,6 +812,13 @@ export function AppraisalsPage() {
         try {
             const posResp = await axios.get('/lookups/department-positions/active');
             setAllPositions(posResp.data.data || []);
+            
+            try {
+                const countResp = await axios.get('/lookups/department-positions/counts');
+                setEmployeeCounts(countResp.data.data || {});
+            } catch (countErr) {
+                console.error('Failed to fetch employee counts', countErr);
+            }
         } catch (err) {
             console.error('Failed to fetch criteria');
         }
@@ -1124,7 +1133,7 @@ export function AppraisalsPage() {
                                             <div className="flex items-start justify-between">
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{t.assessmentDate ? t.assessmentDate.split('-')[0] : 'N/A'}</span>
+                                                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{t.assessmentDate ? formatCycleDate(t.assessmentDate) : 'N/A'}</span>
                                                         {t.isActive && <span className="text-[10px] font-black text-white bg-emerald-500 px-2 py-0.5 rounded uppercase animate-pulse">Active</span>}
                                                     </div>
                                                     <h4 className="text-sm font-black text-slate-800 uppercase leading-tight group-hover:text-blue-600 transition-colors">{t.name}</h4>
@@ -1434,6 +1443,7 @@ export function AppraisalsPage() {
                                         const deptPositions = allPositions.filter(p => p.departmentId === deptId);
                                         const selectedCount = deptPositions.filter(p => selectedPositionIds.includes(p.id)).length;
                                         const isAllSelected = selectedCount === deptPositions.length && deptPositions.length > 0;
+                                        const totalEmployeesInDept = deptPositions.reduce((sum, p) => sum + (employeeCounts[`${deptId}_${p.positionId}`] || 0), 0);
 
                                         return (
                                             <button
@@ -1447,7 +1457,14 @@ export function AppraisalsPage() {
                                                     </div>
                                                     <div className="text-left">
                                                         <div className={`text-[11px] font-black uppercase tracking-tight ${isSelected ? 'text-white' : 'text-slate-700'}`}>{deptName}</div>
-                                                        <div className={`text-[9px] font-bold ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>{deptPositions.length} Positions</div>
+                                                        <div className="flex items-center gap-1.5 mt-1.5">
+                                                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                                                {deptPositions.length} Pos
+                                                            </span>
+                                                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${isSelected ? 'bg-white/30 text-white' : 'bg-blue-50 text-blue-600 shadow-sm shadow-blue-100/50'}`}>
+                                                                {totalEmployeesInDept} Active Emp
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 {selectedCount > 0 && (
@@ -1515,10 +1532,16 @@ export function AppraisalsPage() {
                                                                 />
                                                             </div>
                                                             <div className="flex-1">
-                                                                <div className="text-[11px] font-black text-slate-700 leading-tight mb-1 uppercase group-hover:text-blue-600 transition-colors">{pos.positionName}</div>
-                                                                <div className="flex items-center gap-2">
+                                                                <div className="text-[11px] font-black text-slate-700 leading-tight mb-2 uppercase group-hover:text-blue-600 transition-colors">{pos.positionName}</div>
+                                                                <div className="flex items-center gap-2 flex-wrap">
                                                                     <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-wider">{pos.levelCodeName}</span>
-                                                                    <span className="text-[8px] font-bold text-slate-400">ID: {pos.id}</span>
+                                                                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider border ${
+                                                                        (employeeCounts[`${pos.departmentId}_${pos.positionId}`] || 0) > 0 
+                                                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-50' 
+                                                                        : 'bg-rose-50 text-rose-500 border-rose-100'
+                                                                    }`}>
+                                                                        {(employeeCounts[`${pos.departmentId}_${pos.positionId}`] || 0)} Active Emp
+                                                                    </span>
                                                                 </div>
                                                             </div>
                                                         </label>

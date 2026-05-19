@@ -20,6 +20,11 @@ import com.epms.backend.repository.LevelCodeRepository;
 import com.epms.backend.repository.PositionRepository;
 import com.epms.backend.repository.RoleRepository;
 
+import java.util.Map;
+import java.util.HashMap;
+
+import com.epms.backend.repository.EmployeeRepository;
+
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -32,6 +37,7 @@ public class LookupController {
 	private final DepartmentRepository departmentRepository;
 	private final DepartmentPositionRepository departmentPositionRepository;
 	private final PositionRepository positionRepository;
+	private final EmployeeRepository employeeRepository;
 
 	@GetMapping("/level-codes/active")
 	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
@@ -113,6 +119,23 @@ public class LookupController {
 				.map(p -> new PositionOptionDto(p.getId(), p.getName(), p.getCode()))
 				.collect(Collectors.toList());
 		return ResponseEntity.ok(ApiResponse.ok("Active positions fetched successfully.", positions));
+	}
+
+	@GetMapping("/department-positions/counts")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+	public ResponseEntity<ApiResponse<Map<String, Long>>> getEmployeeCounts() {
+		List<Object[]> results = employeeRepository.countActiveEmployeesPerDepartmentAndPosition();
+		System.out.println("DEBUG: countActiveEmployeesPerDepartmentAndPosition results size: " + results.size());
+		Map<String, Long> counts = new HashMap<>();
+		for (Object[] result : results) {
+			System.out.println("DEBUG: row: " + java.util.Arrays.toString(result));
+			Long deptId = ((Number) result[0]).longValue();
+			Long posId = ((Number) result[1]).longValue();
+			Long count = ((Number) result[2]).longValue();
+			counts.put(deptId + "_" + posId, count);
+		}
+		System.out.println("DEBUG: final counts map: " + counts);
+		return ResponseEntity.ok(ApiResponse.ok("Employee counts fetched successfully.", counts));
 	}
 
 	public record LevelCodeOptionDto(Long id, String code, String description) {

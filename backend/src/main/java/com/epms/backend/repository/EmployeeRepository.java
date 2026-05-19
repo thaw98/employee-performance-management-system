@@ -115,4 +115,14 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 			order by e.id asc
 			""")
 	List<Employee> findAllForExport();
+
+	@Query("""
+			SELECT e.department.id, e.position.id, COUNT(e)
+			FROM Employee e
+			WHERE e.department IS NOT NULL
+			  AND e.position IS NOT NULL
+			  AND e.employmentStatus = com.epms.backend.entity.EmployeeStatus.ACTIVE
+			GROUP BY e.department.id, e.position.id
+			""")
+	List<Object[]> countActiveEmployeesPerDepartmentAndPosition();
 }
