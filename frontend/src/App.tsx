@@ -72,6 +72,7 @@ import { AssignSelfAssessmentFormsPage } from './pages/self-assessment-form/Assi
 import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
 import { SelfAssessmentAssignedEmployeesPage } from './pages/self-assessment-form/SelfAssessmentAssignedEmployeesPage';
 import { SelfAssessmentScoreRecordsPage } from './pages/self-assessment-form/SelfAssessmentScoreRecordsPage';
+import { SelfAssessmentAuditLogsPage } from './pages/self-assessment-form/SelfAssessmentAuditLogsPage';
 
 // Meetings
 import { MeetingsPage } from './pages/manager/MeetingsPage';
@@ -204,6 +205,7 @@ function App() {
             <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
             <Route path="self-assessment/history" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route path="self-assessment/audit-logs" element={<SelfAssessmentAuditLogsPage />} />
             <Route
               path="self-assessment/score-records"
               element={<Navigate to="/hr/self-assessment/history" replace />}
