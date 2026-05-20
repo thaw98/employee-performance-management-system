@@ -7,6 +7,7 @@ public record SelfAssessmentSummaryReportData(
         String cycleName,
         int totalRecords,
         String averageScore,
+        String highestScore,
         String lowestScore,
         List<SelfAssessmentSummaryReportRow> rows
 ) {}

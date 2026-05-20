@@ -17,6 +17,7 @@
     <parameter name="CYCLE_NAME" class="java.lang.String"/>
     <parameter name="TOTAL_RECORDS" class="java.lang.String"/>
     <parameter name="AVERAGE_SCORE" class="java.lang.String"/>
+    <parameter name="HIGHEST_SCORE" class="java.lang.String"/>
     <parameter name="LOWEST_SCORE" class="java.lang.String"/>
     <parameter name="GENERATED_AT" class="java.lang.String"/>
 
@@ -32,26 +33,28 @@
     <field name="finalApprovalDate" class="java.lang.String"/>
 
     <title>
-        <band height="140">
+        <band height="150">
             <rectangle>
                 <reportElement x="0" y="0" width="782" height="56" backcolor="#1B2A4A" uuid="9706f0c4-28a0-43fc-a402-f25f3632b701"/>
+                <graphicElement><pen lineWidth="0.0"/></graphicElement>
             </rectangle>
             <image scaleImage="RetainShape" hAlign="Center" vAlign="Middle">
-                <reportElement x="14" y="9" width="38" height="38" uuid="9706f0c4-28a0-43fc-a402-f25f3632b702"/>
-                <imageExpression><![CDATA[Thread.currentThread().getContextClassLoader().getResourceAsStream("reports/company-logo.png")]]></imageExpression>
+                <reportElement x="14" y="9" width="74" height="38" uuid="9706f0c4-28a0-43fc-a402-f25f3632b702"/>
+                <imageExpression><![CDATA[Thread.currentThread().getContextClassLoader().getResourceAsStream("reports/self-assessment-company-logo.png")]]></imageExpression>
             </image>
             <textField>
-                <reportElement x="60" y="7" width="400" height="18" forecolor="#FFFFFF" uuid="9706f0c4-28a0-43fc-a402-f25f3632b703"/>
+                <reportElement x="96" y="7" width="400" height="18" forecolor="#FFFFFF" uuid="9706f0c4-28a0-43fc-a402-f25f3632b703"/>
                 <textElement><font fontName="DejaVu Sans" size="12" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{COMPANY_NAME}]]></textFieldExpression>
             </textField>
             <textField>
-                <reportElement x="60" y="28" width="500" height="22" forecolor="#93C5FD" uuid="9706f0c4-28a0-43fc-a402-f25f3632b704"/>
+                <reportElement x="96" y="28" width="500" height="22" forecolor="#93C5FD" uuid="9706f0c4-28a0-43fc-a402-f25f3632b704"/>
                 <textElement><font fontName="DejaVu Sans" size="15" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
             </textField>
             <rectangle radius="4">
                 <reportElement x="684" y="16" width="86" height="24" backcolor="#DC2626" uuid="9706f0c4-28a0-43fc-a402-f25f3632b705"/>
+                <graphicElement><pen lineWidth="0.0"/></graphicElement>
             </rectangle>
             <staticText>
                 <reportElement x="684" y="19" width="86" height="18" forecolor="#FFFFFF" uuid="9706f0c4-28a0-43fc-a402-f25f3632b706"/>
@@ -61,62 +64,87 @@
 
             <rectangle>
                 <reportElement x="0" y="66" width="4" height="44" backcolor="#3B82F6" uuid="9706f0c4-28a0-43fc-a402-f25f3632b707"/>
+                <graphicElement><pen lineWidth="0.0"/></graphicElement>
             </rectangle>
             <rectangle radius="2">
-                <reportElement x="4" y="66" width="246" height="44" backcolor="#EFF6FF" forecolor="#BFDBFE" uuid="9706f0c4-28a0-43fc-a402-f25f3632b736"/>
+                <reportElement x="4" y="66" width="184" height="44" backcolor="#EFF6FF" forecolor="#BFDBFE" uuid="9706f0c4-28a0-43fc-a402-f25f3632b736"/>
             </rectangle>
             <rectangle>
-                <reportElement x="266" y="66" width="4" height="44" backcolor="#10B981" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70b"/>
+                <reportElement x="198" y="66" width="4" height="44" backcolor="#10B981" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70b"/>
+                <graphicElement><pen lineWidth="0.0"/></graphicElement>
             </rectangle>
             <rectangle radius="2">
-                <reportElement x="270" y="66" width="246" height="44" backcolor="#ECFDF5" forecolor="#A7F3D0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70c"/>
+                <reportElement x="202" y="66" width="184" height="44" backcolor="#ECFDF5" forecolor="#A7F3D0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70c"/>
             </rectangle>
             <rectangle>
-                <reportElement x="532" y="66" width="4" height="44" backcolor="#F59E0B" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70f"/>
+                <reportElement x="396" y="66" width="4" height="44" backcolor="#7C3AED" uuid="9706f0c4-28a0-43fc-a402-f25f3632b737"/>
+                <graphicElement><pen lineWidth="0.0"/></graphicElement>
             </rectangle>
             <rectangle radius="2">
-                <reportElement x="536" y="66" width="246" height="44" backcolor="#FFFBEB" forecolor="#FDE68A" uuid="9706f0c4-28a0-43fc-a402-f25f3632b710"/>
+                <reportElement x="400" y="66" width="184" height="44" backcolor="#F5F3FF" forecolor="#DDD6FE" uuid="9706f0c4-28a0-43fc-a402-f25f3632b738"/>
+            </rectangle>
+            <rectangle>
+                <reportElement x="594" y="66" width="4" height="44" backcolor="#F59E0B" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70f"/>
+                <graphicElement><pen lineWidth="0.0"/></graphicElement>
+            </rectangle>
+            <rectangle radius="2">
+                <reportElement x="598" y="66" width="184" height="44" backcolor="#FFFBEB" forecolor="#FDE68A" uuid="9706f0c4-28a0-43fc-a402-f25f3632b710"/>
             </rectangle>
 
             <staticText>
-                <reportElement x="18" y="72" width="100" height="12" forecolor="#3B82F6" uuid="9706f0c4-28a0-43fc-a402-f25f3632b709"/>
+                <reportElement x="14" y="72" width="100" height="12" forecolor="#3B82F6" uuid="9706f0c4-28a0-43fc-a402-f25f3632b709"/>
                 <textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement>
                 <text><![CDATA[TOTAL RECORDS]]></text>
             </staticText>
             <staticText>
-                <reportElement x="284" y="72" width="100" height="12" forecolor="#10B981" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70d"/>
+                <reportElement x="212" y="72" width="100" height="12" forecolor="#10B981" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70d"/>
                 <textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement>
                 <text><![CDATA[AVERAGE SCORE]]></text>
             </staticText>
             <staticText>
-                <reportElement x="550" y="72" width="100" height="12" forecolor="#D97706" uuid="9706f0c4-28a0-43fc-a402-f25f3632b711"/>
+                <reportElement x="410" y="72" width="100" height="12" forecolor="#7C3AED" uuid="9706f0c4-28a0-43fc-a402-f25f3632b739"/>
+                <textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement>
+                <text><![CDATA[HIGHEST SCORE]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="608" y="72" width="100" height="12" forecolor="#D97706" uuid="9706f0c4-28a0-43fc-a402-f25f3632b711"/>
                 <textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement>
                 <text><![CDATA[LOWEST SCORE]]></text>
             </staticText>
 
             <textField isBlankWhenNull="false">
-                <reportElement mode="Transparent" x="18" y="86" width="220" height="20" forecolor="#1E3A5F" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70a"/>
+                <reportElement mode="Transparent" x="14" y="86" width="168" height="20" forecolor="#1E3A5F" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70a"/>
                 <textElement verticalAlignment="Middle"><font fontName="DejaVu Sans" size="16" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{TOTAL_RECORDS} == null ? "0" : String.valueOf($P{TOTAL_RECORDS})]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="false">
-                <reportElement mode="Transparent" x="284" y="86" width="220" height="20" forecolor="#065F46" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70e"/>
+                <reportElement mode="Transparent" x="212" y="86" width="168" height="20" forecolor="#065F46" uuid="9706f0c4-28a0-43fc-a402-f25f3632b70e"/>
                 <textElement verticalAlignment="Middle"><font fontName="DejaVu Sans" size="16" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{AVERAGE_SCORE} == null ? "-" : String.valueOf($P{AVERAGE_SCORE})]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="false">
-                <reportElement mode="Transparent" x="550" y="86" width="220" height="20" forecolor="#78350F" uuid="9706f0c4-28a0-43fc-a402-f25f3632b712"/>
+                <reportElement mode="Transparent" x="410" y="86" width="168" height="20" forecolor="#5B21B6" uuid="9706f0c4-28a0-43fc-a402-f25f3632b73a"/>
+                <textElement verticalAlignment="Middle"><font fontName="DejaVu Sans" size="16" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{HIGHEST_SCORE} == null ? "-" : String.valueOf($P{HIGHEST_SCORE})]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="false">
+                <reportElement mode="Transparent" x="608" y="86" width="168" height="20" forecolor="#78350F" uuid="9706f0c4-28a0-43fc-a402-f25f3632b712"/>
                 <textElement verticalAlignment="Middle"><font fontName="DejaVu Sans" size="16" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{LOWEST_SCORE} == null ? "-" : String.valueOf($P{LOWEST_SCORE})]]></textFieldExpression>
             </textField>
 
             <textField>
-                <reportElement x="0" y="118" width="600" height="14" forecolor="#64748B" uuid="9706f0c4-28a0-43fc-a402-f25f3632b713"/>
-                <textElement><font fontName="DejaVu Sans" size="8"/></textElement>
-                <textFieldExpression><![CDATA["Review Cycle: " + $P{CYCLE_NAME} + "     |     Generated: " + $P{GENERATED_AT}]]></textFieldExpression>
+                <reportElement x="0" y="118" width="782" height="12" forecolor="#64748B" uuid="9706f0c4-28a0-43fc-a402-f25f3632b73b"/>
+                <textElement textAlignment="Right"><font fontName="DejaVu Sans" size="8"/></textElement>
+                <textFieldExpression><![CDATA["Generated: " + $P{GENERATED_AT}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="0" y="130" width="782" height="14" forecolor="#000000" uuid="9706f0c4-28a0-43fc-a402-f25f3632b713"/>
+                <textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["Review Cycle: " + $P{CYCLE_NAME}]]></textFieldExpression>
             </textField>
             <line>
-                <reportElement x="0" y="138" width="782" height="1" forecolor="#CBD5E1" uuid="9706f0c4-28a0-43fc-a402-f25f3632b714"/>
+                <reportElement x="0" y="146" width="782" height="1" forecolor="#CBD5E1" uuid="9706f0c4-28a0-43fc-a402-f25f3632b714"/>
             </line>
         </band>
     </title>
@@ -125,7 +153,19 @@
         <band height="26">
             <rectangle>
                 <reportElement x="0" y="0" width="782" height="24" backcolor="#2D3748" uuid="9706f0c4-28a0-43fc-a402-f25f3632b715"/>
+                <graphicElement><pen lineWidth="0.0"/></graphicElement>
             </rectangle>
+            <line direction="BottomUp"><reportElement x="0" y="0" width="1" height="24" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b740"/></line>
+            <line direction="BottomUp"><reportElement x="28" y="0" width="1" height="24" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b741"/></line>
+            <line direction="BottomUp"><reportElement x="146" y="0" width="1" height="24" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b742"/></line>
+            <line direction="BottomUp"><reportElement x="210" y="0" width="1" height="24" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b743"/></line>
+            <line direction="BottomUp"><reportElement x="310" y="0" width="1" height="24" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b744"/></line>
+            <line direction="BottomUp"><reportElement x="400" y="0" width="1" height="24" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b745"/></line>
+            <line direction="BottomUp"><reportElement x="458" y="0" width="1" height="24" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b746"/></line>
+            <line direction="BottomUp"><reportElement x="548" y="0" width="1" height="24" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b747"/></line>
+            <line direction="BottomUp"><reportElement x="634" y="0" width="1" height="24" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b748"/></line>
+            <line direction="BottomUp"><reportElement x="710" y="0" width="1" height="24" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b749"/></line>
+            <line direction="BottomUp"><reportElement x="781" y="0" width="1" height="24" forecolor="#475569" uuid="9706f0c4-28a0-43fc-a402-f25f3632b74a"/></line>
             <staticText><reportElement x="6" y="6" width="22" height="14" forecolor="#FFFFFF" uuid="9706f0c4-28a0-43fc-a402-f25f3632b716"/><textElement><font fontName="DejaVu Sans" size="7.5" isBold="true"/></textElement><text><![CDATA[No.]]></text></staticText>
             <staticText><reportElement x="32" y="6" width="114" height="14" forecolor="#FFFFFF" uuid="9706f0c4-28a0-43fc-a402-f25f3632b717"/><textElement><font fontName="DejaVu Sans" size="7.5" isBold="true"/></textElement><text><![CDATA[Employee Name]]></text></staticText>
             <staticText><reportElement x="150" y="6" width="60" height="14" forecolor="#FFFFFF" uuid="9706f0c4-28a0-43fc-a402-f25f3632b718"/><textElement><font fontName="DejaVu Sans" size="7.5" isBold="true"/></textElement><text><![CDATA[Staff No.]]></text></staticText>
@@ -145,10 +185,22 @@
                 <reportElement x="0" y="0" width="782" height="20" backcolor="#F8FAFC" uuid="9706f0c4-28a0-43fc-a402-f25f3632b720">
                     <printWhenExpression><![CDATA[Boolean.valueOf($F{rowNumber}.intValue() % 2 == 0)]]></printWhenExpression>
                 </reportElement>
+                <graphicElement><pen lineWidth="0.0"/></graphicElement>
             </rectangle>
             <line>
                 <reportElement x="0" y="20" width="782" height="1" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b721"/>
             </line>
+            <line direction="BottomUp"><reportElement x="0" y="0" width="1" height="20" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b750"/></line>
+            <line direction="BottomUp"><reportElement x="28" y="0" width="1" height="20" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b751"/></line>
+            <line direction="BottomUp"><reportElement x="146" y="0" width="1" height="20" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b752"/></line>
+            <line direction="BottomUp"><reportElement x="210" y="0" width="1" height="20" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b753"/></line>
+            <line direction="BottomUp"><reportElement x="310" y="0" width="1" height="20" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b754"/></line>
+            <line direction="BottomUp"><reportElement x="400" y="0" width="1" height="20" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b755"/></line>
+            <line direction="BottomUp"><reportElement x="458" y="0" width="1" height="20" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b756"/></line>
+            <line direction="BottomUp"><reportElement x="548" y="0" width="1" height="20" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b757"/></line>
+            <line direction="BottomUp"><reportElement x="634" y="0" width="1" height="20" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b758"/></line>
+            <line direction="BottomUp"><reportElement x="710" y="0" width="1" height="20" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b759"/></line>
+            <line direction="BottomUp"><reportElement x="781" y="0" width="1" height="20" forecolor="#E2E8F0" uuid="9706f0c4-28a0-43fc-a402-f25f3632b75a"/></line>
             <textField textAdjust="StretchHeight"><reportElement x="6" y="4" width="22" height="14" uuid="9706f0c4-28a0-43fc-a402-f25f3632b722"/><textElement><font fontName="DejaVu Sans" size="7.5"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{rowNumber})]]></textFieldExpression></textField>
             <textField textAdjust="StretchHeight"><reportElement x="32" y="4" width="114" height="14" uuid="9706f0c4-28a0-43fc-a402-f25f3632b723"/><textElement><font fontName="DejaVu Sans" size="7.5"/></textElement><textFieldExpression><![CDATA[$F{employeeName}]]></textFieldExpression></textField>
             <textField textAdjust="StretchHeight"><reportElement x="150" y="4" width="60" height="14" uuid="9706f0c4-28a0-43fc-a402-f25f3632b724"/><textElement><font fontName="DejaVu Sans" size="7.5"/></textElement><textFieldExpression><![CDATA[$F{staffNo}]]></textFieldExpression></textField>
