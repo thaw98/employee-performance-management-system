@@ -94,6 +94,7 @@ const getPipEmployeeRecordId = (pip: Pip) => pip.employee.employee?.id
 const getPipStaffNo = (pip: Pip) => pip.employee.employeeId || 'N/A'
 const getPipDepartmentName = (pip: Pip) => getDepartmentName(pip.employee.employee as EmployeeDisplay | undefined)
 const getPipPositionName = (pip: Pip) => getPositionName(pip.employee.employee as EmployeeDisplay | undefined)
+const formatKpiScore = (score?: number | null) => score == null ? 'N/A' : `${score}%`
 const getPipObjectiveSummary = (pip: Pip) => pip.objectives
   .map((objective) => `${objective.description} (${objective.progressPercentage}%)`)
   .join('; ')
@@ -117,6 +118,7 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
       'Department',
       'Position',
       'Manager',
+      'KPI Score',
       'Status',
       'Start Date',
       'End Date',
@@ -149,6 +151,7 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
       getPipDepartmentName(pip),
       getPipPositionName(pip),
       getPipManagerName(pip),
+      formatKpiScore(pip.kpiScore),
       getStatusDisplayLabel(pip.status, pip.finalOutcome),
       formatDateValue(pip.startDate),
       formatDateValue(pip.endDate),
@@ -359,7 +362,12 @@ export default function PipMonitoringPage() {
   const endIndex = Math.min(safeCurrentPage * rowsPerPage, filteredPips.length)
   const paginatedPips = filteredPips.slice((safeCurrentPage - 1) * rowsPerPage, safeCurrentPage * rowsPerPage)
   const selectedPip = selectedPipId == null ? undefined : filteredPips.find((pip) => pip.id === selectedPipId)
-  const exportTargetPips = selectedPip ? [selectedPip] : filteredPips
+  const exportTargetPips = useMemo(() => selectedPip ? [selectedPip] : filteredPips, [filteredPips, selectedPip])
+  const exportEmployeeCount = useMemo(() => new Set(
+    exportTargetPips
+      .map((pip) => getPipEmployeeRecordId(pip) ?? getPipStaffNo(pip))
+      .filter(Boolean),
+  ).size, [exportTargetPips])
   const onePagePipDetailRows = buildPipExportRows(exportTargetPips.map((pip) => ({ pip, trainingHistory: [] }))).details
 
   const getPipExportBundles = async (): Promise<PipExportBundle[]> => {
@@ -378,6 +386,7 @@ export default function PipMonitoringPage() {
     ['Department', selectedDepartmentName],
     ['Position', selectedPositionName],
     ['Employee', selectedEmployeeName],
+    ['Total Employees', exportEmployeeCount],
     ['Status', filterStatus ? filterStatus.replace(/_/g, ' ') : 'All statuses'],
     ['Search Keyword', searchName.trim() || 'None'],
     ['PIP Scope', selectedPip ? `PIP #${selectedPip.id}` : 'All matching PIPs'],
@@ -415,6 +424,7 @@ export default function PipMonitoringPage() {
       doc.setFontSize(9)
       doc.text(`Range: ${getDateRangeLabel(startDate, endDate)}`, 36, 56)
       doc.text(`Employee: ${selectedEmployeeName}`, 36, 70)
+      doc.text(`Total Employees: ${exportEmployeeCount}`, 36, 84)
       doc.text(`Department: ${selectedDepartmentName}`, 260, 56)
       doc.text(`Position: ${selectedPositionName}`, 260, 70)
       doc.text(`Status: ${filterStatus ? filterStatus.replace(/_/g, ' ') : 'All statuses'}`, 520, 56)
@@ -423,7 +433,7 @@ export default function PipMonitoringPage() {
       autoTable(doc, {
         head: [rows.details[0].map((heading) => String(heading))],
         body: rows.details.slice(1).map((row) => row.map((cell) => String(cell || '-'))),
-        startY: 92,
+        startY: 104,
         theme: 'grid',
         styles: {
           fontSize: 6,
@@ -463,20 +473,20 @@ export default function PipMonitoringPage() {
   }
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="p-4 sm:p-8 max-w-[1600px] mx-auto">
+      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">PIP Monitoring</h1>
           <p className="text-slate-500 mt-1">Manage and track performance improvement plans across your scope.</p>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
           {(isHr || isManager) && (
             <>
               <button
                 type="button"
                 onClick={handleExportPips}
                 disabled={exportTargetPips.length === 0}
-                className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:flex-none"
               >
                 <i className="bi bi-download" />
                 Export
@@ -485,7 +495,7 @@ export default function PipMonitoringPage() {
                 type="button"
                 onClick={handlePrintPips}
                 disabled={exportTargetPips.length === 0}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 sm:flex-none"
               >
                 <i className="bi bi-printer" />
                 PDF
@@ -495,7 +505,7 @@ export default function PipMonitoringPage() {
           {canCreate && (
             <Link
               to="create"
-              className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 hover:scale-105 active:scale-95"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 hover:scale-105 active:scale-95 sm:flex-none"
             >
               <i className="bi bi-plus-lg" />
               Create PIP
@@ -666,12 +676,14 @@ export default function PipMonitoringPage() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
-        <table className="w-full text-left">
+        <div className="overflow-x-auto">
+        <table className="min-w-[980px] w-full text-left">
           <thead className="border-b border-slate-200 bg-slate-50/50">
             <tr>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Employee</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Position</th>
               {isHr && <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Department</th>}
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">KPI Score</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Status</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Start Date</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">End Date</th>
@@ -698,6 +710,9 @@ export default function PipMonitoringPage() {
                       {getDepartmentName(emp)}
                     </td>
                   )}
+                  <td className="px-6 py-5 text-sm font-bold text-slate-700">
+                    {formatKpiScore(pip.kpiScore)}
+                  </td>
                   <td className="px-6 py-5 text-center">
                     <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-100 text-green-700' :
                       pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-100 text-red-700' :
@@ -753,7 +768,7 @@ export default function PipMonitoringPage() {
             })}
             {filteredPips.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-6 py-20 text-center">
+                <td colSpan={isHr ? 9 : 8} className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center justify-center text-slate-400">
                     <i className="bi bi-clipboard-x text-5xl mb-4 opacity-20" />
                     <p className="text-lg font-medium">No PIP records found matching your criteria.</p>
@@ -764,6 +779,7 @@ export default function PipMonitoringPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {(isHr || isManager) && hasActiveFilters && exportTargetPips.length > 0 && (

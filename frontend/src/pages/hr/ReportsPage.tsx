@@ -43,6 +43,8 @@ const formatDateValue = (value?: string) => {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+const formatKpiScore = (score?: number | null) => score == null ? '-' : `${score}%`
+
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<'summary' | 'progress'>('summary')
   const [statusFilter, setStatusFilter] = useState('')
@@ -206,10 +208,11 @@ export default function ReportsPage() {
 
   const stats = useMemo(() => {
     const total = summaryData.length
+    const totalEmployees = new Set(summaryData.map((s) => s.employeeStaffNo || s.employeeName).filter(Boolean)).size
     const active = summaryData.filter((s) => s.status === 'ACTIVE').length
     const completed = summaryData.filter((s) => s.status === 'COMPLETED').length
     const closed = summaryData.filter((s) => s.status === 'CLOSED' || s.status === 'AUTO_CLOSED').length
-    return { total, active, completed, closed }
+    return { total, totalEmployees, active, completed, closed }
   }, [summaryData])
 
   const statusChartData = useMemo(() => {
@@ -439,10 +442,10 @@ export default function ReportsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">Total PIPs</div>
+                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.totalEmployees}</div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400">Total Employees</div>
                 </div>
                 <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
                   <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.active}</div>
@@ -521,6 +524,7 @@ export default function ReportsPage() {
                           <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Department</th>
                           <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Position</th>
                           <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Manager</th>
+                          <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">KPI Score</th>
                           <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Status</th>
                           <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Start Date</th>
                           <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">End Date</th>
@@ -545,6 +549,7 @@ export default function ReportsPage() {
                             <td className="py-3 px-4 text-slate-900 dark:text-slate-100">{item.departmentName}</td>
                             <td className="py-3 px-4 text-slate-900 dark:text-slate-100">{item.positionName || '-'}</td>
                             <td className="py-3 px-4 text-slate-900 dark:text-slate-100">{item.managerName}</td>
+                            <td className="py-3 px-4 text-slate-900 dark:text-slate-100">{formatKpiScore(item.kpiScore)}</td>
                             <td className="py-3 px-4">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.status === 'ACTIVE' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
                                   item.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
@@ -693,10 +698,14 @@ export default function ReportsPage() {
                 <div className="text-center py-8 text-slate-500">Loading...</div>
               ) : progressData ? (
                 <>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{progressData.totalPips}</div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">Total PIPs</div>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{progressData.totalEmployees}</div>
+                      <div className="text-sm text-slate-500 dark:text-slate-400">Total Employees</div>
                     </div>
                     <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
                       <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{progressData.activePips}</div>
@@ -712,7 +721,7 @@ export default function ReportsPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{progressData.averageProgress?.toFixed(1)}%</div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">Avg Progress</div>
@@ -896,6 +905,12 @@ export default function ReportsPage() {
                           />
                         </div>
                         <span className="text-sm font-medium">{individualPipData.overallProgress}%</span>
+                      </div>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+                      <div className="text-xs text-slate-500 mb-1">KPI Score</div>
+                      <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                        {formatKpiScore(individualPipData.kpiScore)}
                       </div>
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">

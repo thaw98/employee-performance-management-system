@@ -14,6 +14,7 @@
               uuid="6c32ef44-735a-4b18-8a54-a353df4cc001">
     <parameter name="REPORT_TITLE" class="java.lang.String"/>
     <parameter name="FILTER_DESCRIPTION" class="java.lang.String"/>
+    <parameter name="TOTAL_EMPLOYEES" class="java.lang.Long"/>
     <parameter name="GENERATED_AT" class="java.lang.String"/>
     <parameter name="COMPANY_LOGO" class="java.lang.String"/>
 
@@ -23,6 +24,7 @@
     <field name="departmentName" class="java.lang.String"/>
     <field name="positionName" class="java.lang.String"/>
     <field name="managerName" class="java.lang.String"/>
+    <field name="kpiScore" class="java.math.BigDecimal"/>
     <field name="status" class="java.lang.String"/>
     <field name="startDate" class="java.time.LocalDate"/>
     <field name="endDate" class="java.time.LocalDate"/>
@@ -64,33 +66,35 @@
             <rectangle>
                 <reportElement x="0" y="0" width="782" height="22" backcolor="#EEF2F6" uuid="6c32ef44-735a-4b18-8a54-a353df4cc005"/>
             </rectangle>
-            <staticText><reportElement x="4" y="4" width="42" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc006"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[PIP]]></text></staticText>
-            <staticText><reportElement x="50" y="4" width="100" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc007"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Employee]]></text></staticText>
-            <staticText><reportElement x="154" y="4" width="82" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc008"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Department]]></text></staticText>
-            <staticText><reportElement x="240" y="4" width="82" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc024"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Position]]></text></staticText>
-            <staticText><reportElement x="326" y="4" width="82" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc009"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Manager]]></text></staticText>
-            <staticText><reportElement x="412" y="4" width="60" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc010"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Status]]></text></staticText>
-            <staticText><reportElement x="476" y="4" width="66" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc011"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Start]]></text></staticText>
-            <staticText><reportElement x="546" y="4" width="66" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc012"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[End]]></text></staticText>
-            <staticText><reportElement x="616" y="4" width="60" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc013"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Progress]]></text></staticText>
-            <staticText><reportElement x="680" y="4" width="50" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc014"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Hours]]></text></staticText>
-            <staticText><reportElement x="734" y="4" width="44" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc025"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Outcome]]></text></staticText>
+            <staticText><reportElement x="4" y="4" width="36" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc006"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[PIP]]></text></staticText>
+            <staticText><reportElement x="44" y="4" width="90" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc007"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Employee]]></text></staticText>
+            <staticText><reportElement x="138" y="4" width="72" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc008"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Department]]></text></staticText>
+            <staticText><reportElement x="214" y="4" width="72" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc024"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Position]]></text></staticText>
+            <staticText><reportElement x="290" y="4" width="72" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc009"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Manager]]></text></staticText>
+            <staticText><reportElement x="366" y="4" width="46" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc031"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[KPI]]></text></staticText>
+            <staticText><reportElement x="416" y="4" width="58" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc010"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Status]]></text></staticText>
+            <staticText><reportElement x="478" y="4" width="62" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc011"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Start]]></text></staticText>
+            <staticText><reportElement x="544" y="4" width="62" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc012"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[End]]></text></staticText>
+            <staticText><reportElement x="610" y="4" width="54" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc013"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Progress]]></text></staticText>
+            <staticText><reportElement x="668" y="4" width="44" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc014"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Hours]]></text></staticText>
+            <staticText><reportElement x="716" y="4" width="62" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc025"/><textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement><text><![CDATA[Outcome]]></text></staticText>
         </band>
     </columnHeader>
 
     <detail>
         <band height="24">
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="4" y="4" width="42" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc015"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{pipId})]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="50" y="4" width="100" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc016"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{employeeName}]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="154" y="4" width="82" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc017"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{departmentName}]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="240" y="4" width="82" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc026"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{positionName}]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="326" y="4" width="82" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc018"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{managerName}]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="412" y="4" width="60" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc019"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{status}]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="476" y="4" width="66" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc020"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{startDate} == null ? "-" : $F{startDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="546" y="4" width="66" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc021"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{endDate} == null ? "-" : $F{endDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="616" y="4" width="60" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc022"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{overallProgress}) + "%"]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="680" y="4" width="50" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc023"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{completedHours}) + "/" + String.valueOf($F{totalHours})]]></textFieldExpression></textField>
-            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="734" y="4" width="44" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc027"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{finalOutcome}]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="4" y="4" width="36" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc015"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{pipId})]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="44" y="4" width="90" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc016"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{employeeName}]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="138" y="4" width="72" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc017"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{departmentName}]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="214" y="4" width="72" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc026"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{positionName}]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="290" y="4" width="72" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc018"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{managerName}]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="366" y="4" width="46" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc032"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{kpiScore} == null ? "-" : String.valueOf($F{kpiScore}) + "%"]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="416" y="4" width="58" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc019"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{status}]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="478" y="4" width="62" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc020"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{startDate} == null ? "-" : $F{startDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="544" y="4" width="62" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc021"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{endDate} == null ? "-" : $F{endDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="610" y="4" width="54" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc022"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{overallProgress}) + "%"]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="668" y="4" width="44" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc023"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{completedHours}) + "/" + String.valueOf($F{totalHours})]]></textFieldExpression></textField>
+            <textField textAdjust="StretchHeight"><reportElement stretchType="RelativeToTallestObject" x="716" y="4" width="62" height="14" uuid="6c32ef44-735a-4b18-8a54-a353df4cc027"/><textElement><font fontName="DejaVu Sans" size="8"/></textElement><textFieldExpression><![CDATA[$F{finalOutcome}]]></textFieldExpression></textField>
         </band>
     </detail>
 
@@ -104,7 +108,7 @@
                 <textElement textAlignment="Right">
                     <font fontName="DejaVu Sans" size="9" isBold="true"/>
                 </textElement>
-                <textFieldExpression><![CDATA["Total Employee: " + String.valueOf($V{REPORT_COUNT})]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Total Employees: " + String.valueOf($P{TOTAL_EMPLOYEES})]]></textFieldExpression>
             </textField>
         </band>
     </summary>

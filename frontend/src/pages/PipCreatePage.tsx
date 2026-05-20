@@ -230,7 +230,7 @@ export default function PipCreatePage() {
                     label="Select Low Performer"
                     placeholder="Search by name, ID or department"
                     error={Boolean(errors.employeeId)}
-                    helperText={errors.employeeId?.message || "Only employees with KPI score < 70% are shown."}
+                    helperText={errors.employeeId?.message || "Only employees with KPI score < 21% are shown."}
                   />
                 )}
                 renderOption={(props, option) => {

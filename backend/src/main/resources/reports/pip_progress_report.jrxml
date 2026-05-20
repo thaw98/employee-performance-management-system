@@ -20,6 +20,7 @@
     <field name="positionName" class="java.lang.String"/>
     <field name="periodStart" class="java.time.LocalDate"/>
     <field name="periodEnd" class="java.time.LocalDate"/>
+    <field name="totalEmployees" class="java.lang.Long"/>
     <field name="totalPips" class="java.lang.Long"/>
     <field name="activePips" class="java.lang.Long"/>
     <field name="completedPips" class="java.lang.Long"/>
@@ -61,15 +62,18 @@
                 <textFieldExpression><![CDATA["Scope: " + $F{departmentName} + " | Position: " + ($F{positionName} == null || $F{positionName}.isEmpty() ? "-" : $F{positionName})]]></textFieldExpression>
             </textField>
 
-            <rectangle><reportElement x="0" y="42" width="160" height="64" backcolor="#EEF6FF" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c006"/></rectangle>
-            <rectangle><reportElement x="178" y="42" width="160" height="64" backcolor="#F2FBF3" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c007"/></rectangle>
-            <rectangle><reportElement x="355" y="42" width="160" height="64" backcolor="#FFF7E8" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c008"/></rectangle>
-            <staticText><reportElement x="12" y="52" width="136" height="16" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c009"/><textElement><font fontName="DejaVu Sans" size="9"/></textElement><text><![CDATA[Total PIPs]]></text></staticText>
-            <staticText><reportElement x="190" y="52" width="136" height="16" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c010"/><textElement><font fontName="DejaVu Sans" size="9"/></textElement><text><![CDATA[Average Progress]]></text></staticText>
-            <staticText><reportElement x="367" y="52" width="136" height="16" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c011"/><textElement><font fontName="DejaVu Sans" size="9"/></textElement><text><![CDATA[Hours Completion]]></text></staticText>
-            <textField><reportElement x="12" y="72" width="136" height="24" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c012"/><textElement><font fontName="DejaVu Sans" size="17" isBold="true"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{totalPips})]]></textFieldExpression></textField>
-            <textField><reportElement x="190" y="72" width="136" height="24" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c013"/><textElement><font fontName="DejaVu Sans" size="17" isBold="true"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{averageProgress}) + "%"]]></textFieldExpression></textField>
-            <textField><reportElement x="367" y="72" width="136" height="24" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c014"/><textElement><font fontName="DejaVu Sans" size="17" isBold="true"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{hoursCompletionPercentage}) + "%"]]></textFieldExpression></textField>
+            <rectangle><reportElement x="0" y="42" width="118" height="64" backcolor="#EEF6FF" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c006"/></rectangle>
+            <rectangle><reportElement x="132" y="42" width="118" height="64" backcolor="#EEF6FF" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c028"/></rectangle>
+            <rectangle><reportElement x="264" y="42" width="118" height="64" backcolor="#F2FBF3" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c007"/></rectangle>
+            <rectangle><reportElement x="397" y="42" width="118" height="64" backcolor="#FFF7E8" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c008"/></rectangle>
+            <staticText><reportElement x="10" y="52" width="98" height="16" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c009"/><textElement><font fontName="DejaVu Sans" size="9"/></textElement><text><![CDATA[Total PIPs]]></text></staticText>
+            <staticText><reportElement x="142" y="52" width="98" height="16" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c029"/><textElement><font fontName="DejaVu Sans" size="9"/></textElement><text><![CDATA[Total Employees]]></text></staticText>
+            <staticText><reportElement x="274" y="52" width="98" height="16" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c010"/><textElement><font fontName="DejaVu Sans" size="9"/></textElement><text><![CDATA[Average Progress]]></text></staticText>
+            <staticText><reportElement x="407" y="52" width="98" height="16" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c011"/><textElement><font fontName="DejaVu Sans" size="9"/></textElement><text><![CDATA[Hours Completion]]></text></staticText>
+            <textField><reportElement x="10" y="72" width="98" height="24" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c012"/><textElement><font fontName="DejaVu Sans" size="17" isBold="true"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{totalPips})]]></textFieldExpression></textField>
+            <textField><reportElement x="142" y="72" width="98" height="24" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c030"/><textElement><font fontName="DejaVu Sans" size="17" isBold="true"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{totalEmployees})]]></textFieldExpression></textField>
+            <textField><reportElement x="274" y="72" width="98" height="24" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c013"/><textElement><font fontName="DejaVu Sans" size="17" isBold="true"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{averageProgress}) + "%"]]></textFieldExpression></textField>
+            <textField><reportElement x="407" y="72" width="98" height="24" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c014"/><textElement><font fontName="DejaVu Sans" size="17" isBold="true"/></textElement><textFieldExpression><![CDATA[String.valueOf($F{hoursCompletionPercentage}) + "%"]]></textFieldExpression></textField>
 
             <staticText><reportElement x="0" y="136" width="515" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c015"/><textElement><font fontName="DejaVu Sans" size="12" isBold="true"/></textElement><text><![CDATA[Status Breakdown]]></text></staticText>
             <textField><reportElement x="0" y="166" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c016"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Active: " + String.valueOf($F{activePips})]]></textFieldExpression></textField>
@@ -81,7 +85,7 @@
             <staticText><reportElement x="0" y="260" width="515" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c022"/><textElement><font fontName="DejaVu Sans" size="12" isBold="true"/></textElement><text><![CDATA[Hours Completion]]></text></staticText>
             <textField><reportElement x="0" y="290" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c023"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Completed Hours: " + String.valueOf($F{totalCompletedHours})]]></textFieldExpression></textField>
             <textField><reportElement x="265" y="290" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c024"/><textElement><font fontName="DejaVu Sans" size="10"/></textElement><textFieldExpression><![CDATA["Remaining Hours: " + String.valueOf($F{totalPlannedHours} - $F{totalCompletedHours})]]></textFieldExpression></textField>
-            <textField><reportElement x="0" y="318" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c025"/><textElement><font fontName="DejaVu Sans" size="10" isBold="true"/></textElement><textFieldExpression><![CDATA["Total Planned: " + String.valueOf($F{totalPlannedHours})]]></textFieldExpression></textField>
+            <textField><reportElement x="0" y="318" width="250" height="18" uuid="fda77ebb-239c-48b0-bd37-88b6c3c5c025"/><textElement><font fontName="DejaVu Sans" size="10" isBold="true"/></textElement><textFieldExpression><![CDATA["Total Hours: " + String.valueOf($F{totalPlannedHours})]]></textFieldExpression></textField>
 
             <pieChart>
                 <chart evaluationTime="Report">
