@@ -20,30 +20,24 @@ import io.jsonwebtoken.security.Keys;
 public class JwtService {
 
 	private final SecretKey signingKey;
-	private final long expirationMs;
 
-	public JwtService(
-			@Value("${jwt.secret}") String secret,
-			@Value("${jwt.expiration-ms}") long expirationMs) {
+	public JwtService(@Value("${jwt.secret}") String secret) {
 		byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
 		this.signingKey = Keys.hmacShaKeyFor(keyBytes);
-		this.expirationMs = expirationMs;
 	}
 
 	public String generateToken(User user) {
 		Date now = new Date();
-		Date expiry = new Date(now.getTime() + expirationMs);
 		return Jwts.builder()
 				.subject(String.valueOf(user.getId()))
 				.claim("role", user.getRole().getName())
 				.issuedAt(now)
-				.expiration(expiry)
 				.signWith(signingKey)
 				.compact();
 	}
 
 	public Instant calculateExpirationInstant() {
-		return Instant.ofEpochMilli(System.currentTimeMillis() + expirationMs);
+		return null;
 	}
 
 	public String extractSubject(String token) throws JwtException {

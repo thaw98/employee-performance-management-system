@@ -2,6 +2,7 @@ import type { AuthUser } from './types'
 
 const TOKEN_KEY = 'epms_token'
 const USER_KEY = 'epms_user'
+const EXPIRES_AT_KEY = 'epms_expires_at'
 
 export function loadPersistedAuth(): { token: string; user: AuthUser } | null {
   const token =
@@ -24,15 +25,19 @@ export function persistAuth(rememberMe: boolean, token: string, user: AuthUser) 
   const secondary = rememberMe ? sessionStorage : localStorage
   secondary.removeItem(TOKEN_KEY)
   secondary.removeItem(USER_KEY)
+  secondary.removeItem(EXPIRES_AT_KEY)
   primary.setItem(TOKEN_KEY, token)
   primary.setItem(USER_KEY, JSON.stringify(user))
+  primary.removeItem(EXPIRES_AT_KEY)
 }
 
 export function clearAuthStorage() {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(USER_KEY)
+  localStorage.removeItem(EXPIRES_AT_KEY)
   sessionStorage.removeItem(TOKEN_KEY)
   sessionStorage.removeItem(USER_KEY)
+  sessionStorage.removeItem(EXPIRES_AT_KEY)
 }
 
 /** Updates stored user JSON wherever the session token lives (after login or profile sync). */
