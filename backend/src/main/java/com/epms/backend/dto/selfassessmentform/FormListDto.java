@@ -21,5 +21,6 @@ public record FormListDto(
         String ratingCategory,
         Instant submittedDate,
         LocalDate assessmentDate,
+        Instant retakeSubmittedAt,
         Instant createdDate
 ) {}

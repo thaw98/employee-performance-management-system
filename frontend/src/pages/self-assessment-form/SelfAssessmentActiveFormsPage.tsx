@@ -26,13 +26,17 @@ import {
   Hourglass,
   RotateCcw,
   Lock,
+  LockOpen,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import type { RootState } from '../../app/store';
 import {
+  type FormListDto,
   useGetActiveCycleFormsForHrQuery,
   useGetActiveCycleFormsForManagerQuery,
+  useHrUnlockRetakeMutation,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { PaginationBar } from '../../components/common/PaginationBar';
 import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
@@ -274,6 +278,15 @@ function ManagerReviewDeadlineCell({ date }: { date: string | null }) {
 const filterControlClass =
   'w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF]';
 
+function canHrUnlockRetake(form: FormListDto, roleId?: number | null) {
+  if (roleId !== 1) return false;
+  const status = form.status.toUpperCase();
+  if (status === 'PENDING_RETAKE_MANAGER_REVIEW') return true;
+  return status === 'PENDING_FINAL_APPROVAL'
+    && form.employee.roleId === 2
+    && Boolean(form.retakeSubmittedAt);
+}
+
 export const SelfAssessmentActiveFormsPage: React.FC = () => {
   const navigate = useNavigate();
   const roleId = useSelector((state: RootState) => state.auth.user?.roleId);
@@ -289,6 +302,8 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [unlockTarget, setUnlockTarget] = useState<FormListDto | null>(null);
+  const [hrUnlockRetake, { isLoading: isUnlockingRetake }] = useHrUnlockRetakeMutation();
 
   const statusOptions = useMemo(() => {
     const set = new Set<string>();
@@ -350,6 +365,24 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
       return;
     }
     navigate('/hr/self-assessment/reviews', { state: { formId } });
+  };
+
+  const handleConfirmUnlockRetake = async () => {
+    if (!unlockTarget) return;
+    try {
+      await hrUnlockRetake({ formId: unlockTarget.id }).unwrap();
+      toast.success('Retake unlocked for editing');
+      setUnlockTarget(null);
+      await (isManager ? managerFormsQuery.refetch() : hrFormsQuery.refetch());
+    } catch (error: unknown) {
+      const message = typeof error === 'object'
+        && error !== null
+        && 'data' in error
+        && typeof (error as { data?: { message?: unknown } }).data?.message === 'string'
+        ? (error as { data: { message: string } }).data.message
+        : 'Failed to unlock retake';
+      toast.error(message);
+    }
   };
 
   const totalCount = forms.length;
@@ -766,15 +799,27 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                               </span>
                             </td>
                             <td className="px-5 py-4 text-right">
-                              <button
-                                type="button"
-                                onClick={() => viewForm(form.id)}
-                                className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
-                              >
-                                <Eye size={13} />
-                                View
-                                <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
-                              </button>
+                              <div className="inline-flex items-center justify-end gap-2">
+                                {canHrUnlockRetake(form, roleId) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setUnlockTarget(form)}
+                                    className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3.5 py-2 text-xs font-semibold text-amber-700 transition-all hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
+                                  >
+                                    <LockOpen size={13} />
+                                    Unlock
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => viewForm(form.id)}
+                                  className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                                >
+                                  <Eye size={13} />
+                                  View
+                                  <ArrowRight size={11} className="opacity-0 transition-all -ml-1 group-hover/btn:opacity-100 group-hover/btn:ml-0" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -896,6 +941,16 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
 
                             {/* Action */}
                             <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-700/40">
+                              {canHrUnlockRetake(form, roleId) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setUnlockTarget(form)}
+                                  className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 px-4 py-2.5 text-xs font-bold text-amber-700 transition-all hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
+                                >
+                                  <LockOpen size={14} />
+                                  Unlock Retake
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => viewForm(form.id)}
@@ -968,6 +1023,47 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
           </div>
         )}
       </div>
+      {unlockTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <button
+            type="button"
+            aria-label="Close unlock retake confirmation"
+            className="absolute inset-0 bg-slate-900/45 backdrop-blur-sm"
+            onClick={() => !isUnlockingRetake && setUnlockTarget(null)}
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-900/25 dark:text-amber-300">
+              <LockOpen size={20} />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Unlock Retake</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              This clears only the submitted retake answers for {unlockTarget.employee.employeeName}. The original self-assessment, selected retake questions, warning comments, signatures, comments, deadlines, and assignment details will stay unchanged.
+            </p>
+            <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              The employee or manager must edit and resubmit the same retake before the next approval step can continue.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={isUnlockingRetake}
+                onClick={() => setUnlockTarget(null)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isUnlockingRetake}
+                onClick={handleConfirmUnlockRetake}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-60"
+              >
+                <LockOpen size={15} />
+                {isUnlockingRetake ? 'Unlocking...' : 'Unlock Retake'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

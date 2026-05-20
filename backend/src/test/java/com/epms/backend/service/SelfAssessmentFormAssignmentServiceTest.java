@@ -22,6 +22,7 @@ import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.ReviewCycle;
+import com.epms.backend.entity.Role;
 import com.epms.backend.entity.SelfAssessmentForm;
 import com.epms.backend.entity.SelfAssessmentFormAnswer;
 import com.epms.backend.entity.SelfAssessmentFormStatus;
@@ -56,6 +57,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -827,6 +829,86 @@ class SelfAssessmentFormAssignmentServiceTest {
         assertEquals(List.of(3L, 1L), response.forms().stream().map(form -> form.employee().id()).toList());
     }
 
+    @Test
+    void hrUnlockRetake_allowsActiveCycleRegularFormPendingRetakeManagerReview() {
+        ReviewCycle cycle = cycle();
+        Employee employee = employee(1L, 10L, 20L);
+        employee.getUserAccount().setRole(role(3L));
+        SelfAssessmentForm form = retakeForm(SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW, employee, cycle);
+        SelfAssessmentFormAnswer requested = form.getAnswers().get(0);
+        String warningComment = requested.getRetakeRequestComment();
+
+        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+
+        service.hrUnlockRetake(200L, 99L);
+
+        assertEquals(SelfAssessmentFormStatus.PENDING_EMPLOYEE_RETAKE, form.getStatus());
+        assertNull(form.getRetakeSubmittedAt());
+        assertNull(form.getManagerApprovedRetakeAt());
+        assertTrue(form.getRetakeRequestUsed());
+        assertTrue(requested.getRetakeRequested());
+        assertEquals(warningComment, requested.getRetakeRequestComment());
+        assertNull(requested.getRetakeYesNoAnswer());
+        assertNull(requested.getRetakeRating());
+        assertNull(requested.getRetakeReason());
+        assertNull(requested.getRetakeSubmittedAt());
+        assertNull(requested.getRetakeApproved());
+        assertEquals("Yes", requested.getYesNoAnswer());
+        assertEquals(4, requested.getRating());
+        verify(auditService).record(
+                eq(com.epms.backend.audit.AuditActionType.SELF_ASSESSMENT_FORM_HR_UNLOCKED_RETAKE),
+                eq(com.epms.backend.audit.AuditTargetType.SELF_ASSESSMENT_FORM),
+                eq(200L),
+                eq(99L),
+                eq(null),
+                eq("HR unlocked submitted retake answers for editing and resubmission"),
+                eq(null));
+    }
+
+    @Test
+    void hrUnlockRetake_allowsManagerSelfAssessmentPendingFinalApprovalWithSubmittedRetake() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        manager.getUserAccount().setRole(role(2L));
+        SelfAssessmentForm form = retakeForm(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL, manager, cycle);
+        form.getAnswers().get(0).setFinalApprovedYesNo("No");
+        form.getAnswers().get(0).setFinalApprovedRating(2);
+        form.setFinalApprovedTotalScore(40.0);
+
+        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+
+        service.hrUnlockRetake(200L, 99L);
+
+        assertEquals(SelfAssessmentFormStatus.PENDING_EMPLOYEE_RETAKE, form.getStatus());
+        assertNull(form.getRetakeSubmittedAt());
+        assertNull(form.getFinalApprovedTotalScore());
+        assertNull(form.getAnswers().get(0).getFinalApprovedYesNo());
+        assertNull(form.getAnswers().get(0).getFinalApprovedRating());
+    }
+
+    @Test
+    void hrUnlockRetake_rejectsIneligibleStatusesAndRegularPendingFinalApproval() {
+        ReviewCycle cycle = cycle();
+        Employee finalizedEmployee = employee(1L, 10L, 20L);
+        finalizedEmployee.getUserAccount().setRole(role(3L));
+        SelfAssessmentForm finalized = retakeForm(SelfAssessmentFormStatus.FINALIZED_LOCKED, finalizedEmployee, cycle);
+        when(formRepository.findById(200L)).thenReturn(Optional.of(finalized));
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        assertThrows(RuntimeException.class, () -> service.hrUnlockRetake(200L, 99L));
+
+        Employee employee = employee(3L, 10L, 20L);
+        employee.getUserAccount().setRole(role(3L));
+        SelfAssessmentForm regularPendingFinal = retakeForm(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL, employee, cycle);
+        when(formRepository.findById(201L)).thenReturn(Optional.of(regularPendingFinal));
+        assertThrows(RuntimeException.class, () -> service.hrUnlockRetake(201L, 99L));
+    }
+
     private static SelfAssessmentAssignmentRequest request(String mode) {
         return new SelfAssessmentAssignmentRequest(
                 mode,
@@ -879,6 +961,12 @@ class SelfAssessmentFormAssignmentServiceTest {
         user.setActive(true);
         employee.setUserAccount(user);
         return employee;
+    }
+
+    private static Role role(Long id) {
+        Role role = new Role();
+        role.setId(id);
+        return role;
     }
 
     private static Department department(Long id) {
@@ -955,6 +1043,30 @@ class SelfAssessmentFormAssignmentServiceTest {
         answer.setQuestionText("What did you achieve?");
         answer.setSortOrder(0);
         form.addAnswer(answer);
+        return form;
+    }
+
+    private static SelfAssessmentForm retakeForm(SelfAssessmentFormStatus status, Employee employee, ReviewCycle cycle) {
+        SelfAssessmentForm form = formForSubmit(
+                employee,
+                template(100L, 10L, 20L, cycle),
+                cycle,
+                status);
+        form.setRetakeRequestUsed(true);
+        form.setRetakeRequestedAt(java.time.Instant.parse("2026-05-10T00:00:00Z"));
+        form.setRetakeSubmittedAt(java.time.Instant.parse("2026-05-12T00:00:00Z"));
+        form.setManagerApprovedRetakeAt(java.time.Instant.parse("2026-05-13T00:00:00Z"));
+        SelfAssessmentFormAnswer answer = form.getAnswers().get(0);
+        answer.setYesNoAnswer("Yes");
+        answer.setRating(4);
+        answer.setRemarks("Original answer");
+        answer.setRetakeRequested(true);
+        answer.setRetakeRequestComment("Please expand this answer");
+        answer.setRetakeYesNoAnswer("No");
+        answer.setRetakeRating(2);
+        answer.setRetakeReason("Retake answer");
+        answer.setRetakeSubmittedAt(java.time.Instant.parse("2026-05-12T00:00:00Z"));
+        answer.setRetakeApproved(true);
         return form;
     }
 
