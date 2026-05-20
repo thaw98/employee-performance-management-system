@@ -247,6 +247,24 @@ export function AppraisalSubmissionsPage() {
         }
     };
 
+    const handleReset = async (id: number) => {
+        setIsActionLoading(true);
+        setActionInProgress('reset');
+        try {
+            await axios.post(`/appraisal-assignments/${id}/reset`);
+            toast.success('Appraisal reset to pending manager successfully');
+            setSelectedAsmt(null);
+            fetchSubmissions();
+        } catch (err: any) {
+            const errorMessage = err.response?.data?.message || 'Failed to reset appraisal';
+            toast.error(errorMessage);
+            console.error('Reset error:', err);
+        } finally {
+            setIsActionLoading(false);
+            setActionInProgress(null);
+        }
+    };
+
     const handleClearSignature = () => {
         if (sigCanvas.current) {
             sigCanvas.current.clear();
@@ -637,6 +655,15 @@ export function AppraisalSubmissionsPage() {
                                                         <Lock size={18} />
                                                     </button>
                                                 )}
+                                                {sa.status === 'REJECTED' && (
+                                                    <button
+                                                        onClick={() => handleReset(sa.id)}
+                                                        className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition-all flex items-center justify-center"
+                                                        title="Reset/Re-evaluate Appraisal"
+                                                    >
+                                                        <RotateCcw size={18} />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -1002,14 +1029,57 @@ export function AppraisalSubmissionsPage() {
                                                 )}
                                                 UNLOCK FOR CORRECTION
                                             </button>
-                                        ) : selectedAsmt.status === 'HR_APPROVED' ? (
+                                        ) : selectedAsmt.status === 'REJECTED' ? (
                                             <button
-                                                onClick={() => handleLock(selectedAsmt.id)}
-                                                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-lg shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-3"
+                                                onClick={() => handleReset(selectedAsmt.id)}
+                                                disabled={isActionLoading}
+                                                className="w-full py-4 bg-amber-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-amber-200 hover:bg-amber-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                                             >
-                                                <Lock size={18} />
-                                                LOCK FOREVER (FINALIZE)
+                                                {actionInProgress === 'reset' ? (
+                                                    <Loader2 className="animate-spin" size={18} />
+                                                ) : (
+                                                    <RotateCcw size={18} />
+                                                )}
+                                                RESET FOR RE-EVALUATION
                                             </button>
+                                        ) : selectedAsmt.status === 'HR_APPROVED' ? (
+                                             <>
+                                                 <button
+                                                     onClick={() => handleLock(selectedAsmt.id)}
+                                                     className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-lg shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-3"
+                                                 >
+                                                     <Lock size={18} />
+                                                     LOCK FOREVER (FINALIZE)
+                                                 </button>
+                                                 <div className="grid grid-cols-2 gap-3 mt-3">
+                                                     <button
+                                                         onClick={() => handleAction('return')}
+                                                         disabled={isActionLoading || !comments.trim()}
+                                                         className="py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all flex items-center justify-center gap-2 border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                         title="Return Approved Appraisal for Correction"
+                                                     >
+                                                         {actionInProgress === 'return' ? (
+                                                             <Loader2 className="animate-spin" size={14} />
+                                                         ) : (
+                                                             <RotateCcw size={14} />
+                                                         )}
+                                                         RETURN
+                                                     </button>
+                                                     <button
+                                                         onClick={() => handleAction('reject')}
+                                                         disabled={isActionLoading || !comments.trim()}
+                                                         className="py-3.5 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 transition-all flex items-center justify-center gap-2 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                         title="Reject Approved Appraisal"
+                                                     >
+                                                         {actionInProgress === 'reject' ? (
+                                                             <Loader2 className="animate-spin" size={14} />
+                                                         ) : (
+                                                             <XCircle size={14} />
+                                                         )}
+                                                         REJECT
+                                                     </button>
+                                                 </div>
+                                             </>
                                         ) : (selectedAsmt.status === 'SUBMITTED' || selectedAsmt.status === 'RETURNED') ? (
                                             <>
                                                 <button
