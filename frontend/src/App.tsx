@@ -81,6 +81,7 @@ import { MeetingDetailPage } from './pages/meetings/MeetingDetailPage';
 import { NotificationPage } from './pages/NotificationPage';
 
 // Reports Pages
+import ManagerKpiReportsPage from './pages/manager/KpiReportsPage';
 import ManagerReportsPage from './pages/manager/ReportsPage';
 import HrReportsPage from './pages/hr/ReportsPage';
 import EmployeeReportsPage from './pages/employee/ReportsPage';
@@ -255,6 +256,7 @@ function App() {
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
             <Route path="reports" element={<ManagerReportsPage />} />
+            <Route path="reports/kpi" element={<ManagerKpiReportsPage />} />
             <Route path="reports/feedback" element={<FeedbackReportPage mode="manager" />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>

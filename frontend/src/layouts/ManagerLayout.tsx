@@ -109,6 +109,7 @@ const ManagerLayout: React.FC = () => {
       path: '/manager/reports',
       subItems: [
         { label: 'PIP Report', path: '/manager/reports', icon: <BarChart size={16} className="shrink-0" /> },
+        { label: 'KPI Report', path: '/manager/reports/kpi', icon: <Target size={16} className="shrink-0" /> },
         { label: 'Feedback Report', path: '/manager/reports/feedback', icon: <RefreshCcw size={16} className="shrink-0" /> },
       ],
     },
