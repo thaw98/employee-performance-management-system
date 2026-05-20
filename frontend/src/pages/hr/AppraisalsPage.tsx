@@ -793,16 +793,6 @@ export function AppraisalsPage() {
             const resp = await axios.get('/appraisal-categories/templates');
             const data = resp.data.data || [];
             setAllTemplates(data);
-            if (data.length > 0 && !selectedTemplateId) {
-                // By default select the active one or the latest one
-                const active = data.find((t: any) => t.isActive);
-                const toSelect = active || data[0];
-                setSelectedTemplateId(toSelect.id);
-                setFinalizedCategories(toSelect.categoryIds);
-                setAssessmentDate(toSelect.assessmentDate);
-                setEffectiveDate(toSelect.effectiveDate);
-                setMaxRating(toSelect.maxRating || 10);
-            }
         } catch (err) {
             console.error('Failed to load all templates');
         }
@@ -1048,10 +1038,13 @@ export function AppraisalsPage() {
                         REVIEW & FINALIZE
                     </button>
                     <button
-                        onClick={() => setActiveTab('finalized')}
+                        onClick={() => {
+                            setSelectedTemplateId(null);
+                            setActiveTab('finalized');
+                        }}
                         className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'finalized' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
-                        APPRAISAL ARCHIVE
+                        CONFIRMED APPRAISAL
                     </button>
                 </div>
             </div>
@@ -1066,7 +1059,7 @@ export function AppraisalsPage() {
                                     <History size={28} />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Appraisal Archive</h3>
+                                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Confirmed Appraisal</h3>
                                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Explore and reuse historical performance frameworks</p>
                                 </div>
                             </div>

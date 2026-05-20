@@ -63,14 +63,14 @@ export function getPipPath(pathname: string) {
 
 export function getAppraisalPath(pathname: string) {
   if (pathname.startsWith('/hr')) {
-    return '/hr/appraisals';
+    return '/hr/appraisals/submissions';
   }
 
   if (pathname.startsWith('/manager')) {
     return '/manager/appraisals';
   }
 
-  return '/employee/dashboard';
+  return '/employee/appraisals';
 }
 
 export function getKpiPath(pathname: string) {
