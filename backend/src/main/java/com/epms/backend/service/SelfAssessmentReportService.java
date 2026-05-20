@@ -90,8 +90,8 @@ public class SelfAssessmentReportService {
                         "COMPANY_NAME", "Ace Data Systems Ltd.",
                         "CYCLE_NAME", data.cycleName(),
                         "TOTAL_RECORDS", String.valueOf(data.totalRecords()),
-                        "AVERAGE_SCORE", blankToDash(data.averageScore()),
-                        "LOWEST_SCORE", blankToDash(data.lowestScore()),
+                        "AVERAGE_SCORE", formatSummaryScore(data.averageScore()),
+                        "LOWEST_SCORE", formatSummaryScore(data.lowestScore()),
                         "GENERATED_AT", GENERATED_AT_FORMAT.format(Instant.now().atZone(ZoneId.systemDefault()))));
         return exportPdf(jasperPrint);
     }
@@ -182,7 +182,10 @@ public class SelfAssessmentReportService {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
-    private String blankToDash(String value) {
-        return value == null || value.isBlank() ? "-" : value;
+    private String formatSummaryScore(String value) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+        return value + "%";
     }
 }
