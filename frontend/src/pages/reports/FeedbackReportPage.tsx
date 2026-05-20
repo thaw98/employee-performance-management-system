@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { useAppSelector } from '../../app/hooks'
 import {
   Bar,
   BarChart,
@@ -118,7 +119,7 @@ function EmployeeSummaryCard({
 }: {
   label: string
   employee?: EmployeeRankingDto | null
-  onGoToMeeting?: (employeeId: number, meetingDescription: string) => void
+  onGoToMeeting?: (employee: EmployeeRankingDto, meetingDescription: string) => void
   showMeetingButton?: boolean
   variant: 'top' | 'bottom'
 }) {
@@ -169,7 +170,7 @@ function EmployeeSummaryCard({
         <button
           type="button"
           disabled={!employee}
-          onClick={() => employee && onGoToMeeting?.(employee.employeeId, meetingDescription)}
+          onClick={() => employee && onGoToMeeting?.(employee, meetingDescription)}
           className={`mt-5 inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-black text-white transition-colors disabled:cursor-not-allowed disabled:bg-slate-300 ${
             isTop ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'
           }`}
@@ -197,6 +198,7 @@ function DepartmentDetailReport({
   roleMode: 'hr' | 'manager'
 }) {
   const navigate = useNavigate()
+  const authUser = useAppSelector((state) => state.auth.user)
   const [departmentId, setDepartmentId] = useState<number | undefined>(selectedDepartment?.departmentId)
   const [from, setFrom] = useState(getMonthStart())
   const [to, setTo] = useState(getToday())
@@ -205,6 +207,7 @@ function DepartmentDetailReport({
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | undefined>()
   const [selectedEmployeeDepartmentId, setSelectedEmployeeDepartmentId] = useState<number | undefined>()
   const [rankingPage, setRankingPage] = useState(0)
+  const [selfMeetingAlert, setSelfMeetingAlert] = useState('')
 
   useEffect(() => {
     setDepartmentId(selectedDepartment?.departmentId)
@@ -251,17 +254,34 @@ function DepartmentDetailReport({
   const criteriaIsVeryDense = criteriaAverages.length > 12
   const criteriaGap = criteriaIsVeryDense ? 4 : criteriaIsDense ? 6 : 8
 
-  const goToMeeting = (targetEmployeeId: number, meetingDescription: string) => {
-    const employee = summary?.topEmployee?.employeeId === targetEmployeeId
-      ? summary.topEmployee
-      : summary?.bottomEmployee?.employeeId === targetEmployeeId
-        ? summary.bottomEmployee
-        : undefined
+  const goToMeeting = (employee: EmployeeRankingDto, meetingDescription: string) => {
+    const isTopFeedbackMeeting = meetingDescription === 'Best Feedback Person Meeting'
+    const isWorstFeedbackMeeting = meetingDescription === 'Worst Feedback Person Meeting'
+    const currentEmployeeId = authUser?.employeeId ? String(authUser.employeeId) : ''
+    const currentName = authUser?.name?.trim().toLowerCase() ?? ''
+    const targetEmployeeId = String(employee.employeeId)
+    const targetName = employee.employeeName?.trim().toLowerCase() ?? ''
+    const isCurrentManager = Boolean(
+      (currentEmployeeId && currentEmployeeId === targetEmployeeId)
+      || (currentName && currentName === targetName),
+    )
+
+    if (roleMode === 'manager' && isCurrentManager) {
+      if (isTopFeedbackMeeting) {
+        setSelfMeetingAlert('The top feedback person is you. Meetting cannot be called.')
+        return
+      }
+      if (isWorstFeedbackMeeting) {
+        setSelfMeetingAlert('The worst feedback person is you. Meetting cannot be called.')
+        return
+      }
+    }
+
     const basePath = roleMode === 'hr' ? '/hr/meetings' : '/manager/meetings'
     const params = new URLSearchParams({
       section: 'schedule',
-      employeeId: String(targetEmployeeId),
-      employeeName: employee?.employeeName ?? '',
+      employeeId: String(employee.employeeId),
+      employeeName: employee.employeeName,
       meetingDescription,
     })
     navigate(`${basePath}?${params.toString()}`)
@@ -286,6 +306,26 @@ function DepartmentDetailReport({
 
   return (
     <div className="space-y-6">
+      {selfMeetingAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+              <AlertTriangle size={28} />
+            </div>
+            <p className="mt-5 text-lg font-black text-slate-900 dark:text-slate-100">
+              {selfMeetingAlert}
+            </p>
+            <button
+              type="button"
+              onClick={() => setSelfMeetingAlert('')}
+              className="mt-6 h-11 min-w-28 rounded-lg bg-blue-600 px-6 text-sm font-black text-white transition-colors hover:bg-blue-700"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {isSummaryLoading ? (
           <>
@@ -608,7 +648,14 @@ export default function FeedbackReportPage({ mode }: FeedbackReportPageProps) {
     ? departments.find((department) => department.departmentId === selectedDepartmentId)
       ?? undefined
     : undefined
-  const exportFilters = mode === 'hr' ? { departmentId: selectedDepartmentId, ...reportFilters } : skipToken
+  const exportRequestParams = mode === 'hr'
+    ? { departmentId: selectedDepartmentId, ...reportFilters }
+    : { departmentId: selectedDepartmentId }
+  const exportCriteriaFilters = mode === 'hr'
+    ? { departmentId: selectedDepartmentId, ...reportFilters }
+    : selectedDepartmentId
+      ? { departmentId: selectedDepartmentId }
+      : skipToken
 
   const { data: averagesResponse, isLoading: isAveragesLoading } = useGetAveragesByDepartmentQuery(
     mode === 'hr' ? reportFilters : skipToken,
@@ -616,9 +663,9 @@ export default function FeedbackReportPage({ mode }: FeedbackReportPageProps) {
   const { data: trendsResponse, isLoading: isTrendsLoading } = useGetDepartmentTrendsQuery(
     mode === 'hr' ? trendFilters : skipToken,
   )
-  const { data: exportCriteriaResponse } = useGetCriteriaAveragesQuery(exportFilters)
+  const { data: exportCriteriaResponse } = useGetCriteriaAveragesQuery(exportCriteriaFilters)
   const { data: exportSummaryResponse } = useGetTopBottomEmployeesQuery(
-    mode === 'hr' ? { departmentId: selectedDepartmentId, ...reportFilters } : skipToken,
+    exportRequestParams,
   )
   const [fetchExportData, { isFetching: isExporting }] = useLazyGetFeedbackReportExportDataQuery()
   useEffect(() => {
@@ -641,7 +688,7 @@ export default function FeedbackReportPage({ mode }: FeedbackReportPageProps) {
   }
 
   const buildExportWorkbook = async () => {
-    const exportResponse = await fetchExportData(mode === 'hr' ? { departmentId: selectedDepartmentId, ...reportFilters } : undefined).unwrap()
+    const exportResponse = await fetchExportData(exportRequestParams).unwrap()
     const exportRows = exportResponse.data ?? []
     const criteriaAverages = exportCriteriaResponse?.data ?? []
     const summary = exportSummaryResponse?.data
@@ -752,9 +799,29 @@ export default function FeedbackReportPage({ mode }: FeedbackReportPageProps) {
   if (mode === 'manager') {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Feedback Report</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Manager view limited to your assigned department data.</p>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Feedback Report</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Manager view limited to your assigned department data.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={isExporting || !displayedDepartment}
+              className="h-10 rounded-lg bg-emerald-600 px-4 text-sm font-black text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              Export Excel
+            </button>
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              disabled={isExporting || !displayedDepartment}
+              className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              Export PDF
+            </button>
+          </div>
         </div>
         <DepartmentDetailReport
           selectedDepartment={displayedDepartment}
