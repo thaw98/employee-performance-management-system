@@ -23,6 +23,7 @@
     <field name="employeePosition" class="java.lang.String"/>
     <field name="managerName" class="java.lang.String"/>
     <field name="managerDepartment" class="java.lang.String"/>
+    <field name="kpiScore" class="java.math.BigDecimal"/>
     <field name="status" class="java.lang.String"/>
     <field name="startDate" class="java.time.LocalDate"/>
     <field name="endDate" class="java.time.LocalDate"/>
@@ -101,7 +102,7 @@
             <textField textAdjust="StretchHeight">
                 <reportElement stretchType="RelativeToTallestObject" x="0" y="74" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c012"/>
                 <textElement><font fontName="DejaVu Sans" size="9" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA["Status: " + $F{status} + " | Start: " + ($F{startDate} == null ? "-" : $F{startDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))) + " | End: " + ($F{endDate} == null ? "-" : $F{endDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH)))]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Status: " + $F{status} + " | KPI Score: " + ($F{kpiScore} == null ? "-" : String.valueOf($F{kpiScore}) + "%") + " | Start: " + ($F{startDate} == null ? "-" : $F{startDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))) + " | End: " + ($F{endDate} == null ? "-" : $F{endDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH)))]]></textFieldExpression>
             </textField>
             <textField textAdjust="StretchHeight">
                 <reportElement stretchType="RelativeToTallestObject" x="0" y="92" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c034"/>

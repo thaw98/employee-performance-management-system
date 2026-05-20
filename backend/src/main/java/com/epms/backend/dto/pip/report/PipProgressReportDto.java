@@ -15,6 +15,7 @@ public class PipProgressReportDto {
     private String positionName;
     private LocalDate periodStart;
     private LocalDate periodEnd;
+    private Long totalEmployees;
     private Long totalPips;
     private Long activePips;
     private Long completedPips;

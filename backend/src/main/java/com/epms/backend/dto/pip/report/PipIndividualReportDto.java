@@ -21,6 +21,7 @@ public class PipIndividualReportDto {
     private String employeePosition;
     private String managerName;
     private String managerDepartment;
+    private BigDecimal kpiScore;
     private String status;
     private LocalDate startDate;
     private LocalDate endDate;

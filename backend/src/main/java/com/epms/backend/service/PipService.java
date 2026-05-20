@@ -249,7 +249,9 @@ public class PipService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        return pipRepository.findAll(spec);
+        return pipRepository.findAll(spec).stream()
+                .peek(this::attachKpiScore)
+                .toList();
     }
 
     public Pip getPipById(Long id, User actor) {
@@ -257,6 +259,7 @@ public class PipService {
         Pip pip = pipRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("PIP not found"));
         authorizePipAccess(pip, actor);
+        attachKpiScore(pip);
         return pip;
     }
 
@@ -1037,7 +1040,7 @@ public class PipService {
                 List.of(STATUS_ACTIVE, STATUS_AUTO_CLOSED, STATUS_REOPEN_REQUESTED));
     }
 
-    private BigDecimal getLatestKpiTotalScore(Employee employee) {
+    public BigDecimal getLatestKpiTotalScore(Employee employee) {
         if (employee == null || employee.getId() == null) {
             return null;
         }
@@ -1065,6 +1068,12 @@ public class PipService {
                     return weightedScores.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
                 })
                 .orElse(null);
+    }
+
+    private void attachKpiScore(Pip pip) {
+        if (pip != null) {
+            pip.setKpiScore(getLatestKpiTotalScore(pip.getEmployee()));
+        }
     }
 
     private String normalizeStatus(String status) {

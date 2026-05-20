@@ -160,6 +160,9 @@ public class Pip {
     @Transient
     private LocalDateTime managerSignedAt;
 
+    @Transient
+    private BigDecimal kpiScore;
+
     public LocalDateTime getEmployeeSignedAt() {
         if (employeeSignedAt != null) {
             return employeeSignedAt;

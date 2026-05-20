@@ -17,6 +17,7 @@ public class PipSummaryReportDto {
     private String departmentName;
     private String positionName;
     private String managerName;
+    private BigDecimal kpiScore;
     private String status;
     private LocalDate startDate;
     private LocalDate endDate;
