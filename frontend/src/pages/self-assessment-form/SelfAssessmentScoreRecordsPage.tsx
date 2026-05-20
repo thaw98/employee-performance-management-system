@@ -12,8 +12,10 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
-import { Eye, Search, Trophy, BarChart3, FileText, CheckCircle2 } from 'lucide-react'
+import { Eye, Search, Trophy, BarChart3, FileText, CheckCircle2, FileDown } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 import { useGetScoreRecordsQuery, type ScoreRecordDto } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi'
+import { downloadSelfAssessmentSummaryPdf } from '../../features/selfAssessmentForm/selfAssessmentSummaryReportApi'
 import { PaginationBar } from '../../components/common/PaginationBar'
 
 function ScoreBar({ score }: { score: number | null }) {
@@ -120,6 +122,7 @@ export function SelfAssessmentScoreRecordsPage() {
   const [globalFilter, setGlobalFilter] = useState('')
   const [cycleFilter, setCycleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
 
   const cycleOptions = useMemo(() => {
     const seen = new Map<string, string>()
@@ -129,6 +132,11 @@ export function SelfAssessmentScoreRecordsPage() {
     }
     return Array.from(seen.entries()).sort(([a], [b]) => a.localeCompare(b))
   }, [records])
+  const selectedCycle = useMemo(
+    () => cycleOptions.find(([name]) => name === cycleFilter) ?? null,
+    [cycleOptions, cycleFilter],
+  )
+  const selectedCycleId = selectedCycle ? Number(selectedCycle[1]) : null
 
   const columns = useMemo<ColumnDef<ScoreRecordDto>[]>(() => {
     const cols: ColumnDef<ScoreRecordDto>[] = []
@@ -149,13 +157,11 @@ export function SelfAssessmentScoreRecordsPage() {
       })
     }
 
-    if (!isEmployee) {
-      cols.push({
-        accessorKey: 'employee.positionName',
-        header: 'Position',
-        cell: ({ getValue }) => <span>{getValue() as string || '-'}</span>,
-      })
-    }
+    cols.push({
+      accessorKey: 'employee.positionName',
+      header: 'Position',
+      cell: ({ getValue }) => <span>{getValue() as string || '-'}</span>,
+    })
 
     cols.push(
       {
@@ -226,6 +232,19 @@ export function SelfAssessmentScoreRecordsPage() {
   useEffect(() => {
     table.setPageIndex(0)
   }, [cycleFilter, statusFilter, globalFilter])
+
+  const handleExportPdf = async () => {
+    if (!selectedCycleId || Number.isNaN(selectedCycleId)) return
+    setIsExportingPdf(true)
+    try {
+      await downloadSelfAssessmentSummaryPdf(selectedCycleId, cycleFilter)
+      toast.success('PDF exported')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to export PDF')
+    } finally {
+      setIsExportingPdf(false)
+    }
+  }
 
   const visibleRecords = table.getFilteredRowModel().rows.map(row => row.original)
   const scoredVisibleRecords = visibleRecords.filter((r): r is ScoreRecordDto & { finalApprovedScore: number } => r.finalApprovedScore != null)
@@ -331,6 +350,15 @@ export function SelfAssessmentScoreRecordsPage() {
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={!selectedCycleId || isExportingPdf}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <FileDown size={16} />
+            {isExportingPdf ? 'Exporting...' : 'Export PDF'}
+          </button>
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}

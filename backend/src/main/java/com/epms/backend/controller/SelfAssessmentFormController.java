@@ -8,8 +8,12 @@ import com.epms.backend.entity.Employee;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.SelfAssessmentFormService;
+import com.epms.backend.service.SelfAssessmentReportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,6 +27,7 @@ import java.util.List;
 public class SelfAssessmentFormController {
 
     private final SelfAssessmentFormService selfAssessmentFormService;
+    private final SelfAssessmentReportService selfAssessmentReportService;
     private final EmployeeRepository employeeRepository;
 
     @GetMapping("/me/status")
@@ -257,6 +262,27 @@ public class SelfAssessmentFormController {
         try {
             SelfAssessmentFormDto form = selfAssessmentFormService.hrRequestRetake(id, request, principal.getId());
             return ResponseEntity.ok(ApiResponse.ok("Retake requested", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/score-records/export/pdf")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4")
+    public ResponseEntity<?> exportScoreRecordsPdf(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) Long cycleId) {
+        try {
+            Employee employee = getEmployeeFromPrincipal(principal);
+            byte[] bytes = selfAssessmentReportService.generateSummaryPdf(employee, principal.getRoleId(), cycleId);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDisposition(ContentDisposition.attachment()
+                    .filename("self-assessment-summary-" + cycleId + ".pdf")
+                    .build());
+            return ResponseEntity.ok().headers(headers).body(bytes);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
