@@ -94,13 +94,16 @@ export function MeetingsPage() {
 
     useEffect(() => {
         const requestedEmployeeId = searchParams.get('employeeId');
+        const requestedEmployeeName = searchParams.get('employeeName');
         const requestedDescription = searchParams.get('meetingDescription');
         if (requestedDescription) {
             setDescription(requestedDescription);
             setTitle(requestedDescription);
         }
-        if (requestedEmployeeId && eligibleEmployees.length > 0 && eligibleEmployees.some(emp => String(emp.id) === requestedEmployeeId)) {
-            setEmployeeId(requestedEmployeeId);
+        const matchedEmployee = eligibleEmployees.find(emp => String(emp.id) === requestedEmployeeId)
+            || eligibleEmployees.find(emp => requestedEmployeeName && emp.name?.trim().toLowerCase() === requestedEmployeeName.trim().toLowerCase());
+        if (matchedEmployee) {
+            setEmployeeId(String(matchedEmployee.id));
             setIsModalOpen(true);
         } else if (requestedDescription) {
             setIsModalOpen(true);
