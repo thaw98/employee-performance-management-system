@@ -75,7 +75,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/reviews")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<List<FormListDto>>> getReviewForms(@AuthenticationPrincipal UserPrincipal principal) {
         try {
             Employee employee = getEmployeeFromPrincipal(principal);
@@ -132,7 +132,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/manager/active-cycle")
-    @PreAuthorize("principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 2 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<ActiveCycleFormsDto>> getActiveCycleFormsForManager(@AuthenticationPrincipal UserPrincipal principal) {
         try {
             Employee manager = getEmployeeFromPrincipal(principal);
@@ -219,7 +219,7 @@ public class SelfAssessmentFormController {
     }
 
     @PostMapping("/{id}/manager-review")
-    @PreAuthorize("principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 2 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> managerReview(
             @PathVariable Long id,
             @Valid @RequestBody ManagerReviewRequest request,
@@ -234,7 +234,7 @@ public class SelfAssessmentFormController {
     }
 
     @PostMapping("/{id}/manager-request-retake")
-    @PreAuthorize("principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 2 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> managerRequestRetake(
             @PathVariable Long id,
             @Valid @RequestBody ManagerRetakeRequest request,
@@ -277,7 +277,7 @@ public class SelfAssessmentFormController {
     }
 
     @PostMapping("/{id}/manager-approve-retake")
-    @PreAuthorize("principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 2 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> managerApproveRetake(
             @PathVariable Long id,
             @RequestBody(required = false) ManagerApproveRetakeRequest request,

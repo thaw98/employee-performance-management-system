@@ -34,21 +34,24 @@ function ScoreBar({ score }: { score: number | null }) {
   )
 }
 
+const SCORE_RECORD_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Draft',
+  NOT_STARTED: 'Not Started',
+  NOT_SUBMITTED: 'Not Submitted',
+  SUBMITTED: 'Submitted',
+  REOPENED: 'Reopened',
+  PENDING_MANAGER_REVIEW: 'Pending Manager Review',
+  PENDING_EMPLOYEE_REVIEW: 'Pending Employee Review',
+  PENDING_FINAL_APPROVAL: 'Pending Final Approval',
+  PENDING_HR_CALIBRATION_REVIEW: 'Pending HR Calibration',
+  MANAGER_REVIEWED: 'Manager Reviewed',
+  APPROVED: 'Approved',
+  FINALIZED_LOCKED: 'Finalized Locked',
+}
+
 /** Status filter options (employee history includes draft / not started; HR/manager API omits those). */
-const SCORE_RECORD_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'NOT_STARTED', label: 'Not Started' },
-  { value: 'NOT_SUBMITTED', label: 'Not Submitted' },
-  { value: 'SUBMITTED', label: 'Submitted' },
-  { value: 'REOPENED', label: 'Reopened' },
-  { value: 'PENDING_MANAGER_REVIEW', label: 'Pending Manager Review' },
-  { value: 'PENDING_EMPLOYEE_REVIEW', label: 'Pending Employee Review' },
-  { value: 'PENDING_FINAL_APPROVAL', label: 'Pending Final Approval' },
-  { value: 'PENDING_HR_CALIBRATION_REVIEW', label: 'Pending HR Calibration' },
-  { value: 'MANAGER_REVIEWED', label: 'Manager Reviewed' },
-  { value: 'APPROVED', label: 'Approved' },
-  { value: 'FINALIZED_LOCKED', label: 'Finalized Locked' },
-]
+const SCORE_RECORD_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = Object.entries(SCORE_RECORD_STATUS_LABELS)
+  .map(([value, label]) => ({ value, label }))
 
 /** Matches backend `SelfAssessmentFormService#getRatingCategory` labels. */
 function PerformanceBadge({ performance }: { performance: string | null }) {
@@ -80,7 +83,9 @@ function StatusBadge({ status }: { status: string }) {
     NOT_SUBMITTED: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300',
   }
   const cls = colorMap[status] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-  const label = status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+  const label =
+    SCORE_RECORD_STATUS_LABELS[status]
+    || status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
   return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${cls}`}>{label}</span>
 }
 
