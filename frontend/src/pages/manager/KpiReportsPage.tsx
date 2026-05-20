@@ -2,12 +2,46 @@ import React, { useMemo, useState } from 'react';
 import { useGetProfileQuery } from '../../features/user/userApi';
 import { useGetKpiHistorySummaryQuery } from '../../features/kpi/kpiApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { FileSpreadsheet, ChevronLeft, ChevronRight, Users, Target, Calendar, Building2 } from 'lucide-react';
+import { FileSpreadsheet, ChevronLeft, ChevronRight, Users, Target, Calendar, Building2, Filter } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
 import { format } from 'date-fns';
 
 const ORANGE_COLORS = ['#F97316', '#FB923C', '#F59E0B', '#FBBF24', '#EA580C', '#C2410C'];
 const PAGE_SIZE = 10;
+
+export function getPerformanceLevel(score?: number | null): string | null {
+  if (score === undefined || score === null) return null;
+  if (score >= 90) return 'High Performer';
+  if (score >= 70) return 'Good Performer';
+  if (score >= 50) return 'Low Performer';
+  return 'Poor Performer';
+}
+
+export function getPerformanceLevelBadgeStyle(level: string): string {
+  switch (level) {
+    case 'High Performer':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    case 'Good Performer':
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    case 'Low Performer':
+      return 'bg-orange-50 text-orange-700 border-orange-200';
+    case 'Poor Performer':
+      return 'bg-red-50 text-red-700 border-red-200';
+    default:
+      return 'bg-slate-50 text-slate-700 border-slate-200';
+  }
+}
+
+export function renderPerformanceBadge(score?: number | null) {
+  const level = getPerformanceLevel(score);
+  if (!level) return <span className="text-slate-300 font-medium">-</span>;
+  
+  return (
+    <span className={`px-2.5 py-1 text-[10px] font-black rounded-full border uppercase tracking-wider ${getPerformanceLevelBadgeStyle(level)}`}>
+      {level}
+    </span>
+  );
+}
 
 function formatPercentage(value?: number) {
   return value !== undefined && value !== null ? `${Number(value).toFixed(2)}%` : 'N/A';
@@ -27,6 +61,7 @@ export default function ManagerKpiReportsPage() {
   const { data: profileResponse, isLoading: isProfileLoading } = useGetProfileQuery();
   const { data: summaryData = [], isLoading: isSummaryLoading } = useGetKpiHistorySummaryQuery();
   const [currentPage, setCurrentPage] = useState(1);
+  const [filterSortOpt, setFilterSortOpt] = useState('high-to-low');
 
   const profile = profileResponse?.data;
   const departmentName = profile?.departmentName || '';
@@ -34,6 +69,30 @@ export default function ManagerKpiReportsPage() {
   const filteredSummaries = useMemo(() => {
     return summaryData.filter((item) => item.departmentName === departmentName);
   }, [summaryData, departmentName]);
+
+  const processedSummaries = useMemo(() => {
+    let result = [...filteredSummaries];
+    
+    // Filter by performance level
+    if (filterSortOpt === 'High Performer') {
+      result = result.filter(item => getPerformanceLevel(item.totalScore) === 'High Performer');
+    } else if (filterSortOpt === 'Good Performer') {
+      result = result.filter(item => getPerformanceLevel(item.totalScore) === 'Good Performer');
+    } else if (filterSortOpt === 'Low Performer') {
+      result = result.filter(item => getPerformanceLevel(item.totalScore) === 'Low Performer');
+    } else if (filterSortOpt === 'Poor Performer') {
+      result = result.filter(item => getPerformanceLevel(item.totalScore) === 'Poor Performer');
+    }
+
+    // Sort by score
+    if (filterSortOpt === 'low-to-high') {
+      result.sort((a, b) => (a.totalScore || 0) - (b.totalScore || 0));
+    } else {
+      result.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+    }
+
+    return result;
+  }, [filteredSummaries, filterSortOpt]);
 
   const departmentsKpiStats = useMemo(() => {
     const totalKpis = filteredSummaries.reduce((sum, item) => sum + (item.totalKpis || 0), 0);
@@ -72,10 +131,10 @@ export default function ManagerKpiReportsPage() {
 
   const paginatedRecords = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredSummaries.slice(start, start + PAGE_SIZE);
-  }, [filteredSummaries, currentPage]);
+    return processedSummaries.slice(start, start + PAGE_SIZE);
+  }, [processedSummaries, currentPage]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredSummaries.length / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(processedSummaries.length / PAGE_SIZE));
 
   const handleExportExcel = () => {
     const workbook = XLSX.utils.book_new();
@@ -83,17 +142,17 @@ export default function ManagerKpiReportsPage() {
     const data = [
       [`KPI Report – ${departmentName || 'Department'}`],
       [`KPI Period: ${period}`, '', '', '', '', `Export Date: ${format(new Date(), 'dd MMM yyyy')}`],
-      ['No', 'Employee Name', 'Staff Number', 'Position', 'Period', 'Total KPIs', 'Total KPI Score (%)'],
-      ...filteredSummaries.map((item, index) => [
+      ['No', 'Employee Name', 'Staff Number', 'Position', 'Total KPIs', 'Total KPI Score (%)', 'Performance Level'],
+      ...processedSummaries.map((item, index) => [
         index + 1,
         item.employeeName || 'Unknown',
         item.staffNo || `EMP-${item.employeeId}`,
         item.positionName || 'Unknown',
-        item.period || 'Unknown',
         item.totalKpis || 0,
         item.totalScore !== undefined && item.totalScore !== null ? Number(item.totalScore).toFixed(2) : 'N/A',
+        getPerformanceLevel(item.totalScore) || 'N/A',
       ]),
-      ['', '', '', '', '', 'Total Records', filteredSummaries.length],
+      ['', '', '', '', '', 'Total Records', processedSummaries.length],
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(data);
@@ -107,9 +166,9 @@ export default function ManagerKpiReportsPage() {
       { wch: 24 },
       { wch: 16 },
       { wch: 20 },
-      { wch: 14 },
       { wch: 12 },
       { wch: 16 },
+      { wch: 25 },
     ];
 
     data.forEach((row, rowIndex) => {
@@ -137,7 +196,7 @@ export default function ManagerKpiReportsPage() {
           style = {
             font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: 'C2410C' } },
             fill: { fgColor: { rgb: 'FFEDD5' } },
-            alignment: { horizontal: colIndex < 5 ? 'left' : 'right', vertical: 'center' },
+            alignment: { horizontal: colIndex < 6 ? 'left' : 'right', vertical: 'center' },
           };
         } else if (rowIndex === 2) {
           style = {
@@ -145,6 +204,34 @@ export default function ManagerKpiReportsPage() {
             fill: { fgColor: { rgb: 'FEF3C7' } },
             alignment: { horizontal: 'center', vertical: 'center' },
           };
+        } else if (rowIndex === data.length - 1) {
+          style.font.bold = true;
+          style.alignment.horizontal = colIndex >= 5 ? 'right' : 'left';
+        } else {
+          if (colIndex === 0 || colIndex === 4 || colIndex === 6) {
+            style.alignment.horizontal = 'center';
+          } else if (colIndex === 5) {
+            style.alignment.horizontal = 'right';
+          }
+          
+          if (colIndex === 5 && cell.v && cell.v !== 'N/A') {
+            style.font.bold = true;
+            style.font.color = { rgb: '10B981' };
+          }
+          
+          if (colIndex === 6 && cell.v && cell.v !== 'N/A') {
+            style.font.bold = true;
+            const lvl = cell.v;
+            if (lvl === 'High Performer') {
+              style.font.color = { rgb: '10B981' };
+            } else if (lvl === 'Good Performer') {
+              style.font.color = { rgb: '3B82F6' };
+            } else if (lvl === 'Low Performer') {
+              style.font.color = { rgb: 'F97316' };
+            } else if (lvl === 'Poor Performer') {
+              style.font.color = { rgb: 'EF4444' };
+            }
+          }
         }
 
         worksheet[cellRef] = { ...cell, s: style };
@@ -164,14 +251,38 @@ export default function ManagerKpiReportsPage() {
           <h1 className="text-2xl font-black text-slate-900">KPI Report</h1>
           <p className="mt-1 text-sm text-slate-500">Team performance summary for {departmentName || 'your department'}.</p>
         </div>
-        <button
-          type="button"
-          onClick={handleExportExcel}
-          className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-amber-700"
-        >
-          <FileSpreadsheet size={18} />
-          Export Excel
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Filter/Sort Dropdown */}
+          <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="w-8 h-8 bg-amber-50 text-amber-700 rounded-lg flex items-center justify-center">
+              <Filter size={16} />
+            </div>
+            <select
+              value={filterSortOpt}
+              onChange={(e) => {
+                setFilterSortOpt(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="bg-transparent border-none text-sm font-bold text-slate-700 outline-none focus:ring-0 cursor-pointer min-w-[200px]"
+            >
+              <option value="high-to-low">High Score to Low</option>
+              <option value="low-to-high">Low Score to High</option>
+              <option value="High Performer">High Performer</option>
+              <option value="Good Performer">Good Performer</option>
+              <option value="Low Performer">Low Performer</option>
+              <option value="Poor Performer">Poor Performer</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-amber-700 h-[48px]"
+          >
+            <FileSpreadsheet size={18} />
+            Export Excel
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -285,27 +396,27 @@ export default function ManagerKpiReportsPage() {
           <table className="min-w-full text-left text-sm text-slate-700">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.2em] text-slate-500">
               <tr>
-                <th className="px-4 py-4">Employee</th>
-                <th className="px-4 py-4">Staff No.</th>
-                <th className="px-4 py-4">Position</th>
-                <th className="px-4 py-4">Period</th>
-                <th className="px-4 py-4 text-right">Total KPIs</th>
-                <th className="px-4 py-4 text-right">Score</th>
+                <th className="px-4 py-4 whitespace-nowrap">Employee</th>
+                <th className="px-4 py-4 whitespace-nowrap w-32">Staff No.</th>
+                <th className="px-4 py-4 whitespace-nowrap">Position</th>
+                <th className="px-4 py-4 text-right whitespace-nowrap">Total KPIs</th>
+                <th className="px-4 py-4 text-right whitespace-nowrap">Score</th>
+                <th className="px-4 py-4 text-center whitespace-nowrap">Performance Level</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">Loading KPI records…</td>
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">Loading KPI records…</td>
                 </tr>
               ) : paginatedRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">No KPI records found for your department.</td>
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">No KPI records found for your department.</td>
                 </tr>
               ) : (
                 paginatedRecords.map((item) => (
                   <tr key={`${item.employeeId}-${item.period}`} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 font-black">{getInitials(item.employeeName)}</div>
                         <div>
@@ -314,11 +425,13 @@ export default function ManagerKpiReportsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-slate-600">{item.staffNo || `EMP-${item.employeeId}`}</td>
-                    <td className="px-4 py-4 text-slate-600">{item.positionName || 'N/A'}</td>
-                    <td className="px-4 py-4 text-slate-600">{item.period || 'N/A'}</td>
-                    <td className="px-4 py-4 text-right text-slate-900 font-black">{item.totalKpis ?? 0}</td>
-                    <td className="px-4 py-4 text-right font-black text-slate-900">{formatPercentage(item.totalScore)}</td>
+                    <td className="px-4 py-4 text-slate-600 whitespace-nowrap w-32">{item.staffNo || `EMP-${item.employeeId}`}</td>
+                    <td className="px-4 py-4 text-slate-600 whitespace-nowrap">{item.positionName || 'N/A'}</td>
+                    <td className="px-4 py-4 text-right text-slate-900 font-black whitespace-nowrap">{item.totalKpis ?? 0}</td>
+                    <td className="px-4 py-4 text-right font-black text-slate-900 whitespace-nowrap">{formatPercentage(item.totalScore)}</td>
+                    <td className="px-4 py-4 text-center whitespace-nowrap">
+                      {renderPerformanceBadge(item.totalScore)}
+                    </td>
                   </tr>
                 ))
               )}

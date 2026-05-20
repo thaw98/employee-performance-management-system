@@ -3,6 +3,35 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../app/store';
 import { useGetKpisByEmployeeQuery } from '../features/kpi/kpiApi';
 
+function getPerformanceLevel(score: number): { text: string; badgeClass: string; iconClass: string } {
+  if (score >= 90) {
+    return {
+      text: 'High Performer',
+      badgeClass: 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/30',
+      iconClass: 'bi bi-star-fill text-yellow-400'
+    };
+  }
+  if (score >= 70) {
+    return {
+      text: 'Good Performer',
+      badgeClass: 'bg-blue-500/20 text-blue-100 border border-blue-400/30',
+      iconClass: 'bi bi-award-fill text-blue-300'
+    };
+  }
+  if (score >= 50) {
+    return {
+      text: 'Low Performer',
+      badgeClass: 'bg-orange-500/20 text-orange-100 border border-orange-400/30',
+      iconClass: 'bi bi-shield-fill-exclamation text-orange-300'
+    };
+  }
+  return {
+    text: 'Poor Performer',
+    badgeClass: 'bg-red-500/20 text-red-100 border border-red-400/30',
+    iconClass: 'bi bi-exclamation-triangle-fill text-red-300'
+  };
+}
+
 export const EmployeeKpiViewPage: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState('2026-2027');
   const { user } = useSelector((state: RootState) => state.auth);
@@ -44,10 +73,15 @@ export const EmployeeKpiViewPage: React.FC = () => {
               <span className="text-5xl font-black">{totalScore.toFixed(1)}</span>
               <span className="text-blue-200">/ 100</span>
             </div>
-            <div className="mt-6 flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full w-fit">
-              <i className="bi bi-star-fill text-yellow-400 text-xs"></i>
-              <span className="text-xs font-bold tracking-wide uppercase">Excellent Performance</span>
-            </div>
+            {kpis.length > 0 && (() => {
+              const perf = getPerformanceLevel(totalScore);
+              return (
+                <div className={`mt-6 flex items-center gap-2 px-3 py-1 rounded-full w-fit ${perf.badgeClass}`}>
+                  <i className={`${perf.iconClass} text-xs`}></i>
+                  <span className="text-xs font-bold tracking-wide uppercase">{perf.text}</span>
+                </div>
+              );
+            })()}
           </div>
           {/* Decorative shapes */}
           <div className="absolute top-[-20%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
