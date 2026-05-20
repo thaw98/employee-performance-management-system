@@ -49,6 +49,7 @@ public class PipService {
     private static final String STATUS_SCHEDULED = "SCHEDULED";
     private static final String DECISION_APPROVED = "APPROVED";
     private static final String DECISION_REJECTED = "REJECTED";
+    private static final BigDecimal PIP_KPI_SCORE_THRESHOLD = BigDecimal.valueOf(21);
 
     private final PipRepository pipRepository;
     private final PipObjectiveRepository objectiveRepository;
@@ -60,6 +61,7 @@ public class PipService {
     private final SignatureRepository signatureRepository;
     private final NotificationService notificationService;
     private final UserRepository userRepository;
+    private final KpiRepository kpiRepository;
 
     public List<EligibleEmployeeDTO> getLowPerformers(User manager) {
         if (manager.getEmployee() == null) {
@@ -71,12 +73,15 @@ public class PipService {
                 .filter(employee -> isManagedBy(employee, managerEmployeeId))
                 .filter(employee -> !isProbationEmployee(employee))
                 .filter(employee -> !hasBlockingPip(employee))
+                .map(employee -> new EligibleEmployeeWithScore(employee, getLatestKpiTotalScore(employee)))
+                .filter(candidate -> candidate.totalScore() != null
+                        && candidate.totalScore().compareTo(PIP_KPI_SCORE_THRESHOLD) < 0)
                 .map(employee -> new EligibleEmployeeDTO(
-                        employee.getId(),
-                        employee.getEmployeeId(),
-                        employee.getEmployeeName(),
-                        employee.getDepartment() == null ? null : employee.getDepartment().getName(),
-                        null))
+                        employee.employee().getId(),
+                        employee.employee().getEmployeeId(),
+                        employee.employee().getEmployeeName(),
+                        employee.employee().getDepartment() == null ? null : employee.employee().getDepartment().getName(),
+                        employee.totalScore()))
                 .toList();
     }
 
@@ -117,6 +122,10 @@ public class PipService {
         }
         if (isProbationEmployee(employee)) {
             throw new RuntimeException("Probation employees cannot be assigned to PIP");
+        }
+        BigDecimal kpiScore = getLatestKpiTotalScore(employee);
+        if (kpiScore == null || kpiScore.compareTo(PIP_KPI_SCORE_THRESHOLD) >= 0) {
+            throw new RuntimeException("Only employees with KPI score below 21% can be assigned to PIP");
         }
 
         boolean hasOpenPip = pipRepository.findByEmployeeAndStatusIn(employee,
@@ -1028,7 +1037,40 @@ public class PipService {
                 List.of(STATUS_ACTIVE, STATUS_AUTO_CLOSED, STATUS_REOPEN_REQUESTED));
     }
 
+    private BigDecimal getLatestKpiTotalScore(Employee employee) {
+        if (employee == null || employee.getId() == null) {
+            return null;
+        }
+        return kpiRepository.findLatestPeriodByEmployee_Id(employee.getId())
+                .map(period -> {
+                    List<EmployeeKpi> kpis = kpiRepository.findByEmployee_IdAndPeriod(employee.getId(), period);
+                    if (kpis.isEmpty()) {
+                        return null;
+                    }
+                    BigDecimal savedTotal = kpis.stream()
+                            .map(EmployeeKpi::getKpiTotalScore)
+                            .filter(score -> score != null)
+                            .findFirst()
+                            .orElse(null);
+                    if (savedTotal != null) {
+                        return savedTotal;
+                    }
+                    List<BigDecimal> weightedScores = kpis.stream()
+                            .map(EmployeeKpi::getWeightedScore)
+                            .filter(score -> score != null)
+                            .toList();
+                    if (weightedScores.isEmpty()) {
+                        return BigDecimal.ZERO;
+                    }
+                    return weightedScores.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+                })
+                .orElse(null);
+    }
+
     private String normalizeStatus(String status) {
         return status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private record EligibleEmployeeWithScore(Employee employee, BigDecimal totalScore) {
     }
 }
