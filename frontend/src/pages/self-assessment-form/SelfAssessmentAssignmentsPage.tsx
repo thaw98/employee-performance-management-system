@@ -136,7 +136,9 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
         },
       }).unwrap();
       toast.success(
-        `Assigned ${result.createdCount} form(s); skipped ${result.skippedCount} (already in cycle or ineligible).`
+        result.createdCount > 0
+          ? 'Self-assessment forms assigned successfully'
+          : 'No new self-assessment forms were assigned'
       );
       closeDeadlineModal();
     } catch (error: unknown) {

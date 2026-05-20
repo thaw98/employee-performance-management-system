@@ -133,6 +133,7 @@ export interface EmployeeInfoDto {
   positionId: number
   positionName: string
   positionCode: string
+  roleId: number | null
 }
 
 export interface SelfAssessmentAttemptAnswerDto {
@@ -425,6 +426,8 @@ export interface ManagerRetakeRequest {
   retakeRequests: RetakeQuestionRequest[]
 }
 
+export type HrRetakeRequest = ManagerRetakeRequest
+
 export interface EmployeeRetakeAnswerRequest {
   answerId: number
   yesNoAnswer: string
@@ -536,6 +539,7 @@ const normalizeEmployeeInfo = (source: UnknownRecord): EmployeeInfoDto => {
     positionId: getNumber(positionSource?.id ?? source.positionId),
     positionName: getString(positionSource?.positionName ?? positionSource?.name ?? source.positionName, 'N/A'),
     positionCode: getString(positionSource?.positionCode ?? positionSource?.code ?? source.positionCode),
+    roleId: source.roleId != null ? getNumber(source.roleId) : null,
   }
 }
 
@@ -993,6 +997,16 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
+    hrRequestRetake: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrRetakeRequest }>({
+      query: ({ formId, request }) => ({
+        url: `/self-assessment-forms/${formId}/hr-request-retake`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
     employeeRetakeSubmit: builder.mutation<SelfAssessmentFormDto, { formId: number; request: EmployeeRetakeSubmitRequest }>({
       query: ({ formId, request }) => ({
         url: `/self-assessment-forms/${formId}/retake-submit`,
@@ -1263,6 +1277,7 @@ export const {
   useGetFormByIdQuery,
   useManagerReviewMutation,
   useManagerRequestRetakeMutation,
+  useHrRequestRetakeMutation,
   useEmployeeRetakeSubmitMutation,
   useManagerApproveRetakeMutation,
   useHrApproveManagerReviewMutation,

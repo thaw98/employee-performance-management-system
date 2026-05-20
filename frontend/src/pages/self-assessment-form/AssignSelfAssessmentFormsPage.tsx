@@ -52,42 +52,10 @@ function toggleId(values: number[], id: number) {
   return values.includes(id) ? values.filter((value) => value !== id) : [...values, id];
 }
 
-function formatAssignmentSuccessMessage({
-  createdCount,
-  skippedExistingCount,
-  skippedNoTemplateCount,
-  skippedIneligibleCount,
-}: {
-  createdCount: number;
-  skippedExistingCount: number;
-  skippedNoTemplateCount: number;
-  skippedIneligibleCount: number;
-}): string {
-  const formLabel = createdCount === 1 ? 'form' : 'forms';
-  const assignedText =
-    createdCount > 0
-      ? `${createdCount} self-assessment ${formLabel} assigned successfully`
-      : 'No new self-assessment forms were assigned';
-
-  const skipReasons: string[] = [];
-  if (skippedExistingCount > 0) {
-    const deadlineLabel = skippedExistingCount === 1 ? 'this deadline' : 'these deadlines';
-    skipReasons.push(`${skippedExistingCount} already assigned for ${deadlineLabel}`);
-  }
-  if (skippedNoTemplateCount > 0) {
-    skipReasons.push(`${skippedNoTemplateCount} without a matching template`);
-  }
-  if (skippedIneligibleCount > 0) {
-    skipReasons.push(`${skippedIneligibleCount} ineligible`);
-  }
-
-  if (skipReasons.length === 0) {
-    return `${assignedText}.`;
-  }
-
-  const totalSkipped = skippedExistingCount + skippedNoTemplateCount + skippedIneligibleCount;
-  const employeeLabel = totalSkipped === 1 ? 'employee' : 'employees';
-  return `${assignedText}. ${totalSkipped} ${employeeLabel} skipped (${skipReasons.join('; ')}).`;
+function formatAssignmentSuccessMessage(createdCount: number): string {
+  return createdCount > 0
+    ? 'Self-assessment forms assigned successfully'
+    : 'No new self-assessment forms were assigned';
 }
 
 type HybridRule = {
@@ -650,14 +618,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
           skippedIneligibleCount += result.skippedIneligibleCount;
         }
 
-        toast.success(
-          formatAssignmentSuccessMessage({
-            createdCount,
-            skippedExistingCount,
-            skippedNoTemplateCount,
-            skippedIneligibleCount,
-          }),
-        );
+        toast.success(formatAssignmentSuccessMessage(createdCount));
       } else {
         const result = await assignForms({
           assignmentMode,
@@ -668,14 +629,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
           deadlineDate,
           managerReviewDeadlineDate,
         }).unwrap();
-        toast.success(
-          formatAssignmentSuccessMessage({
-            createdCount: result.createdCount,
-            skippedExistingCount: result.skippedExistingCount,
-            skippedNoTemplateCount: result.skippedNoTemplateCount,
-            skippedIneligibleCount: result.skippedIneligibleCount,
-          }),
-        );
+        toast.success(formatAssignmentSuccessMessage(result.createdCount));
       }
       if (onAssignmentSuccess) {
         onAssignmentSuccess();

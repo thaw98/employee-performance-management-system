@@ -919,7 +919,12 @@ Instant now = Instant.now();
 
         form.setEmployeeSignatureId(defaultSig.getId());
         form.setEmployeeSignatureDate(Instant.now());
-        form.setStatus(SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW);
+        boolean managerOwnedForm = isManagerOwnedForm(form);
+        if (managerOwnedForm) {
+            form.setStatus(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL);
+        } else {
+            form.setStatus(SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW);
+        }
         Instant submittedAt = Instant.now();
         form.setSubmittedDate(submittedAt);
         form.setAssessmentDate(LocalDate.ofInstant(submittedAt, ZoneId.systemDefault()));
@@ -938,7 +943,11 @@ Instant now = Instant.now();
                 "Submitted self-assessment form with score " + saved.getTotalScore(),
                 null);
 
-        sendManagerSubmissionNotification(employee, saved);
+        if (managerOwnedForm) {
+            sendHrManagerSelfAssessmentSubmittedNotification(saved);
+        } else {
+            sendManagerSubmissionNotification(employee, saved);
+        }
 
         return toFormDto(saved);
     }
@@ -1304,7 +1313,10 @@ Instant now = Instant.now();
         }
 
         form.setRetakeSubmittedAt(now);
-        form.setStatus(SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW);
+        boolean managerOwnedForm = isManagerOwnedForm(form);
+        form.setStatus(managerOwnedForm
+                ? SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL
+                : SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW);
         form.setUpdatedDate(now);
         SelfAssessmentForm saved = formRepository.save(form);
 
@@ -1316,7 +1328,88 @@ Instant now = Instant.now();
                 null,
                 "Employee submitted retake answers for selected self-assessment questions",
                 null);
-        sendManagerRetakeSubmittedNotification(saved);
+        if (managerOwnedForm) {
+            sendHrManagerSelfAssessmentRetakeSubmittedNotification(saved);
+        } else {
+            sendManagerRetakeSubmittedNotification(saved);
+        }
+        return toFormDto(saved);
+    }
+
+    @Transactional
+    public SelfAssessmentFormDto hrRequestRetake(Long formId, ManagerRetakeRequest request, Long hrUserId) {
+        SelfAssessmentForm form = formRepository.findById(formId)
+                .orElseThrow(() -> new RuntimeException("Form not found"));
+
+        if (!isManagerOwnedForm(form)) {
+            throw new RuntimeException("HR retake requests are only allowed for manager self-assessments");
+        }
+        if (form.getStatus() != SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL) {
+            throw new RuntimeException("Form is not pending HR final approval");
+        }
+        if (Boolean.TRUE.equals(form.getRetakeRequestUsed())) {
+            throw new RuntimeException("A retake has already been requested for this form");
+        }
+        if (request.retakeRequests() == null || request.retakeRequests().isEmpty()) {
+            throw new RuntimeException("Select at least one question for retake");
+        }
+
+        Map<Long, SelfAssessmentFormAnswer> answersById = form.getAnswers().stream()
+                .collect(Collectors.toMap(SelfAssessmentFormAnswer::getId, a -> a));
+        Set<Long> selectedAnswerIds = new HashSet<>();
+        for (RetakeQuestionRequest retake : request.retakeRequests()) {
+            if (retake.answerId() == null || !answersById.containsKey(retake.answerId())) {
+                throw new RuntimeException("Retake request contains an invalid answer");
+            }
+            if (retake.comment() == null || retake.comment().trim().isBlank()) {
+                throw new RuntimeException("A warning comment is required for each retake question");
+            }
+            if (!selectedAnswerIds.add(retake.answerId())) {
+                throw new RuntimeException("Duplicate retake question selected");
+            }
+        }
+
+        User hrUser = findHrUser(hrUserId);
+        Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
+                .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before requesting a retake."));
+
+        Instant now = Instant.now();
+        form.setManager(hrUser.getEmployee());
+        form.setManagerSignatureId(defaultSig.getId());
+        form.setManagerSignatureDate(now);
+        form.setManagerComments(request.comments());
+        form.setRetakeRequestedAt(now);
+        form.setRetakeSubmittedAt(null);
+        form.setRetakeRequestUsed(true);
+        form.setManagerApprovedRetakeAt(null);
+        form.setUpdatedDate(now);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_EMPLOYEE_RETAKE);
+
+        for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
+            answer.setRetakeRequested(false);
+            answer.setRetakeRequestComment(null);
+            answer.setRetakeYesNoAnswer(null);
+            answer.setRetakeRating(null);
+            answer.setRetakeReason(null);
+            answer.setRetakeSubmittedAt(null);
+            answer.setRetakeApproved(null);
+        }
+        for (RetakeQuestionRequest retake : request.retakeRequests()) {
+            SelfAssessmentFormAnswer answer = answersById.get(retake.answerId());
+            answer.setRetakeRequested(true);
+            answer.setRetakeRequestComment(retake.comment().trim());
+        }
+
+        SelfAssessmentForm saved = formRepository.save(form);
+        auditService.record(
+                AuditActionType.SELF_ASSESSMENT_FORM_MANAGER_REVIEWED,
+                AuditTargetType.SELF_ASSESSMENT_FORM,
+                saved.getId(),
+                hrUserId,
+                null,
+                "HR requested a one-time retake for selected manager self-assessment questions",
+                null);
+        sendManagerSelfAssessmentRetakeNotification(saved);
         return toFormDto(saved);
     }
 
@@ -1459,8 +1552,7 @@ Instant now = Instant.now();
             throw new RuntimeException("Form is not eligible for HR adjustment approval");
         }
 
-        User hrUser = userRepository.findByIdWithEmployeeDepartment(hrUserId)
-                .orElseThrow(() -> new RuntimeException("HR user not found"));
+        User hrUser = findHrUser(hrUserId);
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before approving."));
@@ -1509,8 +1601,7 @@ Instant now = Instant.now();
             throw new RuntimeException("Form is not eligible for HR adjustment rejection");
         }
 
-        User hrUser = userRepository.findByIdWithEmployeeDepartment(hrUserId)
-                .orElseThrow(() -> new RuntimeException("HR user not found"));
+        User hrUser = findHrUser(hrUserId);
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before rejecting."));
@@ -1609,8 +1700,7 @@ Instant now = Instant.now();
             throw new RuntimeException("Form is not eligible for final approval");
         }
 
-        User hrUser = userRepository.findByIdWithEmployeeDepartment(hrUserId)
-                .orElseThrow(() -> new RuntimeException("HR user not found"));
+        User hrUser = findHrUser(hrUserId);
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before approving."));
@@ -1664,8 +1754,7 @@ Instant now = Instant.now();
             throw new RuntimeException("Only finalized forms can be reopened");
         }
 
-        User hrUser = userRepository.findByIdWithEmployeeDepartment(hrUserId)
-                .orElseThrow(() -> new RuntimeException("HR user not found"));
+        User hrUser = findHrUser(hrUserId);
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(hrUser)
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before reopening."));
@@ -2156,6 +2245,45 @@ Instant now = Instant.now();
                 && subject.getDepartment().getManagerId().equals(manager.getId());
     }
 
+    private boolean isManagerOwnedForm(SelfAssessmentForm form) {
+        return form != null && isRole(form.getEmployee(), 2L);
+    }
+
+    private boolean isRole(Employee employee, Long roleId) {
+        if (employee == null || roleId == null) {
+            return false;
+        }
+        if (employee.getUserAccount() != null
+                && employee.getUserAccount().getRole() != null
+                && roleId.equals(employee.getUserAccount().getRole().getId())) {
+            return true;
+        }
+        if (employee.getId() == null) {
+            return false;
+        }
+        return userRepository.findByEmployee_Id(employee.getId())
+                .map(User::getRole)
+                .map(Role::getId)
+                .map(roleId::equals)
+                .orElse(false);
+    }
+
+    private Long resolveEmployeeRoleId(Employee employee) {
+        if (employee == null) {
+            return null;
+        }
+        if (employee.getUserAccount() != null && employee.getUserAccount().getRole() != null) {
+            return employee.getUserAccount().getRole().getId();
+        }
+        if (employee.getId() == null) {
+            return null;
+        }
+        return userRepository.findByEmployee_Id(employee.getId())
+                .map(User::getRole)
+                .map(Role::getId)
+                .orElse(null);
+    }
+
     private boolean isPostSubmitStatus(SelfAssessmentFormStatus status) {
         return status == SelfAssessmentFormStatus.SUBMITTED
                 || status == SelfAssessmentFormStatus.MANAGER_REVIEWED
@@ -2235,6 +2363,17 @@ Instant now = Instant.now();
                 form.getId()));
     }
 
+    private void sendManagerSelfAssessmentRetakeNotification(SelfAssessmentForm form) {
+        Employee employee = form.getEmployee();
+        resolveActiveEmployeeUser(employee).ifPresent(user -> notificationService.send(
+                user,
+                "Self-Assessment Retake Requested",
+                "HR requested a retake for selected questions on "
+                        + resolveFormDisplayTitle(form) + ". Please update only the warned questions.",
+                "SELF_ASSESSMENT_FORM",
+                form.getId()));
+    }
+
     private Optional<User> resolveActiveEmployeeUser(Employee employee) {
         if (employee == null || employee.getId() == null) {
             return Optional.empty();
@@ -2256,6 +2395,32 @@ Instant now = Instant.now();
                                 + resolveFormDisplayTitle(form) + ".",
                         "SELF_ASSESSMENT_FORM",
                         form.getId()));
+    }
+
+    private void sendHrManagerSelfAssessmentSubmittedNotification(SelfAssessmentForm form) {
+        Employee employee = form.getEmployee();
+        userRepository.findByRole_IdAndActiveTrue(1L).forEach(hrUser -> notificationService.send(
+                hrUser,
+                "Manager Self-Assessment Pending Final Approval",
+                (employee != null ? employee.getEmployeeName() : "A manager")
+                        + " submitted "
+                        + resolveFormDisplayTitle(form)
+                        + ". Final HR approval is required.",
+                "SELF_ASSESSMENT_FORM",
+                form.getId()));
+    }
+
+    private void sendHrManagerSelfAssessmentRetakeSubmittedNotification(SelfAssessmentForm form) {
+        Employee employee = form.getEmployee();
+        userRepository.findByRole_IdAndActiveTrue(1L).forEach(hrUser -> notificationService.send(
+                hrUser,
+                "Manager Self-Assessment Retake Submitted",
+                (employee != null ? employee.getEmployeeName() : "A manager")
+                        + " submitted retake answers for "
+                        + resolveFormDisplayTitle(form)
+                        + ". Final HR approval is required.",
+                "SELF_ASSESSMENT_FORM",
+                form.getId()));
     }
 
     /**
@@ -2615,6 +2780,7 @@ Instant now = Instant.now();
         Employee emp = form.getEmployee();
         if (emp == null) return false;
         Long managerId = manager.getId();
+        if (managerId != null && managerId.equals(emp.getId())) return true;
         boolean isDirectReport = emp.getManager() != null && emp.getManager().getId().equals(managerId);
         boolean isDepartmentManaged = emp.getDepartment() != null
                 && managerId.equals(emp.getDepartment().getManagerId());
@@ -2640,7 +2806,8 @@ Instant now = Instant.now();
                 emp.getDepartment() != null ? emp.getDepartment().getCode() : null,
                 emp.getPosition() != null ? emp.getPosition().getId() : null,
                 emp.getPosition() != null ? emp.getPosition().getName() : null,
-                emp.getPosition() != null ? emp.getPosition().getCode() : null
+                emp.getPosition() != null ? emp.getPosition().getCode() : null,
+                resolveEmployeeRoleId(emp)
         );
 
         return new ScoreRecordDto(
@@ -2753,7 +2920,8 @@ Instant now = Instant.now();
                 emp.getDepartment() != null ? emp.getDepartment().getCode() : null,
                 emp.getPosition() != null ? emp.getPosition().getId() : null,
                 emp.getPosition() != null ? emp.getPosition().getName() : null,
-                emp.getPosition() != null ? emp.getPosition().getCode() : null
+                emp.getPosition() != null ? emp.getPosition().getCode() : null,
+                resolveEmployeeRoleId(emp)
         );
 
         List<AnswerDto> answers = form.getAnswers().stream()
@@ -2896,6 +3064,12 @@ Instant now = Instant.now();
         }
     }
 
+    private User findHrUser(Long hrUserId) {
+        return userRepository.findByIdWithEmployeeDepartment(hrUserId)
+                .or(() -> userRepository.findById(hrUserId))
+                .orElseThrow(() -> new RuntimeException("HR user not found"));
+    }
+
     private String displayNameFromUser(User user) {
         if (user == null) {
             return null;
@@ -2977,7 +3151,8 @@ Instant now = Instant.now();
                 emp.getDepartment() != null ? emp.getDepartment().getCode() : null,
                 emp.getPosition() != null ? emp.getPosition().getId() : null,
                 emp.getPosition() != null ? emp.getPosition().getName() : null,
-                emp.getPosition() != null ? emp.getPosition().getCode() : null
+                emp.getPosition() != null ? emp.getPosition().getCode() : null,
+                resolveEmployeeRoleId(emp)
         );
 
         return new FormListDto(

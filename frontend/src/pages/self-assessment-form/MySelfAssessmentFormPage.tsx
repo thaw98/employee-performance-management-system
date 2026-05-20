@@ -731,7 +731,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   </span>
                 </div>
                 <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-[26px]">
-                  My Self Assessment
+                  My Form
                 </h1>
                 {formData?.title && (
                   <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -1192,6 +1192,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   hrFinalSignatureData={formData.hrFinalSignatureData}
                   hrFinalSignatureDate={formData.hrFinalSignatureDate}
                   hrName={formData.hrName}
+                  isManagerSelfAssessment={formData.employee?.roleId === 2}
                 />
               </div>
             </div>
@@ -1224,7 +1225,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-px hover:bg-slate-50 hover:shadow disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:disabled:hover:bg-slate-800"
                 >
 	                  <Save size={15} />
-	                  {autosave.isSaving ? 'Saving...' : 'Save Now'}
+	                  {autosave.isSaving ? 'Saving...' : 'Save Draft'}
 	                </button>
 	                )}
 	                <button

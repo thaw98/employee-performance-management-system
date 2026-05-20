@@ -43,6 +43,7 @@ import {
   useGetFormByIdQuery,
   useManagerReviewMutation,
   useManagerRequestRetakeMutation,
+  useHrRequestRetakeMutation,
   useManagerApproveRetakeMutation,
   useHrReturnDisputedReviewMutation,
   useHrApproveManagerReviewMutation,
@@ -379,6 +380,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
   const [managerReview, { isLoading: isApprovingReview }] = useManagerReviewMutation();
   const [managerRequestRetake, { isLoading: isRequestingRetake }] = useManagerRequestRetakeMutation();
+  const [hrRequestRetake, { isLoading: isRequestingHrRetake }] = useHrRequestRetakeMutation();
   const [managerApproveRetake, { isLoading: isApprovingRetake }] = useManagerApproveRetakeMutation();
   const [hrReturnDisputedReview, { isLoading: isHrReturningDispute }] = useHrReturnDisputedReviewMutation();
   const [hrApproveManagerReview, { isLoading: isHrApproving }] = useHrApproveManagerReviewMutation();
@@ -399,6 +401,16 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const hasDefaultSignature = Boolean(defaultSignature);
   const isMissingDefaultSignature = !isDefaultSigLoading && !hasDefaultSignature;
   const portalRoot = typeof document !== 'undefined' ? document.body : null;
+  const isManagerSelfAssessment = selectedForm?.employee?.roleId === 2;
+  const isRetakeRequesting = isRequestingRetake || isRequestingHrRetake;
+  const canHrRequestManagerRetake = isHr
+    && isManagerSelfAssessment
+    && selectedForm?.status === 'PENDING_FINAL_APPROVAL'
+    && !selectedForm.retakeRequestUsed;
+  const canHrScheduleManagerMeeting = isHr
+    && isManagerSelfAssessment
+    && selectedForm?.status === 'PENDING_FINAL_APPROVAL'
+    && Boolean(selectedForm.retakeSubmittedAt);
 
   const forms = isEmployeeDetail ? [] : isHr ? (selectedFormId ? allForms : hrForms) : managerForms;
   const isLoading = selectedFormLoading || (isEmployeeDetail ? false : isHr ? (selectedFormId ? allFormsLoading : hrFormsLoading) : managerFormsLoading);
@@ -518,11 +530,20 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     }
 
     try {
-      await managerRequestRetake({
-        formId: selectedFormId,
-        request: { comments: managerComments, retakeRequests },
-      }).unwrap();
-      toast.success('Retake requested. The employee has been notified.');
+      if (isHr && isManagerSelfAssessment) {
+        await hrRequestRetake({
+          formId: selectedFormId,
+          request: { comments: managerComments, retakeRequests },
+        }).unwrap();
+      } else {
+        await managerRequestRetake({
+          formId: selectedFormId,
+          request: { comments: managerComments, retakeRequests },
+        }).unwrap();
+      }
+      toast.success(isHr && isManagerSelfAssessment
+        ? 'Retake requested. The manager has been notified.'
+        : 'Retake requested. The employee has been notified.');
       setShowManagerRetakeModal(false);
       setManagerComments('');
       setRetakeComments({});
@@ -553,7 +574,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
   const handleScheduleMeeting = () => {
     if (!selectedForm) return;
-    navigate('/manager/meetings?section=schedule', {
+    const basePath = isHr ? '/hr/meetings' : '/manager/meetings';
+    const params = new URLSearchParams({
+      section: 'schedule',
+      employeeId: String(selectedForm.employee?.id ?? ''),
+    });
+    navigate(`${basePath}?${params.toString()}`, {
       state: { employeeId: selectedForm.employee?.id, formId: selectedForm.id },
     });
   };
@@ -1370,12 +1396,12 @@ Review Submissions
 	                            </div>
 	                            {answer.retakeRequestComment && (
 	                              <p className="mt-3 text-sm font-semibold leading-relaxed text-sky-900 dark:text-sky-100">
-	                                Manager warning: {answer.retakeRequestComment}
+	                                {isManagerSelfAssessment ? 'HR warning' : 'Manager warning'}: {answer.retakeRequestComment}
 	                              </p>
 	                            )}
 	                            {answer.retakeReason && (
 	                              <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-	                                Employee reason: {answer.retakeReason}
+	                                {isManagerSelfAssessment ? 'Manager reason' : 'Employee reason'}: {answer.retakeReason}
 	                              </p>
 	                            )}
 	                          </div>
@@ -1412,6 +1438,7 @@ Review Submissions
                     hrFinalSignatureData={selectedForm.hrFinalSignatureData}
                     hrFinalSignatureDate={selectedForm.hrFinalSignatureDate}
                     hrName={selectedForm.hrName}
+                    isManagerSelfAssessment={isManagerSelfAssessment}
                   />
                 </div>
               </div>
@@ -1746,19 +1773,110 @@ Review Submissions
                       </div>
                     )}
 
-	                    {true && (
-                      <div className="flex gap-3 flex-wrap pt-2">
+                    {canHrRequestManagerRetake && (
+                      <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-700/60 dark:bg-slate-700/20">
+                        <button
+                          type="button"
+                          onClick={() => setShowAdjustments((prev) => !prev)}
+                          aria-pressed={showAdjustments}
+                          className="flex w-full items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5D5FEF]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800"
+                        >
+                          <div className={`relative flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${showAdjustments ? 'bg-[#5D5FEF]' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                            <div className={`absolute h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${showAdjustments ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
+                          </div>
+                          <div>
+                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                              Request Retake
+                            </span>
+                            <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">
+                              Select questions and add a warning comment for each retake request
+                            </p>
+                          </div>
+                        </button>
+                      </div>
+                    )}
+
+                    {canHrRequestManagerRetake && showAdjustments && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <SlidersHorizontal size={14} className="text-amber-600 dark:text-amber-400" />
+                          <p className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                            Retake Requests
+                          </p>
+                        </div>
+                        {selectedForm.answers?.map((answer: any, index: number) => {
+                          const isSelected = Object.prototype.hasOwnProperty.call(retakeComments, answer.id);
+                          return (
+                            <div key={answer.id} className="rounded-xl border border-slate-200/80 bg-white p-4 dark:border-slate-700/60 dark:bg-slate-800/40">
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-700/60 text-[10px] font-bold text-slate-500 dark:text-slate-400">Q{index + 1}</span>
+                                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{answer.questionText}</p>
+                                </div>
+                                <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => handleToggleRetakeQuestion(answer.id, e.target.checked)}
+                                    className="h-4 w-4 rounded border-slate-300 text-[#5D5FEF] focus:ring-[#5D5FEF]"
+                                  />
+                                  Request manager retake for this question
+                                </label>
+                                <div>
+                                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                    Warning Comment <span className="text-red-500">*</span>
+                                  </label>
+                                  <textarea
+                                    value={retakeComments[answer.id] || ''}
+                                    onChange={(e) => handleRetakeCommentChange(answer.id, e.target.value)}
+                                    disabled={!isSelected}
+                                    rows={3}
+                                    className={filterControlClass}
+                                    placeholder="Explain what the manager should revisit"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-700/40">
+                        {canHrScheduleManagerMeeting && (
+                          <button
+                            type="button"
+                            onClick={handleScheduleMeeting}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700/60 transition-all"
+                          >
+                            <CalendarDays size={16} />
+                            Schedule Meeting
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setApprovalMode('final');
                             setShowApprovalModal(true);
                           }}
-                          disabled={isDefaultSigLoading || !hasDefaultSignature}
+                          disabled={isDefaultSigLoading || !hasDefaultSignature || showAdjustments}
+                          title={showAdjustments ? 'Turn off Request Retake to approve' : 'Approve and finalize'}
                           className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                           <CheckCircle2 size={16} />
-                          Final Approval
+                          Approve and Finalize
                         </button>
+                        {canHrRequestManagerRetake && (
+                          <button
+                            type="button"
+                            onClick={openManagerRetakeModal}
+                            disabled={!showAdjustments || isRetakeRequesting}
+                            title={!showAdjustments ? 'Enable Request Retake to select questions' : undefined}
+                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          >
+                            <Send size={16} />
+                            Request Retake
+                          </button>
+                        )}
                         {canHrReopenForEmployee && (
                           <button
                             onClick={() => handleHrReopenForm()}
@@ -1770,7 +1888,6 @@ Review Submissions
                           </button>
                         )}
                       </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -1807,11 +1924,11 @@ Review Submissions
         </div>
       </div>
 
-      {!isHr && !isEmployeeDetail && showManagerRetakeModal && portalRoot && createPortal(
+      {((!isHr && !isEmployeeDetail) || (isHr && isManagerSelfAssessment)) && showManagerRetakeModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => !isRequestingRetake && setShowManagerRetakeModal(false)}
+            onClick={() => !isRetakeRequesting && setShowManagerRetakeModal(false)}
           />
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
             <div className="mb-5 flex items-center gap-3">
@@ -1820,18 +1937,20 @@ Review Submissions
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Confirm Retake Request</h3>
-                <p className="text-xs text-slate-400 dark:text-slate-500">The employee will be notified</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  {isHr && isManagerSelfAssessment ? 'The manager will be notified' : 'The employee will be notified'}
+                </p>
               </div>
             </div>
             <p className="mb-2 text-sm text-slate-600 dark:text-slate-400">
               You are requesting a one-time retake from
               {' '}
               <span className="font-semibold text-slate-900 dark:text-white">
-                {selectedForm?.employee?.employeeName ?? 'this employee'}
+                {selectedForm?.employee?.employeeName ?? (isHr && isManagerSelfAssessment ? 'this manager' : 'this employee')}
               </span>
               {' '}
               for {buildRetakeRequests().length} selected question{buildRetakeRequests().length === 1 ? '' : 's'}.
-              The employee will receive a notification to update only the warned questions.
+              {isHr && isManagerSelfAssessment ? ' The manager' : ' The employee'} will receive a notification to update only the warned questions.
             </p>
             <div className="mb-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700/60 dark:bg-slate-700/20">
               <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
@@ -1841,7 +1960,7 @@ Review Submissions
               {isMissingDefaultSignature && (
                 <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
                   No default signature set.{' '}
-                  <Link to="/manager/settings/signature" className="text-[#5D5FEF] underline">
+                  <Link to={isHr ? '/hr/settings/signature' : '/manager/settings/signature'} className="text-[#5D5FEF] underline">
                     Open Signature Settings
                   </Link>
                 </p>
@@ -1851,7 +1970,7 @@ Review Submissions
               <button
                 type="button"
                 onClick={() => setShowManagerRetakeModal(false)}
-                disabled={isRequestingRetake}
+                disabled={isRetakeRequesting}
                 className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all disabled:opacity-50"
               >
                 Cancel
@@ -1859,10 +1978,10 @@ Review Submissions
               <button
                 type="button"
                 onClick={() => void handleSubmitRetakeRequest()}
-                disabled={isRequestingRetake || isDefaultSigLoading || !hasDefaultSignature}
+                disabled={isRetakeRequesting || isDefaultSigLoading || !hasDefaultSignature}
                 className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {isRequestingRetake ? (
+                {isRetakeRequesting ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <Send size={16} />
