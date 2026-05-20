@@ -48,6 +48,7 @@ public class KpiService {
     private final DepartmentPositionRepository departmentPositionRepository;
     private final AuditService auditService;
     private final AppraisalAssignmentRepository appraisalAssignmentRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     public KpiService(KpiRepository kpiRepository,
             EmployeeRepository employeeRepository,
@@ -58,7 +59,8 @@ public class KpiService {
             UserRepository userRepository,
             DepartmentPositionRepository departmentPositionRepository,
             AuditService auditService,
-            AppraisalAssignmentRepository appraisalAssignmentRepository) {
+            AppraisalAssignmentRepository appraisalAssignmentRepository,
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.kpiRepository = kpiRepository;
         this.employeeRepository = employeeRepository;
         this.positionKpiRepository = positionKpiRepository;
@@ -69,6 +71,7 @@ public class KpiService {
         this.departmentPositionRepository = departmentPositionRepository;
         this.auditService = auditService;
         this.appraisalAssignmentRepository = appraisalAssignmentRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public List<KpiDto> getKpisByEmployeeAndPeriod(Long employeeId, String period) {
@@ -781,5 +784,61 @@ public class KpiService {
         dto.setCreatedDate(entity.getCreatedDate());
         dto.setUpdatedDate(entity.getUpdatedDate());
         return dto;
+    }
+
+    public List<com.epms.backend.dto.DepartmentComparisonDto> getDepartmentComparison() {
+        List<Department> departments = departmentRepository.findAll();
+        List<com.epms.backend.dto.DepartmentComparisonDto> comparisonList = new ArrayList<>();
+
+        for (Department dept : departments) {
+            // 1. Total Staff
+            String staffSql = "SELECT COUNT(*) FROM employee WHERE department_id = ?";
+            Long totalStaff = jdbcTemplate.queryForObject(staffSql, Long.class, dept.getId());
+
+            // 2. Department Manager Name using the specified SQL query
+            String managerSql = """
+                    SELECT 
+                        e.full_name AS manager_name
+                    FROM 
+                        department d
+                    INNER JOIN 
+                        employee e ON d.manager_id = e.employee_id
+                    WHERE 
+                        d.department_id = ?;
+                    """;
+            String managerName = "-";
+            try {
+                managerName = jdbcTemplate.queryForObject(managerSql, String.class, dept.getId());
+            } catch (Exception e) {
+                managerName = "-";
+            }
+
+            // 3. Total Score (Average performance score)
+            String scoreSql = """
+                    SELECT AVG(k.kpi_total_score) 
+                    FROM employeekpis k 
+                    INNER JOIN employee e ON k.employee_id = e.employee_id 
+                    WHERE e.department_id = ? AND k.record_status = 'Active' AND k.kpi_total_score IS NOT NULL;
+                    """;
+            BigDecimal totalScore = BigDecimal.ZERO;
+            try {
+                Double avgScore = jdbcTemplate.queryForObject(scoreSql, Double.class, dept.getId());
+                if (avgScore != null) {
+                    totalScore = BigDecimal.valueOf(avgScore).setScale(2, java.math.RoundingMode.HALF_UP);
+                }
+            } catch (Exception e) {
+                totalScore = BigDecimal.ZERO;
+            }
+
+            comparisonList.add(com.epms.backend.dto.DepartmentComparisonDto.builder()
+                    .departmentId(dept.getId())
+                    .departmentName(dept.getName())
+                    .totalStaff(totalStaff != null ? totalStaff : 0L)
+                    .managerName(managerName)
+                    .totalScore(totalScore)
+                    .build());
+        }
+
+        return comparisonList;
     }
 }

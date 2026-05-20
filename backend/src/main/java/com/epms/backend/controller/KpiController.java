@@ -217,6 +217,11 @@ public class KpiController {
         return ResponseEntity.ok(kpiService.getAllKpiHistorySummary());
     }
 
+    @GetMapping("/history/department-comparison")
+    public ResponseEntity<List<com.epms.backend.dto.DepartmentComparisonDto>> getDepartmentComparison() {
+        return ResponseEntity.ok(kpiService.getDepartmentComparison());
+    }
+
     @PreAuthorize("hasRole('HR')")
     @PostMapping("/hr/reset-monthly")
     public ResponseEntity<Void> performMonthlyReset() {
