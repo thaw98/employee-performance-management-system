@@ -14,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/audit-logs")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('HR')")
+@PreAuthorize("principal.roleId == 1")
 public class AuditLogController {
 
     private final AuditLogRepository auditLogRepository;
@@ -29,5 +29,11 @@ public class AuditLogController {
     @GetMapping("/kpi")
     public ResponseEntity<ApiResponse<List<AuditLogDto>>> getKpiLogs() {
         return ResponseEntity.ok(ApiResponse.ok("Fetched KPI audit logs", auditService.getKpiAuditLogs()));
+    }
+
+    @GetMapping("/self-assessment")
+    public ResponseEntity<ApiResponse<List<AuditLogDto>>> getSelfAssessmentLogs() {
+        return ResponseEntity.ok(ApiResponse.ok("Fetched self-assessment audit logs",
+                auditService.getSelfAssessmentAuditLogs()));
     }
 }

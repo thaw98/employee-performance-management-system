@@ -9,7 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 import com.epms.backend.entity.AuditLog;
 import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.AuditLogDto;
+import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.ReviewCycle;
+import com.epms.backend.entity.SelfAssessmentForm;
+import com.epms.backend.entity.SelfAssessmentFormTemplate;
 import com.epms.backend.repository.AuditLogRepository;
+import com.epms.backend.repository.SelfAssessmentFormRepository;
+import com.epms.backend.repository.SelfAssessmentFormTemplateRepository;
 import com.epms.backend.repository.UserRepository;
 
 import java.util.List;
@@ -22,6 +28,8 @@ public class AuditService {
 
 	private final AuditLogRepository auditLogRepository;
 	private final UserRepository userRepository;
+	private final SelfAssessmentFormRepository selfAssessmentFormRepository;
+	private final SelfAssessmentFormTemplateRepository selfAssessmentFormTemplateRepository;
 
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void record(String actionType, String targetType, Long targetId, Long performedByUserId,
@@ -46,6 +54,17 @@ public class AuditService {
 		return auditLogRepository.findByTargetTypeInOrderByCreatedAtDesc(kpiTargetTypes)
 				.stream()
 				.map(this::convertToDto)
+				.collect(Collectors.toList());
+	}
+
+	@Transactional(readOnly = true)
+	public List<AuditLogDto> getSelfAssessmentAuditLogs() {
+		List<String> selfAssessmentTargetTypes = List.of(
+				AuditTargetType.SELF_ASSESSMENT_FORM,
+				AuditTargetType.SELF_ASSESSMENT_FORM_TEMPLATE);
+		return auditLogRepository.findByTargetTypeInOrderByCreatedAtDesc(selfAssessmentTargetTypes)
+				.stream()
+				.map(this::convertToSelfAssessmentDto)
 				.collect(Collectors.toList());
 	}
 
@@ -77,5 +96,50 @@ public class AuditService {
 				.afterData(log.getAfterData())
 				.createdAt(log.getCreatedAt())
 				.build();
+	}
+
+	private AuditLogDto convertToSelfAssessmentDto(AuditLog log) {
+		AuditLogDto dto = convertToDto(log);
+		if (AuditTargetType.SELF_ASSESSMENT_FORM.equals(log.getTargetType()) && log.getTargetId() != null) {
+			selfAssessmentFormRepository.findById(log.getTargetId()).ifPresent(form -> enrichWithForm(dto, form));
+		} else if (AuditTargetType.SELF_ASSESSMENT_FORM_TEMPLATE.equals(log.getTargetType()) && log.getTargetId() != null) {
+			selfAssessmentFormTemplateRepository.findById(log.getTargetId())
+					.ifPresent(template -> enrichWithTemplate(dto, template));
+		}
+		return dto;
+	}
+
+	private void enrichWithForm(AuditLogDto dto, SelfAssessmentForm form) {
+		Employee employee = form.getEmployee();
+		if (employee != null) {
+			dto.setEmployeeDbId(employee.getId());
+			dto.setEmployeeId(employee.getEmployeeId());
+			dto.setEmployeeName(employee.getEmployeeName());
+		}
+
+		SelfAssessmentFormTemplate template = form.getTemplate();
+		if (template != null) {
+			dto.setFormTitle(template.getTitle());
+			dto.setTemplateTitle(template.getTitle());
+		}
+
+		if (form.getStatus() != null) {
+			dto.setFormStatus(form.getStatus().name());
+		}
+
+		ReviewCycle cycle = form.getCycle();
+		if (cycle != null) {
+			dto.setCycleId(cycle.getId());
+			dto.setCycleName(cycle.getName());
+		}
+	}
+
+	private void enrichWithTemplate(AuditLogDto dto, SelfAssessmentFormTemplate template) {
+		dto.setTemplateTitle(template.getTitle());
+		ReviewCycle cycle = template.getReviewCycle();
+		if (cycle != null) {
+			dto.setCycleId(cycle.getId());
+			dto.setCycleName(cycle.getName());
+		}
 	}
 }

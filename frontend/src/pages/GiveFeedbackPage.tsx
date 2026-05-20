@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { useRhfAutosave, withRetry, type SaveResult, type Transport } from 'react-hook-form-autosave';
 import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
@@ -54,18 +56,21 @@ interface FeedbackDraft {
     }>;
 }
 
+interface FeedbackFormData {
+    ratings: Record<string, number | undefined>;
+    comments: Record<string, string>;
+    anonymous: boolean;
+}
+
 export function GiveFeedbackPage() {
     const [evaluator, setEvaluator] = useState<any>(null);
     const [evaluatees, setEvaluatees] = useState<Evaluatee[]>([]);
     const [selectedEvaluatee, setSelectedEvaluatee] = useState<Evaluatee | null>(null);
     const [criteriaList, setCriteriaList] = useState<Criteria[]>([]);
     const [role, setRole] = useState<'MANAGER' | 'PEER' | 'SUBORDINATE'>('PEER');
-    const [ratings, setRatings] = useState<Record<number, number>>({});
-    const [comments, setComments] = useState<Record<number, string>>({});
     const [roleFeedbackCount, setRoleFeedbackCount] = useState(0);
     const [roleFeedbackLimit, setRoleFeedbackLimit] = useState(5);
     const [noEligibleRemaining, setNoEligibleRemaining] = useState(false);
-    const [isAnonymous, setIsAnonymous] = useState(false);
     const [activeCycle, setActiveCycle] = useState<any>(null);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [drafts, setDrafts] = useState<FeedbackDraft[]>([]);
@@ -74,6 +79,17 @@ export function GiveFeedbackPage() {
     const [draftSearch, setDraftSearch] = useState('');
     const skipPeerAutoSelectRef = useRef(false);
     const skipSelectedDraftFetchRef = useRef(false);
+    const form = useForm<FeedbackFormData>({
+        defaultValues: {
+            ratings: {},
+            comments: {},
+            anonymous: false
+        }
+    });
+    const { getValues, reset, setValue, watch } = form;
+    const ratings = watch('ratings') || {};
+    const comments = watch('comments') || {};
+    const isAnonymous = watch('anonymous') || false;
 
     useEffect(() => {
         fetchEvaluatorInfo();
@@ -93,11 +109,10 @@ export function GiveFeedbackPage() {
                 skipSelectedDraftFetchRef.current = false;
                 return;
             }
-            setRatings({});
-            setComments({});
+            reset({ ratings: {}, comments: {}, anonymous: false });
             fetchDraft(selectedEvaluatee.id, role);
         }
-    }, [selectedEvaluatee?.id, role]);
+    }, [selectedEvaluatee?.id, role, reset]);
 
     const fetchEvaluatorInfo = async () => {
         try {
@@ -172,16 +187,18 @@ export function GiveFeedbackPage() {
     };
 
     const applyDraftToForm = (draft: FeedbackDraft) => {
-        const draftRatings: Record<number, number> = {};
-        const draftComments: Record<number, string> = {};
+        const draftRatings: Record<string, number> = {};
+        const draftComments: Record<string, string> = {};
         (draft.details || []).forEach((detail) => {
-            if (detail.rating) draftRatings[detail.criteriaId] = detail.rating;
-            if (detail.comment) draftComments[detail.criteriaId] = detail.comment;
+            if (detail.rating) draftRatings[String(detail.criteriaId)] = detail.rating;
+            if (detail.comment) draftComments[String(detail.criteriaId)] = detail.comment;
         });
 
-        setRatings(draftRatings);
-        setComments(draftComments);
-        setIsAnonymous(Boolean(draft.anonymous));
+        reset({
+            ratings: draftRatings,
+            comments: draftComments,
+            anonymous: Boolean(draft.anonymous)
+        });
     };
 
     const fetchDraft = async (evaluateeId: number, targetRole: string) => {
@@ -215,14 +232,64 @@ export function GiveFeedbackPage() {
     };
 
     const handleRoleChange = (nextRole: 'MANAGER' | 'PEER' | 'SUBORDINATE') => {
-        setRatings({});
-        setComments({});
-        setIsAnonymous(false);
+        reset({ ratings: {}, comments: {}, anonymous: false });
         setSelectedEvaluatee(null);
         setRole(nextRole);
     };
 
-    const isAllRatedTotal = criteriaList.every(c => ratings[c.id]);
+    const isLimitReached = roleFeedbackCount >= roleFeedbackLimit;
+    const isFormHidden = isLimitReached || noEligibleRemaining;
+
+    const buildDraftPayload = (values: FeedbackFormData = getValues()) => {
+        if (!selectedEvaluatee) return null;
+
+        return {
+            evaluateeId: selectedEvaluatee.id,
+            role: role,
+            anonymous: role === 'SUBORDINATE' ? values.anonymous : true,
+            details: criteriaList.map(c => ({
+                criteriaId: c.id,
+                rating: values.ratings[String(c.id)] ?? null,
+                comment: values.comments[String(c.id)] || ''
+            }))
+        };
+    };
+
+    const draftTransport = useMemo<Transport>(() => {
+        const transport: Transport = async (payload) => {
+            try {
+                await axios.post('/feedback/draft', payload);
+                return { ok: true };
+            } catch (error: any) {
+                return {
+                    ok: false,
+                    error: new Error(error.response?.data?.message || 'Failed to save draft')
+                } satisfies SaveResult;
+            }
+        };
+
+        return withRetry(transport, { maxRetries: 3 });
+    }, []);
+
+    const autosave = useRhfAutosave<FeedbackFormData>({
+        form,
+        transport: draftTransport,
+        config: {
+            debounceMs: 2000,
+            maxRetries: 3,
+            debug: false
+        },
+        validateBeforeSave: 'none',
+        selectPayload: (values) => values,
+        shouldSave: ({ isDirty, dirtyFields }) =>
+            Boolean(selectedEvaluatee)
+            && criteriaList.length > 0
+            && !isFormHidden
+            && (isDirty || Object.keys(dirtyFields).length > 0),
+        mapPayload: () => buildDraftPayload(getValues()) || {}
+    });
+
+    const isAllRatedTotal = criteriaList.every(c => ratings[String(c.id)]);
 
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -239,8 +306,8 @@ export function GiveFeedbackPage() {
                 anonymous: role === 'SUBORDINATE' ? isAnonymous : true,
                 details: criteriaList.map(c => ({
                     criteriaId: c.id,
-                    rating: ratings[c.id],
-                    comment: comments[c.id] || ''
+                    rating: ratings[String(c.id)],
+                    comment: comments[String(c.id)] || ''
                 }))
             };
             await axios.post('/feedback', payload);
@@ -257,17 +324,16 @@ export function GiveFeedbackPage() {
 
         try {
             setIsSavingDraft(true);
-            const payload = {
-                evaluateeId: selectedEvaluatee.id,
-                role: role,
-                anonymous: role === 'SUBORDINATE' ? isAnonymous : true,
-                details: criteriaList.map(c => ({
-                    criteriaId: c.id,
-                    rating: ratings[c.id] ?? null,
-                    comment: comments[c.id] || ''
-                }))
-            };
-            await axios.post('/feedback/draft', payload);
+            const payload = buildDraftPayload();
+            if (!payload) return;
+
+            autosave.abort();
+            const result = await draftTransport(payload);
+            if (!result.ok) {
+                toast.error(result.error?.message || 'Failed to save draft');
+                return;
+            }
+            autosave.forceBaselineUpdate();
             toast.success('Draft saved');
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to save draft');
@@ -309,11 +375,8 @@ export function GiveFeedbackPage() {
     const [evaluatorImgError, setEvaluatorImgError] = useState(false);
     const [evaluateeImgErrors, setEvaluateeImgErrors] = useState<Record<number, boolean>>({});
 
-    const isLimitReached = roleFeedbackCount >= roleFeedbackLimit;
-    const isFormHidden = isLimitReached || noEligibleRemaining;
-
     const calculateLiveScore = () => {
-        const totalPoints = Object.values(ratings).reduce((a, b) => a + b, 0);
+        const totalPoints = Object.values(ratings).reduce<number>((sum, rating) => sum + (rating ?? 0), 0);
         const questionCount = criteriaList.length;
         if (questionCount === 0) return { score: 0, remark: 'N/A' };
         
@@ -631,8 +694,8 @@ export function GiveFeedbackPage() {
                                         {[1, 2, 3, 4, 5].map(num => (
                                             <button
                                                 key={num}
-                                                onClick={() => setRatings(prev => ({ ...prev, [criteria.id]: num }))}
-                                                className={`w-12 h-12 rounded-xl text-lg font-black transition-all flex items-center justify-center ${ratings[criteria.id] === num ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100 hover:border-blue-200 hover:text-blue-500'}`}
+                                                onClick={() => setValue(`ratings.${criteria.id}`, num, { shouldDirty: true, shouldTouch: true })}
+                                                className={`w-12 h-12 rounded-xl text-lg font-black transition-all flex items-center justify-center ${ratings[String(criteria.id)] === num ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100 hover:border-blue-200 hover:text-blue-500'}`}
                                             >
                                                 {num}
                                             </button>
@@ -641,8 +704,8 @@ export function GiveFeedbackPage() {
                                     <div className="flex-1 min-w-[300px]">
                                         <textarea
                                             placeholder="Add specific comments or observations..."
-                                            value={comments[criteria.id] || ''}
-                                            onChange={(e) => setComments(prev => ({ ...prev, [criteria.id]: e.target.value }))}
+                                            value={comments[String(criteria.id)] || ''}
+                                            onChange={(e) => setValue(`comments.${criteria.id}`, e.target.value, { shouldDirty: true, shouldTouch: true })}
                                             className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-blue-500 transition-all h-20 resize-none"
                                         />
                                     </div>
@@ -671,7 +734,7 @@ export function GiveFeedbackPage() {
                                     type="button"
                                     role="switch"
                                     aria-checked={isAnonymous}
-                                    onClick={() => setIsAnonymous(prev => !prev)}
+                                    onClick={() => setValue('anonymous', !isAnonymous, { shouldDirty: true, shouldTouch: true })}
                                     className={`relative h-8 w-16 rounded-full border-2 transition-all ${isAnonymous ? 'bg-blue-500 border-blue-500' : 'bg-slate-200 border-slate-200'}`}
                                 >
                                     <span
@@ -702,8 +765,7 @@ export function GiveFeedbackPage() {
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => {
-                                    setRatings({});
-                                    setComments({});
+                                    reset({ ratings: {}, comments: {}, anonymous: false });
                                     toast.success('Form cleared');
                                 }}
                                 className="px-8 py-5 bg-white border-2 border-slate-200 text-slate-500 rounded-2xl font-black text-sm hover:bg-slate-50 hover:text-slate-800 transition-all"
