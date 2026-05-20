@@ -72,6 +72,7 @@ import { AssignSelfAssessmentFormsPage } from './pages/self-assessment-form/Assi
 import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
 import { SelfAssessmentAssignedEmployeesPage } from './pages/self-assessment-form/SelfAssessmentAssignedEmployeesPage';
 import { SelfAssessmentScoreRecordsPage } from './pages/self-assessment-form/SelfAssessmentScoreRecordsPage';
+import { SelfAssessmentAuditLogsPage } from './pages/self-assessment-form/SelfAssessmentAuditLogsPage';
 
 // Meetings
 import { MeetingsPage } from './pages/manager/MeetingsPage';
@@ -83,6 +84,7 @@ import { NotificationPage } from './pages/NotificationPage';
 import ManagerReportsPage from './pages/manager/ReportsPage';
 import HrReportsPage from './pages/hr/ReportsPage';
 import EmployeeReportsPage from './pages/employee/ReportsPage';
+import FeedbackReportPage from './pages/reports/FeedbackReportPage';
 
 const TOAST_DEDUP_MS = 600;
 const recentToastTimestamps = new Map<string, number>();
@@ -203,6 +205,7 @@ function App() {
             <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
             <Route path="self-assessment/history" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route path="self-assessment/audit-logs" element={<SelfAssessmentAuditLogsPage />} />
             <Route
               path="self-assessment/score-records"
               element={<Navigate to="/hr/self-assessment/history" replace />}
@@ -211,6 +214,7 @@ function App() {
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
             <Route path="reports" element={<HrReportsPage />} />
+            <Route path="reports/feedback" element={<FeedbackReportPage mode="hr" />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
@@ -251,6 +255,7 @@ function App() {
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
             <Route path="reports" element={<ManagerReportsPage />} />
+            <Route path="reports/feedback" element={<FeedbackReportPage mode="manager" />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>
         </Route>

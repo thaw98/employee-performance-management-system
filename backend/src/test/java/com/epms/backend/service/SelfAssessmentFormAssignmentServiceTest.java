@@ -98,6 +98,8 @@ class SelfAssessmentFormAssignmentServiceTest {
     private NotificationRepository notificationRepository;
     @Mock
     private SelfAssessmentSettingsRepository settingsRepository;
+    @Mock
+    private ReportingManagerResolver reportingManagerResolver;
 
     private SelfAssessmentFormService service;
 
@@ -118,7 +120,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 auditLogRepository,
                 userRepository,
                 notificationRepository,
-                settingsRepository);
+                settingsRepository,
+                reportingManagerResolver);
     }
 
     @Test

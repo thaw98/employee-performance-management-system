@@ -122,6 +122,7 @@ const HrLayout: React.FC = () => {
 
         { label: 'Review Submissions', path: '/hr/self-assessment/review-queue', icon: <ListChecks size={16} className="shrink-0" /> },
         { label: 'History', path: '/hr/self-assessment/history', icon: <History size={16} className="shrink-0" /> },
+        { label: 'Audit Logs', path: '/hr/self-assessment/audit-logs', icon: <ClipboardList size={16} className="shrink-0" /> },
       ]
     },
     {
@@ -138,8 +139,9 @@ const HrLayout: React.FC = () => {
       label: 'Reports',
       path: '/hr/reports',
       subItems: [
-        { label: 'PIP Reports', path: '/hr/reports', icon: <BarChart size={16} className="shrink-0" /> },
-        { label: 'KPI Reports', path: '/hr/kpi-reports', icon: <Target size={16} className="shrink-0" /> }
+        { label: 'PIP Report', path: '/hr/reports', icon: <Zap size={16} className="shrink-0" /> },
+        { label: 'KPI Report', path: '/hr/kpi-reports', icon: <BarChart size={16} className="shrink-0" /> },
+        { label: 'Feedback Report', path: '/hr/reports/feedback', icon: <RefreshCcw size={16} className="shrink-0" /> }
       ]
     }
   ];
@@ -203,14 +205,16 @@ const HrLayout: React.FC = () => {
                 ([key, value]) => currentParams.get(key) === value,
               );
             };
+            const hasActiveSubItem = Boolean(item.subItems?.some((sub) => matchesPath(sub.path)));
+            const isOwnActive = currentPath === item.path || location.pathname === itemPathname;
             const isActive =
-              currentPath === item.path ||
-              location.pathname === itemPathname ||
-              (item.subItems && item.subItems.some((sub) => matchesPath(sub.path)));
+              item.label === 'Reports'
+                ? isOwnActive
+                : isOwnActive || hasActiveSubItem;
 
             if (item.subItems) {
               const isExpanded =
-                expandedMenus[item.label] !== undefined ? expandedMenus[item.label] : isActive;
+                expandedMenus[item.label] !== undefined ? expandedMenus[item.label] : isActive || hasActiveSubItem;
 
               return (
                 <div key={item.label} className="space-y-1">

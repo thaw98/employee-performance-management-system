@@ -26,7 +26,8 @@ public class AppraisalService {
     private final AppraisalCycleRepository appraisalCycleRepository;
     private final ReviewCycleRepository reviewCycleRepository;
     private final EmployeeRepository employeeRepository;
-    // private final ReportingManagerResolver reportingManagerResolver;
+    private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
     @Transactional
     public void distributeAppraisalsToManagers(Long templateId) {
@@ -67,23 +68,21 @@ public class AppraisalService {
 
         if (activeCycle == null) {
             AppraisalCycle cycle = new AppraisalCycle();
-            cycle.setName(template.getName() != null ? template.getName()
-                    : "Annual Appraisal " + java.time.LocalDate.now().getYear());
+            cycle.setName(template.getName() != null ? template.getName() : "Annual Appraisal " + java.time.LocalDate.now().getYear());
             cycle.setStatus("Active");
             cycle.setStartDate(java.time.LocalDate.now());
-            cycle.setEndDate(template.getDeadlineDate() != null ? template.getDeadlineDate()
-                    : java.time.LocalDate.now().plusMonths(1));
+            cycle.setEndDate(template.getDeadlineDate() != null ? template.getDeadlineDate() : java.time.LocalDate.now().plusMonths(1));
             activeCycle = appraisalCycleRepository.save(cycle);
         }
 
         int count = 0;
         StringBuilder errorLog = new StringBuilder();
+        java.util.Set<Long> notifiedManagers = new java.util.HashSet<>();
 
         for (DepartmentPosition mapping : template.getTargetDepartmentPositions()) {
             // Find Department Head for this specific department
             Department dept = mapping.getDepartment();
-            if (dept == null)
-                continue;
+            if (dept == null) continue;
 
             if (dept.getManagerId() == null) {
                 errorLog.append("Department '").append(dept.getName()).append("' has no Department Head assigned. ");
@@ -92,16 +91,30 @@ public class AppraisalService {
 
             Employee departmentHead = employeeRepository.findById(dept.getManagerId()).orElse(null);
             if (departmentHead == null) {
-                errorLog.append("Department Head for '").append(dept.getName()).append("' (ID: ")
-                        .append(dept.getManagerId()).append(") not found. ");
+                System.out.println("DEBUG: Department Head not found for dept ID: " + dept.getManagerId());
+                errorLog.append("Department Head for '").append(dept.getName()).append("' (ID: ").append(dept.getManagerId()).append(") not found. ");
                 continue;
             }
+            System.out.println("DEBUG: Found Department Head: " + departmentHead.getEmployeeName() + " (ID: " + departmentHead.getId() + ")");
 
-            List<Employee> employees = employeeRepository.findByDepartmentPosition_Id(mapping.getId());
+            // Try to find the manager user account early
+            User managerUser = userRepository.findByEmployee_Id(departmentHead.getId())
+                .orElseGet(() -> {
+                    if (departmentHead.getEmail() != null) {
+                        return userRepository.findFirstByEmployee_EmailIgnoreCaseOrderByActiveDescIdAsc(departmentHead.getEmail()).orElse(null);
+                    }
+                    return null;
+                });
+
+            // Using direct department and position IDs for more reliable lookup
+            List<Employee> employees = employeeRepository.findByDepartment_IdAndPosition_Id(dept.getId(), mapping.getPosition().getId());
+            System.out.println("DEBUG: Mapping ID: " + mapping.getId() + " - Found " + employees.size() + " employees for " + dept.getName() + " / " + mapping.getPosition().getName());
+
+            boolean hasAssignmentsInThisMapping = false;
+
             for (Employee employee : employees) {
                 // Skip if the employee is the department head themselves
-                if (employee.getId().equals(departmentHead.getId()))
-                    continue;
+                if (employee.getId().equals(departmentHead.getId())) continue;
 
                 // Create or Update Assignment
                 AppraisalAssignment assignment = assignmentRepository
@@ -117,6 +130,23 @@ public class AppraisalService {
 
                 assignmentRepository.save(assignment);
                 count++;
+                hasAssignmentsInThisMapping = true;
+            }
+
+            // Send Notification to Manager if assignments were created for this mapping
+            if (hasAssignmentsInThisMapping && managerUser != null && !notifiedManagers.contains(departmentHead.getId())) {
+                try {
+                    System.out.println("DEBUG: Sending Notification to Manager: " + managerUser.getEmail() + " for dept: " + dept.getName());
+                    String title = "New Appraisals Assigned";
+                    String message = String.format("HR has distributed the '%s' appraisal forms. You have new appraisals to evaluate for %s department.",
+                        template.getName(), dept.getName());
+                    notificationService.send(managerUser, title, message, "APPRAISAL", template.getId());
+                    notifiedManagers.add(departmentHead.getId());
+                } catch (Exception e) {
+                    System.out.println("DEBUG: Failed to send notification: " + e.getMessage());
+                }
+            } else if (hasAssignmentsInThisMapping && managerUser == null) {
+                System.out.println("DEBUG: Cannot send notification - User account not found for manager: " + departmentHead.getEmployeeName());
             }
         }
 

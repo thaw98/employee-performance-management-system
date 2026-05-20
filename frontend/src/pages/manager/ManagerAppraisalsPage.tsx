@@ -19,6 +19,7 @@ import {
     Calendar,
     FileText
 } from 'lucide-react';
+import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 
 interface AppraisalAssignment {
     id: number;
@@ -104,7 +105,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
 
         const doc = new jsPDF('l', 'mm', 'a4');
         const deptName = filtered[0].employee.department?.name || (filtered[0].employee.department as any)?.departmentName || 'Department';
-        const dateStr = new Date().toLocaleDateString();
+        const dateStr = formatCycleDate(new Date().toISOString().split('T')[0]);
 
         // Header
         doc.setFillColor(8, 85, 191);
@@ -343,11 +344,11 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                 {/* Employee Profile */}
                                 <div className="flex items-center gap-4">
                                     <div className={`w-14 h-14 ${assignment.status === 'SUBMITTED' ? 'bg-slate-900 text-white' : 'bg-amber-100 text-amber-700'} rounded-2xl flex items-center justify-center font-black text-xl shadow-inner group-hover:scale-110 transition-transform`}>
-                                        {(assignment.employee.employeeName || assignment.employee.fullName || (assignment.employee as any).full_name || 'E').charAt(0)}
+                                        {(assignment.employee.employeeName || 'E').charAt(0)}
                                     </div>
                                     <div className="space-y-1">
                                         <h3 className="text-xl font-black text-slate-900 group-hover:text-[#5D5FEF] transition-colors">
-                                            {assignment.employee.employeeName || assignment.employee.fullName || (assignment.employee as any).full_name || 'N/A'}
+                                            {assignment.employee.employeeName || 'N/A'}
                                         </h3>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                                             ID: {assignment.employee.employeeId}
@@ -401,7 +402,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                     <div className="flex items-center justify-between text-[11px]">
                                         <span className="font-bold text-slate-400 uppercase">Deadline:</span>
                                         <span className="font-black text-slate-700 uppercase tracking-tighter italic">
-                                            {new Date(assignment.period.endDate).toLocaleDateString()}
+                                            {formatCycleDate(assignment.period.endDate)}
                                         </span>
                                     </div>
                                 </div>
