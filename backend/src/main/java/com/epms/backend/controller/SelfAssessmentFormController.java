@@ -8,8 +8,12 @@ import com.epms.backend.entity.Employee;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.SelfAssessmentFormService;
+import com.epms.backend.service.SelfAssessmentReportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,6 +27,7 @@ import java.util.List;
 public class SelfAssessmentFormController {
 
     private final SelfAssessmentFormService selfAssessmentFormService;
+    private final SelfAssessmentReportService selfAssessmentReportService;
     private final EmployeeRepository employeeRepository;
 
     @GetMapping("/me/status")
@@ -75,7 +80,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/reviews")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<List<FormListDto>>> getReviewForms(@AuthenticationPrincipal UserPrincipal principal) {
         try {
             Employee employee = getEmployeeFromPrincipal(principal);
@@ -132,7 +137,7 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/manager/active-cycle")
-    @PreAuthorize("principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 2 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<ActiveCycleFormsDto>> getActiveCycleFormsForManager(@AuthenticationPrincipal UserPrincipal principal) {
         try {
             Employee manager = getEmployeeFromPrincipal(principal);
@@ -219,7 +224,7 @@ public class SelfAssessmentFormController {
     }
 
     @PostMapping("/{id}/manager-review")
-    @PreAuthorize("principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 2 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> managerReview(
             @PathVariable Long id,
             @Valid @RequestBody ManagerReviewRequest request,
@@ -234,7 +239,7 @@ public class SelfAssessmentFormController {
     }
 
     @PostMapping("/{id}/manager-request-retake")
-    @PreAuthorize("principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 2 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> managerRequestRetake(
             @PathVariable Long id,
             @Valid @RequestBody ManagerRetakeRequest request,
@@ -262,6 +267,40 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @GetMapping("/score-records/export/pdf")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4")
+    public ResponseEntity<?> exportScoreRecordsPdf(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) Long cycleId) {
+        try {
+            Employee employee = getEmployeeFromPrincipal(principal);
+            byte[] bytes = selfAssessmentReportService.generateSummaryPdf(employee, principal.getRoleId(), cycleId);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDisposition(ContentDisposition.attachment()
+                    .filename("self-assessment-summary-" + cycleId + ".pdf")
+                    .build());
+            return ResponseEntity.ok().headers(headers).body(bytes);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/unlock-retake")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrUnlockRetake(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SelfAssessmentFormDto form = selfAssessmentFormService.hrUnlockRetake(id, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Retake unlocked", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/retake-submit")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> employeeSubmitRetake(
             @PathVariable Long id,
@@ -277,7 +316,7 @@ public class SelfAssessmentFormController {
     }
 
     @PostMapping("/{id}/manager-approve-retake")
-    @PreAuthorize("principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 2 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> managerApproveRetake(
             @PathVariable Long id,
             @RequestBody(required = false) ManagerApproveRetakeRequest request,

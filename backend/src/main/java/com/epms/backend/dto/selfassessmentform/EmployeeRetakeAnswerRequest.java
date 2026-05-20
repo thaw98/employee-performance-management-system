@@ -5,4 +5,8 @@ public record EmployeeRetakeAnswerRequest(
         String yesNoAnswer,
         Integer rating,
         String reason
-) {}
+) {
+    public String remarks() {
+        return reason;
+    }
+}

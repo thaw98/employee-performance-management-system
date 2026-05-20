@@ -4,11 +4,6 @@
       "name": "jwt.secret",
       "type": "java.lang.String",
       "description": "HS256 signing key (at least 32 bytes; often provided as a hex string via JWT_SECRET)."
-    },
-    {
-      "name": "jwt.expiration-ms",
-      "type": "java.lang.Long",
-      "description": "Access token lifetime in milliseconds (default from JWT_EXPIRATION_MS)."
     }
   ]
 }

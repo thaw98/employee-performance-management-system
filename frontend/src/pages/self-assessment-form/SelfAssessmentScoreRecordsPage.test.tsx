@@ -4,8 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { SelfAssessmentScoreRecordsPage } from './SelfAssessmentScoreRecordsPage'
 
-const navigateMock = vi.fn()
-const scoreRecordsHookMock = vi.fn()
+const navigateMock = vi.hoisted(() => vi.fn())
+const scoreRecordsHookMock = vi.hoisted(() => vi.fn())
+const downloadSummaryPdfMock = vi.hoisted(() => vi.fn())
+const toastSuccessMock = vi.hoisted(() => vi.fn())
+const toastErrorMock = vi.hoisted(() => vi.fn())
 
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
@@ -24,11 +27,15 @@ vi.mock('react-redux', () => ({
 }))
 
 vi.mock('react-hot-toast', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: toastSuccessMock, error: toastErrorMock },
 }))
 
 vi.mock('../../features/selfAssessmentForm/api/selfAssessmentFormApi', () => ({
   useGetScoreRecordsQuery: (...args: unknown[]) => scoreRecordsHookMock(...args),
+}))
+
+vi.mock('../../features/selfAssessmentForm/selfAssessmentSummaryReportApi', () => ({
+  downloadSelfAssessmentSummaryPdf: (...args: unknown[]) => downloadSummaryPdfMock(...args),
 }))
 
 const mockRecords = [
@@ -120,6 +127,10 @@ describe('SelfAssessmentScoreRecordsPage', () => {
   beforeEach(() => {
     navigateMock.mockReset()
     scoreRecordsHookMock.mockReset()
+    downloadSummaryPdfMock.mockReset()
+    downloadSummaryPdfMock.mockResolvedValue(undefined)
+    toastSuccessMock.mockReset()
+    toastErrorMock.mockReset()
     scoreRecordsHookMock.mockReturnValue({ data: mockRecords, isLoading: false, isError: false })
     currentRoleId = 1
   })
@@ -208,6 +219,40 @@ describe('SelfAssessmentScoreRecordsPage', () => {
 
     expect(screen.getByText('Carol White')).toBeTruthy()
     expect(screen.queryByText('Alice Johnson')).toBeNull()
+  })
+
+  it('disables Export PDF when no cycle is selected', () => {
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    expect(screen.getByRole('button', { name: /export pdf/i })).toBeDisabled()
+  })
+
+  it('exports PDF for the selected cycle', async () => {
+    const user = userEvent.setup()
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    const cycleSelect = screen.getAllByRole('combobox')
+      .find(s => Array.from((s as HTMLSelectElement).options).some(o => o.text === 'Q2 2026'))
+    expect(cycleSelect).toBeTruthy()
+    await user.selectOptions(cycleSelect!, 'Q2 2026')
+    await user.click(screen.getByRole('button', { name: /export pdf/i }))
+
+    expect(downloadSummaryPdfMock).toHaveBeenCalledWith(7, 'Q2 2026')
+    expect(toastSuccessMock).toHaveBeenCalledWith('PDF exported')
+  })
+
+  it('shows an error toast when PDF export fails', async () => {
+    downloadSummaryPdfMock.mockRejectedValueOnce({ response: { data: { message: 'Unknown review cycle' } } })
+    const user = userEvent.setup()
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    const cycleSelect = screen.getAllByRole('combobox')
+      .find(s => Array.from((s as HTMLSelectElement).options).some(o => o.text === 'Q2 2026'))
+    expect(cycleSelect).toBeTruthy()
+    await user.selectOptions(cycleSelect!, 'Q2 2026')
+    await user.click(screen.getByRole('button', { name: /export pdf/i }))
+
+    expect(toastErrorMock).toHaveBeenCalledWith('Unknown review cycle')
   })
 
   it('searches by employee name via global filter', async () => {

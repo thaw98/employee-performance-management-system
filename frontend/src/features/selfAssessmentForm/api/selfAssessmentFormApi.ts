@@ -275,6 +275,7 @@ export interface FormListDto {
   ratingCategory: string | null
   submittedDate: string | null
   assessmentDate: string | null
+  retakeSubmittedAt: string | null
   createdDate: string
 }
 
@@ -692,6 +693,7 @@ const normalizeFormList = (form: unknown): FormListDto => {
     ratingCategory: getOptionalString(source.ratingCategory) ?? null,
     submittedDate: getOptionalString(source.submittedDate) ?? null,
     assessmentDate: getOptionalString(source.assessmentDate) ?? null,
+    retakeSubmittedAt: getOptionalString(source.retakeSubmittedAt) ?? null,
     createdDate: getString(source.createdDate),
   }
 }
@@ -1077,6 +1079,15 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
+    hrUnlockRetake: builder.mutation<SelfAssessmentFormDto, { formId: number }>({
+      query: ({ formId }) => ({
+        url: `/self-assessment-forms/${formId}/unlock-retake`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
     employeeAcknowledge: builder.mutation<SelfAssessmentFormDto, number>({
       query: (formId) => ({
         url: `/self-assessment-forms/${formId}/acknowledge`,
@@ -1285,6 +1296,7 @@ export const {
   useHrReturnDisputedReviewMutation,
   useHrApproveFormMutation,
   useHrReopenFormMutation,
+  useHrUnlockRetakeMutation,
   useGetAllTemplatesQuery,
   useGetTemplateByIdQuery,
   useCopyTemplateMutation,

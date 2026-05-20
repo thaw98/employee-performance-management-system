@@ -12,8 +12,10 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
-import { Eye, Search, Trophy, BarChart3, FileText, CheckCircle2 } from 'lucide-react'
+import { Eye, Search, Trophy, BarChart3, FileText, CheckCircle2, FileDown } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 import { useGetScoreRecordsQuery, type ScoreRecordDto } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi'
+import { downloadSelfAssessmentSummaryPdf } from '../../features/selfAssessmentForm/selfAssessmentSummaryReportApi'
 import { PaginationBar } from '../../components/common/PaginationBar'
 
 function ScoreBar({ score }: { score: number | null }) {
@@ -34,21 +36,24 @@ function ScoreBar({ score }: { score: number | null }) {
   )
 }
 
+const SCORE_RECORD_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Draft',
+  NOT_STARTED: 'Not Started',
+  NOT_SUBMITTED: 'Not Submitted',
+  SUBMITTED: 'Submitted',
+  REOPENED: 'Reopened',
+  PENDING_MANAGER_REVIEW: 'Pending Manager Review',
+  PENDING_EMPLOYEE_REVIEW: 'Pending Employee Review',
+  PENDING_FINAL_APPROVAL: 'Pending Final Approval',
+  PENDING_HR_CALIBRATION_REVIEW: 'Pending HR Calibration',
+  MANAGER_REVIEWED: 'Manager Reviewed',
+  APPROVED: 'Approved',
+  FINALIZED_LOCKED: 'Finalized Locked',
+}
+
 /** Status filter options (employee history includes draft / not started; HR/manager API omits those). */
-const SCORE_RECORD_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'NOT_STARTED', label: 'Not Started' },
-  { value: 'NOT_SUBMITTED', label: 'Not Submitted' },
-  { value: 'SUBMITTED', label: 'Submitted' },
-  { value: 'REOPENED', label: 'Reopened' },
-  { value: 'PENDING_MANAGER_REVIEW', label: 'Pending Manager Review' },
-  { value: 'PENDING_EMPLOYEE_REVIEW', label: 'Pending Employee Review' },
-  { value: 'PENDING_FINAL_APPROVAL', label: 'Pending Final Approval' },
-  { value: 'PENDING_HR_CALIBRATION_REVIEW', label: 'Pending HR Calibration' },
-  { value: 'MANAGER_REVIEWED', label: 'Manager Reviewed' },
-  { value: 'APPROVED', label: 'Approved' },
-  { value: 'FINALIZED_LOCKED', label: 'Finalized Locked' },
-]
+const SCORE_RECORD_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = Object.entries(SCORE_RECORD_STATUS_LABELS)
+  .map(([value, label]) => ({ value, label }))
 
 /** Matches backend `SelfAssessmentFormService#getRatingCategory` labels. */
 function PerformanceBadge({ performance }: { performance: string | null }) {
@@ -80,7 +85,9 @@ function StatusBadge({ status }: { status: string }) {
     NOT_SUBMITTED: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300',
   }
   const cls = colorMap[status] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-  const label = status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+  const label =
+    SCORE_RECORD_STATUS_LABELS[status]
+    || status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
   return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${cls}`}>{label}</span>
 }
 
@@ -115,6 +122,7 @@ export function SelfAssessmentScoreRecordsPage() {
   const [globalFilter, setGlobalFilter] = useState('')
   const [cycleFilter, setCycleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
 
   const cycleOptions = useMemo(() => {
     const seen = new Map<string, string>()
@@ -124,6 +132,11 @@ export function SelfAssessmentScoreRecordsPage() {
     }
     return Array.from(seen.entries()).sort(([a], [b]) => a.localeCompare(b))
   }, [records])
+  const selectedCycle = useMemo(
+    () => cycleOptions.find(([name]) => name === cycleFilter) ?? null,
+    [cycleOptions, cycleFilter],
+  )
+  const selectedCycleId = selectedCycle ? Number(selectedCycle[1]) : null
 
   const columns = useMemo<ColumnDef<ScoreRecordDto>[]>(() => {
     const cols: ColumnDef<ScoreRecordDto>[] = []
@@ -144,13 +157,11 @@ export function SelfAssessmentScoreRecordsPage() {
       })
     }
 
-    if (!isEmployee) {
-      cols.push({
-        accessorKey: 'employee.positionName',
-        header: 'Position',
-        cell: ({ getValue }) => <span>{getValue() as string || '-'}</span>,
-      })
-    }
+    cols.push({
+      accessorKey: 'employee.positionName',
+      header: 'Position',
+      cell: ({ getValue }) => <span>{getValue() as string || '-'}</span>,
+    })
 
     cols.push(
       {
@@ -221,6 +232,19 @@ export function SelfAssessmentScoreRecordsPage() {
   useEffect(() => {
     table.setPageIndex(0)
   }, [cycleFilter, statusFilter, globalFilter])
+
+  const handleExportPdf = async () => {
+    if (!selectedCycleId || Number.isNaN(selectedCycleId)) return
+    setIsExportingPdf(true)
+    try {
+      await downloadSelfAssessmentSummaryPdf(selectedCycleId, cycleFilter)
+      toast.success('PDF exported')
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to export PDF')
+    } finally {
+      setIsExportingPdf(false)
+    }
+  }
 
   const visibleRecords = table.getFilteredRowModel().rows.map(row => row.original)
   const scoredVisibleRecords = visibleRecords.filter((r): r is ScoreRecordDto & { finalApprovedScore: number } => r.finalApprovedScore != null)
@@ -326,6 +350,15 @@ export function SelfAssessmentScoreRecordsPage() {
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={!selectedCycleId || isExportingPdf}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <FileDown size={16} />
+            {isExportingPdf ? 'Exporting...' : 'Export PDF'}
+          </button>
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
