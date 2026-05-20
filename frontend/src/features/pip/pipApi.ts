@@ -63,6 +63,7 @@ export interface Pip {
   totalHours: number
   completedHours: number
   followUpMeetings: FollowUpMeeting[]
+  kpiScore?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -156,6 +157,7 @@ export interface PipSummaryReportDto {
   departmentName: string
   positionName: string
   managerName: string
+  kpiScore?: number | null
   status: string
   startDate: string
   endDate: string
@@ -172,6 +174,7 @@ export interface PipProgressReportDto {
   positionName: string
   periodStart: string
   periodEnd: string
+  totalEmployees: number
   totalPips: number
   activePips: number
   completedPips: number
@@ -221,6 +224,7 @@ export interface PipIndividualReportDto {
   employeePosition: string
   managerName: string
   managerDepartment: string
+  kpiScore?: number | null
   status: string
   startDate: string
   endDate: string
@@ -392,6 +396,7 @@ const normalizePip = (pip: unknown): Pip => {
     totalHours: getNumber(source.totalHours),
     completedHours: getNumber(source.completedHours),
     followUpMeetings: getArray(source.followUpMeetings).map(normalizeMeeting),
+    kpiScore: source.kpiScore == null ? null : getNumber(source.kpiScore),
     createdAt: getString(source.createdAt ?? source.createdDate),
     updatedAt: getString(source.updatedAt ?? source.updatedDate),
   }

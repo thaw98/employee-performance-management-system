@@ -160,6 +160,7 @@ public class PipReportService {
                 Map.of("REPORT_TITLE", "PIP Summary Report",
                         "FILTER_DESCRIPTION", buildFilterDescription(status, departmentId, positionId, employeeName,
                                 employeeId, pipId, startDate, endDate, actor),
+                        "TOTAL_EMPLOYEES", countDistinctEmployees(rows),
                         "GENERATED_AT", formatGeneratedAt()));
         return export(jasperPrint, format);
     }
@@ -226,6 +227,7 @@ public class PipReportService {
         writeRow(sheet, rowIndex++, textStyle, "Position", report.getEmployeePosition());
         writeRow(sheet, rowIndex++, textStyle, "Manager", report.getManagerName());
         writeRow(sheet, rowIndex++, textStyle, "Manager Department", report.getManagerDepartment());
+        writeRow(sheet, rowIndex++, textStyle, "KPI Score", report.getKpiScore());
         writeRow(sheet, rowIndex++, textStyle, "Status", report.getStatus());
         writeRow(sheet, rowIndex++, textStyle, "Start Date", formatExcelDate(report.getStartDate()));
         writeRow(sheet, rowIndex++, textStyle, "End Date", formatExcelDate(report.getEndDate()));
@@ -325,22 +327,23 @@ public class PipReportService {
             CellStyle summaryStyle = createSummaryStyle(workbook);
 
             Sheet sheet = workbook.createSheet("PIP Summary");
-            int rowIndex = writeTitle(sheet, 0, "PIP Summary Report", 12, titleStyle) + 1;
+            int rowIndex = writeTitle(sheet, 0, "PIP Summary Report", 15, titleStyle) + 1;
             rowIndex = writeHeader(sheet, rowIndex, headerStyle,
-                    "PIP ID", "Employee ID", "Employee Name", "Department", "Position", "Manager", "Status",
+                    "PIP ID", "Employee ID", "Employee Name", "Department", "Position", "Manager", "KPI Score", "Status",
                     "Start Date", "End Date", "Progress %", "Completed Hours", "Total Hours",
                     "Objectives Count", "Meetings Count", "Final Outcome");
             for (PipSummaryReportDto row : rows) {
                 writeRow(sheet, rowIndex++, textStyle,
                         row.getPipId(), row.getEmployeeStaffNo(), row.getEmployeeName(), row.getDepartmentName(),
-                        row.getPositionName(), row.getManagerName(), row.getStatus(),
+                        row.getPositionName(), row.getManagerName(), row.getKpiScore(), row.getStatus(),
                         formatExcelDate(row.getStartDate()),
                         formatExcelDate(row.getEndDate()), row.getOverallProgress(), row.getCompletedHours(),
                         row.getTotalHours(), row.getObjectivesCount(), row.getMeetingsCount(), row.getFinalOutcome());
             }
-            writeSummaryCountRow(sheet, rowIndex, summaryStyle, 15, "Total Employee", rows.size());
+            writeSummaryCountRow(sheet, rowIndex, summaryStyle, 16, "Total Employees",
+                    (int) countDistinctEmployees(rows));
 
-            autosize(sheet, 15);
+            autosize(sheet, 16);
             workbook.write(outputStream);
             return outputStream.toByteArray();
         } catch (IOException e) {
@@ -362,13 +365,14 @@ public class PipReportService {
             writeRow(sheet, rowIndex++, textStyle, "Period Start", formatExcelDate(report.getPeriodStart()));
             writeRow(sheet, rowIndex++, textStyle, "Period End", formatExcelDate(report.getPeriodEnd()));
             writeRow(sheet, rowIndex++, textStyle, "Total PIPs", report.getTotalPips());
+            writeRow(sheet, rowIndex++, textStyle, "Total Employees", report.getTotalEmployees());
             writeRow(sheet, rowIndex++, textStyle, "Active PIPs", report.getActivePips());
             writeRow(sheet, rowIndex++, textStyle, "Completed PIPs", report.getCompletedPips());
             writeRow(sheet, rowIndex++, textStyle, "Closed PIPs", report.getClosedPips());
             writeRow(sheet, rowIndex++, textStyle, "Auto Closed PIPs", report.getAutoClosedPips());
             writeRow(sheet, rowIndex++, textStyle, "Reopen Requested PIPs", report.getReopenRequestedPips());
             writeRow(sheet, rowIndex++, textStyle, "Average Progress %", report.getAverageProgress());
-            writeRow(sheet, rowIndex++, textStyle, "Total Planned Hours", report.getTotalPlannedHours());
+            writeRow(sheet, rowIndex++, textStyle, "Total Hours", report.getTotalPlannedHours());
             writeRow(sheet, rowIndex++, textStyle, "Total Completed Hours", report.getTotalCompletedHours());
             writeRow(sheet, rowIndex, textStyle, "Hours Completion %", report.getHoursCompletionPercentage());
 
@@ -636,6 +640,7 @@ public class PipReportService {
                 positionName(employee),
                 manager == null ? "" : manager.getEmployeeName(),
                 departmentName(manager),
+                pipService.getLatestKpiTotalScore(employee),
                 pip.getStatus(),
                 pip.getStartDate(),
                 pip.getEndDate(),
@@ -670,6 +675,7 @@ public class PipReportService {
                 departmentName(employee),
                 positionName(employee),
                 manager == null ? "" : manager.getEmployeeName(),
+                pipService.getLatestKpiTotalScore(employee),
                 pip.getStatus(),
                 pip.getStartDate(),
                 pip.getEndDate(),
@@ -685,7 +691,13 @@ public class PipReportService {
             LocalDate endDate, User actor) {
         if (pips == null)
             pips = List.of();
-        long total = pips.size();
+        long totalPips = pips.size();
+        long totalEmployees = pips.stream()
+                .map(Pip::getEmployee)
+                .filter(employee -> employee != null && employee.getId() != null)
+                .map(Employee::getId)
+                .distinct()
+                .count();
         int totalHours = pips.stream()
                 .map(Pip::getTotalHours)
                 .filter(Objects::nonNull)
@@ -697,12 +709,12 @@ public class PipReportService {
                 .mapToInt(Integer::intValue)
                 .sum();
 
-        BigDecimal averageProgress = total == 0 ? BigDecimal.ZERO
+        BigDecimal averageProgress = totalPips == 0 ? BigDecimal.ZERO
                 : pips.stream()
                         .map(Pip::getOverallProgressPercentage)
                         .filter(Objects::nonNull)
                         .reduce(BigDecimal.ZERO, BigDecimal::add)
-                        .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
+                        .divide(BigDecimal.valueOf(totalPips), 2, RoundingMode.HALF_UP);
         BigDecimal hoursCompletion = totalHours == 0 ? BigDecimal.ZERO
                 : BigDecimal.valueOf(completedHours)
                         .multiply(BigDecimal.valueOf(100))
@@ -713,7 +725,8 @@ public class PipReportService {
                 getManagerPositionName(actor),
                 startDate,
                 endDate,
-                total,
+                totalEmployees,
+                totalPips,
                 countByStatus(pips, "ACTIVE"),
                 countByStatus(pips, "COMPLETED"),
                 countByStatus(pips, "CLOSED"),
@@ -848,6 +861,16 @@ public class PipReportService {
     private long countByStatus(List<Pip> pips, String status) {
         return pips.stream()
                 .filter(pip -> status.equalsIgnoreCase(pip.getStatus()))
+                .count();
+    }
+
+    private long countDistinctEmployees(List<PipSummaryReportDto> rows) {
+        return rows.stream()
+                .map(row -> row.getEmployeeStaffNo() == null || row.getEmployeeStaffNo().isBlank()
+                        ? row.getEmployeeName()
+                        : row.getEmployeeStaffNo())
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
                 .count();
     }
 

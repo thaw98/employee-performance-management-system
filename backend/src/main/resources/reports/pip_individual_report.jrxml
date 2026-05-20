@@ -23,6 +23,7 @@
     <field name="employeePosition" class="java.lang.String"/>
     <field name="managerName" class="java.lang.String"/>
     <field name="managerDepartment" class="java.lang.String"/>
+    <field name="kpiScore" class="java.math.BigDecimal"/>
     <field name="status" class="java.lang.String"/>
     <field name="startDate" class="java.time.LocalDate"/>
     <field name="endDate" class="java.time.LocalDate"/>
@@ -101,7 +102,7 @@
             <textField textAdjust="StretchHeight">
                 <reportElement stretchType="RelativeToTallestObject" x="0" y="74" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c012"/>
                 <textElement><font fontName="DejaVu Sans" size="9" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA["Status: " + $F{status} + " | Start: " + ($F{startDate} == null ? "-" : $F{startDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))) + " | End: " + ($F{endDate} == null ? "-" : $F{endDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH)))]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Status: " + $F{status} + " | KPI Score: " + ($F{kpiScore} == null ? "-" : String.valueOf($F{kpiScore}) + "%") + " | Start: " + ($F{startDate} == null ? "-" : $F{startDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))) + " | End: " + ($F{endDate} == null ? "-" : $F{endDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH)))]]></textFieldExpression>
             </textField>
             <textField textAdjust="StretchHeight">
                 <reportElement stretchType="RelativeToTallestObject" x="0" y="92" width="515" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c034"/>
@@ -178,34 +179,44 @@
             <textField>
                 <reportElement positionType="Float" x="0" y="582" width="230" height="14" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c025"/>
                 <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="9"/></textElement>
-                <textFieldExpression><![CDATA["Employee Signature" + ($F{employeeSignatureDate} == null ? "" : " | " + $F{employeeSignatureDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", java.util.Locale.ENGLISH)))]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Employee Signature"]]></textFieldExpression>
             </textField>
             <textField>
                 <reportElement positionType="Float" x="285" y="582" width="230" height="14" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c026"/>
                 <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="9"/></textElement>
-                <textFieldExpression><![CDATA["Manager Signature" + ($F{managerSignatureDate} == null ? "" : " | " + $F{managerSignatureDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", java.util.Locale.ENGLISH)))]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Manager Signature"]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement positionType="Float" x="0" y="600" width="230" height="14" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c034"/>
+                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{employeeSignatureDate} == null ? "" : $F{employeeSignatureDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", java.util.Locale.ENGLISH))]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement positionType="Float" x="285" y="600" width="230" height="14" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c035"/>
+                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{managerSignatureDate} == null ? "" : $F{managerSignatureDate}.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy hh:mm a", java.util.Locale.ENGLISH))]]></textFieldExpression>
             </textField>
             <image scaleImage="RetainShape">
-                <reportElement positionType="Float" x="0" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c030">
+                <reportElement positionType="Float" x="0" y="532" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c030">
                     <printWhenExpression><![CDATA[$F{employeeSignature} != null && !$F{employeeSignature}.equals("Not signed") && !$F{employeeSignature}.startsWith("/uploads/") && !$F{employeeSignature}.startsWith("uploads/")]]></printWhenExpression>
                 </reportElement>
                 <imageExpression><![CDATA[new java.io.ByteArrayInputStream(java.util.Base64.getDecoder().decode($F{employeeSignature}.substring($F{employeeSignature}.indexOf(",") + 1)))]]></imageExpression>
             </image>
             <textField textAdjust="StretchHeight">
-                <reportElement positionType="Float" x="0" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c032">
+                <reportElement positionType="Float" x="0" y="532" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c032">
                     <printWhenExpression><![CDATA[$F{employeeSignature} == null || $F{employeeSignature}.equals("Not signed") || $F{employeeSignature}.startsWith("/uploads/") || $F{employeeSignature}.startsWith("uploads/")]]></printWhenExpression>
                 </reportElement>
                 <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="DejaVu Sans" size="8"/></textElement>
                 <textFieldExpression><![CDATA["Not signed"]]></textFieldExpression>
             </textField>
             <image scaleImage="RetainShape">
-                <reportElement positionType="Float" x="285" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c031">
+                <reportElement positionType="Float" x="285" y="532" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c031">
                     <printWhenExpression><![CDATA[$F{managerSignature} != null && !$F{managerSignature}.equals("Not signed") && !$F{managerSignature}.startsWith("/uploads/") && !$F{managerSignature}.startsWith("uploads/")]]></printWhenExpression>
                 </reportElement>
                 <imageExpression><![CDATA[new java.io.ByteArrayInputStream(java.util.Base64.getDecoder().decode($F{managerSignature}.substring($F{managerSignature}.indexOf(",") + 1)))]]></imageExpression>
             </image>
             <textField textAdjust="StretchHeight">
-                <reportElement positionType="Float" x="285" y="600" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c033">
+                <reportElement positionType="Float" x="285" y="532" width="230" height="40" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c033">
                     <printWhenExpression><![CDATA[$F{managerSignature} == null || $F{managerSignature}.equals("Not signed") || $F{managerSignature}.startsWith("/uploads/") || $F{managerSignature}.startsWith("uploads/")]]></printWhenExpression>
                 </reportElement>
                 <textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="DejaVu Sans" size="8"/></textElement>

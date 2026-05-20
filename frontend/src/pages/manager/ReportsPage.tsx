@@ -192,10 +192,11 @@ export default function ReportsPage() {
 
   const summaryStats = useMemo(() => {
     const total = summaryData.length
+    const totalEmployees = new Set(summaryData.map((s) => s.employeeStaffNo || s.employeeName).filter(Boolean)).size
     const active = summaryData.filter((s) => s.status === 'ACTIVE').length
     const completed = summaryData.filter((s) => s.status === 'COMPLETED').length
     const closed = summaryData.filter((s) => s.status === 'CLOSED' || s.status === 'AUTO_CLOSED').length
-    return { total, active, completed, closed }
+    return { total, totalEmployees, active, completed, closed }
   }, [summaryData])
 
   const statusChartData = useMemo(() => {
@@ -425,10 +426,14 @@ export default function ReportsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                 <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                   <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{summaryStats.total}</div>
                   <div className="text-sm text-slate-500 dark:text-slate-400">Total PIPs</div>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{summaryStats.totalEmployees}</div>
+                  <div className="text-sm text-slate-500 dark:text-slate-400">Total Employees</div>
                 </div>
                 <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
                   <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{summaryStats.active}</div>
@@ -603,10 +608,14 @@ export default function ReportsPage() {
                 <div className="text-center py-8 text-slate-500">Loading...</div>
               ) : progressData ? (
                 <>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{progressData.totalPips}</div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">Total PIPs</div>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{progressData.totalEmployees}</div>
+                      <div className="text-sm text-slate-500 dark:text-slate-400">Total Employees</div>
                     </div>
                     <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
                       <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{progressData.activePips}</div>

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useGetKpiHistorySummaryQuery } from '../../features/kpi/kpiApi';
+import { useGetKpiHistorySummaryQuery, useGetDepartmentComparisonQuery } from '../../features/kpi/kpiApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Target, Users, Building2, TrendingUp, ChevronLeft, ChevronRight, Filter, FileSpreadsheet } from 'lucide-react';
@@ -9,99 +9,227 @@ import { toast } from 'react-hot-toast';
 
 const COLORS = ['#0855BF', '#10B981', '#F59E0B', '#6366F1', '#EC4899', '#8B5CF6', '#14B8A6', '#F43F5E'];
 
+export function getPerformanceLevel(score?: number | null): string | null {
+  if (score === undefined || score === null) return null;
+  if (score >= 90) return 'High Performer';
+  if (score >= 70) return 'Good Performer';
+  if (score >= 50) return 'Low Performer';
+  return 'Poor Performer';
+}
+
+export function getPerformanceLevelBadgeStyle(level: string): string {
+  switch (level) {
+    case 'High Performer':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    case 'Good Performer':
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    case 'Low Performer':
+      return 'bg-orange-50 text-orange-700 border-orange-200';
+    case 'Poor Performer':
+      return 'bg-red-50 text-red-700 border-red-200';
+    default:
+      return 'bg-slate-50 text-slate-700 border-slate-200';
+  }
+}
+
+export function renderPerformanceBadge(score?: number | null) {
+  const level = getPerformanceLevel(score);
+  if (!level) return <span className="text-slate-300 font-medium">-</span>;
+  
+  return (
+    <span className={`px-2.5 py-1 text-[10px] font-black rounded-full border uppercase tracking-wider ${getPerformanceLevelBadgeStyle(level)}`}>
+      {level}
+    </span>
+  );
+}
+
 export default function KpiReportsPage() {
-  const { data: summaryData = [], isLoading } = useGetKpiHistorySummaryQuery();
+  const { data: summaryData = [], isLoading: isSummaryLoading } = useGetKpiHistorySummaryQuery();
+  const { data: departmentComparisonData = [], isLoading: isComparisonLoading } = useGetDepartmentComparisonQuery();
   const { data: departmentsData } = useGetDepartmentsQuery();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDept, setSelectedDept] = useState('');
+  const [activeTab, setActiveTab] = useState<'employee' | 'department'>('employee');
+  const [filterSortOpt, setFilterSortOpt] = useState('high-to-low');
   const itemsPerPage = 10;
+
+  const isLoading = isSummaryLoading || isComparisonLoading;
 
   const departments = departmentsData?.data || [];
 
   const filteredData = useMemo(() => {
-    const data = !selectedDept
+    let data = !selectedDept
       ? [...summaryData]
       : summaryData.filter(item => item.departmentName === selectedDept);
 
-    return data.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
-  }, [summaryData, selectedDept]);
+    // Filter by performance level
+    if (filterSortOpt === 'High Performer') {
+      data = data.filter(item => getPerformanceLevel(item.totalScore) === 'High Performer');
+    } else if (filterSortOpt === 'Good Performer') {
+      data = data.filter(item => getPerformanceLevel(item.totalScore) === 'Good Performer');
+    } else if (filterSortOpt === 'Low Performer') {
+      data = data.filter(item => getPerformanceLevel(item.totalScore) === 'Low Performer');
+    } else if (filterSortOpt === 'Poor Performer') {
+      data = data.filter(item => getPerformanceLevel(item.totalScore) === 'Poor Performer');
+    }
+
+    // Sort by score
+    if (filterSortOpt === 'low-to-high') {
+      return data.sort((a, b) => (a.totalScore || 0) - (b.totalScore || 0));
+    } else {
+      return data.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+    }
+  }, [summaryData, selectedDept, filterSortOpt]);
+
+  const sortedDepartmentComparisonData = useMemo(() => {
+    return [...departmentComparisonData].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+  }, [departmentComparisonData]);
 
   const handleExportExcel = () => {
     try {
       const data: any[] = [];
+      const isDeptActive = activeTab === 'department';
 
-      // Row 1: Title "Kpi Report"
-      data.push(['Kpi Report', '', '', '', '', '', '']);
-      
-      // Row 2: "Kpi Period - Month Year" & "Export Date - Day Month Year"
-      const periodStr = format(new Date(), 'MMMM yyyy');
-      const todayStr = format(new Date(), 'dd MMM yyyy'); // Standard Day Month Year constraint
-      data.push([
-        `Kpi Period - ${periodStr}`, 
-        '', 
-        '', 
-        '', 
-        '', 
-        `Export Date - ${todayStr}`, 
-        ''
-      ]);
-
-      // Row 3: Headers exactly as in the layout
-      data.push([
-        'No',
-        'Employee Name',
-        'Staff Number',
-        'Manager Name',
-        'Department',
-        'Position',
-        'Total Score'
-      ]);
-
-      // Row 4+: Data rows
-      filteredData.forEach((item, index) => {
+      if (isDeptActive) {
+        // Row 1: Title "Department Performance Comparison Report"
+        data.push(['Department Performance Comparison Report', '', '', '', '']);
+        
+        // Row 2: "Kpi Period - Month Year" & "Export Date - Day Month Year"
+        const periodStr = format(new Date(), 'MMMM yyyy');
+        const todayStr = format(new Date(), 'dd MMM yyyy');
         data.push([
-          index + 1, // No
-          item.employeeName,
-          item.staffNo || `EMP-${item.employeeId}`,
-          item.managerName || '-',
-          item.departmentName,
-          item.positionName,
-          item.totalScore !== undefined && item.totalScore !== null 
-            ? `${Number(item.totalScore).toFixed(2)}%` 
-            : '-'
+          `KPI Period: ${periodStr}`, 
+          '', 
+          '', 
+          `Export Date: ${todayStr}`, 
+          ''
         ]);
-      });
-      
-      // Bottom Row: Total Employee
-      data.push([
-        '', 
-        '', 
-        '', 
-        '', 
-        '', 
-        'Total Employee', 
-        filteredData.length
-      ]);
+
+        // Row 3: Headers
+        data.push([
+          'No',
+          'Department',
+          'Total Staff',
+          'Department Manager Name',
+          'Total Score'
+        ]);
+
+        // Row 4+: Data rows
+        sortedDepartmentComparisonData.forEach((item, index) => {
+          data.push([
+            index + 1, // No
+            item.departmentName,
+            `${item.totalStaff} Members`,
+            item.managerName || '-',
+            item.totalScore !== undefined && item.totalScore !== null 
+              ? `${Number(item.totalScore).toFixed(2)}%` 
+              : '-'
+          ]);
+        });
+        
+        // Bottom Row: Total Departments
+        data.push([
+          '', 
+          '', 
+          '', 
+          'Total Departments', 
+          sortedDepartmentComparisonData.length
+        ]);
+      } else {
+        // Row 1: Title "Kpi Report"
+        data.push(['Kpi Report', '', '', '', '', '', '']);
+        
+        // Row 2: "Kpi Period - Month Year" & "Export Date - Day Month Year"
+        const periodStr = format(new Date(), 'MMMM yyyy');
+        const todayStr = format(new Date(), 'dd MMM yyyy'); // Standard Day Month Year constraint
+        data.push([
+          `KPI Period: ${periodStr}`, 
+          '', 
+          '', 
+          '', 
+          '', 
+          `Export Date: ${todayStr}`, 
+          ''
+        ]);
+
+        // Row 3: Headers exactly as in the layout
+        data.push([
+          'No',
+          'Employee Name',
+          'Staff Number',
+          'Manager Name',
+          'Department',
+          'Position',
+          'Total Score',
+          'Performance Level'
+        ]);
+
+        // Row 4+: Data rows
+        filteredData.forEach((item, index) => {
+          data.push([
+            index + 1, // No
+            item.employeeName,
+            item.staffNo || `EMP-${item.employeeId}`,
+            item.managerName || '-',
+            item.departmentName,
+            item.positionName,
+            item.totalScore !== undefined && item.totalScore !== null 
+              ? `${Number(item.totalScore).toFixed(2)}%` 
+              : '-',
+            getPerformanceLevel(item.totalScore) || '-'
+          ]);
+        });
+        
+        // Bottom Row: Total Employee
+        data.push([
+          '', 
+          '', 
+          '', 
+          '', 
+          '', 
+          '', 
+          'Total Employee', 
+          filteredData.length
+        ]);
+      }
       
       const ws = XLSX.utils.aoa_to_sheet(data);
       
       // Apply merges
-      ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // Row 1: Merge A1:G1 for Title
-        { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // Row 2: Merge A2:E2 for Period
-        { s: { r: 1, c: 5 }, e: { r: 1, c: 6 } }  // Row 2: Merge F2:G2 for Export Date
-      ];
+      if (isDeptActive) {
+        ws['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Row 1: Merge A1:E1 for Title
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }, // Row 2: Merge A2:C2 for Period
+          { s: { r: 1, c: 3 }, e: { r: 1, c: 4 } }  // Row 2: Merge D2:E2 for Export Date
+        ];
 
-      // Adjust column widths to make sure text is not cut off
-      ws['!cols'] = [
-        { wch: 8 },  // No
-        { wch: 25 }, // Employee Name
-        { wch: 15 }, // Staff Number
-        { wch: 25 }, // Manager Name
-        { wch: 20 }, // Department
-        { wch: 20 }, // Position
-        { wch: 15 }  // Total Score / Total Count
-      ];
+        // Adjust column widths to make sure text is not cut off
+        ws['!cols'] = [
+          { wch: 5 },  // No
+          { wch: 20 }, // Department
+          { wch: 15 }, // Total Staff
+          { wch: 20 }, // Manager Name
+          { wch: 15 }  // Total Score
+        ];
+      } else {
+        ws['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, // Row 1: Merge A1:H1 for Title
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } }, // Row 2: Merge A2:F2 for Period
+          { s: { r: 1, c: 6 }, e: { r: 1, c: 7 } }  // Row 2: Merge G2:H2 for Export Date
+        ];
+
+        // Adjust column widths to make sure text is not cut off
+        ws['!cols'] = [
+          { wch: 5 },  // No
+          { wch: 20 }, // Employee Name
+          { wch: 12 }, // Staff Number
+          { wch: 20 }, // Manager Name
+          { wch: 18 }, // Department
+          { wch: 18 }, // Position
+          { wch: 12 }, // Total Score
+          { wch: 18 }  // Performance Level
+        ];
+      }
 
       // Set print options for A4 Portrait paper size
       ws['!pageSetup'] = {
@@ -110,10 +238,11 @@ export default function KpiReportsPage() {
       };
 
       // Apply Excel Cell Styling
-      const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+      const numCols = isDeptActive ? 5 : 8;
+      const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].slice(0, numCols);
       
       for (let r = 0; r < data.length; r++) {
-        for (let c = 0; c < 7; c++) {
+        for (let c = 0; c < numCols; c++) {
           const cellRef = `${cols[c]}${r + 1}`;
           // Ensure cell exists
           if (!ws[cellRef]) {
@@ -122,7 +251,7 @@ export default function KpiReportsPage() {
           
           const cell = ws[cellRef];
           
-          // Row 1: Main Title "Kpi Report"
+          // Row 1: Main Title
           if (r === 0) {
             cell.s = {
               font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: 'FFFFFF' } },
@@ -130,13 +259,13 @@ export default function KpiReportsPage() {
               alignment: { horizontal: 'center', vertical: 'center' }
             };
           }
-          // Row 2: "Kpi Period - Month Year" & "Export Date - Day Month Year"
+          // Row 2: Period & Export Date
           else if (r === 1) {
             cell.s = {
               font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: 'EA580C' } },
               fill: { fgColor: { rgb: 'FFF7ED' } }, // Pale Orange
               alignment: { 
-                horizontal: c < 5 ? 'left' : 'right', 
+                horizontal: c < (isDeptActive ? 3 : 6) ? 'left' : 'right', 
                 vertical: 'center' 
               },
               border: {
@@ -158,13 +287,13 @@ export default function KpiReportsPage() {
               }
             };
           }
-          // Bottom Row: Total Employee
+          // Bottom Row
           else if (r === data.length - 1) {
             cell.s = {
               font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: '0F172A' } },
               fill: { fgColor: { rgb: 'F8FAFC' } }, // Soft Slate Gray
               alignment: { 
-                horizontal: c === 5 || c === 6 ? 'right' : 'left', 
+                horizontal: c >= (numCols - 2) ? 'right' : 'left', 
                 vertical: 'center' 
               },
               border: {
@@ -178,8 +307,13 @@ export default function KpiReportsPage() {
           // Data Rows (Row 4 to Row data.length - 2)
           else {
             let align = 'left';
-            if (c === 1 || c === 3) align = 'center'; // Center Employee Name and Manager Name
-            else if (c === 2 || c === 6) align = 'right'; // Right-align Staff Number & Scores (No is left-aligned)
+            if (isDeptActive) {
+              if (c === 0 || c === 2) align = 'center'; // Center No and Staff count
+              else if (c === 4) align = 'right'; // Right-align Scores
+            } else {
+              if (c === 1 || c === 3 || c === 7) align = 'center'; // Center Employee Name, Manager Name & Performance Level
+              else if (c === 2 || c === 6) align = 'right'; // Right-align Staff Number & Scores (No is left-aligned)
+            }
             
             cell.s = {
               font: { name: 'Segoe UI', sz: 10, color: { rgb: '334155' } },
@@ -192,20 +326,38 @@ export default function KpiReportsPage() {
             };
             
             // Format Total Score highlight
-            if (c === 6 && cell.v && cell.v !== '-') {
+            const isScoreCol = isDeptActive ? c === 4 : c === 6;
+            if (isScoreCol && cell.v && cell.v !== '-') {
               cell.s.font.bold = true;
               cell.s.font.color = { rgb: '10B981' }; // Success Emerald Green for score rates
+            }
+
+            // Format Performance Level highlight (index 7 for employee report)
+            if (!isDeptActive && c === 7 && cell.v && cell.v !== '-') {
+              cell.s.font.bold = true;
+              const lvl = cell.v;
+              if (lvl === 'High Performer') {
+                cell.s.font.color = { rgb: '10B981' }; // Green
+              } else if (lvl === 'Good Performer') {
+                cell.s.font.color = { rgb: '3B82F6' }; // Blue
+              } else if (lvl === 'Low Performer') {
+                cell.s.font.color = { rgb: 'F97316' }; // Orange
+              } else if (lvl === 'Poor Performer') {
+                cell.s.font.color = { rgb: 'EF4444' }; // Red
+              }
             }
           }
         }
       }
       
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "KPI Report");
+      const sheetName = isDeptActive ? "Dept Comparison" : "KPI Report";
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
       
       const deptSuffix = selectedDept ? `_${selectedDept.replace(/\s+/g, '_')}` : '';
-      XLSX.writeFile(wb, `KPI_Performance_Report${deptSuffix}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
-      toast.success('Excel report exported successfully!');
+      const filePrefix = isDeptActive ? 'Department_Comparison_Report' : 'KPI_Performance_Report';
+      XLSX.writeFile(wb, `${filePrefix}${deptSuffix}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+      toast.success(`${isDeptActive ? 'Department comparison' : 'Excel'} report exported successfully!`);
     } catch (error) {
       console.error(error);
       toast.error('Failed to export Excel report');
@@ -261,16 +413,16 @@ export default function KpiReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">KPI Reports Overview</h1>
-          <p className="text-sm font-medium text-slate-500 mt-1">Analytics and distribution of Key Performance Indicators across the organization</p>
-        </div>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">KPI Reports Overview</h1>
+        <p className="text-sm font-medium text-slate-500">Analytics and distribution of Key Performance Indicators across the organization</p>
+      </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           {/* Department Filter */}
-          <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-2xl border border-slate-100 shadow-sm">
-            <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+          <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-2xl border border-slate-100 shadow-sm h-12">
+            <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <Filter size={16} />
             </div>
             <select
@@ -290,15 +442,39 @@ export default function KpiReportsPage() {
             </select>
           </div>
 
-          {/* Export to Excel Button */}
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-2.5 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-emerald-100 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-          >
-            <FileSpreadsheet size={16} />
-            <span>Export Excel</span>
-          </button>
+          {/* Filter/Sort Dropdown */}
+          {activeTab === 'employee' && (
+            <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-2xl border border-slate-100 shadow-sm h-12">
+              <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Filter size={16} />
+              </div>
+              <select
+                value={filterSortOpt}
+                onChange={(e) => {
+                  setFilterSortOpt(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="bg-transparent border-none text-sm font-bold text-slate-700 outline-none focus:ring-0 cursor-pointer min-w-[200px]"
+              >
+                <option value="high-to-low">High Score to Low</option>
+                <option value="low-to-high">Low Score to High</option>
+                <option value="High Performer">High Performer</option>
+                <option value="Good Performer">Good Performer</option>
+                <option value="Low Performer">Low Performer</option>
+                <option value="Poor Performer">Poor Performer</option>
+              </select>
+            </div>
+          )}
         </div>
+
+        {/* Export to Excel Button */}
+        <button
+          onClick={handleExportExcel}
+          className="flex items-center justify-center gap-2.5 px-5 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-emerald-100 hover:scale-[1.02] active:scale-[0.98] cursor-pointer sm:ml-auto"
+        >
+          <FileSpreadsheet size={16} />
+          <span>Export Excel</span>
+        </button>
       </div>
 
       {/* KPI Stats */}
@@ -415,111 +591,215 @@ export default function KpiReportsPage() {
         </div>
       </div>
 
-      {/* Employee KPI Details Table */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mt-8">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">Employee KPI Performance Directory</h3>
-            <p className="text-xs font-medium text-slate-400 mt-1">Detailed list of employee KPI definitions, total assigned KPIs, and performance scores</p>
-          </div>
-          <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-full uppercase tracking-wider">
-            {filteredData.length} Records
-          </span>
-        </div>
+      {/* View Switcher Buttons */}
+      <div className="flex items-center gap-3 mt-8">
+        <button
+          onClick={() => setActiveTab('employee')}
+          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-200 border ${
+            activeTab === 'employee'
+              ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100/50'
+              : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <Users size={16} />
+          Employee Directory
+        </button>
+        <button
+          onClick={() => setActiveTab('department')}
+          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-200 border ${
+            activeTab === 'department'
+              ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100/50'
+              : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <Building2 size={16} />
+          Department Comparison
+        </button>
+      </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                <th className="py-4 px-6">Employee Name</th>
-                <th className="py-4 px-6">Staff Number</th>
-                <th className="py-4 px-6">Manager Name</th>
-                <th className="py-4 px-6">Department</th>
-                <th className="py-4 px-6">Position</th>
-                <th className="py-4 px-6 text-center">Period</th>
-                <th className="py-4 px-6 text-center">Total KPIs</th>
-                <th className="py-4 px-6 text-right">Total Score</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
-              {filteredData.length > 0 ? (
-                filteredData
-                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                  .map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="py-4 px-6 font-bold text-slate-900 flex items-center gap-3">
-                        <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-xs font-black">
-                          {item.employeeName?.charAt(0)}
+      {activeTab === 'department' ? (
+        /* Department Comparison Section */
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mt-6">
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <Building2 size={18} className="text-indigo-600" />
+                Department Performance Comparison
+              </h3>
+              <p className="text-xs font-medium text-slate-400 mt-1">
+                Comparative overview of active departments, total staff size, department managers, and their average performance score
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-full uppercase tracking-wider">
+              {sortedDepartmentComparisonData.length} Departments
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th className="py-4 px-6 text-center w-16 whitespace-nowrap">No</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Department</th>
+                  <th className="py-4 px-6 text-center whitespace-nowrap">Total Staff</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Department Manager Name</th>
+                  <th className="py-4 px-6 text-right whitespace-nowrap">Total Score</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {isComparisonLoading ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 font-medium">
+                      Loading comparisons...
+                    </td>
+                  </tr>
+                ) : sortedDepartmentComparisonData.length > 0 ? (
+                  sortedDepartmentComparisonData.map((dept, idx) => (
+                    <tr key={dept.departmentId || idx} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="py-4 px-6 text-center font-bold text-slate-400 whitespace-nowrap">
+                        {idx + 1}
+                      </td>
+                      <td className="py-4 px-6 font-bold text-slate-900 whitespace-nowrap">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                          {dept.departmentName}
                         </div>
-                        {item.employeeName}
                       </td>
-                      <td className="py-4 px-6 text-slate-600 font-medium">
-                        {item.staffNo || `EMP-${item.employeeId}`}
-                      </td>
-                      <td className="py-4 px-6 text-slate-600 font-medium">
-                        {item.managerName || '-'}
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[10px] font-black rounded-lg uppercase tracking-wider">
-                          {item.departmentName}
+                      <td className="py-4 px-6 text-center text-slate-600 font-bold whitespace-nowrap">
+                        <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full">
+                          {dept.totalStaff} Members
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-slate-500 font-medium">
-                        {item.positionName}
+                      <td className="py-4 px-6 text-slate-600 font-medium whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 bg-amber-50 text-amber-700 rounded-full flex items-center justify-center text-xs font-black">
+                            {dept.managerName ? dept.managerName.charAt(0) : '-'}
+                          </div>
+                          {dept.managerName || '-'}
+                        </div>
                       </td>
-                      <td className="py-4 px-6 text-center text-slate-500 font-bold">
-                        {item.period}
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-full">
-                          {item.totalKpis}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-right font-black text-emerald-600">
-                        {item.totalScore !== undefined && item.totalScore !== null ? (
-                          `${Number(item.totalScore).toFixed(2)}%`
+                      <td className="py-4 px-6 text-right font-black text-indigo-600 text-base whitespace-nowrap">
+                        {dept.totalScore !== undefined && dept.totalScore !== null ? (
+                          `${Number(dept.totalScore).toFixed(2)}%`
                         ) : (
                           <span className="text-slate-300 font-medium">-</span>
                         )}
                       </td>
                     </tr>
                   ))
-              ) : (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400 font-medium">
-                    No KPI records found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Footer */}
-        {filteredData.length > itemsPerPage && (
-          <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} employees
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredData.length / itemsPerPage), p + 1))}
-                disabled={currentPage === Math.ceil(filteredData.length / itemsPerPage)}
-                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 font-medium">
+                      No department data available.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* Employee KPI Details Table */
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mt-6">
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">Employee KPI Performance Directory</h3>
+              <p className="text-xs font-medium text-slate-400 mt-1">Detailed list of employee KPI definitions, total assigned KPIs, and performance scores</p>
+            </div>
+            <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-full uppercase tracking-wider">
+              {filteredData.length} Records
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/70 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <th className="py-4 px-6 whitespace-nowrap">Employee Name</th>
+                  <th className="py-4 px-6 whitespace-nowrap w-32">Staff No.</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Manager Name</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Department</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Position</th>
+                  <th className="py-4 px-6 text-center whitespace-nowrap">Total KPIs</th>
+                  <th className="py-4 px-6 text-right whitespace-nowrap">Total Score</th>
+                  <th className="py-4 px-6 text-center whitespace-nowrap">Performance Level</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {filteredData.length > 0 ? (
+                  filteredData
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map((item, idx) => (
+                      <tr key={`${item.employeeId}-${item.period}`} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-4 px-6 whitespace-nowrap">
+                          <div className="font-bold text-slate-700">{item.employeeName}</div>
+                        </td>
+                        <td className="py-4 px-6 text-slate-500 font-medium whitespace-nowrap w-32">
+                          {item.staffNo || `EMP-${item.employeeId}`}
+                        </td>
+                        <td className="py-4 px-6 text-slate-500 font-medium whitespace-nowrap">
+                          {item.managerName || '-'}
+                        </td>
+                        <td className="py-4 px-6 whitespace-nowrap">
+                          <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[10px] font-black rounded-lg uppercase tracking-wider">
+                            {item.departmentName}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-slate-500 font-medium whitespace-nowrap">{item.positionName}</td>
+                        <td className="py-4 px-6 text-center whitespace-nowrap">
+                          <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-full">
+                            {item.totalKpis}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-right font-black text-emerald-600 whitespace-nowrap">
+                          {item.totalScore !== undefined && item.totalScore !== null ? (
+                            `${Number(item.totalScore).toFixed(2)}%`
+                          ) : (
+                            <span className="text-slate-300 font-medium">-</span>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-center whitespace-nowrap">
+                          {renderPerformanceBadge(item.totalScore)}
+                        </td>
+                      </tr>
+                    ))
+                ) : (
+                  <tr>
+                    <td colSpan={9} className="py-8 text-center text-slate-400 font-medium">
+                      No KPI records found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Footer */}
+          {filteredData.length > itemsPerPage && (
+            <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} employees
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredData.length / itemsPerPage), p + 1))}
+                  disabled={currentPage === Math.ceil(filteredData.length / itemsPerPage)}
+                  className="p-2 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
