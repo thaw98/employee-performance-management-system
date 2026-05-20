@@ -64,6 +64,7 @@ public class SelfAssessmentReportService {
                 .toList();
 
         double average = scoredValues.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN);
+        double highest = scoredValues.stream().mapToDouble(Double::doubleValue).max().orElse(Double.NaN);
         double lowest = scoredValues.stream().mapToDouble(Double::doubleValue).min().orElse(Double.NaN);
 
         List<SelfAssessmentSummaryReportRow> rows = IntStream.range(0, selectedRecords.size())
@@ -75,6 +76,7 @@ public class SelfAssessmentReportService {
                 defaultText(cycle.getName(), "Cycle #" + cycleId),
                 selectedRecords.size(),
                 Double.isNaN(average) ? "" : formatScore(average),
+                Double.isNaN(highest) ? "" : formatScore(highest),
                 Double.isNaN(lowest) ? "" : formatScore(lowest),
                 rows);
     }
@@ -91,6 +93,7 @@ public class SelfAssessmentReportService {
                         "CYCLE_NAME", data.cycleName(),
                         "TOTAL_RECORDS", String.valueOf(data.totalRecords()),
                         "AVERAGE_SCORE", formatSummaryScore(data.averageScore()),
+                        "HIGHEST_SCORE", formatSummaryScore(data.highestScore()),
                         "LOWEST_SCORE", formatSummaryScore(data.lowestScore()),
                         "GENERATED_AT", GENERATED_AT_FORMAT.format(Instant.now().atZone(ZoneId.systemDefault()))));
         return exportPdf(jasperPrint);

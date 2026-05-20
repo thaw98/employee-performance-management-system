@@ -82,6 +82,7 @@ class SelfAssessmentReportServiceTest {
         SelfAssessmentSummaryReportData data = reportService.getSummaryReportData(employee, 1L, 7L);
 
         assertEquals("75.0", data.averageScore());
+        assertEquals("90.0", data.highestScore());
         assertEquals("60.0", data.lowestScore());
         assertEquals("", data.rows().get(1).getScorePercentage());
     }

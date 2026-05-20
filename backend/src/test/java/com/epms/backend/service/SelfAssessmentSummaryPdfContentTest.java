@@ -62,6 +62,7 @@ class SelfAssessmentSummaryPdfContentTest {
                         "CYCLE_NAME", data.cycleName(),
                         "TOTAL_RECORDS", String.valueOf(data.totalRecords()),
                         "AVERAGE_SCORE", data.averageScore() + "%",
+                        "HIGHEST_SCORE", data.highestScore() + "%",
                         "LOWEST_SCORE", data.lowestScore() + "%",
                         "GENERATED_AT", "20 May 2026 10:04 PM"));
 
@@ -69,6 +70,7 @@ class SelfAssessmentSummaryPdfContentTest {
 
         assertTrue(renderedText.contains("2"), "Report should render total records: " + renderedText);
         assertTrue(renderedText.contains("75.0%"), "Report should render average score: " + renderedText);
+        assertTrue(renderedText.contains("90.0%"), "Report should render highest score: " + renderedText);
         assertTrue(renderedText.contains("60.0%"), "Report should render lowest score: " + renderedText);
     }
 
