@@ -59,6 +59,23 @@ interface AnswerFormData {
   employeeRemarks: string | null;
 }
 
+const SELF_ASSESSMENT_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Draft',
+  NOT_STARTED: 'Not Started',
+  NOT_SUBMITTED: 'Not Submitted',
+  SUBMITTED: 'Submitted',
+  REOPENED: 'Reopened',
+  PENDING_MANAGER_REVIEW: 'Pending Manager Review',
+  PENDING_EMPLOYEE_REVIEW: 'Pending Employee Review',
+  PENDING_EMPLOYEE_RETAKE: 'Pending Employee Retake',
+  PENDING_RETAKE_MANAGER_REVIEW: 'Pending Retake Manager Review',
+  PENDING_FINAL_APPROVAL: 'Pending Final Approval',
+  PENDING_HR_CALIBRATION_REVIEW: 'Pending HR Calibration',
+  MANAGER_REVIEWED: 'Manager Reviewed',
+  APPROVED: 'Approved',
+  FINALIZED_LOCKED: 'Finalized Locked',
+};
+
 const toSaveDraftRequest = (
   data: AnswerFormData,
   overallRemarks: string | null | undefined,
@@ -170,7 +187,7 @@ function StatusBadge({ status }: { status: string | undefined | null }) {
     >
       <span className={`h-1.5 w-1.5 rounded-full ${c.dot}`} />
       {c.icon}
-      {status.replace(/_/g, ' ')}
+      {SELF_ASSESSMENT_STATUS_LABELS[status] ?? status.replace(/_/g, ' ')}
     </span>
   );
 }
@@ -731,7 +748,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   </span>
                 </div>
                 <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-[26px]">
-                  My Self Assessment
+                  My Form
                 </h1>
                 {formData?.title && (
                   <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -1060,7 +1077,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                               <textarea
                                 {...field}
                                 value={field.value ?? ''}
-                                disabled={!canEditQuestion}
+                                disabled={!canEditQuestion || isRetakeMode}
                                 rows={2}
                                 placeholder="Add any remarks for this question…"
                                 className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-100/60 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500 dark:focus:border-emerald-500 dark:focus:bg-slate-900 dark:focus:ring-emerald-900/40"
@@ -1192,6 +1209,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   hrFinalSignatureData={formData.hrFinalSignatureData}
                   hrFinalSignatureDate={formData.hrFinalSignatureDate}
                   hrName={formData.hrName}
+                  isManagerSelfAssessment={formData.employee?.roleId === 2}
                 />
               </div>
             </div>
@@ -1224,7 +1242,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-px hover:bg-slate-50 hover:shadow disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:disabled:hover:bg-slate-800"
                 >
 	                  <Save size={15} />
-	                  {autosave.isSaving ? 'Saving...' : 'Save Now'}
+	                  {autosave.isSaving ? 'Saving...' : 'Save Draft'}
 	                </button>
 	                )}
 	                <button

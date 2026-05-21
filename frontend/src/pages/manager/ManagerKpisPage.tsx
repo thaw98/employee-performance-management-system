@@ -149,7 +149,7 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
                         </div>
                       </td>
                       <td className="py-4 px-4 text-center border-r border-slate-100">
-                         <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-600">
+                        <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-600">
                           {kpi.weight}%
                         </span>
                       </td>

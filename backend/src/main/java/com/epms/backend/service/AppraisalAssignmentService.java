@@ -6,6 +6,9 @@ import com.epms.backend.entity.AppraisalStatus;
 import com.epms.backend.repository.AppraisalAssignmentRepository;
 import com.epms.backend.repository.AppraisalAnswerRepository;
 import com.epms.backend.repository.AppraisalQuestionRepository;
+import com.epms.backend.repository.UserRepository;
+import com.epms.backend.service.NotificationService;
+import com.epms.backend.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,9 +23,13 @@ public class AppraisalAssignmentService {
     private final AppraisalAnswerRepository appraisalAnswerRepository;
     private final AppraisalQuestionRepository appraisalQuestionRepository;
     private final AuditService auditService;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public List<AppraisalAssignment> getAllAssignments() {
-        List<AppraisalAssignment> list = appraisalAssignmentRepository.findAll();
+        List<AppraisalAssignment> list = appraisalAssignmentRepository.findAll().stream()
+                .filter(a -> !isProbationEmployee(a))
+                .toList();
         // Force initialization of template and its categories/questions for HR review
         list.forEach(a -> {
             if (a.getTemplate() != null) {
@@ -41,7 +48,9 @@ public class AppraisalAssignmentService {
     }
 
     public List<AppraisalAssignment> getAssignmentsForEvaluator(Long evaluatorId) {
-        List<AppraisalAssignment> list = appraisalAssignmentRepository.findByEvaluator_Id(evaluatorId);
+        List<AppraisalAssignment> list = appraisalAssignmentRepository.findByEvaluator_Id(evaluatorId).stream()
+                .filter(a -> !isProbationEmployee(a))
+                .toList();
         // Force initialization of employee department and position for manager dashboard
         list.forEach(a -> {
             if (a.getEmployee() != null) {
@@ -54,7 +63,9 @@ public class AppraisalAssignmentService {
     }
 
     public List<AppraisalAssignment> getAssignmentsForEmployee(Long employeeId) {
-        List<AppraisalAssignment> list = appraisalAssignmentRepository.findByEmployeeId(employeeId);
+        List<AppraisalAssignment> list = appraisalAssignmentRepository.findByEmployeeId(employeeId).stream()
+                .filter(a -> !isProbationEmployee(a))
+                .toList();
         // Force initialization for employee report view
         list.forEach(a -> {
             if (a.getEmployee() != null) {
@@ -73,8 +84,12 @@ public class AppraisalAssignmentService {
     }
 
     public AppraisalAssignment getById(Long id) {
-        return appraisalAssignmentRepository.findById(id)
+        AppraisalAssignment assignment = appraisalAssignmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Appraisal not found"));
+        if (isProbationEmployee(assignment)) {
+            throw new RuntimeException("Appraisal not found");
+        }
+        return assignment;
     }
 
     @Transactional
@@ -127,6 +142,24 @@ public class AppraisalAssignmentService {
         
         auditService.record("SUBMIT_EVALUATION", "AppraisalAssignment", id, userId, roleId, 
                 "Manager submitted evaluation for employee ID: " + assignment.getEmployee().getId(), null);
+
+        // Notify HR users
+        try {
+            String managerName = (assignment.getEvaluator() != null) ? assignment.getEvaluator().getEmployeeName() : "A manager";
+            String employeeName = (assignment.getEmployee() != null) ? assignment.getEmployee().getEmployeeName() : "an employee";
+            String title = "Appraisal Submitted";
+            String message = String.format("Manager %s has submitted the performance appraisal evaluation for %s.", managerName, employeeName);
+            
+            userRepository.findByRole_IdAndActiveTrue(1L).forEach(hrUser -> {
+                try {
+                    notificationService.send(hrUser, title, message, "APPRAISAL", saved.getId());
+                } catch (Exception ex) {
+                    System.err.println("Failed to send submission notification to HR user ID " + hrUser.getId() + ": " + ex.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            System.err.println("Failed to initiate submission notifications to HR: " + e.getMessage());
+        }
         
         return saved;
     }
@@ -169,6 +202,28 @@ public class AppraisalAssignmentService {
         auditService.record("APPROVE", "AppraisalAssignment", id, userId, roleId, 
                 "HR Approved appraisal for employee ID: " + assignment.getEmployee().getId(), null);
         
+        // Notify Manager
+        String empName = (assignment.getEmployee() != null) ? assignment.getEmployee().getEmployeeName() : "an employee";
+        notifyEvaluator(saved, "Appraisal Approved", 
+                String.format("HR has approved the appraisal evaluation for %s.", empName));
+        
+        // Notify Employee
+        try {
+            if (saved.getEmployee() != null) {
+                userRepository.findByEmployee_Id(saved.getEmployee().getId()).ifPresent(employeeUser -> {
+                    try {
+                        String title = "Appraisal Approved by HR";
+                        String message = "HR has approved your performance appraisal. You can now view it before it is finalized.";
+                        notificationService.send(employeeUser, title, message, "APPRAISAL", saved.getId());
+                    } catch (Exception ex) {
+                        System.err.println("Failed to send notification to Employee User ID " + employeeUser.getId() + ": " + ex.getMessage());
+                    }
+                });
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to initiate employee notification: " + e.getMessage());
+        }
+
         return saved;
     }
 
@@ -188,6 +243,11 @@ public class AppraisalAssignmentService {
 
         auditService.record("REJECT", "AppraisalAssignment", id, userId, roleId, 
                 "HR Rejected appraisal for employee ID: " + assignment.getEmployee().getId(), null);
+
+        // Notify Manager
+        String empName = (assignment.getEmployee() != null) ? assignment.getEmployee().getEmployeeName() : "an employee";
+        notifyEvaluator(saved, "Appraisal Rejected", 
+                String.format("HR has rejected the appraisal evaluation for %s.", empName));
 
         return saved;
     }
@@ -209,6 +269,11 @@ public class AppraisalAssignmentService {
         auditService.record("RETURN", "AppraisalAssignment", id, userId, roleId, 
                 "HR Returned appraisal for revision for employee ID: " + assignment.getEmployee().getId(), null);
 
+        // Notify Manager
+        String empName = (assignment.getEmployee() != null) ? assignment.getEmployee().getEmployeeName() : "an employee";
+        notifyEvaluator(saved, "Appraisal Returned for Revision", 
+                String.format("HR has returned the appraisal evaluation for %s for revision.", empName));
+
         return saved;
     }
 
@@ -227,6 +292,11 @@ public class AppraisalAssignmentService {
 
         auditService.record("LOCK", "AppraisalAssignment", id, userId, roleId, 
                 "HR Locked appraisal for employee ID: " + assignment.getEmployee().getId(), null);
+
+        // Notify Manager
+        String empName = (assignment.getEmployee() != null) ? assignment.getEmployee().getEmployeeName() : "an employee";
+        notifyEvaluator(saved, "Appraisal Finalized", 
+                String.format("HR has finalized and locked the appraisal evaluation for %s.", empName));
 
         return saved;
     }
@@ -251,6 +321,60 @@ public class AppraisalAssignmentService {
                 "HR Unlocked appraisal for employee ID: " + assignment.getEmployee().getId(), null);
 
         return saved;
+    }
+
+    @Transactional
+    public AppraisalAssignment reset(Long id, Long userId, Long roleId) {
+        AppraisalAssignment assignment = getById(id);
+
+        // Reset status to PENDING_MANAGER
+        assignment.setStatus(AppraisalStatus.PENDING_MANAGER);
+        
+        // Clear all ratings/evaluation data
+        if (assignment.getAnswers() != null) {
+            assignment.getAnswers().clear();
+        }
+        assignment.setManagerComments(null);
+        assignment.setManagerSignature(null);
+        assignment.setManagerSignedAt(null);
+        assignment.setSubmittedAt(null);
+        assignment.setTotalScore(null);
+        assignment.setRatingCategory(null);
+        
+        // Clear HR comments/signatures
+        assignment.setHrComments(null);
+        assignment.setHrSignature(null);
+        assignment.setHrSignedAt(null);
+        
+        assignment.setUpdatedAt(Instant.now());
+
+        AppraisalAssignment saved = appraisalAssignmentRepository.save(assignment);
+
+        auditService.record("RESET", "AppraisalAssignment", id, userId, roleId, 
+                "HR Reset appraisal to draft/pending for employee ID: " + assignment.getEmployee().getId(), null);
+
+        // Notify Manager
+        String empName = (assignment.getEmployee() != null) ? assignment.getEmployee().getEmployeeName() : "an employee";
+        notifyEvaluator(saved, "Appraisal Reset for Re-evaluation", 
+                String.format("HR has reset the appraisal evaluation for %s. Please evaluate again.", empName));
+
+        return saved;
+    }
+
+    private void notifyEvaluator(AppraisalAssignment assignment, String title, String message) {
+        try {
+            if (assignment != null && assignment.getEvaluator() != null) {
+                userRepository.findByEmployee_Id(assignment.getEvaluator().getId()).ifPresent(managerUser -> {
+                    try {
+                        notificationService.send(managerUser, title, message, "APPRAISAL", assignment.getId());
+                    } catch (Exception ex) {
+                        System.err.println("Failed to send manager notification to User ID " + managerUser.getId() + ": " + ex.getMessage());
+                    }
+                });
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to initiate manager notification: " + e.getMessage());
+        }
     }
 
     private boolean isProbationEmployee(AppraisalAssignment assignment) {

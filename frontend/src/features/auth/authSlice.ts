@@ -29,15 +29,14 @@ const loadUser = (): User | null => {
   }
 };
 
-const loadExpiresAt = (): string | null => {
-  return localStorage.getItem(EXPIRES_AT_KEY) || sessionStorage.getItem(EXPIRES_AT_KEY);
-};
+const token = loadToken();
+const user = loadUser();
 
 const initialState: AuthState = {
-  user: loadUser(),
-  token: loadToken(),
-  expiresAt: loadExpiresAt(),
-  isAuthenticated: !!loadToken() && !!loadExpiresAt(),
+  user,
+  token,
+  expiresAt: null,
+  isAuthenticated: !!token && !!user,
 };
 
 export const authSlice = createSlice({
@@ -46,20 +45,18 @@ export const authSlice = createSlice({
   reducers: {
     setCredentials: (
       state,
-      action: PayloadAction<{ token: string; user: User; expiresAt?: string; rememberMe?: boolean }>
+      action: PayloadAction<{ token: string; user: User; expiresAt?: string | null; rememberMe?: boolean }>
     ) => {
-      const { token, user, expiresAt } = action.payload;
+      const { token, user } = action.payload;
       state.token = token;
       state.user = user;
-      state.expiresAt = expiresAt ?? state.expiresAt;
+      state.expiresAt = null;
       state.isAuthenticated = true;
 
       // Always persist auth in localStorage so sessions survive new tabs/reopen.
       localStorage.setItem(TOKEN_KEY, token);
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      if (state.expiresAt) {
-        localStorage.setItem(EXPIRES_AT_KEY, state.expiresAt);
-      }
+      localStorage.removeItem(EXPIRES_AT_KEY);
       // Clean up legacy session copy to avoid split-session behavior.
       sessionStorage.removeItem(TOKEN_KEY);
       sessionStorage.removeItem(USER_KEY);

@@ -29,6 +29,7 @@ interface FeedbackItem {
     role: string;
     score: number;
     remark: string;
+    anonymous?: boolean;
 }
 
 interface FeedbackDetail {
@@ -111,6 +112,8 @@ export function GetFeedbackPage() {
 
     const generatePDF = (item: FeedbackItem) => {
         const doc = new jsPDF();
+        const showEvaluatorName = !item.anonymous && item.evaluatorName?.trim().toLowerCase() !== 'anonymous';
+        const detailsStartY = showEvaluatorName ? 72 : 65;
         
         doc.setFontSize(20);
         doc.text('360-Degree Feedback Assessment Report', 105, 20, { align: 'center' });
@@ -118,11 +121,14 @@ export function GetFeedbackPage() {
         doc.setFontSize(10);
         doc.text(`Date: ${new Date(item.date).toLocaleDateString('en-GB')} ${new Date(item.date).toLocaleTimeString('en-US', { hour12: timeFormat === '12h', hour: '2-digit', minute: '2-digit' })}`, 14, 35);
         doc.text(`Role of Evaluator: ${item.role}`, 14, 42);
-        doc.text(`Overall Score: ${item.score.toFixed(1)}%`, 14, 49);
-        doc.text(`Performance Remark: ${item.remark}`, 14, 56);
+        if (showEvaluatorName) {
+            doc.text(`Evaluator Name: ${item.evaluatorName}`, 14, 49);
+        }
+        doc.text(`Overall Score: ${item.score.toFixed(1)}%`, 14, showEvaluatorName ? 56 : 49);
+        doc.text(`Performance Remark: ${item.remark}`, 14, showEvaluatorName ? 63 : 56);
         
         autoTable(doc, {
-            startY: 65,
+            startY: detailsStartY,
             head: [['Criteria', 'Rating', 'Comments']],
             body: details.map(d => [d.criteriaName, d.rating, d.comment || 'N/A']),
             theme: 'striped',

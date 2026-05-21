@@ -81,6 +81,7 @@ import { MeetingDetailPage } from './pages/meetings/MeetingDetailPage';
 import { NotificationPage } from './pages/NotificationPage';
 
 // Reports Pages
+import ManagerKpiReportsPage from './pages/manager/KpiReportsPage';
 import ManagerReportsPage from './pages/manager/ReportsPage';
 import HrReportsPage from './pages/hr/ReportsPage';
 import EmployeeReportsPage from './pages/employee/ReportsPage';
@@ -243,6 +244,7 @@ function App() {
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment/forms" element={<SelfAssessmentActiveFormsPage />} />
+            <Route path="self-assessment-forms/my-form" element={<MySelfAssessmentFormPage />} />
             <Route path="self-assessment-forms/review-queue" element={<SelfAssessmentFormQueuePage />} />
             <Route path="self-assessment-forms/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment-forms/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
@@ -255,6 +257,7 @@ function App() {
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
             <Route path="reports" element={<ManagerReportsPage />} />
+            <Route path="reports/kpi" element={<ManagerKpiReportsPage />} />
             <Route path="reports/feedback" element={<FeedbackReportPage mode="manager" />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>

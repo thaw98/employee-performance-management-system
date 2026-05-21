@@ -114,6 +114,14 @@ public class AppraisalAssignmentController {
         return ResponseEntity.ok(ApiResponse.ok("Appraisal unlocked", saved));
     }
 
+    @PostMapping("/{id}/reset")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR')")
+    public ResponseEntity<ApiResponse<AppraisalAssignment>> reset(@PathVariable Long id, Authentication auth) {
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        AppraisalAssignment saved = appraisalAssignmentService.reset(id, principal.getId(), principal.getRoleId());
+        return ResponseEntity.ok(ApiResponse.ok("Appraisal reset to pending manager", saved));
+    }
+
     @lombok.Data
     public static class ActionRequest {
         private String comments;

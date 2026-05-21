@@ -32,6 +32,7 @@ type SortDir = 'asc' | 'desc';
 function humanizeStatusLabel(status: string): string {
   const raw = (status ?? '').trim();
   if (!raw) return 'Unknown';
+  if (raw === 'PENDING_HR_CALIBRATION_REVIEW') return 'Pending HR Calibration';
   return raw
     .split('_')
     .filter(Boolean)

@@ -16,6 +16,7 @@ export interface SelfAssessmentSignatureGridProps {
   hrFinalSignatureData?: string | null;
   hrFinalSignatureDate?: string | null;
   hrName?: string | null;
+  isManagerSelfAssessment?: boolean;
 }
 
 function SignatureBlock({
@@ -77,6 +78,7 @@ export const SelfAssessmentSignatureGrid: React.FC<SelfAssessmentSignatureGridPr
   hrFinalSignatureData,
   hrFinalSignatureDate,
   hrName,
+  isManagerSelfAssessment = false,
 }) => {
   const hrData = hrFinalSignatureData ?? hrSignatureData;
   const hrDate = hrFinalSignatureDate ?? hrSignatureDate;
@@ -95,14 +97,14 @@ export const SelfAssessmentSignatureGrid: React.FC<SelfAssessmentSignatureGridPr
 
       <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 sm:gap-10">
         <SignatureBlock
-          title="Signature of Employee & Date"
+          title={isManagerSelfAssessment ? 'Signature of Manager Submitter & Date' : 'Signature of Employee & Date'}
           pending={employeePending}
           signatureData={employeeSignatureData}
           signatureDate={employeeSignatureDate}
           printedName={employeeName}
         />
         <SignatureBlock
-          title="Signature of Manager & Date"
+          title={isManagerSelfAssessment ? 'Signature of HR Reviewer & Date' : 'Signature of Manager & Date'}
           pending={managerPending}
           signatureData={managerSignatureData}
           signatureDate={managerSignatureDate}

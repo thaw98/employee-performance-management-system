@@ -33,6 +33,10 @@ class AppraisalAssignmentServiceProbationRuleTest {
     private AppraisalQuestionRepository appraisalQuestionRepository;
     @Mock
     private AuditService auditService;
+    @Mock
+    private com.epms.backend.repository.UserRepository userRepository;
+    @Mock
+    private NotificationService notificationService;
 
     private AppraisalAssignmentService appraisalAssignmentService;
 
@@ -42,7 +46,9 @@ class AppraisalAssignmentServiceProbationRuleTest {
             appraisalAssignmentRepository, 
             appraisalAnswerRepository, 
             appraisalQuestionRepository, 
-            auditService
+            auditService,
+            userRepository,
+            notificationService
         );
     }
 
