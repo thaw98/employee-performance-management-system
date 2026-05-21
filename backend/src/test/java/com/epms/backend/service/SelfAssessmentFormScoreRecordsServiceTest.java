@@ -1,5 +1,6 @@
 package com.epms.backend.service;
 
+import com.epms.backend.dto.selfassessmentform.FormListDto;
 import com.epms.backend.dto.selfassessmentform.ScoreRecordDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
@@ -88,7 +89,7 @@ class SelfAssessmentFormScoreRecordsServiceTest {
     }
 
     @Test
-    void getScoreRecords_hr_returnsWorkflowAndFinalizedRecords() {
+    void getScoreRecords_hr_returnsOnlyFinalizedAndNotSubmittedRecords() {
         Employee emp1 = employee(1L, 10L, 20L);
         Employee emp2 = employee(2L, 11L, 21L);
         ReviewCycle cycle = cycle();
@@ -98,14 +99,16 @@ class SelfAssessmentFormScoreRecordsServiceTest {
         SelfAssessmentForm draft = formWithStatus(201L, emp2, tmpl, cycle, SelfAssessmentFormStatus.DRAFT);
         SelfAssessmentForm finalized2 = finalizedForm(202L, emp2, tmpl, cycle, 72.0, "Good");
         SelfAssessmentForm pendingManager = formWithStatus(203L, emp1, tmpl, cycle, SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW);
+        SelfAssessmentForm notSubmitted = formWithStatus(204L, emp1, tmpl, cycle, SelfAssessmentFormStatus.NOT_SUBMITTED);
 
-        when(formRepository.findAll()).thenReturn(List.of(finalized, draft, finalized2, pendingManager));
+        when(formRepository.findAll()).thenReturn(List.of(finalized, draft, finalized2, pendingManager, notSubmitted));
 
         List<ScoreRecordDto> records = service.getScoreRecords(emp1, 1L);
 
         assertEquals(3, records.size());
         assertTrue(records.stream().anyMatch(r -> "FINALIZED_LOCKED".equals(r.status())));
-        assertTrue(records.stream().anyMatch(r -> "PENDING_MANAGER_REVIEW".equals(r.status())));
+        assertTrue(records.stream().anyMatch(r -> "NOT_SUBMITTED".equals(r.status())));
+        assertTrue(records.stream().noneMatch(r -> "PENDING_MANAGER_REVIEW".equals(r.status())));
         assertTrue(records.stream().anyMatch(r -> r.finalApprovedScore() != null && r.finalApprovedScore() == 85.5));
         assertTrue(records.stream().anyMatch(r -> r.finalApprovedScore() != null && r.finalApprovedScore() == 72.0));
     }
@@ -126,7 +129,7 @@ class SelfAssessmentFormScoreRecordsServiceTest {
     }
 
     @Test
-    void getScoreRecords_hr_includesSubmittedAndApproved() {
+    void getScoreRecords_hr_excludesSubmittedAndApprovedFromHistory() {
         Employee emp = employee(1L, 10L, 20L);
         ReviewCycle cycle = cycle();
         SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
@@ -137,9 +140,7 @@ class SelfAssessmentFormScoreRecordsServiceTest {
 
         List<ScoreRecordDto> records = service.getScoreRecords(emp, 1L);
 
-        assertEquals(2, records.size());
-        assertTrue(records.stream().anyMatch(r -> "SUBMITTED".equals(r.status())));
-        assertTrue(records.stream().anyMatch(r -> "APPROVED".equals(r.status())));
+        assertTrue(records.isEmpty());
     }
 
     @Test
@@ -239,8 +240,8 @@ class SelfAssessmentFormScoreRecordsServiceTest {
 
         List<ScoreRecordDto> records = service.getScoreRecords(emp, 1L);
 
-        assertEquals(1, records.size());
-        assertEquals("SUBMITTED", records.get(0).status());
+        assertTrue(records.isEmpty());
+        assertEquals(SelfAssessmentFormStatus.SUBMITTED, submitted.getStatus());
         assertEquals(80.0, submitted.getTotalScore());
         assertEquals("Good", submitted.getRatingCategory());
     }
@@ -266,7 +267,7 @@ class SelfAssessmentFormScoreRecordsServiceTest {
     }
 
     @Test
-    void getScoreRecords_manager_returnsOnlyScopedFinalizedRecords() {
+    void getScoreRecords_manager_returnsOnlyScopedFinalizedAndNotSubmittedRecords() {
         Department managedDept = department(10L);
         managedDept.setManagerId(100L);
 
@@ -287,15 +288,17 @@ class SelfAssessmentFormScoreRecordsServiceTest {
         SelfAssessmentForm finalized2 = finalizedForm(201L, deptReport, tmpl, cycle, 65.0, "Meet Requirement");
         SelfAssessmentForm finalized3 = finalizedForm(202L, otherEmp, tmpl, cycle, 80.0, "Good");
         SelfAssessmentForm pendingEmp = formWithStatus(203L, directReport, tmpl, cycle, SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW);
+        SelfAssessmentForm notSubmitted = formWithStatus(204L, deptReport, tmpl, cycle, SelfAssessmentFormStatus.NOT_SUBMITTED);
 
-        when(formRepository.findAll()).thenReturn(List.of(finalized1, finalized2, finalized3, pendingEmp));
+        when(formRepository.findAll()).thenReturn(List.of(finalized1, finalized2, finalized3, pendingEmp, notSubmitted));
 
         List<ScoreRecordDto> records = service.getScoreRecords(manager, 2L);
 
         assertEquals(3, records.size());
         assertTrue(records.stream().anyMatch(r -> r.employee().employeeName().equals("Employee 1")));
         assertTrue(records.stream().anyMatch(r -> r.employee().employeeName().equals("Employee 2")));
-        assertTrue(records.stream().anyMatch(r -> "PENDING_EMPLOYEE_REVIEW".equals(r.status())));
+        assertTrue(records.stream().anyMatch(r -> "NOT_SUBMITTED".equals(r.status())));
+        assertTrue(records.stream().noneMatch(r -> "PENDING_EMPLOYEE_REVIEW".equals(r.status())));
     }
 
     @Test
@@ -353,6 +356,28 @@ class SelfAssessmentFormScoreRecordsServiceTest {
         List<ScoreRecordDto> records = service.getScoreRecords(emp, 3L);
 
         assertTrue(records.isEmpty());
+    }
+
+    @Test
+    void getHrReviewForms_includesPendingWorkflowStatuses() {
+        ReviewCycle cycle = cycle();
+        Employee emp = employee(1L, 10L, 20L);
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm pendingFinal = formWithStatus(200L, emp, tmpl, cycle, SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL);
+        SelfAssessmentForm pendingManager = formWithStatus(201L, emp, tmpl, cycle, SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW);
+        SelfAssessmentForm finalized = finalizedForm(202L, emp, tmpl, cycle, 90.0, "Outstanding");
+        SelfAssessmentForm notSubmitted = formWithStatus(203L, emp, tmpl, cycle, SelfAssessmentFormStatus.NOT_SUBMITTED);
+
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(formRepository.findAll()).thenReturn(List.of(pendingFinal, pendingManager, finalized, notSubmitted));
+
+        List<FormListDto> forms = service.getHrReviewForms();
+
+        assertEquals(2, forms.size());
+        assertTrue(forms.stream().anyMatch(f -> "PENDING_FINAL_APPROVAL".equals(f.status())));
+        assertTrue(forms.stream().anyMatch(f -> "PENDING_MANAGER_REVIEW".equals(f.status())));
+        assertTrue(forms.stream().noneMatch(f -> "FINALIZED_LOCKED".equals(f.status())));
+        assertTrue(forms.stream().noneMatch(f -> "NOT_SUBMITTED".equals(f.status())));
     }
 
     @Test
