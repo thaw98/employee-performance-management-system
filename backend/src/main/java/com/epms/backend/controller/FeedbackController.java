@@ -211,6 +211,9 @@ public class FeedbackController {
                         .map(this::mapReportDepartment)
                         .collect(Collectors.toList())));
             }
+            if (!isManager(user)) {
+                return ResponseEntity.ok(new ApiResponse<>(true, "Departments fetched", List.of()));
+            }
 
             Department managerDepartment = user.getEmployee() != null ? user.getEmployee().getDepartment() : null;
             if (managerDepartment == null) {
@@ -302,7 +305,11 @@ public class FeedbackController {
     ) {
         try {
             User user = getCurrentUser();
-            if (!canAccessDepartmentReport(user, departmentId)) {
+            boolean isOwnEmployeeReport = user.getEmployee() != null
+                    && user.getEmployee().getId().equals(employeeId)
+                    && user.getEmployee().getDepartment() != null
+                    && user.getEmployee().getDepartment().getId().equals(departmentId);
+            if (!canAccessDepartmentReport(user, departmentId) && !isOwnEmployeeReport) {
                 return ResponseEntity.status(403).body(new ApiResponse<>(false, "Access denied", null));
             }
             if (!feedbackService.employeeBelongsToDepartment(employeeId, departmentId)) {
@@ -316,6 +323,33 @@ public class FeedbackController {
             return ResponseEntity.ok(new ApiResponse<>(true, "Employee feedback detail fetched", data));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Employee Feedback Detail Error: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/reports/me")
+    public ResponseEntity<ApiResponse<com.epms.backend.dto.FeedbackReportDtos.EmployeeFeedbackDetailReportDto>> getMyFeedbackReport(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) Long reviewCycleId
+    ) {
+        try {
+            User user = getCurrentUser();
+            if (user.getEmployee() == null || user.getEmployee().getDepartment() == null) {
+                return ResponseEntity.status(403).body(new ApiResponse<>(false, "Access denied", null));
+            }
+
+            LocalDate fromDate = from != null && !from.isBlank() ? LocalDate.parse(from) : null;
+            LocalDate toDate = to != null && !to.isBlank() ? LocalDate.parse(to) : null;
+            com.epms.backend.dto.FeedbackReportDtos.EmployeeFeedbackDetailReportDto data =
+                    feedbackService.getEmployeeFeedbackDetailForDepartment(
+                            user.getEmployee().getDepartment().getId(),
+                            user.getEmployee().getId(),
+                            fromDate,
+                            toDate,
+                            reviewCycleId);
+            return ResponseEntity.ok(new ApiResponse<>(true, "My feedback report fetched", data));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "My Feedback Report Error: " + e.getMessage(), null));
         }
     }
 
@@ -354,6 +388,9 @@ public class FeedbackController {
             User user = getCurrentUser();
             Long scopedDepartmentId = departmentId;
             if (!isHr(user)) {
+                if (!isManager(user)) {
+                    return ResponseEntity.status(403).body(new ApiResponse<>(false, "Access denied", null));
+                }
                 scopedDepartmentId = user.getEmployee() != null && user.getEmployee().getDepartment() != null
                         ? user.getEmployee().getDepartment().getId()
                         : null;
@@ -442,6 +479,12 @@ public class FeedbackController {
             LocalDate toDate = to != null && !to.isBlank() ? LocalDate.parse(to) : null;
             List<com.epms.backend.dto.FeedbackReportDtos.EmployeeFeedbackDetailReportDto> data =
                     feedbackService.getEmployeeFeedbackDetailsForReport(scopedDepartmentId, fromDate, toDate, reviewCycleId);
+            if (!isHr(user) && !isManager(user) && user.getEmployee() != null) {
+                Long ownEmployeeId = user.getEmployee().getId();
+                data = data.stream()
+                        .filter(row -> row.getEmployeeId() != null && row.getEmployeeId().equals(ownEmployeeId))
+                        .toList();
+            }
             return ResponseEntity.ok(new ApiResponse<>(true, "Feedback report export data fetched", data));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Feedback Report Export Error: " + e.getMessage(), null));
@@ -490,9 +533,18 @@ public class FeedbackController {
                 && user.getRole().getName().equalsIgnoreCase("HR");
     }
 
+    private boolean isManager(User user) {
+        return user.getRole() != null
+                && user.getRole().getName() != null
+                && user.getRole().getName().equalsIgnoreCase("MANAGER");
+    }
+
     private boolean canAccessDepartmentReport(User user, Long departmentId) {
         if (isHr(user)) {
             return true;
+        }
+        if (!isManager(user)) {
+            return false;
         }
         Long managerDepartmentId = user.getEmployee() != null && user.getEmployee().getDepartment() != null
                 ? user.getEmployee().getDepartment().getId()

@@ -287,6 +287,7 @@ function App() {
             <Route path="appraisals" element={<EmployeeAppraisalsPage />} />
             <Route path="appraisals/:id/view" element={<EmployeeAppraisalViewPage />} />
             <Route path="reports" element={<EmployeeReportsPage />} />
+            <Route path="reports/feedback" element={<FeedbackReportPage mode="employee" />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
         </Route>
