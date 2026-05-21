@@ -82,7 +82,7 @@
             <textField textAdjust="StretchHeight">
                 <reportElement stretchType="RelativeToTallestObject" x="0" y="24" width="250" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c008"/>
                 <textElement><font fontName="DejaVu Sans" size="9"/></textElement>
-                <textFieldExpression><![CDATA["Employee: " + $F{employeeName} + " (" + $F{employeeStaffNo} + ")"]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Employee: " + $F{employeeName} + " | Staff ID: " + ($F{employeeStaffNo} == null || $F{employeeStaffNo}.isEmpty() ? "-" : $F{employeeStaffNo})]]></textFieldExpression>
             </textField>
             <textField textAdjust="StretchHeight">
                 <reportElement stretchType="RelativeToTallestObject" x="265" y="24" width="250" height="18" uuid="0f69c55a-2e2f-4f7d-bb05-26cd4734c009"/>
