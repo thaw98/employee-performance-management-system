@@ -14,10 +14,6 @@ interface SignatureExportItem {
   date: string | null
 }
 
-export interface ExportSelfAssessmentReviewPdfOptions {
-  roleId?: number
-}
-
 /** A4 side margins: 0.3 in (7.62 mm) on each side. */
 const pageMargin = 0.3 * 25.4
 const navy: [number, number, number] = [28, 40, 65]
@@ -177,8 +173,6 @@ const headStyles = {
   fontStyle: 'bold' as const,
 }
 
-const isEmployeeExportRole = (roleId?: number): boolean => roleId === 3 || roleId === 4
-
 const buildAttemptAnswerRows = (
   answers: SelfAssessmentAttemptAnswerDto[],
   includeRetakeReason: boolean,
@@ -274,9 +268,9 @@ const resolveSubmissionAttempts = (form: SelfAssessmentFormDto): SelfAssessmentS
   return buildSubmissionAttemptsFallback(form)
 }
 
-const resolveAttemptsForExport = (
+/** Review report exports show only the consolidated final attempt when a retake exists. */
+export const resolveAttemptsForExport = (
   form: SelfAssessmentFormDto,
-  roleId?: number,
 ): SelfAssessmentSubmissionAttemptDto[] => {
   const attempts = resolveSubmissionAttempts(form)
   if (attempts.length === 0) {
@@ -298,7 +292,7 @@ const resolveAttemptsForExport = (
     }]
   }
 
-  if (isEmployeeExportRole(roleId)) {
+  if (attempts.length > 1) {
     return [attempts[attempts.length - 1]]
   }
 
@@ -582,10 +576,9 @@ const addAssessmentAnswers = (
 
 export async function exportSelfAssessmentReviewPdf(
   form: SelfAssessmentFormDto,
-  options: ExportSelfAssessmentReviewPdfOptions = {},
 ): Promise<void> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const attempts = resolveAttemptsForExport(form, options.roleId)
+  const attempts = resolveAttemptsForExport(form)
 
   let y = addReportHeader(doc, form)
 

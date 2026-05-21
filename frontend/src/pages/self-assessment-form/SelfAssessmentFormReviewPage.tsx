@@ -704,7 +704,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
     try {
       setIsExportingPdf(true);
-      await exportSelfAssessmentReviewPdf(selectedForm, { roleId: user?.roleId });
+      await exportSelfAssessmentReviewPdf(selectedForm);
       toast.success('PDF exported');
     } catch {
       toast.error('Failed to export PDF');

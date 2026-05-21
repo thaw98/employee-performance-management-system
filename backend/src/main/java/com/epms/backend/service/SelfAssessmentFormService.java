@@ -28,8 +28,13 @@ import java.util.stream.Collectors;
 @Service
 public class SelfAssessmentFormService {
 
-    /** Forms visible on HR / manager score-records (in-review and finalized). */
-    private static final EnumSet<SelfAssessmentFormStatus> SCORE_RECORD_VISIBLE_STATUSES = EnumSet.of(
+    /** Forms visible on HR / manager history (completed or missed submission only). */
+    private static final EnumSet<SelfAssessmentFormStatus> SCORE_RECORD_HISTORY_STATUSES = EnumSet.of(
+            SelfAssessmentFormStatus.FINALIZED_LOCKED,
+            SelfAssessmentFormStatus.NOT_SUBMITTED);
+
+    /** Forms visible on HR / manager review queue (in workflow). */
+    private static final EnumSet<SelfAssessmentFormStatus> REVIEW_QUEUE_VISIBLE_STATUSES = EnumSet.of(
             SelfAssessmentFormStatus.SUBMITTED,
             SelfAssessmentFormStatus.APPROVED,
             SelfAssessmentFormStatus.REOPENED,
@@ -39,8 +44,6 @@ public class SelfAssessmentFormService {
             SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW,
             SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL,
             SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW,
-            SelfAssessmentFormStatus.FINALIZED_LOCKED,
-            SelfAssessmentFormStatus.NOT_SUBMITTED,
             SelfAssessmentFormStatus.MANAGER_REVIEWED);
 
     private static final DateTimeFormatter NOTIFICATION_DEADLINE_FORMAT =
@@ -980,11 +983,7 @@ Instant now = Instant.now();
 
         return formRepository.findByManagerAndCycle(manager.getId(), activeCycle).stream()
                 .peek(this::normalizeOverdueDraftForm)
-                .filter(f -> f.getStatus() == SelfAssessmentFormStatus.SUBMITTED ||
-                        f.getStatus() == SelfAssessmentFormStatus.MANAGER_REVIEWED ||
-                        f.getStatus() == SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW ||
-                        f.getStatus() == SelfAssessmentFormStatus.PENDING_EMPLOYEE_REVIEW ||
-                        f.getStatus() == SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW)
+                .filter(f -> REVIEW_QUEUE_VISIBLE_STATUSES.contains(f.getStatus()))
                 .map(this::toFormListDto)
                 .collect(Collectors.toList());
     }
@@ -999,8 +998,7 @@ Instant now = Instant.now();
         return formRepository.findAll().stream()
                 .filter(f -> f.getCycle().equals(activeCycle))
                 .peek(this::normalizeOverdueDraftForm)
-                .filter(f -> f.getStatus() == SelfAssessmentFormStatus.MANAGER_REVIEWED ||
-                        f.getStatus() == SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL)
+                .filter(f -> REVIEW_QUEUE_VISIBLE_STATUSES.contains(f.getStatus()))
                 .map(this::toFormListDto)
                 .collect(Collectors.toList());
     }
@@ -2812,7 +2810,7 @@ Instant now = Instant.now();
     private List<ScoreRecordDto> getHrScoreRecords() {
         return formRepository.findAll().stream()
                 .peek(this::normalizeOverdueDraftForm)
-                .filter(f -> SCORE_RECORD_VISIBLE_STATUSES.contains(f.getStatus()))
+                .filter(f -> SCORE_RECORD_HISTORY_STATUSES.contains(f.getStatus()))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
                 .collect(Collectors.toList());
@@ -2822,7 +2820,7 @@ Instant now = Instant.now();
         List<SelfAssessmentForm> allForms = formRepository.findAll();
         return allForms.stream()
                 .peek(this::normalizeOverdueDraftForm)
-                .filter(f -> SCORE_RECORD_VISIBLE_STATUSES.contains(f.getStatus()))
+                .filter(f -> SCORE_RECORD_HISTORY_STATUSES.contains(f.getStatus()))
                 .filter(f -> canManagerAccessForm(f, manager))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
