@@ -12,9 +12,11 @@ import {
     Calendar,
     Lock,
     Award,
-    TrendingUp
+    TrendingUp,
+    Download
 } from 'lucide-react';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
+import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
 
 interface Question {
     id: number;
@@ -65,6 +67,21 @@ export function EmployeeAppraisalViewPage() {
     const navigate = useNavigate();
     const [assignment, setAssignment] = useState<Assignment | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExportPdf = async () => {
+        if (!assignment) return;
+        try {
+            setIsExporting(true);
+            await exportAppraisalPdf(assignment as any);
+            toast.success('PDF report exported successfully');
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to export PDF report');
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     useEffect(() => {
         fetchData();
@@ -122,8 +139,26 @@ export function EmployeeAppraisalViewPage() {
                     </div>
                     Back to List
                 </button>
-                <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 text-[10px] font-black uppercase tracking-widest">
-                    <Lock size={14} /> Finalized Report
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleExportPdf}
+                        disabled={isExporting}
+                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-md shadow-emerald-500/10 transition-all active:scale-95 disabled:scale-100 cursor-pointer disabled:cursor-not-allowed"
+                    >
+                        {isExporting ? (
+                            <>
+                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Exporting...
+                            </>
+                        ) : (
+                            <>
+                                <Download size={14} /> Export PDF
+                            </>
+                        )}
+                    </button>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 text-[10px] font-black uppercase tracking-widest">
+                        <Lock size={14} /> Finalized Report
+                    </div>
                 </div>
             </div>
 

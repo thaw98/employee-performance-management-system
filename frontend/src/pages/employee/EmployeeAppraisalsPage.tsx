@@ -60,6 +60,8 @@ export function EmployeeAppraisalsPage() {
                 return 'bg-blue-100 text-blue-700 border-blue-200';
             case 'PENDING_MANAGER':
                 return 'bg-amber-100 text-amber-700 border-amber-200';
+            case 'LOCKED':
+                return 'bg-slate-900 text-white border-slate-900';
             default:
                 return 'bg-slate-100 text-slate-600 border-slate-200';
         }
@@ -164,7 +166,7 @@ export function EmployeeAppraisalsPage() {
                                         </span>
                                     </div>
 
-                                    {assignment.status === 'HR_APPROVED' ? (
+                                    {assignment.status === 'HR_APPROVED' || assignment.status === 'LOCKED' ? (
                                         <Link 
                                             to={`/employee/appraisals/${assignment.id}/view`}
                                             className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 hover:-translate-y-0.5 transition-all"
