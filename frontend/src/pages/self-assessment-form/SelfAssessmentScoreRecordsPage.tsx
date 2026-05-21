@@ -51,7 +51,10 @@ const SCORE_RECORD_STATUS_LABELS: Record<string, string> = {
   FINALIZED_LOCKED: 'Finalized Locked',
 }
 
-/** Status filter options (employee history includes draft / not started; HR/manager API omits those). */
+/** HR / manager history shows only finalized and missed-submission records. */
+const HR_MANAGER_HISTORY_STATUSES = new Set(['FINALIZED_LOCKED', 'NOT_SUBMITTED'])
+
+/** Status filter options (employee history includes draft / not started; HR/manager history is narrower). */
 const SCORE_RECORD_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = Object.entries(SCORE_RECORD_STATUS_LABELS)
   .map(([value, label]) => ({ value, label }))
 
@@ -118,6 +121,19 @@ export function SelfAssessmentScoreRecordsPage() {
 
   const { data: records = [], isLoading, isError } = useGetScoreRecordsQuery()
 
+  const historyRecords = useMemo(() => {
+    if (isEmployee) return records
+    return records.filter(r => HR_MANAGER_HISTORY_STATUSES.has(r.status))
+  }, [records, isEmployee])
+
+  const statusFilterOptions = useMemo(
+    () =>
+      isEmployee
+        ? SCORE_RECORD_STATUS_FILTER_OPTIONS
+        : SCORE_RECORD_STATUS_FILTER_OPTIONS.filter(o => HR_MANAGER_HISTORY_STATUSES.has(o.value)),
+    [isEmployee],
+  )
+
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [cycleFilter, setCycleFilter] = useState('')
@@ -126,12 +142,12 @@ export function SelfAssessmentScoreRecordsPage() {
 
   const cycleOptions = useMemo(() => {
     const seen = new Map<string, string>()
-    for (const r of records) {
+    for (const r of historyRecords) {
       const key = r.cycleName || ''
       if (key && !seen.has(key)) seen.set(key, r.cycleId?.toString() || key)
     }
     return Array.from(seen.entries()).sort(([a], [b]) => a.localeCompare(b))
-  }, [records])
+  }, [historyRecords])
   const selectedCycle = useMemo(
     () => cycleOptions.find(([name]) => name === cycleFilter) ?? null,
     [cycleOptions, cycleFilter],
@@ -205,7 +221,7 @@ export function SelfAssessmentScoreRecordsPage() {
   }, [isHr, isEmployee, navigate, basePath])
 
   const filteredData = useMemo(() => {
-    let data = records
+    let data = historyRecords
     if (cycleFilter) {
       data = data.filter(r => (r.cycleName || '') === cycleFilter)
     }
@@ -213,7 +229,7 @@ export function SelfAssessmentScoreRecordsPage() {
       data = data.filter(r => r.status === statusFilter)
     }
     return data
-  }, [records, cycleFilter, statusFilter])
+  }, [historyRecords, cycleFilter, statusFilter])
 
   const table = useReactTable({
     data: filteredData,
@@ -256,7 +272,9 @@ export function SelfAssessmentScoreRecordsPage() {
     scoredVisibleRecords.length > 0
       ? Math.max(...scoredVisibleRecords.map(r => r.finalApprovedScore))
       : null
-  const finalizedOrApprovedCount = visibleRecords.filter(r => r.status === 'FINALIZED_LOCKED' || r.status === 'APPROVED').length
+  const finalizedOrNotSubmittedCount = visibleRecords.filter(
+    r => r.status === 'FINALIZED_LOCKED' || r.status === 'NOT_SUBMITTED',
+  ).length
 
   const metricCards = [
     {
@@ -281,8 +299,11 @@ export function SelfAssessmentScoreRecordsPage() {
       iconBgClassName: 'bg-amber-50 dark:bg-amber-900/20',
     },
     {
-      label: 'Finalized / Approved',
-      value: finalizedOrApprovedCount.toString(),
+      label: isEmployee ? 'Finalized / Approved' : 'Finalized / Not Submitted',
+      value: (isEmployee
+        ? visibleRecords.filter(r => r.status === 'FINALIZED_LOCKED' || r.status === 'APPROVED').length
+        : finalizedOrNotSubmittedCount
+      ).toString(),
       icon: CheckCircle2,
       iconClassName: 'text-emerald-600 dark:text-emerald-400',
       iconBgClassName: 'bg-emerald-50 dark:bg-emerald-900/20',
@@ -310,7 +331,9 @@ export function SelfAssessmentScoreRecordsPage() {
       <div>
         <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">History</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Past self-assessment forms for every workflow status, with scores when available.
+          {isEmployee
+            ? 'Past self-assessment forms for every workflow status, with scores when available.'
+            : 'Finalized locked and not-submitted self-assessment records. In-progress forms appear on Review Submissions.'}
         </p>
       </div>
 
@@ -365,7 +388,7 @@ export function SelfAssessmentScoreRecordsPage() {
             className="px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
           >
             <option value="">All Statuses</option>
-            {SCORE_RECORD_STATUS_FILTER_OPTIONS.map(({ value, label }) => (
+            {statusFilterOptions.map(({ value, label }) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>

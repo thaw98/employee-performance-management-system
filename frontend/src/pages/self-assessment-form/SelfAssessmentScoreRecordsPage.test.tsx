@@ -38,6 +38,7 @@ vi.mock('../../features/selfAssessmentForm/selfAssessmentSummaryReportApi', () =
   downloadSelfAssessmentSummaryPdf: (...args: unknown[]) => downloadSummaryPdfMock(...args),
 }))
 
+/** HR/manager history API returns only finalized and not-submitted rows. */
 const mockRecords = [
   {
     id: 1,
@@ -76,14 +77,14 @@ const mockRecords = [
       positionName: 'Analyst',
       positionCode: 'ANA',
     },
-    status: 'APPROVED',
-    finalApprovedScore: 72.0,
-    performance: 'Good',
+    status: 'NOT_SUBMITTED',
+    finalApprovedScore: 0.0,
+    performance: 'Unsatisfactory',
     cycleId: 7,
     cycleName: 'Q2 2026',
-    submittedDate: '2026-05-03T00:00:00Z',
+    submittedDate: null,
     createdDate: '2026-05-02T00:00:00Z',
-    finalApprovalDate: '2026-05-06T00:00:00Z',
+    finalApprovalDate: null,
   },
   {
     id: 3,
@@ -99,12 +100,12 @@ const mockRecords = [
       positionName: 'Designer',
       positionCode: 'DES',
     },
-    status: 'PENDING_FINAL_APPROVAL',
+    status: 'FINALIZED_LOCKED',
     finalApprovedScore: null,
     performance: null,
     cycleId: 8,
     cycleName: 'Q3 2026',
-    submittedDate: null,
+    submittedDate: '2026-06-01T00:00:00Z',
     createdDate: '2026-06-01T00:00:00Z',
     finalApprovalDate: null,
   },
@@ -145,7 +146,7 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     expect(screen.getByText('Finance')).toBeTruthy()
     expect(screen.getByText('Developer')).toBeTruthy()
     expect(screen.getByText('Outstanding')).toBeTruthy()
-    expect(screen.getByText('Good')).toBeTruthy()
+    expect(screen.getByText('Unsatisfactory')).toBeTruthy()
   })
 
   it('shows Department column for HR role', () => {
@@ -166,7 +167,7 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
     expect(screen.getAllByText('88.5%').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('72.0%')).toBeTruthy()
+    expect(screen.getByText('0.0%')).toBeTruthy()
   })
 
   it('renders not-submitted penalty records with zero score', () => {
@@ -313,9 +314,9 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
     expectMetricCard('Total Records', '3')
-    expectMetricCard('Average Score', '80.3%')
+    expectMetricCard('Average Score', '44.3%')
     expectMetricCard('Top Score', '88.5%')
-    expectMetricCard('Finalized / Approved', '2')
+    expectMetricCard('Finalized / Not Submitted', '3')
   })
 
   it('shows all metric cards for Manager role', () => {
@@ -323,22 +324,22 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
     expectMetricCard('Total Records', '3')
-    expectMetricCard('Average Score', '80.3%')
+    expectMetricCard('Average Score', '44.3%')
     expectMetricCard('Top Score', '88.5%')
-    expectMetricCard('Finalized / Approved', '2')
+    expectMetricCard('Finalized / Not Submitted', '3')
   })
 
   it('ignores null scores for Average Score and Top Score cards', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expectMetricCard('Average Score', `${((88.5 + 72.0) / 2).toFixed(1)}%`)
+    expectMetricCard('Average Score', `${((88.5 + 0.0) / 2).toFixed(1)}%`)
     expectMetricCard('Top Score', '88.5%')
   })
 
-  it('counts only finalized locked and approved records in Finalized / Approved card', () => {
+  it('counts finalized locked and not submitted records in Finalized / Not Submitted card', () => {
     render(<SelfAssessmentScoreRecordsPage />)
 
-    expectMetricCard('Finalized / Approved', '2')
+    expectMetricCard('Finalized / Not Submitted', '3')
   })
 
   it('updates metric cards after applying the cycle filter', async () => {
@@ -353,7 +354,7 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     expectMetricCard('Total Records', '1')
     expectMetricCard('Average Score', '-')
     expectMetricCard('Top Score', '-')
-    expectMetricCard('Finalized / Approved', '0')
+    expectMetricCard('Finalized / Not Submitted', '1')
   })
 
   it('updates metric cards after typing in the search box', async () => {
@@ -366,7 +367,7 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     expectMetricCard('Total Records', '1')
     expectMetricCard('Average Score', '88.5%')
     expectMetricCard('Top Score', '88.5%')
-    expectMetricCard('Finalized / Approved', '1')
+    expectMetricCard('Finalized / Not Submitted', '1')
   })
 
   it('shows zero total and dashes for score cards when filters return no records', async () => {
@@ -379,7 +380,7 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     expectMetricCard('Total Records', '0')
     expectMetricCard('Average Score', '-')
     expectMetricCard('Top Score', '-')
-    expectMetricCard('Finalized / Approved', '0')
+    expectMetricCard('Finalized / Not Submitted', '0')
   })
 
   it('shows loading spinner', () => {
