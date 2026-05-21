@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Alert, Autocomplete, Box, Button, IconButton, Stack, TextField, Typography } from '@mui/material'
 import type { HTMLAttributes, Key } from 'react'
 import { Controller, useFieldArray, useForm, type Resolver } from 'react-hook-form'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { z } from 'zod'
@@ -71,11 +71,11 @@ export default function PipCreatePage() {
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
   const routeBase = isHr ? '/hr/pip-monitoring' : '/manager/pip'
 
-  useState(() => {
+  useEffect(() => {
     if (isHr && !isManager) {
       navigate(routeBase, { replace: true })
     }
-  })
+  }, [isHr, isManager, navigate, routeBase])
 
   const {
     control,

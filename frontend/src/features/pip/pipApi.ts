@@ -92,7 +92,7 @@ export interface EligibleEmployee {
 }
 
 export interface EmployeeSignRequest {
-  signature: string
+  signature?: string
 }
 
 export interface ClosePipRequest {
@@ -307,6 +307,15 @@ export const pipApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { pipId }) => ['PIP', { type: 'PIP', id: pipId }],
       transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
     }),
+    managerSign: builder.mutation<Pip, { pipId: number } & EmployeeSignRequest>({
+      query: ({ pipId, ...body }) => ({
+        url: `/pips/${pipId}/manager-sign`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { pipId }) => ['PIP', { type: 'PIP', id: pipId }],
+      transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
+    }),
     markPipCompleted: builder.mutation<Pip, number>({
       query: (pipId) => ({
         url: `/pips/${pipId}/completed`,
@@ -356,6 +365,7 @@ export const {
   useScheduleMeetingMutation,
   useClosePipMutation,
   useEmployeeSignMutation,
+  useManagerSignMutation,
   useMarkPipCompletedMutation,
   useReopenPipMutation,
   useReviewPipMutation,

@@ -5,6 +5,8 @@ import {
   useUpdateProgressMutation,
   useScheduleMeetingMutation,
   useClosePipMutation,
+  useEmployeeSignMutation,
+  useManagerSignMutation,
   useMarkPipCompletedMutation,
   useReopenPipMutation,
   useReviewPipMutation,
@@ -13,16 +15,29 @@ import {
 import { useSelector } from 'react-redux'
 import type { RootState } from '../app/store'
 import { formatDate, formatDateTime } from '../utils/dateUtils'
+import { useGetDefaultSignatureQuery } from '../features/user/userApi'
+import { resolveMediaSrc } from '../utils/mediaUrl'
+
+const isImageSignature = (signature?: string) => {
+  if (!signature) return false
+  const value = signature.trim()
+  return value.startsWith('data:image/') || value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://')
+}
 
 export default function PipDetailPage() {
   const { id } = useParams<{ id: string }>()
   const pipId = parseInt(id!)
   const { data: pip, isLoading } = useGetPipByIdQuery(pipId)
   const { user } = useSelector((state: RootState) => state.auth)
+  const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery()
+  const defaultSignature = defaultSigResponse?.data ?? null
+  const hasDefaultSignature = Boolean(defaultSignature?.signatureData)
 
   const [updateProgress] = useUpdateProgressMutation()
   const [scheduleMeeting] = useScheduleMeetingMutation()
   const [closePip] = useClosePipMutation()
+  const [employeeSign, { isLoading: isSigningEmployee }] = useEmployeeSignMutation()
+  const [managerSign, { isLoading: isSigningManager }] = useManagerSignMutation()
   const [markPipCompleted, { isLoading: isMarkingCompleted }] = useMarkPipCompletedMutation()
   const [reopenPip] = useReopenPipMutation()
   const [reviewPip] = useReviewPipMutation()
@@ -49,6 +64,8 @@ export default function PipDetailPage() {
 
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [closeData, setCloseData] = useState({ finalOutcome: '', closingRemarks: '' })
+  const [showEmployeeSignModal, setShowEmployeeSignModal] = useState(false)
+  const [showManagerSignModal, setShowManagerSignModal] = useState(false)
 
   const [showReopenModal, setShowReopenModal] = useState(false)
   const [reopenReasonType, setReopenReasonType] = useState('Incomplete Goals')
@@ -64,6 +81,11 @@ export default function PipDetailPage() {
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
   const isAdmin = userRole === 'HR'
   const isEmployee = userRole === 'EMPLOYEE'
+  const signatureSettingsPath = isAdmin
+    ? '/hr/settings/signature'
+    : isEmployee
+      ? '/employee/settings/signature'
+      : '/manager/settings/signature'
   const getStatusLabel = (status: string) => {
     if (status === 'COMPLETED') return 'Completed'
     if (status === 'AUTO_CLOSED') return 'Auto Closed'
@@ -107,6 +129,32 @@ export default function PipDetailPage() {
 
   const isAverageProgressComplete = Number(pip.overallProgressPercentage) >= 100
   const canMarkCompleted = isDirectManager && pip.status === 'CLOSED' && isAverageProgressComplete
+  const canEmployeeSign = isEmployee
+    && pip.status === 'AUTO_CLOSED'
+    && !pip.finalOutcome
+    && !pip.reopenReason
+    && !pip.employeeSignatureDate
+  const canEmployeeRequestReopen = isEmployee
+    && pip.status === 'AUTO_CLOSED'
+    && !pip.finalOutcome
+    && !pip.reopenReason
+    && !pip.employeeSignatureDate
+  const canManagerSign = isDirectManager
+    && pip.status === 'AUTO_CLOSED'
+    && !pip.finalOutcome
+    && Boolean(pip.employeeSignatureDate)
+    && !pip.managerSignatureDate
+  const canManagerMarkResult = isDirectManager
+    && pip.status === 'AUTO_CLOSED'
+    && !pip.finalOutcome
+    && Boolean(pip.employeeSignatureDate)
+    && Boolean(pip.managerSignatureDate)
+  const shouldShowSignatureSummary = Boolean(
+    pip.finalOutcome
+    || pip.employeeSignatureDate
+    || pip.managerSignatureDate
+    || pip.status === 'AUTO_CLOSED'
+  )
 
   const handleUpdateProgress = async () => {
     if (showUpdateModal.objectiveId) {
@@ -164,11 +212,48 @@ export default function PipDetailPage() {
 
     try {
       setActionError(null)
-      await closePip({ pipId, ...closeData }).unwrap()
+      await closePip({
+        pipId,
+        finalOutcome: closeData.finalOutcome,
+        closingRemarks: closeData.closingRemarks,
+      }).unwrap()
       setShowCloseModal(false)
+      setCloseData({ finalOutcome: '', closingRemarks: '' })
     } catch (error: any) {
       console.error('[PIP Detail] Close PIP failed:', error)
       setActionError(error?.data?.message || error?.error || 'Failed to close PIP.')
+    }
+  }
+
+  const handleEmployeeSign = async () => {
+    if (!defaultSignature?.signatureData) {
+      setActionError('Set a default signature in Signature Settings before signing.')
+      return
+    }
+
+    try {
+      setActionError(null)
+      await employeeSign({ pipId }).unwrap()
+      setShowEmployeeSignModal(false)
+    } catch (error: any) {
+      console.error('[PIP Detail] Employee signature failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to sign PIP.')
+    }
+  }
+
+  const handleManagerSign = async () => {
+    if (!defaultSignature?.signatureData) {
+      setActionError('Set a default signature in Signature Settings before signing.')
+      return
+    }
+
+    try {
+      setActionError(null)
+      await managerSign({ pipId }).unwrap()
+      setShowManagerSignModal(false)
+    } catch (error: any) {
+      console.error('[PIP Detail] Manager signature failed:', error)
+      setActionError(error?.data?.message || error?.error || 'Failed to sign PIP.')
     }
   }
 
@@ -270,12 +355,28 @@ export default function PipDetailPage() {
               </button>
             </>
           )}
-          {isDirectManager && pip.status === 'AUTO_CLOSED' && !pip.finalOutcome && (
+          {canManagerMarkResult && (
             <button
               onClick={() => setShowCloseModal(true)}
               className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               <i className="bi bi-check-circle" /> Mark Result
+            </button>
+          )}
+          {canEmployeeSign && (
+            <button
+              onClick={() => setShowEmployeeSignModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <i className="bi bi-pen" /> Sign PIP
+            </button>
+          )}
+          {canManagerSign && (
+            <button
+              onClick={() => setShowManagerSignModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <i className="bi bi-pen" /> Sign PIP
             </button>
           )}
           {canMarkCompleted && (
@@ -287,7 +388,7 @@ export default function PipDetailPage() {
               <i className="bi bi-check2-circle" /> {isMarkingCompleted ? 'Marking...' : 'Mark Completed'}
             </button>
           )}
-          {isEmployee && pip.status === 'AUTO_CLOSED' && !pip.finalOutcome && !pip.reopenReason && (
+          {canEmployeeRequestReopen && (
             <button
               onClick={() => setShowReopenModal(true)}
               className="flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
@@ -482,7 +583,7 @@ export default function PipDetailPage() {
                   <p className="text-lg font-bold text-blue-600">{pip.completedHours}</p>
                 </div>
               </div>
-              {(pip.status === 'CLOSED' || pip.status === 'COMPLETED') && (
+              {pip.finalOutcome && (
                 <>
                   <div className="pt-4 border-t border-slate-100">
                     <p className="text-xs text-slate-500">Final Outcome</p>
@@ -493,6 +594,44 @@ export default function PipDetailPage() {
                     <p className="text-sm text-slate-700 whitespace-pre-wrap">{pip.closingRemarks}</p>
                   </div>
                 </>
+              )}
+              {shouldShowSignatureSummary && (
+                <div className="pt-4 border-t border-slate-100 space-y-3">
+                  <div>
+                    <p className="text-xs text-slate-500">Manager Signature</p>
+                    {pip.managerSignature && isImageSignature(pip.managerSignature) ? (
+                      <div className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                        <img
+                          src={resolveMediaSrc(pip.managerSignature)}
+                          alt="Manager signature"
+                          className="max-h-14 max-w-full object-contain"
+                        />
+                      </div>
+                    ) : pip.managerSignature ? (
+                      <p className="text-sm font-medium text-slate-800">{pip.managerSignature}</p>
+                    ) : null}
+                    <p className="mt-1 text-sm font-medium text-slate-800">
+                      {pip.managerSignatureDate ? `Signed on ${formatDateTime(pip.managerSignatureDate)}` : 'Pending'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Employee Signature</p>
+                    {pip.employeeSignature && isImageSignature(pip.employeeSignature) ? (
+                      <div className="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                        <img
+                          src={resolveMediaSrc(pip.employeeSignature)}
+                          alt="Employee signature"
+                          className="max-h-14 max-w-full object-contain"
+                        />
+                      </div>
+                    ) : pip.employeeSignature ? (
+                      <p className="text-sm font-medium text-slate-800">{pip.employeeSignature}</p>
+                    ) : null}
+                    <p className="mt-1 text-sm font-medium text-slate-800">
+                      {pip.employeeSignatureDate ? `Signed on ${formatDateTime(pip.employeeSignatureDate)}` : 'Pending'}
+                    </p>
+                  </div>
+                </div>
               )}
               {pip.reopenReason && (
                 <div className="pt-4 border-t border-slate-100">
@@ -668,6 +807,94 @@ export default function PipDetailPage() {
                 className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
                 Save Result
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEmployeeSignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-bold">Sign PIP Acknowledgement</h3>
+            <div className="space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Default Signature</p>
+                    <p className="mt-1 text-xs text-slate-500">Your signature from Signature Settings will be recorded for this PIP.</p>
+                  </div>
+                  <Link to={signatureSettingsPath} className="shrink-0 text-xs font-semibold text-blue-600 hover:underline">
+                    Signature Settings
+                  </Link>
+                </div>
+                <div className="mt-3 flex min-h-[72px] items-center justify-center rounded-md border border-dashed border-slate-300 bg-white px-3 py-2">
+                  {isDefaultSigLoading ? (
+                    <span className="text-xs text-slate-500">Loading signature...</span>
+                  ) : defaultSignature?.signatureData ? (
+                    <img
+                      src={resolveMediaSrc(defaultSignature.signatureData)}
+                      alt="Your default signature"
+                      className="max-h-14 max-w-full object-contain"
+                    />
+                  ) : (
+                    <p className="text-center text-xs text-slate-500">No default signature yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setShowEmployeeSignModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+              <button
+                onClick={handleEmployeeSign}
+                disabled={isSigningEmployee || isDefaultSigLoading || !hasDefaultSignature}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+              >
+                {isSigningEmployee ? 'Signing...' : 'Sign PIP'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showManagerSignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-bold">Sign PIP Result</h3>
+            <div className="space-y-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Default Signature</p>
+                    <p className="mt-1 text-xs text-slate-500">Your signature from Signature Settings will be recorded for this PIP.</p>
+                  </div>
+                  <Link to={signatureSettingsPath} className="shrink-0 text-xs font-semibold text-blue-600 hover:underline">
+                    Signature Settings
+                  </Link>
+                </div>
+                <div className="mt-3 flex min-h-[72px] items-center justify-center rounded-md border border-dashed border-slate-300 bg-white px-3 py-2">
+                  {isDefaultSigLoading ? (
+                    <span className="text-xs text-slate-500">Loading signature...</span>
+                  ) : defaultSignature?.signatureData ? (
+                    <img
+                      src={resolveMediaSrc(defaultSignature.signatureData)}
+                      alt="Your default signature"
+                      className="max-h-14 max-w-full object-contain"
+                    />
+                  ) : (
+                    <p className="text-center text-xs text-slate-500">No default signature yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setShowManagerSignModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
+              <button
+                onClick={handleManagerSign}
+                disabled={isSigningManager || isDefaultSigLoading || !hasDefaultSignature}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+              >
+                {isSigningManager ? 'Signing...' : 'Sign PIP'}
               </button>
             </div>
           </div>

@@ -46,6 +46,7 @@ public class PipService {
     private final FollowUpMeetingRepository meetingRepository;
     private final TrainingRecordRepository trainingRepository;
     private final EmployeeRepository employeeRepository;
+    private final SignatureRepository signatureRepository;
     private final NotificationService notificationService;
 
     public List<EligibleEmployeeDTO> getLowPerformers(User manager) {
@@ -114,11 +115,15 @@ public class PipService {
         pip.setExpectedImprovements(request.getExpectedImprovements());
         pip.setReasonForPlan(request.getReasonForPlan());
 
+        BigDecimal objectiveWeight = BigDecimal.valueOf(100)
+                .divide(BigDecimal.valueOf(request.getObjectives().size()), 2, RoundingMode.HALF_UP);
+
         List<PipObjective> objectives = request.getObjectives().stream().map(desc -> {
             PipObjective obj = new PipObjective();
             obj.setDescription(desc);
             obj.setPip(pip);
             obj.setDueDate(request.getEndDate() != null ? request.getEndDate() : LocalDate.now());
+            obj.setWeightPercentage(objectiveWeight);
             obj.setProgressPercentage(0);
             return obj;
         }).toList();
@@ -321,6 +326,12 @@ public class PipService {
         if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
             throw new RuntimeException("The PIP result can only be marked after the PIP is automatically closed");
         }
+        if (pip.getEmployeeSignatureDate() == null) {
+            throw new RuntimeException("The employee must sign the PIP result before the manager can mark the final result");
+        }
+        if (pip.getManagerSignatureDate() == null) {
+            throw new RuntimeException("The manager must sign the PIP result before marking the final result");
+        }
         if (pip.getFinalOutcome() != null && !pip.getFinalOutcome().isBlank()) {
             throw new RuntimeException("The final result has already been marked");
         }
@@ -337,10 +348,7 @@ public class PipService {
         pip.setActualEndDate(pip.getFinalCloseDate());
         pip.setClosingRemarks(request.getClosingRemarks().trim());
         pip.setFinalOutcome(outcome);
-        if (request.getSignature() != null && !request.getSignature().isBlank()) {
-            pip.setManagerSignature(request.getSignature().trim());
-            pip.setManagerSignatureDate(Instant.now());
-        }
+        pip.setStatus(STATUS_CLOSED);
         pip.setReviewReason(null);
         pip.setClosedBy(actor.getEmployee());
         pip.setClosedDate(Instant.now());
@@ -357,6 +365,9 @@ public class PipService {
         if (!STATUS_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
             throw new RuntimeException("Only CLOSED PIPs can be marked COMPLETED");
         }
+        if (pip.getEmployeeSignatureDate() == null || pip.getManagerSignatureDate() == null) {
+            throw new RuntimeException("Both employee and manager signatures are required before completion");
+        }
         if (pip.getOverallProgressPercentage() == null
                 || pip.getOverallProgressPercentage().compareTo(BigDecimal.valueOf(100)) < 0) {
             throw new RuntimeException("PIP progress must be 100% before it can be marked COMPLETED");
@@ -372,18 +383,43 @@ public class PipService {
         if (!isPipEmployee(pip, actor)) {
             throw new RuntimeException("Only the employee assigned to this PIP can sign it");
         }
-        if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus())) || pip.getFinalOutcome() == null
-                || pip.getFinalOutcome().isBlank()) {
-            throw new RuntimeException("Only automatically closed PIPs with a final result can be signed");
+        if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Only automatically closed PIPs can be signed by the employee");
+        }
+        if (pip.getFinalOutcome() != null && !pip.getFinalOutcome().isBlank()) {
+            throw new RuntimeException("The employee must sign before the final result is marked");
         }
         if (pip.getEmployeeSignatureDate() != null) {
             throw new RuntimeException("This PIP has already been signed by the employee");
         }
-        if (request.getSignature() == null || request.getSignature().trim().isEmpty()) {
-            throw new RuntimeException("Signature is required");
-        }
-        pip.setEmployeeSignature(request.getSignature().trim());
+        String signatureData = getDefaultSignatureData(actor, "signing");
+        pip.setEmployeeSignature(signatureData);
         pip.setEmployeeSignatureDate(Instant.now());
+        pip.setUpdatedDate(Instant.now());
+        return pipRepository.save(pip);
+    }
+
+    @Transactional
+    public Pip managerSign(Long pipId, PipSignatureRequest request, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!isDirectManager(pip, actor)) {
+            throw new RuntimeException("Only the assigned manager can sign this PIP");
+        }
+        if (!STATUS_AUTO_CLOSED.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Only automatically closed PIPs can be signed by the manager");
+        }
+        if (pip.getEmployeeSignatureDate() == null) {
+            throw new RuntimeException("The employee must sign the PIP result before the manager can sign");
+        }
+        if (pip.getFinalOutcome() != null && !pip.getFinalOutcome().isBlank()) {
+            throw new RuntimeException("The manager must sign before the final result is marked");
+        }
+        if (pip.getManagerSignatureDate() != null) {
+            throw new RuntimeException("This PIP has already been signed by the manager");
+        }
+        String signatureData = getDefaultSignatureData(actor, "signing");
+        pip.setManagerSignature(signatureData);
+        pip.setManagerSignatureDate(Instant.now());
         pip.setUpdatedDate(Instant.now());
         return pipRepository.save(pip);
     }
@@ -663,6 +699,14 @@ public class PipService {
 
     private boolean hasReopenBeenUsed(Pip pip) {
         return pip.getReopenReason() != null && !pip.getReopenReason().isBlank();
+    }
+
+    private String getDefaultSignatureData(User actor, String action) {
+        return signatureRepository.findByUserAndIsDefaultTrue(actor)
+                .map(Signature::getSignatureData)
+                .filter(signatureData -> signatureData != null && !signatureData.isBlank())
+                .orElseThrow(() -> new RuntimeException(
+                        "No default signature found. Please set up your signature before " + action + "."));
     }
 
     private boolean isHr(User actor) {

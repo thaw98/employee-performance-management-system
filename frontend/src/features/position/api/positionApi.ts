@@ -79,6 +79,16 @@ type RawPositionListPayload =
 	| ApiResponse<PositionListResponse>
 	| (PositionListResponse & { number?: number })
 
+const cleanPositionParams = (params?: GetPositionsParams) => {
+	if (!params) return undefined
+
+	const entries = Object.entries(params).filter(([, value]) => {
+		return value !== undefined && value !== null && value !== ''
+	})
+
+	return entries.length > 0 ? Object.fromEntries(entries) : undefined
+}
+
 const normalizePositionListResponse = (response: RawPositionListPayload): ApiResponse<PositionListResponse> => {
 	if ('success' in response && 'data' in response) {
 		return response
@@ -100,7 +110,7 @@ const normalizePositionListResponse = (response: RawPositionListPayload): ApiRes
 export const positionApi = baseApi.injectEndpoints({
 	endpoints: (builder) => ({
 		getPositions: builder.query<ApiResponse<PositionListResponse>, GetPositionsParams>({
-			query: (params) => ({ url: '/positions', params }),
+			query: (params) => ({ url: '/positions', params: cleanPositionParams(params) }),
 			transformResponse: (response: RawPositionListPayload) => normalizePositionListResponse(response),
 			providesTags: ['Position'],
 		}),
