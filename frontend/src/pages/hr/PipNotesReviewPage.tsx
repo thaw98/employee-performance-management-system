@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useGetAllPipNotesQuery, useGetPipsQuery } from '../../features/pip/pipApi'
 import { useGetDepartmentsQuery } from '../../features/hrCreateEmployee/hrEmployeeAccountApi'
@@ -6,12 +6,39 @@ import { formatDateTime } from '../../utils/dateUtils'
 
 const STATUS_OPTIONS = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED', 'COMPLETED', 'CLOSED', 'DENIED']
 const NOTE_TYPE_OPTIONS = [
-  { value: 'COMMUNICATION', label: 'Communication' },
-  { value: 'FOLLOWUP', label: 'Followup' },
+  { value: 'COMMUNICATION', label: 'Communication Note' },
+  { value: 'FOLLOWUP', label: 'Follow-up Meeting Note' },
 ] as const
 
 const getAuthorName = (note: { author: { email: string; employee?: { employeeName?: string } } }) => {
   return note.author.employee?.employeeName || note.author.email || 'Unknown author'
+}
+
+const getNoteTypeLabel = (noteType: string) => {
+  return noteType === 'FOLLOWUP' ? 'Follow-up Meeting Note' : 'Communication Note'
+}
+
+const getNoteTypeClass = (noteType: string) => {
+  return noteType === 'FOLLOWUP'
+    ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+    : 'bg-blue-50 text-blue-700 ring-blue-100'
+}
+
+const getStatusClass = (status?: string) => {
+  switch (status) {
+    case 'ACTIVE':
+      return 'bg-green-50 text-green-700'
+    case 'COMPLETED':
+    case 'CLOSED':
+      return 'bg-slate-100 text-slate-700'
+    case 'AUTO_CLOSED':
+    case 'REOPEN_REQUESTED':
+      return 'bg-amber-50 text-amber-700'
+    case 'DENIED':
+      return 'bg-red-50 text-red-700'
+    default:
+      return 'bg-slate-100 text-slate-600'
+  }
 }
 
 const csvEscape = (value: unknown) => {
@@ -75,23 +102,32 @@ export default function PipNotesReviewPage() {
 
   const notes = notesPage?.content ?? []
   const totalPages = Math.max(notesPage?.totalPages ?? 1, 1)
+  const visibleFollowups = notes.filter((note) => note.noteType === 'FOLLOWUP').length
+  const visibleCommunications = notes.filter((note) => note.noteType === 'COMMUNICATION').length
 
-  useEffect(() => {
+  const clearFilters = () => {
+    setEmployeeName('')
+    setManagerId(undefined)
+    setDepartmentId(undefined)
+    setNoteType('')
+    setPipStatus('')
+    setDateFrom('')
+    setDateTo('')
     setPage(0)
-  }, [employeeName, managerId, departmentId, noteType, pipStatus, dateFrom, dateTo, size])
+  }
 
   const handleExport = () => {
     const rows = [
-      ['Employee', 'Department', 'Manager', 'Note Type', 'PIP Status', 'Note Content', 'Author', 'Date'],
+      ['Date', 'Employee', 'Department', 'Manager', 'History Type', 'PIP Status', 'Note Content', 'Author'],
       ...notes.map((note) => [
+        formatDateTime(note.createdAt),
         note.employee?.employeeName || '',
         note.employee?.departmentName || '',
         note.manager?.employeeName || '',
-        note.noteType || '',
+        getNoteTypeLabel(note.noteType),
         note.pipStatus || '',
         note.content,
         getAuthorName(note),
-        formatDateTime(note.createdAt),
       ]),
     ]
     const csv = rows.map((row) => row.map(csvEscape).join(',')).join('\n')
@@ -99,7 +135,7 @@ export default function PipNotesReviewPage() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'pip-communication-notes.csv'
+    link.download = 'pip-note-history.csv'
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -110,8 +146,8 @@ export default function PipNotesReviewPage() {
     <div className="mx-auto max-w-[1600px] p-8">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">PIP Communication Notes</h1>
-          <p className="mt-1 text-slate-500">Review communication notes across all performance improvement plans.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">PIP Note History</h1>
+          <p className="mt-1 text-slate-500">Review communication and follow-up meeting notes across all performance improvement plans.</p>
         </div>
         <button
           type="button"
@@ -124,6 +160,21 @@ export default function PipNotesReviewPage() {
         </button>
       </div>
 
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Visible Records</p>
+          <p className="mt-2 text-3xl font-black text-slate-900">{notesPage?.totalElements ?? 0}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Follow-up Notes On Page</p>
+          <p className="mt-2 text-3xl font-black text-emerald-700">{visibleFollowups}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Communication Notes On Page</p>
+          <p className="mt-2 text-3xl font-black text-blue-700">{visibleCommunications}</p>
+        </div>
+      </div>
+
       <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-7">
           <div className="flex flex-col gap-2">
@@ -131,7 +182,10 @@ export default function PipNotesReviewPage() {
             <input
               type="text"
               value={employeeName}
-              onChange={(event) => setEmployeeName(event.target.value)}
+              onChange={(event) => {
+                setEmployeeName(event.target.value)
+                setPage(0)
+              }}
               placeholder="Employee name..."
               className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             />
@@ -140,7 +194,10 @@ export default function PipNotesReviewPage() {
             <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Manager</label>
             <select
               value={managerId ?? ''}
-              onChange={(event) => setManagerId(event.target.value ? Number(event.target.value) : undefined)}
+              onChange={(event) => {
+                setManagerId(event.target.value ? Number(event.target.value) : undefined)
+                setPage(0)
+              }}
               className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             >
               <option value="">All Managers</option>
@@ -153,7 +210,10 @@ export default function PipNotesReviewPage() {
             <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Department</label>
             <select
               value={departmentId ?? ''}
-              onChange={(event) => setDepartmentId(event.target.value ? Number(event.target.value) : undefined)}
+              onChange={(event) => {
+                setDepartmentId(event.target.value ? Number(event.target.value) : undefined)
+                setPage(0)
+              }}
               className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             >
               <option value="">All Departments</option>
@@ -166,7 +226,10 @@ export default function PipNotesReviewPage() {
             <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Note Type</label>
             <select
               value={noteType}
-              onChange={(event) => setNoteType(event.target.value as typeof noteType)}
+              onChange={(event) => {
+                setNoteType(event.target.value as typeof noteType)
+                setPage(0)
+              }}
               className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             >
               <option value="">All Types</option>
@@ -179,7 +242,10 @@ export default function PipNotesReviewPage() {
             <label className="text-xs font-bold uppercase tracking-wider text-slate-500">PIP Status</label>
             <select
               value={pipStatus}
-              onChange={(event) => setPipStatus(event.target.value)}
+              onChange={(event) => {
+                setPipStatus(event.target.value)
+                setPage(0)
+              }}
               className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             >
               <option value="">All Statuses</option>
@@ -193,7 +259,10 @@ export default function PipNotesReviewPage() {
             <input
               type="date"
               value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
+              onChange={(event) => {
+                setDateFrom(event.target.value)
+                setPage(0)
+              }}
               className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -202,7 +271,10 @@ export default function PipNotesReviewPage() {
             <input
               type="date"
               value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
+              onChange={(event) => {
+                setDateTo(event.target.value)
+                setPage(0)
+              }}
               className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -210,15 +282,7 @@ export default function PipNotesReviewPage() {
         <div className="mt-4 flex justify-end">
           <button
             type="button"
-            onClick={() => {
-              setEmployeeName('')
-              setManagerId(undefined)
-              setDepartmentId(undefined)
-              setNoteType('')
-              setPipStatus('')
-              setDateFrom('')
-              setDateTo('')
-            }}
+            onClick={clearFilters}
             className="text-sm font-bold text-blue-600 hover:text-blue-800"
           >
             Clear Filters
@@ -226,66 +290,58 @@ export default function PipNotesReviewPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
-        <table className="w-full text-left">
-          <thead className="border-b border-slate-200 bg-slate-50/50">
-            <tr>
-              <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Employee</th>
-              <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Department</th>
-              <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Manager</th>
-              <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Note Type</th>
-              <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">PIP Status</th>
-              <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Note Content</th>
-              <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Author</th>
-              <th className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Date</th>
-              <th className="px-5 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {isLoading && (
-              <tr>
-                <td colSpan={9} className="px-6 py-12 text-center text-slate-500">Loading notes...</td>
-              </tr>
-            )}
-            {isError && (
-              <tr>
-                <td colSpan={9} className="px-6 py-12 text-center text-red-600">Unable to load PIP notes.</td>
-              </tr>
-            )}
-            {!isLoading && !isError && notes.map((note) => (
-              <tr key={note.id} className="align-top hover:bg-slate-50">
-                <td className="px-5 py-4 text-sm font-semibold text-slate-900">{note.employee?.employeeName || '-'}</td>
-                <td className="px-5 py-4 text-sm text-slate-600">{note.employee?.departmentName || '-'}</td>
-                <td className="px-5 py-4 text-sm text-slate-600">{note.manager?.employeeName || '-'}</td>
-                <td className="px-5 py-4 text-sm text-slate-600">{note.noteType.replace(/_/g, ' ')}</td>
-                <td className="px-5 py-4">
-                  <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700">
-                    {(note.pipStatus || '-').replace(/_/g, ' ')}
-                  </span>
-                </td>
-                <td className="max-w-xl px-5 py-4 text-sm leading-6 text-slate-700">
-                  <p className="line-clamp-3 whitespace-pre-wrap">{note.content}</p>
-                </td>
-                <td className="px-5 py-4 text-sm text-slate-600">{getAuthorName(note)}</td>
-                <td className="whitespace-nowrap px-5 py-4 text-sm text-slate-600">{formatDateTime(note.createdAt)}</td>
-                <td className="whitespace-nowrap px-5 py-4 text-right">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
+        {isLoading && <p className="px-6 py-12 text-center text-slate-500">Loading note history...</p>}
+        {isError && <p className="px-6 py-12 text-center text-red-600">Unable to load PIP note history.</p>}
+        {!isLoading && !isError && notes.length === 0 && (
+          <p className="px-6 py-16 text-center text-slate-500">No PIP note history found.</p>
+        )}
+        {!isLoading && !isError && notes.length > 0 && (
+          <div className="divide-y divide-slate-100">
+            {notes.map((note) => (
+              <article key={note.id} className="p-6 transition-colors hover:bg-slate-50/70">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ${getNoteTypeClass(note.noteType)}`}>
+                        {getNoteTypeLabel(note.noteType)}
+                      </span>
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getStatusClass(note.pipStatus)}`}>
+                        {(note.pipStatus || 'UNKNOWN').replace(/_/g, ' ')}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-400">{formatDateTime(note.createdAt)}</span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Employee</p>
+                        <p className="mt-1 font-bold text-slate-900">{note.employee?.employeeName || '-'}</p>
+                        <p className="text-xs text-slate-500">{note.employee?.departmentName || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Manager</p>
+                        <p className="mt-1 font-semibold text-slate-700">{note.manager?.employeeName || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Recorded By</p>
+                        <p className="mt-1 font-semibold text-slate-700">{getAuthorName(note)}</p>
+                      </div>
+                    </div>
+                    <p className="mt-5 whitespace-pre-wrap break-words rounded-xl border border-slate-100 bg-white p-4 text-sm leading-6 text-slate-700">
+                      {note.content}
+                    </p>
+                  </div>
                   <Link
                     to={`/hr/pip-monitoring/${note.pipId}`}
-                    className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-800"
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
                   >
                     View PIP
                     <i className="bi bi-chevron-right text-[10px]" />
                   </Link>
-                </td>
-              </tr>
+                </div>
+              </article>
             ))}
-            {!isLoading && !isError && notes.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-6 py-16 text-center text-slate-500">No PIP communication notes found.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-md shadow-slate-100 sm:flex-row sm:items-center sm:justify-between">
@@ -298,7 +354,10 @@ export default function PipNotesReviewPage() {
             <span className="text-slate-400">Rows:</span>
             <select
               value={size}
-              onChange={(event) => setSize(Number(event.target.value))}
+              onChange={(event) => {
+                setSize(Number(event.target.value))
+                setPage(0)
+              }}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none"
             >
               {[10, 20, 50].map((rows) => (

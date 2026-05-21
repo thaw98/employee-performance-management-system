@@ -108,7 +108,7 @@ const HrLayout: React.FC = () => {
       path: '/hr/pip-monitoring',
       subItems: [
         { label: 'PIP Management', path: '/hr/pip-monitoring', icon: <List size={16} className="shrink-0" /> },
-        { label: 'Communication Notes', path: '/hr/pip-notes', icon: <FileText size={16} className="shrink-0" /> }
+        { label: 'PIP Note History', path: '/hr/pip-notes', icon: <FileText size={16} className="shrink-0" /> }
       ]
     },
     {

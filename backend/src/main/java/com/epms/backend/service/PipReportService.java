@@ -131,6 +131,7 @@ public class PipReportService {
                 "pip_individual_report.jrxml",
                 List.of(report),
                 Map.of("REPORT_TITLE", "Individual PIP Report",
+                        "COMPANY_NAME", "Ace Data Systems Ltd.",
                         "FILTER_DESCRIPTION", "PIP #" + pipId,
                         "GENERATED_AT", formatGeneratedAt()));
         log.info("Report filled successfully for PIP {}", pipId);
@@ -158,9 +159,10 @@ public class PipReportService {
                 "pip_summary_report.jrxml",
                 rows,
                 Map.of("REPORT_TITLE", "PIP Summary Report",
+                        "COMPANY_NAME", "Ace Data Systems Ltd.",
                         "FILTER_DESCRIPTION", buildFilterDescription(status, departmentId, positionId, employeeName,
                                 employeeId, pipId, startDate, endDate, actor),
-                        "TOTAL_EMPLOYEES", countDistinctEmployees(rows),
+                        "TOTAL_PIPS", rows.size(),
                         "GENERATED_AT", formatGeneratedAt()));
         return export(jasperPrint, format);
     }
@@ -186,6 +188,7 @@ public class PipReportService {
                 "pip_progress_report.jrxml",
                 List.of(report),
                 Map.of("REPORT_TITLE", "PIP Progress Report",
+                        "COMPANY_NAME", "Ace Data Systems Ltd.",
                         "FILTER_DESCRIPTION",
                         buildFilterDescription(status, departmentId, positionId, employeeName, employeeId, pipId,
                                 startDate, endDate, actor),
@@ -340,8 +343,7 @@ public class PipReportService {
                         formatExcelDate(row.getEndDate()), row.getOverallProgress(), row.getCompletedHours(),
                         row.getTotalHours(), row.getObjectivesCount(), row.getMeetingsCount(), row.getFinalOutcome());
             }
-            writeSummaryCountRow(sheet, rowIndex, summaryStyle, 16, "Total Employees",
-                    (int) countDistinctEmployees(rows));
+            writeSummaryCountRow(sheet, rowIndex, summaryStyle, 16, "Total PIPs", rows.size());
 
             autosize(sheet, 16);
             workbook.write(outputStream);

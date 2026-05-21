@@ -12,6 +12,8 @@ const formatDateValue = (value?: string) => {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+const getPipStaffId = (pip: { employee?: { employeeId?: string } }) => pip.employee?.employeeId || '-'
+
 export default function ReportsPage() {
   const { user } = useSelector((state: RootState) => state.auth)
 
@@ -103,6 +105,7 @@ export default function ReportsPage() {
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-700">
                       <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">PIP ID</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Staff ID</th>
                       <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Manager</th>
                       <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Status</th>
                       <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Start Date</th>
@@ -116,6 +119,7 @@ export default function ReportsPage() {
                     {myPips.map((pip) => (
                       <tr key={pip.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                         <td className="py-3 px-4 text-slate-900 dark:text-slate-100">#{pip.id}</td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">Staff ID: {getPipStaffId(pip)}</td>
                         <td className="py-3 px-4 text-slate-900 dark:text-slate-100">
                           {pip.manager?.employee?.employeeName || pip.manager?.email || 'N/A'}
                         </td>
