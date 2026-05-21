@@ -2,9 +2,11 @@ package com.epms.backend.service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -17,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class ProfilePictureStorageService {
 
 	public static final String PUBLIC_PATH_PREFIX = "/api/public/profile-pictures";
+	public static final String LEGACY_PUBLIC_PATH_PREFIX = "/uploads/profile-pictures";
 
 	private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
 			"image/jpeg",
@@ -77,6 +80,53 @@ public class ProfilePictureStorageService {
 		} catch (IOException ignored) {
 			// best-effort cleanup
 		}
+	}
+
+	public boolean isAvailable(String profilePictureUrl) {
+		String filename = extractFilename(profilePictureUrl);
+		if (filename == null) {
+			return false;
+		}
+		List<Path> candidates = List.of(
+				Path.of(uploadDir).toAbsolutePath().normalize(),
+				Path.of("uploads/profile-pictures").toAbsolutePath().normalize(),
+				Path.of("backend/uploads/profile-pictures").toAbsolutePath().normalize());
+		for (Path dir : candidates) {
+			Path filePath = dir.resolve(filename).normalize();
+			if (filePath.startsWith(dir) && Files.isRegularFile(filePath)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static String extractFilename(String profilePictureUrl) {
+		if (profilePictureUrl == null || profilePictureUrl.isBlank()) {
+			return null;
+		}
+		String value = profilePictureUrl.trim();
+		if (value.startsWith("http://") || value.startsWith("https://")) {
+			try {
+				return extractFilename(URI.create(value).getPath());
+			} catch (IllegalArgumentException ignored) {
+				return null;
+			}
+		}
+		String path = value;
+		int queryIndex = path.indexOf('?');
+		if (queryIndex >= 0) {
+			path = path.substring(0, queryIndex);
+		}
+		for (String prefix : List.of(PUBLIC_PATH_PREFIX + "/", LEGACY_PUBLIC_PATH_PREFIX + "/")) {
+			if (path.startsWith(prefix)) {
+				String filename = path.substring(prefix.length());
+				if (filename.isEmpty() || filename.indexOf('/') >= 0 || filename.contains("..")) {
+					return null;
+				}
+				return filename;
+			}
+		}
+		return null;
 	}
 
 	private static String extensionForContentType(String contentType) {

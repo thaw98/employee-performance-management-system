@@ -20,6 +20,7 @@ interface Answer {
 interface Submission {
     id: number;
     employee: {
+        id: number;
         employeeName: string;
         employeeId?: string;
         department?: {
@@ -44,6 +45,7 @@ export function AppraisalSubmissionsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedAsmt, setSelectedAsmt] = useState<Submission | null>(null);
     const [history, setHistory] = useState<any[]>([]);
+    const [kpiHistory, setKpiHistory] = useState<any[]>([]);
 
     // Review Modal States
     const [comments, setComments] = useState('');
@@ -59,8 +61,19 @@ export function AppraisalSubmissionsPage() {
     useEffect(() => {
         if (selectedAsmt) {
             fetchHistory(selectedAsmt.id);
+            fetchKpiHistory(selectedAsmt.employee.id, selectedAsmt.period?.name);
         }
     }, [selectedAsmt]);
+
+    const fetchKpiHistory = async (empId: number, period?: string) => {
+        if (!empId) return;
+        try {
+            const resp = await axios.get(`/kpis/history/employee/${empId}${period ? `?period=${period}` : ''}`);
+            setKpiHistory(resp.data || []);
+        } catch (err) {
+            console.error('KPI History fetch error:', err);
+        }
+    };
 
     const fetchSubmissions = async () => {
         setIsLoading(true);
@@ -180,6 +193,7 @@ export function AppraisalSubmissionsPage() {
     };
 
     const getStatusLabel = (status: string) => {
+        if (status === 'LOCKED') return 'FINALIZED';
         return status.replace(/_/g, ' ');
     };
 
@@ -409,7 +423,54 @@ export function AppraisalSubmissionsPage() {
                                 </div>
                             </div>
 
-                            {/* History Section */}
+                            {/* KPI Revision History Section */}
+                            {kpiHistory.length > 0 && (
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                        <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
+                                        KPI Revision History
+                                    </h4>
+                                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                                        <table className="w-full text-left text-[11px]">
+                                            <thead className="bg-slate-50 text-slate-500 uppercase font-black">
+                                                <tr>
+                                                    <th className="p-3">Period</th>
+                                                    <th className="p-3">KPI Name</th>
+                                                    <th className="p-3">Target</th>
+                                                    <th className="p-3">Actual</th>
+                                                    <th className="p-3">Score</th>
+                                                    <th className="p-3">Status</th>
+                                                    <th className="p-3">Date</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 bg-white">
+                                                {kpiHistory.map((kpi, idx) => (
+                                                    <tr key={kpi.id || idx} className={`${kpi.recordStatus === 'Archived' ? 'opacity-60 bg-slate-50' : 'bg-emerald-50/20'}`}>
+                                                        <td className="p-3 font-bold">{kpi.period}</td>
+                                                        <td className="p-3 font-medium text-slate-800">{kpi.name}</td>
+                                                        <td className="p-3">{kpi.target} {kpi.unit}</td>
+                                                        <td className="p-3 font-bold text-slate-700">{kpi.actual || '-'}</td>
+                                                        <td className="p-3 font-black text-blue-600">{kpi.score || '-'}</td>
+                                                        <td className="p-3">
+                                                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-slate-200 text-slate-600">
+                                                                {kpi.status}
+                                                            </span>
+                                                            <span className={`ml-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${kpi.recordStatus === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                                                                {kpi.recordStatus}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3 text-slate-500">
+                                                            {kpi.createdDate ? formatDate(kpi.createdDate) : '-'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Action History Section */}
                             {history.length > 0 && (
                                 <div className="space-y-4">
                                     <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
