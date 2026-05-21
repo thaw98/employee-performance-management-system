@@ -54,16 +54,6 @@ const formatDateValue = (value?: string) => {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function getMonthStart() {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-}
-
-function getToday() {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-}
-
 export default function ReportsPage() {
   const { user } = useSelector((state: RootState) => state.auth)
   const [activeTab, setActiveTab] = useState<'summary' | 'progress'>('summary')
@@ -525,7 +515,7 @@ export default function ReportsPage() {
                             >
                               {item.employeeName}
                             </button>
-                            <div className="text-xs text-slate-500">{item.employeeStaffNo}</div>
+                            <div className="text-xs text-slate-500">Staff ID: {item.employeeStaffNo || '-'}</div>
                           </td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -762,7 +752,7 @@ export default function ReportsPage() {
                         Employee
                       </div>
                       <div className="font-medium text-slate-900 dark:text-slate-100">{individualPipData.employeeName}</div>
-                      <div className="text-xs text-slate-500">{individualPipData.employeeStaffNo}</div>
+                      <div className="text-xs text-slate-500">Staff ID: {individualPipData.employeeStaffNo || '-'}</div>
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">

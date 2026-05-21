@@ -114,7 +114,7 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
     [
       'PIP Reference',
       'Employee',
-      'Staff No',
+      'Staff ID',
       'Department',
       'Position',
       'Manager',
@@ -699,7 +699,7 @@ export default function PipMonitoringPage() {
                   <td className="px-6 py-5">
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{emp?.employeeName || 'N/A'}</span>
-                      <span className="text-xs text-slate-400">Staff No: {getPipStaffNo(pip)}</span>
+                      <span className="text-xs text-slate-400">Staff ID: {getPipStaffNo(pip)}</span>
                     </div>
                   </td>
                   <td className="px-6 py-5">
