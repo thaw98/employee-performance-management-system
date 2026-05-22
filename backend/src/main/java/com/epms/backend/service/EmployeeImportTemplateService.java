@@ -243,6 +243,7 @@ public class EmployeeImportTemplateService {
             for (int col : DATE_FORMAT_COLS) {
                 sampleSheet.setDefaultColumnStyle(col, dateStyle);
             }
+            sampleSheet.setColumnHidden(TITLE_COL, true);
 
             Row noteRow = sampleSheet.createRow(5);
             Cell noteCell = noteRow.createCell(0);
@@ -273,6 +274,7 @@ public class EmployeeImportTemplateService {
                 empSheet.setDefaultColumnStyle(col, dateStyle);
             }
             applyTitleFormulas(empSheet, titleCellStyle, 1, 1000);
+            empSheet.setColumnHidden(TITLE_COL, true);
             empSheet.protectSheet("title");
 
             // ─── 4. Lookups sheet (hidden) ────────────────────────────────────────
@@ -445,7 +447,7 @@ public class EmployeeImportTemplateService {
             { "", "normal" },
             { "STEP 2 — COLUMN GUIDE", "bold" },
             { "  Col A  staff_no               Optional. Leave blank to auto-generate.", "normal" },
-            { "  Col B  title                  Locked. Auto-fills U for Male and Daw for Female.", "normal" },
+            { "  title                      Hidden column. Auto-fills U for Male and Daw for Female based on gender.", "normal" },
             { "  Col C  full_name              Required. Enter the name with or without U/Daw; max 50 characters after title is applied.", "normal" },
             { "  Col D  staff_nrc_no           Required. Employee NRC number (e.g. 12/TAMANA(N)123456). Must be unique.", "normal" },
             { "  Col E  email                  Required. Must be a valid and unique email address.", "normal" },
