@@ -43,18 +43,18 @@ export default function PipDetailPage() {
   const [reviewPip] = useReviewPipMutation()
 
   const employeeRecordId = pip?.employee?.id
-  const { data: trainingHistory } = useGetTrainingHistoryQuery(
+  const { data: trainingHistory, isLoading: isTrainingHistoryLoading } = useGetTrainingHistoryQuery(
     employeeRecordId != null ? String(employeeRecordId) : '',
     {
       skip: employeeRecordId == null,
     },
   )
-
   const [showUpdateModal, setShowUpdateModal] = useState<{ open: boolean; objectiveId: number | null }>({
     open: false,
     objectiveId: null,
   })
   const [updateValue, setUpdateValue] = useState({ percentage: 0, completedHours: 0, feedback: '' })
+  const [trainingHistoryFilter, setTrainingHistoryFilter] = useState<'IN_PROGRESS' | 'ALL'>('IN_PROGRESS')
 
   const [showMeetingModal, setShowMeetingModal] = useState(false)
   const [meetingDate, setMeetingDate] = useState('')
@@ -99,6 +99,27 @@ export default function PipDetailPage() {
     if (status === 'REOPEN_REQUESTED') return 'bg-orange-100 text-orange-700'
     if (status === 'DENIED') return 'bg-red-100 text-red-700'
     return 'bg-blue-100 text-blue-700'
+  }
+  const getTrainingStatusClass = (status?: string) => {
+    const normalized = status?.trim().toUpperCase()
+    if (normalized === 'COMPLETED') return 'bg-emerald-100 text-emerald-700'
+    if (normalized === 'IN_PROGRESS') return 'bg-blue-100 text-blue-700'
+    if (normalized === 'NOT_STARTED') return 'bg-slate-100 text-slate-600'
+    return 'bg-amber-100 text-amber-700'
+  }
+  const formatTrainingStatus = (status?: string) => {
+    if (!status) return '-'
+    return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
+  }
+  const filteredTrainingHistory = (trainingHistory ?? []).filter((entry) => {
+    if (trainingHistoryFilter === 'ALL') return true
+    return (entry.completionStatus || entry.status).toUpperCase() === 'IN_PROGRESS'
+  })
+  const getTrainingCompletionPercentage = (percentage?: number, status?: string) => {
+    if (typeof percentage === 'number' && Number.isFinite(percentage)) {
+      return `${percentage}%`
+    }
+    return (status || '').toUpperCase() === 'COMPLETED' ? '100%' : '-'
   }
   const getLocalDateString = (dateString?: string | Date) => {
     if (!dateString) return undefined;
@@ -503,24 +524,77 @@ export default function PipDetailPage() {
 
           {/* Training History Section */}
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-bold text-slate-900">Training & Development History</h2>
-              <span className="text-xs text-slate-500">linked to employee improvement goals</span>
+              <div className="inline-flex w-fit rounded-lg border border-slate-200 bg-slate-50 p-1">
+                <button
+                  type="button"
+                  onClick={() => setTrainingHistoryFilter('IN_PROGRESS')}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${trainingHistoryFilter === 'IN_PROGRESS' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  In Progress
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrainingHistoryFilter('ALL')}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${trainingHistoryFilter === 'ALL' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  All
+                </button>
+              </div>
             </div>
-            <div className="space-y-4">
-              {trainingHistory?.map((t) => (
-                <div key={t.id} className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0">
-                  <div>
-                    <p className="font-medium text-slate-800">{t.trainingName}</p>
-                    <p className="text-xs text-slate-500">{formatDate(t.completionDate)}</p>
-                  </div>
-                  <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                    {t.status}
-                  </span>
+            <div>
+              {isTrainingHistoryLoading && (
+                <p className="py-4 text-center text-slate-500">Loading training records...</p>
+              )}
+              {!isTrainingHistoryLoading && filteredTrainingHistory.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
+                    <thead>
+                      <tr className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        <th className="whitespace-nowrap px-3 py-3">Training</th>
+                        <th className="whitespace-nowrap px-3 py-3">Provider</th>
+                        <th className="whitespace-nowrap px-3 py-3">Start Date</th>
+                        <th className="whitespace-nowrap px-3 py-3">End Date</th>
+                        <th className="whitespace-nowrap px-3 py-3">Status</th>
+                        <th className="whitespace-nowrap px-3 py-3">Completed Hours</th>
+                        <th className="whitespace-nowrap px-3 py-3">Completion %</th>
+                        <th className="min-w-48 px-3 py-3">Feedback / Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredTrainingHistory.map((t) => (
+                        <tr key={t.id} className="align-top">
+                          <td className="px-3 py-4">
+                            <p className="font-medium text-slate-800">{t.trainingName || '-'}</p>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">{t.trainingProvider || '-'}</td>
+                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">{formatDate(t.startDate)}</td>
+                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">{formatDate(t.endDate ?? t.completionDate)}</td>
+                          <td className="whitespace-nowrap px-3 py-4">
+                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getTrainingStatusClass(t.completionStatus || t.status)}`}>
+                              {formatTrainingStatus(t.completionStatus || t.status)}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-slate-600">
+                            {t.totalCompletedHours ?? pip.completedHours ?? 0} / {pip.totalHours ?? 0}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4">
+                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getTrainingStatusClass(t.completionStatus || t.status)}`}>
+                              {getTrainingCompletionPercentage(t.percentageCompletion, t.completionStatus || t.status)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 text-slate-600">{t.feedbackNotes || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-              {(!trainingHistory || trainingHistory.length === 0) && (
-                <p className="py-4 text-center text-slate-500">No training records found for this employee.</p>
+              )}
+              {!isTrainingHistoryLoading && filteredTrainingHistory.length === 0 && (
+                <p className="py-4 text-center text-slate-500">
+                  {trainingHistoryFilter === 'IN_PROGRESS' ? 'No in-progress training history records found.' : 'No training records found for this employee.'}
+                </p>
               )}
             </div>
           </section>

@@ -102,6 +102,16 @@ export default function PipCreatePage() {
     remove: removeExpectedImprovement,
   } = useFieldArray({ control, name: 'expectedImprovements' })
 
+  const handleAddObjective = () => {
+    append({ value: '' })
+    appendExpectedImprovement({ value: '' })
+  }
+
+  const handleRemoveObjective = (index: number) => {
+    remove(index)
+    removeExpectedImprovement(index)
+  }
+
   const onSubmit = async (values: PipCreateFormValues) => {
     setSubmitError(null)
     const expectedImprovements = values.expectedImprovements
@@ -254,14 +264,14 @@ export default function PipCreatePage() {
                   )}
                 />
                 {fields.length > 1 ? (
-                  <IconButton type="button" color="error" onClick={() => remove(index)} aria-label={`Remove objective ${index + 1}`}>
+                  <IconButton type="button" color="error" onClick={() => handleRemoveObjective(index)} aria-label={`Remove objective ${index + 1}`}>
                     <i className="bi bi-trash" />
                   </IconButton>
                 ) : null}
               </Stack>
             ))}
             <Box>
-              <Button type="button" variant="text" onClick={() => append({ value: '' })}>
+              <Button type="button" variant="text" onClick={handleAddObjective}>
                 <i className="bi bi-plus-lg mr-2" /> Add Objective
               </Button>
             </Box>
@@ -285,7 +295,7 @@ export default function PipCreatePage() {
                   <IconButton
                     type="button"
                     color="error"
-                    onClick={() => removeExpectedImprovement(index)}
+                    onClick={() => handleRemoveObjective(index)}
                     aria-label={`Remove expected improvement ${index + 1}`}
                   >
                     <i className="bi bi-trash" />
@@ -294,7 +304,7 @@ export default function PipCreatePage() {
               </Stack>
             ))}
             <Box>
-              <Button type="button" variant="text" onClick={() => appendExpectedImprovement({ value: '' })}>
+              <Button type="button" variant="text" onClick={handleAddObjective}>
                 <i className="bi bi-plus-lg mr-2" /> Add Objective
               </Button>
             </Box>

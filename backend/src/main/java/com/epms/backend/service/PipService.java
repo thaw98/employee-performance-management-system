@@ -261,14 +261,13 @@ public class PipService {
         if (request.getCompletedHours() != null) {
             pip.setCompletedHours(request.getCompletedHours());
         }
-
         pip.setUpdatedDate(Instant.now());
         updatePipProgress(pip);
 
         progressUpdateRepository.save(update);
         pipRepository.save(pip);
         PipObjective savedObjective = objectiveRepository.save(objective);
-        syncTrainingRecord(pip, savedObjective);
+        syncTrainingRecord(pip, savedObjective, request.getFeedback());
         return savedObjective;
     }
 
@@ -532,6 +531,10 @@ public class PipService {
     }
 
     private void syncTrainingRecord(Pip pip, PipObjective objective) {
+        syncTrainingRecord(pip, objective, null);
+    }
+
+    private void syncTrainingRecord(Pip pip, PipObjective objective, String feedbackNotes) {
         if (pip == null || objective == null || objective.getDescription() == null
                 || objective.getDescription().trim().isEmpty()) {
             return;
@@ -550,12 +553,16 @@ public class PipService {
                 });
 
         record.setTrainingProvider(pip.getManager() == null ? null : pip.getManager().getEmployeeName());
-        String status = resolveTrainingStatus(objective.getProgressPercentage());
+        String status = resolveTrainingStatus(pip, objective.getProgressPercentage());
         record.setStartDate(pip.getStartDate() == null ? LocalDate.now() : pip.getStartDate());
         record.setEndDate(resolveTrainingEndDate(pip, objective, record, status));
         record.setCompletionStatus(status);
-        record.setCertificationReceived(Boolean.FALSE);
-        record.setNotes("PIP objective #" + (objective.getId() == null ? "pending" : objective.getId()));
+        record.setTotalCompletedHours(pip.getCompletedHours());
+        record.setPercentageCompletion(objective.getProgressPercentage());
+        if (feedbackNotes != null && !feedbackNotes.isBlank()) {
+            record.setFeedbackNotes(feedbackNotes.trim());
+        }
+
         record.setUpdatedDate(Instant.now());
         trainingRepository.save(record);
     }
@@ -565,6 +572,15 @@ public class PipService {
             if ("COMPLETED".equals(record.getCompletionStatus()) && record.getEndDate() != null) {
                 return record.getEndDate();
             }
+            if (pip.getActualEndDate() != null) {
+                return pip.getActualEndDate();
+            }
+            if (pip.getFinalCloseDate() != null) {
+                return pip.getFinalCloseDate();
+            }
+            if (pip.getClosedDate() != null) {
+                return LocalDate.ofInstant(pip.getClosedDate(), java.time.ZoneId.systemDefault());
+            }
             return LocalDate.now();
         }
         if (objective.getDueDate() != null) {
@@ -573,7 +589,11 @@ public class PipService {
         return pip.getEndDate();
     }
 
-    private String resolveTrainingStatus(Integer progressPercentage) {
+    private String resolveTrainingStatus(Pip pip, Integer progressPercentage) {
+        String pipStatus = normalizeStatus(pip.getStatus());
+        if (STATUS_CLOSED.equals(pipStatus) || STATUS_COMPLETED.equals(pipStatus)) {
+            return "COMPLETED";
+        }
         int progress = progressPercentage == null ? 0 : progressPercentage;
         if (progress >= 100) {
             return "COMPLETED";
