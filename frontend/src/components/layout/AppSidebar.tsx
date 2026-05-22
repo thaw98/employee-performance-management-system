@@ -119,7 +119,16 @@ export function AppSidebar() {
       label: 'Analytics',
       items: [
         { name: 'Goals & KPIs', path: '/hr/goals', icon: 'bi-bullseye', end: false },
-        { name: 'Reports Center', path: '/hr/reports', icon: 'bi-pie-chart', end: false },
+        {
+          name: 'Reports Center',
+          path: isHr ? '/hr/reports' : '/manager/reports',
+          icon: 'bi-pie-chart',
+          end: false,
+          subItems: [
+            { name: 'PIP Report', path: isHr ? '/hr/reports' : '/manager/reports', icon: 'bi-exclamation-triangle' },
+            { name: 'Self-Assessment Report', path: isHr ? '/hr/reports/self-assessment' : '/manager/reports/self-assessment', icon: 'bi-file-earmark-text' },
+          ],
+        },
       ],
     },
   ]
