@@ -96,6 +96,11 @@ public class NotificationService {
                 .forEach(notification -> notification.setRead(true));
     }
 
+    @Transactional
+    public void clearAll(User recipient) {
+        notificationRepository.deleteByRecipient(recipient);
+    }
+
     public NotificationDto toDto(Notification notification) {
         return new NotificationDto(
                 notification.getId(),
