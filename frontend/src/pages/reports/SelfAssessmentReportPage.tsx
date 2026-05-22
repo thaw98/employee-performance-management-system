@@ -121,7 +121,7 @@ function EmployeeDirectoryTable({ rows }: { rows: EmployeeDirectoryRow[] }) {
               <th className="px-4 py-3 text-right">Score</th>
               <th className="px-4 py-3 text-left">Performance</th>
               <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-right">Previous Delta</th>
+              <th className="px-4 py-3 text-right">Previous Data</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">

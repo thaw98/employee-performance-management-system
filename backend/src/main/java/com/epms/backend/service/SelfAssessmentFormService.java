@@ -2253,6 +2253,31 @@ Instant now = Instant.now();
         return changed;
     }
 
+    /** Ensures persisted NOT_SUBMITTED rows always expose the zero-score penalty in history. */
+    private void normalizeNotSubmittedForm(SelfAssessmentForm form) {
+        if (form == null || form.getStatus() != SelfAssessmentFormStatus.NOT_SUBMITTED) {
+            return;
+        }
+
+        boolean changed = false;
+        if (!Double.valueOf(0.0).equals(form.getFinalApprovedTotalScore())) {
+            form.setFinalApprovedTotalScore(0.0);
+            changed = true;
+        }
+        if (!Double.valueOf(0.0).equals(form.getTotalScore())) {
+            form.setTotalScore(0.0);
+            changed = true;
+        }
+        if (!"Unsatisfactory".equals(form.getRatingCategory())) {
+            form.setRatingCategory("Unsatisfactory");
+            changed = true;
+        }
+        if (changed) {
+            form.setUpdatedDate(Instant.now());
+            formRepository.save(form);
+        }
+    }
+
     private ReviewCycle getActiveCycle() {
         ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
         if (activeCycle != null) {
@@ -2819,6 +2844,7 @@ Instant now = Instant.now();
     private List<ScoreRecordDto> getHrScoreRecords() {
         return formRepository.findAll().stream()
                 .peek(this::normalizeOverdueDraftForm)
+                .peek(this::normalizeNotSubmittedForm)
                 .filter(f -> SCORE_RECORD_HISTORY_STATUSES.contains(f.getStatus()))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
@@ -2829,6 +2855,7 @@ Instant now = Instant.now();
         List<SelfAssessmentForm> allForms = formRepository.findAll();
         return allForms.stream()
                 .peek(this::normalizeOverdueDraftForm)
+                .peek(this::normalizeNotSubmittedForm)
                 .filter(f -> SCORE_RECORD_HISTORY_STATUSES.contains(f.getStatus()))
                 .filter(f -> canManagerAccessForm(f, manager))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
@@ -2840,6 +2867,7 @@ Instant now = Instant.now();
     private List<ScoreRecordDto> getEmployeeScoreRecords(Employee employee) {
         return formRepository.findAll().stream()
                 .peek(this::normalizeOverdueDraftForm)
+                .peek(this::normalizeNotSubmittedForm)
                 .filter(f -> isOwnForm(f, employee))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
@@ -2881,12 +2909,23 @@ Instant now = Instant.now();
                 resolveEmployeeRoleId(emp)
         );
 
+        Double finalApprovedScore = form.getFinalApprovedTotalScore();
+        String performance = form.getRatingCategory();
+        if (form.getStatus() == SelfAssessmentFormStatus.NOT_SUBMITTED) {
+            if (finalApprovedScore == null) {
+                finalApprovedScore = 0.0;
+            }
+            if (performance == null || performance.isBlank()) {
+                performance = "Unsatisfactory";
+            }
+        }
+
         return new ScoreRecordDto(
                 form.getId(),
                 employeeInfo,
                 form.getStatus().name(),
-                form.getFinalApprovedTotalScore(),
-                form.getRatingCategory(),
+                finalApprovedScore,
+                performance,
                 form.getCycle() != null ? form.getCycle().getId() : null,
                 form.getCycle() != null ? form.getCycle().getName() : null,
                 form.getSubmittedDate(),

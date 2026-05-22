@@ -95,15 +95,17 @@ const ManagerLayout: React.FC = () => {
         { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
-    {
-      icon: <Settings size={20} />,
-      label: 'Settings',
-      path: '/manager/settings/signature',
-      subItems: [
-        { label: 'Signature', path: '/manager/settings/signature', icon: <PenLine size={16} className="shrink-0" /> },
-        { label: 'System', path: '/manager/settings/system', icon: <Settings size={16} className="shrink-0" /> },
-      ]
-    },
+    ...(authUser?.roleId !== 2
+      ? [{
+          icon: <Settings size={20} />,
+          label: 'Settings',
+          path: '/manager/settings/signature',
+          subItems: [
+            { label: 'Signature', path: '/manager/settings/signature', icon: <PenLine size={16} className="shrink-0" /> },
+            { label: 'System', path: '/manager/settings/system', icon: <Settings size={16} className="shrink-0" /> },
+          ]
+        }]
+      : []),
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/manager/meetings' },
     {
       icon: <BarChart size={20} />,

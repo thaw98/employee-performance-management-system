@@ -26,4 +26,43 @@ describe('notification navigation', () => {
       createdAt: '2026-05-09T10:00:00',
     }, '/hr/notifications')).toBe('/hr/self-assessment/review-queue');
   });
+
+  it('deep-links HR appraisal submitted notifications to the matching submission', () => {
+    expect(getNotificationDestinationPath({
+      id: 1,
+      userId: 2,
+      title: 'Appraisal Submitted',
+      message: 'Manager U Min Min Tun has submitted the performance appraisal evaluation for Daw Lisa Wong.',
+      source: 'APPRAISAL',
+      targetId: 17,
+      read: false,
+      createdAt: '2026-05-22T10:00:00',
+    }, '/hr/dashboard')).toBe('/hr/appraisals/submissions?assignmentId=17');
+  });
+
+  it('routes legacy appraisal notifications when source is GENERAL', () => {
+    expect(getNotificationDestinationPath({
+      id: 1,
+      userId: 2,
+      title: 'Appraisal Submitted',
+      message: 'Manager submitted an appraisal.',
+      source: 'GENERAL',
+      targetId: 9,
+      read: false,
+      createdAt: '2026-05-22T10:00:00',
+    }, '/hr/notifications')).toBe('/hr/appraisals/submissions?assignmentId=9');
+  });
+
+  it('deep-links manager appraisal notifications to the evaluation page', () => {
+    expect(getNotificationDestinationPath({
+      id: 1,
+      userId: 2,
+      title: 'Appraisal Reset for Re-evaluation',
+      message: 'HR has reset the appraisal evaluation.',
+      source: 'APPRAISAL',
+      targetId: 4,
+      read: false,
+      createdAt: '2026-05-22T10:00:00',
+    }, '/manager/dashboard')).toBe('/manager/appraisals/4/evaluate');
+  });
 });

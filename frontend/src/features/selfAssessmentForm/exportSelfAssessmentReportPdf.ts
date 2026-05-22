@@ -108,7 +108,7 @@ export function exportSelfAssessmentReportPdf(report: SelfAssessmentReportDto) {
 
   if (report.employeeDirectory.length > 0) {
     y = addTitle(doc, 'Employee Directory', y)
-    addTable(doc, y, [['Staff No', 'Name', 'Department', 'Position', 'Score', 'Performance', 'Status', 'Prev. Delta']], report.employeeDirectory.map((item) => [
+    addTable(doc, y, [['Staff No', 'Name', 'Department', 'Position', 'Score', 'Performance', 'Status', 'Prev. Data']], report.employeeDirectory.map((item) => [
       item.staffNo || '-',
       item.employeeName,
       item.departmentName || '-',
