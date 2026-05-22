@@ -86,12 +86,20 @@ public class SelfAssessmentReportService {
                         (left, right) -> left));
 
         boolean isHr = roleId == 1L;
-        List<SelfAssessmentAnalyticsReportDto.GroupSummary> departmentSummaries = isHr
-                ? buildGroupSummaries(records, ReportRecord::departmentName)
-                : List.of();
-        List<SelfAssessmentAnalyticsReportDto.GroupSummary> positionSummaries = isHr
-                ? List.of()
-                : buildGroupSummaries(records, ReportRecord::positionName);
+        List<SelfAssessmentAnalyticsReportDto.GroupSummary> departmentSummaries = buildGroupSummaries(
+                records,
+                ReportRecord::departmentId,
+                ReportRecord::departmentCode,
+                ReportRecord::departmentName,
+                ReportRecord::departmentId,
+                ReportRecord::departmentName);
+        List<SelfAssessmentAnalyticsReportDto.GroupSummary> positionSummaries = buildGroupSummaries(
+                records,
+                ReportRecord::positionId,
+                ReportRecord::positionCode,
+                ReportRecord::positionName,
+                ReportRecord::departmentId,
+                ReportRecord::departmentName);
 
         List<SelfAssessmentAnalyticsReportDto.GroupSummary> rankedDepartments = departmentSummaries.stream()
                 .sorted(Comparator.comparing(SelfAssessmentAnalyticsReportDto.GroupSummary::averageScore).reversed())
@@ -108,7 +116,7 @@ public class SelfAssessmentReportService {
                 positionSummaries,
                 buildRadar(records, isHr ? ReportRecord::departmentName : ReportRecord::positionName),
                 buildHighlights(records, isHr ? ReportRecord::departmentName : ReportRecord::positionName),
-                isHr ? List.of() : buildEmployeeDirectory(records, previousByEmployeeId));
+                buildEmployeeDirectory(records, previousByEmployeeId));
     }
 
     @Transactional
@@ -176,15 +184,29 @@ public class SelfAssessmentReportService {
 
     private List<SelfAssessmentAnalyticsReportDto.GroupSummary> buildGroupSummaries(
             List<ReportRecord> records,
-            Function<ReportRecord, String> groupResolver) {
+            Function<ReportRecord, Long> groupIdResolver,
+            Function<ReportRecord, String> groupCodeResolver,
+            Function<ReportRecord, String> groupNameResolver,
+            Function<ReportRecord, Long> departmentIdResolver,
+            Function<ReportRecord, String> departmentNameResolver) {
         return records.stream()
-                .collect(java.util.stream.Collectors.groupingBy(record -> defaultText(groupResolver.apply(record), "Unassigned")))
+                .collect(java.util.stream.Collectors.groupingBy(record -> new GroupKey(
+                        groupIdResolver.apply(record),
+                        defaultNullableText(groupCodeResolver.apply(record)),
+                        defaultText(groupNameResolver.apply(record), "Unassigned"),
+                        departmentIdResolver.apply(record),
+                        defaultNullableText(departmentNameResolver.apply(record)))))
                 .entrySet()
                 .stream()
                 .map(entry -> {
                     List<ReportRecord> groupRecords = entry.getValue();
+                    GroupKey key = entry.getKey();
                     return new SelfAssessmentAnalyticsReportDto.GroupSummary(
-                            entry.getKey(),
+                            key.groupId(),
+                            key.groupCode(),
+                            key.departmentId(),
+                            key.departmentName(),
+                            key.groupName(),
                             groupRecords.size(),
                             round1(groupRecords.stream().mapToDouble(ReportRecord::score).average().orElse(0)),
                             round1(groupRecords.stream().mapToDouble(ReportRecord::score).max().orElse(0)),
@@ -270,6 +292,9 @@ public class SelfAssessmentReportService {
                             record.employeeId(),
                             record.staffNo(),
                             record.employeeName(),
+                            record.departmentId(),
+                            record.departmentName(),
+                            record.positionId(),
                             record.positionName(),
                             record.score(),
                             record.performance(),
@@ -300,8 +325,12 @@ public class SelfAssessmentReportService {
                 record.employee() == null ? null : record.employee().id(),
                 record.employee() == null ? "" : record.employee().employeeId(),
                 record.employee() == null ? "" : record.employee().employeeName(),
+                record.employee() == null ? null : record.employee().departmentId(),
                 record.employee() == null ? "" : record.employee().departmentName(),
+                record.employee() == null ? "" : record.employee().departmentCode(),
+                record.employee() == null ? null : record.employee().positionId(),
                 record.employee() == null ? "" : record.employee().positionName(),
+                record.employee() == null ? "" : record.employee().positionCode(),
                 score,
                 performance,
                 defaultText(record.status(), ""),
@@ -337,8 +366,12 @@ public class SelfAssessmentReportService {
             Long employeeId,
             String staffNo,
             String employeeName,
+            Long departmentId,
             String departmentName,
+            String departmentCode,
+            Long positionId,
             String positionName,
+            String positionCode,
             double score,
             String performance,
             String status,
@@ -348,6 +381,14 @@ public class SelfAssessmentReportService {
             return departmentName;
         }
     }
+
+    private record GroupKey(
+            Long groupId,
+            String groupCode,
+            String groupName,
+            Long departmentId,
+            String departmentName
+    ) {}
 
     @Transactional
     public byte[] generateSummaryPdf(Employee employee, Long roleId, Long cycleId) {
@@ -451,6 +492,10 @@ public class SelfAssessmentReportService {
 
     private String defaultText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private String defaultNullableText(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private String formatSummaryScore(String value) {

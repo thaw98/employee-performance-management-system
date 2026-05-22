@@ -4,12 +4,14 @@ import { BarChart3, Building2, Download, FileText, TrendingDown, TrendingUp, Use
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { toast } from 'react-hot-toast'
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi'
-import { useGetSelfAssessmentReportQuery, type GroupSummary, type SelfAssessmentReportDto } from '../../features/selfAssessmentForm/api/selfAssessmentReportApi'
+import { useGetSelfAssessmentReportQuery, type EmployeeDirectoryRow, type GroupSummary, type SelfAssessmentReportDto } from '../../features/selfAssessmentForm/api/selfAssessmentReportApi'
 import { exportSelfAssessmentReportPdf } from '../../features/selfAssessmentForm/exportSelfAssessmentReportPdf'
 
 type Props = {
   mode: 'hr' | 'manager'
 }
+
+type ReportTab = 'department' | 'positions' | 'directory'
 
 const BAND_KEYS = [
   { key: 'outstanding', label: 'Outstanding' },
@@ -50,7 +52,21 @@ function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: stri
   )
 }
 
-function SummaryTable({ title, rows }: { title: string; rows: GroupSummary[] }) {
+function rowKey(row: GroupSummary) {
+  return `${row.departmentId ?? 'dept'}-${row.groupId ?? row.groupName}`
+}
+
+function SummaryTable({
+  title,
+  rows,
+  onRowClick,
+  activeRowId,
+}: {
+  title: string
+  rows: GroupSummary[]
+  onRowClick?: (row: GroupSummary) => void
+  activeRowId?: number | null
+}) {
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">{title}</h2>
@@ -70,13 +86,57 @@ function SummaryTable({ title, rows }: { title: string; rows: GroupSummary[] }) 
             {rows.length === 0 ? (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">No records for this cycle.</td></tr>
             ) : rows.map((row) => (
-              <tr key={row.groupName}>
+              <tr
+                key={rowKey(row)}
+                onClick={() => onRowClick?.(row)}
+                className={`${onRowClick ? 'cursor-pointer transition hover:bg-teal-50/70 dark:hover:bg-teal-950/20' : ''} ${activeRowId != null && row.groupId === activeRowId ? 'bg-teal-50 dark:bg-teal-950/20' : ''}`}
+              >
                 <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-100">{row.groupName}</td>
                 <td className="px-4 py-3 text-right">{row.employeeCount}</td>
                 <td className="px-4 py-3 text-right font-semibold">{formatScore(row.averageScore)}</td>
                 <td className="px-4 py-3 text-right">{formatScore(row.highestScore)}</td>
                 <td className="px-4 py-3 text-right">{formatScore(row.lowestScore)}</td>
                 <td className="px-4 py-3 text-right">{row.missedCount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+function EmployeeDirectoryTable({ rows }: { rows: EmployeeDirectoryRow[] }) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Employee Directory</h2>
+      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+            <tr>
+              <th className="px-4 py-3 text-left">Staff No</th>
+              <th className="px-4 py-3 text-left">Name</th>
+              <th className="px-4 py-3 text-left">Department</th>
+              <th className="px-4 py-3 text-left">Position</th>
+              <th className="px-4 py-3 text-right">Score</th>
+              <th className="px-4 py-3 text-left">Performance</th>
+              <th className="px-4 py-3 text-left">Status</th>
+              <th className="px-4 py-3 text-right">Previous Delta</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {rows.length === 0 ? (
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">No employees match the current filters.</td></tr>
+            ) : rows.map((row) => (
+              <tr key={`${row.employeeId}-${row.staffNo}`}>
+                <td className="px-4 py-3">{row.staffNo || '-'}</td>
+                <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-100">{row.employeeName}</td>
+                <td className="px-4 py-3">{row.departmentName || '-'}</td>
+                <td className="px-4 py-3">{row.positionName || '-'}</td>
+                <td className="px-4 py-3 text-right font-semibold">{formatScore(row.selectedCycleScore)}</td>
+                <td className="px-4 py-3">{row.performance || '-'}</td>
+                <td className="px-4 py-3">{statusLabel(row.status)}</td>
+                <td className="px-4 py-3 text-right font-semibold">{deltaLabel(row.previousCycleDelta)}</td>
               </tr>
             ))}
           </tbody>
@@ -99,6 +159,9 @@ function buildRadarData(report: SelfAssessmentReportDto | undefined) {
 export default function SelfAssessmentReportPage({ mode }: Props) {
   const { data: cycles = [] } = useGetReviewCyclesQuery({ requiresEmployeeSubmission: true })
   const [cycleId, setCycleId] = useState<number | ''>('')
+  const [activeTab, setActiveTab] = useState<ReportTab>('department')
+  const [selectedDepartment, setSelectedDepartment] = useState<GroupSummary | null>(null)
+  const [selectedPosition, setSelectedPosition] = useState<GroupSummary | null>(null)
 
   useEffect(() => {
     if (!cycleId && cycles.length > 0) {
@@ -111,9 +174,66 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
     skip: !selectedCycleId,
   })
 
-  const summaryRows = mode === 'hr' ? report?.departmentSummaries ?? [] : report?.positionSummaries ?? []
+  useEffect(() => {
+    setActiveTab('department')
+    setSelectedDepartment(null)
+    setSelectedPosition(null)
+  }, [selectedCycleId])
+
+  useEffect(() => {
+    if (!report) return
+    setSelectedDepartment((current) => {
+      if (!current) return null
+      return report.departmentSummaries.some((row) => row.groupId === current.groupId) ? current : null
+    })
+    setSelectedPosition((current) => {
+      if (!current) return null
+      return report.positionSummaries.some((row) => row.groupId === current.groupId && row.departmentId === current.departmentId) ? current : null
+    })
+  }, [report])
+
+  const departmentRows = report?.departmentSummaries ?? []
+  const positionRows = useMemo(() => {
+    const rows = report?.positionSummaries ?? []
+    if (!selectedDepartment?.groupId) return rows
+    return rows.filter((row) => row.departmentId === selectedDepartment.groupId)
+  }, [report, selectedDepartment])
+  const directoryRows = useMemo(() => {
+    let rows = report?.employeeDirectory ?? []
+    if (selectedDepartment?.groupId) {
+      rows = rows.filter((row) => row.departmentId === selectedDepartment.groupId)
+    }
+    if (selectedPosition?.groupId) {
+      rows = rows.filter((row) => row.positionId === selectedPosition.groupId)
+    }
+    return rows
+  }, [report, selectedDepartment, selectedPosition])
   const radarData = useMemo(() => buildRadarData(report), [report])
   const radarGroups = report?.performanceBandRadar.map((item) => item.groupName) ?? []
+
+  const handleDepartmentClick = (row: GroupSummary) => {
+    setSelectedDepartment(row)
+    setSelectedPosition(null)
+    setActiveTab('positions')
+  }
+
+  const handlePositionClick = (row: GroupSummary) => {
+    setSelectedPosition(row)
+    if (!selectedDepartment && row.departmentId != null) {
+      const department = departmentRows.find((item) => item.groupId === row.departmentId)
+      setSelectedDepartment(department ?? null)
+    }
+    setActiveTab('directory')
+  }
+
+  const clearDepartment = () => {
+    setSelectedDepartment(null)
+    setSelectedPosition(null)
+  }
+
+  const clearPosition = () => {
+    setSelectedPosition(null)
+  }
 
   const handleExport = () => {
     if (!report) return
@@ -170,7 +290,69 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
         </div>
       )}
 
-      <SummaryTable title={mode === 'hr' ? 'Department Summary' : 'Position Summary'} rows={summaryRows} />
+      <section className="space-y-4">
+        <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-800">
+          {[
+            { id: 'department' as const, label: 'Department' },
+            { id: 'positions' as const, label: 'Positions' },
+            { id: 'directory' as const, label: 'Employee Directory' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`border-b-2 px-3 py-2 text-sm font-black transition ${
+                activeTab === tab.id
+                  ? 'border-teal-700 text-teal-700 dark:border-teal-300 dark:text-teal-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {(selectedDepartment || selectedPosition) && (
+          <div className="flex flex-wrap gap-2">
+            {selectedDepartment && (
+              <button
+                type="button"
+                onClick={clearDepartment}
+                className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-black text-teal-800 dark:border-teal-800 dark:bg-teal-950/30 dark:text-teal-200"
+              >
+                Department: {selectedDepartment.groupName} x
+              </button>
+            )}
+            {selectedPosition && (
+              <button
+                type="button"
+                onClick={clearPosition}
+                className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200"
+              >
+                Position: {selectedPosition.groupName} x
+              </button>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'department' && (
+          <SummaryTable
+            title={mode === 'hr' ? 'Department Summary' : 'Department Context'}
+            rows={departmentRows}
+            onRowClick={handleDepartmentClick}
+            activeRowId={selectedDepartment?.groupId}
+          />
+        )}
+        {activeTab === 'positions' && (
+          <SummaryTable
+            title={selectedDepartment ? `Positions in ${selectedDepartment.groupName}` : 'Position Summary'}
+            rows={positionRows}
+            onRowClick={handlePositionClick}
+            activeRowId={selectedPosition?.groupId}
+          />
+        )}
+        {activeTab === 'directory' && <EmployeeDirectoryTable rows={directoryRows} />}
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Competency Radar</h2>
@@ -222,39 +404,6 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
         </div>
       </section>
 
-      {mode === 'manager' && (
-        <section className="space-y-3">
-          <h2 className="text-lg font-black text-slate-900 dark:text-slate-100">Employee Directory</h2>
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
-                <tr>
-                  <th className="px-4 py-3 text-left">Staff No</th>
-                  <th className="px-4 py-3 text-left">Name</th>
-                  <th className="px-4 py-3 text-left">Position</th>
-                  <th className="px-4 py-3 text-right">Score</th>
-                  <th className="px-4 py-3 text-left">Performance</th>
-                  <th className="px-4 py-3 text-left">Status</th>
-                  <th className="px-4 py-3 text-right">Previous Delta</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {(report?.employeeDirectory ?? []).map((row) => (
-                  <tr key={`${row.employeeId}-${row.staffNo}`}>
-                    <td className="px-4 py-3">{row.staffNo || '-'}</td>
-                    <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-100">{row.employeeName}</td>
-                    <td className="px-4 py-3">{row.positionName || '-'}</td>
-                    <td className="px-4 py-3 text-right font-semibold">{formatScore(row.selectedCycleScore)}</td>
-                    <td className="px-4 py-3">{row.performance || '-'}</td>
-                    <td className="px-4 py-3">{statusLabel(row.status)}</td>
-                    <td className="px-4 py-3 text-right font-semibold">{deltaLabel(row.previousCycleDelta)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
     </div>
   )
 }

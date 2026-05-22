@@ -16,6 +16,10 @@ export interface OverallTotals {
 }
 
 export interface GroupSummary {
+  groupId: number | null
+  groupCode: string | null
+  departmentId: number | null
+  departmentName: string | null
   groupName: string
   employeeCount: number
   averageScore: number
@@ -59,6 +63,9 @@ export interface EmployeeDirectoryRow {
   employeeId: number | null
   staffNo: string
   employeeName: string
+  departmentId: number | null
+  departmentName: string
+  positionId: number | null
   positionName: string
   selectedCycleScore: number
   performance: string

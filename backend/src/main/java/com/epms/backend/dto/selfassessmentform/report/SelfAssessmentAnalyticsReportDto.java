@@ -31,6 +31,10 @@ public record SelfAssessmentAnalyticsReportDto(
     ) {}
 
     public record GroupSummary(
+            Long groupId,
+            String groupCode,
+            Long departmentId,
+            String departmentName,
             String groupName,
             int employeeCount,
             double averageScore,
@@ -74,6 +78,9 @@ public record SelfAssessmentAnalyticsReportDto(
             Long employeeId,
             String staffNo,
             String employeeName,
+            Long departmentId,
+            String departmentName,
+            Long positionId,
             String positionName,
             double selectedCycleScore,
             String performance,

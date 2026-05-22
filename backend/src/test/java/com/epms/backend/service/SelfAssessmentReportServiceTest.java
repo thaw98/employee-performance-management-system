@@ -127,7 +127,22 @@ class SelfAssessmentReportServiceTest {
         assertEquals(50.0, data.overallTotals().averageScore());
         assertEquals(1, data.overallTotals().missedCount());
         assertEquals("Finance", data.highestDepartment().groupName());
+        assertEquals(11L, data.highestDepartment().groupId());
+        assertEquals("FIN", data.highestDepartment().groupCode());
         assertEquals("Engineering", data.lowestDepartment().groupName());
+        assertEquals(10L, data.lowestDepartment().groupId());
+        assertEquals(2, data.positionSummaries().size());
+        assertEquals(10L, data.positionSummaries().stream()
+                .filter(row -> "Developer".equals(row.groupName()))
+                .findFirst()
+                .orElseThrow()
+                .departmentId());
+        assertEquals(3, data.employeeDirectory().size());
+        assertEquals(0.0, data.employeeDirectory().stream()
+                .filter(row -> "EMP-2".equals(row.staffNo()))
+                .findFirst()
+                .orElseThrow()
+                .selectedCycleScore());
         assertEquals(1, data.performanceBandRadar().stream()
                 .filter(row -> "Engineering".equals(row.groupName()))
                 .findFirst()
@@ -182,7 +197,9 @@ class SelfAssessmentReportServiceTest {
 
         assertEquals(1, data.employeeDirectory().size());
         assertEquals("Developer", data.positionSummaries().get(0).groupName());
+        assertEquals(10L, data.positionSummaries().get(0).departmentId());
         assertEquals(20.0, data.employeeDirectory().get(0).previousCycleDelta());
+        assertTrue(data.employeeDirectory().stream().noneMatch(row -> "Finance".equals(row.departmentName())));
         assertEquals(6L, data.previousCycle().id());
     }
 
