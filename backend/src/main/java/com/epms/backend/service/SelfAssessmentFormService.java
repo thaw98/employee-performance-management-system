@@ -1075,6 +1075,7 @@ Instant now = Instant.now();
                 && form.getStatus() != SelfAssessmentFormStatus.SUBMITTED) {
             throw new RuntimeException("Form is not pending manager review");
         }
+        requireManagerReviewComments(request.comments());
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount())
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before reviewing."));
@@ -1082,7 +1083,7 @@ Instant now = Instant.now();
         form.setManager(manager);
         form.setManagerSignatureId(defaultSig.getId());
         form.setManagerSignatureDate(Instant.now());
-        form.setManagerComments(request.comments());
+        form.setManagerComments(request.comments().trim());
         form.setEmployeeAcknowledgedAt(null);
         form.setEmployeeDisputedAt(null);
         form.setEmployeeDisputeReason(null);
@@ -1199,6 +1200,7 @@ Instant now = Instant.now();
         if (request.retakeRequests() == null || request.retakeRequests().isEmpty()) {
             throw new RuntimeException("Select at least one question for retake");
         }
+        requireManagerReviewComments(request.comments());
 
         Map<Long, SelfAssessmentFormAnswer> answersById = form.getAnswers().stream()
                 .collect(Collectors.toMap(SelfAssessmentFormAnswer::getId, a -> a));
@@ -1222,7 +1224,7 @@ Instant now = Instant.now();
         form.setManager(manager);
         form.setManagerSignatureId(defaultSig.getId());
         form.setManagerSignatureDate(now);
-        form.setManagerComments(request.comments());
+        form.setManagerComments(request.comments().trim());
         form.setRetakeRequestedAt(now);
         form.setRetakeSubmittedAt(null);
         form.setRetakeRequestUsed(true);
@@ -1351,6 +1353,7 @@ Instant now = Instant.now();
         if (request.retakeRequests() == null || request.retakeRequests().isEmpty()) {
             throw new RuntimeException("Select at least one question for retake");
         }
+        requireManagerReviewComments(request.comments());
 
         Map<Long, SelfAssessmentFormAnswer> answersById = form.getAnswers().stream()
                 .collect(Collectors.toMap(SelfAssessmentFormAnswer::getId, a -> a));
@@ -1375,7 +1378,7 @@ Instant now = Instant.now();
         form.setManager(hrUser.getEmployee());
         form.setManagerSignatureId(defaultSig.getId());
         form.setManagerSignatureDate(now);
-        form.setManagerComments(request.comments());
+        form.setManagerComments(request.comments().trim());
         form.setRetakeRequestedAt(now);
         form.setRetakeSubmittedAt(null);
         form.setRetakeRequestUsed(true);
@@ -2739,6 +2742,12 @@ Instant now = Instant.now();
     private boolean isHrCreatedTemplate(SelfAssessmentFormTemplate template) {
         Long creatorRoleId = getUserRoleId(template.getCreatedBy());
         return creatorRoleId != null && creatorRoleId == 1L;
+    }
+
+    private void requireManagerReviewComments(String comments) {
+        if (comments == null || comments.trim().isBlank()) {
+            throw new RuntimeException("Manager comments are required");
+        }
     }
 
     private void requireManagerTemplateAccess(SelfAssessmentFormTemplate template, Employee manager) {

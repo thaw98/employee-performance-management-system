@@ -547,6 +547,46 @@ class SelfAssessmentFormAssignmentServiceTest {
     }
 
     @Test
+    void managerReview_rejectsBlankComments() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.managerReview(
+                form.getId(),
+                manager,
+                new ManagerReviewRequest("   ", List.of())));
+
+        assertEquals("Manager comments are required", ex.getMessage());
+        verify(signatureRepository, never()).findByUserAndIsDefaultTrue(any());
+    }
+
+    @Test
+    void managerRequestRetake_rejectsBlankComments() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+
+        when(formRepository.findById(form.getId())).thenReturn(Optional.of(form));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.managerRequestRetake(
+                form.getId(),
+                manager,
+                new ManagerRetakeRequest(
+                        "",
+                        List.of(new RetakeQuestionRequest(501L, "Clarify your rating")))));
+
+        assertEquals("Manager comments are required", ex.getMessage());
+        verify(signatureRepository, never()).findByUserAndIsDefaultTrue(any());
+    }
+
+    @Test
     void managerRequestRetake_notifiesEmployeeAndSetsPendingEmployeeRetake() {
         ReviewCycle cycle = cycle();
         Employee manager = employee(2L, 10L, 20L);
