@@ -298,13 +298,13 @@ export const ManagerAppraisalsPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex bg-slate-100 p-1.5 rounded-2xl overflow-x-auto">
-                        {['ALL', 'PENDING_MANAGER', 'RETURNED', 'SUBMITTED', 'HR_APPROVED', 'LOCKED'].map(status => (
+                        {['ALL', 'PENDING_MANAGER', 'RETURNED', 'SUBMITTED', 'HR_APPROVED', 'REJECTED', 'LOCKED'].map(status => (
                             <button
                                 key={status}
                                 onClick={() => setFilterStatus(status)}
                                 className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filterStatus === status ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             >
-                                {status === 'PENDING_MANAGER' ? 'PENDING' : status === 'RETURNED' ? 'RETURNED' : status === 'SUBMITTED' ? 'SUBMITTED' : status === 'HR_APPROVED' ? 'APPROVED' : status === 'LOCKED' ? 'FINALIZED' : 'ALL'}
+                                {status === 'PENDING_MANAGER' ? 'PENDING' : status === 'RETURNED' ? 'RETURNED' : status === 'SUBMITTED' ? 'SUBMITTED' : status === 'HR_APPROVED' ? 'APPROVED' : status === 'REJECTED' ? 'REJECTED' : status === 'LOCKED' ? 'FINALIZED' : 'ALL'}
                             </button>
                         ))}
                     </div>
