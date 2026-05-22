@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { useAppSelector } from '../../app/hooks'
-import { AlertTriangle, ArrowLeft, Award, Download, FileText, Filter, Trophy } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Award, ChevronLeft, ChevronRight, Download, FileText, Filter, Trophy } from 'lucide-react'
 import {
   useGetCriteriaAveragesQuery,
   useGetEmployeeFeedbackDetailQuery,
@@ -68,6 +68,20 @@ function buildCriteriaAveragesFromExportRows(rows: EmployeeFeedbackDetailReportD
 
 function getLastAutoTableFinalY(doc: jsPDF) {
   return (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY
+}
+
+function addPdfPageNumbers(doc: jsPDF) {
+  const pageCount = (doc as jsPDF & { getNumberOfPages: () => number }).getNumberOfPages()
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+
+  doc.setFontSize(8)
+  doc.setTextColor(100)
+  for (let page = 1; page <= pageCount; page += 1) {
+    doc.setPage(page)
+    doc.text(`Page ${page} of ${pageCount}`, pageWidth / 2, pageHeight - 7, { align: 'center' })
+  }
+  doc.setTextColor(0)
 }
 
 function formatExportDate(date = new Date()) {
@@ -202,8 +216,8 @@ function DepartmentDetailReport({
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | undefined>()
   const [selectedEmployeeDepartmentId, setSelectedEmployeeDepartmentId] = useState<number | undefined>()
   const [rankingPage, setRankingPage] = useState(0)
+  const [rankingPageSize, setRankingPageSize] = useState(10)
   const [selfMeetingAlert, setSelfMeetingAlert] = useState('')
-  const [reportSection, setReportSection] = useState<'summary' | 'individual'>('summary')
 
   useEffect(() => {
     setDepartmentId(selectedDepartment?.departmentId)
@@ -242,23 +256,47 @@ function DepartmentDetailReport({
   const employeeDetail = employeeDetailResponse?.data
   const summary = summaryResponse?.data
   const criteriaTopScore = criteriaAverages.reduce((best, criteria) => Math.max(best, criteria.average), 0)
-  const rankingTopScore = ranking.reduce((best, employee) => Math.max(best, employee.averageScore), 0)
-  const rankingPageSize = 5
+  const rankingHighlightScore = ranking.length > 0
+    ? order === 'asc'
+      ? ranking[0].averageScore
+      : ranking.reduce((best, employee) => Math.max(best, employee.averageScore), 0)
+    : 0
+  const rankingSortLabel = order === 'asc' ? 'Lowest to highest' : 'Highest to lowest'
+  const rankingScoreLabel = order === 'asc' ? 'Lowest Score' : 'Top Score'
   const rankingTotalPages = Math.max(1, Math.ceil(ranking.length / rankingPageSize))
-  const paginatedRanking = ranking.slice(rankingPage * rankingPageSize, rankingPage * rankingPageSize + rankingPageSize)
+  const safeRankingPage = Math.min(rankingPage, rankingTotalPages - 1)
+  const rankingStartIndex = ranking.length > 0 ? safeRankingPage * rankingPageSize + 1 : 0
+  const rankingEndIndex = Math.min(ranking.length, (safeRankingPage + 1) * rankingPageSize)
+  const paginatedRanking = ranking.slice(safeRankingPage * rankingPageSize, safeRankingPage * rankingPageSize + rankingPageSize)
   const criteriaIsDense = criteriaAverages.length > 8
   const criteriaIsVeryDense = criteriaAverages.length > 12
   const criteriaGap = criteriaIsVeryDense ? 4 : criteriaIsDense ? 6 : 8
-  const isSummarySection = reportSection === 'summary'
   const summaryExportDisabled = exportDownload !== null
   const individualExportDisabled = exportDisabled || !selectedEmployeeId
+  const selectedCriteria = criteriaId
+    ? criteriaAverages.find((criteria) => criteria.criteriaId === criteriaId)
+    : undefined
+  const displayedEmployeeCriteriaAverages = employeeDetail
+    ? selectedCriteria
+      ? employeeDetail.criteriaAverages.filter((criteria) => criteria.criteriaId === selectedCriteria.criteriaId)
+      : employeeDetail.criteriaAverages
+    : []
+  const selectedEmployeeCriteriaAverage = selectedCriteria
+    ? displayedEmployeeCriteriaAverages.find((criteria) => criteria.criteriaId === selectedCriteria.criteriaId)
+    : undefined
+  const displayedEmployeeScore = selectedCriteria
+    ? selectedEmployeeCriteriaAverage?.average
+    : employeeDetail?.totalAverageScore
+  const displayedEmployeeScoreLabel = selectedCriteria
+    ? `${selectedCriteria.criteriaName} Feedback Score`
+    : 'Total Average Feedback Score'
   const currentExportFilters: FeedbackExportFilters = {
     departmentId,
     departmentLabel: selected?.departmentName ?? 'All Departments',
     ...dateFilters,
     reviewCycleName: reportReviewCycle?.name,
     criteriaId,
-    criteriaName: criteriaAverages.find((criteria) => criteria.criteriaId === criteriaId)?.criteriaName,
+    criteriaName: selectedCriteria?.criteriaName,
     order,
     employeeId: selectedEmployeeId,
     employeeName: employeeDetail?.employeeName ?? ranking.find((employee) => employee.employeeId === selectedEmployeeId)?.employeeName,
@@ -336,36 +374,11 @@ function DepartmentDetailReport({
         </div>
       )}
 
-      <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <button
-          type="button"
-          onClick={() => setReportSection('summary')}
-          className={`h-10 rounded-lg px-5 text-sm font-black transition-colors ${
-            isSummarySection
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-          }`}
-        >
-          Summary
-        </button>
-        <button
-          type="button"
-          onClick={() => setReportSection('individual')}
-          className={`h-10 rounded-lg px-5 text-sm font-black transition-colors ${
-            !isSummarySection
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-          }`}
-        >
-          Individual
-        </button>
-      </div>
-
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="mb-4 flex items-center gap-2">
           <Filter size={18} className="text-slate-500" />
           <h2 className="text-sm font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-            {isSummarySection ? 'Summary Filters' : 'Individual Filters'}
+            Summary Filters
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -413,36 +426,32 @@ function DepartmentDetailReport({
               </label>
             </>
           )}
-          {!isSummarySection && (
-            <>
-              <label className="space-y-1.5">
-                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Criteria</span>
-                <select
-                  value={criteriaId ?? ''}
-                  onChange={(event) => setCriteriaId(event.target.value ? Number(event.target.value) : undefined)}
-                  className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                >
-                  <option value="">Overall score</option>
-                  {criteriaAverages.map((criteria) => (
-                    <option key={criteria.criteriaId} value={criteria.criteriaId}>
-                      {criteria.criteriaName}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1.5">
-                <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Sort</span>
-                <select
-                  value={order}
-                  onChange={(event) => setOrder(event.target.value as 'desc' | 'asc')}
-                  className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                >
-                  <option value="desc">Highest to lowest</option>
-                  <option value="asc">Lowest to highest</option>
-                </select>
-              </label>
-            </>
-          )}
+          <label className="space-y-1.5">
+            <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Criteria</span>
+            <select
+              value={criteriaId ?? ''}
+              onChange={(event) => setCriteriaId(event.target.value ? Number(event.target.value) : undefined)}
+              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            >
+              <option value="">Overall score</option>
+              {criteriaAverages.map((criteria) => (
+                <option key={criteria.criteriaId} value={criteria.criteriaId}>
+                  {criteria.criteriaName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1.5">
+            <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Sort</span>
+            <select
+              value={order}
+              onChange={(event) => setOrder(event.target.value as 'desc' | 'asc')}
+              className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            >
+              <option value="desc">Highest to lowest</option>
+              <option value="asc">Lowest to highest</option>
+            </select>
+          </label>
           {roleMode === 'hr' && departmentId && (
             <div className="flex items-end">
               <button
@@ -457,9 +466,7 @@ function DepartmentDetailReport({
         </div>
       </div>
 
-      {isSummarySection ? (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Summary Report</h2>
             <div className="flex flex-wrap gap-2">
               <button
@@ -546,34 +553,35 @@ function DepartmentDetailReport({
             </div>
           )}
           </div>
-        </>
-      ) : (
-        <div className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Individual Report</h2>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => onExportPdf('individual', currentExportFilters)}
-                disabled={individualExportDisabled}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300 ${
-                  roleMode === 'manager' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
-                }`}
-              >
-                <Download size={16} />
-                {exportDownload === 'individual-pdf' ? 'Downloading...' : 'PDF'}
-              </button>
-              <button
-                type="button"
-                onClick={() => onExportExcel('individual', currentExportFilters)}
-                disabled={individualExportDisabled}
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                <FileText size={16} />
-                {exportDownload === 'individual-excel' ? 'Downloading...' : 'Excel'}
-              </button>
+
+          <div className="space-y-6">
+          {selectedEmployeeId && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Employee Detail</h2>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => onExportPdf('individual', currentExportFilters)}
+                  disabled={individualExportDisabled}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300 ${
+                    roleMode === 'manager' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                  }`}
+                >
+                  <Download size={16} />
+                  {exportDownload === 'individual-pdf' ? 'Downloading...' : 'PDF'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onExportExcel('individual', currentExportFilters)}
+                  disabled={individualExportDisabled}
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  <FileText size={16} />
+                  {exportDownload === 'individual-excel' ? 'Downloading...' : 'Excel'}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex min-h-[520px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           {selectedEmployeeId ? (
@@ -598,17 +606,21 @@ function DepartmentDetailReport({
                   </div>
 
                   <div className="rounded-lg bg-emerald-50 p-4 dark:bg-emerald-950/30">
-                    <div className="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Total Average Feedback Score</div>
-                    <div className="mt-1 text-3xl font-black text-emerald-900 dark:text-emerald-100">{formatScore(employeeDetail.totalAverageScore)} / 5</div>
+                    <div className="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{displayedEmployeeScoreLabel}</div>
+                    <div className="mt-1 text-3xl font-black text-emerald-900 dark:text-emerald-100">
+                      {typeof displayedEmployeeScore === 'number' ? formatScore(displayedEmployeeScore) : '-'} / 5
+                    </div>
                   </div>
 
                   <div>
-                    <h3 className="mb-3 text-sm font-black text-slate-900 dark:text-slate-100">Criteria Averages</h3>
-                    {employeeDetail.criteriaAverages.length === 0 ? (
+                    <h3 className="mb-3 text-sm font-black text-slate-900 dark:text-slate-100">
+                      {selectedCriteria ? 'Selected Criteria Average' : 'Criteria Averages'}
+                    </h3>
+                    {displayedEmployeeCriteriaAverages.length === 0 ? (
                       <div className="py-8 text-center text-sm text-slate-500">No criteria details found for this employee.</div>
                     ) : (
                       <div className="space-y-3">
-                        {employeeDetail.criteriaAverages.map((criteria) => {
+                        {displayedEmployeeCriteriaAverages.map((criteria) => {
                           const percentage = Math.min(100, Math.max(0, (criteria.average / 5) * 100))
                           return (
                             <div key={criteria.criteriaId}>
@@ -635,11 +647,14 @@ function DepartmentDetailReport({
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Trophy size={18} className="text-amber-500" />
-                  <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Employee Ranking</h2>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Employee Ranking</h2>
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{rankingSortLabel}</p>
+                  </div>
                 </div>
                 <div className="shrink-0 rounded-lg bg-amber-50 px-2.5 py-1.5 text-right dark:bg-amber-950/30">
-                  <div className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">Top Score</div>
-                  <div className="text-sm font-black text-amber-900 dark:text-amber-100">{formatScore(rankingTopScore)}</div>
+                  <div className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">{rankingScoreLabel}</div>
+                  <div className="text-sm font-black text-amber-900 dark:text-amber-100">{formatScore(rankingHighlightScore)}</div>
                 </div>
               </div>
               {isRankingLoading ? (
@@ -660,7 +675,7 @@ function DepartmentDetailReport({
                       className="flex w-full items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-left transition-colors hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-800 dark:bg-slate-800/60 dark:hover:border-blue-900/50 dark:hover:bg-blue-950/20"
                     >
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                        {rankingPage * rankingPageSize + index + 1}
+                        {safeRankingPage * rankingPageSize + index + 1}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-xs font-bold text-slate-900 dark:text-slate-100">{employee.employeeName}</div>
@@ -675,24 +690,49 @@ function DepartmentDetailReport({
                     </button>
                   ))}
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-bold text-slate-500 dark:border-slate-800">
-                    <span>Page {rankingPage + 1} of {rankingTotalPages}</span>
-                    <div className="flex gap-2">
+                  <div className="mt-4 flex flex-col gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <span>
+                        Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{rankingStartIndex} - {rankingEndIndex}</span> of{' '}
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">{ranking.length}</span> employees
+                      </span>
+                      <label className="flex items-center gap-2">
+                        <span className="text-slate-400">Rows:</span>
+                        <select
+                          value={rankingPageSize}
+                          onChange={(event) => {
+                            setRankingPageSize(Number(event.target.value))
+                            setRankingPage(0)
+                          }}
+                          className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        >
+                          {[5, 10, 20, 50].map((rows) => (
+                            <option key={rows} value={rows}>{rows}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        disabled={rankingPage === 0}
+                        disabled={safeRankingPage === 0}
                         onClick={() => setRankingPage((page) => Math.max(0, page - 1))}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800"
                       >
+                        <ChevronLeft size={16} />
                         Prev
                       </button>
+                      <span className="flex h-12 min-w-12 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm shadow-blue-200">
+                        {safeRankingPage + 1}
+                      </span>
                       <button
                         type="button"
-                        disabled={rankingPage >= rankingTotalPages - 1}
+                        disabled={safeRankingPage >= rankingTotalPages - 1}
                         onClick={() => setRankingPage((page) => Math.min(rankingTotalPages - 1, page + 1))}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800"
                       >
                         Next
+                        <ChevronRight size={16} />
                       </button>
                     </div>
                   </div>
@@ -701,8 +741,7 @@ function DepartmentDetailReport({
             </>
           )}
           </div>
-        </div>
-      )}
+          </div>
     </div>
   )
 }
@@ -819,6 +858,7 @@ function EmployeeOwnFeedbackReport() {
         styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
         headStyles: { fillColor: [20, 184, 166], textColor: 255 },
       })
+      addPdfPageNumbers(doc)
       doc.save(`Feedback_Report_Individual_${report.employeeName.replace(/[^a-z0-9]+/gi, '_')}.pdf`)
     } finally {
       setReportDownload(null)
@@ -922,7 +962,6 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
   const activeQuarterCycle = quarterCycles.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE') ?? quarterCycles[quarterCycles.length - 1]
   const reportCycleOptions = quarterCycles.length > 0 ? quarterCycles : sortedReviewCycles
   const selectedReportCycle = reportCycleOptions.find((cycle) => cycle.id === reportCycleId) ?? activeQuarterCycle ?? activeReviewCycle
-  const reportFilters = { reviewCycleId: selectedReportCycle?.id }
   const selectedDepartment = selectedDepartmentId
     ? departments.find((department) => department.departmentId === selectedDepartmentId)
       ?? undefined
@@ -989,6 +1028,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
     const summaryRows = [
       ['Report title', getExportReportTitle('summary')],
       ...baseInfoRows,
+      ['Total employees', String(exportRows.length)],
       [],
       ['Top scorer', topEmployee?.employeeName ?? '-', topEmployee?.departmentName ?? '-', formatScore(topEmployee?.totalAverageScore)],
       ['Worst scorer', bottomEmployee?.employeeName ?? '-', bottomEmployee?.departmentName ?? '-', formatScore(bottomEmployee?.totalAverageScore)],
@@ -1251,6 +1291,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
           },
         })
       }
+      addPdfPageNumbers(doc)
       doc.save(`Feedback_Report_${sectionLabel}_${departmentLabel.replace(/[^a-z0-9]+/gi, '_')}.pdf`)
     } finally {
       setReportDownload(null)

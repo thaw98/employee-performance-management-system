@@ -82,9 +82,9 @@ import { NotificationPage } from './pages/NotificationPage';
 
 // Reports Pages
 import ManagerKpiReportsPage from './pages/manager/KpiReportsPage';
-import ManagerReportsPage from './pages/manager/ReportsPage';
-import HrReportsPage from './pages/hr/ReportsPage';
-import EmployeeReportsPage from './pages/employee/ReportsPage';
+import ManagerReportsPage from './pages/reports/manager/PipReportPage';
+import HrReportsPage from './pages/reports/hr/PipReportPage';
+import EmployeeReportsPage from './pages/reports/employee/PipReportPage';
 import FeedbackReportPage from './pages/reports/FeedbackReportPage';
 
 const TOAST_DEDUP_MS = 600;
