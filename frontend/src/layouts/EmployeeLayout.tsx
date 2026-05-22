@@ -74,7 +74,15 @@ const EmployeeLayout: React.FC = () => {
       ]
     },
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/employee/meetings' },
-    { icon: <BarChart size={20} />, label: 'Reports', path: '/employee/reports' },
+    {
+      icon: <BarChart size={20} />,
+      label: 'Reports',
+      path: '/employee/reports',
+      subItems: [
+        { label: 'PIP Report', path: '/employee/reports', icon: <FileText size={16} className="shrink-0" /> },
+        { label: 'Feedback Report', path: '/employee/reports/feedback', icon: <RefreshCcw size={16} className="shrink-0" /> },
+      ],
+    },
     {
       icon: <FileText size={20} />,
       label: 'Self Assessment Form',

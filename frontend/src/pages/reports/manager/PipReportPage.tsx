@@ -18,15 +18,15 @@ import {
   useGetPipSummaryReportQuery,
   useGetPipProgressReportQuery,
   useGetPipIndividualReportQuery,
-} from '../../features/pip/pipApi'
+} from '../../../features/pip/pipApi'
 import {
   downloadIndividualPipReport,
   downloadPipProgressReport,
   downloadPipSummaryReport,
   type PipReportFormat,
-} from '../../features/pip/pipReportApi'
-import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../../features/hrCreateEmployee/hrEmployeeAccountApi'
-import type { RootState } from '../../app/store'
+} from '../../../features/pip/pipReportApi'
+import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
+import type { RootState } from '../../../app/store'
 import { Download, FileText, BarChart3, Filter, X, Calendar, User, Target, Clock, TrendingUp } from 'lucide-react'
 import { skipToken } from '@reduxjs/toolkit/query'
 
@@ -40,12 +40,39 @@ const STATUS_OPTIONS = [
 ]
 
 const COLORS = {
-  ACTIVE: '#f59e0b',
+  ACTIVE: '#3b82f6',
   COMPLETED: '#10b981',
   CLOSED: '#6b7280',
-  AUTO_CLOSED: '#9ca3af',
-  REOPEN_REQUESTED: '#3b82f6',
+  AUTO_CLOSED: '#f59e0b',
+  REOPEN_REQUESTED: '#f97316',
+  DENIED: '#ef4444',
 }
+
+const STATUS_COLORS: Record<string, string> = {
+  ACTIVE: 'bg-blue-100 text-blue-700',
+  AUTO_CLOSED: 'bg-amber-100 text-amber-700',
+  REOPEN_REQUESTED: 'bg-orange-100 text-orange-700',
+  COMPLETED: 'bg-emerald-100 text-emerald-700',
+  CLOSED: 'bg-slate-100 text-slate-700',
+  DENIED: 'bg-red-100 text-red-700',
+}
+
+const getStatusDisplayLabel = (status: string, finalOutcome?: string) => {
+  if (status === 'CLOSED' && finalOutcome === 'SUCCESSFUL') return 'Close - Successful'
+  if (status === 'CLOSED' && finalOutcome === 'FAILED') return 'Close - Fail'
+  if (status === 'AUTO_CLOSED') return 'auto-close'
+  return status.replace(/_/g, ' ')
+}
+
+const getStatusColorClass = (status: string, finalOutcome?: string) => {
+  if (status === 'CLOSED' && finalOutcome === 'SUCCESSFUL') return 'bg-green-100 text-green-700'
+  if (status === 'CLOSED' && finalOutcome === 'FAILED') return 'bg-red-100 text-red-700'
+  return STATUS_COLORS[status] || 'bg-slate-100 text-slate-700'
+}
+
+const getProgressColorClass = (progress: number) => (
+  progress >= 70 ? 'bg-green-500' : progress >= 30 ? 'bg-blue-500' : 'bg-orange-500'
+)
 
 const formatDateValue = (value?: string) => {
   if (!value) return '-'
@@ -54,7 +81,7 @@ const formatDateValue = (value?: string) => {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-export default function ReportsPage() {
+export default function PipReportPage() {
   const { user } = useSelector((state: RootState) => state.auth)
   const [activeTab, setActiveTab] = useState<'summary' | 'progress'>('summary')
   const [statusFilter, setStatusFilter] = useState('')
@@ -499,7 +526,7 @@ export default function ReportsPage() {
                         <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Status</th>
                         <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Start Date</th>
                         <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">End Date</th>
-                        <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Progress</th>
+                        <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Overall Progress</th>
                         <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Hours</th>
                         <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">Actions</th>
                       </tr>
@@ -518,26 +545,23 @@ export default function ReportsPage() {
                             <div className="text-xs text-slate-500">Staff ID: {item.employeeStaffNo || '-'}</div>
                           </td>
                           <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              item.status === 'ACTIVE' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                              item.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                              item.status === 'CLOSED' || item.status === 'AUTO_CLOSED' ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' :
-                              'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                            }`}>
-                              {item.status}
+                            <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${getStatusColorClass(item.status, item.finalOutcome)}`}>
+                              {getStatusDisplayLabel(item.status, item.finalOutcome)}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{formatDateValue(item.startDate)}</td>
                           <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{formatDateValue(item.endDate)}</td>
                           <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-16 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="flex flex-col gap-1.5">
+                              <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100 shadow-inner dark:bg-slate-700">
                                 <div
-                                  className="h-full bg-amber-500 rounded-full"
+                                  className={`h-full transition-all duration-500 ${getProgressColorClass(item.overallProgress)}`}
                                   style={{ width: `${item.overallProgress}%` }}
                                 />
                               </div>
-                              <span className="text-xs text-slate-500">{item.overallProgress}%</span>
+                              <span className="text-[10px] font-extrabold uppercase tracking-tight text-slate-400">
+                                {item.overallProgress}% COMPLETED
+                              </span>
                             </div>
                           </td>
                           <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{item.completedHours}/{item.totalHours}</td>
@@ -785,12 +809,8 @@ export default function ReportsPage() {
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="text-xs text-slate-500 mb-1">Status</div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        individualPipData.status === 'ACTIVE' ? 'bg-amber-100 text-amber-700' :
-                        individualPipData.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                        'bg-slate-100 text-slate-600'
-                      }`}>
-                        {individualPipData.status}
+                      <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${getStatusColorClass(individualPipData.status, individualPipData.finalOutcome)}`}>
+                        {getStatusDisplayLabel(individualPipData.status, individualPipData.finalOutcome)}
                       </span>
                     </div>
                   </div>
@@ -798,14 +818,14 @@ export default function ReportsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
                       <div className="text-xs text-slate-500 mb-1">Overall Progress</div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100 shadow-inner dark:bg-slate-700">
                           <div
-                            className="h-full bg-amber-500 rounded-full"
+                            className={`h-full transition-all duration-500 ${getProgressColorClass(individualPipData.overallProgress)}`}
                             style={{ width: `${individualPipData.overallProgress}%` }}
                           />
                         </div>
-                        <span className="text-sm font-medium">{individualPipData.overallProgress}%</span>
+                        <span className="text-[10px] font-extrabold uppercase tracking-tight text-slate-400">{individualPipData.overallProgress}% COMPLETED</span>
                       </div>
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">

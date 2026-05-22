@@ -1,53 +1,99 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { skipToken } from '@reduxjs/toolkit/query'
 import { useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { useAppSelector } from '../../app/hooks'
+import { AlertTriangle, ArrowLeft, Award, ChevronLeft, ChevronRight, Download, FileText, Filter, Trophy } from 'lucide-react'
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  LabelList,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
-import { AlertTriangle, ArrowLeft, Award, BarChart3, Filter, LineChart as LineChartIcon, Trophy } from 'lucide-react'
-import {
-  useGetAveragesByDepartmentQuery,
   useGetCriteriaAveragesQuery,
-  useGetDepartmentTrendsQuery,
   useGetEmployeeFeedbackDetailQuery,
   useGetEmployeeRankingQuery,
   useGetFeedbackReportDepartmentsQuery,
+  useGetMyFeedbackReportQuery,
   useLazyGetFeedbackReportExportDataQuery,
   useGetTopBottomEmployeesQuery,
-  type DepartmentAverageDto,
-  type DepartmentTrendDto,
+  type CriteriaAverageDto,
+  type EmployeeFeedbackDetailReportDto,
   type EmployeeRankingDto,
   type ReportDepartmentDto,
 } from '../../features/feedback/api/feedbackApi'
 import { useGetReviewCyclesQuery, type ReviewCycleDto } from '../../features/reviewCycle/api/reviewCycleApi'
 
 type FeedbackReportPageProps = {
-  mode: 'hr' | 'manager'
+  mode: 'hr' | 'manager' | 'employee'
 }
 
-const CHART_COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626', '#0891b2', '#4f46e5', '#65a30d']
+type ExportSection = 'summary' | 'individual'
+
+type FeedbackExportFilters = {
+  departmentId?: number
+  departmentLabel?: string
+  from?: string
+  to?: string
+  reviewCycleId?: number
+  reviewCycleName?: string
+  criteriaId?: number
+  criteriaName?: string
+  order?: 'asc' | 'desc'
+  employeeId?: number
+  employeeName?: string
+}
 
 function formatScore(value?: number | null) {
   return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(1) : '0.0'
 }
 
-function isAnnualCycle(cycle: ReviewCycleDto) {
-  const type = cycle.cycleType?.toUpperCase() ?? ''
-  return type === 'ANNUAL' || type.includes('ANNUAL')
+function buildCriteriaAveragesFromExportRows(rows: EmployeeFeedbackDetailReportDto[]): CriteriaAverageDto[] {
+  const totals = new Map<number, { criteriaName: string; total: number; count: number }>()
+
+  rows.forEach((employee) => {
+    employee.criteriaAverages.forEach((criteria) => {
+      const current = totals.get(criteria.criteriaId) ?? { criteriaName: criteria.criteriaName, total: 0, count: 0 }
+      current.total += criteria.average
+      current.count += 1
+      totals.set(criteria.criteriaId, current)
+    })
+  })
+
+  return Array.from(totals.entries())
+    .map(([criteriaId, criteria]) => ({
+      criteriaId,
+      criteriaName: criteria.criteriaName,
+      average: criteria.count > 0 ? criteria.total / criteria.count : 0,
+    }))
+    .sort((a, b) => a.criteriaName.localeCompare(b.criteriaName))
+}
+
+function getLastAutoTableFinalY(doc: jsPDF) {
+  return (doc as jsPDF & { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY
+}
+
+function addPdfPageNumbers(doc: jsPDF) {
+  const pageCount = (doc as jsPDF & { getNumberOfPages: () => number }).getNumberOfPages()
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+
+  doc.setFontSize(8)
+  doc.setTextColor(100)
+  for (let page = 1; page <= pageCount; page += 1) {
+    doc.setPage(page)
+    doc.text(`Page ${page} of ${pageCount}`, pageWidth / 2, pageHeight - 7, { align: 'center' })
+  }
+  doc.setTextColor(0)
+}
+
+function formatExportDate(date = new Date()) {
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function getExportReportTitle(section: ExportSection) {
+  return section === 'summary' ? 'Feedback Summary Report' : 'Feedback Individual Report'
 }
 
 function isQuarterCycle(cycle: ReviewCycleDto) {
@@ -63,51 +109,6 @@ function getToday() {
 function getMonthStart() {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-}
-
-function buildTrendRows(trends: DepartmentTrendDto[]) {
-  const rows = new Map<string, Record<string, string | number>>()
-
-  trends.forEach((department) => {
-    department.points?.forEach((point) => {
-      const row = rows.get(point.period) ?? { period: point.period }
-      row[department.departmentName] = Number(point.average.toFixed(2))
-      rows.set(point.period, row)
-    })
-  })
-
-  return Array.from(rows.values()).sort((a, b) => String(a.period).localeCompare(String(b.period)))
-}
-
-async function chartToImageData(container: HTMLDivElement | null) {
-  const svg = container?.querySelector('svg')
-  if (!svg) return undefined
-  const cloned = svg.cloneNode(true) as SVGSVGElement
-  const rect = svg.getBoundingClientRect()
-  cloned.setAttribute('width', String(Math.max(1, Math.round(rect.width))))
-  cloned.setAttribute('height', String(Math.max(1, Math.round(rect.height))))
-  const svgText = new XMLSerializer().serializeToString(cloned)
-  const image = new Image()
-  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`
-  return new Promise<string>((resolve, reject) => {
-    image.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.max(1, Math.round(rect.width * 2))
-      canvas.height = Math.max(1, Math.round(rect.height * 2))
-      const context = canvas.getContext('2d')
-      if (!context) {
-        reject(new Error('Unable to render chart'))
-        return
-      }
-      context.fillStyle = '#ffffff'
-      context.fillRect(0, 0, canvas.width, canvas.height)
-      context.scale(2, 2)
-      context.drawImage(image, 0, 0)
-      resolve(canvas.toDataURL('image/png'))
-    }
-    image.onerror = reject
-    image.src = url
-  })
 }
 
 function EmployeeSummaryCard({
@@ -189,6 +190,10 @@ function DepartmentDetailReport({
   onClearDepartment,
   reportReviewCycle,
   roleMode,
+  onExportExcel,
+  onExportPdf,
+  exportDownload,
+  exportDisabled = false,
 }: {
   selectedDepartment?: ReportDepartmentDto
   departments: ReportDepartmentDto[]
@@ -196,6 +201,10 @@ function DepartmentDetailReport({
   onClearDepartment?: () => void
   reportReviewCycle?: ReviewCycleDto
   roleMode: 'hr' | 'manager'
+  onExportExcel: (section: ExportSection, filters: FeedbackExportFilters) => void
+  onExportPdf: (section: ExportSection, filters: FeedbackExportFilters) => void
+  exportDownload: string | null
+  exportDisabled?: boolean
 }) {
   const navigate = useNavigate()
   const authUser = useAppSelector((state) => state.auth.user)
@@ -207,6 +216,7 @@ function DepartmentDetailReport({
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | undefined>()
   const [selectedEmployeeDepartmentId, setSelectedEmployeeDepartmentId] = useState<number | undefined>()
   const [rankingPage, setRankingPage] = useState(0)
+  const [rankingPageSize, setRankingPageSize] = useState(10)
   const [selfMeetingAlert, setSelfMeetingAlert] = useState('')
 
   useEffect(() => {
@@ -246,13 +256,51 @@ function DepartmentDetailReport({
   const employeeDetail = employeeDetailResponse?.data
   const summary = summaryResponse?.data
   const criteriaTopScore = criteriaAverages.reduce((best, criteria) => Math.max(best, criteria.average), 0)
-  const rankingTopScore = ranking.reduce((best, employee) => Math.max(best, employee.averageScore), 0)
-  const rankingPageSize = 5
+  const rankingHighlightScore = ranking.length > 0
+    ? order === 'asc'
+      ? ranking[0].averageScore
+      : ranking.reduce((best, employee) => Math.max(best, employee.averageScore), 0)
+    : 0
+  const rankingSortLabel = order === 'asc' ? 'Lowest to highest' : 'Highest to lowest'
+  const rankingScoreLabel = order === 'asc' ? 'Lowest Score' : 'Top Score'
   const rankingTotalPages = Math.max(1, Math.ceil(ranking.length / rankingPageSize))
-  const paginatedRanking = ranking.slice(rankingPage * rankingPageSize, rankingPage * rankingPageSize + rankingPageSize)
+  const safeRankingPage = Math.min(rankingPage, rankingTotalPages - 1)
+  const rankingStartIndex = ranking.length > 0 ? safeRankingPage * rankingPageSize + 1 : 0
+  const rankingEndIndex = Math.min(ranking.length, (safeRankingPage + 1) * rankingPageSize)
+  const paginatedRanking = ranking.slice(safeRankingPage * rankingPageSize, safeRankingPage * rankingPageSize + rankingPageSize)
   const criteriaIsDense = criteriaAverages.length > 8
   const criteriaIsVeryDense = criteriaAverages.length > 12
   const criteriaGap = criteriaIsVeryDense ? 4 : criteriaIsDense ? 6 : 8
+  const summaryExportDisabled = exportDownload !== null
+  const individualExportDisabled = exportDisabled || !selectedEmployeeId
+  const selectedCriteria = criteriaId
+    ? criteriaAverages.find((criteria) => criteria.criteriaId === criteriaId)
+    : undefined
+  const displayedEmployeeCriteriaAverages = employeeDetail
+    ? selectedCriteria
+      ? employeeDetail.criteriaAverages.filter((criteria) => criteria.criteriaId === selectedCriteria.criteriaId)
+      : employeeDetail.criteriaAverages
+    : []
+  const selectedEmployeeCriteriaAverage = selectedCriteria
+    ? displayedEmployeeCriteriaAverages.find((criteria) => criteria.criteriaId === selectedCriteria.criteriaId)
+    : undefined
+  const displayedEmployeeScore = selectedCriteria
+    ? selectedEmployeeCriteriaAverage?.average
+    : employeeDetail?.totalAverageScore
+  const displayedEmployeeScoreLabel = selectedCriteria
+    ? `${selectedCriteria.criteriaName} Feedback Score`
+    : 'Total Average Feedback Score'
+  const currentExportFilters: FeedbackExportFilters = {
+    departmentId,
+    departmentLabel: selected?.departmentName ?? 'All Departments',
+    ...dateFilters,
+    reviewCycleName: reportReviewCycle?.name,
+    criteriaId,
+    criteriaName: selectedCriteria?.criteriaName,
+    order,
+    employeeId: selectedEmployeeId,
+    employeeName: employeeDetail?.employeeName ?? ranking.find((employee) => employee.employeeId === selectedEmployeeId)?.employeeName,
+  }
 
   const goToMeeting = (employee: EmployeeRankingDto, meetingDescription: string) => {
     const isTopFeedbackMeeting = meetingDescription === 'Best Feedback Person Meeting'
@@ -326,24 +374,12 @@ function DepartmentDetailReport({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {isSummaryLoading ? (
-          <>
-            <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900">Loading top employee...</div>
-            <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900">Loading bottom employee...</div>
-          </>
-        ) : (
-          <>
-            <EmployeeSummaryCard label="Top Feedback Employee" employee={summary?.topEmployee} onGoToMeeting={goToMeeting} showMeetingButton={roleMode !== 'hr'} variant="top" />
-            <EmployeeSummaryCard label="Lowest Feedback Employee" employee={summary?.bottomEmployee} onGoToMeeting={goToMeeting} showMeetingButton={roleMode !== 'hr'} variant="bottom" />
-          </>
-        )}
-      </div>
-
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="mb-4 flex items-center gap-2">
           <Filter size={18} className="text-slate-500" />
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">Ranking Filters</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+            Summary Filters
+          </h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           {canChangeDepartment && (
@@ -430,8 +466,47 @@ function DepartmentDetailReport({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Summary Report</h2>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onExportPdf('summary', currentExportFilters)}
+                disabled={summaryExportDisabled}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300 ${
+                  roleMode === 'manager' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                }`}
+              >
+                <Download size={16} />
+                {exportDownload === 'summary-pdf' ? 'Downloading...' : 'PDF'}
+              </button>
+              <button
+                type="button"
+                onClick={() => onExportExcel('summary', currentExportFilters)}
+                disabled={summaryExportDisabled}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                <FileText size={16} />
+                {exportDownload === 'summary-excel' ? 'Downloading...' : 'Excel'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {isSummaryLoading ? (
+              <>
+                <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900">Loading top employee...</div>
+                <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900">Loading bottom employee...</div>
+              </>
+            ) : (
+              <>
+                <EmployeeSummaryCard label="Top Feedback Employee" employee={summary?.topEmployee} onGoToMeeting={goToMeeting} showMeetingButton={roleMode !== 'hr'} variant="top" />
+                <EmployeeSummaryCard label="Lowest Feedback Employee" employee={summary?.bottomEmployee} onGoToMeeting={goToMeeting} showMeetingButton={roleMode !== 'hr'} variant="bottom" />
+              </>
+            )}
+          </div>
+
+          <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div>
               <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">{selected?.departmentName ?? 'All Departments'} Feedback Criteria</h1>
@@ -477,9 +552,38 @@ function DepartmentDetailReport({
               })}
             </div>
           )}
-        </div>
+          </div>
 
-        <div className="flex h-[520px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="space-y-6">
+          {selectedEmployeeId && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Employee Detail</h2>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => onExportPdf('individual', currentExportFilters)}
+                  disabled={individualExportDisabled}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300 ${
+                    roleMode === 'manager' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                  }`}
+                >
+                  <Download size={16} />
+                  {exportDownload === 'individual-pdf' ? 'Downloading...' : 'PDF'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onExportExcel('individual', currentExportFilters)}
+                  disabled={individualExportDisabled}
+                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  <FileText size={16} />
+                  {exportDownload === 'individual-excel' ? 'Downloading...' : 'Excel'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex min-h-[520px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           {selectedEmployeeId ? (
             <div className="flex min-h-0 flex-1 flex-col">
               <button
@@ -502,17 +606,21 @@ function DepartmentDetailReport({
                   </div>
 
                   <div className="rounded-lg bg-emerald-50 p-4 dark:bg-emerald-950/30">
-                    <div className="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Total Average Feedback Score</div>
-                    <div className="mt-1 text-3xl font-black text-emerald-900 dark:text-emerald-100">{formatScore(employeeDetail.totalAverageScore)} / 5</div>
+                    <div className="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">{displayedEmployeeScoreLabel}</div>
+                    <div className="mt-1 text-3xl font-black text-emerald-900 dark:text-emerald-100">
+                      {typeof displayedEmployeeScore === 'number' ? formatScore(displayedEmployeeScore) : '-'} / 5
+                    </div>
                   </div>
 
                   <div>
-                    <h3 className="mb-3 text-sm font-black text-slate-900 dark:text-slate-100">Criteria Averages</h3>
-                    {employeeDetail.criteriaAverages.length === 0 ? (
+                    <h3 className="mb-3 text-sm font-black text-slate-900 dark:text-slate-100">
+                      {selectedCriteria ? 'Selected Criteria Average' : 'Criteria Averages'}
+                    </h3>
+                    {displayedEmployeeCriteriaAverages.length === 0 ? (
                       <div className="py-8 text-center text-sm text-slate-500">No criteria details found for this employee.</div>
                     ) : (
                       <div className="space-y-3">
-                        {employeeDetail.criteriaAverages.map((criteria) => {
+                        {displayedEmployeeCriteriaAverages.map((criteria) => {
                           const percentage = Math.min(100, Math.max(0, (criteria.average / 5) * 100))
                           return (
                             <div key={criteria.criteriaId}>
@@ -539,11 +647,14 @@ function DepartmentDetailReport({
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Trophy size={18} className="text-amber-500" />
-                  <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Employee Ranking</h2>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Employee Ranking</h2>
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{rankingSortLabel}</p>
+                  </div>
                 </div>
                 <div className="shrink-0 rounded-lg bg-amber-50 px-2.5 py-1.5 text-right dark:bg-amber-950/30">
-                  <div className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">Top Score</div>
-                  <div className="text-sm font-black text-amber-900 dark:text-amber-100">{formatScore(rankingTopScore)}</div>
+                  <div className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">{rankingScoreLabel}</div>
+                  <div className="text-sm font-black text-amber-900 dark:text-amber-100">{formatScore(rankingHighlightScore)}</div>
                 </div>
               </div>
               {isRankingLoading ? (
@@ -564,7 +675,7 @@ function DepartmentDetailReport({
                       className="flex w-full items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-left transition-colors hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-800 dark:bg-slate-800/60 dark:hover:border-blue-900/50 dark:hover:bg-blue-950/20"
                     >
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                        {rankingPage * rankingPageSize + index + 1}
+                        {safeRankingPage * rankingPageSize + index + 1}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-xs font-bold text-slate-900 dark:text-slate-100">{employee.employeeName}</div>
@@ -579,24 +690,49 @@ function DepartmentDetailReport({
                     </button>
                   ))}
                   </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-bold text-slate-500 dark:border-slate-800">
-                    <span>Page {rankingPage + 1} of {rankingTotalPages}</span>
-                    <div className="flex gap-2">
+                  <div className="mt-4 flex flex-col gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <span>
+                        Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{rankingStartIndex} - {rankingEndIndex}</span> of{' '}
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">{ranking.length}</span> employees
+                      </span>
+                      <label className="flex items-center gap-2">
+                        <span className="text-slate-400">Rows:</span>
+                        <select
+                          value={rankingPageSize}
+                          onChange={(event) => {
+                            setRankingPageSize(Number(event.target.value))
+                            setRankingPage(0)
+                          }}
+                          className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        >
+                          {[5, 10, 20, 50].map((rows) => (
+                            <option key={rows} value={rows}>{rows}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        disabled={rankingPage === 0}
+                        disabled={safeRankingPage === 0}
                         onClick={() => setRankingPage((page) => Math.max(0, page - 1))}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800"
                       >
+                        <ChevronLeft size={16} />
                         Prev
                       </button>
+                      <span className="flex h-12 min-w-12 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm shadow-blue-200">
+                        {safeRankingPage + 1}
+                      </span>
                       <button
                         type="button"
-                        disabled={rankingPage >= rankingTotalPages - 1}
+                        disabled={safeRankingPage >= rankingTotalPages - 1}
                         onClick={() => setRankingPage((page) => Math.min(rankingTotalPages - 1, page + 1))}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800"
                       >
                         Next
+                        <ChevronRight size={16} />
                       </button>
                     </div>
                   </div>
@@ -604,69 +740,232 @@ function DepartmentDetailReport({
               )}
             </>
           )}
+          </div>
+          </div>
+    </div>
+  )
+}
+
+function EmployeeOwnFeedbackReport() {
+  const [reportDownload, setReportDownload] = useState<string | null>(null)
+  const { data: reviewCycles = [] } = useGetReviewCyclesQuery()
+  const sortedReviewCycles = useMemo(
+    () => [...reviewCycles].sort((a, b) => a.startDate.localeCompare(b.startDate)),
+    [reviewCycles],
+  )
+  const quarterCycles = sortedReviewCycles.filter(isQuarterCycle)
+  const activeReviewCycle = sortedReviewCycles.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE') ?? sortedReviewCycles[sortedReviewCycles.length - 1]
+  const activeQuarterCycle = quarterCycles.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE') ?? quarterCycles[quarterCycles.length - 1]
+  const [reportCycleId, setReportCycleId] = useState<number | undefined>()
+  const reportCycleOptions = quarterCycles.length > 0 ? quarterCycles : sortedReviewCycles
+  const selectedReportCycle = reportCycleOptions.find((cycle) => cycle.id === reportCycleId) ?? activeQuarterCycle ?? activeReviewCycle
+  const { data: reportResponse, isLoading } = useGetMyFeedbackReportQuery({ reviewCycleId: selectedReportCycle?.id })
+  const report = reportResponse?.data
+  const exportDisabled = reportDownload !== null || !report
+
+  const reportInfoRows = (title: string) => [
+    ['Report title', title],
+    ['Export date', formatExportDate()],
+    ['Current active review cycle', activeReviewCycle?.name ?? '-'],
+    ['Selected review cycle', selectedReportCycle?.name ?? '-'],
+    ['Selected employee', report?.employeeName ?? '-'],
+    ['Selected department', report?.departmentName ?? '-'],
+  ]
+
+  const handleExportExcel = async () => {
+    if (!report) return
+    setReportDownload('excel')
+    try {
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([[getExportReportTitle('individual')], [], ...reportInfoRows(getExportReportTitle('individual'))]), 'Report Info')
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet([
+          ['Employee', report.employeeName],
+          ['Department', report.departmentName],
+          ['Total Average Feedback Score', formatScore(report.totalAverageScore)],
+        ]),
+        'Employee Detail',
+      )
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet([
+          ['Criteria', 'Average Score'],
+          ...report.criteriaAverages.map((criteria) => [criteria.criteriaName, formatScore(criteria.average)]),
+        ]),
+        'Criteria Averages',
+      )
+      XLSX.writeFile(workbook, `Feedback_Report_Individual_${report.employeeName.replace(/[^a-z0-9]+/gi, '_')}.xlsx`)
+    } finally {
+      setReportDownload(null)
+    }
+  }
+
+  const handleExportPdf = async () => {
+    if (!report) return
+    setReportDownload('pdf')
+    try {
+      const doc = new jsPDF('l', 'mm', 'a4')
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 10
+      const usableWidth = pageWidth - margin * 2
+      doc.setFontSize(16)
+      doc.text(getExportReportTitle('individual'), margin, 14)
+      doc.setFontSize(12)
+      doc.text('Individual', margin, 22)
+      autoTable(doc, {
+        startY: 27,
+        body: reportInfoRows(getExportReportTitle('individual')),
+        theme: 'grid',
+        margin: { left: margin, right: margin },
+        tableWidth: usableWidth,
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+        columnStyles: {
+          0: { cellWidth: 72, fontStyle: 'bold' },
+          1: { cellWidth: usableWidth - 72 },
+        },
+      })
+      let y = (getLastAutoTableFinalY(doc) ?? 60) + 8
+      autoTable(doc, {
+        startY: y,
+        body: [
+          ['Employee', report.employeeName],
+          ['Department', report.departmentName],
+          ['Total Average Feedback Score', formatScore(report.totalAverageScore)],
+        ],
+        theme: 'grid',
+        margin: { left: margin, right: margin },
+        tableWidth: usableWidth,
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+        columnStyles: {
+          0: { cellWidth: 72, fontStyle: 'bold' },
+          1: { cellWidth: usableWidth - 72 },
+        },
+      })
+      y = (getLastAutoTableFinalY(doc) ?? y) + 8
+      if (y > pageHeight - 35) {
+        doc.addPage()
+        y = 14
+      }
+      autoTable(doc, {
+        startY: y,
+        head: [['Criteria', 'Average Score']],
+        body: report.criteriaAverages.map((criteria) => [criteria.criteriaName, formatScore(criteria.average)]),
+        theme: 'striped',
+        margin: { left: margin, right: margin },
+        tableWidth: usableWidth,
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+        headStyles: { fillColor: [20, 184, 166], textColor: 255 },
+      })
+      addPdfPageNumbers(doc)
+      doc.save(`Feedback_Report_Individual_${report.employeeName.replace(/[^a-z0-9]+/gi, '_')}.pdf`)
+    } finally {
+      setReportDownload(null)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Feedback Report</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">View your own received feedback report.</p>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <label className="block max-w-sm space-y-1.5">
+          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Review Cycle</span>
+          <select
+            value={selectedReportCycle?.id ?? ''}
+            onChange={(event) => setReportCycleId(event.target.value ? Number(event.target.value) : undefined)}
+            className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          >
+            {reportCycleOptions.map((cycle) => (
+              <option key={cycle.id} value={cycle.id}>{cycle.name}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Individual Report</h2>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={handleExportPdf} disabled={exportDisabled} className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+            <Download size={16} />
+            {reportDownload === 'pdf' ? 'Downloading...' : 'PDF'}
+          </button>
+          <button type="button" onClick={handleExportExcel} disabled={exportDisabled} className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+            <FileText size={16} />
+            {reportDownload === 'excel' ? 'Downloading...' : 'Excel'}
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        {isLoading ? (
+          <div className="py-16 text-center text-sm text-slate-500">Loading your feedback report...</div>
+        ) : report ? (
+          <div className="space-y-5">
+            <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/60">
+              <div className="text-xs font-black uppercase tracking-wide text-slate-500">Employee Detail</div>
+              <h2 className="mt-1 text-lg font-black text-slate-900 dark:text-slate-100">{report.employeeName}</h2>
+              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{report.departmentName}</p>
+            </div>
+            <div className="rounded-lg bg-emerald-50 p-4 dark:bg-emerald-950/30">
+              <div className="text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Total Average Feedback Score</div>
+              <div className="mt-1 text-3xl font-black text-emerald-900 dark:text-emerald-100">{formatScore(report.totalAverageScore)} / 5</div>
+            </div>
+            <div>
+              <h3 className="mb-3 text-sm font-black text-slate-900 dark:text-slate-100">Criteria Averages</h3>
+              <div className="space-y-3">
+                {report.criteriaAverages.map((criteria) => {
+                  const percentage = Math.min(100, Math.max(0, (criteria.average / 5) * 100))
+                  return (
+                    <div key={criteria.criteriaId}>
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <span className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{criteria.criteriaName}</span>
+                        <span className="text-xs font-black text-slate-900 dark:text-slate-100">{formatScore(criteria.average)} / 5</span>
+                      </div>
+                      <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                        <div className="h-full rounded-full bg-blue-600" style={{ width: `${percentage}%` }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="py-16 text-center text-sm text-slate-500">No feedback report found for you.</div>
+        )}
       </div>
     </div>
   )
 }
 
-export default function FeedbackReportPage({ mode }: FeedbackReportPageProps) {
+function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | undefined>()
-  const [trendStartCycleId, setTrendStartCycleId] = useState<number | undefined>()
-  const [trendEndCycleId, setTrendEndCycleId] = useState<number | undefined>()
-  const [barCycleId, setBarCycleId] = useState<number | undefined>()
-  const lineChartRef = useRef<HTMLDivElement | null>(null)
-  const barChartRef = useRef<HTMLDivElement | null>(null)
+  const [reportCycleId, setReportCycleId] = useState<number | undefined>()
+  const [reportDownload, setReportDownload] = useState<string | null>(null)
 
   const { data: departmentsResponse, isLoading: isDepartmentsLoading } = useGetFeedbackReportDepartmentsQuery()
   const { data: reviewCycles = [] } = useGetReviewCyclesQuery()
-  const departments = departmentsResponse?.data ?? []
+  const departments = useMemo(() => departmentsResponse?.data ?? [], [departmentsResponse?.data])
   const sortedReviewCycles = useMemo(
     () => [...reviewCycles].sort((a, b) => a.startDate.localeCompare(b.startDate)),
     [reviewCycles],
   )
-  const annualCycles = sortedReviewCycles.filter(isAnnualCycle)
   const quarterCycles = sortedReviewCycles.filter(isQuarterCycle)
   const activeReviewCycle = sortedReviewCycles.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE') ?? sortedReviewCycles[sortedReviewCycles.length - 1]
   const activeQuarterCycle = quarterCycles.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE') ?? quarterCycles[quarterCycles.length - 1]
-  const activeAnnualCycle = annualCycles.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE')
-    ?? annualCycles.find((cycle) => cycle.id === activeQuarterCycle?.parentCycleId)
-    ?? annualCycles[annualCycles.length - 1]
-  const trendEndCycle = annualCycles.find((cycle) => cycle.id === trendEndCycleId) ?? activeAnnualCycle
-  const trendStartOptions = trendEndCycle
-    ? annualCycles.filter((cycle) => cycle.startDate <= trendEndCycle.startDate)
-    : annualCycles
-  const trendEndOptions = annualCycles
-  const trendStartCycle = trendStartOptions.find((cycle) => cycle.id === trendStartCycleId) ?? trendStartOptions[0] ?? activeAnnualCycle
-  const selectedBarCycle = quarterCycles.find((cycle) => cycle.id === barCycleId) ?? activeQuarterCycle
-  const reportFilters = { reviewCycleId: selectedBarCycle?.id }
-  const trendFilters = {
-    fromReviewCycleId: trendStartCycle?.id,
-    toReviewCycleId: trendEndCycle?.id,
-  }
+  const reportCycleOptions = quarterCycles.length > 0 ? quarterCycles : sortedReviewCycles
+  const selectedReportCycle = reportCycleOptions.find((cycle) => cycle.id === reportCycleId) ?? activeQuarterCycle ?? activeReviewCycle
   const selectedDepartment = selectedDepartmentId
     ? departments.find((department) => department.departmentId === selectedDepartmentId)
       ?? undefined
     : undefined
-  const exportRequestParams = mode === 'hr'
-    ? { departmentId: selectedDepartmentId, ...reportFilters }
-    : { departmentId: selectedDepartmentId }
-  const exportCriteriaFilters = mode === 'hr'
-    ? { departmentId: selectedDepartmentId, ...reportFilters }
-    : selectedDepartmentId
-      ? { departmentId: selectedDepartmentId }
-      : skipToken
-
-  const { data: averagesResponse, isLoading: isAveragesLoading } = useGetAveragesByDepartmentQuery(
-    mode === 'hr' ? reportFilters : skipToken,
-  )
-  const { data: trendsResponse, isLoading: isTrendsLoading } = useGetDepartmentTrendsQuery(
-    mode === 'hr' ? trendFilters : skipToken,
-  )
-  const { data: exportCriteriaResponse } = useGetCriteriaAveragesQuery(exportCriteriaFilters)
-  const { data: exportSummaryResponse } = useGetTopBottomEmployeesQuery(
-    exportRequestParams,
-  )
   const [fetchExportData, { isFetching: isExporting }] = useLazyGetFeedbackReportExportDataQuery()
   useEffect(() => {
     if (mode === 'manager' && departments.length > 0 && !selectedDepartmentId) {
@@ -674,39 +973,65 @@ export default function FeedbackReportPage({ mode }: FeedbackReportPageProps) {
     }
   }, [departments, mode, selectedDepartmentId])
 
-  const departmentAverages = averagesResponse?.data ?? []
-  const departmentTrends = trendsResponse?.data ?? []
   const displayedDepartment = selectedDepartmentId
-    ? selectedDepartment ?? departmentAverages.find((department) => department.departmentId === selectedDepartmentId)
+    ? selectedDepartment
     : mode === 'manager'
       ? departments[0]
       : undefined
-  const trendRows = useMemo(() => buildTrendRows(departmentTrends), [departmentTrends])
 
-  const openDepartmentDetail = (department: Pick<DepartmentAverageDto, 'departmentId' | 'departmentName'>) => {
-    setSelectedDepartmentId(department.departmentId)
-  }
-
-  const buildExportWorkbook = async () => {
-    const exportResponse = await fetchExportData(exportRequestParams).unwrap()
-    const exportRows = exportResponse.data ?? []
-    const criteriaAverages = exportCriteriaResponse?.data ?? []
-    const summary = exportSummaryResponse?.data
-    const criteriaNames = Array.from(new Set([
-      ...criteriaAverages.map((criteria) => criteria.criteriaName),
-      ...exportRows.flatMap((employee) => employee.criteriaAverages.map((criteria) => criteria.criteriaName)),
-    ]))
-    const departmentLabel = displayedDepartment?.departmentName ?? 'All Departments'
-    const summaryRows = [
-      ['Report title', 'Feedback Report'],
-      ['Export date', new Date().toLocaleString()],
+  const buildExportWorkbook = async (filters: FeedbackExportFilters = {}) => {
+    const exportResponse = await fetchExportData({
+      departmentId: filters.departmentId,
+      from: filters.from,
+      to: filters.to,
+      reviewCycleId: filters.reviewCycleId,
+    }).unwrap()
+    const exportRows = [...(exportResponse.data ?? [])]
+      .filter((employee) => !filters.employeeId || employee.employeeId === filters.employeeId)
+      .sort((a, b) => {
+      const getSortScore = (employee: EmployeeFeedbackDetailReportDto) => {
+        if (!filters.criteriaId) return employee.totalAverageScore
+        return employee.criteriaAverages.find((criteria) => criteria.criteriaId === filters.criteriaId)?.average ?? -1
+      }
+      const left = getSortScore(a)
+      const right = getSortScore(b)
+      return filters.order === 'asc' ? left - right : right - left
+    })
+    const criteriaAverages = buildCriteriaAveragesFromExportRows(exportRows)
+    const rankedByTotal = [...exportRows].sort((a, b) => b.totalAverageScore - a.totalAverageScore)
+    const topEmployee = rankedByTotal[0]
+    const bottomEmployee = rankedByTotal[rankedByTotal.length - 1]
+    const selectedCriteriaName = filters.criteriaId
+      ? filters.criteriaName
+        ?? exportRows
+          .flatMap((employee) => employee.criteriaAverages)
+          .find((criteria) => criteria.criteriaId === filters.criteriaId)?.criteriaName
+      : undefined
+    const criteriaNames = selectedCriteriaName
+      ? [selectedCriteriaName]
+      : Array.from(new Set([
+        ...criteriaAverages.map((criteria) => criteria.criteriaName),
+        ...exportRows.flatMap((employee) => employee.criteriaAverages.map((criteria) => criteria.criteriaName)),
+      ]))
+    const departmentLabel = filters.departmentLabel ?? displayedDepartment?.departmentName ?? 'All Departments'
+    const baseInfoRows = [
+      ['Export date', formatExportDate()],
       ['Current active review cycle', activeReviewCycle?.name ?? '-'],
-      ['Selected review cycle range', `${trendStartCycle?.name ?? '-'} to ${trendEndCycle?.name ?? '-'}`],
-      ['Selected bar graph review cycle', selectedBarCycle?.name ?? '-'],
+      ['Selected review cycle', filters.reviewCycleName ?? selectedReportCycle?.name ?? '-'],
       ['Selected department', departmentLabel],
+      ...(filters.from ? [['From date', formatExportDate(new Date(`${filters.from}T00:00:00`))]] : []),
+      ...(filters.to ? [['To date', formatExportDate(new Date(`${filters.to}T00:00:00`))]] : []),
+      ...(filters.employeeId ? [['Selected employee', filters.employeeName ?? String(filters.employeeId)]] : []),
+      ...(filters.criteriaId ? [['Selected criteria', filters.criteriaName ?? String(filters.criteriaId)]] : []),
+      ...(filters.criteriaId ? [['Sort order', filters.order === 'asc' ? 'Lowest to highest' : 'Highest to lowest']] : []),
+    ]
+    const summaryRows = [
+      ['Report title', getExportReportTitle('summary')],
+      ...baseInfoRows,
+      ['Total employees', String(exportRows.length)],
       [],
-      ['Top scorer', summary?.topEmployee?.employeeName ?? '-', summary?.topEmployee?.departmentName ?? '-', formatScore(summary?.topEmployee?.averageScore)],
-      ['Worst scorer', summary?.bottomEmployee?.employeeName ?? '-', summary?.bottomEmployee?.departmentName ?? '-', formatScore(summary?.bottomEmployee?.averageScore)],
+      ['Top scorer', topEmployee?.employeeName ?? '-', topEmployee?.departmentName ?? '-', formatScore(topEmployee?.totalAverageScore)],
+      ['Worst scorer', bottomEmployee?.employeeName ?? '-', bottomEmployee?.departmentName ?? '-', formatScore(bottomEmployee?.totalAverageScore)],
     ]
     const employeeRows = exportRows.map((employee, index) => {
       const row: Record<string, string | number> = {
@@ -716,80 +1041,261 @@ export default function FeedbackReportPage({ mode }: FeedbackReportPageProps) {
         'Total Average Feedback Score': formatScore(employee.totalAverageScore),
       }
       criteriaNames.forEach((criteriaName) => {
-        const criteria = employee.criteriaAverages.find((item) => item.criteriaName === criteriaName)
+        const criteria = filters.criteriaId
+          ? employee.criteriaAverages.find((item) => item.criteriaId === filters.criteriaId)
+          : employee.criteriaAverages.find((item) => item.criteriaName === criteriaName)
         row[criteriaName] = criteria ? formatScore(criteria.average) : '-'
       })
       return row
     })
-    return { criteriaAverages, departmentLabel, employeeRows, summary, summaryRows }
-  }
-
-  const handleExportExcel = async () => {
-    const { criteriaAverages, departmentLabel, employeeRows, summaryRows } = await buildExportWorkbook()
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary')
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(criteriaAverages.map((criteria) => ({
-        Criteria: criteria.criteriaName,
-        'Average Score': formatScore(criteria.average),
-      }))),
-      'Criteria Averages',
-    )
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(employeeRows), 'Employee Ranking')
-    XLSX.writeFile(workbook, `Feedback_Report_${departmentLabel.replace(/[^a-z0-9]+/gi, '_')}.xlsx`)
-  }
-
-  const handleExportPdf = async () => {
-    const { criteriaAverages, departmentLabel, employeeRows, summary, summaryRows } = await buildExportWorkbook()
-    const [lineImage, barImage] = await Promise.all([
-      chartToImageData(lineChartRef.current),
-      chartToImageData(barChartRef.current),
-    ])
-    const doc = new jsPDF('p', 'mm', 'a4')
-    doc.setFontSize(16)
-    doc.text('Feedback Report', 14, 16)
-    autoTable(doc, { startY: 22, body: summaryRows.filter((row) => row.length > 0), theme: 'grid' })
-    let y = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 8 : 60
-    if (lineImage) {
-      doc.setFontSize(12)
-      doc.text('Line Graph', 14, y)
-      doc.addImage(lineImage, 'PNG', 14, y + 4, 182, 70)
-      y += 82
+    const individualRows = [
+      ['Report title', getExportReportTitle('individual')],
+      ...baseInfoRows,
+    ]
+    const selectedEmployee = exportRows[0]
+    const individualCriteriaRows = selectedEmployee?.criteriaAverages ?? []
+    const individualDetailRows = [
+      [getExportReportTitle('individual')],
+      [],
+      ...individualRows,
+      [],
+      ['Employee Detail'],
+      ['Employee', selectedEmployee?.employeeName ?? '-'],
+      ['Department', selectedEmployee?.departmentName ?? '-'],
+      ['Total Average Feedback Score', formatScore(selectedEmployee?.totalAverageScore)],
+      [],
+      ['Criteria Averages'],
+      ['Criteria', 'Average Score'],
+      ...individualCriteriaRows.map((criteria) => [criteria.criteriaName, formatScore(criteria.average)]),
+    ]
+    const individualEmployeeRows = [
+      ['Employee', selectedEmployee?.employeeName ?? '-'],
+      ['Department', selectedEmployee?.departmentName ?? '-'],
+      ['Total Average Feedback Score', formatScore(selectedEmployee?.totalAverageScore)],
+    ]
+    const individualCriteriaSheetRows = [
+      ['Criteria', 'Average Score'],
+      ...individualCriteriaRows.map((criteria) => [criteria.criteriaName, formatScore(criteria.average)]),
+    ]
+    return {
+      criteriaAverages,
+      departmentLabel,
+      employeeRows,
+      individualCriteriaSheetRows,
+      individualDetailRows,
+      individualEmployeeRows,
+      individualRows,
+      summaryRows,
     }
-    if (barImage) {
-      if (y > 190) {
-        doc.addPage()
-        y = 16
+  }
+
+  const handleExportExcel = async (section: ExportSection, filters: FeedbackExportFilters = {}) => {
+    setReportDownload(`${section}-excel`)
+    try {
+      const exportFilters = section === 'summary' ? { ...filters, criteriaId: undefined, criteriaName: undefined, order: undefined } : filters
+      const {
+        criteriaAverages,
+        departmentLabel,
+        employeeRows,
+        individualCriteriaSheetRows,
+        individualEmployeeRows,
+        individualRows,
+        summaryRows,
+      } = await buildExportWorkbook(exportFilters)
+      const workbook = XLSX.utils.book_new()
+      const sectionLabel = section === 'summary' ? 'Summary' : 'Individual'
+      if (section === 'summary') {
+        XLSX.utils.book_append_sheet(
+          workbook,
+          XLSX.utils.aoa_to_sheet([[getExportReportTitle('summary')], [], ...summaryRows]),
+          'Report Info',
+        )
+        XLSX.utils.book_append_sheet(
+          workbook,
+          XLSX.utils.aoa_to_sheet([
+            ['Criteria', 'Average Score'],
+            ...criteriaAverages.map((criteria) => [criteria.criteriaName, formatScore(criteria.average)]),
+          ]),
+          'Criteria Averages',
+        )
+        XLSX.utils.book_append_sheet(
+          workbook,
+          XLSX.utils.aoa_to_sheet([
+            employeeRows.length
+              ? Object.keys(employeeRows[0])
+              : ['Rank', 'Employee', 'Department', 'Total Average Feedback Score'],
+            ...employeeRows.map((row) => Object.values(row)),
+          ]),
+          'Employee Feedback',
+        )
+      } else {
+        XLSX.utils.book_append_sheet(
+          workbook,
+          XLSX.utils.aoa_to_sheet([[getExportReportTitle('individual')], [], ...individualRows]),
+          'Report Info',
+        )
+        XLSX.utils.book_append_sheet(
+          workbook,
+          XLSX.utils.aoa_to_sheet(individualEmployeeRows),
+          'Employee Detail',
+        )
+        XLSX.utils.book_append_sheet(
+          workbook,
+          XLSX.utils.aoa_to_sheet(individualCriteriaSheetRows),
+          'Criteria Averages',
+        )
       }
+      XLSX.writeFile(workbook, `Feedback_Report_${sectionLabel}_${departmentLabel.replace(/[^a-z0-9]+/gi, '_')}.xlsx`)
+    } finally {
+      setReportDownload(null)
+    }
+  }
+
+  const handleExportPdf = async (section: ExportSection, filters: FeedbackExportFilters = {}) => {
+    setReportDownload(`${section}-pdf`)
+    try {
+      const exportFilters = section === 'summary' ? { ...filters, criteriaId: undefined, criteriaName: undefined, order: undefined } : filters
+      const { criteriaAverages, departmentLabel, employeeRows, individualRows, summaryRows } = await buildExportWorkbook(exportFilters)
+      const sectionLabel = section === 'summary' ? 'Summary' : 'Individual'
+      const reportTitle = getExportReportTitle(section)
+      const doc = new jsPDF('l', 'mm', 'a4')
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 10
+      const usableWidth = pageWidth - margin * 2
+      doc.setFontSize(16)
+      doc.text(reportTitle, margin, 14)
       doc.setFontSize(12)
-      doc.text('Bar Graph', 14, y)
-      doc.addImage(barImage, 'PNG', 14, y + 4, 182, 70)
-      y += 82
+      doc.text(sectionLabel, margin, 22)
+
+      if (section === 'summary') {
+        autoTable(doc, {
+          startY: 27,
+          body: summaryRows.filter((row) => row.length > 0),
+          theme: 'grid',
+          margin: { left: margin, right: margin },
+          tableWidth: usableWidth,
+          styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+          columnStyles: {
+            0: { cellWidth: 72, fontStyle: 'bold' },
+            1: { cellWidth: usableWidth - 72 },
+          },
+        })
+        const summaryFinalY = getLastAutoTableFinalY(doc)
+        let y = summaryFinalY ? summaryFinalY + 8 : 60
+        if (y > pageHeight - 45) {
+          doc.addPage()
+          y = 14
+        }
+        autoTable(doc, {
+          startY: y,
+          head: [['Criteria', 'Average Score']],
+          body: criteriaAverages.map((criteria) => [criteria.criteriaName, formatScore(criteria.average)]),
+          theme: 'striped',
+          margin: { left: margin, right: margin },
+          tableWidth: usableWidth,
+          styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+          headStyles: { fillColor: [37, 99, 235], textColor: 255 },
+        })
+        y = (getLastAutoTableFinalY(doc) ?? y) + 8
+        if (y > pageHeight - 35) {
+          doc.addPage()
+          y = 14
+        }
+        const summaryEmployeeHeaders = Object.keys(employeeRows[0] ?? { Employee: '', Department: '', 'Total Average Feedback Score': '' })
+        const summaryEmployeeFontSize = Math.max(5, Math.min(7, Math.floor(usableWidth / Math.max(1, summaryEmployeeHeaders.length) / 2.4)))
+        autoTable(doc, {
+          startY: y,
+          head: [summaryEmployeeHeaders],
+          body: employeeRows.map((row) => Object.values(row)),
+          theme: 'grid',
+          margin: { left: margin, right: margin },
+          tableWidth: usableWidth,
+          styles: {
+            fontSize: summaryEmployeeFontSize,
+            cellPadding: 1.4,
+            overflow: 'linebreak',
+            halign: 'center',
+            valign: 'middle',
+          },
+          headStyles: {
+            fillColor: [20, 184, 166],
+            textColor: 255,
+            fontSize: summaryEmployeeFontSize,
+            halign: 'center',
+            valign: 'middle',
+          },
+          bodyStyles: { textColor: [71, 85, 105] },
+          columnStyles: {
+            0: { cellWidth: 10 },
+            1: { cellWidth: 31, halign: 'left' },
+            2: { cellWidth: 28, halign: 'left' },
+            3: { cellWidth: 21 },
+          },
+        })
+      } else {
+        const selectedEmployee = employeeRows[0]
+        autoTable(doc, {
+          startY: 27,
+          body: individualRows,
+          theme: 'grid',
+          margin: { left: margin, right: margin },
+          tableWidth: usableWidth,
+          styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+          columnStyles: {
+            0: { cellWidth: 72, fontStyle: 'bold' },
+            1: { cellWidth: usableWidth - 72 },
+          },
+        })
+        const individualFinalY = getLastAutoTableFinalY(doc)
+        let y = individualFinalY ? individualFinalY + 8 : 60
+        if (y > pageHeight - 35) {
+          doc.addPage()
+          y = 14
+        }
+        autoTable(doc, {
+          startY: y,
+          body: [
+            ['Employee', selectedEmployee?.Employee ?? '-'],
+            ['Department', selectedEmployee?.Department ?? '-'],
+            ['Total Average Feedback Score', selectedEmployee?.['Total Average Feedback Score'] ?? '-'],
+          ],
+          theme: 'grid',
+          margin: { left: margin, right: margin },
+          tableWidth: usableWidth,
+          styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+          columnStyles: {
+            0: { cellWidth: 72, fontStyle: 'bold' },
+            1: { cellWidth: usableWidth - 72 },
+          },
+        })
+        y = (getLastAutoTableFinalY(doc) ?? y) + 8
+        if (y > pageHeight - 35) {
+          doc.addPage()
+          y = 14
+        }
+        const selectedCriteriaRows = employeeRows.length
+          ? Object.entries(employeeRows[0]).filter(([key]) => !['Rank', 'Employee', 'Department', 'Total Average Feedback Score'].includes(key))
+          : []
+        autoTable(doc, {
+          startY: y,
+          head: [['Criteria', 'Average Score']],
+          body: selectedCriteriaRows.map(([criteria, average]) => [criteria, average]),
+          theme: 'striped',
+          margin: { left: margin, right: margin },
+          tableWidth: usableWidth,
+          styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+          headStyles: {
+            fillColor: [20, 184, 166],
+            textColor: 255,
+          },
+        })
+      }
+      addPdfPageNumbers(doc)
+      doc.save(`Feedback_Report_${sectionLabel}_${departmentLabel.replace(/[^a-z0-9]+/gi, '_')}.pdf`)
+    } finally {
+      setReportDownload(null)
     }
-    if (y > 240) {
-      doc.addPage()
-      y = 16
-    }
-    autoTable(doc, {
-      startY: y,
-      head: [['Criteria', 'Average Score']],
-      body: criteriaAverages.map((criteria) => [criteria.criteriaName, formatScore(criteria.average)]),
-      theme: 'striped',
-    })
-    autoTable(doc, {
-      startY: ((doc as any).lastAutoTable?.finalY ?? y) + 8,
-      head: [Object.keys(employeeRows[0] ?? { Employee: '', Department: '', 'Total Average Feedback Score': '' })],
-      body: employeeRows.map((row) => Object.values(row)),
-      styles: { fontSize: 7 },
-      theme: 'grid',
-    })
-    const finalY = (doc as any).lastAutoTable?.finalY ?? 250
-    if (finalY > 255) doc.addPage()
-    const scorerY = finalY > 255 ? 16 : finalY + 8
-    doc.text(`Top scorer: ${summary?.topEmployee?.employeeName ?? '-'} (${summary?.topEmployee?.departmentName ?? '-'}) - ${formatScore(summary?.topEmployee?.averageScore)}`, 14, scorerY)
-    doc.text(`Worst scorer: ${summary?.bottomEmployee?.employeeName ?? '-'} (${summary?.bottomEmployee?.departmentName ?? '-'}) - ${formatScore(summary?.bottomEmployee?.averageScore)}`, 14, scorerY + 7)
-    doc.save(`Feedback_Report_${departmentLabel.replace(/[^a-z0-9]+/gi, '_')}.pdf`)
   }
 
   if (isDepartmentsLoading) {
@@ -804,24 +1310,6 @@ export default function FeedbackReportPage({ mode }: FeedbackReportPageProps) {
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Feedback Report</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400">Manager view limited to your assigned department data.</p>
           </div>
-          <div className="flex flex-wrap gap-2 lg:justify-end">
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              disabled={isExporting || !displayedDepartment}
-              className="h-10 rounded-lg bg-emerald-600 px-4 text-sm font-black text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              Export Excel
-            </button>
-            <button
-              type="button"
-              onClick={handleExportPdf}
-              disabled={isExporting || !displayedDepartment}
-              className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              Export PDF
-            </button>
-          </div>
         </div>
         <DepartmentDetailReport
           selectedDepartment={displayedDepartment}
@@ -830,6 +1318,10 @@ export default function FeedbackReportPage({ mode }: FeedbackReportPageProps) {
           onClearDepartment={() => setSelectedDepartmentId(undefined)}
           reportReviewCycle={undefined}
           roleMode={mode}
+          onExportExcel={handleExportExcel}
+          onExportPdf={handleExportPdf}
+          exportDownload={reportDownload}
+          exportDisabled={isExporting || reportDownload !== null || !displayedDepartment}
         />
       </div>
     )
@@ -842,172 +1334,44 @@ export default function FeedbackReportPage({ mode }: FeedbackReportPageProps) {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Feedback Report</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">Company-wide feedback analytics by department.</p>
         </div>
-        <div className="flex flex-wrap gap-2 lg:justify-end">
-          <button
-            type="button"
-            onClick={handleExportExcel}
-            disabled={isExporting}
-            className="h-10 rounded-lg bg-emerald-600 px-4 text-sm font-black text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            Export Excel
-          </button>
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            disabled={isExporting}
-            className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            Export PDF
-          </button>
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="mb-4 flex items-center gap-2">
-            <LineChartIcon size={18} className="text-blue-600" />
-            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Department Scores by Review Cycle</h2>
-          </div>
-          <div className="mb-4 grid max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="space-y-1.5">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">From Annual Cycle</span>
-              <select
-                value={trendStartCycle?.id ?? ''}
-                onChange={(event) => setTrendStartCycleId(event.target.value ? Number(event.target.value) : undefined)}
-                className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-              >
-                {trendStartOptions.map((cycle) => (
-                  <option key={cycle.id} value={cycle.id}>
-                    {cycle.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">To Annual Cycle</span>
-              <select
-                value={trendEndCycle?.id ?? ''}
-                onChange={(event) => {
-                  const nextId = event.target.value ? Number(event.target.value) : undefined
-                  setTrendEndCycleId(nextId)
-                  const nextEnd = annualCycles.find((cycle) => cycle.id === nextId)
-                  if (nextEnd && trendStartCycle && trendStartCycle.startDate > nextEnd.startDate) {
-                    setTrendStartCycleId(nextEnd.id)
-                  }
-                }}
-                className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-              >
-                {trendEndOptions.map((cycle) => (
-                  <option key={cycle.id} value={cycle.id}>
-                    {cycle.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {isTrendsLoading ? (
-            <div className="py-24 text-center text-sm text-slate-500">Loading trend chart...</div>
-          ) : trendRows.length === 0 ? (
-            <div className="py-24 text-center text-sm text-slate-500">No trend data found for the selected date range.</div>
-          ) : (
-            <div ref={lineChartRef}>
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={trendRows}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="period" tick={{ fontSize: 12 }} interval={0} angle={-15} textAnchor="end" height={70} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Legend />
-                {departmentTrends.map((department, index) => (
-                  <Line
-                    key={department.departmentId}
-                    type="monotone"
-                    dataKey={department.departmentName}
-                    stroke={CHART_COLORS[index % CHART_COLORS.length]}
-                    strokeWidth={2}
-                    onClick={() => openDepartmentDetail(department)}
-                    dot={{ r: 3, cursor: 'pointer' }}
-                    activeDot={{
-                      r: 6,
-                      onClick: () => openDepartmentDetail(department),
-                    }}
-                    connectNulls
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="mb-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <BarChart3 size={18} className="text-emerald-600" />
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Average Score by Department</h2>
-            </div>
-            <label className="block max-w-xs space-y-1.5">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Bar Review Cycle</span>
-              <select
-                value={selectedBarCycle?.id ?? ''}
-                onChange={(event) => setBarCycleId(event.target.value ? Number(event.target.value) : undefined)}
-                className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-              >
-                {quarterCycles.map((cycle) => (
-                  <option key={cycle.id} value={cycle.id}>
-                    {cycle.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {isAveragesLoading ? (
-            <div className="py-24 text-center text-sm text-slate-500">Loading department averages...</div>
-          ) : departmentAverages.length === 0 ? (
-            <div className="py-24 text-center text-sm text-slate-500">No department average data found.</div>
-          ) : (
-            <div ref={barChartRef}>
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={departmentAverages}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="departmentName" tick={{ fontSize: 12 }} interval={0} angle={-20} textAnchor="end" height={70} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar
-                  dataKey="averageScore"
-                  fill="#059669"
-                  radius={[6, 6, 0, 0]}
-                  cursor="pointer"
-                  onClick={(data) => {
-                    const payload = (data as unknown as { payload?: DepartmentAverageDto }).payload
-                    if (payload) openDepartmentDetail(payload)
-                  }}
-                >
-                  <LabelList
-                    dataKey="averageScore"
-                    position="top"
-                    formatter={(value) => formatScore(Number(value))}
-                    className="fill-slate-700 text-xs font-bold dark:fill-slate-200"
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            </div>
-          )}
-        </div>
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <label className="block max-w-sm space-y-1.5">
+          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Review Cycle</span>
+          <select
+            value={selectedReportCycle?.id ?? ''}
+            onChange={(event) => setReportCycleId(event.target.value ? Number(event.target.value) : undefined)}
+            className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          >
+            {reportCycleOptions.map((cycle) => (
+              <option key={cycle.id} value={cycle.id}>
+                {cycle.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <DepartmentDetailReport
         selectedDepartment={displayedDepartment}
-        departments={(departmentAverages.length ? departmentAverages : departments).map((department) => ({
+        departments={departments.map((department) => ({
           departmentId: department.departmentId,
           departmentName: department.departmentName,
         }))}
         canChangeDepartment
         onClearDepartment={() => setSelectedDepartmentId(undefined)}
-        reportReviewCycle={selectedBarCycle}
+        reportReviewCycle={selectedReportCycle}
         roleMode={mode}
+        onExportExcel={handleExportExcel}
+        onExportPdf={handleExportPdf}
+        exportDownload={reportDownload}
+        exportDisabled={isExporting || reportDownload !== null}
       />
     </div>
   )
+}
+
+export default function FeedbackReportPage({ mode }: FeedbackReportPageProps) {
+  return mode === 'employee' ? <EmployeeOwnFeedbackReport /> : <HrManagerFeedbackReport mode={mode} />
 }

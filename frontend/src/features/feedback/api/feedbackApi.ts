@@ -216,6 +216,17 @@ export const feedbackApi = baseApi.injectEndpoints({
         return `/feedback/reports/department/${departmentId}/employee/${employeeId}${q}`
       },
     }),
+    getMyFeedbackReport: builder.query<ApiResponse<EmployeeFeedbackDetailReportDto>, FeedbackReportFilters | void>({
+      query: (params) => {
+        const { from, to, reviewCycleId } = params || {}
+        const qs: string[] = []
+        if (from) qs.push(`from=${from}`)
+        if (to) qs.push(`to=${to}`)
+        if (reviewCycleId) qs.push(`reviewCycleId=${reviewCycleId}`)
+        const q = qs.length ? `?${qs.join('&')}` : ''
+        return `/feedback/reports/me${q}`
+      },
+    }),
     getTopBottomEmployees: builder.query<ApiResponse<TopBottomEmployeeSummaryDto>, (FeedbackReportFilters & { departmentId?: number }) | void>({
       query: (params) => {
         const { departmentId, from, to, reviewCycleId } = params || {}
@@ -277,6 +288,7 @@ export const {
   useGetCriteriaAveragesQuery,
   useGetEmployeeRankingQuery,
   useGetEmployeeFeedbackDetailQuery,
+  useGetMyFeedbackReportQuery,
   useGetTopBottomEmployeesQuery,
   useGetAveragesByDepartmentQuery,
   useGetDepartmentTrendsQuery,

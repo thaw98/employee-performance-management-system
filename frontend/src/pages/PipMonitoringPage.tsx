@@ -687,7 +687,7 @@ export default function PipMonitoringPage() {
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Status</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Start Date</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">End Date</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Progress</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Overall Progress</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
             </tr>
           </thead>
