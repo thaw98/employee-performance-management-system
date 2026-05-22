@@ -95,8 +95,7 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
                 start,
                 end,
                 !hasChildren,
-                ReviewCycle.RollupMethod.AVERAGE.name()
-        );
+                ReviewCycle.RollupMethod.AVERAGE.name());
 
         if (!hasChildren) {
             return;
@@ -130,8 +129,7 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
                     childStart,
                     childEnd,
                     true,
-                    null
-            );
+                    null);
             if (!childEnd.isBefore(end)) {
                 break;
             }
@@ -150,30 +148,28 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
             LocalDate startDate,
             LocalDate endDate,
             boolean requiresEmployeeSubmission,
-            String rollupMethod
-    ) {
+            String rollupMethod) {
         List<Long> ids = jdbc.query(
                 "SELECT id FROM review_cycles WHERE year_label = ? AND cycle_type = ? AND sequence_no = ?",
                 (rs, rowNum) -> rs.getLong("id"),
                 yearLabel,
                 cycleType,
-                sequenceNo
-        );
+                sequenceNo);
         if (!ids.isEmpty()) {
             Long existingId = ids.get(0);
             jdbc.update("""
-                            UPDATE review_cycles
-                            SET time_setting_id = ?,
-                                parent_cycle_id = ?,
-                                name = ?,
-                                code = ?,
-                                start_date = ?,
-                                end_date = ?,
-                                requires_employee_submission = ?,
-                                rollup_method = ?,
-                                updated_at = NOW(6)
-                            WHERE id = ?
-                            """,
+                    UPDATE review_cycles
+                    SET time_setting_id = ?,
+                        parent_cycle_id = ?,
+                        name = ?,
+                        code = ?,
+                        start_date = ?,
+                        end_date = ?,
+                        requires_employee_submission = ?,
+                        rollup_method = ?,
+                        updated_at = NOW(6)
+                    WHERE id = ?
+                    """,
                     timeSettingId,
                     parentCycleId,
                     name,
@@ -182,16 +178,15 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
                     endDate,
                     requiresEmployeeSubmission,
                     rollupMethod,
-                    existingId
-            );
+                    existingId);
             return existingId;
         }
         jdbc.update("""
-                        INSERT INTO review_cycles
-                        (time_setting_id, parent_cycle_id, name, code, cycle_type, year_label, sequence_no,
-                         start_date, end_date, requires_employee_submission, rollup_method, created_at, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(6), NOW(6))
-                        """,
+                INSERT INTO review_cycles
+                (time_setting_id, parent_cycle_id, name, code, cycle_type, year_label, sequence_no,
+                 start_date, end_date, requires_employee_submission, rollup_method, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(6), NOW(6))
+                """,
                 timeSettingId,
                 parentCycleId,
                 name,
@@ -202,8 +197,7 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
                 startDate,
                 endDate,
                 requiresEmployeeSubmission,
-                rollupMethod
-        );
+                rollupMethod);
         return jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
     }
 
@@ -223,8 +217,7 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
                         """,
                 (rs, rowNum) -> rs.getLong("id"),
                 today,
-                today
-        );
+                today);
         if (activeSubmissionIds.isEmpty()) {
             return;
         }
@@ -243,13 +236,13 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
             return;
         }
         List<String> names = jdbc.query("""
-                        SELECT DISTINCT CONSTRAINT_NAME
-                        FROM information_schema.KEY_COLUMN_USAGE
-                        WHERE TABLE_SCHEMA = DATABASE()
-                          AND TABLE_NAME = ?
-                          AND COLUMN_NAME = ?
-                          AND REFERENCED_TABLE_NAME IS NOT NULL
-                        """,
+                SELECT DISTINCT CONSTRAINT_NAME
+                FROM information_schema.KEY_COLUMN_USAGE
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = ?
+                  AND COLUMN_NAME = ?
+                  AND REFERENCED_TABLE_NAME IS NOT NULL
+                """,
                 (rs, rowNum) -> rs.getString(1),
                 tableName,
                 columnName);
@@ -305,12 +298,12 @@ public class ReviewCycleSchemaMigrationInitializer implements BeanPostProcessor,
         }
     }
 
-    private LocalDate calculateEndDate(LocalDate start, String duration) {
-        if (duration != null && duration.contains("Months")) {
-            return start.plusMonths(parseMonths(duration)).minusDays(1);
-        }
-        return start.plusYears(1).minusDays(1);
-    }
+    // private LocalDate calculateEndDate(LocalDate start, String duration) {
+    // if (duration != null && duration.contains("Months")) {
+    // return start.plusMonths(parseMonths(duration)).minusDays(1);
+    // }
+    // return start.plusYears(1).minusDays(1);
+    // }
 
     private LocalDate calculateAnnualEndDate(LocalDate start) {
         return start.plusYears(1).minusDays(1);

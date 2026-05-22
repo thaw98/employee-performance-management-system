@@ -19,7 +19,7 @@ public class AppraisalService {
     private final AppraisalCategoryRepository categoryRepository;
     private final AppraisalQuestionRepository questionRepository;
     private final AppraisalTemplateRepository templateRepository;
-    private final PositionRepository positionRepository;
+    // private final PositionRepository positionRepository;
     private final DepartmentPositionRepository departmentPositionRepository;
     private final AppraisalAssignmentRepository assignmentRepository;
     private final EmployeeReportingHistoryRepository reportingHistoryRepository;
@@ -30,7 +30,7 @@ public class AppraisalService {
     public void distributeAppraisalsToManagers() {
         List<AppraisalTemplate> activeTemplates = templateRepository.findAllByIsActiveTrue();
         AppraisalTemplate template = activeTemplates.isEmpty() ? null : activeTemplates.get(activeTemplates.size() - 1);
-        
+
         if (template == null) {
             throw new RuntimeException("No active appraisal template found. Please confirm a template first.");
         }
@@ -52,16 +52,28 @@ public class AppraisalService {
         }
 
         int count = 0;
+        StringBuilder errorLog = new StringBuilder();
+
         for (DepartmentPosition mapping : template.getTargetDepartmentPositions()) {
+            // Find Department Head for this specific department
+            Department dept = mapping.getDepartment();
+            if (dept == null) continue;
+
+            if (dept.getManagerId() == null) {
+                errorLog.append("Department '").append(dept.getName()).append("' has no Department Head assigned. ");
+                continue;
+            }
+
+            Employee departmentHead = employeeRepository.findById(dept.getManagerId()).orElse(null);
+            if (departmentHead == null) {
+                errorLog.append("Department Head with ID ").append(dept.getManagerId()).append(" not found in records. ");
+                continue;
+            }
+
             List<Employee> employees = employeeRepository.findByDepartmentPosition_Id(mapping.getId());
             for (Employee employee : employees) {
-                // Find current manager
-                Employee manager = reportingHistoryRepository.findByEmployee_IdAndCurrentTrue(employee.getId())
-                        .map(EmployeeReportingHistory::getManager)
-                        .orElse(null);
-
-                // If no manager is found, we can't assign it to anyone for evaluation
-                if (manager == null) continue;
+                // Skip if the employee is the department head themselves
+                if (employee.getId().equals(departmentHead.getId())) continue;
 
                 // Create or Update Assignment
                 AppraisalAssignment assignment = assignmentRepository
@@ -70,17 +82,23 @@ public class AppraisalService {
 
                 assignment.setEmployee(employee);
                 assignment.setPeriod(activeCycle);
-                assignment.setEvaluator(manager);
+                assignment.setEvaluator(departmentHead); // Assign to Department Head
                 assignment.setStatus(AppraisalStatus.PENDING_MANAGER);
                 assignment.setUpdatedAt(java.time.Instant.now());
-                
+
                 assignmentRepository.save(assignment);
                 count++;
             }
         }
-        
+
         if (count == 0) {
-            throw new RuntimeException("No eligible employees found for the selected positions.");
+            String message = "No assignments were created. ";
+            if (errorLog.length() > 0) {
+                message += "Issues found: " + errorLog.toString();
+            } else {
+                message += "Ensure the selected positions have active employees assigned to them.";
+            }
+            throw new RuntimeException(message);
         }
     }
 
@@ -108,11 +126,11 @@ public class AppraisalService {
     public AppraisalCategoryDto updateCategory(Long id, AppraisalCategoryDto dto) {
         AppraisalCategory category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Category not found"));
-        
+
         if (categoryRepository.existsByNameAndIdNot(dto.getName(), id)) {
             throw new RuntimeException("Category name must be unique");
         }
-        
+
         category.setName(dto.getName());
         category.setDescription(dto.getDescription());
         category.setStatus(dto.getStatus());
@@ -136,7 +154,7 @@ public class AppraisalService {
     public AppraisalQuestionDto createQuestion(AppraisalQuestionDto dto) {
         AppraisalCategory category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new RuntimeException("Category not found"));
-        
+
         AppraisalQuestion question = new AppraisalQuestion();
         question.setCategory(category);
         question.setQuestionText(dto.getQuestionText());
@@ -144,7 +162,7 @@ public class AppraisalService {
         question.setIsRequired(dto.getIsRequired() != null ? dto.getIsRequired() : true);
         question.setSortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0);
         question.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
-        
+
         return mapToQuestionDto(questionRepository.save(question));
     }
 
@@ -152,13 +170,13 @@ public class AppraisalService {
     public AppraisalQuestionDto updateQuestion(Long id, AppraisalQuestionDto dto) {
         AppraisalQuestion question = questionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Question not found"));
-        
+
         question.setQuestionText(dto.getQuestionText());
         question.setAnswerType(dto.getAnswerType());
         question.setIsRequired(dto.getIsRequired());
         question.setSortOrder(dto.getSortOrder());
         question.setStatus(dto.getStatus());
-        
+
         return mapToQuestionDto(questionRepository.save(question));
     }
 
@@ -172,7 +190,7 @@ public class AppraisalService {
         // Reset all categories finalize flag
         List<AppraisalCategory> allCategories = categoryRepository.findAll();
         allCategories.forEach(c -> c.setIsFinalized(false));
-        
+
         // Deactivate previous active templates
         List<AppraisalTemplate> activeTemplates = templateRepository.findAllByIsActiveTrue();
         activeTemplates.forEach(t -> {
@@ -182,7 +200,8 @@ public class AppraisalService {
 
         // Create new Template
         AppraisalTemplate template = new AppraisalTemplate();
-        template.setName(dto.getName() != null ? dto.getName() : "Appraisal Form " + java.time.LocalDate.now().getYear());
+        template.setName(
+                dto.getName() != null ? dto.getName() : "Appraisal Form " + java.time.LocalDate.now().getYear());
         template.setAssessmentDate(dto.getAssessmentDate());
         template.setEffectiveDate(dto.getEffectiveDate());
         template.setIsActive(true);
@@ -203,8 +222,9 @@ public class AppraisalService {
 
     public AppraisalTemplateDto getCurrentTemplate() {
         List<AppraisalTemplate> activeTemplates = templateRepository.findAllByIsActiveTrue();
-        if (activeTemplates.isEmpty()) return null;
-        
+        if (activeTemplates.isEmpty())
+            return null;
+
         // Pick the latest one
         return mapToTemplateDto(activeTemplates.get(activeTemplates.size() - 1));
     }
@@ -225,7 +245,8 @@ public class AppraisalService {
         dto.setIsActive(t.getIsActive());
         dto.setCategoryIds(t.getCategories().stream().map(AppraisalCategory::getId).collect(Collectors.toList()));
         if (t.getTargetDepartmentPositions() != null) {
-            dto.setPositionIds(t.getTargetDepartmentPositions().stream().map(DepartmentPosition::getId).collect(Collectors.toList()));
+            dto.setPositionIds(t.getTargetDepartmentPositions().stream().map(DepartmentPosition::getId)
+                    .collect(Collectors.toList()));
         }
         dto.setMaxRating(t.getMaxRating());
         return dto;

@@ -33,8 +33,19 @@ function getFeedbackPath(pathname: string) {
   return `/${prefix}/360-feedback/received`;
 }
 
-function getSelfAssessmentPath() {
+function getSelfAssessmentPath(pathname: string) {
+  if (pathname.startsWith('/manager')) {
+    return '/manager/self-assessment-forms/reviews';
+  }
+  if (pathname.startsWith('/hr')) {
+    return '/hr/self-assessment/reviews';
+  }
   return EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH;
+}
+
+function getMeetingPath(pathname: string) {
+  const prefix = pathname.split('/').filter(Boolean)[0] || 'employee';
+  return `/${prefix}/meetings`;
 }
 
 /** Legacy notifications stored the deadline as yyyy-mm-dd; normalize to dd-mm-yyyy for display. */
@@ -121,7 +132,13 @@ export function NotificationBell() {
         dispatch(setUnreadCount(unreadCount));
       }
     }
-    navigate(notification.source === 'SELF_ASSESSMENT_FORM' ? getSelfAssessmentPath() : getFeedbackPath(location.pathname));
+    if (notification.source === 'SELF_ASSESSMENT_FORM') {
+      navigate(getSelfAssessmentPath(location.pathname));
+    } else if (notification.source === 'MEETING') {
+      navigate(getMeetingPath(location.pathname));
+    } else {
+      navigate(getFeedbackPath(location.pathname));
+    }
   };
 
   const handleReadAll = async () => {
@@ -182,16 +199,14 @@ export function NotificationBell() {
               {unreadCount} unread
             </Box>
           </Box>
-          {selectedTab === 'unread' && (
-            <Button
-              size="small"
-              disabled={unreadCount === 0 || isMarkingAll}
-              onClick={handleReadAll}
-              sx={{ fontSize: 11, fontWeight: 800, textTransform: 'none' }}
-            >
-              Mark all read
-            </Button>
-          )}
+          <Button
+            size="small"
+            disabled={unreadCount === 0 || isMarkingAll}
+            onClick={handleReadAll}
+            sx={{ fontSize: 11, fontWeight: 800, textTransform: 'none', color: 'rgb(13 148 136)' }}
+          >
+            Read All
+          </Button>
         </Box>
         <Divider />
         <Box sx={{ display: 'flex', borderBottom: '1px solid rgb(229 231 235)' }}>

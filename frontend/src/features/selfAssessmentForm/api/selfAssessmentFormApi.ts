@@ -66,9 +66,42 @@ export interface CreateTemplateRequest {
   departmentId: number
   positionId: number
   questions: QuestionRequest[]
+  deletedQuestions?: QuestionRequest[]
   /** Omit or null to use the active employee-submission cycle on the server. */
   reviewCycleId?: number | null
   ratingSystem?: SelfAssessmentRatingSystem
+}
+
+export interface CopiedSelfAssessmentFormTemplateDto {
+  id: number
+  sourceTemplateId: number
+  title: string
+  ratingSystem: SelfAssessmentRatingSystem
+  questions: QuestionDto[]
+  deletedQuestions: QuestionDto[]
+  createdOn: string
+  createdBy: number
+}
+
+export interface TemplateTargetPairRequest {
+  departmentId: number
+  positionId: number
+}
+
+export interface TemplateActiveCheckRequest {
+  reviewCycleId: number
+  targets: TemplateTargetPairRequest[]
+}
+
+export interface TemplateActiveCheckResultDto {
+  departmentId: number
+  positionId: number
+  templateId: number
+  templateTitle: string
+  departmentName: string
+  positionName: string
+  reviewCycleId: number | null
+  reviewCycleName: string | null
 }
 
 export interface UpdateTemplateRequest {
@@ -535,6 +568,36 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
   }
 }
 
+const normalizeCopiedTemplate = (template: unknown): CopiedSelfAssessmentFormTemplateDto => {
+  const source = isRecord(template) ? template : {}
+
+  return {
+    id: getNumber(source.id),
+    sourceTemplateId: getNumber(source.sourceTemplateId),
+    title: getString(source.title),
+    ratingSystem: normalizeRatingSystem(source.ratingSystem),
+    questions: getArray(source.questions).map(normalizeTemplateQuestion),
+    deletedQuestions: getArray(source.deletedQuestions).map(normalizeTemplateQuestion),
+    createdOn: getString(source.createdOn),
+    createdBy: getNumber(source.createdBy),
+  }
+}
+
+const normalizeTemplateActiveCheckResult = (result: unknown): TemplateActiveCheckResultDto => {
+  const source = isRecord(result) ? result : {}
+
+  return {
+    departmentId: getNumber(source.departmentId),
+    positionId: getNumber(source.positionId),
+    templateId: getNumber(source.templateId),
+    templateTitle: getString(source.templateTitle),
+    departmentName: getString(source.departmentName),
+    positionName: getString(source.positionName),
+    reviewCycleId: source.reviewCycleId != null ? getNumber(source.reviewCycleId) : null,
+    reviewCycleName: getOptionalString(source.reviewCycleName) ?? null,
+  }
+}
+
 const normalizeQuestionBankItem = (question: unknown): QuestionBankDto => {
   const source = isRecord(question) ? question : {}
 
@@ -691,6 +754,32 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeTemplate(getResponseData(response)),
     }),
 
+    copyTemplate: builder.mutation<CopiedSelfAssessmentFormTemplateDto, number>({
+      query: (id) => ({
+        url: `/self-assessment-forms/templates/${id}/copy`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['SelfAssessmentCopiedTemplate'],
+      transformResponse: (response: unknown) => normalizeCopiedTemplate(getResponseData(response)),
+    }),
+
+    getCopiedTemplate: builder.query<CopiedSelfAssessmentFormTemplateDto | null, void>({
+      query: () => '/self-assessment-forms/templates/copied',
+      providesTags: ['SelfAssessmentCopiedTemplate'],
+      transformResponse: (response: unknown) => {
+        const data = getResponseData(response)
+        return data ? normalizeCopiedTemplate(data) : null
+      },
+    }),
+
+    deleteCopiedTemplate: builder.mutation<void, void>({
+      query: () => ({
+        url: '/self-assessment-forms/templates/copied',
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['SelfAssessmentCopiedTemplate'],
+    }),
+
     getActiveTemplate: builder.query<SelfAssessmentFormTemplateDto | null, { departmentId: number; positionId: number }>({
       query: ({ departmentId, positionId }) =>
         `/self-assessment-forms/templates/active?departmentId=${departmentId}&positionId=${positionId}`,
@@ -708,6 +797,16 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['SelfAssessmentForm', 'SelfAssessmentTemplates'],
       transformResponse: (response: unknown) => normalizeTemplate(getResponseData(response)),
+    }),
+
+    checkActiveTemplateConflicts: builder.mutation<TemplateActiveCheckResultDto[], TemplateActiveCheckRequest>({
+      query: (body) => ({
+        url: '/self-assessment-forms/templates/active-check',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: unknown) =>
+        getArray(getResponseData(response)).map(normalizeTemplateActiveCheckResult),
     }),
 
     updateTemplate: builder.mutation<SelfAssessmentFormTemplateDto, { id: number; request: UpdateTemplateRequest }>({
@@ -814,8 +913,12 @@ export const {
   useHrReopenFormMutation,
   useGetAllTemplatesQuery,
   useGetTemplateByIdQuery,
+  useCopyTemplateMutation,
+  useGetCopiedTemplateQuery,
+  useDeleteCopiedTemplateMutation,
   useGetActiveTemplateQuery,
   useCreateTemplateMutation,
+  useCheckActiveTemplateConflictsMutation,
   useUpdateTemplateMutation,
   useSetTemplateDeadlineMutation,
   useAssignSelfAssessmentFormsMutation,

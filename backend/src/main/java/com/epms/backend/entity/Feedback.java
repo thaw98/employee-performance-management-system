@@ -36,6 +36,9 @@ public class Feedback {
     @Column(name = "remark", length = 50)
     private String remark;
 
+    @Column(name = "anonymous")
+    private Boolean anonymous = false;
+
     @Column(name = "feedback_date")
     private Instant createdDate;
 

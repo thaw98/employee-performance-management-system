@@ -1,22 +1,28 @@
 package com.epms.backend.service;
 
 import com.epms.backend.StaffTypes;
+import com.epms.backend.dto.selfassessmentform.AnswerRequest;
 import com.epms.backend.dto.selfassessmentform.CreateTemplateRequest;
 import com.epms.backend.dto.selfassessmentform.QuestionRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentRequest;
 import com.epms.backend.dto.selfassessmentform.SelfAssessmentAssignmentResponse;
+import com.epms.backend.dto.selfassessmentform.SubmitFormRequest;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeStatus;
 import com.epms.backend.entity.Position;
 import com.epms.backend.entity.ReviewCycle;
 import com.epms.backend.entity.SelfAssessmentForm;
+import com.epms.backend.entity.SelfAssessmentFormAnswer;
+import com.epms.backend.entity.SelfAssessmentFormStatus;
 import com.epms.backend.entity.SelfAssessmentFormTemplate;
 import com.epms.backend.entity.SelfAssessmentFormTemplateQuestion;
 import com.epms.backend.entity.SelfAssessmentRatingSystem;
 import com.epms.backend.entity.SelfAssessmentSettings;
+import com.epms.backend.entity.Signature;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.DepartmentRepository;
+import com.epms.backend.repository.CopiedSelfAssessmentFormTemplateRepository;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.NotificationRepository;
 import com.epms.backend.repository.PositionRepository;
@@ -43,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -51,6 +58,8 @@ class SelfAssessmentFormAssignmentServiceTest {
 
     @Mock
     private SelfAssessmentFormTemplateRepository templateRepository;
+    @Mock
+    private CopiedSelfAssessmentFormTemplateRepository copiedTemplateRepository;
     @Mock
     private SelfAssessmentFormRepository formRepository;
     @Mock
@@ -82,6 +91,7 @@ class SelfAssessmentFormAssignmentServiceTest {
     void setUp() {
         service = new SelfAssessmentFormService(
                 templateRepository,
+                copiedTemplateRepository,
                 formRepository,
                 adjustmentRepository,
                 employeeRepository,
@@ -251,12 +261,102 @@ class SelfAssessmentFormAssignmentServiceTest {
                 10L,
                 20L,
                 List.of(new QuestionRequest(null, "What did you achieve?", 0)),
+                null,
                 7L,
                 null), 99L);
 
         ArgumentCaptor<SelfAssessmentFormTemplate> templateCaptor = ArgumentCaptor.forClass(SelfAssessmentFormTemplate.class);
         verify(templateRepository).saveAndFlush(templateCaptor.capture());
         assertEquals(SelfAssessmentRatingSystem.TEN_POINT, templateCaptor.getValue().getRatingSystem());
+    }
+
+    @Test
+    void submitForm_notifiesDirectManagerOnSuccessfulSubmit() {
+        ReviewCycle cycle = cycle();
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setEmployeeName("Jane Doe");
+        Employee manager = employee(2L, 10L, 20L);
+        employee.setManager(manager);
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.DRAFT);
+        stubSuccessfulSubmit(employee, cycle, form);
+
+        service.submitForm(employee, submitRequest());
+
+        verify(notificationService).send(
+                eq(manager.getUserAccount()),
+                eq("Self-Assessment Submitted"),
+                eq("Employee Jane Doe submitted Template for your review."),
+                eq("SELF_ASSESSMENT_FORM"));
+        verify(employeeRepository, never()).findById(any());
+    }
+
+    @Test
+    void submitForm_notifiesDepartmentManagerWhenDirectManagerAbsent() {
+        ReviewCycle cycle = cycle();
+        Employee employee = employee(1L, 10L, 20L);
+        Employee departmentManager = employee(3L, 10L, 20L);
+        employee.getDepartment().setManagerId(departmentManager.getId());
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.DRAFT);
+        stubSuccessfulSubmit(employee, cycle, form);
+        when(employeeRepository.findById(departmentManager.getId())).thenReturn(Optional.of(departmentManager));
+
+        service.submitForm(employee, submitRequest());
+
+        verify(notificationService).send(
+                eq(departmentManager.getUserAccount()),
+                eq("Self-Assessment Submitted"),
+                eq("Employee Employee 1 submitted Template for your review."),
+                eq("SELF_ASSESSMENT_FORM"));
+    }
+
+    @Test
+    void submitForm_skipsNotificationWhenResolvedManagerHasNoActiveUserAccount() {
+        ReviewCycle cycle = cycle();
+        Employee employee = employee(1L, 10L, 20L);
+        Employee manager = employee(2L, 10L, 20L);
+        manager.setUserAccount(null);
+        employee.setManager(manager);
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.DRAFT);
+        stubSuccessfulSubmit(employee, cycle, form);
+
+        service.submitForm(employee, submitRequest());
+
+        verify(notificationService, never()).send(any(), eq("Self-Assessment Submitted"), any(), eq("SELF_ASSESSMENT_FORM"));
+    }
+
+    @Test
+    void submitForm_reopenedResubmissionCreatesAnotherNotification() {
+        ReviewCycle cycle = cycle();
+        Employee employee = employee(1L, 10L, 20L);
+        Employee manager = employee(2L, 10L, 20L);
+        employee.setManager(manager);
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.DRAFT);
+        stubSuccessfulSubmit(employee, cycle, form);
+
+        service.submitForm(employee, submitRequest());
+        form.setStatus(SelfAssessmentFormStatus.REOPENED);
+        service.submitForm(employee, submitRequest());
+
+        verify(notificationService, times(2)).send(
+                eq(manager.getUserAccount()),
+                eq("Self-Assessment Submitted"),
+                eq("Employee Employee 1 submitted Template for your review."),
+                eq("SELF_ASSESSMENT_FORM"));
+    }
+
+    @Test
+    void getManagerReviewForms_includesDirectManagerAssignments() {
+        ReviewCycle cycle = cycle();
+        Employee manager = employee(2L, 10L, 20L);
+        Employee employee = employee(1L, 10L, 20L);
+        employee.setManager(manager);
+        SelfAssessmentForm form = formForSubmit(employee, template(100L, 10L, 20L, cycle), cycle, SelfAssessmentFormStatus.SUBMITTED);
+
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(formRepository.findByManagerAndCycle(manager.getId(), cycle)).thenReturn(List.of(form));
+
+        assertEquals(1, service.getManagerReviewForms(manager).size());
+        verify(formRepository).findByManagerAndCycle(manager.getId(), cycle);
     }
 
     private static SelfAssessmentAssignmentRequest request(String mode) {
@@ -325,5 +425,54 @@ class SelfAssessmentFormAssignmentServiceTest {
         question.setSortOrder(0);
         template.addQuestion(question);
         return template;
+    }
+
+    private void stubSuccessfulSubmit(Employee employee, ReviewCycle cycle, SelfAssessmentForm form) {
+        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
+        when(formRepository.findByEmployeeAndCycle(employee, cycle)).thenReturn(Optional.of(form));
+        when(formRepository.existsByEmployeeAndCycle(employee, cycle)).thenReturn(true);
+        when(formRepository.findByEmployee(employee)).thenReturn(List.of(form));
+        when(signatureRepository.findByUserAndIsDefaultTrue(employee.getUserAccount()))
+                .thenReturn(Optional.of(signature(employee.getUserAccount())));
+        when(formRepository.save(form)).thenReturn(form);
+        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
+    }
+
+    private static SubmitFormRequest submitRequest() {
+        return new SubmitFormRequest(
+                List.of(new AnswerRequest(501L, "Yes", 5, "Completed goals")),
+                "Employee remarks",
+                "Overall remarks");
+    }
+
+    private static SelfAssessmentForm formForSubmit(
+            Employee employee,
+            SelfAssessmentFormTemplate template,
+            ReviewCycle cycle,
+            SelfAssessmentFormStatus status) {
+        SelfAssessmentForm form = new SelfAssessmentForm();
+        form.setId(200L);
+        form.setEmployee(employee);
+        form.setTemplate(template);
+        form.setCycle(cycle);
+        form.setRatingSystem(SelfAssessmentRatingSystem.FIVE_POINT);
+        form.setStatus(status);
+        form.setDeadlineDate(LocalDate.of(2026, 5, 10));
+        form.setCreatedDate(java.time.Instant.parse("2026-05-01T00:00:00Z"));
+
+        SelfAssessmentFormAnswer answer = new SelfAssessmentFormAnswer();
+        answer.setId(501L);
+        answer.setQuestionText("What did you achieve?");
+        answer.setSortOrder(0);
+        form.addAnswer(answer);
+        return form;
+    }
+
+    private static Signature signature(User user) {
+        Signature signature = new Signature();
+        signature.setId(900L);
+        signature.setUser(user);
+        signature.setDefault(true);
+        return signature;
     }
 }

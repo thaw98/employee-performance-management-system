@@ -248,6 +248,55 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @PostMapping("/templates/{id}/copy")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<CopiedSelfAssessmentFormTemplateDto>> copyTemplate(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            CopiedSelfAssessmentFormTemplateDto copied = selfAssessmentFormService.copyTemplate(id, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Template copied", copied));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/templates/copied")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<CopiedSelfAssessmentFormTemplateDto>> getCopiedTemplate(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            return selfAssessmentFormService.getCopiedTemplate(principal.getId())
+                    .map(copied -> ResponseEntity.ok(ApiResponse.ok("Copied template retrieved", copied)))
+                    .orElse(ResponseEntity.ok(ApiResponse.ok("No copied template", null)));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/templates/copied")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<Void>> deleteCopiedTemplate(@AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            selfAssessmentFormService.deleteCopiedTemplate(principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Copied template cleared", null));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/templates/active-check")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<List<TemplateActiveCheckResultDto>>> checkActiveTemplateConflicts(
+            @Valid @RequestBody TemplateActiveCheckRequest request) {
+        try {
+            List<TemplateActiveCheckResultDto> conflicts = selfAssessmentFormService.findActiveTemplateConflicts(request);
+            return ResponseEntity.ok(ApiResponse.ok("Template conflicts checked", conflicts));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @GetMapping("/templates/{id}")
     @PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
     public ResponseEntity<ApiResponse<SelfAssessmentFormTemplateDto>> getTemplateById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
