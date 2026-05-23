@@ -19,6 +19,7 @@ import {
     Download
 } from 'lucide-react';
 import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
+import { formatDate } from '../../utils/dateUtils';
 import SignatureCanvas from 'react-signature-canvas';
 import { useRef } from 'react';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
@@ -61,9 +62,18 @@ interface Assignment {
     status: string;
     managerComments?: string;
     managerSignature?: string;
+    managerSignedAt?: string;
     hrComments?: string;
+    hrSignature?: string;
+    hrSignedAt?: string;
     totalScore?: number;
     ratingCategory?: string;
+    answers?: {
+        question: { id: number };
+        rating: number;
+        comments: string;
+    }[];
+    updatedAt?: string;
 }
 
 export const ManagerEvaluationPage: React.FC = () => {
@@ -346,6 +356,38 @@ export const ManagerEvaluationPage: React.FC = () => {
                         </div>
                     </div>
                 </section>
+
+                {/* Summary Cards */}
+                {isReadOnly && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200 rounded-3xl space-y-2 shadow-sm">
+                            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Points Achieved</p>
+                            <p className="text-3xl font-black text-blue-700 italic">
+                                {assignment.answers?.reduce((acc, curr) => acc + (curr.rating || 0), 0)}
+                                <span className="text-blue-300 mx-2 text-xl font-normal">/</span>
+                                <span className="text-blue-400 text-2xl">{(assignment.answers?.length || 0) * (assignment.template?.maxRating || 5)}</span>
+                            </p>
+                        </div>
+                        <div className="p-6 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200 rounded-3xl space-y-2 shadow-sm">
+                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">Overall Score</p>
+                            <p className="text-3xl font-black text-indigo-700">
+                                {assignment.totalScore?.toFixed(1) || '0.0'}%
+                            </p>
+                        </div>
+                        <div className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-3xl space-y-2 shadow-sm">
+                            <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Performance Category</p>
+                            <p className="text-2xl font-bold text-emerald-700">
+                                {assignment.ratingCategory || 'N/A'}
+                            </p>
+                        </div>
+                        <div className="p-6 bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200 rounded-3xl space-y-2 shadow-sm">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Submission Date</p>
+                            <p className="text-xl font-medium text-slate-700">
+                                {assignment.managerSignedAt ? formatDate(assignment.managerSignedAt) : 'Not Submitted'}
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Evaluation Categories */}
                 {assignment.template?.categories?.map((category) => (
