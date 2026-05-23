@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
@@ -12,7 +12,6 @@ import {
   FileSpreadsheet, 
   Download, 
   Search, 
-  Eye, 
   Loader2 
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -83,23 +82,6 @@ interface Assignment {
   hrSignedAt?: string;
 }
 
-const PRIMARY_NAVY = '#1C2841';
-const SLATE_GRAY = '#586373';
-const EMERALD = '#10B981';
-const AMBER = '#F59E0B';
-const INDIGO = '#6366F1';
-const LIGHT_NAVY_BG = '#EDF2F7';
-
-const STATUS_COLORS: Record<string, string> = {
-  HR_APPROVED: '#10B981',
-  LOCKED: '#1C2841',
-  SUBMITTED: '#3B82F6',
-  PENDING: '#8B5CF6',
-  RETURNED: '#F59E0B',
-  REJECTED: '#EF4444',
-  PENDING_MANAGER: '#8B5CF6',
-};
-
 const CHART_COLORS = ['#1C2841', '#10B981', '#F59E0B', '#3B82F6', '#6366F1', '#EC4899', '#8B5CF6', '#14B8A6'];
 
 export default function AppraisalReportsPage() {
@@ -144,14 +126,6 @@ export default function AppraisalReportsPage() {
   };
 
   // Unique periods and rating categories for filter options
-  const periods = useMemo(() => {
-    const set = new Set<string>();
-    assignments.forEach(a => {
-      if (a.period?.name) set.add(a.period.name);
-    });
-    return Array.from(set);
-  }, [assignments]);
-
   const ratingCategories = useMemo(() => {
     const set = new Set<string>();
     assignments.forEach(a => {
@@ -562,7 +536,7 @@ export default function AppraisalReportsPage() {
                     dataKey="value"
                     label={({ name, percent }) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
                   >
-                    {statusChartData.map((entry, index) => (
+                    {statusChartData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>

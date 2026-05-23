@@ -18,10 +18,7 @@ import {
     sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, ChevronDown, HelpCircle, GripVertical, Download, RotateCcw, Calendar, ArrowRight, Clock, Users, Filter, FileSpreadsheet, FileText, Send, Building2, Check, RefreshCcw, History } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, ChevronDown, HelpCircle, GripVertical, RotateCcw, Calendar, Clock, Users, Filter, FileSpreadsheet, FileText, Send, Building2, Check, RefreshCcw, History } from 'lucide-react';
 import { SelfAssessmentReviewCycleInfo, formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 
 const PRIMARY = '#0855BF';
@@ -223,120 +220,6 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
             }
         });
     }, [categories]);
-
-    const handleExportExcel = () => {
-        const data: any[] = [];
-        
-        // Form Info
-        data.push(['PERFORMANCE APPRAISAL FORM']);
-        data.push(['Assessment Date:', formatCycleDate(assessmentDate)]);
-        data.push(['Effective Date:', formatCycleDate(effectiveDate)]);
-        data.push(['Deadline Date:', formatCycleDate(deadlineDate)]);
-        data.push([]); // Spacer
-
-        // Table Headers
-        const ratingHeaders = Array.from({ length: maxRating }, (_, i) => `Rating: ${maxRating - i}`);
-        data.push(['Category', 'No.', 'Evaluation Criteria & Performance Indicators', ...ratingHeaders]);
-        
-        let localGlobalIndex = 1;
-        categories.forEach(cat => {
-            const qList = allQuestions[cat.id!] || [];
-            qList.forEach((q, idx) => {
-                data.push([
-                    idx === 0 ? cat.name : '',
-                    (localGlobalIndex++).toString().padStart(2, '0'),
-                    q.questionText,
-                    ...Array(maxRating).fill('')
-                ]);
-            });
-        });
-        
-        const ws = XLSX.utils.aoa_to_sheet(data);
-        
-        // Basic styling/merging could be done here if using a more advanced library, 
-        // but simple AOA is good for basic Excel.
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Appraisal");
-        XLSX.writeFile(wb, `Appraisal_Form_${assessmentDate}.xlsx`);
-        toast.success('Excel file generated successfully');
-    };
-
-    const handleExportPDF = () => {
-        const doc = new jsPDF({
-            orientation: 'landscape',
-            unit: 'mm',
-            format: 'a4'
-        });
-
-        // Add Header
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.text("PERFORMANCE APPRAISAL FORM", 148.5, 20, { align: 'center' });
-
-        // Add Metadata
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Assessment Date: ${formatCycleDate(assessmentDate)}`, 14, 30);
-        doc.text(`Effective Date: ${formatCycleDate(effectiveDate)}`, 14, 35);
-        doc.text(`Deadline: ${formatCycleDate(deadlineDate)}`, 14, 40);
-
-        // Prepare Table Data
-        const ratingNumbers = Array.from({ length: maxRating }, (_, i) => (maxRating - i).toString());
-        const head = [['Category', 'No.', 'Evaluation Criteria & Performance Indicators', ...ratingNumbers]];
-        
-        const body: any[] = [];
-        let localGlobalIndex = 1;
-        
-        categories.forEach(cat => {
-            const qList = allQuestions[cat.id!] || [];
-            qList.forEach((q, idx) => {
-                body.push([
-                    idx === 0 ? cat.name : '',
-                    (localGlobalIndex++).toString().padStart(2, '0'),
-                    q.questionText,
-                    ...Array(maxRating).fill('')
-                ]);
-            });
-        });
-
-        autoTable(doc, {
-            head: head,
-            body: body,
-            startY: 50,
-            theme: 'grid',
-            styles: {
-                fontSize: 8,
-                cellPadding: 2,
-                valign: 'middle',
-                lineWidth: 0.1,
-                lineColor: [200, 200, 200]
-            },
-            headStyles: {
-                fillColor: [8, 85, 191],
-                textColor: [255, 255, 255],
-                fontSize: 9,
-                fontStyle: 'bold',
-                halign: 'center'
-            },
-            columnStyles: {
-                0: { cellWidth: 35 },
-                1: { cellWidth: 12, halign: 'center' },
-                2: { cellWidth: 'auto' },
-                // Rating columns
-                ...Object.fromEntries(ratingNumbers.map((_, i) => [i + 3, { cellWidth: 10, halign: 'center' }]))
-            },
-            didDrawPage: (data) => {
-                // Footer
-                const str = "Page " + doc.internal.getNumberOfPages();
-                doc.setFontSize(8);
-                doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 10);
-            }
-        });
-
-        doc.save(`Appraisal_Form_${formatCycleDate(assessmentDate)}.pdf`);
-        toast.success('PDF generated successfully');
-    };
-
     let globalIndex = 1;
 
     return (
@@ -453,18 +336,6 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                 className="flex items-center gap-3 px-8 py-3.5 bg-white border-2 border-slate-100 text-slate-400 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all shadow-sm"
                             >
                                 <RotateCcw size={18} /> <span>Modify / Edit</span>
-                            </button>
-                            <button
-                                onClick={handleExportPDF}
-                                className="flex items-center gap-3 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 hover:shadow-[0_20px_40px_rgba(15,23,42,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-slate-100 whitespace-nowrap"
-                            >
-                                <FileText size={18} /> <span>PDF</span>
-                            </button>
-                            <button
-                                onClick={handleExportExcel}
-                                className="flex items-center gap-3 px-6 py-3.5 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 hover:shadow-[0_20px_40px_rgba(16,185,129,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 whitespace-nowrap"
-                            >
-                                <FileSpreadsheet size={18} /> <span>Excel</span>
                             </button>
                             <button
                                 onClick={async () => {
@@ -1166,7 +1037,7 @@ export function AppraisalsPage() {
                                                         setFinalizedCategories(t.categoryIds);
                                                         setHistoryAssessmentDate(t.assessmentDate);
                                                         setHistoryEffectiveDate(t.effectiveDate);
-                                                        setHistoryDeadlineDate(t.deadlineDate);
+                                                        setHistoryDeadlineDate(t.deadlineDate || '');
                                                         setHistoryReviewCycleId(t.reviewCycleId || null);
                                                         setHistoryPositionIds(t.positionIds || []);
                                                         setHistoryMaxRating(t.maxRating || 10);

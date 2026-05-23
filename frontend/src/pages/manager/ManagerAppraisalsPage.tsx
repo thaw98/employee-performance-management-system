@@ -10,16 +10,15 @@ import {
     Filter, 
     ChevronRight, 
     ChevronDown,
-    Clock, 
-    User, 
-    CheckCircle2, 
     AlertCircle, 
     ArrowRight,
     Building2,
     Calendar,
-    FileText
+    FileText,
+    Download
 } from 'lucide-react';
 import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
+import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
 
 interface AppraisalAssignment {
     id: number;
@@ -155,6 +154,22 @@ export const ManagerAppraisalsPage: React.FC = () => {
 
         doc.save(`Performance_Summary_${deptName}_${dateStr.replace(/\//g, '-')}.pdf`);
         toast.success("Summary report exported successfully.");
+    };
+
+    const handleDownloadPdf = async (assignmentId: number) => {
+        try {
+            toast.loading('Generating PDF report...', { id: `pdf-${assignmentId}` });
+            const response = await axios.get(`/appraisal-assignments/${assignmentId}/form`);
+            if (response.data.success) {
+                await exportAppraisalPdf(response.data.data);
+                toast.success('PDF report exported successfully', { id: `pdf-${assignmentId}` });
+            } else {
+                toast.error('Failed to generate PDF report', { id: `pdf-${assignmentId}` });
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to export PDF report', { id: `pdf-${assignmentId}` });
+        }
     };
 
     const getStatusStyle = (status: string) => {
@@ -408,22 +423,33 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                 </div>
 
                                 {/* Action Button */}
-                                <Link 
-                                    to={`/manager/appraisals/${assignment.id}/evaluate`}
-                                    className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm ${
-                                        (assignment.status === 'PENDING_MANAGER' || assignment.status === 'RETURNED')
-                                        ? 'bg-slate-900 text-white hover:bg-amber-600 hover:shadow-lg hover:shadow-amber-200'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                    }`}
-                                >
-                                    {(assignment.status === 'PENDING_MANAGER' || assignment.status === 'RETURNED') ? (
-                                        <>
-                                            {assignment.status === 'RETURNED' ? 'RE-EVALUATE' : 'Start Evaluation'} <ArrowRight size={14} />
-                                        </>
-                                    ) : (
-                                        <>View Details <ChevronRight size={14} /></>
+                                <div className="flex gap-2">
+                                    <Link 
+                                        to={`/manager/appraisals/${assignment.id}/evaluate`}
+                                        className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm ${
+                                            (assignment.status === 'PENDING_MANAGER' || assignment.status === 'RETURNED')
+                                            ? 'bg-slate-900 text-white hover:bg-amber-600 hover:shadow-lg hover:shadow-amber-200'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        {(assignment.status === 'PENDING_MANAGER' || assignment.status === 'RETURNED') ? (
+                                            <>
+                                                {assignment.status === 'RETURNED' ? 'RE-EVALUATE' : 'Start Evaluation'} <ArrowRight size={14} />
+                                            </>
+                                        ) : (
+                                            <>View Details <ChevronRight size={14} /></>
+                                        )}
+                                    </Link>
+                                    {assignment.status !== 'PENDING_MANAGER' && assignment.status !== 'RETURNED' && (
+                                        <button
+                                            onClick={() => handleDownloadPdf(assignment.id)}
+                                            className="px-4 py-4 rounded-2xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-100 transition-all flex items-center justify-center shadow-sm cursor-pointer"
+                                            title="Download PDF"
+                                        >
+                                            <Download size={14} />
+                                        </button>
                                     )}
-                                </Link>
+                                </div>
                             </div>
 
                             {/* Background Decoration */}
