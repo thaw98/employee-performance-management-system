@@ -170,6 +170,25 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     expect(screen.getByText('0.0%')).toBeTruthy()
   })
 
+  it('renders not-submitted penalty records with zero score when API returns null score', () => {
+    scoreRecordsHookMock.mockReturnValue({
+      data: [
+        {
+          ...mockRecords[1],
+          finalApprovedScore: null,
+          performance: null,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    })
+
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    expect(screen.getAllByText('Not Submitted').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('0.0%').length).toBeGreaterThanOrEqual(1)
+  })
+
   it('renders not-submitted penalty records with zero score', () => {
     scoreRecordsHookMock.mockReturnValue({
       data: [
@@ -207,6 +226,24 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     const carolRow = screen.getByText('Carol White').closest('tr')
     expect(carolRow).toBeTruthy()
     expect(within(carolRow!).getAllByText('-').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('formats performance labels without underscores', () => {
+    scoreRecordsHookMock.mockReturnValue({
+      data: [
+        {
+          ...mockRecords[0],
+          performance: 'MEETS_EXPECTATIONS',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    })
+
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    expect(screen.getByText('MEETS EXPECTATIONS')).toBeTruthy()
+    expect(screen.queryByText('MEETS_EXPECTATIONS')).toBeNull()
   })
 
   it('filters by cycle', async () => {

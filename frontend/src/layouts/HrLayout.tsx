@@ -142,7 +142,8 @@ const HrLayout: React.FC = () => {
         { label: 'PIP Report', path: '/hr/reports', icon: <Zap size={16} className="shrink-0" /> },
         { label: 'KPI Report', path: '/hr/kpi-reports', icon: <BarChart size={16} className="shrink-0" /> },
         { label: 'Feedback Report', path: '/hr/reports/feedback', icon: <RefreshCcw size={16} className="shrink-0" /> },
-        { label: 'Appraisal Report', path: '/hr/reports/appraisal', icon: <Award size={16} className="shrink-0" /> }
+        { label: 'Appraisal Report', path: '/hr/reports/appraisal', icon: <Award size={16} className="shrink-0" /> },
+        { label: 'Self-Assessment Report', path: '/hr/reports/self-assessment', icon: <FileText size={16} className="shrink-0" /> }
       ]
     }
   ];

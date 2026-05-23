@@ -58,18 +58,24 @@ const HR_MANAGER_HISTORY_STATUSES = new Set(['FINALIZED_LOCKED', 'NOT_SUBMITTED'
 const SCORE_RECORD_STATUS_FILTER_OPTIONS: { value: string; label: string }[] = Object.entries(SCORE_RECORD_STATUS_LABELS)
   .map(([value, label]) => ({ value, label }))
 
+function formatPerformanceLabel(performance: string): string {
+  return performance.replace(/_/g, ' ')
+}
+
 /** Matches backend `SelfAssessmentFormService#getRatingCategory` labels. */
 function PerformanceBadge({ performance }: { performance: string | null }) {
   if (!performance) return <span className="text-slate-400">-</span>
+  const label = formatPerformanceLabel(performance)
   const colorMap: Record<string, string> = {
-    Outstanding: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
-    Good: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-    'Meet Requirement': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-    'Need Improvement': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-    Unsatisfactory: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+    outstanding: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
+    good: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    'meet requirement': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    'meets expectations': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    'need improvement': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    unsatisfactory: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
   }
-  const cls = colorMap[performance] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${cls}`}>{performance}</span>
+  const cls = colorMap[label.toLowerCase()] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${cls}`}>{label}</span>
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -106,6 +112,12 @@ function formatDate(value: string | null): string {
 function formatPeriod(row: ScoreRecordDto): string {
   if (row.cycleName) return row.cycleName
   return formatDate(row.createdDate)
+}
+
+/** NOT_SUBMITTED penalty rows always display as zero even when the API omits the score. */
+function resolveDisplayScore(record: ScoreRecordDto): number | null {
+  if (record.status === 'NOT_SUBMITTED') return 0
+  return record.finalApprovedScore
 }
 
 export function SelfAssessmentScoreRecordsPage() {
@@ -189,7 +201,7 @@ export function SelfAssessmentScoreRecordsPage() {
       {
         accessorKey: 'finalApprovedScore',
         header: 'Score',
-        cell: ({ getValue }) => <ScoreBar score={getValue() as number | null} />,
+        cell: ({ row }) => <ScoreBar score={resolveDisplayScore(row.original)} />,
       },
       {
         accessorKey: 'performance',
@@ -263,14 +275,14 @@ export function SelfAssessmentScoreRecordsPage() {
   }
 
   const visibleRecords = table.getFilteredRowModel().rows.map(row => row.original)
-  const scoredVisibleRecords = visibleRecords.filter((r): r is ScoreRecordDto & { finalApprovedScore: number } => r.finalApprovedScore != null)
+  const scoredVisibleRecords = visibleRecords.filter((r): r is ScoreRecordDto & { finalApprovedScore: number } => resolveDisplayScore(r) != null)
   const avgScore =
     scoredVisibleRecords.length > 0
-      ? scoredVisibleRecords.reduce((sum, r) => sum + r.finalApprovedScore, 0) / scoredVisibleRecords.length
+      ? scoredVisibleRecords.reduce((sum, r) => sum + (resolveDisplayScore(r) ?? 0), 0) / scoredVisibleRecords.length
       : null
   const topScore =
     scoredVisibleRecords.length > 0
-      ? Math.max(...scoredVisibleRecords.map(r => r.finalApprovedScore))
+      ? Math.max(...scoredVisibleRecords.map(r => resolveDisplayScore(r) ?? 0))
       : null
   const finalizedOrNotSubmittedCount = visibleRecords.filter(
     r => r.status === 'FINALIZED_LOCKED' || r.status === 'NOT_SUBMITTED',

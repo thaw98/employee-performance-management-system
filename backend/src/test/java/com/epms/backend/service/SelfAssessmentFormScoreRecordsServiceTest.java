@@ -441,6 +441,26 @@ class SelfAssessmentFormScoreRecordsServiceTest {
     }
 
     @Test
+    void getScoreRecords_notSubmittedWithNullScore_returnsZeroScoreAndUnsatisfactory() {
+        Employee emp = employee(1L, 10L, 20L);
+        ReviewCycle cycle = cycle();
+        SelfAssessmentFormTemplate tmpl = template(100L, 10L, 20L, cycle);
+        SelfAssessmentForm notSubmitted = formWithStatus(200L, emp, tmpl, cycle, SelfAssessmentFormStatus.NOT_SUBMITTED);
+
+        when(formRepository.findAll()).thenReturn(List.of(notSubmitted));
+
+        List<ScoreRecordDto> records = service.getScoreRecords(emp, 1L);
+
+        assertEquals(1, records.size());
+        assertEquals("NOT_SUBMITTED", records.get(0).status());
+        assertEquals(0.0, records.get(0).finalApprovedScore());
+        assertEquals("Unsatisfactory", records.get(0).performance());
+        assertEquals(0.0, notSubmitted.getFinalApprovedTotalScore());
+        assertEquals("Unsatisfactory", notSubmitted.getRatingCategory());
+        verify(formRepository).save(notSubmitted);
+    }
+
+    @Test
     void getScoreRecords_nullScoreAndPerformance() {
         Employee emp = employee(1L, 10L, 20L);
         ReviewCycle cycle = cycle();

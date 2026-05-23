@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -56,6 +57,12 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Void>> markAllAsRead() {
         notificationService.markAllAsRead(getCurrentUser());
         return ResponseEntity.ok(new ApiResponse<>(true, "Notifications marked as read", null));
+    }
+
+    @DeleteMapping
+    public ResponseEntity<ApiResponse<Void>> clearAll() {
+        notificationService.clearAll(getCurrentUser());
+        return ResponseEntity.ok(new ApiResponse<>(true, "Notifications cleared", null));
     }
 
     private User getCurrentUser() {

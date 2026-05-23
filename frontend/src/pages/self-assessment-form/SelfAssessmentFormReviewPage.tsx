@@ -464,8 +464,17 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     });
   };
 
+  const requireManagerReviewComments = () => {
+    if (!managerComments.trim()) {
+      toast.error('Comments are required');
+      return false;
+    }
+    return true;
+  };
+
   const handleApproveReview = async () => {
     if (!selectedFormId) return;
+    if (!requireManagerReviewComments()) return;
     if (!hasDefaultSignature) {
       toast.error('Set a default signature in Signature Settings before approving.');
       return;
@@ -475,7 +484,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
       await managerReview({
         formId: selectedFormId,
         request: {
-          comments: managerComments.trim() || '',
+          comments: managerComments.trim(),
           adjustments: [],
         },
       }).unwrap();
@@ -500,6 +509,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     }));
 
   const openManagerRetakeModal = () => {
+    if (!requireManagerReviewComments()) return;
     const retakeRequests = buildRetakeRequests();
     if (retakeRequests.length === 0) {
       toast.error('Select at least one question for retake');
@@ -514,6 +524,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
   const handleSubmitRetakeRequest = async () => {
     if (!selectedFormId) return;
+    if (!requireManagerReviewComments()) return;
     if (!hasDefaultSignature) {
       toast.error('Set a default signature in Signature Settings before requesting a retake.');
       return;
@@ -533,12 +544,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
       if (isHr && isManagerSelfAssessment) {
         await hrRequestRetake({
           formId: selectedFormId,
-          request: { comments: managerComments, retakeRequests },
+          request: { comments: managerComments.trim(), retakeRequests },
         }).unwrap();
       } else {
         await managerRequestRetake({
           formId: selectedFormId,
-          request: { comments: managerComments, retakeRequests },
+          request: { comments: managerComments.trim(), retakeRequests },
         }).unwrap();
       }
       toast.success(isHr && isManagerSelfAssessment
@@ -1461,12 +1472,13 @@ Review Submissions
                     <div>
                       <label className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
                         <MessageSquare size={13} />
-                        Comments
+                        Comments <span className="text-red-500">*</span>
                       </label>
                       <textarea
                         value={managerComments}
                         onChange={(e) => setManagerComments(e.target.value)}
                         rows={4}
+                        required
                         className={`${filterControlClass} resize-none`}
                         placeholder="Share your assessment of this employee's self-evaluation..."
                       />
@@ -1605,7 +1617,10 @@ Review Submissions
                       </button>
                       <button
                         type="button"
-                        onClick={() => setShowManagerApproveModal(true)}
+                        onClick={() => {
+                          if (!requireManagerReviewComments()) return;
+                          setShowManagerApproveModal(true);
+                        }}
                         disabled={showAdjustments}
                         title={showAdjustments ? 'Turn off Request Retake to approve' : 'Approve employee answers'}
                         className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"

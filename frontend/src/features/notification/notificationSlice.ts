@@ -55,6 +55,10 @@ const notificationSlice = createSlice({
       });
       state.unreadCount = 0;
     },
+    clearNotifications: (state) => {
+      state.notifications = [];
+      state.unreadCount = 0;
+    },
     setWsConnected: (state, action: PayloadAction<boolean>) => {
       state.wsConnected = action.payload;
     },
@@ -68,6 +72,7 @@ export const {
   setUnreadCount,
   markAsRead,
   markAllAsRead,
+  clearNotifications,
   setWsConnected,
   resetNotifications,
 } = notificationSlice.actions;

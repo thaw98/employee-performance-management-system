@@ -21,6 +21,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     List<Notification> findByRecipientAndReadFalse(User recipient);
 
+    void deleteByRecipient(User recipient);
+
     Optional<Notification> findByRecipientAndSourceAndMessageStartingWith(User recipient, String source, String messagePrefix);
 
     boolean existsByRecipientAndSourceAndTargetIdAndTitle(User recipient, String source, Long targetId, String title);

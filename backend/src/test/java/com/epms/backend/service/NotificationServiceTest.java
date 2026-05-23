@@ -95,6 +95,13 @@ class NotificationServiceTest {
         verify(notificationRepository, never()).findAll(anyNotificationSpec(), any(Pageable.class));
     }
 
+    @Test
+    void clearAllDeletesOnlyRecipientNotifications() {
+        notificationService.clearAll(recipient);
+
+        verify(notificationRepository).deleteByRecipient(recipient);
+    }
+
     @SuppressWarnings("unchecked")
     private Specification<Notification> anyNotificationSpec() {
         return any(Specification.class);

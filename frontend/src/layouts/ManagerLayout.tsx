@@ -95,15 +95,17 @@ const ManagerLayout: React.FC = () => {
         { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
-    {
-      icon: <Settings size={20} />,
-      label: 'Settings',
-      path: '/manager/settings/signature',
-      subItems: [
-        { label: 'Signature', path: '/manager/settings/signature', icon: <PenLine size={16} className="shrink-0" /> },
-        { label: 'System', path: '/manager/settings/system', icon: <Settings size={16} className="shrink-0" /> },
-      ]
-    },
+    ...(authUser?.roleId !== 2
+      ? [{
+          icon: <Settings size={20} />,
+          label: 'Settings',
+          path: '/manager/settings/signature',
+          subItems: [
+            { label: 'Signature', path: '/manager/settings/signature', icon: <PenLine size={16} className="shrink-0" /> },
+            { label: 'System', path: '/manager/settings/system', icon: <Settings size={16} className="shrink-0" /> },
+          ]
+        }]
+      : []),
     { icon: <Calendar size={20} />, label: 'Meetings', path: '/manager/meetings' },
     {
       icon: <BarChart size={20} />,
@@ -113,6 +115,7 @@ const ManagerLayout: React.FC = () => {
         { label: 'PIP Report', path: '/manager/reports', icon: <BarChart size={16} className="shrink-0" /> },
         { label: 'KPI Report', path: '/manager/reports/kpi', icon: <Target size={16} className="shrink-0" /> },
         { label: 'Feedback Report', path: '/manager/reports/feedback', icon: <RefreshCcw size={16} className="shrink-0" /> },
+        { label: 'Self-Assessment Report', path: '/manager/reports/self-assessment', icon: <FileText size={16} className="shrink-0" /> },
       ],
     },
   ];
