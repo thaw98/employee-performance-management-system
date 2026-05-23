@@ -5,7 +5,6 @@ import { toast } from 'react-hot-toast';
 import { 
     ChevronLeft, 
     MessageSquare, 
-    Save, 
     CheckCircle2, 
     User, 
     ShieldCheck,
@@ -16,12 +15,14 @@ import {
     ArrowRight,
     AlertCircle,
     RotateCcw,
-    Clock
+    Clock,
+    Download
 } from 'lucide-react';
 import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 import SignatureCanvas from 'react-signature-canvas';
 import { useRef } from 'react';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
+import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
 
 interface Question {
     id: number;
@@ -91,6 +92,18 @@ export const ManagerEvaluationPage: React.FC = () => {
             }
         } catch (err) {
             console.error("Failed to fetch default signature", err);
+        }
+    };
+
+    const handleDownloadPdf = async () => {
+        if (!assignment) return;
+        try {
+            toast.loading('Generating PDF report...', { id: `pdf-${assignment.id}` });
+            await exportAppraisalPdf(assignment as any);
+            toast.success('PDF report exported successfully', { id: `pdf-${assignment.id}` });
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to export PDF report', { id: `pdf-${assignment.id}` });
         }
     };
 
@@ -269,12 +282,25 @@ export const ManagerEvaluationPage: React.FC = () => {
                         </button>
                     )}
                     {isReadOnly && (
-                        <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
-                            assignment.status === 'SUBMITTED' ? 'bg-blue-50 text-blue-600 border-blue-100' : 
-                            assignment.status === 'HR_APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                            'bg-slate-100 text-slate-500 border-slate-200'
-                        }`}>
-                            Status: {assignment.status}
+                        <div className="flex items-center gap-3">
+                            {(assignment.status === 'SUBMITTED' || assignment.status === 'HR_APPROVED' || assignment.status === 'LOCKED') && (
+                                <button
+                                    onClick={handleDownloadPdf}
+                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
+                                    title="Download PDF"
+                                >
+                                    <Download size={14} />
+                                    <span>Download PDF</span>
+                                </button>
+                            )}
+                            <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
+                                assignment.status === 'SUBMITTED' ? 'bg-blue-50 text-blue-600 border-blue-100' : 
+                                assignment.status === 'HR_APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                assignment.status === 'LOCKED' ? 'bg-slate-900 text-white border-slate-900' :
+                                'bg-slate-100 text-slate-500 border-slate-200'
+                            }`}>
+                                Status: {assignment.status === 'LOCKED' ? 'FINALIZED' : assignment.status}
+                            </div>
                         </div>
                     )}
                 </div>

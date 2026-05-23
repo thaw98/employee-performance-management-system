@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2, Building2, Filter, ChevronDown, Award, MessageSquare, Target, Save } from 'lucide-react';
+import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2, Building2, ChevronDown, Award, MessageSquare, Target, Download } from 'lucide-react';
 import { formatDate } from '../../utils/dateUtils';
 import SignatureCanvas from 'react-signature-canvas';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
 
 const PRIMARY = '#0855BF';
 
@@ -68,6 +69,9 @@ interface Submission {
     managerComments?: string;
     managerSignature?: string;
     managerSignedAt?: string;
+    hrComments?: string;
+    hrSignature?: string;
+    hrSignedAt?: string;
 }
 
 export function AppraisalSubmissionsPage() {
@@ -290,6 +294,17 @@ export function AppraisalSubmissionsPage() {
         setIsUsingSavedSignature(false);
         sigCanvas.current?.clear();
         setActionInProgress(null);
+    };
+
+    const handleDownloadPdf = async (a: Submission) => {
+        try {
+            toast.loading('Generating PDF report...', { id: `pdf-${a.id}` });
+            await exportAppraisalPdf(a as any);
+            toast.success('PDF report exported successfully', { id: `pdf-${a.id}` });
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to export PDF report', { id: `pdf-${a.id}` });
+        }
     };
 
     const handleExportSummaryPDF = () => {
@@ -646,6 +661,15 @@ export function AppraisalSubmissionsPage() {
                                                 >
                                                     <Eye size={18} />
                                                 </button>
+                                                {(sa.status === 'SUBMITTED' || sa.status === 'HR_APPROVED' || sa.status === 'LOCKED') && (
+                                                    <button
+                                                        onClick={() => handleDownloadPdf(sa)}
+                                                        className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-all flex items-center justify-center"
+                                                        title="Download PDF Report"
+                                                    >
+                                                        <Download size={18} />
+                                                    </button>
+                                                )}
                                                 {sa.status === 'HR_APPROVED' && (
                                                     <button
                                                         onClick={() => handleLock(sa.id)}
@@ -739,12 +763,24 @@ export function AppraisalSubmissionsPage() {
                                     </p>
                                 </div>
                             </div>
-                            <button
-                                onClick={handleCloseModal}
-                                className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 flex items-center justify-center transition-all shadow-sm"
-                            >
-                                <XCircle size={24} />
-                            </button>
+                            <div className="flex items-center gap-3">
+                                {(selectedAsmt.status === 'SUBMITTED' || selectedAsmt.status === 'HR_APPROVED' || selectedAsmt.status === 'LOCKED') && (
+                                    <button
+                                        onClick={() => handleDownloadPdf(selectedAsmt)}
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
+                                        title="Download PDF"
+                                    >
+                                        <Download size={16} />
+                                        <span>Download PDF</span>
+                                    </button>
+                                )}
+                                <button
+                                    onClick={handleCloseModal}
+                                    className="w-12 h-12 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 flex items-center justify-center transition-all shadow-sm"
+                                >
+                                    <XCircle size={24} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Modal Content */}
