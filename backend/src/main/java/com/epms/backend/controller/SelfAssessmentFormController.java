@@ -4,6 +4,7 @@ import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.selfassessmentform.*;
 import com.epms.backend.dto.selfassessmentform.ScoreRecordDto;
 import com.epms.backend.dto.selfassessmentform.EmployeeDisputeRequest;
+import com.epms.backend.dto.selfassessmentform.report.SelfAssessmentAnalyticsReportDto;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.security.UserPrincipal;
@@ -120,6 +121,25 @@ public class SelfAssessmentFormController {
             Employee employee = getEmployeeFromPrincipal(principal);
             List<ScoreRecordDto> records = selfAssessmentFormService.getScoreRecords(employee, principal.getRoleId());
             return ResponseEntity.ok(ApiResponse.ok("Score records retrieved", records));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/reports")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
+    public ResponseEntity<ApiResponse<SelfAssessmentAnalyticsReportDto>> getSelfAssessmentReport(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam Long cycleId) {
+        try {
+            Employee employee = getEmployeeFromPrincipal(principal);
+            SelfAssessmentAnalyticsReportDto report = selfAssessmentReportService.getAnalyticsReportData(
+                    employee,
+                    principal.getRoleId(),
+                    cycleId);
+            return ResponseEntity.ok(ApiResponse.ok("Self-assessment report retrieved", report));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }

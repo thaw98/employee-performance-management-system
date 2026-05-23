@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BellRing, CheckCheck, ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
+import { AlertTriangle, BellRing, CheckCheck, ChevronLeft, ChevronRight, Inbox, Trash2 } from 'lucide-react';
 import {
+  clearNotifications,
   markAllAsRead,
   markAsRead,
   setUnreadCount,
@@ -10,6 +11,7 @@ import {
 import {
   useGetNotificationsQuery,
   useGetUnreadCountQuery,
+  useClearAllNotificationsMutation,
   useMarkAllNotificationsAsReadMutation,
   useMarkNotificationAsReadMutation,
 } from '../features/notification/notificationApi';
@@ -124,6 +126,9 @@ export function NotificationPage() {
   const [activeTab, setActiveTab] = useState<NotificationTab>('all');
   const [activeCategory, setActiveCategory] = useState<NotificationSourceFilter>('all');
   const [page, setPage] = useState(0);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const [clearError, setClearError] = useState('');
+  const [clearedLocally, setClearedLocally] = useState(false);
   const { unreadCount } = useAppSelector((state) => state.notification);
   const { data, isLoading, isFetching } = useGetNotificationsQuery({
     page,
@@ -134,10 +139,12 @@ export function NotificationPage() {
   const { data: unreadCountResponse } = useGetUnreadCountQuery();
   const [markRead] = useMarkNotificationAsReadMutation();
   const [markAllRead, { isLoading: isMarkingAll }] = useMarkAllNotificationsAsReadMutation();
+  const [clearAllNotifications, { isLoading: isClearing }] = useClearAllNotificationsMutation();
 
-  const notifications = data?.data?.content ?? [];
-  const totalPages = data?.data?.totalPages ?? 0;
-  const totalElements = data?.data?.totalElements ?? 0;
+  const notifications = clearedLocally ? [] : data?.data?.content ?? [];
+  const totalPages = clearedLocally ? 0 : data?.data?.totalPages ?? 0;
+  const totalElements = clearedLocally ? 0 : data?.data?.totalElements ?? 0;
+  const hasNotifications = totalElements > 0;
 
   const emptyText =
     totalElements === 0
@@ -199,6 +206,19 @@ export function NotificationPage() {
     }
   };
 
+  const handleClearAll = async () => {
+    setClearError('');
+    try {
+      await clearAllNotifications().unwrap();
+      dispatch(clearNotifications());
+      setClearedLocally(true);
+      setPage(0);
+      setIsClearConfirmOpen(false);
+    } catch {
+      setClearError('Unable to clear notifications. Please try again.');
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -211,16 +231,35 @@ export function NotificationPage() {
             <p className="text-sm font-bold text-slate-400">{unreadCount} unread notifications</p>
           </div>
         </div>
-        <button
-          type="button"
-          disabled={unreadCount === 0 || isMarkingAll}
-          onClick={handleMarkAllRead}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-teal-700 transition-colors"
-        >
-          <CheckCheck size={18} />
-          Mark all read
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            disabled={unreadCount === 0 || isMarkingAll}
+            onClick={handleMarkAllRead}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-teal-600 text-white text-sm font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-teal-700 transition-colors"
+          >
+            <CheckCheck size={18} />
+            Mark all read
+          </button>
+          <button
+            type="button"
+            disabled={!hasNotifications || isLoading || isFetching || isClearing}
+            onClick={() => {
+              setClearError('');
+              setIsClearConfirmOpen(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-rose-200 bg-white text-rose-600 text-sm font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-rose-50 transition-colors"
+          >
+            <Trash2 size={18} />
+            Clear all
+          </button>
+        </div>
       </div>
+      {clearError && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+          {clearError}
+        </div>
+      )}
 
       <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
         <div className="flex border-b border-slate-100 bg-slate-50/60">
@@ -354,6 +393,47 @@ export function NotificationPage() {
           >
             <ChevronRight size={20} />
           </button>
+        </div>
+      )}
+
+      {isClearConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-slate-900/45" onClick={() => !isClearing && setIsClearConfirmOpen(false)} />
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-slate-900">Clear all notifications?</h2>
+                <p className="mt-2 text-sm font-semibold text-slate-600">This action cannot be undone.</p>
+              </div>
+            </div>
+            {clearError && (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+                {clearError}
+              </div>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={isClearing}
+                onClick={() => setIsClearConfirmOpen(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-black text-slate-600 disabled:opacity-50 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isClearing}
+                onClick={handleClearAll}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-black text-white disabled:opacity-50 hover:bg-rose-700"
+              >
+                <Trash2 size={16} />
+                {isClearing ? 'Clearing...' : 'Clear all'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

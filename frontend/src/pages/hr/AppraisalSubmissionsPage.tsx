@@ -75,6 +75,8 @@ interface Submission {
 }
 
 export function AppraisalSubmissionsPage() {
+    const [searchParams] = useSearchParams();
+    const location = useLocation();
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -132,6 +134,30 @@ export function AppraisalSubmissionsPage() {
             }
         }
     }, [selectedAsmt]);
+
+    useEffect(() => {
+        const assignmentIdParam = searchParams.get('assignmentId');
+        if (!assignmentIdParam || isLoading || submissions.length === 0) {
+            return;
+        }
+
+        const assignmentId = Number(assignmentIdParam);
+        if (!Number.isFinite(assignmentId)) {
+            return;
+        }
+
+        const match = submissions.find((submission) => submission.id === assignmentId);
+        if (!match) {
+            return;
+        }
+
+        const reviewStatuses = new Set(['SUBMITTED', 'RETURNED', 'HR_APPROVED', 'REJECTED', 'LOCKED', 'PENDING']);
+        if (reviewStatuses.has(match.status)) {
+            setActiveTab(match.status);
+        }
+
+        setSelectedAsmt(match);
+    }, [searchParams, submissions, isLoading, location.state]);
 
     const fetchKpiHistory = async (empId: number, period?: string) => {
         if (!empId) return;

@@ -61,16 +61,17 @@ export function getPipPath(pathname: string) {
   return '/employee/pip';
 }
 
-export function getAppraisalPath(pathname: string) {
+export function getAppraisalPath(pathname: string, assignmentId?: number | null) {
   if (pathname.startsWith('/hr')) {
-    return '/hr/appraisals/submissions';
+    const base = '/hr/appraisals/submissions';
+    return assignmentId ? `${base}?assignmentId=${assignmentId}` : base;
   }
 
   if (pathname.startsWith('/manager')) {
-    return '/manager/appraisals';
+    return assignmentId ? `/manager/appraisals/${assignmentId}/evaluate` : '/manager/appraisals';
   }
 
-  return '/employee/appraisals';
+  return assignmentId ? `/employee/appraisals/${assignmentId}/view` : '/employee/appraisals';
 }
 
 export function getKpiPath(pathname: string) {
@@ -92,7 +93,8 @@ export function getNotificationsPath(pathname: string) {
 type NotificationNavigationInput = Pick<NotificationItem, 'source' | 'title' | 'message' | 'targetId'>;
 
 function normalizeNotificationSource(source: string | undefined) {
-  return source?.trim().toUpperCase() ?? '';
+  const normalized = source?.trim().toUpperCase() ?? '';
+  return normalized === 'GENERAL' ? '' : normalized;
 }
 
 function resolveLegacySource(notification: NotificationNavigationInput) {
@@ -134,7 +136,7 @@ export function getNotificationDestinationPath(notification: NotificationNavigat
   }
 
   if (source === 'APPRAISAL') {
-    return getAppraisalPath(pathname);
+    return getAppraisalPath(pathname, notification.targetId);
   }
 
   if (source === 'KPI') {

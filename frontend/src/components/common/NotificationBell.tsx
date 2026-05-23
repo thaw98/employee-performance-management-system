@@ -6,6 +6,11 @@ import {
   Box,
   Button,
   CircularProgress,
+  Alert,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   IconButton,
   List,
@@ -14,6 +19,7 @@ import {
 } from '@mui/material';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import {
+  clearNotifications,
   markAllAsRead,
   markAsRead,
   setNotifications,
@@ -23,6 +29,7 @@ import {
 import {
   useGetNotificationsQuery,
   useGetUnreadCountQuery,
+  useClearAllNotificationsMutation,
   useMarkAllNotificationsAsReadMutation,
   useMarkNotificationAsReadMutation,
 } from '../../features/notification/notificationApi';
@@ -103,11 +110,14 @@ export function NotificationBell() {
   const location = useLocation();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const [selectedTab, setSelectedTab] = useState<NotificationTab>(getInitialNotificationTab);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const [clearError, setClearError] = useState('');
   const { notifications, unreadCount } = useAppSelector((state) => state.notification);
   const { data: notificationsResponse, isFetching } = useGetNotificationsQuery();
   const { data: unreadCountResponse } = useGetUnreadCountQuery();
   const [markRead] = useMarkNotificationAsReadMutation();
   const [markAllRead, { isLoading: isMarkingAll }] = useMarkAllNotificationsAsReadMutation();
+  const [clearAllNotifications, { isLoading: isClearing }] = useClearAllNotificationsMutation();
 
   useEffect(() => {
     if (notificationsResponse?.data?.content) {
@@ -157,6 +167,17 @@ export function NotificationBell() {
       if (typeof unreadCountResponse?.data === 'number') {
         dispatch(setUnreadCount(unreadCountResponse.data));
       }
+    }
+  };
+
+  const handleClearAll = async () => {
+    setClearError('');
+    try {
+      await clearAllNotifications().unwrap();
+      dispatch(clearNotifications());
+      setIsClearConfirmOpen(false);
+    } catch {
+      setClearError('Unable to clear notifications. Please try again.');
     }
   };
 
@@ -220,8 +241,26 @@ export function NotificationBell() {
           >
             Read All
           </Button>
+          <Button
+            size="small"
+            disabled={notifications.length === 0 || isFetching || isClearing}
+            onClick={() => {
+              setClearError('');
+              setIsClearConfirmOpen(true);
+            }}
+            sx={{ fontSize: 11, fontWeight: 800, textTransform: 'none', color: 'rgb(225 29 72)' }}
+          >
+            Clear All
+          </Button>
         </Box>
         <Divider />
+        {clearError ? (
+          <Box sx={{ px: 2, py: 1 }}>
+            <Alert severity="error" sx={{ fontSize: 12, fontWeight: 700 }}>
+              {clearError}
+            </Alert>
+          </Box>
+        ) : null}
         <Box sx={{ display: 'flex', borderBottom: '1px solid rgb(229 231 235)' }}>
           {[
             ['all', 'All'],
@@ -363,6 +402,39 @@ export function NotificationBell() {
           </Button>
         </Box>
       </Popover>
+
+      <Dialog
+        open={isClearConfirmOpen}
+        onClose={() => {
+          if (!isClearing) setIsClearConfirmOpen(false);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontSize: 18, fontWeight: 900 }}>Clear all notifications?</DialogTitle>
+        <DialogContent sx={{ color: 'rgb(71 85 105)', fontSize: 14, fontWeight: 600 }}>
+          This action cannot be undone.
+          {clearError ? (
+            <Alert severity="error" sx={{ mt: 2, fontSize: 12, fontWeight: 700 }}>
+              {clearError}
+            </Alert>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button disabled={isClearing} onClick={() => setIsClearConfirmOpen(false)} sx={{ textTransform: 'none', fontWeight: 800 }}>
+            Cancel
+          </Button>
+          <Button
+            disabled={isClearing}
+            onClick={handleClearAll}
+            variant="contained"
+            color="error"
+            sx={{ textTransform: 'none', fontWeight: 900 }}
+          >
+            {isClearing ? 'Clearing...' : 'Clear All'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

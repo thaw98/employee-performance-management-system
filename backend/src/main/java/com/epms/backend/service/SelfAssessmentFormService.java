@@ -1075,6 +1075,7 @@ Instant now = Instant.now();
                 && form.getStatus() != SelfAssessmentFormStatus.SUBMITTED) {
             throw new RuntimeException("Form is not pending manager review");
         }
+        requireManagerReviewComments(request.comments());
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(manager.getUserAccount())
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before reviewing."));
@@ -1082,7 +1083,7 @@ Instant now = Instant.now();
         form.setManager(manager);
         form.setManagerSignatureId(defaultSig.getId());
         form.setManagerSignatureDate(Instant.now());
-        form.setManagerComments(request.comments());
+        form.setManagerComments(request.comments().trim());
         form.setEmployeeAcknowledgedAt(null);
         form.setEmployeeDisputedAt(null);
         form.setEmployeeDisputeReason(null);
@@ -1199,6 +1200,7 @@ Instant now = Instant.now();
         if (request.retakeRequests() == null || request.retakeRequests().isEmpty()) {
             throw new RuntimeException("Select at least one question for retake");
         }
+        requireManagerReviewComments(request.comments());
 
         Map<Long, SelfAssessmentFormAnswer> answersById = form.getAnswers().stream()
                 .collect(Collectors.toMap(SelfAssessmentFormAnswer::getId, a -> a));
@@ -1222,7 +1224,7 @@ Instant now = Instant.now();
         form.setManager(manager);
         form.setManagerSignatureId(defaultSig.getId());
         form.setManagerSignatureDate(now);
-        form.setManagerComments(request.comments());
+        form.setManagerComments(request.comments().trim());
         form.setRetakeRequestedAt(now);
         form.setRetakeSubmittedAt(null);
         form.setRetakeRequestUsed(true);
@@ -1351,6 +1353,7 @@ Instant now = Instant.now();
         if (request.retakeRequests() == null || request.retakeRequests().isEmpty()) {
             throw new RuntimeException("Select at least one question for retake");
         }
+        requireManagerReviewComments(request.comments());
 
         Map<Long, SelfAssessmentFormAnswer> answersById = form.getAnswers().stream()
                 .collect(Collectors.toMap(SelfAssessmentFormAnswer::getId, a -> a));
@@ -1375,7 +1378,7 @@ Instant now = Instant.now();
         form.setManager(hrUser.getEmployee());
         form.setManagerSignatureId(defaultSig.getId());
         form.setManagerSignatureDate(now);
-        form.setManagerComments(request.comments());
+        form.setManagerComments(request.comments().trim());
         form.setRetakeRequestedAt(now);
         form.setRetakeSubmittedAt(null);
         form.setRetakeRequestUsed(true);
@@ -2250,6 +2253,31 @@ Instant now = Instant.now();
         return changed;
     }
 
+    /** Ensures persisted NOT_SUBMITTED rows always expose the zero-score penalty in history. */
+    private void normalizeNotSubmittedForm(SelfAssessmentForm form) {
+        if (form == null || form.getStatus() != SelfAssessmentFormStatus.NOT_SUBMITTED) {
+            return;
+        }
+
+        boolean changed = false;
+        if (!Double.valueOf(0.0).equals(form.getFinalApprovedTotalScore())) {
+            form.setFinalApprovedTotalScore(0.0);
+            changed = true;
+        }
+        if (!Double.valueOf(0.0).equals(form.getTotalScore())) {
+            form.setTotalScore(0.0);
+            changed = true;
+        }
+        if (!"Unsatisfactory".equals(form.getRatingCategory())) {
+            form.setRatingCategory("Unsatisfactory");
+            changed = true;
+        }
+        if (changed) {
+            form.setUpdatedDate(Instant.now());
+            formRepository.save(form);
+        }
+    }
+
     private ReviewCycle getActiveCycle() {
         ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
         if (activeCycle != null) {
@@ -2741,6 +2769,12 @@ Instant now = Instant.now();
         return creatorRoleId != null && creatorRoleId == 1L;
     }
 
+    private void requireManagerReviewComments(String comments) {
+        if (comments == null || comments.trim().isBlank()) {
+            throw new RuntimeException("Manager comments are required");
+        }
+    }
+
     private void requireManagerTemplateAccess(SelfAssessmentFormTemplate template, Employee manager) {
         Long departmentId = getEmployeeDepartmentId(manager);
         if (departmentId == null) {
@@ -2810,6 +2844,7 @@ Instant now = Instant.now();
     private List<ScoreRecordDto> getHrScoreRecords() {
         return formRepository.findAll().stream()
                 .peek(this::normalizeOverdueDraftForm)
+                .peek(this::normalizeNotSubmittedForm)
                 .filter(f -> SCORE_RECORD_HISTORY_STATUSES.contains(f.getStatus()))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
@@ -2820,6 +2855,7 @@ Instant now = Instant.now();
         List<SelfAssessmentForm> allForms = formRepository.findAll();
         return allForms.stream()
                 .peek(this::normalizeOverdueDraftForm)
+                .peek(this::normalizeNotSubmittedForm)
                 .filter(f -> SCORE_RECORD_HISTORY_STATUSES.contains(f.getStatus()))
                 .filter(f -> canManagerAccessForm(f, manager))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
@@ -2831,6 +2867,7 @@ Instant now = Instant.now();
     private List<ScoreRecordDto> getEmployeeScoreRecords(Employee employee) {
         return formRepository.findAll().stream()
                 .peek(this::normalizeOverdueDraftForm)
+                .peek(this::normalizeNotSubmittedForm)
                 .filter(f -> isOwnForm(f, employee))
                 .sorted(Comparator.comparing(SelfAssessmentForm::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::toScoreRecordDto)
@@ -2872,12 +2909,23 @@ Instant now = Instant.now();
                 resolveEmployeeRoleId(emp)
         );
 
+        Double finalApprovedScore = form.getFinalApprovedTotalScore();
+        String performance = form.getRatingCategory();
+        if (form.getStatus() == SelfAssessmentFormStatus.NOT_SUBMITTED) {
+            if (finalApprovedScore == null) {
+                finalApprovedScore = 0.0;
+            }
+            if (performance == null || performance.isBlank()) {
+                performance = "Unsatisfactory";
+            }
+        }
+
         return new ScoreRecordDto(
                 form.getId(),
                 employeeInfo,
                 form.getStatus().name(),
-                form.getFinalApprovedTotalScore(),
-                form.getRatingCategory(),
+                finalApprovedScore,
+                performance,
                 form.getCycle() != null ? form.getCycle().getId() : null,
                 form.getCycle() != null ? form.getCycle().getName() : null,
                 form.getSubmittedDate(),
