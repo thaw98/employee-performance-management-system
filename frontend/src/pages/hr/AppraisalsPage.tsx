@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import {
@@ -644,6 +644,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
 
 export function AppraisalsPage() {
     const [activeTab, setActiveTab] = useState<'category' | 'questions' | 'confirmed' | 'finalized'>('category');
+    const hasAutoSwitchedToFinalized = useRef(false);
 
     // Category State
     const [categories, setCategories] = useState<Category[]>([]);
@@ -734,7 +735,11 @@ export function AppraisalsPage() {
             if (backendFinalized.length > 0) {
                 setFinalizedCategories(backendFinalized);
                 setConfirmedCategories([]); // Keep review tab empty if finalized
-                if (activeTab === 'category') setActiveTab('finalized');
+                // Only auto-switch on first page load — not after create/edit/delete refreshes
+                if (!hasAutoSwitchedToFinalized.current && activeTab === 'category') {
+                    setActiveTab('finalized');
+                    hasAutoSwitchedToFinalized.current = true;
+                }
             }
         } catch (err) {
             toast.error('Failed to load categories');
@@ -920,6 +925,7 @@ export function AppraisalsPage() {
             } else {
                 await axios.post('/appraisal-categories', data);
                 toast.success('Category created');
+                setActiveTab('category');
             }
             setShowCatModal(false);
             fetchCategories();
