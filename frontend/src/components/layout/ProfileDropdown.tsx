@@ -5,7 +5,7 @@ import { logout } from '../../features/auth/authSlice'
 import { useGetProfileQuery } from '../../features/user/userApi'
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
 import { getRoleGroup } from '../../utils/dashboardRedirect'
-import { ChevronDown, User, Settings, LogOut, PenLine } from 'lucide-react'
+import { ChevronDown, User, Settings, LogOut, PenLine, Calendar } from 'lucide-react'
 
 export function ProfileDropdown() {
   const dispatch = useAppDispatch()
@@ -41,6 +41,8 @@ export function ProfileDropdown() {
   const profilePath = `${rolePrefix}/profile`
   const signatureSettingsPath = `${rolePrefix}/settings/signature`
   const systemSettingsPath = `${rolePrefix}/settings/system`
+  const timeSettingsPath = `${rolePrefix}/settings/system/time`
+  const isHR = profileResponse?.data?.role === 'HR'
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -112,7 +114,19 @@ export function ProfileDropdown() {
               </div>
               System Settings
             </Link>
-            
+
+            {isHR && (
+              <Link
+                to={timeSettingsPath}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all group"
+                onClick={() => setIsOpen(false)}
+              >
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                  <Calendar size={18} />
+                </div>
+                Time Settings
+              </Link>
+            )}
 
           </div>
 

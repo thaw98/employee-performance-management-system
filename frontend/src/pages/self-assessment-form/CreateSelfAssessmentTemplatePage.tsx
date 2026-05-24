@@ -1107,7 +1107,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   </div>
                 ) : selectableReviewCycles.length === 0 ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                    No active or upcoming employee-submission cycles found. Generate or adjust cycles in System Settings.
+                    No active or upcoming employee-submission cycles found. Generate or adjust cycles in <Link to="/hr/settings/system/time" className="font-semibold underline">Time Settings</Link>.
                   </div>
                 ) : (
                   <select
