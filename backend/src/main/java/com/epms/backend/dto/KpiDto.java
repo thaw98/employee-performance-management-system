@@ -19,6 +19,9 @@ public class KpiDto {
     private BigDecimal weightedScore;
     private BigDecimal kpiTotalScore;
     private String period;
+    private Integer year;
+    private Integer month;
+    private String periodLabel;
     private String status;
     private String recordStatus;
     private Instant createdDate;

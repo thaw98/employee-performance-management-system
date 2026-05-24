@@ -1,7 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useGetEmployeesKpiStatusQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
+import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
+
+const getCurrentMonthValue = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${now.getFullYear()}-${month}`;
+};
+
+const formatMonthYear = (monthValue: string) => {
+  if (!monthValue) return '';
+  const [year, month] = monthValue.split('-');
+  if (!year || !month) return monthValue;
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+};
 import {
   useGetPositionsKpiStatusQuery,
   useGetDepartmentsKpiStatusQuery,
@@ -20,14 +35,15 @@ export const KpiAssignedPage: React.FC = () => {
   const [selectedDept, setSelectedDept] = useState<number | undefined>(undefined);
   const [selectedPos, setSelectedPos] = useState<number | undefined>(undefined);
   const [kpiStatus, setKpiStatus] = useState<'DEFINED' | 'NOT_DEFINED' | ''>('');
-  const [period, setPeriod] = useState('2026-2027');
+  const [periodMonth, setPeriodMonth] = useState(getCurrentMonthValue());
+  const selectedPeriodLabel = formatMonthYear(periodMonth);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [viewMode, searchTerm, selectedDept, selectedPos, kpiStatus, period]);
+  }, [viewMode, searchTerm, selectedDept, selectedPos, kpiStatus, periodMonth]);
 
   // Employee Data
   const { data: employeesResponse, isLoading: employeesLoading } = useGetEmployeesKpiStatusQuery({
@@ -36,18 +52,18 @@ export const KpiAssignedPage: React.FC = () => {
     departmentId: selectedDept,
     positionId: selectedPos,
     kpiStatus,
-    period
+    period: selectedPeriodLabel
   }, { skip: viewMode !== 'employee' });
 
   // Position Data
   const { data: positionsStatusResponse, isLoading: positionsLoading } = useGetPositionsKpiStatusQuery({
     departmentId: selectedDept,
-    period
+    period: selectedPeriodLabel
   }, { skip: viewMode !== 'position' });
 
   // Department Data
   const { data: departmentsStatusResponse, isLoading: deptsLoading } = useGetDepartmentsKpiStatusQuery({
-    period
+    period: selectedPeriodLabel
   }, { skip: viewMode !== 'department' });
 
   const { data: departmentsResponse } = useGetDepartmentsQuery();
@@ -160,15 +176,10 @@ export const KpiAssignedPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Period:</span>
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-100"
-          >
-            <option value="2024-2025">2024-2025</option>
-            <option value="2025-2026">2025-2026</option>
-            <option value="2026-2027">2026-2027</option>
-          </select>
+          <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
+            <MonthYearPicker value={periodMonth} onChange={setPeriodMonth} />
+            <span className="text-xs text-slate-500">{selectedPeriodLabel}</span>
+          </div>
           <button 
             onClick={handleResetKpis}
             disabled={isResetting}

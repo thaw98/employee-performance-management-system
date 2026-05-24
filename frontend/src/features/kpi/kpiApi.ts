@@ -14,6 +14,9 @@ export interface Kpi {
   weightedScore?: number
   kpiTotalScore?: number
   period: string
+  year?: number
+  month?: number
+  periodLabel?: string
   status: string
   recordStatus?: string
   createdDate?: string
@@ -33,6 +36,9 @@ export interface PositionKpi {
   score?: number
   weightedScore?: number
   period: string
+  year?: number
+  month?: number
+  periodLabel?: string
   status?: string
   recordStatus?: string
 }
@@ -50,6 +56,9 @@ export interface DepartmentKpi {
   weightedScore?: number
   totalDepartmentScore?: number
   period: string
+  year?: number
+  month?: number
+  periodLabel?: string
   status?: string
   recordStatus?: string
 }
@@ -218,12 +227,18 @@ export const kpiApi = baseApi.injectEndpoints({
       }),
       providesTags: ['KPI'],
     }),
-    getKpiHistorySummary: builder.query<KpiHistorySummary[], void>({
-      query: () => '/kpis/history/summary',
+    getKpiHistorySummary: builder.query<KpiHistorySummary[], { period?: string }>({
+      query: ({ period } = {}) => ({
+        url: '/kpis/history/summary',
+        params: period ? { period } : {},
+      }),
       providesTags: ['KPI'],
     }),
-    getDepartmentComparison: builder.query<DepartmentComparison[], void>({
-      query: () => '/kpis/history/department-comparison',
+    getDepartmentComparison: builder.query<DepartmentComparison[], { period?: string }>({
+      query: ({ period } = {}) => ({
+        url: '/kpis/history/department-comparison',
+        params: period ? { period } : {},
+      }),
       providesTags: ['KPI'],
     }),
     performMonthlyKpiReset: builder.mutation<void, void>({

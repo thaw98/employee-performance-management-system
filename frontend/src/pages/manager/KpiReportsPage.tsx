@@ -59,7 +59,7 @@ function getInitials(name?: string) {
 
 export default function ManagerKpiReportsPage() {
   const { data: profileResponse, isLoading: isProfileLoading } = useGetProfileQuery();
-  const { data: summaryData = [], isLoading: isSummaryLoading } = useGetKpiHistorySummaryQuery();
+  const { data: summaryData = [], isLoading: isSummaryLoading } = useGetKpiHistorySummaryQuery({});
   const [currentPage, setCurrentPage] = useState(1);
   const [filterSortOpt, setFilterSortOpt] = useState('high-to-low');
 

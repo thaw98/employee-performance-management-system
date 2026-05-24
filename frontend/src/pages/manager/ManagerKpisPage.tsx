@@ -305,7 +305,7 @@ const KpiHistoryModal = ({ employee, onClose }: { employee: any, onClose: () => 
                         <td colSpan={7} className="py-2.5 px-6 border-y border-slate-100">
                           <div className="flex items-center gap-3">
                             <div className="w-6 h-6 bg-indigo-600 text-white rounded-md flex items-center justify-center shadow-sm">
-                               <Calendar size={12} />
+                              <Calendar size={12} />
                             </div>
                             <span className="font-black text-slate-800 text-[10px] uppercase tracking-widest">{month}</span>
                             <span className="h-px bg-slate-200 flex-1 mx-4"></span>
