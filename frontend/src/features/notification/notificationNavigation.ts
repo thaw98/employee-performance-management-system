@@ -90,6 +90,10 @@ export function getNotificationsPath(pathname: string) {
   return `/${getRolePrefix(pathname)}/notifications`;
 }
 
+export function getFaqSupportPath(pathname: string) {
+  return pathname.startsWith('/hr') ? '/hr/settings/faq-support' : `/${getRolePrefix(pathname)}/settings/system`;
+}
+
 type NotificationNavigationInput = Pick<NotificationItem, 'source' | 'title' | 'message' | 'targetId'>;
 
 function normalizeNotificationSource(source: string | undefined) {
@@ -117,6 +121,9 @@ function resolveLegacySource(notification: NotificationNavigationInput) {
   if (searchableText.includes('FEEDBACK')) {
     return '360_FEEDBACK';
   }
+  if (searchableText.includes('FAQ')) {
+    return 'FAQ_SUPPORT';
+  }
   return '';
 }
 
@@ -141,6 +148,10 @@ export function getNotificationDestinationPath(notification: NotificationNavigat
 
   if (source === 'KPI') {
     return getKpiPath(pathname);
+  }
+
+  if (source === 'FAQ_SUPPORT') {
+    return getFaqSupportPath(pathname);
   }
 
   if (source === '360_FEEDBACK' && isFeedbackCycleStartNotification(notification)) {

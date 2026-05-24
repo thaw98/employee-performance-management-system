@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { 
-    Plus, Calendar, Clock, User, CheckCircle, XCircle, 
+import {
+    Plus, Calendar, Clock, User, CheckCircle, XCircle,
     MessageSquare, Play, Square, Search, Filter,
     ChevronLeft, ChevronRight
 } from 'lucide-react';
@@ -135,8 +135,34 @@ export function MeetingsPage() {
                 if (toDate) url += `&toDate=${new Date(toDate).toISOString()}`;
             }
 
+            if (isHrView && hrSection === 'schedule' && activeTab !== 'COMPLETED') {
+                let employeeUrl = `/meetings/employee?statuses=${statuses}&page=${page}&size=${pageSize}&sortBy=${sortBy}`;
+                if (searchName) employeeUrl += `&searchName=${encodeURIComponent(searchName)}`;
+                if (selectedDept) employeeUrl += `&departmentId=${selectedDept}`;
+
+                const [managerResp, employeeResp] = await Promise.all([axios.get(url), axios.get(employeeUrl)]);
+                const managerMeetings = (managerResp.data.data.content || []).map((meeting) => ({
+                    ...meeting,
+                    perspective: 'manager',
+                }));
+                const employeeMeetings = (employeeResp.data.data.content || []).map((meeting) => ({
+                    ...meeting,
+                    perspective: 'employee',
+                }));
+                const mergedMeetings = Array.from(
+                    new Map([...managerMeetings, ...employeeMeetings].map((meeting) => [meeting.id, meeting])).values(),
+                ).sort((a, b) => {
+                    const aTime = new Date(a.scheduledTime || a.meetingTime || '').getTime();
+                    const bTime = new Date(b.scheduledTime || b.meetingTime || '').getTime();
+                    return sortBy === 'oldest' ? aTime - bTime : bTime - aTime;
+                });
+                setMeetings(mergedMeetings);
+                setTotalPages(Math.max(managerResp.data.data.totalPages || 0, employeeResp.data.data.totalPages || 0));
+                return;
+            }
+
             const resp = await axios.get(url);
-            setMeetings(resp.data.data.content || []);
+            setMeetings((resp.data.data.content || []).map((meeting: any) => ({ ...meeting, perspective: 'manager' })));
             setTotalPages(resp.data.data.totalPages || 0);
         } catch (err: any) {
             const errorMsg = err.response?.data?.message || 'Failed to load meetings';
@@ -219,6 +245,16 @@ export function MeetingsPage() {
         setRescheduleReason('');
         setRescheduleProposedTime('');
         setIsRescheduleModalOpen(true);
+    };
+
+    const handleAccept = async (id: number) => {
+        try {
+            await axios.put(`/meetings/${id}/accept`);
+            toast.success('Meeting accepted');
+            fetchMeetings();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to accept meeting');
+        }
     };
 
     const handleAcceptReschedule = async (id: number) => {
@@ -436,6 +472,7 @@ export function MeetingsPage() {
                         (isHrView && hrSection === 'history') ||
                         (!isHrView && (m.status === 'COMPLETED' || m.status === 'CANCELLED'));
                     const detailPath = isHrView ? `/hr/meetings/${m.id}` : `/manager/meetings/${m.id}`;
+                    const isInvitedMeeting = isHrView && m.perspective === 'employee';
 
                     return (
                     <div 
@@ -472,7 +509,18 @@ export function MeetingsPage() {
 
                         {activeTab !== 'COMPLETED' && (!isHrView || hrSection === 'schedule') && (
                             <div className="space-y-4">
-                                {m.status === 'RESCHEDULE_REQUESTED' && (
+                                {isInvitedMeeting && m.status === 'PENDING' && (
+                                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                                        <p className="text-xs font-bold text-emerald-800 uppercase mb-1">Meeting Invitation</p>
+                                        <p className="text-xs text-emerald-700 mb-3">Accept the meeting or propose another time.</p>
+                                        <div className="flex gap-2">
+                                            <button onClick={(e) => { e.stopPropagation(); handleAccept(m.id); }} className="flex-1 bg-emerald-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors">Accept</button>
+                                            <button onClick={(e) => { e.stopPropagation(); openRescheduleModal(m); }} className="flex-1 bg-white border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold hover:bg-emerald-50 transition-colors">Reschedule</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!isInvitedMeeting && m.status === 'RESCHEDULE_REQUESTED' && (
                                     <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
                                         <p className="text-xs font-bold text-amber-800 uppercase mb-1">Reschedule Requested</p>
                                         <p className="text-sm text-amber-900 mb-2 font-medium">Proposed: {new Date(m.proposedTime).toLocaleString()}</p>
@@ -483,7 +531,18 @@ export function MeetingsPage() {
                                     </div>
                                 )}
 
-                                {m.status === 'CANCEL_REQUESTED' && (
+                                {isInvitedMeeting && m.status === 'RESCHEDULE_MGR' && (
+                                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                        <p className="text-xs font-bold text-blue-800 uppercase mb-1">Reschedule Proposed</p>
+                                        <p className="text-sm text-blue-900 mb-2 font-medium">Proposed: {new Date(m.proposedTime).toLocaleString()}</p>
+                                        <div className="flex gap-2 mt-3">
+                                            <button onClick={(e) => { e.stopPropagation(); handleAcceptReschedule(m.id); }} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">Accept</button>
+                                            <button onClick={(e) => { e.stopPropagation(); openRescheduleModal(m); }} className="flex-1 bg-white border border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors">Propose</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!isInvitedMeeting && m.status === 'CANCEL_REQUESTED' && (
                                     <div className="bg-rose-50 p-4 rounded-xl border border-rose-100">
                                         <p className="text-xs font-bold text-rose-800 uppercase mb-1">Cancellation Requested</p>
                                         <p className="text-xs text-rose-700 italic mb-3 line-clamp-2">"{m.cancellationReason}"</p>
@@ -502,7 +561,7 @@ export function MeetingsPage() {
                                         <MessageSquare size={16} /> Details
                                     </button>
                                     
-                                    {activeTab === 'UPCOMING' && m.status === 'ACCEPTED' && (
+                                    {activeTab === 'UPCOMING' && !isInvitedMeeting && m.status === 'ACCEPTED' && (
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleStatusUpdate(m.id, 'ONGOING'); }}
                                             className="bg-[#2463eb] text-white px-4 py-2 rounded-xl hover:bg-[#1d4ed8] transition-all flex items-center gap-2 text-sm font-bold shadow-lg shadow-[#dbeafe]"
@@ -511,7 +570,7 @@ export function MeetingsPage() {
                                         </button>
                                     )}
 
-                                    {activeTab === 'ONGOING' && (
+                                    {activeTab === 'ONGOING' && !isInvitedMeeting && (
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleFinishMeeting(m.id); }}
                                             className="flex-1 bg-rose-600 text-white py-2 rounded-xl hover:bg-rose-700 transition-all flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-rose-100"
