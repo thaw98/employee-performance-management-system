@@ -100,7 +100,7 @@ const SortableQuestionRow: React.FC<SortableQuestionRowProps> = ({
       ref={setNodeRef}
       style={style}
       className={`group flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5 transition-all hover:border-slate-200 hover:bg-white hover:shadow-sm dark:border-slate-700/50 dark:bg-slate-900/30 dark:hover:border-slate-600 dark:hover:bg-slate-800/60 ${
-        isDragging ? 'opacity-90 shadow-lg ring-2 ring-[#5D5FEF]/25 dark:ring-[#5D5FEF]/20' : ''
+        isDragging ? 'opacity-90 shadow-lg ring-2 ring-[#2463eb]/25 dark:ring-[#2463eb]/20' : ''
       }`}
     >
       <button
@@ -121,7 +121,7 @@ const SortableQuestionRow: React.FC<SortableQuestionRowProps> = ({
         {...register(`questions.${index}.questionText` as const)}
         placeholder={`Question ${index + 1}`}
         maxLength={100}
-        className="min-w-0 flex-1 rounded-lg border-0 bg-transparent px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:text-white dark:placeholder:text-slate-500"
+        className="min-w-0 flex-1 rounded-lg border-0 bg-transparent px-2 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:text-white dark:placeholder:text-slate-500"
       />
       <span className="shrink-0 text-xs text-slate-400">
         {questionLength}/100
@@ -240,18 +240,18 @@ interface HybridRuleRowProps {
 }
 
 const selectBase =
-  'w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 disabled:cursor-not-allowed disabled:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF] dark:disabled:bg-slate-900';
+  'w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 disabled:cursor-not-allowed disabled:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#2463eb] dark:disabled:bg-slate-900';
 
 const inputBase =
-  'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500';
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500';
 
 const StepBadge: React.FC<{ step: number; label: string; icon: React.ReactNode }> = ({ step, label, icon }) => (
   <div className="flex items-center gap-3">
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] text-white shadow-md shadow-[#5D5FEF]/25 dark:shadow-[#5D5FEF]/15">
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/25 dark:shadow-[#2463eb]/15">
       {icon}
     </div>
     <div>
-      <span className="text-[11px] font-bold uppercase tracking-widest text-[#5D5FEF] dark:text-[#8b8ef7]">
+      <span className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb] dark:text-[#60a5fa]">
         Step {step}
       </span>
       <h2 className="text-base font-bold text-slate-900 dark:text-white leading-tight">{label}</h2>
@@ -1057,7 +1057,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/20">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/20">
                   <ClipboardList size={20} className="text-white" />
                 </div>
                 <div>
@@ -1075,7 +1075,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
 
         {/* Review Cycle Banner */}
         <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '50ms' }}>
-          <SelfAssessmentReviewCycleInfo />
+          <SelfAssessmentReviewCycleInfo primaryColor="#2463eb" primaryColorDark="#1d4ed8" />
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)}>
@@ -1102,7 +1102,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                 </p>
                 {reviewCyclesLoading ? (
                   <div className="flex items-center gap-2 text-sm text-slate-400">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#5D5FEF]" />
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#2463eb]" />
                     Loading review cycles...
                   </div>
                 ) : selectableReviewCycles.length === 0 ? (
@@ -1117,7 +1117,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                       const value = event.target.value;
                       setSelectedReviewCycleId(value ? Number(value) : null);
                     }}
-                    className="max-w-xl w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#5D5FEF] focus:outline-none focus:ring-1 focus:ring-[#5D5FEF] dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                    className="max-w-xl w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#2463eb] focus:outline-none focus:ring-1 focus:ring-[#2463eb] dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                   >
                     {selectableReviewCycles.map((cycle) => {
                       const suffix = reviewCycleOptionSuffix(cycle.status);
@@ -1145,7 +1145,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                       Employees answer Yes/No then pick a score. Matches{' '}
                       <Link
                         to="/hr/self-assessment/settings"
-                        className="font-semibold text-[#5D5FEF] hover:underline dark:text-[#8b8ef7]"
+                        className="font-semibold text-[#2463eb] hover:underline dark:text-[#60a5fa]"
                       >
                         Self Assessment Settings
                       </Link>
@@ -1237,8 +1237,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   ...(allCount > 0 ? [`${formatEmployeeCount(allCount)} will receive`] : []),
                 ]}
                 icon={<Users size={18} />}
-                badge={createCountBadge(allCount)}
+                badge={createCountBadge(allCount, 'blue')}
                 onSelect={setAudienceType}
+                accent="blue"
               />
               <AudienceCard
                 value="departments"
@@ -1249,8 +1250,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   'All positions within them',
                 ]}
                 icon={<Building2 size={18} />}
-                badge={createCountBadge(departmentCount)}
+                badge={createCountBadge(departmentCount, 'blue')}
                 onSelect={setAudienceType}
+                accent="blue"
               />
               <AudienceCard
                 value="positions"
@@ -1261,8 +1263,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   'Across any department',
                 ]}
                 icon={<BriefcaseBusiness size={18} />}
-                badge={createCountBadge(positionCount)}
+                badge={createCountBadge(positionCount, 'blue')}
                 onSelect={setAudienceType}
+                accent="blue"
               />
               <AudienceCard
                 value="hybrid"
@@ -1273,15 +1276,16 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   'Dept + position combos',
                 ]}
                 icon={<Layers3 size={18} />}
-                badge={createCountBadge(hybridCount)}
+                badge={createCountBadge(hybridCount, 'blue')}
                 onSelect={setAudienceType}
+                accent="blue"
               />
             </div>
 
             {audienceType === 'departments' && (
               <div className="mt-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 dark:border-slate-600/50 dark:bg-slate-900/30">
                 <div className="mb-3 flex items-center gap-2.5">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#5D5FEF]/10 text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#2463eb]/10 text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
                     <Building2 size={14} />
                   </span>
                   <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -1308,7 +1312,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                             <label
                               className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition-all ${
                                 checked
-                                  ? 'bg-[#5D5FEF]/[0.04] dark:bg-[#5D5FEF]/10'
+                                  ? 'bg-[#2463eb]/[0.04] dark:bg-[#2463eb]/10'
                                   : 'hover:bg-slate-50 dark:hover:bg-slate-700/40'
                               }`}
                             >
@@ -1319,7 +1323,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                                   onChange={() => toggleDepartment(department.id)}
                                   className="peer sr-only"
                                 />
-                                <div className="flex h-5 w-5 items-center justify-center rounded-md border-2 border-slate-300 transition-all peer-checked:border-[#5D5FEF] peer-checked:bg-[#5D5FEF] dark:border-slate-500">
+                                <div className="flex h-5 w-5 items-center justify-center rounded-md border-2 border-slate-300 transition-all peer-checked:border-[#2463eb] peer-checked:bg-[#2463eb] dark:border-slate-500">
                                   <svg
                                     className={`h-3 w-3 text-white transition-opacity ${checked ? 'opacity-100' : 'opacity-0'}`}
                                     fill="none"
@@ -1348,9 +1352,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 rounded-lg bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-sm font-semibold text-[#5D5FEF] dark:bg-[#5D5FEF]/15 dark:text-[#8b8ef7]">
+                  <div className="flex items-center gap-2 rounded-lg bg-[#2463eb]/[0.06] px-3 py-1.5 text-sm font-semibold text-[#2463eb] dark:bg-[#2463eb]/15 dark:text-[#60a5fa]">
                     <span className="tabular-nums">{selectedDepartmentIds.length}</span> departments
-                    <span className="text-[#5D5FEF]/40 dark:text-[#8b8ef7]/40">|</span>
+                    <span className="text-[#2463eb]/40 dark:text-[#60a5fa]/40">|</span>
                     <span className="tabular-nums">{selectedDepartmentEmployeeTotal}</span> employees
                   </div>
                   <div className="flex gap-2">
@@ -1378,7 +1382,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             {audienceType === 'positions' && (
               <div className="mt-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 dark:border-slate-600/50 dark:bg-slate-900/30">
                 <div className="mb-3 flex items-center gap-2.5">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#5D5FEF]/10 text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#2463eb]/10 text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
                     <BriefcaseBusiness size={14} />
                   </span>
                   <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -1430,7 +1434,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                             <label
                               className={`flex cursor-pointer items-start gap-3 px-4 py-3 transition-all ${
                                 checked
-                                  ? 'bg-[#5D5FEF]/[0.04] dark:bg-[#5D5FEF]/10'
+                                  ? 'bg-[#2463eb]/[0.04] dark:bg-[#2463eb]/10'
                                   : 'hover:bg-slate-50 dark:hover:bg-slate-700/40'
                               }`}
                             >
@@ -1441,7 +1445,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                                   onChange={() => toggleGlobalPosition(position.id)}
                                   className="peer sr-only"
                                 />
-                                <div className="flex h-5 w-5 items-center justify-center rounded-md border-2 border-slate-300 transition-all peer-checked:border-[#5D5FEF] peer-checked:bg-[#5D5FEF] dark:border-slate-500">
+                                <div className="flex h-5 w-5 items-center justify-center rounded-md border-2 border-slate-300 transition-all peer-checked:border-[#2463eb] peer-checked:bg-[#2463eb] dark:border-slate-500">
                                   <svg
                                     className={`h-3 w-3 text-white transition-opacity ${checked ? 'opacity-100' : 'opacity-0'}`}
                                     fill="none"
@@ -1472,9 +1476,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-sm font-semibold text-[#5D5FEF] dark:bg-[#5D5FEF]/15 dark:text-[#8b8ef7]">
+                <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#2463eb]/[0.06] px-3 py-1.5 text-sm font-semibold text-[#2463eb] dark:bg-[#2463eb]/15 dark:text-[#60a5fa]">
                   <span className="tabular-nums">{selectedGlobalPositionIds.length}</span> positions
-                  <span className="text-[#5D5FEF]/40 dark:text-[#8b8ef7]/40">|</span>
+                  <span className="text-[#2463eb]/40 dark:text-[#60a5fa]/40">|</span>
                   <span className="tabular-nums">{selectedGlobalPositionEmployeeTotal}</span> employees
                 </div>
               </div>
@@ -1483,7 +1487,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             {audienceType === 'hybrid' && (
               <div className="mt-5 rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 dark:border-slate-600/50 dark:bg-slate-900/30">
                 <div className="mb-4 flex items-center gap-2.5">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#5D5FEF]/10 text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#2463eb]/10 text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
                     <Layers3 size={14} />
                   </span>
                   <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -1510,14 +1514,14 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={addHybridRule}
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.06] dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/15"
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.06] dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/15"
                 >
                   <Plus size={15} />
                   Add Rule
                 </button>
 
                 <div className="mt-4 rounded-xl border border-slate-200/80 bg-white p-4 dark:border-slate-600/50 dark:bg-slate-800/60">
-                  <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#5D5FEF] dark:text-[#8b8ef7]">
+                  <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#2463eb] dark:text-[#60a5fa]">
                     <Users size={13} />
                     Summary
                   </h4>
@@ -1544,7 +1548,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   )}
                   <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Total unique:</span>
-                    <span className="rounded-lg bg-[#5D5FEF]/10 px-2.5 py-0.5 text-sm font-bold tabular-nums text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                    <span className="rounded-lg bg-[#2463eb]/10 px-2.5 py-0.5 text-sm font-bold tabular-nums text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
                       {hybridSummary.totalUnique}
                     </span>
                   </div>
@@ -1597,7 +1601,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             <button
               type="button"
               onClick={() => append({ questionText: '' })}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 py-2 text-sm font-semibold text-slate-500 transition-all hover:border-[#5D5FEF] hover:bg-[#5D5FEF]/[0.03] hover:text-[#5D5FEF] dark:border-slate-600 dark:hover:border-[#5D5FEF] dark:hover:text-[#8b8ef7]"
+              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 py-2 text-sm font-semibold text-slate-500 transition-all hover:border-[#2463eb] hover:bg-[#2463eb]/[0.03] hover:text-[#2463eb] dark:border-slate-600 dark:hover:border-[#2463eb] dark:hover:text-[#60a5fa]"
             >
               <Plus size={15} />
               Add Question
@@ -1619,7 +1623,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsPreviewOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#5D5FEF]/30 bg-white px-6 py-2.5 text-sm font-bold text-[#5D5FEF] shadow-sm transition-all hover:bg-[#5D5FEF]/[0.04] dark:border-[#5D5FEF]/40 dark:bg-slate-800 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/15"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2463eb]/30 bg-white px-6 py-2.5 text-sm font-bold text-[#2463eb] shadow-sm transition-all hover:bg-[#2463eb]/[0.04] dark:border-[#2463eb]/40 dark:bg-slate-800 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/15"
             >
               <Eye size={16} />
               Preview Template
@@ -1627,7 +1631,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             <button
               type="submit"
               disabled={isCreating || selectableReviewCycles.length === 0 || selectedReviewCycleId == null}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 disabled:opacity-50 disabled:shadow-none dark:shadow-[#5D5FEF]/15"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:shadow-[#2463eb]/30 hover:brightness-110 disabled:opacity-50 disabled:shadow-none dark:shadow-[#2463eb]/15"
             >
               {isCreating ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -1689,7 +1693,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                 <div className="max-h-[50vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-600">
                   {isQuestionBankLoading ? (
                     <div className="flex items-center justify-center gap-2 px-4 py-12 text-sm text-slate-400">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#5D5FEF]" />
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-[#2463eb]" />
                       Loading questions...
                     </div>
                   ) : filteredQuestionBank.length > 0 ? (
@@ -1699,9 +1703,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                           key={question.id}
                           type="button"
                           onClick={() => handleUseBankQuestion(question.questionText)}
-                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-all hover:bg-[#5D5FEF]/[0.04] dark:hover:bg-[#5D5FEF]/10"
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-all hover:bg-[#2463eb]/[0.04] dark:hover:bg-[#2463eb]/10"
                         >
-                          <Plus size={14} className="shrink-0 text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                          <Plus size={14} className="shrink-0 text-[#2463eb] dark:text-[#60a5fa]" />
                           <span className="text-slate-800 dark:text-slate-100">{question.questionText}</span>
                         </button>
                       ))}
