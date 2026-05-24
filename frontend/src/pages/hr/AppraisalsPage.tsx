@@ -1214,7 +1214,7 @@ export function AppraisalsPage() {
                                                 }
                                             }
                                         }}
-                                        className="w-full text-xl font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer appearance-none"
+                                        className="w-full text-xl font-black text-slate-800 bg-transparent border-none p-0 pr-10 focus:ring-0 cursor-pointer appearance-none"
                                     >
                                         <option value="">Manual Date Entry (Not Recommended)</option>
                                         {reviewCycles.map(c => (
@@ -1223,8 +1223,8 @@ export function AppraisalsPage() {
                                             </option>
                                         ))}
                                     </select>
-                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300">
-                                        <ChevronDown size={24} />
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                                        <ChevronDown size={24} strokeWidth={2.5} />
                                     </div>
                                 </div>
                             </div>
@@ -1240,7 +1240,7 @@ export function AppraisalsPage() {
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {/* Assessment Date Card */}
-                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!assessmentDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-transparent hover:border-[#dbeafe]'}`}>
+                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!assessmentDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-[#dbeafe]'}`}>
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                     <Calendar size={12} className="text-blue-500" /> Assessment Date {!assessmentDate && '*'}
                                 </p>
@@ -1255,7 +1255,7 @@ export function AppraisalsPage() {
                             </div>
 
                             {/* Effective Date Card */}
-                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!effectiveDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-transparent hover:border-emerald-100'}`}>
+                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!effectiveDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-emerald-100'}`}>
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                     <Clock size={12} className="text-emerald-500" /> Effective Date {!effectiveDate && '*'}
                                 </p>
@@ -1270,7 +1270,7 @@ export function AppraisalsPage() {
                             </div>
 
                             {/* Deadline Date Card */}
-                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!deadlineDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-transparent hover:border-amber-100'}`}>
+                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!deadlineDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-amber-100'}`}>
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                     <Clock size={12} className="text-amber-500" /> Deadline Date {!deadlineDate && '*'}
                                 </p>
@@ -1284,20 +1284,25 @@ export function AppraisalsPage() {
                             </div>
 
                             {/* Rating Scale */}
-                            <div className="p-6 rounded-[32px] border-2 bg-slate-50/50 border-transparent hover:border-[#dbeafe] transition-all">
+                            <div className="p-6 rounded-[32px] border-2 bg-slate-50/50 border-[#dbeafe] transition-all">
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                     <FileSpreadsheet size={12} className="text-blue-500" /> Rating Scale (1 to ?)
                                 </p>
-                                <select 
-                                    value={maxRating}
-                                    onChange={(e) => setMaxRating(Number(e.target.value))}
-                                    className="w-full text-sm font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer appearance-none"
-                                >
-                                    <option value={10}>1 to 10 Scale</option>
-                                    <option value={5}>1 to 5 Scale</option>
-                                    <option value={4}>1 to 4 Scale</option>
-                                    <option value={3}>1 to 3 Scale</option>
-                                </select>
+                                <div className="relative">
+                                    <select 
+                                        value={maxRating}
+                                        onChange={(e) => setMaxRating(Number(e.target.value))}
+                                        className="w-full text-sm font-black text-slate-800 bg-transparent border-none p-0 pr-8 focus:ring-0 cursor-pointer appearance-none"
+                                    >
+                                        <option value={10}>1 to 10 Scale</option>
+                                        <option value={5}>1 to 5 Scale</option>
+                                        <option value={4}>1 to 4 Scale</option>
+                                        <option value={3}>1 to 3 Scale</option>
+                                    </select>
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                                        <ChevronDown size={18} strokeWidth={2.5} />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
