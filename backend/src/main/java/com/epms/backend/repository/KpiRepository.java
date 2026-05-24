@@ -32,9 +32,11 @@ public interface KpiRepository extends JpaRepository<EmployeeKpi, Long> {
     @Query("SELECT k FROM EmployeeKpi k WHERE (:employeeId IS NULL OR k.employee.id = :employeeId) AND (:period IS NULL OR k.period = :period) ORDER BY k.createdDate DESC")
     List<EmployeeKpi> findHistory(Long employeeId, String period);
 
-    @Query("SELECT new com.epms.backend.dto.KpiHistorySummaryDto(e.id, e.employeeName, e.employeeId, m.employeeName, d.name, p.name, COUNT(k), k.period, MAX(k.createdDate), MAX(k.kpiTotalScore)) " +
-           "FROM EmployeeKpi k JOIN k.employee e LEFT JOIN e.manager m JOIN e.department d JOIN e.position p " +
-           "GROUP BY e.id, e.employeeName, e.employeeId, m.employeeName, d.name, p.name, k.period " +
-           "ORDER BY MAX(k.createdDate) DESC")
-    List<com.epms.backend.dto.KpiHistorySummaryDto> findHistorySummary();
+    @Query("SELECT new com.epms.backend.dto.KpiHistorySummaryDto(e.id, e.employeeName, e.employeeId, m.employeeName, d.name, p.name, COUNT(k), k.period, MAX(k.createdDate), MAX(k.kpiTotalScore)) "
+            +
+            "FROM EmployeeKpi k JOIN k.employee e LEFT JOIN e.manager m JOIN e.department d JOIN e.position p " +
+            "WHERE (:period IS NULL OR k.period = :period) " +
+            "GROUP BY e.id, e.employeeName, e.employeeId, m.employeeName, d.name, p.name, k.period " +
+            "ORDER BY MAX(k.createdDate) DESC")
+    List<com.epms.backend.dto.KpiHistorySummaryDto> findHistorySummary(String period);
 }

@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useGetKpiHistorySummaryQuery, useGetDepartmentComparisonQuery } from '../../features/kpi/kpiApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
+import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Target, Users, Building2, TrendingUp, ChevronLeft, ChevronRight, Filter, FileSpreadsheet } from 'lucide-react';
 import { format } from 'date-fns';
@@ -50,9 +51,26 @@ export function renderPerformanceBadge(score?: number | null) {
   );
 }
 
+const getCurrentMonthValue = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${now.getFullYear()}-${month}`;
+};
+
+const formatMonthYear = (monthValue: string) => {
+  if (!monthValue) return '';
+  const [year, month] = monthValue.split('-');
+  if (!year || !month) return monthValue;
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+};
+
 export default function KpiReportsPage() {
-  const { data: summaryData = [], isLoading: isSummaryLoading } = useGetKpiHistorySummaryQuery();
-  const { data: departmentComparisonData = [], isLoading: isComparisonLoading } = useGetDepartmentComparisonQuery();
+  const [selectedPeriodMonth, setSelectedPeriodMonth] = useState(getCurrentMonthValue());
+  const selectedPeriodLabel = formatMonthYear(selectedPeriodMonth);
+
+  const { data: summaryData = [], isLoading: isSummaryLoading } = useGetKpiHistorySummaryQuery({ period: selectedPeriodLabel });
+  const { data: departmentComparisonData = [], isLoading: isComparisonLoading } = useGetDepartmentComparisonQuery({ period: selectedPeriodLabel });
   const { data: departmentsData } = useGetDepartmentsQuery();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDept, setSelectedDept] = useState('');
@@ -102,7 +120,7 @@ export default function KpiReportsPage() {
         data.push(['Department Performance Comparison Report', '', '', '', '']);
         
         // Row 2: "Kpi Period - Month Year" & "Export Date - Day Month Year"
-        const periodStr = format(new Date(), 'MMMM yyyy');
+        const periodStr = selectedPeriodLabel || format(new Date(), 'MMMM yyyy');
         const todayStr = format(new Date(), 'dd MMM yyyy');
         data.push([
           `KPI Period: ${periodStr}`, 
@@ -147,7 +165,7 @@ export default function KpiReportsPage() {
         data.push(['Kpi Report', '', '', '', '', '', '']);
         
         // Row 2: "Kpi Period - Month Year" & "Export Date - Day Month Year"
-        const periodStr = format(new Date(), 'MMMM yyyy');
+        const periodStr = selectedPeriodLabel || format(new Date(), 'MMMM yyyy');
         const todayStr = format(new Date(), 'dd MMM yyyy'); // Standard Day Month Year constraint
         data.push([
           `KPI Period: ${periodStr}`, 
@@ -449,6 +467,20 @@ export default function KpiReportsPage() {
             </select>
           </div>
 
+          {/* Period Filter */}
+          <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-2xl border border-slate-100 shadow-sm h-12">
+            <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Building2 size={16} />
+            </div>
+            <MonthYearPicker
+              value={selectedPeriodMonth}
+              onChange={(value) => {
+                setSelectedPeriodMonth(value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+
           {/* Filter/Sort Dropdown */}
           {activeTab === 'employee' && (
             <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-2xl border border-slate-100 shadow-sm h-12">
@@ -645,7 +677,7 @@ export default function KpiReportsPage() {
           }`}
         >
           <Building2 size={16} />
-          Department Comparison
+          Department KPI Performance Directory
         </button>
       </div>
 

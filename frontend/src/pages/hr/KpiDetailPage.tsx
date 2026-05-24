@@ -11,6 +11,7 @@ import {
 } from '../../features/kpi/kpiApi';
 import { useGetEmployeeByIdQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { toast } from 'react-hot-toast';
+import { withGenderTitle } from '../../utils/personName';
 
 export const KpiDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -48,6 +49,7 @@ export const KpiDetailPage: React.FC = () => {
 
   const kpis = selectedPeriod ? periodKpis : latestKpis;
   const employee = employeeResponse?.data;
+  const displayName = employee ? withGenderTitle(employee.employeeName || '', employee.gender) : '';
   const isLoading = empLoading || kpisLoading;
 
   const totalWeight = kpis?.reduce((sum, k) => sum + (k.weight || 0), 0) || 0;
@@ -126,13 +128,13 @@ export const KpiDetailPage: React.FC = () => {
                 {employee?.profilePictureUrl ? (
                   <img src={employee.profilePictureUrl} alt="" className="w-full h-full object-cover rounded-3xl" />
                 ) : (
-                  employee?.employeeName.charAt(0)
+                  displayName?.charAt(0) || ''
                 )}
                 <div className={`absolute -right-2 -bottom-2 w-8 h-8 rounded-full border-4 border-white flex items-center justify-center text-white shadow-sm ${getStatusStyle(currentStatus).split(' ')[0].replace('bg-', 'bg-')}`}>
                   {getStatusIcon(currentStatus)}
                 </div>
               </div>
-              <h2 className="text-xl font-black text-slate-900">{employee?.employeeName}</h2>
+              <h2 className="text-xl font-black text-slate-900">{displayName}</h2>
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mt-1">{employee?.employeeId}</p>
 
               <div className="w-full mt-8 space-y-4">
@@ -211,35 +213,39 @@ export const KpiDetailPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {kpis && kpis.length > 0 ? kpis.map((kpi, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="py-4 px-6">
-                          <p className="text-sm font-black text-slate-900">{kpi.name}</p>
-                        </td>
-                        <td className="py-4 px-6">
-                          <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-black rounded-lg uppercase tracking-tight">
-                            {kpi.category}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6">
-                          <p className="text-sm font-bold text-slate-700">{kpi.target} <span className="text-slate-400 font-medium">{kpi.unit}</span></p>
-                        </td>
-                        <td className="py-4 px-6 text-center">
-                          <span className="text-xs font-black text-blue-600">{kpi.weight}%</span>
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          <p className="text-sm font-black text-slate-900">{kpi.actual || '-'}</p>
-                        </td>
-                        <td className="py-4 px-6 text-right font-black text-indigo-600">
-                          {kpi.weightedScore?.toFixed(2) || '0.00'}
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          <p className="text-[10px] font-bold text-slate-400">
-                            {kpi.updatedDate ? new Date(kpi.updatedDate).toLocaleDateString() : 'N/A'}
-                          </p>
-                        </td>
-                      </tr>
-                    )) : (
+                    {kpis && kpis.length > 0 ? (
+                      <>
+                        {kpis.map((kpi, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
+                            <td className="py-4 px-6">
+                              <p className="text-sm font-black text-slate-900">{kpi.name}</p>
+                            </td>
+                            <td className="py-4 px-6">
+                              <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-black rounded-lg uppercase tracking-tight">
+                                {kpi.category}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6">
+                              <p className="text-sm font-bold text-slate-700">{kpi.target} <span className="text-slate-400 font-medium">{kpi.unit}</span></p>
+                            </td>
+                            <td className="py-4 px-6 text-center">
+                              <span className="text-xs font-black text-blue-600">{kpi.weight}%</span>
+                            </td>
+                            <td className="py-4 px-6 text-right">
+                              <p className="text-sm font-black text-slate-900">{kpi.actual || '-'}</p>
+                            </td>
+                            <td className="py-4 px-6 text-right font-black text-indigo-600">
+                              {kpi.weightedScore?.toFixed(2) || '0.00'}
+                            </td>
+                            <td className="py-4 px-6 text-right">
+                              <p className="text-[10px] font-bold text-slate-400">
+                                {kpi.updatedDate ? new Date(kpi.updatedDate).toLocaleDateString() : 'N/A'}
+                              </p>
+                            </td>
+                          </tr>
+                        ))}
+                      </>
+                    ) : (
                       <tr>
                         <td colSpan={7} className="py-20 text-center">
                           <div className="flex flex-col items-center gap-3">
@@ -272,6 +278,7 @@ export const KpiDetailPage: React.FC = () => {
         <KpiEditModal 
           employee={employee} 
           kpis={kpis} 
+          displayName={displayName}
           onClose={() => setIsEditModalOpen(false)} 
         />
       )}
@@ -279,7 +286,7 @@ export const KpiDetailPage: React.FC = () => {
   );
 };
 
-const KpiEditModal = ({ employee, kpis, onClose }: { employee: any, kpis: Kpi[], onClose: () => void }) => {
+const KpiEditModal: React.FC<{ employee: any; kpis: Kpi[]; displayName: string; onClose: () => void }> = ({ employee, kpis, displayName, onClose }) => {
   const [updateKpis, { isLoading: isUpdating }] = useUpdateHrKpiActualsMutation();
   const [editedKpis, setEditedKpis] = useState<Kpi[]>([]);
 
@@ -338,6 +345,8 @@ const KpiEditModal = ({ employee, kpis, onClose }: { employee: any, kpis: Kpi[],
 
   const totalWeightedScore = editedKpis.reduce((acc, kpi) => acc + (kpi.weightedScore || 0), 0);
 
+  const modalDisplayName = displayName;
+
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -349,7 +358,7 @@ const KpiEditModal = ({ employee, kpis, onClose }: { employee: any, kpis: Kpi[],
                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded-full uppercase tracking-widest">Draft</span>
                )}
             </div>
-            <p className="text-sm font-medium text-slate-500">Employee: <span className="font-bold text-slate-900">{employee.employeeName}</span></p>
+            <p className="text-sm font-medium text-slate-500">Employee: <span className="font-bold text-slate-900">{modalDisplayName}</span></p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
             <X size={20} />

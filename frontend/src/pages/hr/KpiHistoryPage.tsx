@@ -8,7 +8,7 @@ import {
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsQuery } from '../../features/position/api/positionApi';
-import { Search, History, Download, Calendar, User, Briefcase, Building2, Target, CheckCircle2, AlertCircle, Eye, LayoutGrid } from 'lucide-react';
+import { Search, History, Calendar, User, Briefcase, Building2, Target, CheckCircle2, AlertCircle, Eye, LayoutGrid } from 'lucide-react';
 import { format } from 'date-fns';
 
 export const KpiHistoryPage: React.FC = () => {
@@ -34,7 +34,7 @@ export const KpiHistoryPage: React.FC = () => {
   const { data: positionsData } = useGetPositionsQuery({});
 
   // Fetch Global Summary Data
-  const { data: globalSummary, isLoading: loadingGlobal } = useGetKpiHistorySummaryQuery();
+  const { data: globalSummary, isLoading: loadingGlobal } = useGetKpiHistorySummaryQuery({});
 
   // Fetch Detailed History Data
   const { data: employeeHistory, isLoading: loadingEmployee } = useGetEmployeeKpiHistoryQuery(
@@ -84,7 +84,7 @@ export const KpiHistoryPage: React.FC = () => {
     if (s === 'DRAFT') {
       return (
         <span className="px-2.5 py-1 bg-slate-50 text-slate-500 text-[10px] font-black rounded-full border border-slate-100 uppercase tracking-widest flex items-center gap-1 w-fit">
-           {status}
+          {status}
         </span>
       );
     }
@@ -429,7 +429,7 @@ export const KpiHistoryPage: React.FC = () => {
               <div className="relative">
                 <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input 
-                  placeholder="e.g. 2026-2027" 
+                  placeholder="e.g. May 2026" 
                   value={periodFilter}
                   onChange={(e) => setPeriodFilter(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none font-bold text-slate-800"

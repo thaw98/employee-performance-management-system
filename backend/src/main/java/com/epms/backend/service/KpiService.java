@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.epms.backend.entity.User;
@@ -116,7 +117,14 @@ public class KpiService {
         }
 
         Long employeeId = kpiDtos.get(0).getEmployeeId();
-        String period = kpiDtos.get(0).getPeriod();
+        KpiDto firstDto = kpiDtos.get(0);
+        validateYearMonth(firstDto.getYear(), firstDto.getMonth());
+        if (!kpiDtos.stream().allMatch(dto -> Objects.equals(dto.getYear(), firstDto.getYear())
+                && Objects.equals(dto.getMonth(), firstDto.getMonth()))) {
+            throw new IllegalArgumentException("All KPI records must use the same month and year.");
+        }
+        String period = resolvePeriodString(firstDto.getPeriod(), firstDto.getYear(), firstDto.getMonth(),
+                firstDto.getPeriodLabel());
 
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
@@ -127,7 +135,8 @@ public class KpiService {
         List<EmployeeKpi> existingActive = kpiRepository.findByEmployee_IdAndPeriodAndRecordStatus(employeeId, period,
                 "Active");
         if (!existingActive.isEmpty()) {
-            throw new IllegalStateException("KPIs are already defined for " + employee.getEmployeeName() + " for period " + period + ". Overwriting is not allowed.");
+            throw new IllegalStateException("KPIs are already defined for " + employee.getEmployeeName()
+                    + " for period " + period + ". Overwriting is not allowed.");
         }
 
         List<EmployeeKpi> kpis = kpiDtos.stream().map(dto -> {
@@ -141,7 +150,7 @@ public class KpiService {
             kpi.setWeight(dto.getWeight());
             kpi.setScore(dto.getScore());
             kpi.setWeightedScore(dto.getWeightedScore());
-            kpi.setPeriod(dto.getPeriod());
+            kpi.setPeriod(resolvePeriodString(dto.getPeriod(), dto.getYear(), dto.getMonth(), dto.getPeriodLabel()));
             kpi.setStatus(dto.getStatus() != null ? dto.getStatus() : "SUBMITTED");
             kpi.setRecordStatus("Active");
             return kpi;
@@ -153,7 +162,8 @@ public class KpiService {
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             metadata = mapper.writeValueAsString(kpiDtos);
-        } catch (Exception e) {}
+        } catch (Exception e) {
+        }
 
         auditService.record(AuditActionType.KPI_CREATED, AuditTargetType.EMPLOYEE_KPI, employeeId, performerUserId,
                 performer.getRole().getId(),
@@ -182,7 +192,7 @@ public class KpiService {
             throw new IllegalArgumentException("Manager can only update KPIs for employees in the same department");
         }
 
-        return updateKpisInternal(managerUserId, managerUser.getRole().getId(), employeeId, employee, kpiUpdates, 
+        return updateKpisInternal(managerUserId, managerUser.getRole().getId(), employeeId, employee, kpiUpdates,
                 "Manager " + manager.getEmployeeName());
     }
 
@@ -197,13 +207,16 @@ public class KpiService {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        return updateKpisInternal(hrUserId, hrUser.getRole().getId(), employeeId, employee, kpiUpdates, 
-                "HR User " + (hrUser.getEmployee() != null ? hrUser.getEmployee().getEmployeeName() : hrUser.getEmail()));
+        return updateKpisInternal(hrUserId, hrUser.getRole().getId(), employeeId, employee, kpiUpdates,
+                "HR User "
+                        + (hrUser.getEmployee() != null ? hrUser.getEmployee().getEmployeeName() : hrUser.getEmail()));
     }
 
     @Transactional
-    public List<DepartmentKpiDto> updateDepartmentKpiActualsByHr(Long hrUserId, Long departmentId, List<DepartmentKpiDto> updates) {
-        if (updates == null || updates.isEmpty()) return List.of();
+    public List<DepartmentKpiDto> updateDepartmentKpiActualsByHr(Long hrUserId, Long departmentId,
+            List<DepartmentKpiDto> updates) {
+        if (updates == null || updates.isEmpty())
+            return List.of();
 
         User hrUser = userRepository.findById(hrUserId)
                 .orElseThrow(() -> new RuntimeException("HR user not found"));
@@ -218,7 +231,8 @@ public class KpiService {
 
         List<DepartmentKpi> updatedKpis = new ArrayList<>();
         for (DepartmentKpiDto update : updates) {
-            if (update.getId() == null) continue;
+            if (update.getId() == null)
+                continue;
 
             DepartmentKpi kpi = departmentKpiRepository.findById(update.getId())
                     .orElseThrow(() -> new RuntimeException("Department KPI not found"));
@@ -228,8 +242,10 @@ public class KpiService {
             }
 
             kpi.setActual(update.getActual());
-            if (update.getScore() != null) kpi.setScore(update.getScore());
-            if (update.getWeightedScore() != null) kpi.setWeightedScore(update.getWeightedScore());
+            if (update.getScore() != null)
+                kpi.setScore(update.getScore());
+            if (update.getWeightedScore() != null)
+                kpi.setWeightedScore(update.getWeightedScore());
             kpi.setStatus(status);
 
             updatedKpis.add(kpi);
@@ -244,7 +260,7 @@ public class KpiService {
         }
 
         departmentKpiRepository.saveAll(updatedKpis);
-        
+
         auditService.record(AuditActionType.KPI_UPDATED, AuditTargetType.DEPARTMENT_KPI, departmentId, hrUserId,
                 hrUser.getRole().getId(),
                 "Department KPIs updated by HR for " + department.getName(),
@@ -254,8 +270,10 @@ public class KpiService {
     }
 
     @Transactional
-    public List<PositionKpiDto> updatePositionKpiActualsByHr(Long hrUserId, Long departmentId, Long positionId, List<PositionKpiDto> updates) {
-        if (updates == null || updates.isEmpty()) return List.of();
+    public List<PositionKpiDto> updatePositionKpiActualsByHr(Long hrUserId, Long departmentId, Long positionId,
+            List<PositionKpiDto> updates) {
+        if (updates == null || updates.isEmpty())
+            return List.of();
 
         User hrUser = userRepository.findById(hrUserId)
                 .orElseThrow(() -> new RuntimeException("HR user not found"));
@@ -270,7 +288,8 @@ public class KpiService {
 
         List<PositionKpi> updatedKpis = new ArrayList<>();
         for (PositionKpiDto update : updates) {
-            if (update.getId() == null) continue;
+            if (update.getId() == null)
+                continue;
 
             PositionKpi kpi = positionKpiRepository.findById(update.getId())
                     .orElseThrow(() -> new RuntimeException("Position KPI not found"));
@@ -280,15 +299,17 @@ public class KpiService {
             }
 
             kpi.setActual(update.getActual());
-            if (update.getScore() != null) kpi.setScore(update.getScore());
-            if (update.getWeightedScore() != null) kpi.setWeightedScore(update.getWeightedScore());
+            if (update.getScore() != null)
+                kpi.setScore(update.getScore());
+            if (update.getWeightedScore() != null)
+                kpi.setWeightedScore(update.getWeightedScore());
             kpi.setStatus(status);
 
             updatedKpis.add(kpi);
         }
 
         positionKpiRepository.saveAll(updatedKpis);
-        
+
         auditService.record(AuditActionType.KPI_UPDATED, AuditTargetType.POSITION_KPI, positionId, hrUserId,
                 hrUser.getRole().getId(),
                 "Position KPIs updated by HR for " + position.getName(),
@@ -313,7 +334,7 @@ public class KpiService {
         List<EmployeeKpi> newEmployeeKpis = new ArrayList<>();
         for (EmployeeKpi oldKpi : activeEmployeeKpis) {
             oldKpi.setRecordStatus("Archived");
-            
+
             EmployeeKpi newKpi = new EmployeeKpi();
             newKpi.setEmployee(oldKpi.getEmployee());
             newKpi.setName(oldKpi.getName());
@@ -334,7 +355,7 @@ public class KpiService {
         List<DepartmentKpi> newDeptKpis = new ArrayList<>();
         for (DepartmentKpi oldKpi : activeDeptKpis) {
             oldKpi.setRecordStatus("Archived");
-            
+
             DepartmentKpi newKpi = new DepartmentKpi();
             newKpi.setDepartment(oldKpi.getDepartment());
             newKpi.setName(oldKpi.getName());
@@ -355,7 +376,7 @@ public class KpiService {
         List<PositionKpi> newPosKpis = new ArrayList<>();
         for (PositionKpi oldKpi : activePosKpis) {
             oldKpi.setRecordStatus("Archived");
-            
+
             PositionKpi newKpi = new PositionKpi();
             newKpi.setDepartment(oldKpi.getDepartment());
             newKpi.setPosition(oldKpi.getPosition());
@@ -373,12 +394,18 @@ public class KpiService {
             newPosKpis.add(newKpi);
         }
 
-        if (!activeEmployeeKpis.isEmpty()) kpiRepository.saveAll(activeEmployeeKpis);
-        if (!newEmployeeKpis.isEmpty()) kpiRepository.saveAll(newEmployeeKpis);
-        if (!activeDeptKpis.isEmpty()) departmentKpiRepository.saveAll(activeDeptKpis);
-        if (!newDeptKpis.isEmpty()) departmentKpiRepository.saveAll(newDeptKpis);
-        if (!activePosKpis.isEmpty()) positionKpiRepository.saveAll(activePosKpis);
-        if (!newPosKpis.isEmpty()) positionKpiRepository.saveAll(newPosKpis);
+        if (!activeEmployeeKpis.isEmpty())
+            kpiRepository.saveAll(activeEmployeeKpis);
+        if (!newEmployeeKpis.isEmpty())
+            kpiRepository.saveAll(newEmployeeKpis);
+        if (!activeDeptKpis.isEmpty())
+            departmentKpiRepository.saveAll(activeDeptKpis);
+        if (!newDeptKpis.isEmpty())
+            departmentKpiRepository.saveAll(newDeptKpis);
+        if (!activePosKpis.isEmpty())
+            positionKpiRepository.saveAll(activePosKpis);
+        if (!newPosKpis.isEmpty())
+            positionKpiRepository.saveAll(newPosKpis);
 
         // Audit Log
         User performer = userRepository.findById(performerUserId).orElse(null);
@@ -388,11 +415,29 @@ public class KpiService {
                 null);
     }
 
-    private List<KpiDto> updateKpisInternal(Long performerUserId, Long performerRoleId, Long employeeId, Employee employee, List<KpiDto> kpiUpdates, String performerName) {
-        if (kpiUpdates == null || kpiUpdates.isEmpty()) return List.of();
+    private void validateYearMonth(Integer year, Integer month) {
+        if (year == null || month == null) {
+            throw new IllegalArgumentException("KPI period year and month are required.");
+        }
+        if (month < 1 || month > 12) {
+            throw new IllegalArgumentException("KPI period month is invalid.");
+        }
+        java.time.YearMonth selected = java.time.YearMonth.of(year, month);
+        java.time.YearMonth current = java.time.YearMonth.now();
+        if (selected.isBefore(current)) {
+            throw new IllegalArgumentException(
+                    "KPI period cannot be in the past. Please choose the current or a future month.");
+        }
+    }
+
+    private List<KpiDto> updateKpisInternal(Long performerUserId, Long performerRoleId, Long employeeId,
+            Employee employee, List<KpiDto> kpiUpdates, String performerName) {
+        if (kpiUpdates == null || kpiUpdates.isEmpty())
+            return List.of();
 
         // Check if appraisal is finalized (LOCKED) for this period
-        String periodName = kpiUpdates.get(0).getPeriod();
+        String periodName = resolvePeriodString(kpiUpdates.get(0).getPeriod(), kpiUpdates.get(0).getYear(),
+                kpiUpdates.get(0).getMonth(), kpiUpdates.get(0).getPeriodLabel());
         if (periodName != null) {
             appraisalAssignmentRepository.findByEmployee_IdAndPeriod_Name(employeeId, periodName)
                     .ifPresent(appraisal -> {
@@ -451,7 +496,7 @@ public class KpiService {
         kpiRepository.saveAll(updatedKpis);
 
         String action = "DRAFT".equals(status) ? AuditActionType.KPI_DRAFT_SAVED : AuditActionType.KPI_SUBMITTED;
-        
+
         // Prepare metadata for changes
         String metadata = null;
         try {
@@ -463,14 +508,14 @@ public class KpiService {
 
         auditService.record(action, AuditTargetType.EMPLOYEE_KPI, employeeId, performerUserId, performerRoleId,
                 performerName + " "
-                        + (action.equals(AuditActionType.KPI_DRAFT_SAVED) ? "saved draft" : "submitted") + " KPI actuals for "
+                        + (action.equals(AuditActionType.KPI_DRAFT_SAVED) ? "saved draft" : "submitted")
+                        + " KPI actuals for "
                         + employee.getEmployeeName(),
                 metadata);
 
-        return kpiRepository.findByEmployee_IdAndPeriod(employeeId, kpiUpdates.get(0).getPeriod())
+        return kpiRepository.findByEmployee_IdAndPeriod(employeeId, periodName)
                 .stream().map(this::convertToDto).collect(Collectors.toList());
     }
-
 
     public List<java.util.Map<String, Object>> getManagerTeam(Long managerUserId) {
         User managerUser = userRepository.findById(managerUserId).orElseThrow();
@@ -529,13 +574,21 @@ public class KpiService {
 
         Long deptId = dtoList.get(0).getDepartmentId();
         Long posId = dtoList.get(0).getPositionId();
-        String period = dtoList.get(0).getPeriod();
+        PositionKpiDto firstDto = dtoList.get(0);
+        validateYearMonth(firstDto.getYear(), firstDto.getMonth());
+        String period = resolvePeriodString(firstDto.getPeriod(), firstDto.getYear(), firstDto.getMonth(),
+                firstDto.getPeriodLabel());
+        if (!dtoList.stream().allMatch(dto -> Objects.equals(dto.getYear(), firstDto.getYear())
+                && Objects.equals(dto.getMonth(), firstDto.getMonth()))) {
+            throw new IllegalArgumentException("All KPI records must use the same month and year.");
+        }
 
         // Check if active position KPIs already exist
         List<PositionKpi> existingActive = positionKpiRepository
                 .findByDepartmentIdAndPositionIdAndPeriodAndRecordStatus(deptId, posId, period, "Active");
         if (!existingActive.isEmpty()) {
-            throw new IllegalStateException("KPIs are already defined for this position and period. Overwriting is not allowed.");
+            throw new IllegalStateException(
+                    "KPIs are already defined for this position and period. Overwriting is not allowed.");
         }
 
         Department dept = departmentRepository.findById(deptId).orElseThrow();
@@ -551,7 +604,7 @@ public class KpiService {
             entity.setTarget(dto.getTarget());
             entity.setUnit(dto.getUnit());
             entity.setWeight(dto.getWeight());
-            entity.setPeriod(dto.getPeriod());
+            entity.setPeriod(resolvePeriodString(dto.getPeriod(), dto.getYear(), dto.getMonth(), dto.getPeriodLabel()));
             entity.setRecordStatus("Active");
             return entity;
         }).collect(Collectors.toList());
@@ -566,7 +619,8 @@ public class KpiService {
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             metadata = mapper.writeValueAsString(dtoList);
-        } catch (Exception e) {}
+        } catch (Exception e) {
+        }
 
         auditService.record(AuditActionType.KPI_CREATED, AuditTargetType.POSITION_KPI, posId, performerUserId,
                 performer.getRole().getId(),
@@ -590,13 +644,21 @@ public class KpiService {
         }
 
         Long deptId = dtoList.get(0).getDepartmentId();
-        String period = dtoList.get(0).getPeriod();
+        DepartmentKpiDto firstDto = dtoList.get(0);
+        validateYearMonth(firstDto.getYear(), firstDto.getMonth());
+        String period = resolvePeriodString(firstDto.getPeriod(), firstDto.getYear(), firstDto.getMonth(),
+                firstDto.getPeriodLabel());
+        if (!dtoList.stream().allMatch(dto -> Objects.equals(dto.getYear(), firstDto.getYear())
+                && Objects.equals(dto.getMonth(), firstDto.getMonth()))) {
+            throw new IllegalArgumentException("All KPI records must use the same month and year.");
+        }
 
         // Check if active department KPIs already exist
         List<DepartmentKpi> existingActive = departmentKpiRepository.findByDepartmentIdAndPeriodAndRecordStatus(deptId,
                 period, "Active");
         if (!existingActive.isEmpty()) {
-            throw new IllegalStateException("KPIs are already defined for this department and period. Overwriting is not allowed.");
+            throw new IllegalStateException(
+                    "KPIs are already defined for this department and period. Overwriting is not allowed.");
         }
 
         Department dept = departmentRepository.findById(deptId).orElseThrow();
@@ -610,7 +672,7 @@ public class KpiService {
             entity.setTarget(dto.getTarget());
             entity.setUnit(dto.getUnit());
             entity.setWeight(dto.getWeight());
-            entity.setPeriod(dto.getPeriod());
+            entity.setPeriod(resolvePeriodString(dto.getPeriod(), dto.getYear(), dto.getMonth(), dto.getPeriodLabel()));
             entity.setRecordStatus("Active");
             return entity;
         }).collect(Collectors.toList());
@@ -621,7 +683,8 @@ public class KpiService {
         try {
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             metadata = mapper.writeValueAsString(dtoList);
-        } catch (Exception e) {}
+        } catch (Exception e) {
+        }
 
         auditService.record(AuditActionType.KPI_CREATED, AuditTargetType.DEPARTMENT_KPI, deptId, performerUserId,
                 performer.getRole().getId(),
@@ -717,10 +780,9 @@ public class KpiService {
                 .collect(Collectors.toList());
     }
 
-    public List<com.epms.backend.dto.KpiHistorySummaryDto> getAllKpiHistorySummary() {
-        return kpiRepository.findHistorySummary();
+    public List<com.epms.backend.dto.KpiHistorySummaryDto> getAllKpiHistorySummary(String period) {
+        return kpiRepository.findHistorySummary(period);
     }
-
 
     private KpiDto convertToDto(EmployeeKpi kpi) {
         KpiDto dto = new KpiDto();
@@ -737,6 +799,7 @@ public class KpiService {
         dto.setWeightedScore(kpi.getWeightedScore());
         dto.setKpiTotalScore(kpi.getKpiTotalScore());
         dto.setPeriod(kpi.getPeriod());
+        populatePeriodParts(kpi.getPeriod(), dto);
         dto.setStatus(kpi.getStatus());
         dto.setRecordStatus(kpi.getRecordStatus());
         dto.setCreatedDate(kpi.getCreatedDate());
@@ -758,6 +821,7 @@ public class KpiService {
         dto.setScore(entity.getScore());
         dto.setWeightedScore(entity.getWeightedScore());
         dto.setPeriod(entity.getPeriod());
+        populatePeriodParts(entity.getPeriod(), dto);
         dto.setStatus(entity.getStatus());
         dto.setRecordStatus(entity.getRecordStatus());
         dto.setCreatedDate(entity.getCreatedDate());
@@ -779,6 +843,7 @@ public class KpiService {
         dto.setWeightedScore(entity.getWeightedScore());
         dto.setTotalDepartmentScore(entity.getTotalDepartmentScore());
         dto.setPeriod(entity.getPeriod());
+        populatePeriodParts(entity.getPeriod(), dto);
         dto.setStatus(entity.getStatus());
         dto.setRecordStatus(entity.getRecordStatus());
         dto.setCreatedDate(entity.getCreatedDate());
@@ -786,7 +851,88 @@ public class KpiService {
         return dto;
     }
 
-    public List<com.epms.backend.dto.DepartmentComparisonDto> getDepartmentComparison() {
+    private String resolvePeriodString(String period, Integer year, Integer month, String periodLabel) {
+        if (periodLabel != null && !periodLabel.isBlank()) {
+            return periodLabel;
+        }
+        if (period != null && !period.isBlank()) {
+            return period;
+        }
+        if (year != null && month != null) {
+            try {
+                return java.time.YearMonth.of(year, month)
+                        .format(java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.ENGLISH));
+            } catch (Exception e) {
+                return periodLabel;
+            }
+        }
+        return period != null ? period : periodLabel;
+    }
+
+    private void populatePeriodParts(String period, KpiDto dto) {
+        dto.setPeriodLabel(period);
+        if (period == null || period.isBlank())
+            return;
+        dto.setYear(null);
+        dto.setMonth(null);
+        try {
+            if (period.matches("\\d{4}-\\d{2}")) {
+                java.time.YearMonth ym = java.time.YearMonth.parse(period);
+                dto.setYear(ym.getYear());
+                dto.setMonth(ym.getMonthValue());
+            } else {
+                java.time.LocalDate date = java.time.LocalDate.parse(period,
+                        java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.ENGLISH));
+                dto.setYear(date.getYear());
+                dto.setMonth(date.getMonthValue());
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void populatePeriodParts(String period, PositionKpiDto dto) {
+        dto.setPeriodLabel(period);
+        if (period == null || period.isBlank())
+            return;
+        dto.setYear(null);
+        dto.setMonth(null);
+        try {
+            if (period.matches("\\d{4}-\\d{2}")) {
+                java.time.YearMonth ym = java.time.YearMonth.parse(period);
+                dto.setYear(ym.getYear());
+                dto.setMonth(ym.getMonthValue());
+            } else {
+                java.time.LocalDate date = java.time.LocalDate.parse(period,
+                        java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.ENGLISH));
+                dto.setYear(date.getYear());
+                dto.setMonth(date.getMonthValue());
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void populatePeriodParts(String period, DepartmentKpiDto dto) {
+        dto.setPeriodLabel(period);
+        if (period == null || period.isBlank())
+            return;
+        dto.setYear(null);
+        dto.setMonth(null);
+        try {
+            if (period.matches("\\d{4}-\\d{2}")) {
+                java.time.YearMonth ym = java.time.YearMonth.parse(period);
+                dto.setYear(ym.getYear());
+                dto.setMonth(ym.getMonthValue());
+            } else {
+                java.time.LocalDate date = java.time.LocalDate.parse(period,
+                        java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.ENGLISH));
+                dto.setYear(date.getYear());
+                dto.setMonth(date.getMonthValue());
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    public List<com.epms.backend.dto.DepartmentComparisonDto> getDepartmentComparison(String period) {
         List<Department> departments = departmentRepository.findAll();
         List<com.epms.backend.dto.DepartmentComparisonDto> comparisonList = new ArrayList<>();
 
@@ -797,13 +943,13 @@ public class KpiService {
 
             // 2. Department Manager Name using the specified SQL query
             String managerSql = """
-                    SELECT 
+                    SELECT
                         e.full_name AS manager_name
-                    FROM 
+                    FROM
                         department d
-                    INNER JOIN 
+                    INNER JOIN
                         employee e ON d.manager_id = e.employee_id
-                    WHERE 
+                    WHERE
                         d.department_id = ?;
                     """;
             String managerName = "-";
@@ -814,15 +960,19 @@ public class KpiService {
             }
 
             // 3. Total Score (Average performance score)
-            String scoreSql = """
-                    SELECT AVG(k.kpi_total_score) 
-                    FROM employeekpis k 
-                    INNER JOIN employee e ON k.employee_id = e.employee_id 
-                    WHERE e.department_id = ? AND k.record_status = 'Active' AND k.kpi_total_score IS NOT NULL;
-                    """;
+            String scoreSql = "SELECT AVG(k.kpi_total_score) " +
+                    "FROM employeekpis k " +
+                    "INNER JOIN employee e ON k.employee_id = e.employee_id " +
+                    "WHERE e.department_id = ? AND k.record_status = 'Active' AND k.kpi_total_score IS NOT NULL";
+            Object[] scoreArgs = new Object[] { dept.getId() };
+            if (period != null && !period.isBlank()) {
+                scoreSql += " AND k.period = ?";
+                scoreArgs = new Object[] { dept.getId(), period };
+            }
+
             BigDecimal totalScore = BigDecimal.ZERO;
             try {
-                Double avgScore = jdbcTemplate.queryForObject(scoreSql, Double.class, dept.getId());
+                Double avgScore = jdbcTemplate.queryForObject(scoreSql, Double.class, scoreArgs);
                 if (avgScore != null) {
                     totalScore = BigDecimal.valueOf(avgScore).setScale(2, java.math.RoundingMode.HALF_UP);
                 }

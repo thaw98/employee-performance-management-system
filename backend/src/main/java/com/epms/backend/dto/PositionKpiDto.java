@@ -18,6 +18,9 @@ public class PositionKpiDto {
     private BigDecimal score;
     private BigDecimal weightedScore;
     private String period;
+    private Integer year;
+    private Integer month;
+    private String periodLabel;
     private String status;
     private String recordStatus;
     private Instant createdDate;

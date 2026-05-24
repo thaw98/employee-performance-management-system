@@ -2,6 +2,21 @@ import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../app/store';
 import { useGetKpisByEmployeeQuery } from '../features/kpi/kpiApi';
+import { MonthYearPicker } from '../components/common/MonthYearPicker';
+
+const getCurrentMonthValue = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${now.getFullYear()}-${month}`;
+};
+
+const formatMonthYear = (monthValue: string) => {
+  if (!monthValue) return '';
+  const [year, month] = monthValue.split('-');
+  if (!year || !month) return monthValue;
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+};
 
 function getPerformanceLevel(score: number): { text: string; badgeClass: string; iconClass: string } {
   if (score >= 90) {
@@ -33,11 +48,12 @@ function getPerformanceLevel(score: number): { text: string; badgeClass: string;
 }
 
 export const EmployeeKpiViewPage: React.FC = () => {
-  const [selectedYear, setSelectedYear] = useState('2026-2027');
+  const [selectedPeriodMonth, setSelectedPeriodMonth] = useState(getCurrentMonthValue());
+  const selectedPeriodLabel = formatMonthYear(selectedPeriodMonth);
   const { user } = useSelector((state: RootState) => state.auth);
 
   const { data: kpis = [] } = useGetKpisByEmployeeQuery(
-    { employeeId: user?.employeeId ? Number(user.employeeId) : 0, period: selectedYear },
+    { employeeId: user?.employeeId ? Number(user.employeeId) : 0, period: selectedPeriodLabel },
     { skip: !user?.employeeId }
   );
 
@@ -53,15 +69,11 @@ export const EmployeeKpiViewPage: React.FC = () => {
           <p className="text-slate-500 mt-1">Review your targets and tracked performance for the current budget year.</p>
         </div>
         <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-2">Budget Year</span>
-          <select
-            className="bg-slate-50 border-none rounded-xl px-4 py-2 text-sm font-bold text-blue-600 focus:ring-0 outline-none cursor-pointer"
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-          >
-            <option value="2026-2027">April 2026 - March 2027</option>
-            <option value="2025-2026">April 2025 - March 2026</option>
-          </select>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-2">Period</span>
+          <div className="flex items-center gap-3">
+            <MonthYearPicker value={selectedPeriodMonth} onChange={setSelectedPeriodMonth} />
+            <span className="text-xs text-slate-500">{selectedPeriodLabel}</span>
+          </div>
         </div>
       </div>
 
@@ -94,11 +106,11 @@ export const EmployeeKpiViewPage: React.FC = () => {
             <i className="bi bi-pie-chart-fill text-indigo-500 text-xl"></i>
           </div>
           <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden flex">
-            <div className="h-full bg-blue-500" style={{ width: '25%' }}></div>
-            <div className="h-full bg-indigo-500" style={{ width: '25%' }}></div>
-            <div className="h-full bg-purple-500" style={{ width: '20%' }}></div>
-            <div className="h-full bg-emerald-500" style={{ width: '15%' }}></div>
-            <div className="h-full bg-slate-400" style={{ width: '15%' }}></div>
+            <div className="h-full bg-blue-500 w-1/4"></div>
+            <div className="h-full bg-indigo-500 w-1/4"></div>
+            <div className="h-full bg-purple-500 w-[20%]"></div>
+            <div className="h-full bg-emerald-500 w-[15%]"></div>
+            <div className="h-full bg-slate-400 w-[15%]"></div>
           </div>
           <div className="mt-6 grid grid-cols-2 gap-4">
             <div className="flex items-center gap-2">
