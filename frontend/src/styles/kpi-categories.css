@@ -1,0 +1,18 @@
+/* KPI Categories feature — primary #2463eb (matches dash accent) */
+@theme {
+  --color-kc-primary: #2463eb;
+  --color-kc-primary-hover: #1d4ed8;
+  --color-kc-primary-dark: #1e40af;
+  --color-kc-primary-light: #dbeafe;
+  --color-kc-primary-border: #bfdbfe;
+  --color-kc-primary-subtle: #eff6ff;
+}
+
+.kpi-categories-theme {
+  --kc-primary: #2463eb;
+  --kc-primary-hover: #1d4ed8;
+  --kc-primary-dark: #1e40af;
+  --kc-primary-light: #dbeafe;
+  --kc-primary-border: #bfdbfe;
+  --kc-primary-subtle: #eff6ff;
+}

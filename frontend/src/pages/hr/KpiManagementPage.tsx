@@ -312,27 +312,27 @@ export const KpiManagementPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="kpi-management-theme space-y-6">
       {/* Mode Switcher & Category Management */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
           <button
             onClick={() => setMode('individual')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'individual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'individual' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
           >
             <User size={14} /> Individual
           </button>
           <button
             onClick={() => setMode('position')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'position' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'position' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
           >
             <Users size={14} /> Same Position
           </button>
           <button
             onClick={() => setMode('department')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'department' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${mode === 'department' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
           >
             <Target size={14} /> Same Department
@@ -340,7 +340,7 @@ export const KpiManagementPage: React.FC = () => {
         </div>
         <button
           onClick={() => navigate('/hr/kpi-categories')}
-          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-indigo-100"
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-[#bfdbfe]"
         >
           <FolderOpen size={16} /> Manage Categories
         </button>
@@ -360,8 +360,8 @@ export const KpiManagementPage: React.FC = () => {
           </p>
           {selectedDeptDetail && (mode === 'department' || mode === 'position') && (
             <div className="flex items-center gap-4 mt-2">
-              <div className="bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
-                <span className="text-[10px] font-black text-indigo-600 uppercase">Manager: </span>
+              <div className="bg-[#eff6ff] px-3 py-1 rounded-full border border-[#bfdbfe]">
+                <span className="text-[10px] font-black text-[#2463eb] uppercase">Manager: </span>
                 <span className="text-xs font-bold text-slate-700">{selectedDeptDetail.managerName || 'Not Assigned'}</span>
               </div>
             </div>
@@ -481,9 +481,9 @@ export const KpiManagementPage: React.FC = () => {
                         <button
                           key={t.id}
                           onClick={() => loadTemplate(t)}
-                          className="w-full text-left p-4 hover:bg-indigo-50 border-b border-slate-50 last:border-0 transition-colors group"
+                          className="w-full text-left p-4 hover:bg-[#eff6ff] border-b border-slate-50 last:border-0 transition-colors group"
                         >
-                          <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-600">{t.name}</p>
+                          <p className="text-sm font-bold text-slate-900 group-hover:text-[#2463eb]">{t.name}</p>
                           <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase">{t.items.length} KPI Items</p>
                         </button>
                       ))
@@ -498,7 +498,7 @@ export const KpiManagementPage: React.FC = () => {
               disabled={isAlreadyDefined}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all shadow-lg uppercase tracking-widest ${isAlreadyDefined
                   ? 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none'
-                  : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
+                  : 'bg-[#2463eb] hover:bg-[#1d4ed8] text-white shadow-[#dbeafe]'
                 }`}
             >
               <Plus size={16} /> Add KPI Item
@@ -541,7 +541,7 @@ export const KpiManagementPage: React.FC = () => {
                   <td className="py-3 px-6">
                     <input
                       type="text"
-                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
+                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                       placeholder="e.g., Sales Target"
                       value={kpi.name}
                       readOnly={isAlreadyDefined}
@@ -553,7 +553,7 @@ export const KpiManagementPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <input
                           type="text"
-                          className="flex-1 bg-white border border-indigo-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-100"
+                          className="flex-1 bg-white border border-[#bfdbfe] rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#dbeafe]"
                           placeholder="New category..."
                           value={tempCategoryValues[idx] || ''}
                           onChange={(e) => setTempCategoryValues({ ...tempCategoryValues, [idx]: e.target.value })}
@@ -561,7 +561,7 @@ export const KpiManagementPage: React.FC = () => {
                         />
                         <button
                           onClick={() => handleAddNewCategory(idx)}
-                          className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                          className="p-1.5 bg-[#2463eb] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors"
                           title="Save Category"
                         >
                           <Save size={14} />
@@ -576,7 +576,7 @@ export const KpiManagementPage: React.FC = () => {
                       </div>
                     ) : (
                       <select
-                        className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
+                        className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                         value={kpi.category}
                         disabled={isAlreadyDefined}
                         onChange={(e) => {
@@ -591,14 +591,14 @@ export const KpiManagementPage: React.FC = () => {
                         {categories.map(cat => (
                           <option key={cat.id} value={cat.name}>{cat.name}</option>
                         ))}
-                        <option value="ADD_NEW" className="text-indigo-600 font-black">+ Add New Category...</option>
+                        <option value="ADD_NEW" className="text-[#2463eb] font-black">+ Add New Category...</option>
                       </select>
                     )}
                   </td>
                   <td className="py-3 px-6">
                     <input
                       type="text"
-                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
+                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                       placeholder="90%"
                       value={kpi.target}
                       readOnly={isAlreadyDefined}
@@ -608,7 +608,7 @@ export const KpiManagementPage: React.FC = () => {
                   <td className="py-3 px-6">
                     <input
                       type="text"
-                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
+                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                       placeholder="Rate"
                       value={kpi.unit}
                       readOnly={isAlreadyDefined}
@@ -619,7 +619,7 @@ export const KpiManagementPage: React.FC = () => {
                     <td className="py-3 px-6">
                       <input
                         type="text"
-                        className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none"
+                        className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none"
                         placeholder="Actual"
                         value={kpi.actual}
                         onChange={(e) => handleInputChange(idx, 'actual', e.target.value)}
@@ -629,7 +629,7 @@ export const KpiManagementPage: React.FC = () => {
                   <td className="py-3 px-6 text-center">
                     <input
                       type="number"
-                      className={`w-20 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-black text-blue-600 text-center focus:ring-2 focus:ring-blue-200 outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
+                      className={`w-20 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-black text-[#2463eb] text-center focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                       value={kpi.weight}
                       readOnly={isAlreadyDefined}
                       onChange={(e) => handleInputChange(idx, 'weight', Number(e.target.value))}
@@ -671,7 +671,7 @@ export const KpiManagementPage: React.FC = () => {
                       <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">No KPI Items Defined</p>
                       <button
                         onClick={addKpiRow}
-                        className="text-indigo-600 font-black text-xs uppercase tracking-widest hover:underline mt-2"
+                        className="text-[#2463eb] font-black text-xs uppercase tracking-widest hover:underline mt-2"
                       >
                         + Create First Item
                       </button>
@@ -685,13 +685,13 @@ export const KpiManagementPage: React.FC = () => {
                 <td colSpan={mode === 'individual' ? 5 : 4} className="py-6 px-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Totals
                 </td>
-                <td className="py-6 px-6 text-center text-lg font-black text-blue-700">
+                <td className="py-6 px-6 text-center text-lg font-black text-[#2463eb]">
                   {totalWeight}%
                 </td>
                 {mode === 'individual' && (
                   <>
                     <td className="py-6 px-6 text-center text-slate-400">-</td>
-                    <td className="py-6 px-6 text-right text-2xl font-black text-indigo-700">
+                    <td className="py-6 px-6 text-right text-2xl font-black text-[#1d4ed8]">
                       {totalScore?.toFixed(2)}
                     </td>
                   </>
@@ -719,7 +719,7 @@ export const KpiManagementPage: React.FC = () => {
           disabled={isAlreadyDefined}
           className={`flex items-center gap-2 px-6 py-3 border rounded-2xl text-xs font-black transition-all uppercase tracking-widest ${isAlreadyDefined
               ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
-              : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50'
+              : 'bg-white border-slate-200 text-[#2463eb] hover:bg-[#eff6ff]'
             }`}
         >
           <FolderOpen size={18} /> Save as Template

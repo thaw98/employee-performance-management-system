@@ -1,0 +1,20 @@
+/* KPI Management — primary #2463eb (matches dash accent) */
+@theme {
+  --color-kpi-primary: #2463eb;
+  --color-kpi-primary-hover: #1d4ed8;
+  --color-kpi-primary-dark: #1e40af;
+  --color-kpi-primary-light: #dbeafe;
+  --color-kpi-primary-border: #bfdbfe;
+  --color-kpi-primary-subtle: #eff6ff;
+  --color-kpi-primary-muted: #93c5fd;
+}
+
+.kpi-management-theme {
+  --kpi-primary: #2463eb;
+  --kpi-primary-hover: #1d4ed8;
+  --kpi-primary-dark: #1e40af;
+  --kpi-primary-light: #dbeafe;
+  --kpi-primary-border: #bfdbfe;
+  --kpi-primary-subtle: #eff6ff;
+  --kpi-primary-muted: #93c5fd;
+}

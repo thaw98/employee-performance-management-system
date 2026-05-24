@@ -117,7 +117,7 @@ function LevelCodeListPage() {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
+              <div className="w-12 h-12 bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] rounded-2xl flex items-center justify-center shadow-lg shadow-[#dbeafe]">
                 <Layers className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -131,7 +131,7 @@ function LevelCodeListPage() {
                 setEditingLevelCode(null)
                 setIsLevelCodeModalOpen(true)
               }}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-200 transition-all duration-200 active:scale-95"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white text-sm font-semibold rounded-xl hover:from-[#1d4ed8] hover:to-[#1e40af] shadow-lg shadow-[#dbeafe] transition-all duration-200 active:scale-95"
             >
               <Plus className="w-4 h-4" />
               Create Level Code
@@ -143,8 +143,8 @@ function LevelCodeListPage() {
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Level Codes</p>
               <div className="flex items-center justify-between">
                 <h3 className="text-3xl font-bold text-slate-900">{levelCodes.length}</h3>
-                <div className="w-14 h-14 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl flex items-center justify-center">
-                  <Layers className="w-7 h-7 text-indigo-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-[#eff6ff] to-[#dbeafe] rounded-2xl flex items-center justify-center">
+                  <Layers className="w-7 h-7 text-[#2463eb]" />
                 </div>
               </div>
             </div>
@@ -161,8 +161,8 @@ function LevelCodeListPage() {
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">System Roles</p>
               <div className="flex items-center justify-between">
                 <h3 className="text-3xl font-bold text-slate-900">{roles.length}</h3>
-                <div className="w-14 h-14 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl flex items-center justify-center">
-                  <Shield className="w-7 h-7 text-purple-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-[#eff6ff] to-[#dbeafe] rounded-2xl flex items-center justify-center">
+                  <Shield className="w-7 h-7 text-[#2463eb]" />
                 </div>
               </div>
             </div>
@@ -176,7 +176,7 @@ function LevelCodeListPage() {
                   <h2 className="text-lg font-semibold text-slate-900">Filters</h2>
                 </div>
                 {search && (
-                  <button type="button" onClick={() => { setSearch(''); setPage(0) }} className="text-xs font-medium text-indigo-600 hover:text-indigo-700">
+                  <button type="button" onClick={() => { setSearch(''); setPage(0) }} className="text-xs font-medium text-[#2463eb] hover:text-[#1d4ed8]">
                     Clear all
                   </button>
                 )}
@@ -186,7 +186,7 @@ function LevelCodeListPage() {
                 <input
                   value={search}
                   onChange={(event) => { setSearch(event.target.value); setPage(0) }}
-                  className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none"
+                  className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#dbeafe] focus:border-[#2463eb] focus:outline-none"
                   placeholder="Search by level code or description"
                 />
               </div>
@@ -224,7 +224,7 @@ function LevelCodeListPage() {
                       item === 'ellipsis' ? (
                         <span key={`ellipsis-${index}`} className="px-2 text-slate-400 text-sm select-none">...</span>
                       ) : (
-                        <button key={item} type="button" onClick={() => setPage(item)} className={`min-w-[38px] h-10 px-3 rounded-lg text-sm font-semibold ${page === item ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' : 'border border-slate-200 text-slate-700 hover:bg-indigo-50'}`}>
+                        <button key={item} type="button" onClick={() => setPage(item)} className={`min-w-[38px] h-10 px-3 rounded-lg text-sm font-semibold ${page === item ? 'bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white' : 'border border-slate-200 text-slate-700 hover:bg-[#eff6ff]'}`}>
                           {item + 1}
                         </button>
                       )

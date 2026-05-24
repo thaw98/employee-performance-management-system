@@ -45,7 +45,7 @@ export const KpiCategoryPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="kpi-categories-theme space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">KPI Categories</h1>
@@ -53,7 +53,7 @@ export const KpiCategoryPage: React.FC = () => {
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
+          className="flex items-center gap-2 px-6 py-3 bg-kc-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-kc-primary-hover transition-all shadow-md shadow-kc-primary-light"
         >
           <Plus size={16} /> Add Category
         </button>
@@ -68,7 +68,7 @@ export const KpiCategoryPage: React.FC = () => {
               placeholder="Search categories..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none font-medium"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-kc-primary-light focus:border-kc-primary outline-none font-medium"
             />
           </div>
         </div>
@@ -91,7 +91,7 @@ export const KpiCategoryPage: React.FC = () => {
                 <tr key={cat.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 bg-kc-primary-subtle text-kc-primary rounded-lg flex items-center justify-center">
                         <LayoutGrid size={16} />
                       </div>
                       <span className="text-sm font-bold text-slate-900">{cat.name}</span>
@@ -134,7 +134,7 @@ export const KpiCategoryPage: React.FC = () => {
           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-kc-primary-light text-kc-primary rounded-2xl flex items-center justify-center">
                   <Plus size={20} />
                 </div>
                 <div>
@@ -157,7 +157,7 @@ export const KpiCategoryPage: React.FC = () => {
                   placeholder="e.g. Innovation & Creativity"
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
-                  className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none transition-all placeholder:text-slate-300"
+                  className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-kc-primary-light focus:border-kc-primary outline-none transition-all placeholder:text-slate-300"
                 />
               </div>
               <div className="space-y-2">
@@ -167,7 +167,7 @@ export const KpiCategoryPage: React.FC = () => {
                   value={newCategoryDesc}
                   onChange={(e) => setNewCategoryDesc(e.target.value)}
                   rows={4}
-                  className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-200 outline-none transition-all placeholder:text-slate-300 resize-none"
+                  className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-kc-primary-light focus:border-kc-primary outline-none transition-all placeholder:text-slate-300 resize-none"
                 />
               </div>
             </div>
@@ -180,7 +180,7 @@ export const KpiCategoryPage: React.FC = () => {
               </button>
               <button
                 onClick={handleAdd}
-                className="flex-[2] px-6 py-4 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
+                className="flex-[2] px-6 py-4 bg-kc-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-kc-primary-hover transition-all shadow-lg shadow-kc-primary-light flex items-center justify-center gap-2"
               >
                 <Save size={16} /> Save Category
               </button>
