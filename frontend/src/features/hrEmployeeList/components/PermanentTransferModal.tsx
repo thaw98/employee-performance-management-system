@@ -10,6 +10,7 @@ import {
   type PositionOptionDto,
 } from '../../hrCreateEmployee/hrEmployeeAccountApi'
 import { usePermanentTransferMutation } from '../employeeTransferApi'
+import { employeeListInputBase as inputBase } from '../employeeListTheme'
 
 interface PermanentTransferModalProps {
   isOpen: boolean
@@ -18,8 +19,6 @@ interface PermanentTransferModalProps {
   onClose: () => void
   onSuccess?: () => void
 }
-
-const inputBase = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-400 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]'
 
 export function PermanentTransferModal({ isOpen, employeeId, employeeName, onClose, onSuccess }: PermanentTransferModalProps) {
   const [toDepartmentId, setToDepartmentId] = useState<number | ''>('')
@@ -84,7 +83,7 @@ export function PermanentTransferModal({ isOpen, employeeId, employeeName, onClo
         <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-600 text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-sm shadow-[#dbeafe]">
                 <Building2 size={18} />
               </div>
               <div>
@@ -184,7 +183,7 @@ export function PermanentTransferModal({ isOpen, employeeId, employeeName, onClo
               <button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white text-sm font-bold hover:from-[#1d4ed8] hover:to-[#1e40af] transition-colors disabled:opacity-50 shadow-sm shadow-[#dbeafe]"
               >
                 {isLoading ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" /> : null}
                 Confirm Permanent Transfer

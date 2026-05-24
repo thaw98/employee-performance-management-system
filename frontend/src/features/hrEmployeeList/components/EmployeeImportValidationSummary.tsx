@@ -50,7 +50,7 @@ export function EmployeeImportValidationSummary({ result, onDownloadErrorFile, e
       )}
 
       {hasValid && hasFailed && (
-        <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-800">
+        <div className="p-4 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl text-sm text-[#1e40af]">
           <i className="bi bi-info-circle mr-2"></i>
           {result.validRows} valid rows can be imported. {result.invalidRows} rows will be skipped due to errors.
         </div>

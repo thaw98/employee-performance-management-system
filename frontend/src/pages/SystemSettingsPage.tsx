@@ -265,11 +265,11 @@ export function SystemSettingsPage() {
         {isHR && (
           <Link
             to="/hr/settings/system/time"
-            className="block bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-800 group"
+            className="block bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-[#2463eb]/30 dark:hover:border-[#2463eb]/40 group"
           >
                         <div className="p-8 flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-[#dbeafe] dark:bg-[#2463eb]/20 text-[#2463eb] dark:text-[#60a5fa] rounded-xl flex items-center justify-center">
                   <Calendar size={20} />
                 </div>
                 <div>
@@ -279,7 +279,7 @@ export function SystemSettingsPage() {
                   </p>
                 </div>
               </div>
-              <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-600 transition-colors" />
+              <ChevronRight size={20} className="text-slate-300 group-hover:text-[#2463eb] transition-colors" />
             </div>
           </Link>
         )}

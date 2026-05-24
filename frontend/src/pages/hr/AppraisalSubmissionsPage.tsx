@@ -9,8 +9,14 @@ import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
+import {
+    APPRAISAL_PRIMARY,
+    appraisalGradientBtn,
+    appraisalGradientIcon,
+    appraisalGradientSoft,
+} from '../../features/appraisals/appraisalTheme';
 
-const PRIMARY = '#0855BF';
+const PRIMARY = APPRAISAL_PRIMARY;
 
 interface Question {
     id: number;
@@ -463,7 +469,7 @@ export function AppraisalSubmissionsPage() {
             case 'LOCKED':
                 return 'bg-slate-100 text-slate-600 border-slate-200';
             case 'SUBMITTED':
-                return 'bg-blue-50 text-blue-700 border-blue-200';
+                return 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]';
             case 'PENDING':
                 return 'bg-purple-50 text-purple-700 border-purple-200';
             case 'LOCKED':
@@ -491,7 +497,7 @@ export function AppraisalSubmissionsPage() {
                         }}
                         className={`px-6 py-3 rounded-[20px] text-[10px] font-black uppercase tracking-widest transition-all ${
                             activeTab === status 
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
+                            ? 'bg-[#2463eb] text-white shadow-lg shadow-[#dbeafe]' 
                             : 'text-slate-400 hover:bg-slate-50'
                         }`}
                     >
@@ -557,7 +563,7 @@ export function AppraisalSubmissionsPage() {
                             <input
                                 type="text"
                                 placeholder="Search employee..."
-                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none"
+                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-[#2463eb] focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
@@ -572,7 +578,7 @@ export function AppraisalSubmissionsPage() {
                                     setFilterDept(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value));
                                     setFilterPos('ALL');
                                 }}
-                                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
                             >
                                 <option value="ALL">All Departments</option>
                                 {departments.map(d => (
@@ -589,7 +595,7 @@ export function AppraisalSubmissionsPage() {
                                 value={filterPos}
                                 onChange={(e) => setFilterPos(e.target.value)}
                                 disabled={filterDept === 'ALL'}
-                                className={`w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100 ${filterDept === 'ALL' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100 ${filterDept === 'ALL' ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <option value="ALL">All Positions</option>
                                 {positions.map(p => (
@@ -636,12 +642,12 @@ export function AppraisalSubmissionsPage() {
                                     <tr key={sa.id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="p-6">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                                                <div className={`w-10 h-10 ${appraisalGradientSoft} rounded-full flex items-center justify-center text-[#2463eb]`}>
                                                     <User size={20} />
                                                 </div>
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <div className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+                                                        <div className="font-bold text-slate-700 group-hover:text-[#2463eb] transition-colors">
                                                             {sa.employee.employeeName}
                                                         </div>
                                                         {sa.totalScore && sa.totalScore > 0 && sa.totalScore === maxScore && showTopOnly && (
@@ -656,7 +662,7 @@ export function AppraisalSubmissionsPage() {
                                                         )}
                                                     </div>
                                                     <div className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">
-                                                        {sa.employee.employeeId || 'N/A'} • {sa.employee.department?.name || 'No Dept'} • <span className="text-blue-500 font-bold">{sa.employee.position?.name || 'No Position'}</span>
+                                                        {sa.employee.employeeId || 'N/A'} • {sa.employee.department?.name || 'No Dept'} • <span className="text-[#2463eb] font-bold">{sa.employee.position?.name || 'No Position'}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -666,7 +672,7 @@ export function AppraisalSubmissionsPage() {
                                         </td>
                                         <td className="p-6 text-center">
                                             <div className="inline-flex flex-col items-center">
-                                                <span className="text-lg font-bold text-blue-600">
+                                                <span className="text-lg font-bold text-[#2463eb]">
                                                     {sa.totalScore ? `${sa.totalScore.toFixed(1)}%` : '—'}
                                                 </span>
                                                 <span className="text-[9px] font-bold uppercase text-slate-400">
@@ -683,7 +689,7 @@ export function AppraisalSubmissionsPage() {
                                             <div className="flex items-center justify-center gap-2">
                                                 <button
                                                     onClick={() => setSelectedAsmt(sa)}
-                                                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"
+                                                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-[#eff6ff] hover:text-[#2463eb] transition-all flex items-center justify-center"
                                                     title="View Details"
                                                 >
                                                     <Eye size={18} />
@@ -737,7 +743,7 @@ export function AppraisalSubmissionsPage() {
                                     setCurrentPage(prev => prev - 1);
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
-                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
+                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-[#2463eb] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
                             >
                                 <RotateCcw size={18} className="rotate-180" />
                             </button>
@@ -749,7 +755,7 @@ export function AppraisalSubmissionsPage() {
                                         setCurrentPage(page);
                                         window.scrollTo({ top: 0, behavior: 'smooth' });
                                     }}
-                                    className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === page ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
+                                    className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === page ? 'bg-[#2463eb] text-white shadow-lg shadow-[#dbeafe]' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
                                 >
                                     {page}
                                 </button>
@@ -761,7 +767,7 @@ export function AppraisalSubmissionsPage() {
                                     setCurrentPage(prev => prev + 1);
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
-                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
+                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-[#2463eb] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
                             >
                                 <RotateCcw size={18} />
                             </button>
@@ -777,7 +783,7 @@ export function AppraisalSubmissionsPage() {
                         {/* Modal Header */}
                         <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl shadow-lg shadow-blue-200">
+                                <div className={`p-3 ${appraisalGradientIcon} text-white rounded-2xl shadow-lg shadow-[#dbeafe]`}>
                                     <FileText size={24} />
                                 </div>
                                 <div>
@@ -814,12 +820,12 @@ export function AppraisalSubmissionsPage() {
                         <div className="flex-1 overflow-y-auto p-10 space-y-8">
                             {/* Summary Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200 rounded-3xl space-y-2">
-                                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Points Achieved</p>
-                                    <p className="text-3xl font-black text-blue-700 italic">
+                                <div className={`p-6 ${appraisalGradientSoft} border border-[#bfdbfe] rounded-3xl space-y-2`}>
+                                    <p className="text-[10px] font-bold text-[#2463eb] uppercase tracking-wider">Points Achieved</p>
+                                    <p className="text-3xl font-black text-[#1d4ed8] italic">
                                         {selectedAsmt.answers?.reduce((acc, curr) => acc + (curr.rating || 0), 0)}
-                                        <span className="text-blue-300 mx-2 text-xl font-normal">/</span>
-                                        <span className="text-blue-400 text-2xl">{(selectedAsmt.answers?.length || 0) * (selectedAsmt.template?.maxRating || 5)}</span>
+                                        <span className="text-[#93c5fd] mx-2 text-xl font-normal">/</span>
+                                        <span className="text-[#60a5fa] text-2xl">{(selectedAsmt.answers?.length || 0) * (selectedAsmt.template?.maxRating || 5)}</span>
                                     </p>
                                 </div>
                                 <div className="p-6 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200 rounded-3xl space-y-2">
@@ -845,7 +851,7 @@ export function AppraisalSubmissionsPage() {
                             {/* Detailed Answers Section */}
                             <div className="space-y-6">
                                 <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
-                                    <div className="w-1.5 h-6 bg-blue-600 rounded-full shadow-sm shadow-blue-500/50" />
+                                    <div className="w-1.5 h-6 bg-[#2463eb] rounded-full shadow-sm shadow-[#2463eb]/50" />
                                     Evaluation Responses
                                 </h4>
                                 
@@ -884,7 +890,7 @@ export function AppraisalSubmissionsPage() {
                                                                                     key={ratingValue}
                                                                                     className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black transition-all ${
                                                                                         isSelected 
-                                                                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-500/20 scale-110 z-10' 
+                                                                                        ? 'bg-[#2463eb] text-white shadow-lg shadow-[#2463eb]/30 ring-2 ring-[#2463eb]/20 scale-110 z-10' 
                                                                                         : 'bg-white text-slate-200 border border-slate-100'
                                                                                     }`}
                                                                                 >
@@ -896,9 +902,9 @@ export function AppraisalSubmissionsPage() {
                                                                 </div>
                                                                 
                                                                 {answer?.comments && (
-                                                                    <div className="ml-8 flex items-start gap-3 p-4 bg-blue-50/30 rounded-2xl border border-blue-50/50">
-                                                                        <MessageSquare size={14} className="text-blue-400 mt-0.5" />
-                                                                        <p className="text-[11px] text-blue-800 font-medium italic leading-relaxed">
+                                                                    <div className="ml-8 flex items-start gap-3 p-4 bg-[#eff6ff]/30 rounded-2xl border border-[#eff6ff]/50">
+                                                                        <MessageSquare size={14} className="text-[#60a5fa] mt-0.5" />
+                                                                        <p className="text-[11px] text-[#1e40af] font-medium italic leading-relaxed">
                                                                             "{answer.comments}"
                                                                         </p>
                                                                     </div>
@@ -959,7 +965,7 @@ export function AppraisalSubmissionsPage() {
                                                         <td className="p-3 font-medium text-slate-800">{kpi.name}</td>
                                                         <td className="p-3">{kpi.target} {kpi.unit}</td>
                                                         <td className="p-3 font-bold text-slate-700">{kpi.actual || '-'}</td>
-                                                        <td className="p-3 font-black text-blue-600">{kpi.score || '-'}</td>
+                                                        <td className="p-3 font-black text-[#2463eb]">{kpi.score || '-'}</td>
                                                         <td className="p-3">
                                                             <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-slate-200 text-slate-600">
                                                                 {kpi.status}
@@ -1007,7 +1013,7 @@ export function AppraisalSubmissionsPage() {
                                         HR Review Comments
                                     </label>
                                     <textarea
-                                        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-4 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:bg-white transition-all resize-none"
+                                        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-4 text-sm font-medium text-slate-700 outline-none focus:border-[#2463eb] focus:bg-white transition-all resize-none"
                                         placeholder="Enter your professional assessment and feedback..."
                                         rows={4}
                                         value={comments}
@@ -1025,7 +1031,7 @@ export function AppraisalSubmissionsPage() {
                                             {defaultSignature && (
                                                 <button 
                                                     onClick={handleUseDefaultSignature}
-                                                    className="text-[9px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1.5"
+                                                    className="text-[9px] font-black uppercase tracking-widest text-[#2463eb] hover:text-[#1d4ed8] transition-colors flex items-center gap-1.5"
                                                     type="button"
                                                 >
                                                     <RotateCcw size={10} /> Use Saved Signature
@@ -1044,7 +1050,7 @@ export function AppraisalSubmissionsPage() {
                                                         className="max-w-full max-h-full object-contain opacity-90 transition-transform group-hover:scale-105"
                                                     />
                                                     <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw</span>
+                                                        <span className="text-[8px] font-black text-[#2463eb] bg-[#eff6ff] px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw</span>
                                                     </div>
                                                 </div>
                                             )}
@@ -1083,7 +1089,7 @@ export function AppraisalSubmissionsPage() {
                                             <button
                                                 onClick={() => handleAction('unlock')}
                                                 disabled={isActionLoading || !comments.trim()}
-                                                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                className="w-full py-4 bg-[#2463eb] text-white rounded-2xl font-bold text-sm shadow-lg shadow-[#dbeafe] hover:bg-[#1d4ed8] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 {actionInProgress === 'unlock' ? (
                                                     <Loader2 className="animate-spin" size={18} />
@@ -1148,7 +1154,7 @@ export function AppraisalSubmissionsPage() {
                                                 <button
                                                     onClick={() => handleAction('approve')}
                                                     disabled={isActionLoading || !signature}
-                                                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-200 hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    className={`w-full py-4 ${appraisalGradientBtn} text-white rounded-2xl font-bold text-sm shadow-lg shadow-[#dbeafe] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed`}
                                                 >
                                                     {actionInProgress === 'approve' ? (
                                                         <Loader2 className="animate-spin" size={18} />
@@ -1336,7 +1342,7 @@ const KpiEditModal = ({ employee, period, onClose }: { employee: any, period?: s
                                                     type="text" 
                                                     value={kpi.actual || ''} 
                                                     onChange={(e) => handleChange(idx, 'actual', e.target.value)}
-                                                    className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
+                                                    className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-[#2463eb] transition-all text-center shadow-sm"
                                                     placeholder="—"
                                                 />
                                             </td>
@@ -1351,7 +1357,7 @@ const KpiEditModal = ({ employee, period, onClose }: { employee: any, period?: s
                                                     min="0" max="100"
                                                     value={kpi.score || ''} 
                                                     onChange={(e) => handleChange(idx, 'score', parseFloat(e.target.value))}
-                                                    className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
+                                                    className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-[#2463eb] transition-all text-center shadow-sm"
                                                 />
                                             </td>
                                             <td className="py-4 px-6 text-right font-black text-slate-900 tracking-tight">
@@ -1363,7 +1369,7 @@ const KpiEditModal = ({ employee, period, onClose }: { employee: any, period?: s
                                 <tfoot>
                                     <tr className="bg-slate-50/50 border-t-2 border-slate-200">
                                         <td colSpan={6} className="py-4 px-6 text-right text-xs font-black text-slate-900 uppercase tracking-widest border-r border-slate-200">Total Score</td>
-                                        <td className="py-4 px-6 text-right text-sm font-black text-blue-600 tracking-tight bg-blue-50/30">
+                                        <td className="py-4 px-6 text-right text-sm font-black text-[#2463eb] tracking-tight bg-[#eff6ff]/30">
                                             {totalWeightedScore.toFixed(2)}
                                         </td>
                                     </tr>

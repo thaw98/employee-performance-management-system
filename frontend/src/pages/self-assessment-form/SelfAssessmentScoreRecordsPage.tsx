@@ -12,7 +12,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table'
-import { Eye, Search, Trophy, BarChart3, FileText, CheckCircle2, FileDown } from 'lucide-react'
+import { Eye, Search, Trophy, BarChart3, FileText, CheckCircle2, FileDown, History } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useGetScoreRecordsQuery, type ScoreRecordDto } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi'
 import { downloadSelfAssessmentSummaryPdf } from '../../features/selfAssessmentForm/selfAssessmentSummaryReportApi'
@@ -23,7 +23,7 @@ function ScoreBar({ score }: { score: number | null }) {
   const clamped = Math.min(100, Math.max(0, score))
   let barColor = 'bg-red-500'
   if (clamped >= 86) barColor = 'bg-emerald-500'
-  else if (clamped >= 71) barColor = 'bg-blue-500'
+  else if (clamped >= 71) barColor = 'bg-[#2463eb]'
   else if (clamped >= 60) barColor = 'bg-yellow-500'
   else if (clamped >= 40) barColor = 'bg-orange-500'
   return (
@@ -220,7 +220,7 @@ export function SelfAssessmentScoreRecordsPage() {
           <button
             type="button"
             onClick={() => navigate(`${basePath}/reviews/${row.original.id}`)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-[#2463eb]/10 text-[#2463eb] hover:bg-[#2463eb]/15 dark:bg-[#2463eb]/20 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/30 transition-colors"
           >
             <Eye size={14} />
             View
@@ -300,8 +300,8 @@ export function SelfAssessmentScoreRecordsPage() {
       label: 'Average Score',
       value: avgScore != null ? `${avgScore.toFixed(1)}%` : '-',
       icon: BarChart3,
-      iconClassName: 'text-blue-600 dark:text-blue-400',
-      iconBgClassName: 'bg-blue-50 dark:bg-blue-900/20',
+      iconClassName: 'text-[#2463eb] dark:text-[#60a5fa]',
+      iconBgClassName: 'bg-[#2463eb]/10 dark:bg-[#2463eb]/20',
     },
     {
       label: 'Top Score',
@@ -325,7 +325,7 @@ export function SelfAssessmentScoreRecordsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2463eb]" />
       </div>
     )
   }
@@ -340,13 +340,18 @@ export function SelfAssessmentScoreRecordsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">History</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          {isEmployee
-            ? 'Past self-assessment forms for every workflow status, with scores when available.'
-            : 'Finalized locked and not-submitted self-assessment records. In-progress forms appear on Review Submissions.'}
-        </p>
+      <div className="flex items-center gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
+          <History size={24} className="text-white" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">History</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            {isEmployee
+              ? 'Past self-assessment forms for every workflow status, with scores when available.'
+              : 'Finalized locked and not-submitted self-assessment records. In-progress forms appear on Review Submissions.'}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -372,7 +377,7 @@ export function SelfAssessmentScoreRecordsPage() {
               placeholder={isEmployee ? 'Search periods, positions...' : 'Search employees, departments...'}
               value={globalFilter}
               onChange={e => setGlobalFilter(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20"
             />
           </div>
           <select
@@ -389,7 +394,7 @@ export function SelfAssessmentScoreRecordsPage() {
             type="button"
             onClick={handleExportPdf}
             disabled={!selectedCycleId || isExportingPdf}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white shadow-sm shadow-[#2463eb]/20 transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:brightness-100"
           >
             <FileDown size={16} />
             {isExportingPdf ? 'Exporting...' : 'Export PDF'}
@@ -413,7 +418,7 @@ export function SelfAssessmentScoreRecordsPage() {
           <table className="w-full">
             <thead>
               {table.getHeaderGroups().map(headerGroup => (
-                <tr key={headerGroup.id} className="border-b border-slate-200 dark:border-slate-700">
+                <tr key={headerGroup.id} className="border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-[#2463eb]/[0.04] to-transparent dark:from-[#2463eb]/[0.08] dark:to-transparent">
                   {headerGroup.headers.map(header => (
                     <th
                       key={header.id}
@@ -438,7 +443,7 @@ export function SelfAssessmentScoreRecordsPage() {
                 </tr>
               ) : (
                 table.getRowModel().rows.map(row => (
-                  <tr key={row.id} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                  <tr key={row.id} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-[#2463eb]/[0.02] dark:hover:bg-[#2463eb]/[0.04] transition-colors">
                     {row.getVisibleCells().map(cell => (
                       <td key={cell.id} className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}

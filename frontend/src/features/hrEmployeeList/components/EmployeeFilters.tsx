@@ -39,7 +39,7 @@ function EmployeeFilters({
           </span>
           <input
             type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[#dbeafe] focus:border-[#2463eb] sm:text-sm"
             placeholder="Search employees..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -50,7 +50,7 @@ function EmployeeFilters({
           <>
             {/* Department */}
             <select
-              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-[#dbeafe] focus:border-[#2463eb] sm:text-sm"
               value={departmentId || ''}
               onChange={(e) => onDepartmentChange(e.target.value ? Number(e.target.value) : undefined)}
             >
@@ -64,7 +64,7 @@ function EmployeeFilters({
 
             {/* Position */}
             <select
-              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-[#dbeafe] focus:border-[#2463eb] sm:text-sm"
               value={positionId || ''}
               onChange={(e) => onPositionChange(e.target.value ? Number(e.target.value) : undefined)}
             >
@@ -80,7 +80,7 @@ function EmployeeFilters({
 
         {/* Employment Status */}
         <select
-          className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-[#dbeafe] focus:border-[#2463eb] sm:text-sm"
           value={employmentStatus || ''}
           onChange={(e) => onStatusChange(e.target.value || undefined)}
         >
@@ -95,7 +95,7 @@ function EmployeeFilters({
         <button
           type="button"
           onClick={onReset}
-          className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#dbeafe]"
         >
           <i className="bi bi-arrow-counterclockwise mr-2"></i>
           Reset Filters

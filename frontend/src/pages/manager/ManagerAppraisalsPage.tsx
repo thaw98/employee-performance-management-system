@@ -107,7 +107,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
         const dateStr = formatCycleDate(new Date().toISOString().split('T')[0]);
 
         // Header
-        doc.setFillColor(8, 85, 191);
+        doc.setFillColor(36, 99, 235);
         doc.rect(0, 0, 297, 40, 'F');
         
         doc.setTextColor(255, 255, 255);
@@ -177,7 +177,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
             case 'PENDING_MANAGER':
                 return 'bg-amber-50 text-amber-600 border-amber-100';
             case 'SUBMITTED':
-                return 'bg-blue-50 text-blue-600 border-blue-100';
+                return 'bg-[#eff6ff] text-[#2463eb] border-[#dbeafe]';
             case 'HR_APPROVED':
                 return 'bg-emerald-50 text-emerald-600 border-emerald-100';
             case 'REJECTED':
@@ -362,7 +362,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                         {(assignment.employee.employeeName || 'E').charAt(0)}
                                     </div>
                                     <div className="space-y-1">
-                                        <h3 className="text-xl font-black text-slate-900 group-hover:text-[#5D5FEF] transition-colors">
+                                        <h3 className="text-xl font-black text-slate-900 group-hover:text-[#2463eb] transition-colors">
                                             {assignment.employee.employeeName || 'N/A'}
                                         </h3>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">

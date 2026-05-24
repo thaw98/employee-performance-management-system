@@ -184,7 +184,7 @@ function ChangeStatusModal({
               <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <div className="sm:flex sm:items-start">
-                    <div className={`mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10 ${isDangerAction ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                    <div className={`mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10 ${isDangerAction ? 'bg-red-100 text-red-600' : 'bg-[#dbeafe] text-[#2463eb]'}`}>
                       <i className={`bi ${isDangerAction ? 'bi-exclamation-triangle' : 'bi-arrow-left-right'} text-xl`}></i>
                     </div>
                     <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
@@ -242,7 +242,7 @@ function ChangeStatusModal({
                                   selectedTarget === option.value
                                     ? option.value === 'RESIGNED' || option.value === 'TERMINATED'
                                       ? 'border-red-300 bg-red-50'
-                                      : 'border-indigo-300 bg-indigo-50'
+                                      : 'border-[#93c5fd] bg-[#eff6ff]'
                                     : 'border-gray-200 hover:bg-gray-50'
                                 }`}
                               >
@@ -256,7 +256,7 @@ function ChangeStatusModal({
                                     setTransitionMode('')
                                     setEffectiveDate('')
                                   }}
-                                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                                  className="h-4 w-4 text-[#2463eb] focus:ring-[#dbeafe] border-gray-300"
                                 />
                                 <i className={`bi ${option.icon} ${option.color}`}></i>
                                 <span className={`text-sm font-medium ${option.color}`}>
@@ -332,7 +332,7 @@ function ChangeStatusModal({
                                   min={minEffectiveDate}
                                   value={effectiveDate}
                                   onChange={(e) => setEffectiveDate(e.target.value)}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#2463eb] focus:ring-[#dbeafe] focus:outline-none"
                                 />
                                 {dateError && (
                                   <p className="mt-1 text-xs text-red-500">{dateError}</p>
@@ -353,7 +353,7 @@ function ChangeStatusModal({
                               min={minEffectiveDate}
                               value={effectiveDate}
                               onChange={(e) => setEffectiveDate(e.target.value)}
-                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                              className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#2463eb] focus:ring-[#dbeafe] focus:outline-none"
                             />
                             {dateError && (
                               <p className="mt-1 text-xs text-red-500">{dateError}</p>
@@ -374,7 +374,7 @@ function ChangeStatusModal({
                               onChange={(e) => setReason(e.target.value.slice(0, 255))}
                               rows={3}
                               maxLength={255}
-                              className="block w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                              className="block w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#2463eb] focus:ring-[#dbeafe] focus:outline-none"
                               placeholder="Optional"
                             />
                             <p className="mt-1 text-xs text-gray-500 text-right">{reason.length}/255</p>
@@ -413,7 +413,7 @@ function ChangeStatusModal({
                     className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto ${
                       isDangerAction
                         ? 'bg-red-600 hover:bg-red-500 disabled:bg-red-300'
-                        : 'bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-300'
+                        : 'bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] disabled:opacity-50'
                     }`}
                     onClick={handleConfirm}
                   >

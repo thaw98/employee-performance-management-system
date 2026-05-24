@@ -29,7 +29,7 @@ function EmployeeProfileCell({ url, name }: EmployeeProfileCellProps) {
           onError={() => setImgError(true)}
         />
       ) : (
-        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold border border-indigo-200">
+        <div className="h-10 w-10 rounded-full bg-[#dbeafe] flex items-center justify-center text-[#1d4ed8] font-semibold border border-[#bfdbfe]">
           {initials}
         </div>
       )}

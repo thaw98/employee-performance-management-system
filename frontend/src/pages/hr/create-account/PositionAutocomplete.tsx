@@ -41,7 +41,7 @@ export function PositionAutocomplete({
         nullable
       >
         <div className="relative">
-          <div className="flex rounded-lg border border-slate-300 bg-white shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
+          <div className="flex rounded-lg border border-slate-300 bg-white shadow-sm focus-within:border-[#2463eb] focus-within:ring-2 focus-within:ring-[#2463eb]/20">
             <ComboboxInput
               className="w-full rounded-lg border-0 bg-transparent py-2.5 pr-10 pl-3 text-sm text-slate-900 focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400"
               displayValue={(p: PositionOptionDto | null) => p?.positionName ?? ''}
@@ -61,7 +61,7 @@ export function PositionAutocomplete({
                 <ComboboxOption
                   key={p.id}
                   value={p}
-                  className="cursor-pointer px-3 py-2 text-sm text-slate-800 data-focus:bg-blue-50 data-selected:font-semibold data-selected:text-blue-800"
+                  className="cursor-pointer px-3 py-2 text-sm text-slate-800 data-focus:bg-[#eff6ff] data-selected:font-semibold data-selected:text-[#1d4ed8]"
                 >
                   {p.positionName} ({p.positionCode})
                 </ComboboxOption>

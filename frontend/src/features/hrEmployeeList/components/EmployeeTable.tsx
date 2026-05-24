@@ -137,7 +137,7 @@ function EmployeeTable({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onView(row.employeeId)}
-                className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                className="p-1 text-[#2463eb] hover:bg-[#eff6ff] rounded transition-colors"
                 title="View Employee"
               >
                 <i className="bi bi-eye text-lg"></i>
@@ -147,7 +147,7 @@ function EmployeeTable({
                 <>
                   <button
                     onClick={() => onEdit(row.employeeId)}
-                    className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    className="p-1 text-[#2463eb] hover:bg-[#eff6ff] rounded transition-colors"
                     title="Edit Employee"
                   >
                     <i className="bi bi-pencil-square text-lg"></i>
@@ -216,7 +216,7 @@ function EmployeeTable({
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2463eb]"></div>
       </div>
     )
   }
@@ -236,9 +236,9 @@ function EmployeeTable({
                   <div className="flex items-center gap-2">
                     {flexRender(header.column.columnDef.header, header.getContext())}
                     {header.column.getIsSorted() === 'asc' ? (
-                      <i className="bi bi-sort-alpha-down text-indigo-600"></i>
+                      <i className="bi bi-sort-alpha-down text-[#2463eb]"></i>
                     ) : header.column.getIsSorted() === 'desc' ? (
-                      <i className="bi bi-sort-alpha-up text-indigo-600"></i>
+                      <i className="bi bi-sort-alpha-up text-[#2463eb]"></i>
                     ) : (
                       <i className="bi bi-arrow-down-up text-gray-300"></i>
                     )}

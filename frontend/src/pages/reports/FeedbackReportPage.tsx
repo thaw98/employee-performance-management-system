@@ -20,6 +20,15 @@ import {
   type ReportDepartmentDto,
 } from '../../features/feedback/api/feedbackApi'
 import { useGetReviewCyclesQuery, type ReviewCycleDto } from '../../features/reviewCycle/api/reviewCycleApi'
+import {
+  FEEDBACK_REPORT_PRIMARY_RGB,
+  feedbackReportBtnPrimary,
+  feedbackReportBtnPrimaryDisabled,
+  feedbackReportFocusRing,
+  feedbackReportOutlineBtn,
+  feedbackReportProgressBar,
+  feedbackReportRankingHover,
+} from './feedbackReportTheme'
 
 type FeedbackReportPageProps = {
   mode: 'hr' | 'manager' | 'employee'
@@ -366,7 +375,7 @@ function DepartmentDetailReport({
             <button
               type="button"
               onClick={() => setSelfMeetingAlert('')}
-              className="mt-6 h-11 min-w-28 rounded-lg bg-blue-600 px-6 text-sm font-black text-white transition-colors hover:bg-blue-700"
+              className={`mt-6 h-11 min-w-28 rounded-lg px-6 text-sm font-black transition-colors ${feedbackReportBtnPrimary}`}
             >
               OK
             </button>
@@ -457,7 +466,7 @@ function DepartmentDetailReport({
               <button
                 type="button"
                 onClick={clearDepartmentFilter}
-                className="h-11 rounded-lg border border-blue-200 px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 dark:border-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-950/30"
+                className={`h-11 rounded-lg px-4 text-sm font-black transition-colors ${feedbackReportOutlineBtn}`}
               >
                 View All Departments
               </button>
@@ -484,7 +493,7 @@ function DepartmentDetailReport({
                 type="button"
                 onClick={() => onExportExcel('summary', currentExportFilters)}
                 disabled={summaryExportDisabled}
-                className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${feedbackReportBtnPrimary} ${feedbackReportBtnPrimaryDisabled}`}
               >
                 <FileText size={16} />
                 {exportDownload === 'summary-excel' ? 'Downloading...' : 'Excel'}
@@ -511,13 +520,13 @@ function DepartmentDetailReport({
             <div>
               <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">{selected?.departmentName ?? 'All Departments'} Feedback Criteria</h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">Average score by criteria from submitted feedback.</p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-300">
+              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-[#2463eb] dark:text-[#93c5fd]">
                 {isCompanyWideView ? 'Company-wide view' : `Selected department: ${selected?.departmentName ?? 'Department'}`}
               </p>
             </div>
-            <div className="rounded-lg bg-blue-50 px-2.5 py-2 text-right dark:bg-blue-950/30">
-              <div className="text-[10px] font-bold uppercase text-blue-700 dark:text-blue-300">Top Criteria Score</div>
-              <div className="text-lg font-black text-blue-900 dark:text-blue-100">{formatScore(criteriaTopScore)}</div>
+            <div className="rounded-lg bg-[#eff6ff] px-2.5 py-2 text-right dark:bg-[#1e3a8a]/30">
+              <div className="text-[10px] font-bold uppercase text-[#1d4ed8] dark:text-[#93c5fd]">Top Criteria Score</div>
+              <div className="text-lg font-black text-[#1e40af] dark:text-[#bfdbfe]">{formatScore(criteriaTopScore)}</div>
             </div>
           </div>
 
@@ -545,7 +554,7 @@ function DepartmentDetailReport({
                       <span className={`${criteriaIsVeryDense ? 'text-[10px]' : 'text-xs'} shrink-0 font-black text-slate-900 dark:text-slate-100`}>{formatScore(criteria.average)}</span>
                     </div>
                     <div className={`${criteriaIsVeryDense ? 'h-1' : 'h-1.5'} shrink-0 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700`}>
-                      <div className="h-full rounded-full bg-blue-600" style={{ width: `${percentage}%` }} />
+                      <div className={feedbackReportProgressBar} style={{ width: `${percentage}%` }} />
                     </div>
                   </div>
                 )
@@ -574,7 +583,7 @@ function DepartmentDetailReport({
                   type="button"
                   onClick={() => onExportExcel('individual', currentExportFilters)}
                   disabled={individualExportDisabled}
-                  className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${feedbackReportBtnPrimary} ${feedbackReportBtnPrimaryDisabled}`}
                 >
                   <FileText size={16} />
                   {exportDownload === 'individual-excel' ? 'Downloading...' : 'Excel'}
@@ -629,7 +638,7 @@ function DepartmentDetailReport({
                                 <span className="text-xs font-black text-slate-900 dark:text-slate-100">{formatScore(criteria.average)} / 5</span>
                               </div>
                               <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                                <div className="h-full rounded-full bg-blue-600" style={{ width: `${percentage}%` }} />
+                                <div className={feedbackReportProgressBar} style={{ width: `${percentage}%` }} />
                               </div>
                             </div>
                           )
@@ -672,7 +681,7 @@ function DepartmentDetailReport({
                         setSelectedEmployeeId(employee.employeeId)
                         setSelectedEmployeeDepartmentId(employee.departmentId ?? departmentId)
                       }}
-                      className="flex w-full items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-left transition-colors hover:border-blue-200 hover:bg-blue-50/60 dark:border-slate-800 dark:bg-slate-800/60 dark:hover:border-blue-900/50 dark:hover:bg-blue-950/20"
+                      className={`flex w-full items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-left transition-colors dark:border-slate-800 dark:bg-slate-800/60 ${feedbackReportRankingHover}`}
                     >
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-slate-700 dark:bg-slate-900 dark:text-slate-200">
                         {safeRankingPage * rankingPageSize + index + 1}
@@ -704,7 +713,7 @@ function DepartmentDetailReport({
                             setRankingPageSize(Number(event.target.value))
                             setRankingPage(0)
                           }}
-                          className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                          className={`h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 ${feedbackReportFocusRing}`}
                         >
                           {[5, 10, 20, 50].map((rows) => (
                             <option key={rows} value={rows}>{rows}</option>
@@ -722,7 +731,7 @@ function DepartmentDetailReport({
                         <ChevronLeft size={16} />
                         Prev
                       </button>
-                      <span className="flex h-12 min-w-12 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm shadow-blue-200">
+                      <span className={`flex h-12 min-w-12 items-center justify-center rounded-xl px-4 text-sm font-bold ${feedbackReportBtnPrimary}`}>
                         {safeRankingPage + 1}
                       </span>
                       <button
@@ -856,7 +865,7 @@ function EmployeeOwnFeedbackReport() {
         margin: { left: margin, right: margin },
         tableWidth: usableWidth,
         styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
-        headStyles: { fillColor: [20, 184, 166], textColor: 255 },
+        headStyles: { fillColor: [...FEEDBACK_REPORT_PRIMARY_RGB], textColor: 255 },
       })
       addPdfPageNumbers(doc)
       doc.save(`Feedback_Report_Individual_${report.employeeName.replace(/[^a-z0-9]+/gi, '_')}.pdf`)
@@ -896,7 +905,7 @@ function EmployeeOwnFeedbackReport() {
             <Download size={16} />
             {reportDownload === 'pdf' ? 'Downloading...' : 'PDF'}
           </button>
-          <button type="button" onClick={handleExportExcel} disabled={exportDisabled} className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+          <button type="button" onClick={handleExportExcel} disabled={exportDisabled} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${feedbackReportBtnPrimary} ${feedbackReportBtnPrimaryDisabled}`}>
             <FileText size={16} />
             {reportDownload === 'excel' ? 'Downloading...' : 'Excel'}
           </button>
@@ -929,7 +938,7 @@ function EmployeeOwnFeedbackReport() {
                         <span className="text-xs font-black text-slate-900 dark:text-slate-100">{formatScore(criteria.average)} / 5</span>
                       </div>
                       <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                        <div className="h-full rounded-full bg-blue-600" style={{ width: `${percentage}%` }} />
+                        <div className={feedbackReportProgressBar} style={{ width: `${percentage}%` }} />
                       </div>
                     </div>
                   )
@@ -1195,7 +1204,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
           margin: { left: margin, right: margin },
           tableWidth: usableWidth,
           styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
-          headStyles: { fillColor: [37, 99, 235], textColor: 255 },
+          headStyles: { fillColor: [...FEEDBACK_REPORT_PRIMARY_RGB], textColor: 255 },
         })
         y = (getLastAutoTableFinalY(doc) ?? y) + 8
         if (y > pageHeight - 35) {
@@ -1219,7 +1228,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
             valign: 'middle',
           },
           headStyles: {
-            fillColor: [20, 184, 166],
+            fillColor: [...FEEDBACK_REPORT_PRIMARY_RGB],
             textColor: 255,
             fontSize: summaryEmployeeFontSize,
             halign: 'center',
@@ -1286,7 +1295,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
           tableWidth: usableWidth,
           styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
           headStyles: {
-            fillColor: [20, 184, 166],
+            fillColor: [...FEEDBACK_REPORT_PRIMARY_RGB],
             textColor: 255,
           },
         })

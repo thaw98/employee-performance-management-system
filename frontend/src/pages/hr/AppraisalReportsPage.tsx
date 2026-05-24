@@ -18,6 +18,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import * as XLSX from 'xlsx-js-style';
 import { format } from 'date-fns';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
+import { APPRAISAL_PRIMARY, APPRAISAL_PRIMARY_DARK } from '../../features/appraisals/appraisalTheme';
 
 interface Question {
   id: number;
@@ -82,7 +83,10 @@ interface Assignment {
   hrSignedAt?: string;
 }
 
-const CHART_COLORS = ['#1C2841', '#10B981', '#F59E0B', '#3B82F6', '#6366F1', '#EC4899', '#8B5CF6', '#14B8A6'];
+const PRIMARY = APPRAISAL_PRIMARY;
+const PRIMARY_HOVER = APPRAISAL_PRIMARY_DARK;
+
+const CHART_COLORS = [PRIMARY, '#10B981', '#F59E0B', PRIMARY_HOVER, '#60a5fa', '#6366F1', '#EC4899', '#14B8A6'];
 
 export default function AppraisalReportsPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -313,12 +317,12 @@ export default function AppraisalReportsPage() {
           if (r === 0) {
             cell.s = {
               font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: 'FFFFFF' } },
-              fill: { fgColor: { rgb: '1C2841' } }, // Navy Header
+              fill: { fgColor: { rgb: '2463EB' } },
               alignment: { horizontal: 'center', vertical: 'center' }
             };
           } else if (r === 1) {
             cell.s = {
-              font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: '1C2841' } },
+              font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: '2463EB' } },
               fill: { fgColor: { rgb: 'EDF2F7' } },
               alignment: { 
                 horizontal: c < 4 ? 'left' : 'right', 
@@ -330,22 +334,22 @@ export default function AppraisalReportsPage() {
             };
           } else if (r === 2) {
             cell.s = {
-              font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: '1C2841' } },
+              font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: '2463EB' } },
               fill: { fgColor: { rgb: 'E2E8F0' } },
               alignment: { horizontal: 'center', vertical: 'center' },
               border: {
-                top: { style: 'medium', color: { rgb: '1C2841' } },
-                bottom: { style: 'medium', color: { rgb: '1C2841' } }
+                top: { style: 'medium', color: { rgb: '2463EB' } },
+                bottom: { style: 'medium', color: { rgb: '2463EB' } }
               }
             };
           } else if (r === data.length - 1) {
             cell.s = {
-              font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: '1C2841' } },
+              font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: '2463EB' } },
               fill: { fgColor: { rgb: 'F8FAFC' } },
               alignment: { horizontal: 'right', vertical: 'center' },
               border: {
                 top: { style: 'double', color: { rgb: '94A3B8' } },
-                bottom: { style: 'medium', color: { rgb: '1C2841' } }
+                bottom: { style: 'medium', color: { rgb: '2463EB' } }
               }
             };
           } else {
@@ -399,7 +403,7 @@ export default function AppraisalReportsPage() {
       case 'LOCKED':
         return 'bg-slate-900 text-white border-slate-900';
       case 'SUBMITTED':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
+        return 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]';
       case 'RETURNED':
         return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'REJECTED':
@@ -425,7 +429,7 @@ export default function AppraisalReportsPage() {
     return (
       <div className="flex justify-center items-center h-96">
         <div className="flex flex-col items-center gap-3 text-slate-400">
-          <Loader2 className="animate-spin text-blue-600" size={32} />
+          <Loader2 className="animate-spin text-[#2463eb]" size={32} />
           <span className="font-semibold text-sm">Loading appraisal report data...</span>
         </div>
       </div>
@@ -454,7 +458,7 @@ export default function AppraisalReportsPage() {
       {/* Stats row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-sm">
+          <div className="w-12 h-12 bg-[#eff6ff] text-[#2463eb] rounded-2xl flex items-center justify-center shadow-sm">
             <Users size={24} />
           </div>
           <div>
@@ -481,7 +485,7 @@ export default function AppraisalReportsPage() {
           </div>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-sm">
+          <div className="w-12 h-12 bg-[#dbeafe] text-[#2463eb] rounded-2xl flex items-center justify-center shadow-sm">
             <Loader2 size={24} />
           </div>
           <div>
@@ -496,7 +500,7 @@ export default function AppraisalReportsPage() {
         {/* Department Comparison */}
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-6 flex items-center gap-2">
-            <Building2 size={16} className="text-blue-600" />
+            <Building2 size={16} className="text-[#2463eb]" />
             Average Appraisal Score by Department
           </h3>
           <div className="h-[260px]">
@@ -507,7 +511,7 @@ export default function AppraisalReportsPage() {
                   <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 'bold', fill: '#64748b' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fontWeight: 'bold', fill: '#64748b' }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Bar dataKey="Average Score (%)" fill="#1C2841" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="Average Score (%)" fill={PRIMARY} radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -519,7 +523,7 @@ export default function AppraisalReportsPage() {
         {/* Status Distribution */}
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-6 flex items-center gap-2">
-            <TrendingUp size={16} className="text-blue-600" />
+            <TrendingUp size={16} className="text-[#2463eb]" />
             Appraisals Status Distribution
           </h3>
           <div className="h-[260px]">
@@ -553,7 +557,7 @@ export default function AppraisalReportsPage() {
       {/* Filter Options */}
       <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-          <Filter size={18} className="text-blue-600" />
+          <Filter size={18} className="text-[#2463eb]" />
           <span className="font-black text-xs uppercase tracking-widest text-slate-700">Filter Appraisals</span>
         </div>
         
@@ -566,7 +570,7 @@ export default function AppraisalReportsPage() {
               <input
                 type="text"
                 placeholder="Name or Staff ID..."
-                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none"
+                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none"
                 value={searchTerm}
                 onChange={e => {
                   setSearchTerm(e.target.value);
@@ -587,7 +591,7 @@ export default function AppraisalReportsPage() {
                   setSelectedDept(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
               >
                 <option value="ALL">All Departments</option>
                 {departments.map(d => (
@@ -608,7 +612,7 @@ export default function AppraisalReportsPage() {
                   setSelectedStatus(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="PENDING">PENDING</option>
@@ -633,7 +637,7 @@ export default function AppraisalReportsPage() {
                   setSelectedRating(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
               >
                 <option value="ALL">All Grades</option>
                 {ratingCategories.map(cat => (
@@ -671,7 +675,7 @@ export default function AppraisalReportsPage() {
                         <div>
                           <div className="font-bold text-slate-800">{a.employee.employeeName}</div>
                           <div className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">
-                            {a.employee.employeeId || 'N/A'} • {a.employee.department?.name || 'No Dept'} • <span className="text-blue-500 font-bold">{a.employee.position?.name || 'No Position'}</span>
+                            {a.employee.employeeId || 'N/A'} • {a.employee.department?.name || 'No Dept'} • <span className="text-[#2463eb] font-bold">{a.employee.position?.name || 'No Position'}</span>
                           </div>
                         </div>
                       </div>
@@ -680,7 +684,7 @@ export default function AppraisalReportsPage() {
                       {a.period?.name || 'Annual 2026'}
                     </td>
                     <td className="p-6 text-center">
-                      <span className="text-base font-black text-blue-600">
+                      <span className="text-base font-black text-[#2463eb]">
                         {a.totalScore != null ? `${a.totalScore.toFixed(1)}%` : '—'}
                       </span>
                     </td>
@@ -731,7 +735,7 @@ export default function AppraisalReportsPage() {
                   setCurrentPage(prev => prev - 1);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm cursor-pointer"
+                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-[#2463eb] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm cursor-pointer"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -743,7 +747,7 @@ export default function AppraisalReportsPage() {
                     setCurrentPage(page);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === page ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
+                  className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === page ? 'bg-[#2463eb] text-white shadow-lg shadow-[#dbeafe]' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
                 >
                   {page}
                 </button>
@@ -755,7 +759,7 @@ export default function AppraisalReportsPage() {
                   setCurrentPage(prev => prev + 1);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm cursor-pointer"
+                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-[#2463eb] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm cursor-pointer"
               >
                 <ChevronRight size={16} />
               </button>

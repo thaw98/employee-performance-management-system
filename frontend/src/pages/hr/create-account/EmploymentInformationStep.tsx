@@ -7,6 +7,7 @@ import type { DepartmentOptionDto, PositionOptionDto } from '../../../features/h
 import type { CreateEmployeeAccountFormValues } from '../../../features/hrCreateEmployee/schemas/createEmployeeAccountSchema'
 import { DepartmentAutocomplete } from './DepartmentAutocomplete'
 import { PositionAutocomplete } from './PositionAutocomplete'
+import { createAccountInputBase } from './createAccountTheme'
 
 interface EmploymentInformationStepProps {
   register: UseFormRegister<CreateEmployeeAccountFormValues>
@@ -28,7 +29,7 @@ interface EmploymentInformationStepProps {
 function SectionHeader({ icon: Icon, title }: { icon: React.ComponentType<{ size?: number; className?: string }>; title: string }) {
   return (
     <div className="md:col-span-2 flex items-center gap-3 pb-1 pt-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eff6ff] text-[#2463eb]">
         <Icon size={16} />
       </div>
       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h3>
@@ -37,10 +38,8 @@ function SectionHeader({ icon: Icon, title }: { icon: React.ComponentType<{ size
   )
 }
 
-const inputBase =
-  'w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none ring-0 transition-all duration-200 placeholder:text-slate-300 focus:border-teal-400 focus:shadow-[0_0_0_3px_rgba(20,184,166,0.1)]'
-const inputNormal = `${inputBase} border-slate-200`
-const inputError = `${inputBase} border-red-300 bg-red-50/30`
+const inputNormal = `${createAccountInputBase} border-slate-200`
+const inputError = `${createAccountInputBase} border-red-300 bg-red-50/30`
 
 export function EmploymentInformationStep({
   register,
@@ -100,14 +99,14 @@ export function EmploymentInformationStep({
           <div className="grid grid-cols-2 gap-4">
             <label
               className={`group relative flex cursor-pointer items-center gap-4 rounded-xl border-2 p-5 transition-all ${staffType === 'PERMANENT'
-                  ? 'border-teal-500 bg-gradient-to-br from-teal-50 to-emerald-50 shadow-md shadow-teal-500/10'
+                  ? 'border-[#2463eb] bg-linear-to-br from-[#eff6ff] to-[#dbeafe] shadow-md shadow-[#2463eb]/10'
                   : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
                 }`}
             >
               <input type="radio" value="PERMANENT" className="sr-only" {...register('staffType')} />
               <div
                 className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${staffType === 'PERMANENT'
-                    ? 'bg-teal-500 text-white shadow-md shadow-teal-500/25'
+                    ? 'bg-[#2463eb] text-white shadow-md shadow-[#2463eb]/25'
                     : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
                   }`}
               >
@@ -115,7 +114,7 @@ export function EmploymentInformationStep({
               </div>
               <div>
                 <p
-                  className={`text-sm font-bold ${staffType === 'PERMANENT' ? 'text-teal-900' : 'text-slate-700'
+                  className={`text-sm font-bold ${staffType === 'PERMANENT' ? 'text-[#1e3a8a]' : 'text-slate-700'
                     }`}
                 >
                   Permanent
@@ -123,7 +122,7 @@ export function EmploymentInformationStep({
                 <p className="mt-0.5 text-xs text-slate-500">Full-time employee</p>
               </div>
               {staffType === 'PERMANENT' ? (
-                <div className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-teal-500 text-white">
+                <div className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#2463eb] text-white">
                   <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
                     <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -329,7 +328,7 @@ export function EmploymentInformationStep({
               className={`flex items-start gap-4 rounded-xl border p-4 transition ${
                 departmentHasManager
                   ? 'cursor-not-allowed border-amber-200 bg-amber-50 text-amber-900'
-                  : 'cursor-pointer border-teal-200 bg-teal-50/60 text-teal-900 hover:border-teal-300'
+                  : 'cursor-pointer border-[#dbeafe] bg-[#eff6ff]/60 text-[#1e3a8a] hover:border-[#93c5fd]'
               }`}
             >
               <Controller
@@ -338,7 +337,7 @@ export function EmploymentInformationStep({
                 render={({ field }) => (
                   <input
                     type="checkbox"
-                    className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2463eb] focus:ring-[#2463eb]"
                     checked={departmentHasManager ? false : Boolean(field.value)}
                     disabled={departmentHasManager}
                     onChange={(event) => field.onChange(event.target.checked)}
@@ -356,7 +355,7 @@ export function EmploymentInformationStep({
                     <span>This department already has a manager. The account can still be created with manager access.</span>
                   </div>
                 ) : (
-                  <p className="mt-1 text-xs text-teal-800/80">
+                  <p className="mt-1 text-xs text-[#1d4ed8]/80">
                     The employee will become the department's current manager.
                   </p>
                 )}

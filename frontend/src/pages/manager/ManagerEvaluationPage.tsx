@@ -457,7 +457,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                         <User size={120} />
                     </div>
                     <div className="flex items-start gap-6 relative z-10">
-                        <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-[#5D5FEF]/20">
+                        <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-[#2463eb]/20">
                             {empName.charAt(0)}
                         </div>
                         <div className="space-y-2">
@@ -482,12 +482,12 @@ export const ManagerEvaluationPage: React.FC = () => {
                 {/* Summary Cards */}
                 {isReadOnly && (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200 rounded-3xl space-y-2 shadow-sm">
-                            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Points Achieved</p>
-                            <p className="text-3xl font-black text-blue-700 italic">
+                        <div className="p-6 bg-gradient-to-br from-[#eff6ff] to-[#dbeafe]/50 border border-[#bfdbfe] rounded-3xl space-y-2 shadow-sm">
+                            <p className="text-[10px] font-bold text-[#2463eb] uppercase tracking-wider">Points Achieved</p>
+                            <p className="text-3xl font-black text-[#1d4ed8] italic">
                                 {assignment.answers?.reduce((acc, curr) => acc + (curr.rating || 0), 0)}
-                                <span className="text-blue-300 mx-2 text-xl font-normal">/</span>
-                                <span className="text-blue-400 text-2xl">{(assignment.answers?.length || 0) * (assignment.template?.maxRating || 5)}</span>
+                                <span className="text-[#93c5fd] mx-2 text-xl font-normal">/</span>
+                                <span className="text-[#60a5fa] text-2xl">{(assignment.answers?.length || 0) * (assignment.template?.maxRating || 5)}</span>
                             </p>
                         </div>
                         <div className="p-6 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200 rounded-3xl space-y-2 shadow-sm">
