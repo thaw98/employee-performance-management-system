@@ -37,6 +37,7 @@ export const baseApi = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithAuthGuard,
   tagTypes: [
+    'PerformanceReport',
     'User',
     'UserProfile',
     'Employee',
