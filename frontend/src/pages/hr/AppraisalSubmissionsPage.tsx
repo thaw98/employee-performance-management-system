@@ -819,7 +819,7 @@ export function AppraisalSubmissionsPage() {
                                     <p className="text-3xl font-black text-blue-700 italic">
                                         {selectedAsmt.answers?.reduce((acc, curr) => acc + (curr.rating || 0), 0)}
                                         <span className="text-blue-300 mx-2 text-xl font-normal">/</span>
-                                        <span className="text-blue-400 text-2xl">{(selectedAsmt.answers?.length || 0) * 5}</span>
+                                        <span className="text-blue-400 text-2xl">{(selectedAsmt.answers?.length || 0) * (selectedAsmt.template?.maxRating || 5)}</span>
                                     </p>
                                 </div>
                                 <div className="p-6 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200 rounded-3xl space-y-2">
@@ -877,18 +877,18 @@ export function AppraisalSubmissionsPage() {
                                                                     {/* Rating Display */}
                                                                     <div className="flex items-center gap-1.5 bg-slate-50/50 p-1.5 rounded-2xl border border-slate-100 self-start lg:self-center">
                                                                         {[...Array(maxRating)].map((_, i) => {
-                                                                            const num = i + 1;
-                                                                            const isSelected = answer?.rating === num;
+                                                                            const ratingValue = maxRating - i;
+                                                                            const isSelected = answer?.rating === ratingValue;
                                                                             return (
                                                                                 <div 
-                                                                                    key={num}
+                                                                                    key={ratingValue}
                                                                                     className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black transition-all ${
                                                                                         isSelected 
                                                                                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-500/20 scale-110 z-10' 
                                                                                         : 'bg-white text-slate-200 border border-slate-100'
                                                                                     }`}
                                                                                 >
-                                                                                    {num}
+                                                                                    {ratingValue}
                                                                                 </div>
                                                                             );
                                                                         })}
