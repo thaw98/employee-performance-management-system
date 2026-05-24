@@ -24,6 +24,11 @@ import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCyc
 import { formatDate } from '../../utils/dateUtils';
 import SignatureCanvas from 'react-signature-canvas';
 import { useRef } from 'react';
+import {
+    captureDrawnSignatureDataUrl,
+    SIGNATURE_PAD_HEIGHT,
+    SIGNATURE_PAD_WIDTH,
+} from '../../components/signature/signatureCanvasUtils';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
 
@@ -236,7 +241,7 @@ export const ManagerEvaluationPage: React.FC = () => {
 
     const captureSignature = useCallback(() => {
         if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
-            return sigCanvas.current.getCanvas().toDataURL();
+            return captureDrawnSignatureDataUrl(sigCanvas.current.getCanvas());
         }
         const currentSignature = getValues('signature');
         if (currentSignature) {
@@ -636,14 +641,24 @@ export const ManagerEvaluationPage: React.FC = () => {
                                                 )}
                                                 <SignatureCanvas
                                                     ref={sigCanvas}
+                                                    clearOnResize={false}
+                                                    penColor="#0f172a"
                                                     onBegin={() => setIsUsingSavedSignature(false)}
                                                     onEnd={() => {
-                                                        setValue('signature', sigCanvas.current.getCanvas().toDataURL(), { shouldDirty: true, shouldTouch: true });
+                                                        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+                                                            setValue(
+                                                                'signature',
+                                                                captureDrawnSignatureDataUrl(sigCanvas.current.getCanvas()),
+                                                                { shouldDirty: true, shouldTouch: true },
+                                                            );
+                                                        }
                                                         setIsUsingSavedSignature(false);
                                                     }}
                                                     canvasProps={{
-                                                        className: "w-full h-40 cursor-crosshair",
-                                                        style: { background: 'white' }
+                                                        width: SIGNATURE_PAD_WIDTH,
+                                                        height: SIGNATURE_PAD_HEIGHT,
+                                                        className: 'w-full h-40 cursor-crosshair touch-none',
+                                                        style: { background: 'white' },
                                                     }}
                                                 />
                                                 <button
