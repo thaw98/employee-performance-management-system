@@ -137,7 +137,6 @@ const HrLayout: React.FC = () => {
         { label: 'Meeting History', path: '/hr/meetings?section=history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
-    { icon: <HelpCircle size={20} />, label: 'FAQ Support', path: '/hr/settings/faq-support' },
     {
       icon: <BarChart size={20} />,
       label: 'Reports',
@@ -149,7 +148,8 @@ const HrLayout: React.FC = () => {
         { label: 'Appraisal Report', path: '/hr/reports/appraisal', icon: <Award size={16} className="shrink-0" /> },
         { label: 'Self-Assessment Report', path: '/hr/reports/self-assessment', icon: <FileText size={16} className="shrink-0" /> }
       ]
-    }
+    },
+    { icon: <HelpCircle size={20} />, label: 'FAQ Support', path: '/hr/settings/faq-support' }
   ];
 
   return (
