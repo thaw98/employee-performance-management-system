@@ -32,6 +32,7 @@ import { UserProfilePage } from './pages/UserProfilePage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
 import { TimeSettingsPage } from './pages/TimeSettingsPage';
 import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
+import { FaqSupportPage } from './pages/hr/FaqSupportPage';
 
 // Performance Modules
 import PipMonitoringPage from './pages/PipMonitoringPage';
@@ -190,6 +191,7 @@ function App() {
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
             <Route path="settings/system/time" element={<TimeSettingsPage />} />
+            <Route path="settings/faq-support" element={<FaqSupportPage />} />
             <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
             <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />

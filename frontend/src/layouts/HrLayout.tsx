@@ -24,7 +24,8 @@ import {
   History,
   Layers,
   FileText,
-  ClipboardList
+  ClipboardList,
+  HelpCircle
 } from 'lucide-react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -136,6 +137,7 @@ const HrLayout: React.FC = () => {
         { label: 'Meeting History', path: '/hr/meetings?section=history', icon: <History size={16} className="shrink-0" /> }
       ]
     },
+    { icon: <HelpCircle size={20} />, label: 'FAQ Support', path: '/hr/settings/faq-support' },
     {
       icon: <BarChart size={20} />,
       label: 'Reports',

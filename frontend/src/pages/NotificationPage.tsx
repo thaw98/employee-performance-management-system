@@ -26,7 +26,8 @@ type NotificationSourceFilter =
   | '360_FEEDBACK'
   | 'MEETING'
   | 'PIP'
-  | 'SELF_ASSESSMENT_FORM';
+  | 'SELF_ASSESSMENT_FORM'
+  | 'FAQ_SUPPORT';
 
 const PAGE_SIZE = 10;
 const CATEGORY_OPTIONS: { value: NotificationSourceFilter; label: string }[] = [
@@ -37,6 +38,7 @@ const CATEGORY_OPTIONS: { value: NotificationSourceFilter; label: string }[] = [
   { value: 'MEETING', label: 'One-on-one Meeting' },
   { value: 'PIP', label: 'PIP' },
   { value: 'SELF_ASSESSMENT_FORM', label: 'Self-Assessment' },
+  { value: 'FAQ_SUPPORT', label: 'FAQ Support' },
 ];
 
 const SOURCE_LABELS = CATEGORY_OPTIONS.reduce<Record<string, string>>((labels, option) => {
@@ -191,7 +193,7 @@ export function NotificationPage() {
     const isSameDestination = destinationPath === location.pathname;
     navigate(destinationPath, {
       replace: isSameDestination,
-      state: { notificationRefreshToken: Date.now() },
+      state: { notificationRefreshToken: notification.id },
     });
   };
 
