@@ -8,6 +8,20 @@ const GOOGLE_TRANSLATE_SCRIPT_ID = 'google-translate-script'
 function expireCookie(domain?: string) {
   const domainPart = domain ? `; domain=${domain}` : ''
   document.cookie = `${GOOGLE_TRANSLATE_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/${domainPart}`
+  document.cookie = `${GOOGLE_TRANSLATE_COOKIE}=; max-age=0; path=/${domainPart}`
+}
+
+function clearGoogleTranslateCookies() {
+  const hostname = window.location.hostname
+  const domains = new Set<string | undefined>([undefined, hostname])
+
+  if (hostname === 'localhost') {
+    domains.add('localhost')
+  } else if (hostname.includes('.')) {
+    domains.add(`.${hostname.split('.').slice(-2).join('.')}`)
+  }
+
+  domains.forEach((domain) => expireCookie(domain))
 }
 
 function canUseCookieDomain(hostname: string) {
@@ -57,18 +71,53 @@ export function applyGoogleTranslateCookie(language: TranslationLanguage | strin
     return
   }
 
-  expireCookie()
-  if (canUseCookieDomain(window.location.hostname)) {
-    expireCookie(window.location.hostname)
-  }
-  if (window.location.hostname === 'localhost') {
-    expireCookie('localhost')
-  }
+  clearGoogleTranslateCookies()
+}
+
+function getTranslateCookieValue() {
+  const match = document.cookie.match(/(?:^|;\s*)googtrans=([^;]*)/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
+export function isGoogleTranslateActive() {
+  const value = getTranslateCookieValue()
+  return Boolean(value && value !== '/en/en')
+}
+
+function getGoogleTranslateSelectValue(language: TranslationLanguage | string) {
+  return isMyanmarLanguage(language) ? 'my' : ''
 }
 
 export function hasGoogleTranslateCookie(language: TranslationLanguage | string) {
-  const expected = isMyanmarLanguage(language) ? '/en/my' : ''
-  return document.cookie.includes(`${GOOGLE_TRANSLATE_COOKIE}=${expected}`)
+  const value = getTranslateCookieValue()
+  if (isMyanmarLanguage(language)) {
+    return value === '/en/my'
+  }
+  return !isGoogleTranslateActive()
+}
+
+export function isLanguageApplied(language: TranslationLanguage | string) {
+  const saved = getSavedLanguagePreference()
+  const normalized = isMyanmarLanguage(language) ? 'Myanmar' : 'English'
+  return saved === normalized && hasGoogleTranslateCookie(language)
+}
+
+export function applyLanguagePreference(
+  language: TranslationLanguage | string,
+  options?: { reload?: boolean },
+) {
+  const normalized = isMyanmarLanguage(language) ? 'Myanmar' : 'English'
+  saveLanguagePreference(normalized)
+  applyLanguageFont(normalized)
+  ensureGoogleTranslateWidget(false)
+  applyGoogleTranslateCookie(normalized)
+
+  if (options?.reload) {
+    window.setTimeout(() => window.location.reload(), 150)
+    return
+  }
+
+  retryGoogleTranslateSelection(normalized)
 }
 
 export function saveLanguagePreference(language: TranslationLanguage | string) {
@@ -83,8 +132,11 @@ export function applyGoogleTranslateSelection(language: TranslationLanguage | st
   const select = document.querySelector<HTMLSelectElement>('.goog-te-combo')
   if (!select) return false
 
-  const targetValue = isMyanmarLanguage(language) ? 'my' : 'en'
-  if (select.value !== targetValue) {
+  const targetValue = getGoogleTranslateSelectValue(language)
+  const needsChange = select.value !== targetValue
+    || (!isMyanmarLanguage(language) && isGoogleTranslateActive())
+
+  if (needsChange) {
     select.value = targetValue
     select.dispatchEvent(new Event('change'))
   }
