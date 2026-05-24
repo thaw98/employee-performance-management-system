@@ -34,6 +34,25 @@ const ManagerLayout: React.FC = () => {
   const user = profileResponse?.data || authUser;
   const prefetchPips = pipApi.usePrefetch('getPips');
 
+  const selfAssessmentTemplatesItem = {
+    label: 'Templates',
+    path: '/manager/self-assessment/templates',
+    icon: <SlidersHorizontal size={16} />,
+  };
+  const selfAssessmentMyFormItem = {
+    label: 'My Form',
+    path: '/manager/self-assessment-forms/my-form',
+    icon: <ClipboardCheck size={16} />,
+  };
+  const selfAssessmentSubItems = [
+    ...(authUser?.roleId === 2
+      ? [selfAssessmentMyFormItem, selfAssessmentTemplatesItem]
+      : [selfAssessmentTemplatesItem, selfAssessmentMyFormItem]),
+    { label: 'Assigned Forms', path: '/manager/self-assessment/forms', icon: <ClipboardList size={16} /> },
+    { label: 'Review Submissions', path: '/manager/self-assessment-forms/review-queue', icon: <ListChecks size={16} /> },
+    { label: 'History', path: '/manager/self-assessment-forms/history', icon: <History size={16} /> },
+  ];
+
   const menuItems: DashMenuItem[] = [
     { label: 'Dashboard', path: '/manager/dashboard', icon: <LayoutDashboard size={18} /> },
     ...(authUser?.roleId === 2
@@ -58,15 +77,11 @@ const ManagerLayout: React.FC = () => {
     { label: 'Appraisals', path: '/manager/appraisals', icon: <Award size={18} /> },
     {
       label: 'Self-Assessment',
-      path: '/manager/self-assessment/templates',
+      path: authUser?.roleId === 2
+        ? '/manager/self-assessment-forms/my-form'
+        : '/manager/self-assessment/templates',
       icon: <FileText size={18} />,
-      subItems: [
-        { label: 'Templates', path: '/manager/self-assessment/templates', icon: <SlidersHorizontal size={16} /> },
-        { label: 'My Form', path: '/manager/self-assessment-forms/my-form', icon: <ClipboardCheck size={16} /> },
-        { label: 'Assigned Forms', path: '/manager/self-assessment/forms', icon: <ClipboardList size={16} /> },
-        { label: 'Review Submissions', path: '/manager/self-assessment-forms/review-queue', icon: <ListChecks size={16} /> },
-        { label: 'History', path: '/manager/self-assessment-forms/history', icon: <History size={16} /> },
-      ],
+      subItems: selfAssessmentSubItems,
     },
     {
       label: '360 Feedback',

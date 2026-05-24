@@ -14,7 +14,6 @@ import {
     Loader2,
     Building2,
     Calendar,
-    ArrowRight,
     AlertCircle,
     RotateCcw,
     Clock,
@@ -31,6 +30,12 @@ import {
 } from '../../components/signature/signatureCanvasUtils';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
+import {
+    appraisalGradientIcon,
+    appraisalGradientBtn,
+    appraisalGradientSoft,
+} from '../../features/appraisals/appraisalTheme';
+import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
 
 interface EvaluationFormData {
     answers: Record<string, { rating: number; comments: string }>;
@@ -105,6 +110,7 @@ export const ManagerEvaluationPage: React.FC = () => {
     const [assignment, setAssignment] = useState<Assignment | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
     const [savingDraft, setSavingDraft] = useState(false);
     const [isUsingSavedSignature, setIsUsingSavedSignature] = useState(false);
     const sigCanvas = useRef<any>(null);
@@ -294,20 +300,10 @@ export const ManagerEvaluationPage: React.FC = () => {
         }
     };
 
-    const handleSubmit = async () => {
-        if (autosave.hasPendingChanges || formState.isDirty) {
-            const result = await autosave.flush();
-            if (!result?.ok) {
-                toast.error(result?.error?.message || 'Please save changes before submitting');
-                return;
-            }
-        }
-
-        // Capture signature if drawn but not yet in state
-        let finalSignature = captureSignature();
+    const handleSubmitClick = () => {
+        const finalSignature = captureSignature();
         setValue('signature', finalSignature, { shouldDirty: false });
 
-        // Validation
         const unanswered = Object.values(answers).some(a => a.rating === 0);
         if (unanswered) {
             toast.error('Please rate all items before submitting');
@@ -319,6 +315,21 @@ export const ManagerEvaluationPage: React.FC = () => {
             return;
         }
 
+        setShowSubmitConfirm(true);
+    };
+
+    const handleConfirmSubmit = async () => {
+        if (autosave.hasPendingChanges || formState.isDirty) {
+            const result = await autosave.flush();
+            if (!result?.ok) {
+                toast.error(result?.error?.message || 'Please save changes before submitting');
+                return;
+            }
+        }
+
+        const finalSignature = captureSignature();
+        setValue('signature', finalSignature, { shouldDirty: false });
+
         try {
             setSubmitting(true);
             const payload = toEvaluationPayload({
@@ -328,6 +339,7 @@ export const ManagerEvaluationPage: React.FC = () => {
 
             const response = await axios.post(`/appraisal-assignments/${id}/evaluate`, payload);
             if (response.data.success) {
+                setShowSubmitConfirm(false);
                 toast.success('Evaluation submitted successfully');
                 navigate('/manager/appraisals');
             }
@@ -342,7 +354,7 @@ export const ManagerEvaluationPage: React.FC = () => {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="flex flex-col items-center gap-4">
-                    <Loader2 size={40} className="text-[#5D5FEF] animate-spin" />
+                    <Loader2 size={40} className="text-[#2463eb] animate-spin" />
                     <p className="text-slate-500 font-medium animate-pulse">Loading appraisal form...</p>
                 </div>
             </div>
@@ -366,7 +378,7 @@ export const ManagerEvaluationPage: React.FC = () => {
         : autosave.lastError
             ? 'text-red-600'
             : autosave.hasPendingChanges || formState.isDirty
-                ? 'text-amber-600'
+                ? 'text-[#2463eb]'
                 : 'text-emerald-600';
 
     return (
@@ -404,9 +416,9 @@ export const ManagerEvaluationPage: React.FC = () => {
                                 Save Draft
                             </button>
                             <button
-                                onClick={handleSubmit}
+                                onClick={handleSubmitClick}
                                 disabled={submitting || savingDraft}
-                                className="flex items-center gap-2 bg-[#5D5FEF] text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#5D5FEF]/20 hover:bg-[#4C4EDE] transition-all disabled:opacity-50"
+                                className={`flex items-center gap-2 ${appraisalGradientBtn} text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#2463eb]/20 transition-all disabled:opacity-50`}
                             >
                                 {submitting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
                                 Submit Evaluation
@@ -426,7 +438,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                 </button>
                             )}
                             <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
-                                assignment.status === 'SUBMITTED' ? 'bg-blue-50 text-blue-600 border-blue-100' : 
+                                assignment.status === 'SUBMITTED' ? 'bg-[#eff6ff] text-[#2463eb] border-[#dbeafe]' : 
                                 assignment.status === 'HR_APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                                 assignment.status === 'LOCKED' ? 'bg-slate-900 text-white border-slate-900' :
                                 'bg-slate-100 text-slate-500 border-slate-200'
@@ -457,7 +469,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                         <User size={120} />
                     </div>
                     <div className="flex items-start gap-6 relative z-10">
-                        <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-[#2463eb]/20">
+                        <div className={`h-20 w-20 rounded-2xl ${appraisalGradientIcon} flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-[#2463eb]/20`}>
                             {empName.charAt(0)}
                         </div>
                         <div className="space-y-2">
@@ -482,7 +494,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                 {/* Summary Cards */}
                 {isReadOnly && (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div className="p-6 bg-gradient-to-br from-[#eff6ff] to-[#dbeafe]/50 border border-[#bfdbfe] rounded-3xl space-y-2 shadow-sm">
+                        <div className={`p-6 ${appraisalGradientSoft} border border-[#bfdbfe] rounded-3xl space-y-2 shadow-sm`}>
                             <p className="text-[10px] font-bold text-[#2463eb] uppercase tracking-wider">Points Achieved</p>
                             <p className="text-3xl font-black text-[#1d4ed8] italic">
                                 {assignment.answers?.reduce((acc, curr) => acc + (curr.rating || 0), 0)}
@@ -490,9 +502,9 @@ export const ManagerEvaluationPage: React.FC = () => {
                                 <span className="text-[#60a5fa] text-2xl">{(assignment.answers?.length || 0) * (assignment.template?.maxRating || 5)}</span>
                             </p>
                         </div>
-                        <div className="p-6 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200 rounded-3xl space-y-2 shadow-sm">
-                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">Overall Score</p>
-                            <p className="text-3xl font-black text-indigo-700">
+                        <div className={`p-6 ${appraisalGradientSoft} border border-[#bfdbfe] rounded-3xl space-y-2 shadow-sm`}>
+                            <p className="text-[10px] font-bold text-[#2463eb] uppercase tracking-wider">Overall Score</p>
+                            <p className="text-3xl font-black text-[#1d4ed8]">
                                 {assignment.totalScore?.toFixed(1) || '0.0'}%
                             </p>
                         </div>
@@ -527,7 +539,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
                                         <div className="flex-1 space-y-2">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-black text-[#5D5FEF] bg-[#5D5FEF]/10 px-2 py-0.5 rounded-full uppercase">Question</span>
+                                                <span className="text-[10px] font-black text-[#2463eb] bg-[#eff6ff] px-2 py-0.5 rounded-full uppercase">Question</span>
                                                 {question.isRequired && <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">* Required</span>}
                                             </div>
                                             <h4 className="text-base font-bold text-slate-800 leading-relaxed">{question.questionText}</h4>
@@ -546,8 +558,8 @@ export const ManagerEvaluationPage: React.FC = () => {
                                                             disabled={isReadOnly}
                                                             className={`h-11 w-11 rounded-xl flex items-center justify-center text-sm font-black transition-all ${
                                                                 isSelected 
-                                                                ? 'bg-[#5D5FEF] text-white shadow-lg shadow-[#5D5FEF]/30 ring-2 ring-[#5D5FEF]/50 ring-offset-2' + (!isReadOnly ? ' scale-110' : '') 
-                                                                : 'bg-white border-2 border-slate-100 text-slate-400 hover:border-[#5D5FEF]/30 hover:text-[#5D5FEF] hover:bg-slate-50'
+                                                                ? 'bg-[#2463eb] text-white shadow-lg shadow-[#2463eb]/30 ring-2 ring-[#2463eb]/50 ring-offset-2' + (!isReadOnly ? ' scale-110' : '') 
+                                                                : 'bg-white border-2 border-slate-100 text-slate-400 hover:border-[#2463eb]/30 hover:text-[#2463eb] hover:bg-slate-50'
                                                             } ${isReadOnly ? 'cursor-default' : 'hover:scale-105 active:scale-95'}`}
                                                         >
                                                             {ratingValue}
@@ -566,7 +578,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                             value={answers[question.id]?.comments || ''}
                                             onChange={(e) => !isReadOnly && handleAnswerCommentChange(question.id, e.target.value)}
                                             readOnly={isReadOnly}
-                                            className="flex-1 bg-slate-50/50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-[#5D5FEF]/20 transition-all resize-none h-24"
+                                            className="flex-1 bg-slate-50/50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-[#2463eb]/20 transition-all resize-none h-24"
                                         />
                                     </div>
                                 </div>
@@ -583,7 +595,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                     <div className="relative z-10 space-y-10">
                         <div className="space-y-4">
                             <h3 className="text-2xl font-black flex items-center gap-3">
-                                <MessageSquare className="text-amber-400" /> Final Feedback
+                                <MessageSquare className="text-[#60a5fa]" /> Final Feedback
                             </h3>
                             <p className="text-slate-400 text-sm max-w-xl">
                                 Provide overall summary of the employee performance for this period. 
@@ -594,26 +606,26 @@ export const ManagerEvaluationPage: React.FC = () => {
                                 value={comments}
                                 onChange={(e) => !isReadOnly && setValue('comments', e.target.value, { shouldDirty: true, shouldTouch: true })}
                                 readOnly={isReadOnly}
-                                className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-sm focus:ring-2 focus:ring-amber-500/50 transition-all resize-none h-40"
+                                className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-sm focus:ring-2 focus:ring-[#2463eb]/50 transition-all resize-none h-40"
                             />
                         </div>
 
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-xl font-black flex items-center gap-3">
-                                            <PenLine className="text-amber-400" /> Digital Signature
+                                            <PenLine className="text-[#60a5fa]" /> Digital Signature
                                         </h3>
                                         {!isReadOnly && defaultSignature && (
                                             <button 
                                                 onClick={handleUseDefaultSignature}
-                                                className="text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-white transition-colors flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10"
+                                                className="text-[10px] font-black uppercase tracking-widest text-[#60a5fa] hover:text-white transition-colors flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10"
                                             >
                                                 <CheckCircle2 size={12} /> Use Saved Signature
                                             </button>
                                         )}
                                     </div>
                                     
-                                    <div className="relative bg-white/5 border-2 border-white/10 rounded-3xl overflow-hidden group hover:border-amber-400/50 transition-all">
+                                    <div className="relative bg-white/5 border-2 border-white/10 rounded-3xl overflow-hidden group hover:border-[#2463eb]/50 transition-all">
                                         {isReadOnly ? (
                                             <div className="h-40 flex items-center justify-center p-6 bg-white rounded-3xl">
                                                 {assignment.managerSignature ? (
@@ -635,7 +647,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                                             className="max-w-full max-h-full object-contain opacity-90 transition-transform group-hover:scale-105"
                                                         />
                                                         <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <span className="text-[9px] font-black text-[#5D5FEF] bg-[#5D5FEF]/5 px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw Manually</span>
+                                                            <span className="text-[9px] font-black text-[#2463eb] bg-[#eff6ff] px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw Manually</span>
                                                         </div>
                                                     </div>
                                                 )}
@@ -672,19 +684,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                     </div>
                                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Authorized Manager Signature</p>
                                 </div>
-                                
-                                {!isReadOnly && (
-                                    <div className="flex justify-end pt-4">
-                                        <button
-                                            onClick={handleSubmit}
-                                            disabled={submitting}
-                                            className="group bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-10 py-5 rounded-[2rem] font-black text-lg shadow-2xl shadow-orange-500/20 transition-all flex items-center justify-center gap-4"
-                                        >
-                                            {submitting ? 'SUBMITTING...' : 'FINALIZE & SUBMIT'}
-                                            <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
-                                        </button>
-                                    </div>
-                                )}
+
                                  {isReadOnly && (
                                     <div className="flex flex-col md:flex-row justify-end gap-6">
                                         <div className="bg-white rounded-[2rem] p-6 border border-slate-100 flex items-center gap-4 shadow-xl">
@@ -717,6 +717,17 @@ export const ManagerEvaluationPage: React.FC = () => {
                             </div>
                 </section>
             </main>
+
+            <ConfirmActionModal
+                isOpen={showSubmitConfirm}
+                onClose={() => !submitting && setShowSubmitConfirm(false)}
+                onConfirm={handleConfirmSubmit}
+                title="Submit Evaluation"
+                message="Submitting this evaluation will finalize it and send it to HR. You will not be able to make further changes."
+                confirmText="Submit Evaluation"
+                cancelText="Cancel"
+                isLoading={submitting}
+            />
 
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');

@@ -16,6 +16,7 @@ import {
   useMarkNotificationAsReadMutation,
 } from '../features/notification/notificationApi';
 import { getNotificationDestinationPath } from '../features/notification/notificationNavigation';
+import { getNotificationSourceLabel } from '../features/notification/notificationSourceLabels';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 
 type NotificationTab = 'all' | 'unread' | 'read';
@@ -39,13 +40,6 @@ const CATEGORY_OPTIONS: { value: NotificationSourceFilter; label: string }[] = [
   { value: 'SELF_ASSESSMENT_FORM', label: 'Self-Assessment' },
 ];
 
-const SOURCE_LABELS = CATEGORY_OPTIONS.reduce<Record<string, string>>((labels, option) => {
-  if (option.value !== 'all') {
-    labels[option.value] = option.label;
-  }
-  return labels;
-}, {});
-
 function getNotificationTitle(notification: NotificationItem) {
   return notification.source === '360_FEEDBACK' ? '360 Feedback' : notification.title;
 }
@@ -56,10 +50,6 @@ function getNotificationActionLabel(notification: NotificationItem) {
     return 'Open Give Feedback';
   }
   return null;
-}
-
-function getSourceLabel(source: string) {
-  return SOURCE_LABELS[source] ?? source;
 }
 
 function appendMeridiemToPipDateTime(message: string): string {
@@ -89,13 +79,18 @@ function formatCreatedAt(value: string) {
     return '';
   }
 
-  return date.toLocaleString('en-GB', {
+  const datePart = date.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+  });
+  const timePart = date.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
+    hour12: true,
   });
+
+  return `${datePart}, ${timePart}`;
 }
 
 function getPageItems(totalPages: number, page: number): (number | 'ellipsis')[] {
@@ -150,7 +145,7 @@ export function NotificationPage() {
     totalElements === 0
       ? activeCategory === 'all'
         ? 'No notifications yet'
-        : `No ${getSourceLabel(activeCategory)} notifications`
+        : `No ${getNotificationSourceLabel(activeCategory)} notifications`
       : activeTab === 'unread'
         ? 'No unread notifications'
         : activeTab === 'read'
@@ -341,7 +336,7 @@ export function NotificationPage() {
                     {formatMessage(notification)}
                   </span>
                   <span className="block mt-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
-                    {getSourceLabel(notification.source)}
+                    {getNotificationSourceLabel(notification.source)}
                   </span>
                   {getNotificationActionLabel(notification) && (
                     <span className="inline-flex mt-3 px-3 py-1 rounded-lg bg-[#dbeafe] text-[#1d4ed8] text-[11px] font-black uppercase tracking-widest">

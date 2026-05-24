@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useGetCategoriesQuery, useAddCategoryMutation, useDeleteCategoryMutation } from '../../features/kpi/kpiCategoryApi';
-import { Plus, Trash2, LayoutGrid, Search, X, AlertCircle, Save } from 'lucide-react';
+import { kcGradientBr, kcGradientR, kcGradientRHover } from '../../features/kpi/kpiCategoriesTheme';
+import { Plus, Trash2, LayoutGrid, Search, X, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import '../../styles/kpi-categories.css';
 
 export const KpiCategoryPage: React.FC = () => {
   const { data: categories, isLoading } = useGetCategoriesQuery();
@@ -47,13 +49,18 @@ export const KpiCategoryPage: React.FC = () => {
   return (
     <div className="kpi-categories-theme space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">KPI Categories</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">Manage performance evaluation categories for KPI definitions.</p>
+        <div className="flex items-start gap-4">
+          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg shadow-[#2463eb]/25 ${kcGradientBr}`}>
+            <LayoutGrid size={22} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">KPI Categories</h1>
+            <p className="text-slate-500 text-sm font-medium mt-1">Manage performance evaluation categories for KPI definitions.</p>
+          </div>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-kc-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-kc-primary-hover transition-all shadow-md shadow-kc-primary-light"
+          className={`flex items-center gap-2 px-6 py-3 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-[#2463eb]/25 hover:shadow-xl hover:brightness-110 active:scale-[0.98] ${kcGradientR} ${kcGradientRHover}`}
         >
           <Plus size={16} /> Add Category
         </button>
@@ -68,7 +75,7 @@ export const KpiCategoryPage: React.FC = () => {
               placeholder="Search categories..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-kc-primary-light focus:border-kc-primary outline-none font-medium"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#2463eb]/20 focus:border-[#2463eb] outline-none font-medium transition-all"
             />
           </div>
         </div>
@@ -85,13 +92,13 @@ export const KpiCategoryPage: React.FC = () => {
             <tbody className="divide-y divide-slate-50">
               {isLoading ? (
                 <tr>
-                  <td colSpan={3} className="py-12 text-center text-slate-400 font-bold uppercase tracking-widest">Loading...</td>
+                  <td colSpan={3} className="py-12 text-center text-[#2463eb]/70 font-bold uppercase tracking-widest">Loading...</td>
                 </tr>
               ) : filteredCategories.map((cat) => (
-                <tr key={cat.id} className="hover:bg-slate-50/50 transition-colors group">
+                <tr key={cat.id} className="hover:bg-[#2463eb]/[0.04] transition-colors group">
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-kc-primary-subtle text-kc-primary rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 bg-[#eff6ff] text-[#2463eb] rounded-lg flex items-center justify-center ring-1 ring-[#bfdbfe]/80">
                         <LayoutGrid size={16} />
                       </div>
                       <span className="text-sm font-bold text-slate-900">{cat.name}</span>
@@ -134,7 +141,7 @@ export const KpiCategoryPage: React.FC = () => {
           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-kc-primary-light text-kc-primary rounded-2xl flex items-center justify-center">
+                <div className={`w-10 h-10 text-white rounded-2xl flex items-center justify-center shadow-md shadow-[#2463eb]/20 ${kcGradientBr}`}>
                   <Plus size={20} />
                 </div>
                 <div>
@@ -157,7 +164,7 @@ export const KpiCategoryPage: React.FC = () => {
                   placeholder="e.g. Innovation & Creativity"
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
-                  className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-kc-primary-light focus:border-kc-primary outline-none transition-all placeholder:text-slate-300"
+                  className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#2463eb]/20 focus:border-[#2463eb] outline-none transition-all placeholder:text-slate-300"
                 />
               </div>
               <div className="space-y-2">
@@ -167,7 +174,7 @@ export const KpiCategoryPage: React.FC = () => {
                   value={newCategoryDesc}
                   onChange={(e) => setNewCategoryDesc(e.target.value)}
                   rows={4}
-                  className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-kc-primary-light focus:border-kc-primary outline-none transition-all placeholder:text-slate-300 resize-none"
+                  className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#2463eb]/20 focus:border-[#2463eb] outline-none transition-all placeholder:text-slate-300 resize-none"
                 />
               </div>
             </div>
@@ -180,7 +187,7 @@ export const KpiCategoryPage: React.FC = () => {
               </button>
               <button
                 onClick={handleAdd}
-                className="flex-[2] px-6 py-4 bg-kc-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-kc-primary-hover transition-all shadow-lg shadow-kc-primary-light flex items-center justify-center gap-2"
+                className={`flex-[2] px-6 py-4 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-[#2463eb]/25 hover:shadow-xl hover:brightness-110 flex items-center justify-center gap-2 ${kcGradientR} ${kcGradientRHover}`}
               >
                 <Save size={16} /> Save Category
               </button>

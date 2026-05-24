@@ -53,6 +53,8 @@ export function DashLayoutShell({
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
+  const homePath = menuItems.find((item) => item.label === 'Dashboard')?.path
+
   const shellClass = [
     'dash-shell',
     'dash-shell-bg',
@@ -79,6 +81,7 @@ export function DashLayoutShell({
       <DashSidebar
         brandTitle={brandTitle}
         brandSubtitle={brandSubtitle}
+        homePath={homePath}
         menuItems={menuItems}
         user={user}
         isCollapsed={isSidebarCollapsed}

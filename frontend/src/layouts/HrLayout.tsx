@@ -41,6 +41,25 @@ function matchesPath(targetPath: string, pathname: string, search: string) {
   return Array.from(targetParams.entries()).every(([key, value]) => currentParams.get(key) === value);
 }
 
+const HR_KPI_SECTION_PATHS = [
+  '/hr/kpi-management',
+  '/hr/kpi-assigned',
+  '/hr/kpi-history',
+  '/hr/kpi-audit-logs',
+  '/hr/kpi-categories',
+  '/hr/kpi-detail',
+  '/hr/department-kpi-detail',
+  '/hr/position-kpi-detail',
+] as const;
+
+function isHrKpiSection(pathname: string) {
+  if (pathname.startsWith('/hr/kpi-reports')) return false;
+  if (HR_KPI_SECTION_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    return true;
+  }
+  return pathname.startsWith('/hr/kpi');
+}
+
 const HrLayout: React.FC = () => {
   const { user: authUser } = useSelector((state: RootState) => state.auth);
   const { data: profileResponse } = useGetProfileQuery();
@@ -65,6 +84,8 @@ const HrLayout: React.FC = () => {
       label: 'KPI',
       path: '/hr/kpi-management',
       icon: <Target size={18} />,
+      isActive: (pathname) => isHrKpiSection(pathname),
+      isSubActive: (subPath, pathname, search) => matchesPath(subPath, pathname, search),
       subItems: [
         { label: 'KPI Modeler', path: '/hr/kpi-management', icon: <SlidersHorizontal size={16} /> },
         { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} /> },

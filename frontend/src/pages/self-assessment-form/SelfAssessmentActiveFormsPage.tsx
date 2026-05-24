@@ -251,12 +251,12 @@ function ManagerReviewDeadlineCell({ date }: { date: string | null }) {
     ? 'border-red-200/80 bg-red-50/90 dark:border-red-800/60 dark:bg-red-900/25'
     : isToday || isSoon
       ? 'border-amber-200/80 bg-amber-50/90 dark:border-amber-800/60 dark:bg-amber-900/25'
-      : 'border-blue-200/70 bg-blue-50/70 dark:border-blue-800/50 dark:bg-blue-900/20';
+      : 'border-[#2463eb]/25 bg-[#2463eb]/[0.06] dark:border-[#2463eb]/35 dark:bg-[#2463eb]/10';
   const textClass = isOverdue
     ? 'text-red-700 dark:text-red-300'
     : isToday || isSoon
       ? 'text-amber-700 dark:text-amber-300'
-      : 'text-blue-700 dark:text-blue-300';
+      : 'text-[#2463eb] dark:text-[#60a5fa]';
 
   return (
     <div className={`inline-flex min-w-[9.5rem] flex-col gap-1 rounded-lg border px-2.5 py-2 ${containerClass}`}>
@@ -264,7 +264,7 @@ function ManagerReviewDeadlineCell({ date }: { date: string | null }) {
         {isOverdue ? (
           <AlertCircle size={12} className="shrink-0 text-red-600 dark:text-red-400" />
         ) : (
-          <Clock size={12} className={`shrink-0 ${isToday || isSoon ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`} />
+          <Clock size={12} className={`shrink-0 ${isToday || isSoon ? 'text-amber-600 dark:text-amber-400' : 'text-[#2463eb] dark:text-[#60a5fa]'}`} />
         )}
         <span className={`text-xs font-bold ${textClass}`}>{formatDate(date)}</span>
       </div>
@@ -276,7 +276,7 @@ function ManagerReviewDeadlineCell({ date }: { date: string | null }) {
 }
 
 const filterControlClass =
-  'w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF]';
+  'w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#2463eb]';
 
 function canHrUnlockRetake(form: FormListDto, roleId?: number | null) {
   if (roleId !== 1) return false;
@@ -404,10 +404,10 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
       label: 'Total Forms',
       value: totalCount,
       icon: ClipboardList,
-      lightBg: 'bg-blue-50 dark:bg-blue-950/30',
-      lightIcon: 'text-blue-600 dark:text-blue-400',
-      ring: 'ring-blue-500/20',
-      bgGlow: 'bg-blue-500/10',
+      lightBg: 'bg-[#2463eb]/[0.06] dark:bg-[#2463eb]/10',
+      lightIcon: 'text-[#2463eb] dark:text-[#60a5fa]',
+      ring: 'ring-[#2463eb]/20',
+      bgGlow: 'bg-[#2463eb]/10',
     },
     {
       label: 'Submitted',
@@ -459,7 +459,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
     <div className="min-h-screen px-6 py-6 md:px-8 animate-fade-in">
       {/* Breadcrumb */}
       <nav className="mb-2 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-        <span className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium">Home</span>
+        <span className="text-[#2463eb] dark:text-[#60a5fa] font-medium">Home</span>
         <ChevronDown size={10} className="-rotate-90 opacity-50" />
         <span>Self Assessment</span>
         <ChevronDown size={10} className="-rotate-90 opacity-50" />
@@ -470,10 +470,10 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="relative">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
               <FileText size={22} className="text-white" />
             </div>
-            <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-[9px] font-bold text-white shadow-sm">
+            <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-[9px] font-bold text-white shadow-sm">
               {totalCount}
             </div>
           </div>
@@ -519,10 +519,10 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
       {/* Active Cycle Info Banner */}
       <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '240ms' }}>
         <div className="relative px-5 py-4">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#5D5FEF]/[0.03] via-transparent to-[#5D5FEF]/[0.03] dark:from-[#5D5FEF]/[0.05] dark:via-transparent dark:to-[#5D5FEF]/[0.05]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#2463eb]/[0.03] via-transparent to-[#2463eb]/[0.03] dark:from-[#2463eb]/[0.05] dark:via-transparent dark:to-[#2463eb]/[0.05]" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-md shadow-[#2463eb]/20">
                 <CalendarRange className="h-4 w-4 text-white" aria-hidden />
               </div>
               <div className="text-sm">
@@ -530,7 +530,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                   <span className="font-bold text-slate-900 dark:text-white">Active Cycle</span>
                   <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
                   {data?.activeCycle ? (
-                    <span className="font-medium text-[#5D5FEF] dark:text-[#8b8ef7]">
+                    <span className="font-medium text-[#2463eb] dark:text-[#60a5fa]">
                       {data.activeCycle.name} ({data.activeCycle.code})
                     </span>
                   ) : (
@@ -547,7 +547,11 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
               </div>
             </div>
             <div className="hidden sm:block sm:h-8 sm:w-px sm:shrink-0 sm:bg-gradient-to-b sm:from-transparent sm:via-slate-200 sm:to-transparent dark:sm:via-slate-700" />
-            <SelfAssessmentReviewCycleInfo variant="inline" />
+            <SelfAssessmentReviewCycleInfo
+              variant="inline"
+              primaryColor="#2463eb"
+              primaryColorDark="#1d4ed8"
+            />
           </div>
         </div>
       </div>
@@ -565,7 +569,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
               <p className="text-xs text-slate-400 dark:text-slate-500">
                 {filteredForms.length} of {forms.length} form{forms.length !== 1 ? 's' : ''}
                 {hasActiveFilters && (
-                  <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-[#5D5FEF]/10 px-2 py-0.5 text-[10px] font-bold text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                  <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-[#2463eb]/10 px-2 py-0.5 text-[10px] font-bold text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
                     <Filter size={9} />
                     Filtered
                   </span>
@@ -636,14 +640,14 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                   onClick={() => setExpandedFilters(!expandedFilters)}
                   className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
                     expandedFilters || hasActiveFilters
-                      ? 'border-[#5D5FEF]/30 bg-[#5D5FEF]/[0.04] text-[#5D5FEF] dark:border-[#5D5FEF]/40 dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7]'
+                      ? 'border-[#2463eb]/30 bg-[#2463eb]/[0.04] text-[#2463eb] dark:border-[#2463eb]/40 dark:bg-[#2463eb]/10 dark:text-[#60a5fa]'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-500'
                   } shadow-sm`}
                 >
                   <SlidersHorizontal size={15} />
                   Filters
                   {hasActiveFilters && (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5D5FEF] text-[10px] font-bold text-white">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2463eb] text-[10px] font-bold text-white">
                       {[searchQuery.trim() !== '', statusFilter !== 'all'].filter(Boolean).length}
                     </span>
                   )}
@@ -691,7 +695,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                 {filteredForms.length > 0 ? (
                   <table className="min-w-full text-sm">
                     <thead>
-                      <tr className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50/40 dark:from-slate-800/60 dark:to-slate-800/30 dark:border-slate-700/60">
+                      <tr className="border-b border-slate-100 bg-gradient-to-r from-[#2463eb]/[0.04] to-transparent dark:from-[#2463eb]/[0.08] dark:to-transparent dark:border-slate-700/60">
                         <th scope="col" className="px-5 py-3.5 text-left text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                           Form
                         </th>
@@ -735,12 +739,12 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                         return (
                           <tr
                             key={form.id}
-                            className="group transition-all duration-200 hover:bg-[#5D5FEF]/[0.02] dark:hover:bg-[#5D5FEF]/[0.04]"
+                            className="group transition-all duration-200 hover:bg-[#2463eb]/[0.02] dark:hover:bg-[#2463eb]/[0.04]"
                             style={{ animationDelay: `${index * 30}ms` }}
                           >
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb]/10 to-[#1d4ed8]/5 text-[#2463eb] dark:from-[#2463eb]/20 dark:to-[#1d4ed8]/10 dark:text-[#60a5fa]">
                                   <FileText size={16} />
                                 </div>
                                 <div className="min-w-0">
@@ -813,7 +817,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => viewForm(form.id)}
-                                  className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                                  className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#2463eb]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
                                 >
                                   <Eye size={13} />
                                   View
@@ -860,13 +864,13 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                           className={`group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up border-l-[3px] ${statusCfg.cardAccent}`}
                           style={{ animationDelay: `${index * 40}ms` }}
                         >
-                          <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#5D5FEF]/[0.03] blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-[#5D5FEF]/[0.06] dark:bg-[#5D5FEF]/[0.05] dark:group-hover:bg-[#5D5FEF]/[0.10]" />
+                          <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#2463eb]/[0.03] blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-[#2463eb]/[0.06] dark:bg-[#2463eb]/[0.05] dark:group-hover:bg-[#2463eb]/[0.10]" />
 
                           <div className="relative">
                             {/* Card Header */}
                             <div className="mb-4 flex items-start justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb]/10 to-[#1d4ed8]/5 text-[#2463eb] dark:from-[#2463eb]/20 dark:to-[#1d4ed8]/10 dark:text-[#60a5fa]">
                                   <FileText size={18} />
                                 </div>
                                 <div className="min-w-0">
@@ -885,8 +889,8 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
 
                             {/* Employee Info */}
                             <div className="mb-3 flex items-center gap-2.5 rounded-xl bg-slate-50/80 px-3 py-2.5 dark:bg-slate-700/30">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#5D5FEF]/15 to-[#7C7EF5]/10 dark:from-[#5D5FEF]/25 dark:to-[#7C7EF5]/15">
-                                <User size={14} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#2463eb]/15 to-[#1d4ed8]/10 dark:from-[#2463eb]/25 dark:to-[#1d4ed8]/15">
+                                <User size={14} className="text-[#2463eb] dark:text-[#60a5fa]" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-semibold text-slate-900 dark:text-white">{form.employee.employeeName}</p>
@@ -909,8 +913,8 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                             {/* Deadlines */}
                             {isManager ? (
                               <div className="mt-3 space-y-2">
-                                <div className="rounded-lg border border-blue-200/60 bg-blue-50/40 px-3 py-2.5 dark:border-blue-800/50 dark:bg-blue-900/20">
-                                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-700/80 dark:text-blue-300/80">
+                                <div className="rounded-lg border border-[#2463eb]/25 bg-[#2463eb]/[0.06] px-3 py-2.5 dark:border-[#2463eb]/35 dark:bg-[#2463eb]/10">
+                                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-[#2463eb]/80 dark:text-[#60a5fa]/80">
                                     Manager Review Deadline
                                   </p>
                                   <ManagerReviewDeadlineCell date={form.managerReviewDeadlineDate} />
@@ -954,7 +958,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => viewForm(form.id)}
-                                className="group/btn flex w-full items-center justify-center gap-2 rounded-xl bg-[#5D5FEF]/[0.06] px-4 py-2.5 text-xs font-bold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                                className="group/btn flex w-full items-center justify-center gap-2 rounded-xl bg-[#2463eb]/[0.06] px-4 py-2.5 text-xs font-bold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
                               >
                                 <Eye size={14} />
                                 View Form
@@ -1008,7 +1012,7 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
               <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/60">
                 <FileText size={36} className="text-slate-300 dark:text-slate-500" />
               </div>
-              <div className="absolute -right-2 -bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
+              <div className="absolute -right-2 -bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
                 <Users size={14} className="text-white" />
               </div>
             </div>

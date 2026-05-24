@@ -1,5 +1,5 @@
 import React from 'react'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ManagerEvaluationPage } from './ManagerEvaluationPage'
@@ -225,11 +225,21 @@ describe('ManagerEvaluationPage autosave', () => {
     expect(screen.queryByRole('button', { name: 'Submit Evaluation' })).toBeNull()
   })
 
-  it('flushes autosave before final submit', async () => {
+  it('shows a confirmation modal before final submit', async () => {
     const user = userEvent.setup()
     render(<ManagerEvaluationPage />)
 
     await user.click(await screen.findByRole('button', { name: 'Submit Evaluation' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(/finalize it and send it to HR/i)).toBeTruthy()
+    expect(mocks.flush).not.toHaveBeenCalled()
+    expect(mocks.axiosPost).not.toHaveBeenCalledWith(
+      '/appraisal-assignments/11/evaluate',
+      expect.anything(),
+    )
+
+    await user.click(within(dialog).getByRole('button', { name: 'Submit Evaluation' }))
 
     await waitFor(() => {
       expect(mocks.flush).toHaveBeenCalledTimes(1)
@@ -245,5 +255,23 @@ describe('ManagerEvaluationPage autosave', () => {
         signature: 'default-signature',
       })
     })
+  })
+
+  it('does not submit when the confirmation modal is cancelled', async () => {
+    const user = userEvent.setup()
+    render(<ManagerEvaluationPage />)
+
+    await user.click(await screen.findByRole('button', { name: 'Submit Evaluation' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+    expect(mocks.flush).not.toHaveBeenCalled()
+    expect(mocks.axiosPost).not.toHaveBeenCalledWith(
+      '/appraisal-assignments/11/evaluate',
+      expect.anything(),
+    )
   })
 })

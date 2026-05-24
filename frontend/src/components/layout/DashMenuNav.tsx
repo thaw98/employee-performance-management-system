@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
 export interface DashSubMenuItem {
@@ -47,8 +47,22 @@ export function DashMenuNav({ items, isCollapsed }: DashMenuNavProps) {
   const location = useLocation()
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
 
+  useEffect(() => {
+    setExpandedMenus({})
+  }, [location.pathname, location.search])
+
   const toggleExpand = (label: string, currentlyExpanded: boolean) => {
-    setExpandedMenus((prev) => ({ ...prev, [label]: !currentlyExpanded }))
+    if (currentlyExpanded) {
+      setExpandedMenus((prev) => ({ ...prev, [label]: false }))
+      return
+    }
+    const next: Record<string, boolean> = {}
+    for (const menuItem of items) {
+      if (menuItem.subItems?.length) {
+        next[menuItem.label] = menuItem.label === label
+      }
+    }
+    setExpandedMenus(next)
   }
 
   return (

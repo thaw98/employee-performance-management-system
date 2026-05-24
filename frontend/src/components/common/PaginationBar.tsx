@@ -94,7 +94,7 @@ export const PaginationBar: React.FC<PaginationBarProps> = ({
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-medium text-slate-700 transition-all hover:border-[#5D5FEF]/50 focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-[#5D5FEF]/60"
+            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-medium text-slate-700 transition-all hover:border-[#2463eb]/50 focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-[#2463eb]/60"
             aria-label="Rows per page"
           >
             {rowsPerPageOptions.map((s) => (
@@ -132,8 +132,8 @@ export const PaginationBar: React.FC<PaginationBarProps> = ({
               className={[
                 'h-9 min-w-[36px] rounded-lg border text-sm font-semibold transition-all',
                 pageIndex === token
-                  ? 'border-[#5D5FEF] bg-[#5D5FEF] text-white shadow-sm shadow-[#5D5FEF]/15'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-[#5D5FEF]/30 hover:bg-[#5D5FEF]/6 hover:text-[#5D5FEF] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-[#5D5FEF]/40 dark:hover:bg-[#5D5FEF]/10 dark:hover:text-[#8b8ef7]',
+                  ? 'border-[#2463eb] bg-[#2463eb] text-white shadow-sm shadow-[#2463eb]/15'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-[#2463eb]/30 hover:bg-[#2463eb]/6 hover:text-[#2463eb] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-[#2463eb]/40 dark:hover:bg-[#2463eb]/10 dark:hover:text-[#93c5fd]',
               ].join(' ')}
               aria-current={pageIndex === token ? 'page' : undefined}
             >

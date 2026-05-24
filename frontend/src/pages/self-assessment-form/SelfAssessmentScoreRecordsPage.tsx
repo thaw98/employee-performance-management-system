@@ -340,18 +340,29 @@ export function SelfAssessmentScoreRecordsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
-          <History size={24} className="text-white" />
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
+            <History size={24} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">History</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              {isEmployee
+                ? 'Past self-assessment forms for every workflow status, with scores when available.'
+                : 'Finalized locked and not-submitted self-assessment records. In-progress forms appear on Review Submissions.'}
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">History</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            {isEmployee
-              ? 'Past self-assessment forms for every workflow status, with scores when available.'
-              : 'Finalized locked and not-submitted self-assessment records. In-progress forms appear on Review Submissions.'}
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={handleExportPdf}
+          disabled={!selectedCycleId || isExportingPdf}
+          className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-3.5 py-2 text-sm font-bold text-white shadow-md shadow-[#2463eb]/25 transition hover:shadow-lg hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:brightness-100 sm:self-auto"
+        >
+          <FileDown size={16} />
+          {isExportingPdf ? 'Exporting...' : 'Export PDF'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -390,15 +401,6 @@ export function SelfAssessmentScoreRecordsPage() {
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            disabled={!selectedCycleId || isExportingPdf}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-bold rounded-lg bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white shadow-sm shadow-[#2463eb]/20 transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:brightness-100"
-          >
-            <FileDown size={16} />
-            {isExportingPdf ? 'Exporting...' : 'Export PDF'}
-          </button>
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}

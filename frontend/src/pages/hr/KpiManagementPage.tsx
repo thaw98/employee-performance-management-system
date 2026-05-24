@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users } from 'lucide-react';
+import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X } from 'lucide-react';
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
@@ -104,6 +104,9 @@ export const KpiManagementPage: React.FC = () => {
   });
   const [createTemplate] = useCreateKpiTemplateMutation();
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [templateNameInput, setTemplateNameInput] = useState('');
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
 
   const loadTemplate = (template: any) => {
     const templateKpis = template.items.map((item: any) => {
@@ -135,14 +138,30 @@ export const KpiManagementPage: React.FC = () => {
     toast.success(`Loaded template: ${template.name}`);
   };
 
-  const saveAsTemplate = async () => {
+  const openSaveTemplateModal = () => {
     if (kpis.length === 0) {
       toast.error('No KPIs to save as template');
       return;
     }
-    const templateName = window.prompt('Enter a name for this template:');
-    if (!templateName) return;
+    setTemplateNameInput('');
+    setShowSaveTemplateModal(true);
+  };
 
+  const closeSaveTemplateModal = () => {
+    if (isSavingTemplate) return;
+    setShowSaveTemplateModal(false);
+    setTemplateNameInput('');
+  };
+
+  const handleSaveTemplateConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const templateName = templateNameInput.trim();
+    if (!templateName) {
+      toast.error('Template name is required');
+      return;
+    }
+
+    setIsSavingTemplate(true);
     try {
       await createTemplate({
         name: templateName,
@@ -158,8 +177,12 @@ export const KpiManagementPage: React.FC = () => {
         }))
       }).unwrap();
       toast.success('Template saved successfully');
+      setShowSaveTemplateModal(false);
+      setTemplateNameInput('');
     } catch (err) {
       toast.error('Failed to save template');
+    } finally {
+      setIsSavingTemplate(false);
     }
   };
 
@@ -715,7 +738,7 @@ export const KpiManagementPage: React.FC = () => {
           Reset Setup
         </button>
         <button
-          onClick={saveAsTemplate}
+          onClick={openSaveTemplateModal}
           disabled={isAlreadyDefined}
           className={`flex items-center gap-2 px-6 py-3 border rounded-2xl text-xs font-black transition-all uppercase tracking-widest ${isAlreadyDefined
               ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
@@ -729,7 +752,7 @@ export const KpiManagementPage: React.FC = () => {
           disabled={isSaving || totalWeight !== 100 || isAlreadyDefined}
           className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-xs font-black transition-all shadow-xl uppercase tracking-widest ${isSaving || totalWeight !== 100 || isAlreadyDefined
             ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
+            : 'bg-[#2463eb] hover:bg-[#1d4ed8] text-white shadow-[#dbeafe]'
             }`}
         >
           {isSaving ? 'Processing...' : (
@@ -740,6 +763,74 @@ export const KpiManagementPage: React.FC = () => {
           )}
         </button>
       </div>
+
+      {showSaveTemplateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+          <button
+            type="button"
+            aria-label="Close save template dialog"
+            className="absolute inset-0 bg-slate-900/45 backdrop-blur-sm"
+            onClick={closeSaveTemplateModal}
+          />
+          <div
+            className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-template-title"
+          >
+            <button
+              type="button"
+              onClick={closeSaveTemplateModal}
+              disabled={isSavingTemplate}
+              className="absolute right-4 top-4 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#eff6ff] text-[#2463eb]">
+              <FolderOpen size={20} />
+            </div>
+            <h2 id="save-template-title" className="text-lg font-black text-slate-900 uppercase tracking-tight">
+              Save as Template
+            </h2>
+            <p className="mt-2 text-sm font-medium text-slate-500">
+              Enter a name for this template so you can load it later.
+            </p>
+            <form onSubmit={handleSaveTemplateConfirm} className="mt-5">
+              <label htmlFor="template-name" className="sr-only">
+                Template name
+              </label>
+              <input
+                id="template-name"
+                type="text"
+                autoFocus
+                value={templateNameInput}
+                onChange={(e) => setTemplateNameInput(e.target.value)}
+                placeholder="e.g., Sales Team Q1"
+                disabled={isSavingTemplate}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-colors focus:border-[#bfdbfe] focus:ring-2 focus:ring-[#dbeafe] disabled:cursor-not-allowed disabled:opacity-70"
+              />
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeSaveTemplateModal}
+                  disabled={isSavingTemplate}
+                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingTemplate || !templateNameInput.trim()}
+                  className="rounded-xl bg-[#2463eb] px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-[#dbeafe] transition-colors hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+                >
+                  {isSavingTemplate ? 'Saving...' : 'Save Template'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

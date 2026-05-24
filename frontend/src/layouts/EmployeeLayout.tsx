@@ -29,6 +29,28 @@ const EmployeeLayout: React.FC = () => {
   const { data: profileResponse } = useGetProfileQuery();
   const user = profileResponse?.data || authUser;
 
+  const reportsItem: DashMenuItem = {
+    label: 'Reports',
+    path: '/employee/reports',
+    icon: <BarChart size={18} />,
+    subItems: [
+      { label: 'PIP Report', path: '/employee/reports', icon: <FileText size={16} /> },
+      { label: 'Feedback Report', path: '/employee/reports/feedback', icon: <RefreshCcw size={16} /> },
+    ],
+  };
+
+  const selfAssessmentItem: DashMenuItem = {
+    label: 'Self Assessment Form',
+    path: EMPLOYEE_SELF_ASSESSMENT_BASE_PATH,
+    icon: <FileText size={18} />,
+    subItems: [
+      { label: 'My Form', path: EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH, icon: <ClipboardList size={16} /> },
+      { label: 'History', path: EMPLOYEE_SELF_ASSESSMENT_HISTORY_PATH, icon: <History size={16} /> },
+    ],
+  };
+
+  const isEmployeeRole = Number(user?.roleId) === 4;
+
   const menuItems: DashMenuItem[] = [
     { label: 'Dashboard', path: '/employee/dashboard', icon: <LayoutDashboard size={18} /> },
     { label: 'Appraisals', path: '/employee/appraisals', icon: <FileText size={18} /> },
@@ -45,24 +67,7 @@ const EmployeeLayout: React.FC = () => {
       ],
     },
     { label: 'Meetings', path: '/employee/meetings', icon: <Calendar size={18} /> },
-    {
-      label: 'Reports',
-      path: '/employee/reports',
-      icon: <BarChart size={18} />,
-      subItems: [
-        { label: 'PIP Report', path: '/employee/reports', icon: <FileText size={16} /> },
-        { label: 'Feedback Report', path: '/employee/reports/feedback', icon: <RefreshCcw size={16} /> },
-      ],
-    },
-    {
-      label: 'Self Assessment Form',
-      path: EMPLOYEE_SELF_ASSESSMENT_BASE_PATH,
-      icon: <FileText size={18} />,
-      subItems: [
-        { label: 'My Form', path: EMPLOYEE_SELF_ASSESSMENT_MY_FORM_PATH, icon: <ClipboardList size={16} /> },
-        { label: 'History', path: EMPLOYEE_SELF_ASSESSMENT_HISTORY_PATH, icon: <History size={16} /> },
-      ],
-    },
+    ...(isEmployeeRole ? [selfAssessmentItem, reportsItem] : [reportsItem, selfAssessmentItem]),
   ];
 
   return (

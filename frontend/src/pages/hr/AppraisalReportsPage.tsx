@@ -18,7 +18,19 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import * as XLSX from 'xlsx-js-style';
 import { format } from 'date-fns';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
-import { APPRAISAL_PRIMARY, APPRAISAL_PRIMARY_DARK } from '../../features/appraisals/appraisalTheme';
+import {
+  APPRAISAL_REPORT_CHART_COLORS,
+  getAppraisalStatusChartColor,
+  appraisalReportAccentText,
+  appraisalReportBtnPrimary,
+  appraisalReportFocusRing,
+  appraisalReportGradientIcon,
+  appraisalReportIconHover,
+  appraisalReportPaginationActive,
+  appraisalReportPaginationNav,
+  appraisalReportStatIcon,
+  appraisalReportStatIconMuted,
+} from '../reports/appraisalReportsTheme';
 
 interface Question {
   id: number;
@@ -83,10 +95,7 @@ interface Assignment {
   hrSignedAt?: string;
 }
 
-const PRIMARY = APPRAISAL_PRIMARY;
-const PRIMARY_HOVER = APPRAISAL_PRIMARY_DARK;
-
-const CHART_COLORS = [PRIMARY, '#10B981', '#F59E0B', PRIMARY_HOVER, '#60a5fa', '#6366F1', '#EC4899', '#14B8A6'];
+const CHART_COLORS = [...APPRAISAL_REPORT_CHART_COLORS];
 
 export default function AppraisalReportsPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -369,7 +378,7 @@ export default function AppraisalReportsPage() {
             // Highlight score col
             if (c === 6 && cell.v && cell.v !== '-') {
               cell.s.font.bold = true;
-              cell.s.font.color = { rgb: '10B981' };
+              cell.s.font.color = { rgb: '2463EB' };
             }
           }
         }
@@ -409,7 +418,7 @@ export default function AppraisalReportsPage() {
       case 'REJECTED':
         return 'bg-red-50 text-red-700 border-red-200';
       default:
-        return 'bg-purple-50 text-purple-700 border-purple-200';
+        return 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]';
     }
   };
 
@@ -429,7 +438,7 @@ export default function AppraisalReportsPage() {
     return (
       <div className="flex justify-center items-center h-96">
         <div className="flex flex-col items-center gap-3 text-slate-400">
-          <Loader2 className="animate-spin text-[#2463eb]" size={32} />
+          <Loader2 className={`animate-spin ${appraisalReportAccentText}`} size={32} />
           <span className="font-semibold text-sm">Loading appraisal report data...</span>
         </div>
       </div>
@@ -448,7 +457,7 @@ export default function AppraisalReportsPage() {
         </div>
         <button
           onClick={handleExportExcel}
-          className="flex items-center justify-center gap-2.5 px-6 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
+          className={`flex items-center justify-center gap-2.5 px-6 h-12 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${appraisalReportBtnPrimary}`}
         >
           <FileSpreadsheet size={16} />
           <span>Export Excel</span>
@@ -458,7 +467,7 @@ export default function AppraisalReportsPage() {
       {/* Stats row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-[#eff6ff] text-[#2463eb] rounded-2xl flex items-center justify-center shadow-sm">
+          <div className={`w-12 h-12 ${appraisalReportStatIcon} rounded-2xl flex items-center justify-center shadow-sm`}>
             <Users size={24} />
           </div>
           <div>
@@ -467,7 +476,7 @@ export default function AppraisalReportsPage() {
           </div>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm">
+          <div className={`w-12 h-12 ${appraisalReportGradientIcon} rounded-2xl flex items-center justify-center shadow-sm shadow-[#dbeafe]`}>
             <Award size={24} />
           </div>
           <div>
@@ -476,7 +485,7 @@ export default function AppraisalReportsPage() {
           </div>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shadow-sm">
+          <div className={`w-12 h-12 ${appraisalReportStatIconMuted} rounded-2xl flex items-center justify-center shadow-sm`}>
             <TrendingUp size={24} />
           </div>
           <div>
@@ -485,7 +494,7 @@ export default function AppraisalReportsPage() {
           </div>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-[#dbeafe] text-[#2463eb] rounded-2xl flex items-center justify-center shadow-sm">
+          <div className={`w-12 h-12 ${appraisalReportStatIcon} rounded-2xl flex items-center justify-center shadow-sm`}>
             <Loader2 size={24} />
           </div>
           <div>
@@ -500,7 +509,7 @@ export default function AppraisalReportsPage() {
         {/* Department Comparison */}
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-6 flex items-center gap-2">
-            <Building2 size={16} className="text-[#2463eb]" />
+            <Building2 size={16} className={appraisalReportAccentText} />
             Average Appraisal Score by Department
           </h3>
           <div className="h-[260px]">
@@ -511,7 +520,11 @@ export default function AppraisalReportsPage() {
                   <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 'bold', fill: '#64748b' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fontWeight: 'bold', fill: '#64748b' }} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Bar dataKey="Average Score (%)" fill={PRIMARY} radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="Average Score (%)" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                    {deptChartData.map((_, index) => (
+                      <Cell key={`dept-bar-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -523,7 +536,7 @@ export default function AppraisalReportsPage() {
         {/* Status Distribution */}
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-6 flex items-center gap-2">
-            <TrendingUp size={16} className="text-[#2463eb]" />
+            <TrendingUp size={16} className={appraisalReportAccentText} />
             Appraisals Status Distribution
           </h3>
           <div className="h-[260px]">
@@ -539,9 +552,13 @@ export default function AppraisalReportsPage() {
                     paddingAngle={3}
                     dataKey="value"
                     label={({ name, percent }) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
+                    labelLine={{ stroke: '#475569', strokeWidth: 1 }}
                   >
-                    {statusChartData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    {statusChartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={getAppraisalStatusChartColor(entry.name, index)}
+                      />
                     ))}
                   </Pie>
                   <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
@@ -557,7 +574,7 @@ export default function AppraisalReportsPage() {
       {/* Filter Options */}
       <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-          <Filter size={18} className="text-[#2463eb]" />
+          <Filter size={18} className={appraisalReportAccentText} />
           <span className="font-black text-xs uppercase tracking-widest text-slate-700">Filter Appraisals</span>
         </div>
         
@@ -570,7 +587,7 @@ export default function AppraisalReportsPage() {
               <input
                 type="text"
                 placeholder="Name or Staff ID..."
-                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none"
+                className={`w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none ${appraisalReportFocusRing}`}
                 value={searchTerm}
                 onChange={e => {
                   setSearchTerm(e.target.value);
@@ -591,7 +608,7 @@ export default function AppraisalReportsPage() {
                   setSelectedDept(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                className={`w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100 ${appraisalReportFocusRing}`}
               >
                 <option value="ALL">All Departments</option>
                 {departments.map(d => (
@@ -612,7 +629,7 @@ export default function AppraisalReportsPage() {
                   setSelectedStatus(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                className={`w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100 ${appraisalReportFocusRing}`}
               >
                 <option value="ALL">All Statuses</option>
                 <option value="PENDING">PENDING</option>
@@ -637,7 +654,7 @@ export default function AppraisalReportsPage() {
                   setSelectedRating(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                className={`w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100 ${appraisalReportFocusRing}`}
               >
                 <option value="ALL">All Grades</option>
                 {ratingCategories.map(cat => (
@@ -675,7 +692,7 @@ export default function AppraisalReportsPage() {
                         <div>
                           <div className="font-bold text-slate-800">{a.employee.employeeName}</div>
                           <div className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">
-                            {a.employee.employeeId || 'N/A'} • {a.employee.department?.name || 'No Dept'} • <span className="text-[#2463eb] font-bold">{a.employee.position?.name || 'No Position'}</span>
+                            {a.employee.employeeId || 'N/A'} • {a.employee.department?.name || 'No Dept'} • <span className={`${appraisalReportAccentText} font-bold`}>{a.employee.position?.name || 'No Position'}</span>
                           </div>
                         </div>
                       </div>
@@ -684,7 +701,7 @@ export default function AppraisalReportsPage() {
                       {a.period?.name || 'Annual 2026'}
                     </td>
                     <td className="p-6 text-center">
-                      <span className="text-base font-black text-[#2463eb]">
+                      <span className={`text-base font-black ${appraisalReportAccentText}`}>
                         {a.totalScore != null ? `${a.totalScore.toFixed(1)}%` : '—'}
                       </span>
                     </td>
@@ -702,7 +719,7 @@ export default function AppraisalReportsPage() {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleDownloadPdf(a)}
-                          className="w-9 h-9 rounded-xl bg-slate-50 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-all flex items-center justify-center"
+                          className={`w-9 h-9 rounded-xl bg-slate-50 text-slate-400 transition-all flex items-center justify-center ${appraisalReportIconHover}`}
                           title="Download PDF Report"
                         >
                           <Download size={16} />
@@ -735,7 +752,7 @@ export default function AppraisalReportsPage() {
                   setCurrentPage(prev => prev - 1);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-[#2463eb] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm cursor-pointer"
+                className={`w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm cursor-pointer ${appraisalReportPaginationNav}`}
               >
                 <ChevronLeft size={16} />
               </button>
@@ -747,7 +764,7 @@ export default function AppraisalReportsPage() {
                     setCurrentPage(page);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === page ? 'bg-[#2463eb] text-white shadow-lg shadow-[#dbeafe]' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
+                  className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === page ? appraisalReportPaginationActive : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
                 >
                   {page}
                 </button>
@@ -759,7 +776,7 @@ export default function AppraisalReportsPage() {
                   setCurrentPage(prev => prev + 1);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-[#2463eb] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm cursor-pointer"
+                className={`w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm cursor-pointer ${appraisalReportPaginationNav}`}
               >
                 <ChevronRight size={16} />
               </button>

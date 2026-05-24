@@ -215,7 +215,7 @@ function getStatusConfig(status: string) {
 }
 
 const filterControlClass =
-  'w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF]';
+  'w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#2463eb]';
 
 const HR_ADJUSTMENT_REJECTION_REASONS = [
   'Adjustment not supported by evidence',
@@ -227,7 +227,7 @@ const HR_ADJUSTMENT_REJECTION_REASONS = [
 
 const HR_ADJUSTMENT_REJECTION_OTHER = 'Other';
 
-function ScoreBar({ value, max = 100, color = '#5D5FEF', label }: { value: number; max?: number; color?: string; label?: string }) {
+function ScoreBar({ value, max = 100, color = '#2463eb', label }: { value: number; max?: number; color?: string; label?: string }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
   return (
     <div className="w-full">
@@ -781,14 +781,14 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
       <button
         type="button"
         onClick={() => navigate(reviewQueuePath)}
-        className="group mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#5D5FEF] dark:text-slate-400 dark:hover:text-[#8b8ef7]"
+        className="group mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-[#2463eb] dark:text-slate-400 dark:hover:text-[#60a5fa]"
       >
         <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-0.5" />
         {backLabel}
       </button>
 
       <nav className="mb-5 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-        <Link to={isHr ? '/hr/dashboard' : isEmployeeDetail ? '/employee/dashboard' : '/manager/dashboard'} className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium hover:underline">Home</Link>
+        <Link to={isHr ? '/hr/dashboard' : isEmployeeDetail ? '/employee/dashboard' : '/manager/dashboard'} className="text-[#2463eb] dark:text-[#60a5fa] font-medium hover:underline">Home</Link>
         <ChevronRight size={10} className="opacity-50" />
         <span>Self Assessment</span>
         <ChevronRight size={10} className="opacity-50" />
@@ -807,7 +807,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/20">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/20">
             <ShieldCheck size={20} className="text-white" />
           </div>
           <div>
@@ -825,7 +825,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
               type="button"
               onClick={handleExportPdf}
               disabled={isExportingPdf}
-              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-3.5 py-2 text-sm font-bold text-white shadow-md shadow-[#5D5FEF]/25 transition hover:shadow-lg hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none dark:shadow-[#5D5FEF]/15"
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-3.5 py-2 text-sm font-bold text-white shadow-md shadow-[#2463eb]/25 transition hover:shadow-lg hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none dark:shadow-[#2463eb]/15"
             >
               {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
               Export PDF
@@ -902,7 +902,7 @@ Review Submissions
                       onClick={() => setSelectedFormId(form.id)}
                       className={`group w-full text-left rounded-xl border-l-[3px] p-3.5 transition-all duration-200 animate-fade-in-up ${
                         isActive
-                          ? 'border-l-[#5D5FEF] bg-[#5D5FEF]/[0.04] shadow-sm dark:bg-[#5D5FEF]/[0.08]'
+                          ? 'border-l-[#2463eb] bg-[#2463eb]/[0.04] shadow-sm dark:bg-[#2463eb]/[0.08]'
                           : 'border-l-transparent bg-transparent hover:bg-slate-50 dark:hover:bg-slate-700/40'
                       }`}
                       style={{ animationDelay: `${index * 30}ms` }}
@@ -911,7 +911,7 @@ Review Submissions
                         <div className="flex items-center gap-2 min-w-0">
                           <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
                             isActive
-                              ? 'bg-[#5D5FEF]/10 text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]'
+                              ? 'bg-[#2463eb]/10 text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]'
                               : 'bg-slate-100 text-slate-400 dark:bg-slate-700/60 dark:text-slate-500'
                           }`}>
                             <User size={13} />
@@ -919,7 +919,7 @@ Review Submissions
                           <div className="min-w-0">
                             <p className={`truncate text-sm font-semibold max-w-[140px] ${
                               isActive
-                                ? 'text-[#5D5FEF] dark:text-[#8b8ef7]'
+                                ? 'text-[#2463eb] dark:text-[#60a5fa]'
                                 : 'text-slate-900 dark:text-white'
                             }`}>
                               {form.employee?.employeeName}
@@ -961,7 +961,7 @@ Review Submissions
                     <button
                       type="button"
                       onClick={() => setSearchQuery('')}
-                      className="mt-2 text-xs font-semibold text-[#5D5FEF] dark:text-[#8b8ef7] hover:underline"
+                      className="mt-2 text-xs font-semibold text-[#2463eb] dark:text-[#60a5fa] hover:underline"
                     >
                       Clear search
                     </button>
@@ -1052,7 +1052,7 @@ Review Submissions
               {selectedForm.totalScore != null && (
                 <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '80ms' }}>
                   <div className="flex items-center gap-2 mb-4">
-                    <BarChart3 size={15} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                    <BarChart3 size={15} className="text-[#2463eb] dark:text-[#60a5fa]" />
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white">Score Comparison</h3>
                   </div>
                   <div className="space-y-3">
@@ -1094,7 +1094,7 @@ Review Submissions
 
               <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '120ms' }}>
                 <div className="flex items-center gap-2 mb-4">
-                  <Clock size={17} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                  <Clock size={17} className="text-[#2463eb] dark:text-[#60a5fa]" />
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">Review Timeline</h3>
                 </div>
                 <div className="flex items-center">
@@ -1105,19 +1105,19 @@ Review Submissions
                           step.done
                             ? 'border-emerald-500 bg-emerald-500'
                             : step.active
-                              ? 'border-[#5D5FEF] bg-[#5D5FEF]/10 dark:bg-[#5D5FEF]/20'
+                              ? 'border-[#2463eb] bg-[#2463eb]/10 dark:bg-[#2463eb]/20'
                               : 'border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800'
                         }`}>
                           {step.done ? (
                             <CheckCircle2 size={15} className="text-white" />
                           ) : step.active ? (
-                            <div className="h-2.5 w-2.5 rounded-full bg-[#5D5FEF]" />
+                            <div className="h-2.5 w-2.5 rounded-full bg-[#2463eb]" />
                           ) : (
                             <div className="h-2.5 w-2.5 rounded-full bg-slate-300 dark:bg-slate-600" />
                           )}
                         </div>
                         <p className={`mt-2 text-xs font-bold text-center leading-snug ${
-                          step.done ? 'text-emerald-600 dark:text-emerald-400' : step.active ? 'text-[#5D5FEF] dark:text-[#8b8ef7]' : 'text-slate-400 dark:text-slate-500'
+                          step.done ? 'text-emerald-600 dark:text-emerald-400' : step.active ? 'text-[#2463eb] dark:text-[#60a5fa]' : 'text-slate-400 dark:text-slate-500'
                         }`}>
                           {step.label}
                         </p>
@@ -1138,7 +1138,7 @@ Review Submissions
               {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason || (!isHr && !isEmployeeDetail && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW')) && (
                 <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '140ms' }}>
                   <div className="flex items-center gap-2 mb-4">
-                    <MessageSquare size={15} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                    <MessageSquare size={15} className="text-[#2463eb] dark:text-[#60a5fa]" />
                     <h3 className="text-base font-bold text-slate-900 dark:text-white">Remarks & Comments</h3>
                   </div>
                   <div className="space-y-3">
@@ -1238,7 +1238,7 @@ Review Submissions
                 </div>
               )}
 
-              <div className="overflow-hidden rounded-2xl border border-[#5D5FEF]/18 bg-white shadow-sm dark:border-[#8b8ef7]/28 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '160ms' }}>
+              <div className="overflow-hidden rounded-2xl border border-[#2463eb]/18 bg-white shadow-sm dark:border-[#60a5fa]/28 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '160ms' }}>
                 <div className="relative border-b border-slate-100 dark:border-slate-700/60">
                   <div className="relative px-6 py-5">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1281,8 +1281,8 @@ Review Submissions
 
                 <div className="px-6 py-5">
                   <div className="flex items-center gap-3 mb-5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#5D5FEF]/10 dark:bg-[#5D5FEF]/20">
-                      <FileCheck2 size={16} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2463eb]/10 dark:bg-[#2463eb]/20">
+                      <FileCheck2 size={16} className="text-[#2463eb] dark:text-[#60a5fa]" />
                     </div>
                     <h3 className="text-base font-bold text-slate-900 dark:text-white">Assessment Answers</h3>
                     <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-slate-700/60 dark:text-slate-400">
@@ -1294,10 +1294,10 @@ Review Submissions
                     {selectedForm.answers?.map((answer: any, index: number) => (
                       <div
                         key={answer.id}
-                        className="group relative rounded-xl border border-[#5D5FEF]/22 bg-white p-4 transition-all hover:border-[#5D5FEF]/40 hover:shadow-sm dark:border-[#8b8ef7]/32 dark:bg-slate-900/40 dark:hover:border-[#8b8ef7]/50"
+                        className="group relative rounded-xl border border-[#2463eb]/22 bg-white p-4 transition-all hover:border-[#2463eb]/40 hover:shadow-sm dark:border-[#60a5fa]/32 dark:bg-slate-900/40 dark:hover:border-[#60a5fa]/50"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50 border border-[#5D5FEF]/18 dark:border-[#8b8ef7]/28 dark:bg-slate-800/60">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50 border border-[#2463eb]/18 dark:border-[#60a5fa]/28 dark:bg-slate-800/60">
                             <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{index + 1}</span>
                           </div>
                           <div className="flex-1 min-w-0">
@@ -1489,9 +1489,9 @@ Review Submissions
                         type="button"
                         onClick={() => setShowAdjustments((prev) => !prev)}
                         aria-pressed={showAdjustments}
-                        className="flex w-full items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5D5FEF]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800"
+                        className="flex w-full items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2463eb]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800"
                       >
-                        <div className={`relative flex h-5 w-9 items-center rounded-full transition-colors ${showAdjustments ? 'bg-[#5D5FEF]' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                        <div className={`relative flex h-5 w-9 items-center rounded-full transition-colors ${showAdjustments ? 'bg-[#2463eb]' : 'bg-slate-300 dark:bg-slate-600'}`}>
                           <div className={`absolute h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${showAdjustments ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
                         </div>
                         <div>
@@ -1566,7 +1566,7 @@ Review Submissions
 	                                          type="checkbox"
 	                                          checked={isSelected}
 	                                          onChange={(e) => handleToggleRetakeQuestion(answer.id, e.target.checked)}
-	                                          className="h-4 w-4 rounded border-slate-300 text-[#5D5FEF] focus:ring-[#5D5FEF]"
+	                                          className="h-4 w-4 rounded border-slate-300 text-[#2463eb] focus:ring-[#2463eb]"
 	                                        />
 	                                        Request employee retake for this question
 	                                      </label>
@@ -1633,7 +1633,7 @@ Review Submissions
 	                        onClick={openManagerRetakeModal}
 	                        disabled={!showAdjustments}
                         title={!showAdjustments ? 'Enable Request Retake to select questions' : undefined}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25 hover:shadow-xl hover:shadow-[#2463eb]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
 	                        <Send size={16} />
 	                        Request Retake
@@ -1646,7 +1646,7 @@ Review Submissions
 	              {isHr && !isEmployeeDetail && selectedForm.status === 'PENDING_FINAL_APPROVAL' && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-md shadow-[#2463eb]/20">
                       <ShieldCheck size={18} className="text-white" />
                     </div>
                     <div>
@@ -1659,14 +1659,14 @@ Review Submissions
                     <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4 dark:border-slate-700/60 dark:bg-slate-700/20">
                       <div className="flex items-start justify-between gap-3 flex-wrap">
                         <div className="flex items-center gap-2">
-                          <PenLine size={14} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                          <PenLine size={14} className="text-[#2463eb] dark:text-[#60a5fa]" />
                           <p className="text-sm font-semibold text-slate-900 dark:text-white">
                             Your Default Signature
                           </p>
                         </div>
                         <Link
                           to="/hr/settings/signature"
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5D5FEF] dark:text-[#8b8ef7] hover:underline"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#2463eb] dark:text-[#60a5fa] hover:underline"
                         >
                           <PenLine size={12} />
                           {isMissingDefaultSignature ? 'Create Default Signature' : 'Signature Settings'}
@@ -1794,9 +1794,9 @@ Review Submissions
                           type="button"
                           onClick={() => setShowAdjustments((prev) => !prev)}
                           aria-pressed={showAdjustments}
-                          className="flex w-full items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5D5FEF]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800"
+                          className="flex w-full items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2463eb]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-800"
                         >
-                          <div className={`relative flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${showAdjustments ? 'bg-[#5D5FEF]' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                          <div className={`relative flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${showAdjustments ? 'bg-[#2463eb]' : 'bg-slate-300 dark:bg-slate-600'}`}>
                             <div className={`absolute h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${showAdjustments ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
                           </div>
                           <div>
@@ -1833,7 +1833,7 @@ Review Submissions
                                     type="checkbox"
                                     checked={isSelected}
                                     onChange={(e) => handleToggleRetakeQuestion(answer.id, e.target.checked)}
-                                    className="h-4 w-4 rounded border-slate-300 text-[#5D5FEF] focus:ring-[#5D5FEF]"
+                                    className="h-4 w-4 rounded border-slate-300 text-[#2463eb] focus:ring-[#2463eb]"
                                   />
                                   Request manager retake for this question
                                 </label>
@@ -1875,7 +1875,7 @@ Review Submissions
                           }}
                           disabled={isDefaultSigLoading || !hasDefaultSignature || showAdjustments}
                           title={showAdjustments ? 'Turn off Request Retake to approve' : 'Approve and finalize'}
-                          className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25 hover:shadow-xl hover:shadow-[#2463eb]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                           <CheckCircle2 size={16} />
                           Approve and Finalize
@@ -1886,7 +1886,7 @@ Review Submissions
                             onClick={openManagerRetakeModal}
                             disabled={!showAdjustments || isRetakeRequesting}
                             title={!showAdjustments ? 'Enable Request Retake to select questions' : undefined}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 hover:shadow-xl hover:shadow-[#5D5FEF]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25 hover:shadow-xl hover:shadow-[#2463eb]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                           >
                             <Send size={16} />
                             Request Retake
@@ -1913,7 +1913,7 @@ Review Submissions
                 <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/60 border border-slate-200/60 dark:border-slate-700/60">
                   <Eye size={36} className="text-slate-300 dark:text-slate-500" />
                 </div>
-                <div className="absolute -right-2 -bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
+                <div className="absolute -right-2 -bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
                   <FileText size={14} className="text-white" />
                 </div>
               </div>
@@ -1929,7 +1929,7 @@ Review Submissions
                 <button
                   type="button"
                   onClick={() => navigate(reviewQueuePath)}
-                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#5D5FEF]/[0.06] px-4 py-2 text-sm font-semibold text-[#5D5FEF] transition hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#2463eb]/[0.06] px-4 py-2 text-sm font-semibold text-[#2463eb] transition hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
                 >
                   Open Review Submissions
                 </button>
@@ -1948,7 +1948,7 @@ Review Submissions
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
             <div className="mb-5 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/30">
-                <Send size={20} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                <Send size={20} className="text-[#2463eb] dark:text-[#60a5fa]" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Confirm Retake Request</h3>
@@ -1975,7 +1975,7 @@ Review Submissions
               {isMissingDefaultSignature && (
                 <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
                   No default signature set.{' '}
-                  <Link to={isHr ? '/hr/settings/signature' : '/manager/settings/signature'} className="text-[#5D5FEF] underline">
+                  <Link to={isHr ? '/hr/settings/signature' : '/manager/settings/signature'} className="text-[#2463eb] underline">
                     Open Signature Settings
                   </Link>
                 </p>
@@ -1994,7 +1994,7 @@ Review Submissions
                 type="button"
                 onClick={() => void handleSubmitRetakeRequest()}
                 disabled={isRetakeRequesting || isDefaultSigLoading || !hasDefaultSignature}
-                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {isRetakeRequesting ? (
                   <Loader2 size={16} className="animate-spin" />
@@ -2040,7 +2040,7 @@ Review Submissions
               {isMissingDefaultSignature && (
                 <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
                   No default signature set.{' '}
-                  <Link to="/manager/settings/signature" className="text-[#5D5FEF] underline">
+                  <Link to="/manager/settings/signature" className="text-[#2463eb] underline">
                     Open Signature Settings
                   </Link>
                 </p>
@@ -2105,7 +2105,7 @@ Review Submissions
               {isMissingDefaultSignature && (
                 <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
                   No default signature set.{' '}
-                  <Link to="/manager/settings/signature" className="text-[#5D5FEF] underline">
+                  <Link to="/manager/settings/signature" className="text-[#2463eb] underline">
                     Open Signature Settings
                   </Link>
                 </p>

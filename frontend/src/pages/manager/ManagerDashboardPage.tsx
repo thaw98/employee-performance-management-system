@@ -5,6 +5,7 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 
 import axios from '../../app/axiosInstance'
 import { useGetManagerTeamQuery } from '../../features/kpi/kpiApi'
+import { getNotificationSourceLabel } from '../../features/notification/notificationSourceLabels'
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi'
 
 type MeetingItem = {
@@ -287,7 +288,7 @@ export function ManagerDashboardPage() {
                     {activity.read ? 'Read' : 'New'}
                   </span>
                 </div>
-                <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-slate-400">{activity.source} · {formatDate(activity.createdAt)} {formatTime(activity.createdAt)}</p>
+                <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-slate-400">{getNotificationSourceLabel(activity.source)} · {formatDate(activity.createdAt)} {formatTime(activity.createdAt)}</p>
               </Link>
             ))}
           </div>

@@ -146,22 +146,24 @@ export function ProfileDropdown({ variant = 'default' }: ProfileDropdownProps) {
               )}
             </div>
             <div className="profile-dropdown-divider" />
-            <button
-              type="button"
-              className="profile-dropdown-item profile-dropdown-item--logout"
-              role="menuitem"
-              onClick={() => {
-                setIsOpen(false)
-                handleLogout()
-              }}
-            >
-              <span className="profile-dropdown-icon profile-dropdown-icon--red">
-                <i className="bi bi-box-arrow-right" />
-              </span>
-              <div className="profile-dropdown-item-text">
-                <span>Log Out</span>
-              </div>
-            </button>
+            <div className="profile-dropdown-menu">
+              <button
+                type="button"
+                className="profile-dropdown-item profile-dropdown-item--logout"
+                role="menuitem"
+                onClick={() => {
+                  setIsOpen(false)
+                  handleLogout()
+                }}
+              >
+                <span className="profile-dropdown-icon profile-dropdown-icon--red">
+                  <i className="bi bi-box-arrow-right" />
+                </span>
+                <div className="profile-dropdown-item-text">
+                  <span>Log Out</span>
+                </div>
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -176,7 +178,7 @@ export function ProfileDropdown({ variant = 'default' }: ProfileDropdownProps) {
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="text-right hidden sm:block">
-          <p className="text-xs font-bold text-slate-900 dark:text-slate-200 truncate uppercase mt-1 group-hover:text-blue-600 transition-colors">
+          <p className="text-xs font-bold text-slate-900 dark:text-slate-200 truncate mt-1 group-hover:text-blue-600 transition-colors">
             {displayName}
           </p>
           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
