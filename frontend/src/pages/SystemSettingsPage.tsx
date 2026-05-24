@@ -4,11 +4,8 @@ import axios from '../app/axiosInstance'
 import { toast } from 'react-hot-toast'
 import { useGetProfileQuery, useUpdateProfileMutation, useUpdateWallpaperMutation, useDeleteWallpaperMutation } from '../features/user/userApi'
 import {
-  applyGoogleTranslateCookie,
-  applyLanguageFont,
-  ensureGoogleTranslateWidget,
-  retryGoogleTranslateSelection,
-  saveLanguagePreference,
+  applyLanguagePreference,
+  isLanguageApplied,
   setGoogleTranslateWidgetVisible,
 } from '../utils/googleTranslatePreference'
 
@@ -32,6 +29,8 @@ export function SystemSettingsPage() {
   const [updateWallpaper, { isLoading: isUploading }] = useUpdateWallpaperMutation()
   const [deleteWallpaper, { isLoading: isDeleting }] = useDeleteWallpaperMutation()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const initialLanguageRef = useRef<'Myanmar' | 'English'>('English')
+  const profileLanguageSyncedRef = useRef(false)
 
   const [theme, setTheme] = useState<'light' | 'dark' | 'wallpaper'>('light')
   const [language, setLanguage] = useState<'Myanmar' | 'English'>('English')
@@ -57,8 +56,13 @@ export function SystemSettingsPage() {
     if (profileResponse?.data?.theme) {
       setTheme(profileResponse.data.theme as any)
     }
-    if (profileResponse?.data?.language) {
-      setLanguage(profileResponse.data.language.toLowerCase().includes('myanmar') || profileResponse.data.language.toLowerCase().includes('burmese') ? 'Myanmar' : 'English')
+    if (profileResponse?.data?.language && !profileLanguageSyncedRef.current) {
+      const profileLanguage = profileResponse.data.language.toLowerCase().includes('myanmar') || profileResponse.data.language.toLowerCase().includes('burmese')
+        ? 'Myanmar'
+        : 'English'
+      setLanguage(profileLanguage)
+      initialLanguageRef.current = profileLanguage
+      profileLanguageSyncedRef.current = true
     }
     if (profileResponse?.data?.timezone) {
       setTimezone(profileResponse.data.timezone)
@@ -73,8 +77,7 @@ export function SystemSettingsPage() {
   }, [profileResponse, isHR])
 
   useEffect(() => {
-    ensureGoogleTranslateWidget(true)
-    return () => setGoogleTranslateWidgetVisible(false)
+    setGoogleTranslateWidgetVisible(false)
   }, [])
 
   const fetchGlobalTimeSettings = async () => {
@@ -131,9 +134,8 @@ export function SystemSettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      const savedLanguage = profileResponse?.data?.language?.toLowerCase().includes('myanmar') || profileResponse?.data?.language?.toLowerCase().includes('burmese')
-        ? 'Myanmar'
-        : 'English'
+      const languageChanged = language !== initialLanguageRef.current
+      const needsLanguageApply = languageChanged || !isLanguageApplied(language)
       // 1. Save Global Time Settings first (HR Only)
       if (isHR) {
         await axios.post('/feedback/time-settings', { yearType, duration })
@@ -169,14 +171,10 @@ export function SystemSettingsPage() {
       }
 
       setPendingWallpaper(null)
+      initialLanguageRef.current = language
       toast.success(isHR ? 'Settings saved. Current duration is applied and future year type is queued when needed.' : 'Changes saved!')
-      if (language !== savedLanguage) {
-        saveLanguagePreference(language)
-        applyLanguageFont(language)
-        ensureGoogleTranslateWidget(true)
-        applyGoogleTranslateCookie(language)
-        window.setTimeout(() => retryGoogleTranslateSelection(language), 100)
-        window.location.reload()
+      if (needsLanguageApply) {
+        applyLanguagePreference(language, { reload: true })
       }
     } catch (err: any) {
       console.error("Failed to save system settings", err)
@@ -382,13 +380,10 @@ export function SystemSettingsPage() {
       }).unwrap()
 
       setShowResetModal(false)
+      initialLanguageRef.current = 'English'
+      setLanguage('English')
       toast.success('Changes saved!')
-      saveLanguagePreference('English')
-      applyLanguageFont('English')
-      ensureGoogleTranslateWidget(true)
-      applyGoogleTranslateCookie('English')
-      window.setTimeout(() => retryGoogleTranslateSelection('English'), 100)
-      window.location.reload()
+      applyLanguagePreference('English', { reload: true })
     } catch (err) {
       console.error("Reset failed", err)
       toast.error('Failed to reset settings.')
@@ -486,21 +481,18 @@ export function SystemSettingsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               <div className="space-y-2">
+               <div className="space-y-2 notranslate" translate="no">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Language</label>
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value as 'Myanmar' | 'English')}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none"
+                    className="notranslate w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none"
                   >
-                     <option className="dark:bg-slate-900" value="Myanmar">Myanmar</option>
-                     <option className="dark:bg-slate-900" value="English">English</option>
+                     <option className="dark:bg-slate-900 notranslate" value="Myanmar">Myanmar</option>
+                     <option className="dark:bg-slate-900 notranslate" value="English">English</option>
                   </select>
                   <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 leading-relaxed">
-                    Applies across the application and is saved to your profile.
-                  </p>
-                  <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 leading-relaxed">
-                    If the page does not translate after saving, use the Google selector below.
+                    Applies across the application after you click Save Settings.
                   </p>
                </div>
 

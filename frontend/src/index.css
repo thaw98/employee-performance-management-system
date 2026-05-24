@@ -125,3 +125,22 @@
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
+
+/* Keep Google Translate available for programmatic use; hide the top bar widget */
+#google_translate_element,
+.goog-te-banner-frame,
+.goog-te-gadget,
+.goog-te-menu-value,
+.goog-te-combo,
+.skiptranslate iframe {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+body {
+  top: 0 !important;
+}

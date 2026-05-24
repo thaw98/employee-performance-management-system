@@ -8,9 +8,11 @@ import {
   ensureGoogleTranslateWidget,
   getSavedLanguagePreference,
   hasGoogleTranslateCookie,
+  isGoogleTranslateActive,
   isMyanmarLanguage,
   retryGoogleTranslateSelection,
   saveLanguagePreference,
+  setGoogleTranslateWidgetVisible,
 } from '../../utils/googleTranslatePreference'
 
 export function ThemeBootstrap() {
@@ -23,6 +25,10 @@ export function ThemeBootstrap() {
   const theme = profileResponse?.data?.theme || 'light'
   const wallpaperUrl = profileResponse?.data?.wallpaperUrl
   const language = profileResponse?.data?.language || getSavedLanguagePreference()
+
+  useEffect(() => {
+    setGoogleTranslateWidgetVisible(false)
+  }, [])
 
   useEffect(() => {
     const applyLanguage = () => {
@@ -43,11 +49,14 @@ export function ThemeBootstrap() {
         }
         retryGoogleTranslateSelection('Myanmar')
       } else if (language) {
-        if (document.cookie.includes('googtrans=')) {
-            applyGoogleTranslateCookie('English')
-            window.location.reload()
-            return
+        ensureGoogleTranslateWidget()
+
+        if (isGoogleTranslateActive()) {
+          applyGoogleTranslateCookie('English')
+          window.location.reload()
+          return
         }
+
         retryGoogleTranslateSelection('English')
       }
     }
