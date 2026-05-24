@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Moon, Sun, Globe, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, AlertTriangle, X, Calendar, ChevronRight, HelpCircle, MessageCircleQuestion, Target, ClipboardCheck, MessageSquareText, BarChart3, FileCheck2 } from 'lucide-react'
+import { Moon, Sun, Globe, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, AlertTriangle, X, Calendar, ChevronRight, ChevronDown, HelpCircle, MessageCircleQuestion, Target, ClipboardCheck, MessageSquareText, BarChart3, FileCheck2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useAppSelector } from '../app/hooks'
 import { useGetProfileQuery, useUpdateProfileMutation, useUpdateWallpaperMutation, useDeleteWallpaperMutation } from '../features/user/userApi'
@@ -434,14 +434,17 @@ export function SystemSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                <div className="space-y-2 notranslate" translate="no">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Language</label>
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value as 'Myanmar' | 'English')}
-                    className="notranslate w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none"
-                  >
-                     <option className="dark:bg-slate-900 notranslate" value="Myanmar">Myanmar</option>
-                     <option className="dark:bg-slate-900 notranslate" value="English">English</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value as 'Myanmar' | 'English')}
+                      className="notranslate w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl pl-4 pr-10 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none cursor-pointer"
+                    >
+                       <option className="dark:bg-slate-900 notranslate" value="Myanmar">Myanmar</option>
+                       <option className="dark:bg-slate-900 notranslate" value="English">English</option>
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" size={16} />
+                  </div>
                   <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 leading-relaxed">
                     Applies across the application after you click Save Settings.
                   </p>
@@ -449,26 +452,32 @@ export function SystemSettingsPage() {
 
                <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Time Zone Preference</label>
-                  <select 
-                    value={timezone}
-                    onChange={(e) => setTimezone(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none"
-                  >
-                     <option className="dark:bg-slate-900">UTC+06:30 (Yangon)</option>
-                     <option className="dark:bg-slate-900">UTC+00:00 (GMT)</option>
-                  </select>
+                  <div className="relative">
+                    <select 
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl pl-4 pr-10 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none cursor-pointer"
+                    >
+                       <option className="dark:bg-slate-900">UTC+06:30 (Yangon)</option>
+                       <option className="dark:bg-slate-900">UTC+00:00 (GMT)</option>
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" size={16} />
+                  </div>
                </div>
 
                <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Clock Display Format</label>
-                  <select 
-                    value={timeFormat}
-                    onChange={(e) => setTimeFormat(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none"
-                  >
-                     <option className="dark:bg-slate-900" value="12h">12-Hour Clock (AM/PM)</option>
-                     <option className="dark:bg-slate-900" value="24h">24-Hour Clock (Military)</option>
-                  </select>
+                  <div className="relative">
+                    <select 
+                      value={timeFormat}
+                      onChange={(e) => setTimeFormat(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl pl-4 pr-10 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none cursor-pointer"
+                    >
+                       <option className="dark:bg-slate-900" value="12h">12-Hour Clock (AM/PM)</option>
+                       <option className="dark:bg-slate-900" value="24h">24-Hour Clock (Military)</option>
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" size={16} />
+                  </div>
                </div>
             </div>
           </div>
@@ -476,11 +485,11 @@ export function SystemSettingsPage() {
         {isHR && (
           <Link
             to="/hr/settings/system/time"
-            className="block bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-800 group"
+            className="block bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-[#2463eb]/30 dark:hover:border-[#2463eb]/40 group"
           >
                         <div className="p-8 flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-[#dbeafe] dark:bg-[#2463eb]/20 text-[#2463eb] dark:text-[#60a5fa] rounded-xl flex items-center justify-center">
                   <Calendar size={20} />
                 </div>
                 <div>
@@ -490,7 +499,7 @@ export function SystemSettingsPage() {
                   </p>
                 </div>
               </div>
-              <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-600 transition-colors" />
+              <ChevronRight size={20} className="text-slate-300 group-hover:text-[#2463eb] transition-colors" />
             </div>
           </Link>
         )}
@@ -500,7 +509,7 @@ export function SystemSettingsPage() {
           <div className="p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-xl flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 bg-[#dbeafe] dark:bg-[#2463eb]/20 text-[#2463eb] dark:text-[#60a5fa] rounded-xl flex items-center justify-center shrink-0">
                   <HelpCircle size={20} />
                 </div>
                 <div>
@@ -543,7 +552,7 @@ export function SystemSettingsPage() {
                           <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">{totalQuestionCount} common questions</p>
                         </div>
                       </div>
-                      <ChevronRight size={18} className="shrink-0 text-slate-300 transition-transform group-open:rotate-90 group-hover:text-cyan-600" />
+                      <ChevronRight size={18} className="shrink-0 text-slate-300 transition-transform group-open:rotate-90 group-hover:text-[#2463eb]" />
                     </summary>
 
                     <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
@@ -588,7 +597,7 @@ export function SystemSettingsPage() {
                     <select
                       value={faqForm.category}
                       onChange={(event) => setFaqForm((current) => ({ ...current, category: event.target.value as FaqCategory }))}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:border-[#2463eb] focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                     >
                       {faqSections.map((section) => (
                         <option key={section.title} value={section.title.toUpperCase()}>
@@ -604,7 +613,7 @@ export function SystemSettingsPage() {
                       onChange={(event) => setFaqForm((current) => ({ ...current, subject: event.target.value }))}
                       maxLength={255}
                       placeholder={faqExample.subject}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:border-[#2463eb] focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                     />
                   </div>
                   <div>
@@ -615,13 +624,13 @@ export function SystemSettingsPage() {
                       maxLength={3000}
                       rows={4}
                       placeholder={faqExample.question}
-                      className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-[#2463eb] focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={isSubmittingFaqQuestion}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-600 px-4 py-3 text-xs font-black text-white transition-all hover:bg-cyan-700 active:scale-95 disabled:opacity-50"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-3 text-xs font-black text-white shadow-md shadow-[#2463eb]/25 transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
                   >
                     {isSubmittingFaqQuestion ? <Loader2 size={16} className="animate-spin" /> : <MessageCircleQuestion size={16} />}
                     Send Question
@@ -630,7 +639,7 @@ export function SystemSettingsPage() {
               </form>
               ) : (
                 <div className="flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center dark:border-slate-700 dark:bg-slate-800/60">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-300">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#dbeafe] text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
                     <MessageCircleQuestion size={22} />
                   </div>
                   <p className="text-sm font-black text-slate-900 dark:text-slate-100">Need to ask HR?</p>
@@ -640,7 +649,7 @@ export function SystemSettingsPage() {
                   <button
                     type="button"
                     onClick={openFaqQuestionForm}
-                    className="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-600 px-4 py-3 text-xs font-black text-white transition-all hover:bg-cyan-700 active:scale-95"
+                    className="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-3 text-xs font-black text-white shadow-md shadow-[#2463eb]/25 transition-all hover:brightness-110 active:scale-95"
                   >
                     <MessageCircleQuestion size={16} />
                     Ask Question
@@ -679,7 +688,7 @@ export function SystemSettingsPage() {
                         <p className="mt-3 text-xs font-semibold leading-relaxed text-slate-500 dark:text-slate-400">{item.question}</p>
                         {item.answer && (
                           <div className="mt-3 rounded-xl bg-white p-3 dark:bg-slate-800">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-300">HR Reply</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-[#2463eb] dark:text-[#60a5fa]">HR Reply</p>
                             <p className="mt-1 text-sm font-semibold leading-relaxed text-slate-700 dark:text-slate-200">{item.answer}</p>
                           </div>
                         )}
@@ -690,7 +699,7 @@ export function SystemSettingsPage() {
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-cyan-100 bg-cyan-50/70 p-5 dark:border-cyan-900/40 dark:bg-cyan-950/20">
+            <div className="mt-6 rounded-2xl border border-[#2463eb]/20 bg-[#2463eb]/[0.06] p-5 dark:border-[#2463eb]/30 dark:bg-[#2463eb]/10">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-black text-slate-900 dark:text-slate-100">Need more than these answers?</p>
@@ -700,7 +709,7 @@ export function SystemSettingsPage() {
                 </div>
                 <Link
                   to={meetingsPath}
-                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-cyan-600 px-4 py-3 text-xs font-black text-white transition-all hover:bg-cyan-700 active:scale-95"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-3 text-xs font-black text-white shadow-md shadow-[#2463eb]/25 transition-all hover:brightness-110 active:scale-95"
                 >
                   <Calendar size={16} />
                   Set Up Meeting

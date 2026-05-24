@@ -30,6 +30,7 @@ import { FamilyEmergencyStep } from './create-account/FamilyEmergencyStep'
 import { ReviewConfirmStep } from './create-account/ReviewConfirmStep'
 import { useUploadProfilePictureMutation } from '../../features/user/userApi'
 import EmployeeImportModal from '../../features/hrEmployeeList/components/EmployeeImportModal'
+import { createAccountGradient, createAccountGradientBr } from './create-account/createAccountTheme'
 
 const STEPS = [
   { label: 'Personal Details', icon: User },
@@ -580,7 +581,7 @@ export function CreateEmployeeAccountPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/25">
+              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${createAccountGradientBr} text-white shadow-lg shadow-[#2463eb]/25`}>
                 <UserPlus size={24} />
               </div>
               <div>
@@ -594,7 +595,7 @@ export function CreateEmployeeAccountPage() {
               <button
                 type="button"
                 onClick={() => setImportModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2463eb] text-white text-sm font-semibold hover:bg-[#1d4ed8] transition shadow-sm"
               >
                 <i className="bi bi-file-earmark-arrow-up"></i>
                 Import Employees
@@ -619,7 +620,7 @@ export function CreateEmployeeAccountPage() {
                         isDone
                           ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
                           : isActive
-                            ? 'bg-linear-to-br from-teal-500 to-emerald-600 text-white shadow-md shadow-teal-500/25'
+                            ? `${createAccountGradientBr} text-white shadow-md shadow-[#2463eb]/25`
                             : 'border border-slate-200 bg-slate-50 text-slate-400'
                       }`}
                     >
@@ -628,7 +629,7 @@ export function CreateEmployeeAccountPage() {
                     <div className="hidden sm:block">
                       <p
                         className={`text-xs font-bold uppercase tracking-wide ${
-                          isActive ? 'text-teal-700' : isDone ? 'text-emerald-600' : 'text-slate-400'
+                          isActive ? 'text-[#1d4ed8]' : isDone ? 'text-emerald-600' : 'text-slate-400'
                         }`}
                       >
                         Step {num}
@@ -646,7 +647,7 @@ export function CreateEmployeeAccountPage() {
                     <div className="mx-4 min-w-6 flex-1">
                       <div className="h-0.5 rounded-full bg-slate-300">
                         <div
-                          className="h-0.5 rounded-full bg-linear-to-r from-emerald-400 to-teal-500 transition-all duration-500"
+                          className={`h-0.5 rounded-full ${createAccountGradient} transition-all duration-500`}
                           style={{ width: isDone ? '100%' : '0%' }}
                         />
                       </div>
@@ -663,7 +664,7 @@ export function CreateEmployeeAccountPage() {
           {/* Step indicator bar */}
           <div className="h-1 bg-slate-100">
             <div
-              className="h-1 rounded-r-full bg-linear-to-r from-teal-400 to-emerald-500 transition-all duration-500 ease-out"
+              className={`h-1 rounded-r-full ${createAccountGradient} transition-all duration-500 ease-out`}
               style={{ width: `${(step / STEPS.length) * 100}%` }}
             />
           </div>
@@ -734,7 +735,7 @@ export function CreateEmployeeAccountPage() {
                 <button
                   type="button"
                   onClick={() => void goNext()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-teal-500 to-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/25 transition hover:shadow-lg hover:shadow-teal-500/30 active:scale-[0.98]"
+                  className={`inline-flex items-center gap-2 rounded-xl ${createAccountGradient} px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#2463eb]/25 transition hover:shadow-lg hover:shadow-[#2463eb]/30 active:scale-[0.98]`}
                 >
                   Next
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -746,7 +747,7 @@ export function CreateEmployeeAccountPage() {
                   type="button"
                   disabled={createLoading || isSubmitting}
                   onClick={() => void handleSubmit(onFinal)()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-green-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-500/25 transition hover:shadow-lg hover:shadow-emerald-500/30 active:scale-[0.98] disabled:opacity-60 disabled:shadow-none"
+                  className={`inline-flex items-center gap-2 rounded-xl ${createAccountGradient} px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-[#2463eb]/25 transition hover:shadow-lg hover:shadow-[#2463eb]/30 active:scale-[0.98] disabled:opacity-60 disabled:shadow-none`}
                 >
                   {createLoading || isSubmitting ? (
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

@@ -21,7 +21,7 @@ const BAND_KEYS = [
   { key: 'unsatisfactory', label: 'Unsatisfactory' },
 ] as const
 
-const COLORS = ['#0f766e', '#2563eb', '#d97706', '#ea580c', '#dc2626', '#7c3aed']
+const COLORS = ['#2463eb', '#1d4ed8', '#1e40af', '#d97706', '#ea580c', '#dc2626']
 
 function formatScore(value: number | null | undefined) {
   return `${Number(value ?? 0).toFixed(1)}%`
@@ -44,7 +44,7 @@ function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: stri
           <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</p>
           <p className="mt-2 text-2xl font-black text-slate-900 dark:text-slate-100">{value}</p>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eff6ff] text-[#2463eb] dark:bg-[#1e3a8a]/30 dark:text-[#93c5fd]">
           {icon}
         </div>
       </div>
@@ -89,7 +89,7 @@ function SummaryTable({
               <tr
                 key={rowKey(row)}
                 onClick={() => onRowClick?.(row)}
-                className={`${onRowClick ? 'cursor-pointer transition hover:bg-teal-50/70 dark:hover:bg-teal-950/20' : ''} ${activeRowId != null && row.groupId === activeRowId ? 'bg-teal-50 dark:bg-teal-950/20' : ''}`}
+                className={`${onRowClick ? 'cursor-pointer transition hover:bg-[#eff6ff]/70 dark:hover:bg-[#1e3a8a]/20' : ''} ${activeRowId != null && row.groupId === activeRowId ? 'bg-[#eff6ff] dark:bg-[#1e3a8a]/20' : ''}`}
               >
                 <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-100">{row.groupName}</td>
                 <td className="px-4 py-3 text-right">{row.employeeCount}</td>
@@ -245,7 +245,7 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-widest text-teal-700 dark:text-teal-300">Reports</p>
+          <p className="text-xs font-black uppercase tracking-widest text-[#2463eb] dark:text-[#93c5fd]">Reports</p>
           <h1 className="mt-1 text-3xl font-black text-slate-950 dark:text-slate-50">Self-Assessment Report</h1>
           <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
             {mode === 'hr' ? 'Cross-department performance overview' : 'Position comparison for your current department'}
@@ -265,7 +265,7 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
             type="button"
             onClick={handleExport}
             disabled={!report}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-black text-white shadow-sm transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 text-sm font-black text-white shadow-sm shadow-[#dbeafe] transition hover:from-[#1d4ed8] hover:to-[#1e40af] disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
           >
             <Download size={17} />
             Export PDF
@@ -303,7 +303,7 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
               onClick={() => setActiveTab(tab.id)}
               className={`border-b-2 px-3 py-2 text-sm font-black transition ${
                 activeTab === tab.id
-                  ? 'border-teal-700 text-teal-700 dark:border-teal-300 dark:text-teal-300'
+                  ? 'border-[#2463eb] text-[#2463eb] dark:border-[#93c5fd] dark:text-[#93c5fd]'
                   : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
               }`}
             >
@@ -318,7 +318,7 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
               <button
                 type="button"
                 onClick={clearDepartment}
-                className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-black text-teal-800 dark:border-teal-800 dark:bg-teal-950/30 dark:text-teal-200"
+                className="inline-flex items-center rounded-full border border-[#bfdbfe] bg-[#eff6ff] px-3 py-1 text-xs font-black text-[#1d4ed8] dark:border-[#1e40af] dark:bg-[#1e3a8a]/30 dark:text-[#93c5fd]"
               >
                 Department: {selectedDepartment.groupName} x
               </button>
@@ -327,7 +327,7 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
               <button
                 type="button"
                 onClick={clearPosition}
-                className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200"
+                className="inline-flex items-center rounded-full border border-[#bfdbfe] bg-[#dbeafe] px-3 py-1 text-xs font-black text-[#1e40af] dark:border-[#1e40af] dark:bg-[#1e3a8a]/40 dark:text-[#bfdbfe]"
               >
                 Position: {selectedPosition.groupName} x
               </button>

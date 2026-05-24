@@ -1,9 +1,9 @@
 import type { TransferHistoryItem } from '../employeeTransferApi'
 
 const TRANSFER_TYPE_STYLES: Record<string, string> = {
-  INITIAL: 'bg-blue-100 text-blue-800',
+  INITIAL: 'bg-[#dbeafe] text-[#1e40af]',
   TEMPORARY: 'bg-amber-100 text-amber-800',
-  PERMANENT_TRANSFER: 'bg-purple-100 text-purple-800',
+  PERMANENT_TRANSFER: 'bg-[#dbeafe] text-[#1e40af]',
   RETURN: 'bg-green-100 text-green-800',
 }
 
@@ -35,7 +35,7 @@ export function TransferHistoryTable({ history, isLoading }: TransferHistoryTabl
   if (isLoading) {
     return (
       <div className="flex justify-center py-10">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#2463eb]" />
       </div>
     )
   }
@@ -60,7 +60,7 @@ export function TransferHistoryTable({ history, isLoading }: TransferHistoryTabl
         </thead>
         <tbody className="divide-y divide-gray-50 bg-white">
           {history.map((row) => (
-            <tr key={row.id} className={row.isCurrent ? 'bg-indigo-50/40' : ''}>
+            <tr key={row.id} className={row.isCurrent ? 'bg-[#eff6ff]/40' : ''}>
               <td className="px-4 py-3">
                 <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${TRANSFER_TYPE_STYLES[row.transferType] ?? 'bg-gray-100 text-gray-700'}`}>
                   {TRANSFER_TYPE_LABELS[row.transferType] ?? row.transferType}

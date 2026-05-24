@@ -233,7 +233,7 @@ function PositionListPage() {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] rounded-2xl flex items-center justify-center shadow-lg shadow-[#dbeafe]">
                   <Briefcase className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -245,7 +245,7 @@ function PositionListPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleOpenCreate}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 transition-all duration-200 hover:scale-105 active:scale-95"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white text-sm font-semibold rounded-xl hover:from-[#1d4ed8] hover:to-[#1e40af] shadow-lg shadow-[#dbeafe] transition-all duration-200 active:scale-95"
               >
                 <Plus className="w-4 h-4" />
                 Create Position
@@ -286,12 +286,12 @@ function PositionListPage() {
                     </h3>
                   </div>
                 </div>
-                <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <Layers className="w-7 h-7 text-blue-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-[#eff6ff] to-[#dbeafe] rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <Layers className="w-7 h-7 text-[#2463eb]" />
                 </div>
               </div>
               <div className="mt-4 flex items-center gap-2">
-                <div className="flex items-center gap-1 text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
+                <div className="flex items-center gap-1 text-xs text-[#2463eb] font-medium bg-[#eff6ff] px-2 py-1 rounded-full">
                   <Shield className="w-3 h-3" />
                   <span>
                     {selectedLevelCodeId != null
@@ -310,12 +310,12 @@ function PositionListPage() {
                     <h3 className="text-3xl font-bold text-slate-900">{roles.length}</h3>
                   </div>
                 </div>
-                <div className="w-14 h-14 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
-                  <Shield className="w-7 h-7 text-purple-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-[#eff6ff] to-[#dbeafe] rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                  <Shield className="w-7 h-7 text-[#2463eb]" />
                 </div>
               </div>
               <div className="mt-4 flex items-center gap-2">
-                <div className="flex items-center gap-1 text-xs text-purple-600 font-medium bg-purple-50 px-2 py-1 rounded-full">
+                <div className="flex items-center gap-1 text-xs text-[#2463eb] font-medium bg-[#eff6ff] px-2 py-1 rounded-full">
                   <Shield className="w-3 h-3" />
                   <span>Configured roles</span>
                 </div>
@@ -338,7 +338,7 @@ function PositionListPage() {
                       setSelectedRoleId(null)
                       setSelectedLevelCodeId(null)
                     }}
-                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition-colors"
+                    className="text-xs font-medium text-[#2463eb] hover:text-[#1d4ed8] flex items-center gap-1 transition-colors"
                   >
                     Clear all
                   </button>
@@ -382,7 +382,7 @@ function PositionListPage() {
                     <select
                       value={size}
                       onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
-                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition-all cursor-pointer hover:border-slate-300"
+                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white focus:ring-2 focus:ring-[#dbeafe] focus:border-[#2463eb] transition-all cursor-pointer hover:border-slate-300"
                     >
                       <option value={5}>5</option>
                       <option value={10}>10</option>
@@ -417,8 +417,8 @@ function PositionListPage() {
                             onClick={() => handlePageChange(pageNum - 1)}
                             className={`min-w-[38px] h-10 px-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
                               page === pageNum - 1
-                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md hover:shadow-lg'
-                                : 'border border-slate-200 text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700'
+                                ? 'bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white shadow-md hover:shadow-lg'
+                                : 'border border-slate-200 text-slate-700 hover:bg-[#eff6ff] hover:border-[#bfdbfe] hover:text-[#2463eb]'
                             }`}
                           >
                             {pageNum}

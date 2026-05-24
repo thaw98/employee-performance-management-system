@@ -7,7 +7,11 @@ import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
 import { getRoleGroup } from '../../utils/dashboardRedirect'
 import { ChevronDown, User, Settings, LogOut, PenLine, Calendar } from 'lucide-react'
 
-export function ProfileDropdown() {
+interface ProfileDropdownProps {
+  variant?: 'default' | 'dash'
+}
+
+export function ProfileDropdown({ variant = 'default' }: ProfileDropdownProps) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const tokenUser = useAppSelector((s) => s.auth.user)
@@ -29,12 +33,19 @@ export function ProfileDropdown() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   const handleLogout = () => {
     dispatch(logout())
     navigate('/login')
   }
 
-  // Profile role name may be a position title (e.g. Department Head); use roleId like ProtectedRoute.
   const roleGroup = tokenUser ? getRoleGroup(tokenUser) : null
   const rolePrefix =
     roleGroup === 'HR' ? '/hr' : roleGroup === 'MANAGER' ? '/manager' : '/employee'
@@ -44,6 +55,121 @@ export function ProfileDropdown() {
   const timeSettingsPath = `${rolePrefix}/settings/system/time`
   const isHR = profileResponse?.data?.role === 'HR'
 
+  const displayName = user?.name || 'User'
+  const displayRole = (user?.role || 'Role').toUpperCase()
+  const initial = displayName.charAt(0).toUpperCase() || 'U'
+
+  if (variant === 'dash') {
+    return (
+      <div className={`top-bar-profile-wrap hidden sm:block${isOpen ? ' is-open' : ''}`} ref={dropdownRef}>
+        <button
+          type="button"
+          className="top-bar-profile"
+          aria-label="User menu"
+          aria-expanded={isOpen}
+          aria-haspopup="true"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span className="top-bar-profile-text">
+            <span className="top-bar-profile-name">{displayName}</span>
+            <span className="top-bar-profile-role">{displayRole}</span>
+          </span>
+          <span className="top-bar-avatar">
+            {avatarSrc ? <img src={avatarSrc} alt="" /> : initial}
+          </span>
+          <i className="bi bi-chevron-down top-bar-chevron" />
+        </button>
+
+        {!isOpen ? null : (
+          <div className="profile-dropdown" role="menu">
+            <div className="profile-dropdown-header">
+              <div className="profile-dropdown-header-inner">
+                <div className="profile-dropdown-avatar">
+                  {avatarSrc ? <img src={avatarSrc} alt="" /> : <span>{initial}</span>}
+                </div>
+                <div className="profile-dropdown-info">
+                  <p className="profile-dropdown-name">{displayName}</p>
+                  <p className="profile-dropdown-email">{user?.email}</p>
+                </div>
+              </div>
+            </div>
+            <div className="profile-dropdown-divider" />
+            <div className="profile-dropdown-menu">
+              <Link to={profilePath} className="profile-dropdown-item" role="menuitem" onClick={() => setIsOpen(false)}>
+                <span className="profile-dropdown-icon profile-dropdown-icon--blue">
+                  <i className="bi bi-person" />
+                </span>
+                <div className="profile-dropdown-item-text">
+                  <span>User Profile</span>
+                </div>
+              </Link>
+              <Link
+                to={signatureSettingsPath}
+                className="profile-dropdown-item"
+                role="menuitem"
+                onClick={() => setIsOpen(false)}
+              >
+                <span className="profile-dropdown-icon profile-dropdown-icon--violet">
+                  <i className="bi bi-pen" />
+                </span>
+                <div className="profile-dropdown-item-text">
+                  <span>Signature Settings</span>
+                </div>
+              </Link>
+              <Link
+                to={systemSettingsPath}
+                className="profile-dropdown-item"
+                role="menuitem"
+                onClick={() => setIsOpen(false)}
+              >
+                <span className="profile-dropdown-icon profile-dropdown-icon--gray">
+                  <i className="bi bi-gear" />
+                </span>
+                <div className="profile-dropdown-item-text">
+                  <span>System Settings</span>
+                </div>
+              </Link>
+              {isHR && (
+                <Link
+                  to={timeSettingsPath}
+                  className="profile-dropdown-item"
+                  role="menuitem"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <span className="profile-dropdown-icon profile-dropdown-icon--green">
+                    <i className="bi bi-calendar3" />
+                  </span>
+                  <div className="profile-dropdown-item-text">
+                    <span>Time Settings</span>
+                  </div>
+                </Link>
+              )}
+            </div>
+            <div className="profile-dropdown-divider" />
+            <div className="profile-dropdown-menu">
+              <button
+                type="button"
+                className="profile-dropdown-item profile-dropdown-item--logout"
+                role="menuitem"
+                onClick={() => {
+                  setIsOpen(false)
+                  handleLogout()
+                }}
+              >
+                <span className="profile-dropdown-icon profile-dropdown-icon--red">
+                  <i className="bi bi-box-arrow-right" />
+                </span>
+                <div className="profile-dropdown-item-text">
+                  <span>Log Out</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -52,25 +178,25 @@ export function ProfileDropdown() {
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="text-right hidden sm:block">
-          <p className="text-xs font-bold text-slate-900 dark:text-slate-200 truncate uppercase mt-1 group-hover:text-blue-600 transition-colors">
-            {user?.name || 'User'}
+          <p className="text-xs font-bold text-slate-900 dark:text-slate-200 truncate mt-1 group-hover:text-blue-600 transition-colors">
+            {displayName}
           </p>
           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
             {user?.role || 'Role'}
           </p>
         </div>
-        
+
         <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden border-2 border-transparent group-hover:border-blue-100 dark:group-hover:border-blue-900/50 transition-all shadow-sm">
           {avatarSrc ? (
             <img src={avatarSrc} alt="Profile" className="h-full w-full object-cover" />
           ) : (
-            user?.name?.charAt(0).toUpperCase() || 'U'
+            initial
           )}
         </div>
-        
-        <ChevronDown 
-          size={16} 
-          className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
+
+        <ChevronDown
+          size={16}
+          className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -127,7 +253,6 @@ export function ProfileDropdown() {
                 Time Settings
               </Link>
             )}
-
           </div>
 
           <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 px-2">

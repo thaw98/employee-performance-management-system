@@ -40,6 +40,10 @@ import {
 } from '../../../features/departmentPositions/api/departmentPositionsApi'
 import AddPositionToDepartmentDrawer from '../../../features/departmentPositions/components/AddPositionToDepartmentDrawer'
 import ConfirmActionModal from '../../../features/hrEmployeeList/components/ConfirmActionModal'
+import {
+  departmentsGradientBr,
+  departmentsGradientHero,
+} from '../../../features/department/departmentsTheme'
 
 const isActive = (status: unknown) => String(status ?? '').trim().toLowerCase() === 'active'
 
@@ -101,7 +105,7 @@ export default function DepartmentDetailPage() {
         accessorKey: 'positionCode',
         header: 'Position Code',
         cell: (info) => (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 font-mono font-semibold text-blue-700 text-xs tracking-wide">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-[#eff6ff] border border-[#dbeafe] font-mono font-semibold text-[#1d4ed8] text-xs tracking-wide">
             {String(info.getValue() ?? '').trim() || '-'}
           </span>
         ),
@@ -111,7 +115,7 @@ export default function DepartmentDetailPage() {
         header: 'Position Name',
         cell: (info) => (
           <div className="flex items-center gap-2.5">
-            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-sm">
+            <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${departmentsGradientBr} flex items-center justify-center shadow-sm`}>
               <BriefcaseBusiness size={14} className="text-white" />
             </div>
             <span className="font-semibold text-slate-800 text-sm">{info.getValue() as string}</span>
@@ -158,8 +162,8 @@ export default function DepartmentDetailPage() {
   }
 
   const getSortIcon = (isSorted: false | 'asc' | 'desc') => {
-    if (isSorted === 'asc') return <ArrowUp size={13} className="text-blue-500" />
-    if (isSorted === 'desc') return <ArrowDown size={13} className="text-blue-500" />
+    if (isSorted === 'asc') return <ArrowUp size={13} className="text-[#2463eb]" />
+    if (isSorted === 'desc') return <ArrowDown size={13} className="text-[#2463eb]" />
     return <ArrowUpDown size={13} className="text-slate-300 group-hover:text-slate-400 transition-colors" />
   }
 
@@ -208,7 +212,7 @@ export default function DepartmentDetailPage() {
             void refetchDepartment()
             void refetchPositions()
           }}
-          className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+          className="px-5 py-2.5 bg-[#2463eb] text-white rounded-xl text-sm font-bold hover:bg-[#1d4ed8] transition-colors shadow-lg shadow-[#2463eb]/20"
         >
           Try Again
         </button>
@@ -217,8 +221,8 @@ export default function DepartmentDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
-      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 px-6 pt-8 pb-20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-[#eff6ff]/30 to-[#dbeafe]/30">
+      <div className={`relative overflow-hidden ${departmentsGradientHero} px-6 pt-8 pb-20`}>
         <div className="absolute -top-10 -right-10 w-64 h-64 bg-white/5 rounded-full pointer-events-none" />
         <div className="absolute top-8 right-20 w-32 h-32 bg-white/5 rounded-full pointer-events-none" />
         <div className="absolute -bottom-16 -left-8 w-48 h-48 bg-white/5 rounded-full pointer-events-none" />
@@ -249,14 +253,14 @@ export default function DepartmentDetailPage() {
                 <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-1.5">
                   {isDepartmentLoading ? 'Loading...' : department?.departmentName}
                 </h1>
-                <p className="text-blue-100 text-base">Manage positions and organizational structure</p>
+                <p className="text-[#dbeafe] text-base">Manage positions and organizational structure</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsAddOpen(true)}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-700 rounded-xl font-bold text-sm shadow-2xl hover:bg-blue-50 active:scale-95 transition-all"
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#2463eb] rounded-xl font-bold text-sm shadow-2xl hover:bg-[#eff6ff] active:scale-95 transition-all"
               >
                 <Plus size={18} />
                 Add Position
@@ -269,7 +273,7 @@ export default function DepartmentDetailPage() {
       <div className="max-w-7xl mx-auto px-6 -mt-12 relative z-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-md">
+            <div className={`w-12 h-12 rounded-xl ${departmentsGradientBr} flex items-center justify-center flex-shrink-0 shadow-md`}>
               <LayoutGrid size={22} className="text-white" />
             </div>
             <div>
@@ -283,7 +287,7 @@ export default function DepartmentDetailPage() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center flex-shrink-0 shadow-md">
+            <div className={`w-12 h-12 rounded-xl ${departmentsGradientBr} flex items-center justify-center flex-shrink-0 shadow-md`}>
               <Shield size={22} className="text-white" />
             </div>
             <div>
@@ -299,7 +303,7 @@ export default function DepartmentDetailPage() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 flex items-center justify-center flex-shrink-0 shadow-md">
+            <div className={`w-12 h-12 rounded-xl ${departmentsGradientBr} flex items-center justify-center flex-shrink-0 shadow-md`}>
               <User size={22} className="text-white" />
             </div>
             <div className="min-w-0">
@@ -331,7 +335,7 @@ export default function DepartmentDetailPage() {
                   value={globalFilter ?? ''}
                   onChange={(event) => setGlobalFilter(event.target.value)}
                   placeholder="Search..."
-                  className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none transition-all placeholder:text-slate-400 w-48"
+                  className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:bg-white focus:ring-2 focus:ring-[#2463eb]/20 focus:border-[#2463eb] outline-none transition-all placeholder:text-slate-400 w-48"
                 />
               </div>
             </div>
@@ -362,14 +366,14 @@ export default function DepartmentDetailPage() {
                   <tr>
                     <td colSpan={columns.length}>
                       <div className="flex flex-col items-center justify-center py-20 gap-3">
-                        <Loader2 size={40} className="animate-spin text-blue-500" />
+                        <Loader2 size={40} className="animate-spin text-[#2463eb]" />
                         <p className="text-sm font-semibold text-slate-500">Loading positions...</p>
                       </div>
                     </td>
                   </tr>
                 ) : table.getRowModel().rows.length > 0 ? (
                   table.getRowModel().rows.map((row, idx) => (
-                    <tr key={row.id} className={`transition-colors hover:bg-blue-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                    <tr key={row.id} className={`transition-colors hover:bg-[#2463eb]/[0.06] ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                       {row.getVisibleCells().map((cell) => (
                         <td key={cell.id} className="px-5 py-4 whitespace-nowrap">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -416,7 +420,7 @@ export default function DepartmentDetailPage() {
                   <select
                     value={table.getState().pagination.pageSize}
                     onChange={(event) => table.setPageSize(Number(event.target.value))}
-                    className="py-1 pl-2 pr-6 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer appearance-none"
+                    className="py-1 pl-2 pr-6 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 cursor-pointer appearance-none"
                   >
                     {[5, 10, 20, 50].map((size) => (
                       <option key={size} value={size}>{size}</option>
@@ -442,7 +446,7 @@ export default function DepartmentDetailPage() {
                       onClick={() => table.setPageIndex(item)}
                       className={`min-w-[32px] h-8 text-xs font-bold rounded-lg border transition-all ${
                         item === pageIndex
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                          ? 'bg-[#2463eb] border-[#2463eb] text-white shadow-sm'
                           : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
                       }`}
                     >

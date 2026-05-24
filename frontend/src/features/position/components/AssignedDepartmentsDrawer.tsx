@@ -57,7 +57,7 @@ export default function AssignedDepartmentsDrawer({
             >
               <Dialog.Panel className="pointer-events-auto w-screen max-w-2xl">
                 <div className="flex h-full flex-col bg-white shadow-xl">
-                  <div className="relative flex-shrink-0 overflow-hidden bg-gradient-to-br from-slate-900 to-indigo-900 px-6 py-5">
+                  <div className="relative flex-shrink-0 overflow-hidden bg-gradient-to-br from-[#1e3a8a] to-[#2463eb] px-6 py-5">
                     <div className="relative flex items-start justify-between gap-4">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/15 text-white">
@@ -67,7 +67,7 @@ export default function AssignedDepartmentsDrawer({
                           <Dialog.Title as="h2" className="text-lg font-bold leading-tight text-white">
                             Assigned Departments
                           </Dialog.Title>
-                          <p className="mt-1 truncate text-sm font-medium text-indigo-100">
+                          <p className="mt-1 truncate text-sm font-medium text-[#dbeafe]">
                             Departments assigned to {position?.name ?? 'this position'}
                           </p>
                         </div>
@@ -86,7 +86,7 @@ export default function AssignedDepartmentsDrawer({
                   <div className="flex-1 overflow-y-auto px-6 py-5">
                     {isFetching ? (
                       <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
+                        <Loader2 className="h-10 w-10 animate-spin text-[#2463eb]" />
                         <p className="mt-4 text-sm font-semibold text-slate-600">Loading assigned departments...</p>
                       </div>
                     ) : isError ? (
@@ -122,7 +122,7 @@ export default function AssignedDepartmentsDrawer({
                             {departments.map((department) => (
                               <tr key={department.departmentId}>
                                 <td className="px-4 py-4 text-sm">
-                                  <span className="font-mono font-semibold text-indigo-700">
+                                  <span className="font-mono font-semibold text-[#2463eb]">
                                     {department.departmentCode}
                                   </span>
                                 </td>

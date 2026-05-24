@@ -49,10 +49,10 @@ function LevelCodeModal({ isOpen, onClose, onSubmit, levelCode, existingCodes, i
           <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
             <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" enterTo="opacity-100 translate-y-0 sm:scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 translate-y-0 sm:scale-100" leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
               <Dialog.Panel className="w-full max-w-xl transform overflow-hidden rounded-3xl bg-white shadow-2xl transition-all">
-                <div className="px-6 py-5 sm:px-8 border-b border-slate-200 bg-gradient-to-r from-indigo-500/5 to-purple-500/5">
+                <div className="px-6 py-5 sm:px-8 border-b border-slate-200 bg-gradient-to-r from-[#2463eb]/5 to-[#1d4ed8]/5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-200">
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#dbeafe]">
                         {isEdit ? <Layers className="w-5 h-5 text-white" /> : <Plus className="w-5 h-5 text-white" />}
                       </div>
                       <Dialog.Title className="text-xl font-bold text-slate-900">{isEdit ? 'Edit Level Code' : 'Create Level Code'}</Dialog.Title>
@@ -67,13 +67,13 @@ function LevelCodeModal({ isOpen, onClose, onSubmit, levelCode, existingCodes, i
                   <div className="px-6 py-6 sm:px-8 space-y-5">
                     <div className="space-y-2">
                       <label className="text-sm font-semibold text-slate-700 flex items-center gap-2"><Hash className="w-4 h-4 text-slate-400" />Level Code<span className="text-red-500">*</span></label>
-                      <input {...register('code')} disabled={isEdit} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500" placeholder="e.g. L10" />
+                      <input {...register('code')} disabled={isEdit} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#dbeafe] focus:border-[#2463eb] focus:outline-none disabled:bg-slate-100 disabled:text-slate-500" placeholder="e.g. L10" />
                       {errors.code && <p className="text-sm text-red-500">{errors.code.message}</p>}
                     </div>
                   </div>
                   <div className="px-6 py-4 sm:px-8 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100/50 flex justify-end gap-3">
                     <button type="button" onClick={onClose} disabled={isSubmitting} className="px-5 py-3 text-sm font-semibold text-slate-700 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-50">Cancel</button>
-                    <button type="submit" disabled={isSubmitting || isLoading} className="px-5 py-3 text-sm font-semibold text-white rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 flex items-center gap-2">
+                    <button type="submit" disabled={isSubmitting || isLoading} className="px-5 py-3 text-sm font-semibold text-white rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] disabled:opacity-50 flex items-center gap-2">
                       <Check className="w-4 h-4" />
                       {isEdit ? 'Update Level Code' : 'Create Level Code'}
                     </button>

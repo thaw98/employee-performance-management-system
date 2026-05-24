@@ -1,14 +1,17 @@
-
 import { Target, TrendingUp, Award, Calendar } from 'lucide-react';
 import { useGetMyLatestKpisQuery } from '../../features/kpi/kpiApi';
+import { KPI_CHART_COLORS, kpisGradientBr } from '../../features/kpi/kpisTheme';
 
 export function MyKpisPage() {
   const { data: kpis, isLoading } = useGetMyLatestKpisQuery();
 
+  const totalWeight = kpis?.reduce((acc, curr) => acc + (curr.weight || 0), 0) || 0;
+  const weightComplete = totalWeight === 100;
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-10 h-10 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin"></div>
+        <div className="w-10 h-10 border-4 border-[#dbeafe] border-t-[#2463eb] rounded-full animate-spin" />
       </div>
     );
   }
@@ -28,7 +31,7 @@ export function MyKpisPage() {
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total KPIs</p>
             <h3 className="text-3xl font-black text-slate-900">{kpis?.length || 0}</h3>
           </div>
-          <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-[#2463eb]/20 ${kpisGradientBr}`}>
             <Target size={24} />
           </div>
         </div>
@@ -42,7 +45,7 @@ export function MyKpisPage() {
                 : '0.0'}
             </h3>
           </div>
-          <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-[#2463eb]/20 ${kpisGradientBr}`}>
             <TrendingUp size={24} />
           </div>
         </div>
@@ -50,17 +53,15 @@ export function MyKpisPage() {
         <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Weight</p>
-            <h3 className={`text-3xl font-black ${(kpis?.reduce((acc, curr) => acc + (curr.weight || 0), 0) || 0) === 100
-                ? 'text-emerald-600'
-                : 'text-amber-600'
-              }`}>
-              {kpis?.reduce((acc, curr) => acc + (curr.weight || 0), 0) || 0}%
+            <h3 className={`text-3xl font-black ${weightComplete ? 'text-emerald-600' : 'text-amber-600'}`}>
+              {totalWeight}%
             </h3>
           </div>
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${(kpis?.reduce((acc, curr) => acc + (curr.weight || 0), 0) || 0) === 100
-              ? 'bg-emerald-50 text-emerald-600'
-              : 'bg-amber-50 text-amber-600'
-            }`}>
+          <div
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+              weightComplete ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+            }`}
+          >
             <Award size={24} />
           </div>
         </div>
@@ -72,7 +73,7 @@ export function MyKpisPage() {
             <h3 className="text-xl font-black text-slate-900 tracking-tight">Weight Breakdown</h3>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">How each indicator contributes to your final score</p>
           </div>
-          {(kpis?.reduce((acc, curr) => acc + (curr.weight || 0), 0) || 0) !== 100 && (
+          {!weightComplete && (
             <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 animate-pulse">
               <Calendar size={14} />
               <span className="text-[10px] font-black uppercase">Configuration Incomplete (Total Weight != 100%)</span>
@@ -84,12 +85,10 @@ export function MyKpisPage() {
           {kpis?.map((kpi, idx) => (
             <div
               key={kpi.id}
-              className={`h-full transition-all duration-1000 ease-out hover:opacity-80 cursor-help border-r border-white/20 last:border-0`}
+              className="h-full transition-all duration-1000 ease-out hover:opacity-80 cursor-help border-r border-white/20 last:border-0"
               style={{
                 width: `${kpi.weight}%`,
-                backgroundColor: [
-                  '#0855BF', '#10B981', '#6366F1', '#F59E0B', '#EC4899', '#8B5CF6', '#14B8A6'
-                ][idx % 7]
+                backgroundColor: KPI_CHART_COLORS[idx % KPI_CHART_COLORS.length],
               }}
               title={`${kpi.name}: ${kpi.weight}%`}
             />
@@ -100,24 +99,22 @@ export function MyKpisPage() {
           {kpis?.map((kpi, idx) => (
             <div key={kpi.id} className="flex items-center gap-2">
               <div
-                className="w-2 h-2 rounded-full flex-shrink-0"
+                className="w-2 h-2 rounded-full shrink-0"
                 style={{
-                  backgroundColor: [
-                    '#0855BF', '#10B981', '#6366F1', '#F59E0B', '#EC4899', '#8B5CF6', '#14B8A6'
-                  ][idx % 7]
+                  backgroundColor: KPI_CHART_COLORS[idx % KPI_CHART_COLORS.length],
                 }}
               />
-              <span className="text-[9px] font-black text-slate-500 uppercase truncate" title={kpi.name}>
+              <span className="text-xs font-black text-slate-500 uppercase truncate" title={kpi.name}>
                 {kpi.name}
               </span>
-              <span className="text-[9px] font-black text-slate-900 ml-auto">{kpi.weight}%</span>
+              <span className="text-xs font-black text-slate-900 ml-auto">{kpi.weight}%</span>
             </div>
           ))}
         </div>
       </div>
 
       <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-slate-50">
+        <div className="p-8 border-b border-slate-50 bg-[#eff6ff]/50">
           <h3 className="text-lg font-black text-slate-900">KPI Details</h3>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Performance breakdown for the current period</p>
         </div>
@@ -125,7 +122,7 @@ export function MyKpisPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
+              <tr className="bg-[#eff6ff]/60 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-[#bfdbfe]/50">
                 <th className="py-4 px-8">KPI Name</th>
                 <th className="py-4 px-4 text-center">Weight</th>
                 <th className="py-4 px-4 text-center">Target</th>
@@ -136,10 +133,10 @@ export function MyKpisPage() {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {kpis?.map((kpi) => (
-                <tr key={kpi.id} className="hover:bg-slate-50/30 transition-colors group">
+                <tr key={kpi.id} className="hover:bg-[#eff6ff]/30 transition-colors group">
                   <td className="py-6 px-8">
                     <div>
-                      <h4 className="text-sm font-black text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors uppercase">{kpi.name}</h4>
+                      <h4 className="text-sm font-black text-slate-900 tracking-tight group-hover:text-[#2463eb] transition-colors uppercase">{kpi.name}</h4>
                       <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5 tracking-wider">{kpi.category}</p>
                     </div>
                   </td>
@@ -157,8 +154,15 @@ export function MyKpisPage() {
                     {kpi.actual || '—'}
                   </td>
                   <td className="py-6 px-4 text-center">
-                    <span className={`text-sm font-black ${(kpi.score || 0) >= 80 ? 'text-emerald-600' : (kpi.score || 0) >= 60 ? 'text-blue-600' : 'text-amber-600'
-                      }`}>
+                    <span
+                      className={`text-sm font-black ${
+                        (kpi.score || 0) >= 80
+                          ? 'text-emerald-600'
+                          : (kpi.score || 0) >= 60
+                            ? 'text-[#2463eb]'
+                            : 'text-amber-600'
+                      }`}
+                    >
                       {kpi.score || '0.0'}
                     </span>
                   </td>
@@ -170,14 +174,15 @@ export function MyKpisPage() {
                 </tr>
               ))}
               {kpis && kpis.length > 0 && (
-                <tr className="bg-slate-50/50 font-black">
+                <tr className="bg-[#eff6ff]/40 font-black">
                   <td className="py-6 px-8 text-slate-900 uppercase tracking-widest text-[10px]">Total Aggregate</td>
                   <td className="py-6 px-4 text-center">
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] ${kpis.reduce((acc, curr) => acc + (curr.weight || 0), 0) === 100
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-amber-100 text-amber-700'
-                      }`}>
-                      {kpis.reduce((acc, curr) => acc + (curr.weight || 0), 0)}%
+                    <span
+                      className={`px-2.5 py-1 rounded-lg text-[10px] ${
+                        weightComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {totalWeight}%
                     </span>
                   </td>
                   <td className="py-6 px-4" />
@@ -185,7 +190,7 @@ export function MyKpisPage() {
                   <td className="py-6 px-4" />
                   <td className="py-6 px-8 text-right">
                     <div className="flex flex-col items-end">
-                      <span className="text-lg text-blue-600 tracking-tight">
+                      <span className="text-lg text-[#2463eb] tracking-tight">
                         {kpis.reduce((acc, curr) => acc + (curr.weightedScore || 0), 0).toFixed(1)}
                       </span>
                       <span className="text-[8px] text-slate-400 uppercase tracking-tighter">Total Score</span>

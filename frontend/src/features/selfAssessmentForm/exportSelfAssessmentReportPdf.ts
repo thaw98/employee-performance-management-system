@@ -35,7 +35,7 @@ const addTable = (doc: jsPDF, y: number, head: string[][], body: (string | numbe
     head,
     body: body.length ? body : [['No data']],
     styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-    headStyles: { fillColor: [17, 94, 89], textColor: 255, fontStyle: 'bold' },
+    headStyles: { fillColor: [36, 99, 235], textColor: 255, fontStyle: 'bold' },
   })
   return lastY(doc) + 8
 }

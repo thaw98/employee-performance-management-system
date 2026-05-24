@@ -41,7 +41,7 @@ export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview, spouse
       {/* ── Employee Information ── */}
       <section className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3 border-b border-slate-100 bg-linear-to-r from-slate-50 to-white px-6 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#eff6ff] text-[#2463eb]">
             <UserCheck size={18} />
           </div>
           <h3 className="text-base font-bold text-slate-900">Employee Information</h3>
@@ -102,7 +102,7 @@ export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview, spouse
       {/* ── Employment Information ── */}
       <section className="overflow-hidden rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3 border-b border-slate-100 bg-linear-to-r from-slate-50 to-white px-6 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#eff6ff] text-[#2463eb]">
             <Briefcase size={18} />
           </div>
           <h3 className="text-base font-bold text-slate-900">Employment Information</h3>
@@ -129,24 +129,24 @@ export function ReviewConfirmStep({ values, nrcPreview, fatherNrcPreview, spouse
       </section>
 
       {/* ── Account Summary ── */}
-      <section className="overflow-hidden rounded-xl border border-teal-200/60 bg-linear-to-r from-teal-50 to-emerald-50 shadow-sm">
+      <section className="overflow-hidden rounded-xl border border-[#dbeafe] bg-linear-to-r from-[#eff6ff] to-[#dbeafe] shadow-sm">
         <div className="flex items-start gap-4 px-6 py-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500 text-white shadow-md shadow-teal-500/25">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2463eb] text-white shadow-md shadow-[#2463eb]/25">
             <ShieldCheck size={20} />
           </div>
           <div>
-            <h3 className="text-base font-bold text-teal-900">Account Summary</h3>
-            <p className="mt-1.5 text-sm leading-relaxed text-teal-800/80">
-              A new login will be created for <strong className="text-teal-900">{values.email}</strong> with
-              the access role for this position: <strong className="text-teal-900">{roleLabel}</strong> (set from the
+            <h3 className="text-base font-bold text-[#1e3a8a]">Account Summary</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-[#1d4ed8]/80">
+              A new login will be created for <strong className="text-[#1e3a8a]">{values.email}</strong> with
+              the access role for this position: <strong className="text-[#1e3a8a]">{roleLabel}</strong> (set from the
               position; not editable here).
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-teal-800/80">
+            <p className="mt-1 text-sm leading-relaxed text-[#1d4ed8]/80">
               A temporary password will be generated and emailed — it is not shown on this screen.
             </p>
             <div className="mt-3 flex items-center gap-2 rounded-lg bg-white/60 px-3 py-2">
-              <ShieldCheck size={14} className="text-teal-600" />
-              <p className="text-xs font-medium text-teal-700">
+              <ShieldCheck size={14} className="text-[#2463eb]" />
+              <p className="text-xs font-medium text-[#1d4ed8]">
                 The employee must change their password on first login.
               </p>
             </div>

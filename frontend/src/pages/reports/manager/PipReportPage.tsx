@@ -29,6 +29,16 @@ import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../../..
 import type { RootState } from '../../../app/store'
 import { Download, FileText, BarChart3, Filter, X, Calendar, User, Target, Clock, TrendingUp } from 'lucide-react'
 import { skipToken } from '@reduxjs/toolkit/query'
+import {
+  MANAGER_REPORT_PRIMARY,
+  managerReportBtnPrimary,
+  managerReportIconHover,
+  managerReportLink,
+  managerReportProgressBar,
+  managerReportStatPrimary,
+  managerReportStatPrimaryValue,
+  managerReportTabActive,
+} from '../managerReportsTheme'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -40,16 +50,16 @@ const STATUS_OPTIONS = [
 ]
 
 const COLORS = {
-  ACTIVE: '#3b82f6',
+  ACTIVE: MANAGER_REPORT_PRIMARY,
   COMPLETED: '#10b981',
-  CLOSED: '#6b7280',
+  CLOSED: '#6366f1',
   AUTO_CLOSED: '#f59e0b',
   REOPEN_REQUESTED: '#f97316',
   DENIED: '#ef4444',
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'bg-blue-100 text-blue-700',
+  ACTIVE: 'bg-[#eff6ff] text-[#1d4ed8] dark:bg-[#1e3a8a]/30 dark:text-[#93c5fd]',
   AUTO_CLOSED: 'bg-amber-100 text-amber-700',
   REOPEN_REQUESTED: 'bg-orange-100 text-orange-700',
   COMPLETED: 'bg-emerald-100 text-emerald-700',
@@ -71,7 +81,7 @@ const getStatusColorClass = (status: string, finalOutcome?: string) => {
 }
 
 const getProgressColorClass = (progress: number) => (
-  progress >= 70 ? 'bg-green-500' : progress >= 30 ? 'bg-blue-500' : 'bg-orange-500'
+  progress >= 30 ? managerReportProgressBar : 'bg-orange-500'
 )
 
 const formatDateValue = (value?: string) => {
@@ -243,11 +253,11 @@ export default function PipReportPage() {
   const pieChartData = useMemo(() => {
     if (!progressData) return []
     return [
-      { name: 'Active', value: progressData.activePips, color: '#f59e0b' },
-      { name: 'Completed', value: progressData.completedPips, color: '#10b981' },
-      { name: 'Closed', value: progressData.closedPips, color: '#6b7280' },
-      { name: 'Auto Closed', value: progressData.autoClosedPips, color: '#9ca3af' },
-      { name: 'Reopen', value: progressData.reopenRequestedPips, color: '#3b82f6' },
+      { name: 'Active', value: progressData.activePips, color: COLORS.ACTIVE },
+      { name: 'Completed', value: progressData.completedPips, color: COLORS.COMPLETED },
+      { name: 'Closed', value: progressData.closedPips, color: COLORS.CLOSED },
+      { name: 'Auto Closed', value: progressData.autoClosedPips, color: COLORS.AUTO_CLOSED },
+      { name: 'Reopen', value: progressData.reopenRequestedPips, color: COLORS.REOPEN_REQUESTED },
     ].filter(item => item.value > 0)
   }, [progressData])
 
@@ -395,7 +405,7 @@ export default function PipReportPage() {
               onClick={() => setActiveTab('summary')}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'summary'
-                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                  ? managerReportTabActive
                   : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
@@ -406,7 +416,7 @@ export default function PipReportPage() {
               onClick={() => setActiveTab('progress')}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'progress'
-                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                  ? managerReportTabActive
                   : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
@@ -426,7 +436,7 @@ export default function PipReportPage() {
                     type="button"
                     onClick={() => handleDownloadSummaryReport('pdf')}
                     disabled={reportDownload !== null}
-                    className="flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${managerReportBtnPrimary}`}
                   >
                     <Download size={16} />
                     {reportDownload === 'summary-pdf' ? 'Downloading...' : 'PDF'}
@@ -435,7 +445,7 @@ export default function PipReportPage() {
                     type="button"
                     onClick={() => handleDownloadSummaryReport('excel')}
                     disabled={reportDownload !== null}
-                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${managerReportBtnPrimary}`}
                   >
                     <FileText size={16} />
                     {reportDownload === 'summary-excel' ? 'Downloading...' : 'Excel'}
@@ -452,8 +462,8 @@ export default function PipReportPage() {
                   <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{summaryStats.totalEmployees}</div>
                   <div className="text-sm text-slate-500 dark:text-slate-400">Total Employees</div>
                 </div>
-                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
-                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{summaryStats.active}</div>
+                <div className={managerReportStatPrimary}>
+                  <div className={managerReportStatPrimaryValue}>{summaryStats.active}</div>
                   <div className="text-sm text-slate-500 dark:text-slate-400">Active</div>
                 </div>
                 <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4">
@@ -504,7 +514,7 @@ export default function PipReportPage() {
                           <Tooltip
                             contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                           />
-                          <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="count" fill={MANAGER_REPORT_PRIMARY} radius={[0, 4, 4, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -538,7 +548,7 @@ export default function PipReportPage() {
                           <td className="py-3 px-4 text-slate-900 dark:text-slate-100">
                             <button
                               onClick={() => setSelectedPipId(Number(item.pipId))}
-                              className="text-amber-600 hover:text-amber-700 font-medium hover:underline"
+                              className={managerReportLink}
                             >
                               {item.employeeName}
                             </button>
@@ -569,14 +579,14 @@ export default function PipReportPage() {
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => handleDownloadReport(item.pipId, 'pdf')}
-                                className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded"
+                                className={managerReportIconHover}
                                 title="Download PDF"
                               >
                                 <Download size={16} />
                               </button>
                               <button
                                 onClick={() => handleDownloadReport(item.pipId, 'excel')}
-                                className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded"
+                                className={managerReportIconHover}
                                 title="Download Excel"
                               >
                                 <FileText size={16} />
@@ -601,7 +611,7 @@ export default function PipReportPage() {
                     type="button"
                     onClick={() => handleDownloadProgressReport('pdf')}
                     disabled={reportDownload !== null}
-                    className="flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${managerReportBtnPrimary}`}
                   >
                     <Download size={16} />
                     {reportDownload === 'progress-pdf' ? 'Downloading...' : 'PDF'}
@@ -610,7 +620,7 @@ export default function PipReportPage() {
                     type="button"
                     onClick={() => handleDownloadProgressReport('excel')}
                     disabled={reportDownload !== null}
-                    className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${managerReportBtnPrimary}`}
                   >
                     <FileText size={16} />
                     {reportDownload === 'progress-excel' ? 'Downloading...' : 'Excel'}
@@ -631,8 +641,8 @@ export default function PipReportPage() {
                       <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{progressData.totalEmployees}</div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">Total Employees</div>
                     </div>
-                    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
-                      <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{progressData.activePips}</div>
+                    <div className={managerReportStatPrimary}>
+                      <div className={managerReportStatPrimaryValue}>{progressData.activePips}</div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">Active</div>
                     </div>
                     <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4">
@@ -654,8 +664,8 @@ export default function PipReportPage() {
                       <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{progressData.hoursCompletionPercentage?.toFixed(1)}%</div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">Hours Completion</div>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{progressData.reopenRequestedPips}</div>
+                    <div className={managerReportStatPrimary}>
+                      <div className={managerReportStatPrimaryValue}>{progressData.reopenRequestedPips}</div>
                       <div className="text-sm text-slate-500 dark:text-slate-400">Reopen Requested</div>
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
@@ -710,7 +720,7 @@ export default function PipReportPage() {
                             </div>
                             <div className="w-full h-4 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-500"
+                                className={`h-full transition-all duration-500 ${managerReportProgressBar}`}
                                 style={{ width: `${hoursProgress}%` }}
                               />
                             </div>
@@ -851,7 +861,7 @@ export default function PipReportPage() {
                             </div>
                             <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-amber-500 rounded-full"
+                                className={managerReportProgressBar}
                                 style={{ width: `${obj.progressPercentage}%` }}
                               />
                             </div>
@@ -878,14 +888,14 @@ export default function PipReportPage() {
                   <div className="flex gap-2 pt-4">
                     <button
                       onClick={() => handleDownloadReport(selectedPipId, 'pdf')}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium"
+                      className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-medium ${managerReportBtnPrimary}`}
                     >
                       <Download size={18} />
                       Download PDF
                     </button>
                     <button
                       onClick={() => handleDownloadReport(selectedPipId, 'excel')}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
+                      className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-medium ${managerReportBtnPrimary}`}
                     >
                       <FileText size={18} />
                       Download Excel

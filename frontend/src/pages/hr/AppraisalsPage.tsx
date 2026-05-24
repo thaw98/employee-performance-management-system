@@ -20,8 +20,14 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, ChevronDown, HelpCircle, GripVertical, RotateCcw, Calendar, Clock, Users, Filter, FileSpreadsheet, FileText, Send, Building2, Check, RefreshCcw, History } from 'lucide-react';
 import { SelfAssessmentReviewCycleInfo, formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
+import {
+    APPRAISAL_PRIMARY,
+    appraisalGradientBtn,
+    appraisalGradientCard,
+    appraisalGradientHeader,
+} from '../../features/appraisals/appraisalTheme';
 
-const PRIMARY = '#0855BF';
+const PRIMARY = APPRAISAL_PRIMARY;
 
 interface Category {
     id?: number;
@@ -99,7 +105,7 @@ function SortableCategoryRow({ category, index, isConfirmed, onConfirm, onEdit, 
                 </div>
             </td>
             <td className="p-6">
-                <div className="font-black text-slate-700 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{category.name}</div>
+                <div className="font-black text-slate-700 group-hover:text-[#2463eb] transition-colors uppercase tracking-tight">{category.name}</div>
                 <div className="text-xs text-slate-400 mt-1 font-medium">{category.description}</div>
             </td>
             <td className="p-6 text-center">
@@ -117,7 +123,7 @@ function SortableCategoryRow({ category, index, isConfirmed, onConfirm, onEdit, 
                     >
                         <CheckCircle2 size={18} />
                     </button>
-                    <button onClick={() => onEdit(category)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"><Pencil size={18} /></button>
+                    <button onClick={() => onEdit(category)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-[#eff6ff] hover:text-[#2463eb] transition-all flex items-center justify-center"><Pencil size={18} /></button>
                     <button onClick={() => onDelete(category.id!)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"><Trash2 size={18} /></button>
                 </div>
             </td>
@@ -158,7 +164,7 @@ function SortableQuestionRow({ question, index, onEdit, onDelete }: SortableQues
             </td>
             <td className="p-6 text-center">
                 <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => onEdit(question)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"><Pencil size={18} /></button>
+                    <button onClick={() => onEdit(question)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-[#eff6ff] hover:text-[#2463eb] transition-all flex items-center justify-center"><Pencil size={18} /></button>
                     <button onClick={() => onDelete(question.id!)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"><Trash2 size={18} /></button>
                 </div>
             </td>
@@ -168,11 +174,11 @@ function SortableQuestionRow({ question, index, onEdit, onDelete }: SortableQues
 
 const StepBadge = ({ step, label, icon }: { step: number; label: string; icon: React.ReactNode }) => (
     <div className="flex items-center gap-3 mb-6">
-        <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-100">
+        <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-[#2463eb] text-white shadow-lg shadow-[#dbeafe]">
             <span className="text-xs font-black italic">{step}</span>
         </div>
         <div className="flex items-center gap-2">
-            <div className="text-blue-600">{icon}</div>
+            <div className="text-[#2463eb]">{icon}</div>
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">{label}</h3>
         </div>
         <div className="flex-1 h-px bg-slate-100 ml-4"></div>
@@ -242,10 +248,10 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                         </p>
                         {isFinalizedView && (
                             <div className="flex gap-4 mt-2">
-                                <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tight">ASMT: {formatCycleDate(assessmentDate)}</span>
+                                <span className="text-[10px] font-black text-[#2463eb] bg-[#eff6ff] px-2 py-1 rounded-md uppercase tracking-tight">ASMT: {formatCycleDate(assessmentDate)}</span>
                                 <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md uppercase tracking-tight">EFF: {formatCycleDate(effectiveDate)}</span>
                                 <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-md uppercase tracking-tight">DEADLINE: {formatCycleDate(deadlineDate)}</span>
-                                {reviewCycleId && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tight">CYCLE ID: {reviewCycleId}</span>}
+                                {reviewCycleId && <span className="text-[10px] font-black text-[#2463eb] bg-[#eff6ff] px-2 py-1 rounded-md uppercase tracking-tight">CYCLE ID: {reviewCycleId}</span>}
                                 <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md uppercase tracking-tight">SCALE: 1-{maxRating}</span>
                             </div>
                         )}
@@ -265,7 +271,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                                 {allPositions
                                                     .filter(p => selectedPositionIds.includes(p.id) && p.departmentName === deptName)
                                                     .map(pos => (
-                                                        <span key={pos.id} className="text-[8px] font-black text-blue-500 bg-blue-50/50 px-1.5 py-0.5 rounded border border-blue-100/30 whitespace-nowrap">
+                                                        <span key={pos.id} className="text-[8px] font-black text-blue-500 bg-[#eff6ff]/50 px-1.5 py-0.5 rounded border border-[#dbeafe]/30 whitespace-nowrap">
                                                             {pos.positionName} ({pos.levelCodeName})
                                                         </span>
                                                     ))
@@ -284,7 +290,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                         <div className="relative flex-1 md:w-64">
                             <button
                                 onClick={() => setShowPicker(!showPicker)}
-                                className="w-full flex items-center justify-between px-5 py-3.5 bg-white border-2 border-slate-200 rounded-2xl font-black text-[10px] text-slate-700 uppercase tracking-widest hover:border-blue-400 hover:bg-blue-50/30 hover:text-blue-600 transition-all group shadow-sm"
+                                className="w-full flex items-center justify-between px-5 py-3.5 bg-white border-2 border-slate-200 rounded-2xl font-black text-[10px] text-slate-700 uppercase tracking-widest hover:border-[#60a5fa] hover:bg-[#eff6ff]/30 hover:text-[#2463eb] transition-all group shadow-sm"
                             >
                                 <span>Pick a Category...</span>
                                 <Plus size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
@@ -299,7 +305,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                             <button
                                                 key={ac.id}
                                                 onClick={() => { onAdd(ac.id!); setShowPicker(false); }}
-                                                className="w-full text-left p-4 bg-slate-50/50 hover:bg-blue-600 text-slate-700 hover:text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all mb-2 last:mb-0 border border-transparent hover:border-blue-400 hover:shadow-lg hover:shadow-blue-100 flex items-center justify-between group/item"
+                                                className="w-full text-left p-4 bg-slate-50/50 hover:bg-[#2463eb] text-slate-700 hover:text-white rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all mb-2 last:mb-0 border border-transparent hover:border-[#60a5fa] hover:shadow-lg hover:shadow-[#dbeafe] flex items-center justify-between group/item"
                                             >
                                                 <span>{ac.name}</span>
                                                 <Plus size={14} className="text-slate-300 group-hover/item:text-white transition-colors" />
@@ -316,7 +322,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                             <button
                                 onClick={onConfirm}
                                 disabled={categories.length === 0 || !assessmentDate || !effectiveDate || !deadlineDate || selectedPositionIds.length === 0}
-                                className="flex items-center gap-3 px-8 py-3.5 bg-gradient-to-r from-emerald-500 via-teal-600 to-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(16,185,129,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-emerald-100 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed group"
+                                className={`flex items-center gap-3 px-8 py-3.5 ${appraisalGradientBtn} text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(36,99,235,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-[#dbeafe] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed group`}
                             >
                                 <CheckCircle2 size={18} strokeWidth={3} className="group-hover:rotate-12 transition-transform" /> 
                                 <span>Confirm & Finalize</span>
@@ -333,7 +339,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={onReset}
-                                className="flex items-center gap-3 px-8 py-3.5 bg-white border-2 border-slate-100 text-slate-400 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all shadow-sm"
+                                className="flex items-center gap-3 px-8 py-3.5 bg-white border-2 border-slate-100 text-slate-400 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:border-[#60a5fa] hover:text-[#2463eb] hover:bg-[#eff6ff]/50 transition-all shadow-sm"
                             >
                                 <RotateCcw size={18} /> <span>Modify / Edit</span>
                             </button>
@@ -348,7 +354,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                         toast.error(msg);
                                     }
                                 }}
-                                className="flex items-center gap-3 px-6 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 hover:shadow-[0_20px_40px_rgba(37,99,235,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-blue-100 whitespace-nowrap"
+                                className="flex items-center gap-3 px-6 py-3.5 bg-[#2463eb] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#1d4ed8] hover:shadow-[0_20px_40px_rgba(37,99,235,0.2)] active:scale-[0.98] transition-all shadow-xl shadow-[#dbeafe] whitespace-nowrap"
                             >
                                 <Send size={18} /> <span>To Manager</span>
                             </button>
@@ -361,7 +367,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
             <div className="bg-white rounded-[2rem] border border-slate-200 overflow-x-auto shadow-[0_20px_50px_rgba(8,117,191,0.05)] print:border-slate-800 print:rounded-none print:shadow-none print:border-2 custom-scrollbar">
                 <table className="w-full border-separate border-spacing-0 min-w-[1000px]">
                     <thead>
-                        <tr className="bg-gradient-to-r from-[#0855BF] to-[#0a66e6] print:from-white print:to-white print:text-black">
+                        <tr className={`${appraisalGradientHeader} print:from-white print:to-white print:text-black`}>
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-40 border-b border-blue-400/20 print:text-slate-900 print:border-slate-800 print:border-b-2">Category</th>
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-center w-16 border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">No.</th>
                             <th className="p-5 text-[11px] font-black uppercase tracking-[0.2em] text-blue-100 text-left border-b border-blue-400/20 border-l border-blue-400/10 print:text-slate-900 print:border-slate-800 print:border-b-2 print:border-l-2">Evaluation Criteria & Performance Indicators</th>
@@ -397,19 +403,19 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                             qList.map((q, idx) => {
                                                 const currentIndex = globalIndex++;
                                                 return (
-                                                    <tr key={q.id} className="group transition-all hover:bg-blue-50/30">
+                                                    <tr key={q.id} className="group transition-all hover:bg-[#eff6ff]/30">
                                                         {idx === 0 && (
                                                             <td
                                                                 rowSpan={qList.length}
-                                                                className="p-0 border-r border-slate-100 bg-slate-50/40 align-middle w-40 relative group-hover:bg-blue-50/50 transition-colors print:border-slate-800 print:border-r-2"
+                                                                className="p-0 border-r border-slate-100 bg-slate-50/40 align-middle w-40 relative group-hover:bg-[#eff6ff]/50 transition-colors print:border-slate-800 print:border-r-2"
                                                             >
                                                                 <div className="flex items-center justify-center h-full min-h-[120px] p-4 text-center">
-                                                                    <span className="font-black text-[#0855BF] text-[10px] uppercase tracking-[0.2em] opacity-70 print:text-slate-900 print:opacity-100 italic leading-relaxed">
+                                                                    <span className="font-black text-[#2463eb] text-[10px] uppercase tracking-[0.2em] opacity-70 print:text-slate-900 print:opacity-100 italic leading-relaxed">
                                                                         {cat.name}
                                                                     </span>
                                                                 </div>
                                                                 {/* Accent Line for Category Section */}
-                                                                <div className="absolute left-0 top-4 bottom-4 w-1 bg-blue-500 rounded-r-full print:hidden" />
+                                                                <div className="absolute left-0 top-4 bottom-4 w-1 bg-[#eff6ff]0 rounded-r-full print:hidden" />
                                                             </td>
                                                         )}
                                                         <td className="p-6 text-center border-r border-slate-100 border-b border-slate-50 font-black text-slate-400 group-hover:text-blue-500 transition-colors w-16 print:border-slate-800 print:border-r-2 print:border-b-2 print:text-slate-900">
@@ -423,14 +429,14 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                                                         </td>
                                                         {/* DYNAMIC RATING BOXES */}
                                                         {Array.from({ length: maxRating }, (_, i) => maxRating - i).map(num => (
-                                                            <td key={num} className="p-6 text-center border-l border-slate-50 border-b border-slate-50 group-hover:bg-blue-50/20 transition-all print:border-slate-800 print:border-l-2 print:border-b-2">
+                                                            <td key={num} className="p-6 text-center border-l border-slate-50 border-b border-slate-50 group-hover:bg-[#eff6ff]/20 transition-all print:border-slate-800 print:border-l-2 print:border-b-2">
                                                                 <div className="w-6 h-6 rounded-lg border-2 border-slate-200 mx-auto transition-all group-hover:border-blue-200 print:border-slate-900 print:w-5 print:h-5 print:rounded-sm" />
                                                             </td>
                                                         ))}
                                                         {!isFinalizedView && idx === 0 && (
                                                             <td 
                                                                 rowSpan={qList.length} 
-                                                                className="p-6 text-center border-l border-slate-100 align-middle w-24 bg-slate-50/20 group-hover:bg-blue-50/40 transition-colors"
+                                                                className="p-6 text-center border-l border-slate-100 align-middle w-24 bg-slate-50/20 group-hover:bg-[#eff6ff]/40 transition-colors"
                                                             >
                                                                 <button
                                                                     onClick={() => onRemove(cat.id!)}
@@ -476,7 +482,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                 <div className="p-10 bg-slate-50/50 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-12 print:border-t-2 print:border-slate-800 print:bg-white print:p-6">
                     <div className="space-y-4 max-w-md">
                         <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                            <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
+                            <div className="w-1.5 h-6 bg-[#2463eb] rounded-full" />
                             Scoring Methodology
                         </h4>
                         <p className="text-xs text-slate-500 font-medium leading-relaxed">
@@ -486,7 +492,7 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-6 w-full md:w-auto">
-                        <div className="flex-1 bg-white p-6 rounded-3xl border border-shadow-sm border-slate-200 shadow-sm shadow-blue-100/50 min-w-[200px] flex flex-col items-center justify-center text-center space-y-1 print:border-2 print:border-slate-800 print:rounded-none">
+                        <div className="flex-1 bg-white p-6 rounded-3xl border border-shadow-sm border-slate-200 shadow-sm shadow-[#dbeafe]/50 min-w-[200px] flex flex-col items-center justify-center text-center space-y-1 print:border-2 print:border-slate-800 print:rounded-none">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Total Points</span>
                             <div className="text-3xl font-black text-slate-800 italic">
                                 {Object.values(allQuestions).flat().length > 0 ? "Sum" : "0"}
@@ -495,12 +501,12 @@ function ConfirmedAppraisalView({ categories, allAvailableCategories, onAdd, onR
                             </div>
                         </div>
 
-                        <div className="flex-1 bg-gradient-to-br from-blue-600 to-blue-800 p-6 rounded-3xl min-w-[220px] flex flex-col items-center justify-center text-center space-y-1 shadow-2xl shadow-blue-200 border-2 border-blue-500/20 print:bg-white print:border-2 print:border-slate-800 print:text-black print:rounded-none print:shadow-none">
+                        <div className={`flex-1 ${appraisalGradientCard} p-6 rounded-3xl min-w-[220px] flex flex-col items-center justify-center text-center space-y-1 shadow-2xl shadow-[#dbeafe] border-2 border-[#2463eb]/20 print:bg-white print:border-2 print:border-slate-800 print:text-black print:rounded-none print:shadow-none`}>
                             <span className="text-[10px] font-black text-blue-100 uppercase tracking-[0.2em] print:text-slate-500">Total Score Rate</span>
                             <div className="text-4xl font-black text-white flex items-baseline gap-1 print:text-slate-900 italic">
                                 0.0<span className="text-xl opacity-60">%</span>
                             </div>
-                            <div className="px-3 py-1 bg-blue-500/30 rounded-lg text-[9px] font-black text-white uppercase tracking-widest border border-white/10 mt-2 print:text-slate-900 print:border-slate-800">
+                            <div className="px-3 py-1 bg-[#eff6ff]0/30 rounded-lg text-[9px] font-black text-white uppercase tracking-widest border border-white/10 mt-2 print:text-slate-900 print:border-slate-800">
                                 Result Category
                             </div>
                         </div>
@@ -898,19 +904,19 @@ export function AppraisalsPage() {
                 <div className="flex bg-slate-100 p-1.5 rounded-2xl">
                     <button 
                         onClick={() => setActiveTab('category')}
-                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'category' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'category' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         CATEGORY
                     </button>
                     <button 
                         onClick={() => setActiveTab('questions')}
-                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'questions' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'questions' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         QUESTIONS
                     </button>
                     <button
                         onClick={() => setActiveTab('confirmed')}
-                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'confirmed' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'confirmed' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         REVIEW & FINALIZE
                     </button>
@@ -919,7 +925,7 @@ export function AppraisalsPage() {
                             setSelectedTemplateId(null);
                             setActiveTab('finalized');
                         }}
-                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'finalized' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`px-6 py-3 rounded-xl text-xs font-black transition-all ${activeTab === 'finalized' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         CONFIRMED APPRAISAL
                     </button>
@@ -932,7 +938,7 @@ export function AppraisalsPage() {
                     <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm space-y-6 print:hidden">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                             <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 bg-blue-600 text-white rounded-[22px] flex items-center justify-center shadow-lg shadow-blue-100">
+                                <div className="w-14 h-14 bg-[#2463eb] text-white rounded-[22px] flex items-center justify-center shadow-lg shadow-[#dbeafe]">
                                     <History size={28} />
                                 </div>
                                 <div>
@@ -951,7 +957,7 @@ export function AppraisalsPage() {
                             ) : (
                                 <button 
                                     onClick={() => setActiveTab('category')}
-                                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-slate-100 text-slate-400 rounded-2xl font-black text-[11px] hover:border-blue-400 hover:text-blue-600 transition-all uppercase tracking-widest group"
+                                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-slate-100 text-slate-400 rounded-2xl font-black text-[11px] hover:border-[#60a5fa] hover:text-[#2463eb] transition-all uppercase tracking-widest group"
                                 >
                                     <ChevronRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" /> Back to Management
                                 </button>
@@ -966,14 +972,14 @@ export function AppraisalsPage() {
                                         placeholder="SEARCH TEMPLATES BY NAME..."
                                         value={historySearchTerm}
                                         onChange={(e) => setHistorySearchTerm(e.target.value)}
-                                        className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-6 py-4 text-xs font-black text-slate-700 focus:bg-white focus:border-blue-500 transition-all outline-none uppercase tracking-widest"
+                                        className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-6 py-4 text-xs font-black text-slate-700 focus:bg-white focus:border-[#2463eb] transition-all outline-none uppercase tracking-widest"
                                     />
                                     <Filter className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                                 </div>
                                 <select 
                                     value={historyYearFilter}
                                     onChange={(e) => setHistoryYearFilter(e.target.value)}
-                                    className="bg-slate-50 border-2 border-slate-50 rounded-2xl px-6 py-4 text-xs font-black text-slate-700 outline-none focus:border-blue-500 transition-all uppercase tracking-widest"
+                                    className="bg-slate-50 border-2 border-slate-50 rounded-2xl px-6 py-4 text-xs font-black text-slate-700 outline-none focus:border-[#2463eb] transition-all uppercase tracking-widest"
                                 >
                                     <option value="All">All Years</option>
                                     {Array.from(new Set(allTemplates.filter(t => t.assessmentDate && typeof t.assessmentDate === 'string').map(t => t.assessmentDate.split(t.assessmentDate.includes('-') ? '-' : '/')[0]))).sort().reverse().map(year => (
@@ -1003,10 +1009,10 @@ export function AppraisalsPage() {
                                             <div className="flex items-start justify-between">
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{t.assessmentDate ? formatCycleDate(t.assessmentDate) : 'N/A'}</span>
+                                                        <span className="text-[10px] font-black text-[#2463eb] bg-[#eff6ff] px-2 py-0.5 rounded uppercase">{t.assessmentDate ? formatCycleDate(t.assessmentDate) : 'N/A'}</span>
                                                         {t.isActive && <span className="text-[10px] font-black text-white bg-emerald-500 px-2 py-0.5 rounded uppercase animate-pulse">Active</span>}
                                                     </div>
-                                                    <h4 className="text-sm font-black text-slate-800 uppercase leading-tight group-hover:text-blue-600 transition-colors">{t.name}</h4>
+                                                    <h4 className="text-sm font-black text-slate-800 uppercase leading-tight group-hover:text-[#2463eb] transition-colors">{t.name}</h4>
                                                     <div className="flex items-center gap-1.5 mt-1.5">
                                                         <Clock size={10} className="text-slate-300" />
                                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
@@ -1014,7 +1020,7 @@ export function AppraisalsPage() {
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-400 transition-all">
+                                                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-300 group-hover:bg-[#eff6ff] group-hover:text-blue-400 transition-all">
                                                     <FileText size={20} />
                                                 </div>
                                             </div>
@@ -1042,7 +1048,7 @@ export function AppraisalsPage() {
                                                         setHistoryPositionIds(t.positionIds || []);
                                                         setHistoryMaxRating(t.maxRating || 10);
                                                     }}
-                                                    className="flex-1 py-3.5 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-blue-600 transition-all shadow-md shadow-slate-200"
+                                                    className="flex-1 py-3.5 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-[#2463eb] transition-all shadow-md shadow-slate-200"
                                                 >
                                                     View Details
                                                 </button>
@@ -1105,7 +1111,7 @@ export function AppraisalsPage() {
                                                 setHistoryPage(prev => prev - 1);
                                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                                             }}
-                                            className="w-10 h-10 rounded-xl border border-slate-100 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all"
+                                            className="w-10 h-10 rounded-xl border border-slate-100 flex items-center justify-center text-slate-400 hover:bg-[#2463eb] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all"
                                         >
                                             <ChevronRight size={18} className="rotate-180" />
                                         </button>
@@ -1121,7 +1127,7 @@ export function AppraisalsPage() {
                                                     setHistoryPage(page);
                                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                                 }}
-                                                className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${historyPage === page ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-slate-400 hover:bg-slate-50'}`}
+                                                className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${historyPage === page ? 'bg-[#2463eb] text-white shadow-lg shadow-[#dbeafe]' : 'text-slate-400 hover:bg-slate-50'}`}
                                             >
                                                 {page}
                                             </button>
@@ -1137,7 +1143,7 @@ export function AppraisalsPage() {
                                                 setHistoryPage(prev => prev + 1);
                                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                                             }}
-                                            className="w-10 h-10 rounded-xl border border-slate-100 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all"
+                                            className="w-10 h-10 rounded-xl border border-slate-100 flex items-center justify-center text-slate-400 hover:bg-[#2463eb] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all"
                                         >
                                             <ChevronRight size={18} />
                                         </button>
@@ -1187,8 +1193,8 @@ export function AppraisalsPage() {
                     <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <StepBadge step={1} label="Cycle Selection" icon={<RotateCcw size={18} />} />
                         
-                        <div className={`flex items-center gap-6 p-6 rounded-[32px] border-2 transition-all ${!selectedCycleId ? 'bg-slate-50/50 border-slate-100' : 'bg-blue-50/20 border-blue-100'}`}>
-                            <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center shadow-sm ${!selectedCycleId ? 'bg-white text-slate-300' : 'bg-white text-blue-600'}`}>
+                        <div className={`flex items-center gap-6 p-6 rounded-[32px] border-2 transition-all ${!selectedCycleId ? 'bg-slate-50/50 border-slate-100' : 'bg-[#eff6ff]/20 border-[#dbeafe]'}`}>
+                            <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center shadow-sm ${!selectedCycleId ? 'bg-white text-slate-300' : 'bg-white text-[#2463eb]'}`}>
                                 <Calendar size={32} />
                             </div>
                             <div className="flex-1 space-y-2">
@@ -1208,7 +1214,7 @@ export function AppraisalsPage() {
                                                 }
                                             }
                                         }}
-                                        className="w-full text-xl font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer appearance-none"
+                                        className="w-full text-xl font-black text-slate-800 bg-transparent border-none p-0 pr-10 focus:ring-0 cursor-pointer appearance-none"
                                     >
                                         <option value="">Manual Date Entry (Not Recommended)</option>
                                         {reviewCycles.map(c => (
@@ -1217,8 +1223,8 @@ export function AppraisalsPage() {
                                             </option>
                                         ))}
                                     </select>
-                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300">
-                                        <ChevronDown size={24} />
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                                        <ChevronDown size={24} strokeWidth={2.5} />
                                     </div>
                                 </div>
                             </div>
@@ -1234,7 +1240,7 @@ export function AppraisalsPage() {
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {/* Assessment Date Card */}
-                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!assessmentDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-transparent hover:border-blue-100'}`}>
+                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!assessmentDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-[#dbeafe]'}`}>
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                     <Calendar size={12} className="text-blue-500" /> Assessment Date {!assessmentDate && '*'}
                                 </p>
@@ -1249,7 +1255,7 @@ export function AppraisalsPage() {
                             </div>
 
                             {/* Effective Date Card */}
-                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!effectiveDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-transparent hover:border-emerald-100'}`}>
+                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!effectiveDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-emerald-100'}`}>
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                     <Clock size={12} className="text-emerald-500" /> Effective Date {!effectiveDate && '*'}
                                 </p>
@@ -1264,7 +1270,7 @@ export function AppraisalsPage() {
                             </div>
 
                             {/* Deadline Date Card */}
-                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!deadlineDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-transparent hover:border-amber-100'}`}>
+                            <div className={`p-6 rounded-[32px] border-2 transition-all ${!deadlineDate ? 'bg-red-50/10 border-red-100' : 'bg-slate-50/50 border-amber-100'}`}>
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                     <Clock size={12} className="text-amber-500" /> Deadline Date {!deadlineDate && '*'}
                                 </p>
@@ -1278,20 +1284,25 @@ export function AppraisalsPage() {
                             </div>
 
                             {/* Rating Scale */}
-                            <div className="p-6 rounded-[32px] border-2 bg-slate-50/50 border-transparent hover:border-blue-100 transition-all">
+                            <div className="p-6 rounded-[32px] border-2 bg-slate-50/50 border-[#dbeafe] transition-all">
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                     <FileSpreadsheet size={12} className="text-blue-500" /> Rating Scale (1 to ?)
                                 </p>
-                                <select 
-                                    value={maxRating}
-                                    onChange={(e) => setMaxRating(Number(e.target.value))}
-                                    className="w-full text-sm font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer appearance-none"
-                                >
-                                    <option value={10}>1 to 10 Scale</option>
-                                    <option value={5}>1 to 5 Scale</option>
-                                    <option value={4}>1 to 4 Scale</option>
-                                    <option value={3}>1 to 3 Scale</option>
-                                </select>
+                                <div className="relative">
+                                    <select 
+                                        value={maxRating}
+                                        onChange={(e) => setMaxRating(Number(e.target.value))}
+                                        className="w-full text-sm font-black text-slate-800 bg-transparent border-none p-0 pr-8 focus:ring-0 cursor-pointer appearance-none"
+                                    >
+                                        <option value={10}>1 to 10 Scale</option>
+                                        <option value={5}>1 to 5 Scale</option>
+                                        <option value={4}>1 to 4 Scale</option>
+                                        <option value={3}>1 to 3 Scale</option>
+                                    </select>
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                                        <ChevronDown size={18} strokeWidth={2.5} />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1319,7 +1330,7 @@ export function AppraisalsPage() {
                                             <button
                                                 key={deptId}
                                                 onClick={() => setSelectedDeptId(deptId)}
-                                                className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-100 scale-[1.02] z-10' : 'hover:bg-slate-50 text-slate-600'}`}
+                                                className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${isSelected ? 'bg-[#2463eb] text-white shadow-lg shadow-[#dbeafe] scale-[1.02] z-10' : 'hover:bg-slate-50 text-slate-600'}`}
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isSelected ? 'bg-white/20' : 'bg-slate-100 group-hover:bg-white shadow-sm'}`}>
@@ -1331,14 +1342,14 @@ export function AppraisalsPage() {
                                                             <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
                                                                 {deptPositions.length} Pos
                                                             </span>
-                                                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${isSelected ? 'bg-white/30 text-white' : 'bg-blue-50 text-blue-600 shadow-sm shadow-blue-100/50'}`}>
+                                                            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${isSelected ? 'bg-white/30 text-white' : 'bg-[#eff6ff] text-[#2463eb] shadow-sm shadow-[#dbeafe]/50'}`}>
                                                                 {totalEmployeesInDept} Active Emp
                                                             </span>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 {selectedCount > 0 && (
-                                                    <div className={`px-2 py-1 rounded-lg text-[9px] font-black border transition-colors ${isSelected ? 'bg-white text-blue-600 border-white' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                                                    <div className={`px-2 py-1 rounded-lg text-[9px] font-black border transition-colors ${isSelected ? 'bg-white text-[#2463eb] border-white' : 'bg-[#eff6ff] text-[#2463eb] border-[#dbeafe]'}`}>
                                                         {isAllSelected ? 'ALL' : selectedCount}
                                                     </div>
                                                 )}
@@ -1388,7 +1399,7 @@ export function AppraisalsPage() {
                                                             key={pos.id}
                                                             className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all bg-white group ${selectedPositionIds.includes(pos.id) ? 'border-blue-500 shadow-md translate-y-[-2px]' : 'border-transparent hover:border-slate-200 hover:shadow-sm'}`}
                                                         >
-                                                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selectedPositionIds.includes(pos.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-200 group-hover:border-blue-300'}`}>
+                                                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selectedPositionIds.includes(pos.id) ? 'bg-[#2463eb] border-[#2463eb]' : 'border-slate-200 group-hover:border-[#93c5fd]'}`}>
                                                                 {selectedPositionIds.includes(pos.id) && <Check size={12} className="text-white" strokeWidth={4} />}
                                                                 <input 
                                                                     type="checkbox"
@@ -1402,9 +1413,9 @@ export function AppraisalsPage() {
                                                                 />
                                                             </div>
                                                             <div className="flex-1">
-                                                                <div className="text-[11px] font-black text-slate-700 leading-tight mb-2 uppercase group-hover:text-blue-600 transition-colors">{pos.positionName}</div>
+                                                                <div className="text-[11px] font-black text-slate-700 leading-tight mb-2 uppercase group-hover:text-[#2463eb] transition-colors">{pos.positionName}</div>
                                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                                    <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-wider">{pos.levelCodeName}</span>
+                                                                    <span className="text-[8px] font-black text-blue-500 bg-[#eff6ff] px-1.5 py-0.5 rounded uppercase tracking-wider">{pos.levelCodeName}</span>
                                                                     <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider border ${
                                                                         (employeeCounts[`${pos.departmentId}_${pos.positionId}`] || 0) > 0 
                                                                         ? 'bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm shadow-emerald-50' 
@@ -1445,7 +1456,7 @@ export function AppraisalsPage() {
                                 {selectedPositionIds.length > 0 && (
                                     <div className="flex -space-x-2">
                                         {Array.from(new Set(allPositions.filter(p => selectedPositionIds.includes(p.id)).map(p => p.departmentId))).slice(0, 3).map(deptId => (
-                                            <div key={deptId} className="w-6 h-6 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-blue-600 uppercase" title={allPositions.find(p => p.departmentId === deptId)?.departmentName}>
+                                            <div key={deptId} className="w-6 h-6 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-[#2463eb] uppercase" title={allPositions.find(p => p.departmentId === deptId)?.departmentName}>
                                                 {allPositions.find(p => p.departmentId === deptId)?.departmentName?.charAt(0)}
                                             </div>
                                         ))}
@@ -1495,7 +1506,7 @@ export function AppraisalsPage() {
                     <div className="flex justify-end">
                         <button 
                             onClick={() => { setEditingCategory(null); setCatForm({ name: '', description: '', status: true }); setShowCatModal(true); }}
-                            className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+                            className="flex items-center gap-2 px-5 py-3 bg-[#2463eb] text-white rounded-2xl font-black text-xs hover:bg-[#1d4ed8] transition-all shadow-lg shadow-[#dbeafe]"
                         >
                             <Plus size={16} /> ADD CATEGORY
                         </button>
@@ -1503,7 +1514,7 @@ export function AppraisalsPage() {
 
                     <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                         {isReorderingCat && (
-                            <div className="px-6 py-3 bg-blue-50 border-b border-blue-100 text-[10px] font-bold text-blue-600 uppercase tracking-widest animate-pulse">
+                            <div className="px-6 py-3 bg-[#eff6ff] border-b border-[#dbeafe] text-[10px] font-bold text-[#2463eb] uppercase tracking-widest animate-pulse">
                                 Reordering categories...
                             </div>
                         )}
@@ -1549,7 +1560,7 @@ export function AppraisalsPage() {
                             <select 
                                 value={selectedCategoryId}
                                 onChange={(e) => setSelectedCategoryId(e.target.value ? Number(e.target.value) : '')}
-                                className="w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 appearance-none focus:border-blue-500 transition-all outline-none pr-12 shadow-sm"
+                                className="w-full bg-white border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 appearance-none focus:border-[#2463eb] transition-all outline-none pr-12 shadow-sm"
                             >
                                 <option value="">Select Category to View Questions...</option>
                                 {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
@@ -1560,7 +1571,7 @@ export function AppraisalsPage() {
                             <button 
                                 disabled={!selectedCategoryId}
                                 onClick={() => { setEditingQuestion(null); setQueForm({ categoryId: Number(selectedCategoryId), questionText: '', answerType: 'TEXT', isRequired: true, sortOrder: questions.length + 1, status: true }); setShowQueModal(true); }}
-                                className="flex items-center gap-2 px-5 py-4 bg-blue-600 text-white rounded-2xl font-black text-xs hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:opacity-50 disabled:shadow-none"
+                                className="flex items-center gap-2 px-5 py-4 bg-[#2463eb] text-white rounded-2xl font-black text-xs hover:bg-[#1d4ed8] transition-all shadow-xl shadow-[#dbeafe] disabled:opacity-50 disabled:shadow-none"
                             >
                                 <Plus size={18} /> ADD NEW QUESTION
                             </button>
@@ -1580,7 +1591,7 @@ export function AppraisalsPage() {
                     ) : (
                         <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                             {isReorderingQue && (
-                                <div className="px-6 py-3 bg-blue-50 border-b border-blue-100 text-[10px] font-bold text-blue-600 uppercase tracking-widest animate-pulse">
+                                <div className="px-6 py-3 bg-[#eff6ff] border-b border-[#dbeafe] text-[10px] font-bold text-[#2463eb] uppercase tracking-widest animate-pulse">
                                     Syncing question sequence...
                                 </div>
                             )}
@@ -1631,16 +1642,16 @@ export function AppraisalsPage() {
                         <div className="p-8 space-y-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</label>
-                                <input className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-blue-500 transition-all" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} />
+                                <input className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:border-[#2463eb] transition-all" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</label>
-                                <textarea className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-blue-500 transition-all h-24" value={catForm.description} onChange={e => setCatForm({...catForm, description: e.target.value})} />
+                                <textarea className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-[#2463eb] transition-all h-24" value={catForm.description} onChange={e => setCatForm({...catForm, description: e.target.value})} />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
                                 <div className="flex flex-col justify-end h-[46px]">
-                                    <label className="group flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:bg-white hover:border-blue-100 transition-all">
+                                    <label className="group flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:bg-white hover:border-[#dbeafe] transition-all">
                                         <div className={`w-10 h-6 rounded-full relative transition-all ${catForm.status ? 'bg-emerald-500' : 'bg-slate-300'}`}>
                                             <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${catForm.status ? 'left-5' : 'left-1'}`} />
                                         </div>
@@ -1659,7 +1670,7 @@ export function AppraisalsPage() {
                         </div>
                         <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
                             <button onClick={() => setShowCatModal(false)} className="flex-1 py-3 bg-white border-2 border-slate-100 rounded-2xl font-black text-xs">CANCEL</button>
-                            <button onClick={handleSaveCategory} disabled={isLoading} className="flex-[2] py-3 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-blue-100">SAVE CATEGORY</button>
+                            <button onClick={handleSaveCategory} disabled={isLoading} className="flex-[2] py-3 bg-[#2463eb] text-white rounded-2xl font-black text-xs shadow-lg shadow-[#dbeafe]">SAVE CATEGORY</button>
                         </div>
                     </div>
                 </div>
@@ -1676,12 +1687,12 @@ export function AppraisalsPage() {
                         <div className="p-8 space-y-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Question Text</label>
-                                <textarea className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-blue-500 transition-all h-24" value={queForm.questionText} onChange={e => setQueForm({...queForm, questionText: e.target.value})} />
+                                <textarea className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:border-[#2463eb] transition-all h-24" value={queForm.questionText} onChange={e => setQueForm({...queForm, questionText: e.target.value})} />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
                                 <div className="flex flex-col justify-end h-[46px]">
-                                    <label className="group flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:bg-white hover:border-blue-100 transition-all">
+                                    <label className="group flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:bg-white hover:border-[#dbeafe] transition-all">
                                         <div className={`w-10 h-6 rounded-full relative transition-all ${queForm.status ? 'bg-emerald-500' : 'bg-slate-300'}`}>
                                             <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${queForm.status ? 'left-5' : 'left-1'}`} />
                                         </div>
@@ -1700,7 +1711,7 @@ export function AppraisalsPage() {
                         </div>
                         <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
                             <button onClick={() => setShowQueModal(false)} className="flex-1 py-3 bg-white border-2 border-slate-100 rounded-2xl font-black text-xs">CANCEL</button>
-                            <button onClick={handleSaveQuestion} disabled={isLoading} className="flex-[2] py-3 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-blue-100">SAVE QUESTION</button>
+                            <button onClick={handleSaveQuestion} disabled={isLoading} className="flex-[2] py-3 bg-[#2463eb] text-white rounded-2xl font-black text-xs shadow-lg shadow-[#dbeafe]">SAVE QUESTION</button>
                         </div>
                     </div>
                 </div>

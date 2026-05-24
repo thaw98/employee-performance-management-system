@@ -11,6 +11,7 @@ import {
   type PositionOptionDto,
 } from '../../hrCreateEmployee/hrEmployeeAccountApi'
 import { useGetCurrentTransferQuery, useTemporaryTransferMutation } from '../employeeTransferApi'
+import { employeeListInputBaseCompact as inputBase } from '../employeeListTheme'
 
 interface TemporaryTransferModalProps {
   isOpen: boolean
@@ -19,8 +20,6 @@ interface TemporaryTransferModalProps {
   onClose: () => void
   onSuccess?: () => void
 }
-
-const inputBase = 'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-indigo-400 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]'
 
 const addDaysToIsoDate = (date: string, days: number) => {
   const [year, month, day] = date.split('-').map(Number)

@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { useRhfAutosave, withRetry, type SaveResult, type Transport } from 'react-hook-form-autosave';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
@@ -12,7 +14,6 @@ import {
     Loader2,
     Building2,
     Calendar,
-    ArrowRight,
     AlertCircle,
     RotateCcw,
     Clock,
@@ -22,8 +23,25 @@ import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCyc
 import { formatDate } from '../../utils/dateUtils';
 import SignatureCanvas from 'react-signature-canvas';
 import { useRef } from 'react';
+import {
+    captureDrawnSignatureDataUrl,
+    SIGNATURE_PAD_HEIGHT,
+    SIGNATURE_PAD_WIDTH,
+} from '../../components/signature/signatureCanvasUtils';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
+import {
+    appraisalGradientIcon,
+    appraisalGradientBtn,
+    appraisalGradientSoft,
+} from '../../features/appraisals/appraisalTheme';
+import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
+
+interface EvaluationFormData {
+    answers: Record<string, { rating: number; comments: string }>;
+    comments: string;
+    signature: string;
+}
 
 interface Question {
     id: number;
@@ -76,18 +94,71 @@ interface Assignment {
     updatedAt?: string;
 }
 
+const toEvaluationPayload = (data: EvaluationFormData, includeSignature: boolean) => ({
+    answers: Object.entries(data.answers).map(([qId, answer]) => ({
+        questionId: Number(qId),
+        rating: answer.rating,
+        comments: answer.comments,
+    })),
+    comments: data.comments,
+    ...(includeSignature ? { signature: data.signature } : {}),
+});
+
 export const ManagerEvaluationPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [assignment, setAssignment] = useState<Assignment | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [answers, setAnswers] = useState<Record<number, { rating: number, comments: string }>>({});
-    const [comments, setComments] = useState('');
-    const [signature, setSignature] = useState('');
+    const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+    const [savingDraft, setSavingDraft] = useState(false);
     const [isUsingSavedSignature, setIsUsingSavedSignature] = useState(false);
     const sigCanvas = useRef<any>(null);
     const [defaultSignature, setDefaultSignature] = useState<string | null>(null);
+    const form = useForm<EvaluationFormData>({
+        defaultValues: {
+            answers: {},
+            comments: '',
+            signature: '',
+        },
+    });
+    const { getValues, reset, setValue, watch, formState } = form;
+    const answers = watch('answers');
+    const comments = watch('comments');
+    const signature = watch('signature');
+    const isReadOnly = assignment?.status !== 'PENDING_MANAGER' && assignment?.status !== 'RETURNED';
+    const autosaveDisabled = loading || !assignment || Boolean(isReadOnly);
+
+    const draftTransport = useMemo<Transport>(() => {
+        const transport: Transport = async (payload) => {
+            try {
+                await axios.post(`/appraisal-assignments/${id}/draft`, payload);
+                return { ok: true };
+            } catch (error: any) {
+                return {
+                    ok: false,
+                    error: new Error(error?.response?.data?.message || 'Failed to save draft'),
+                } satisfies SaveResult;
+            }
+        };
+
+        return withRetry(transport, { maxRetries: 3 });
+    }, [id]);
+
+    const autosave = useRhfAutosave<EvaluationFormData>({
+        form,
+        transport: draftTransport,
+        config: {
+            debounceMs: 2000,
+            maxRetries: 3,
+            debug: false,
+        },
+        validateBeforeSave: 'none',
+        selectPayload: (values) => values,
+        shouldSave: ({ isDirty, dirtyFields }) =>
+            !autosaveDisabled && (isDirty || Object.keys(dirtyFields).length > 0),
+        mapPayload: () => toEvaluationPayload(getValues(), false),
+    });
 
     useEffect(() => {
         fetchForm();
@@ -120,11 +191,11 @@ export const ManagerEvaluationPage: React.FC = () => {
     useEffect(() => {
         if (!loading && assignment && defaultSignature) {
             if (!signature) {
-                setSignature(defaultSignature);
+                setValue('signature', defaultSignature, { shouldDirty: false });
                 setIsUsingSavedSignature(true);
             }
         }
-    }, [loading, assignment, defaultSignature]);
+    }, [loading, assignment, defaultSignature, setValue, signature]);
     const fetchForm = async () => {
         try {
             setLoading(true);
@@ -152,9 +223,11 @@ export const ManagerEvaluationPage: React.FC = () => {
                     });
                 }
                 
-                setAnswers(initialAnswers);
-                setComments(response.data.data.managerComments || '');
-                setSignature(response.data.data.managerSignature || '');
+                reset({
+                    answers: initialAnswers,
+                    comments: response.data.data.managerComments || '',
+                    signature: response.data.data.managerSignature || '',
+                });
             }
         } catch (error) {
             toast.error('Failed to load evaluation form');
@@ -165,30 +238,35 @@ export const ManagerEvaluationPage: React.FC = () => {
     };
 
     const handleRatingChange = (questionId: number, rating: number) => {
-        setAnswers(prev => ({
-            ...prev,
-            [questionId]: { ...prev[questionId], rating }
-        }));
+        setValue(`answers.${questionId}.rating`, rating, { shouldDirty: true, shouldTouch: true });
     };
 
     const handleAnswerCommentChange = (questionId: number, comments: string) => {
-        setAnswers(prev => ({
-            ...prev,
-            [questionId]: { ...prev[questionId], comments }
-        }));
+        setValue(`answers.${questionId}.comments`, comments, { shouldDirty: true, shouldTouch: true });
     };
+
+    const captureSignature = useCallback(() => {
+        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+            return captureDrawnSignatureDataUrl(sigCanvas.current.getCanvas());
+        }
+        const currentSignature = getValues('signature');
+        if (currentSignature) {
+            return currentSignature;
+        }
+        return defaultSignature || '';
+    }, [defaultSignature, getValues]);
 
     const handleClearSignature = () => {
         if (sigCanvas.current) {
             sigCanvas.current.clear();
         }
-        setSignature('');
+        setValue('signature', '', { shouldDirty: true, shouldTouch: true });
         setIsUsingSavedSignature(false);
     };
 
     const handleUseDefaultSignature = () => {
         if (defaultSignature) {
-            setSignature(defaultSignature);
+            setValue('signature', defaultSignature, { shouldDirty: true, shouldTouch: true });
             setIsUsingSavedSignature(true);
             toast.success("Default signature applied");
         } else {
@@ -196,17 +274,36 @@ export const ManagerEvaluationPage: React.FC = () => {
         }
     };
 
-    const handleSubmit = async () => {
-        // Capture signature if drawn but not yet in state
-        let finalSignature = signature;
-        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
-            finalSignature = sigCanvas.current.getCanvas().toDataURL();
-        } else if (!finalSignature && defaultSignature) {
-            // Auto-use default signature if canvas is empty and no signature selected yet
-            finalSignature = defaultSignature;
-        }
+    const handleSaveDraft = async () => {
+        try {
+            setSavingDraft(true);
+            if (formState.isDirty || autosave.hasPendingChanges) {
+                const result = await autosave.flush();
+                if (!result?.ok) {
+                    toast.error(result?.error?.message || 'Failed to save draft');
+                    return;
+                }
+            }
 
-        // Validation
+            const finalSignature = captureSignature();
+            setValue('signature', finalSignature, { shouldDirty: false });
+            await axios.post(`/appraisal-assignments/${id}/draft`, toEvaluationPayload({
+                ...getValues(),
+                signature: finalSignature,
+            }, true));
+            toast.success('Draft saved');
+            await fetchForm();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Failed to save draft');
+        } finally {
+            setSavingDraft(false);
+        }
+    };
+
+    const handleSubmitClick = () => {
+        const finalSignature = captureSignature();
+        setValue('signature', finalSignature, { shouldDirty: false });
+
         const unanswered = Object.values(answers).some(a => a.rating === 0);
         if (unanswered) {
             toast.error('Please rate all items before submitting');
@@ -218,20 +315,31 @@ export const ManagerEvaluationPage: React.FC = () => {
             return;
         }
 
+        setShowSubmitConfirm(true);
+    };
+
+    const handleConfirmSubmit = async () => {
+        if (autosave.hasPendingChanges || formState.isDirty) {
+            const result = await autosave.flush();
+            if (!result?.ok) {
+                toast.error(result?.error?.message || 'Please save changes before submitting');
+                return;
+            }
+        }
+
+        const finalSignature = captureSignature();
+        setValue('signature', finalSignature, { shouldDirty: false });
+
         try {
             setSubmitting(true);
-            const payload = {
-                answers: Object.entries(answers).map(([qId, data]) => ({
-                    questionId: parseInt(qId),
-                    rating: data.rating,
-                    comments: data.comments
-                })),
-                comments,
-                signature: finalSignature
-            };
+            const payload = toEvaluationPayload({
+                ...getValues(),
+                signature: finalSignature,
+            }, true);
 
             const response = await axios.post(`/appraisal-assignments/${id}/evaluate`, payload);
             if (response.data.success) {
+                setShowSubmitConfirm(false);
                 toast.success('Evaluation submitted successfully');
                 navigate('/manager/appraisals');
             }
@@ -246,7 +354,7 @@ export const ManagerEvaluationPage: React.FC = () => {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="flex flex-col items-center gap-4">
-                    <Loader2 size={40} className="text-[#5D5FEF] animate-spin" />
+                    <Loader2 size={40} className="text-[#2463eb] animate-spin" />
                     <p className="text-slate-500 font-medium animate-pulse">Loading appraisal form...</p>
                 </div>
             </div>
@@ -258,7 +366,20 @@ export const ManagerEvaluationPage: React.FC = () => {
     const empName = assignment.employee?.employeeName || assignment.employee?.fullName || (assignment.employee as any)?.full_name || 'Employee';
     const deptName = assignment.employee?.department?.departmentName || assignment.employee?.department?.name || 'N/A';
     const posName = (assignment.employee as any)?.position?.positionName || (assignment.employee as any)?.position?.name || 'N/A';
-    const isReadOnly = assignment.status !== 'PENDING_MANAGER' && assignment.status !== 'RETURNED';
+    const saveStatus = autosave.isSaving
+        ? 'Saving...'
+        : autosave.lastError
+            ? 'Save failed'
+            : autosave.hasPendingChanges || formState.isDirty
+                ? 'Unsaved changes'
+                : 'All changes saved';
+    const saveStatusTone = autosave.isSaving
+        ? 'text-blue-600'
+        : autosave.lastError
+            ? 'text-red-600'
+            : autosave.hasPendingChanges || formState.isDirty
+                ? 'text-[#2463eb]'
+                : 'text-emerald-600';
 
     return (
         <div className="min-h-screen bg-slate-50/50 pb-20">
@@ -282,14 +403,27 @@ export const ManagerEvaluationPage: React.FC = () => {
                         </div>
                     </div>
                     {!isReadOnly && (
-                        <button
-                            onClick={handleSubmit}
-                            disabled={submitting}
-                            className="flex items-center gap-2 bg-[#5D5FEF] text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#5D5FEF]/20 hover:bg-[#4C4EDE] transition-all disabled:opacity-50"
-                        >
-                            {submitting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                            Submit Evaluation
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <span className={`hidden text-xs font-bold sm:inline ${saveStatusTone}`}>
+                                {saveStatus}
+                            </span>
+                            <button
+                                onClick={handleSaveDraft}
+                                disabled={savingDraft || autosave.isSaving}
+                                className="flex items-center gap-2 border border-slate-200 bg-white text-slate-700 px-4 py-2.5 rounded-2xl font-bold text-sm shadow-sm hover:bg-slate-50 transition-all disabled:opacity-50"
+                            >
+                                {savingDraft || autosave.isSaving ? <Loader2 size={18} className="animate-spin" /> : <Clock size={18} />}
+                                Save Draft
+                            </button>
+                            <button
+                                onClick={handleSubmitClick}
+                                disabled={submitting || savingDraft}
+                                className={`flex items-center gap-2 ${appraisalGradientBtn} text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#2463eb]/20 transition-all disabled:opacity-50`}
+                            >
+                                {submitting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                                Submit Evaluation
+                            </button>
+                        </div>
                     )}
                     {isReadOnly && (
                         <div className="flex items-center gap-3">
@@ -304,7 +438,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                 </button>
                             )}
                             <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
-                                assignment.status === 'SUBMITTED' ? 'bg-blue-50 text-blue-600 border-blue-100' : 
+                                assignment.status === 'SUBMITTED' ? 'bg-[#eff6ff] text-[#2463eb] border-[#dbeafe]' : 
                                 assignment.status === 'HR_APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                                 assignment.status === 'LOCKED' ? 'bg-slate-900 text-white border-slate-900' :
                                 'bg-slate-100 text-slate-500 border-slate-200'
@@ -335,7 +469,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                         <User size={120} />
                     </div>
                     <div className="flex items-start gap-6 relative z-10">
-                        <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-[#5D5FEF]/20">
+                        <div className={`h-20 w-20 rounded-2xl ${appraisalGradientIcon} flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-[#2463eb]/20`}>
                             {empName.charAt(0)}
                         </div>
                         <div className="space-y-2">
@@ -360,17 +494,17 @@ export const ManagerEvaluationPage: React.FC = () => {
                 {/* Summary Cards */}
                 {isReadOnly && (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200 rounded-3xl space-y-2 shadow-sm">
-                            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Points Achieved</p>
-                            <p className="text-3xl font-black text-blue-700 italic">
+                        <div className={`p-6 ${appraisalGradientSoft} border border-[#bfdbfe] rounded-3xl space-y-2 shadow-sm`}>
+                            <p className="text-[10px] font-bold text-[#2463eb] uppercase tracking-wider">Points Achieved</p>
+                            <p className="text-3xl font-black text-[#1d4ed8] italic">
                                 {assignment.answers?.reduce((acc, curr) => acc + (curr.rating || 0), 0)}
-                                <span className="text-blue-300 mx-2 text-xl font-normal">/</span>
-                                <span className="text-blue-400 text-2xl">{(assignment.answers?.length || 0) * (assignment.template?.maxRating || 5)}</span>
+                                <span className="text-[#93c5fd] mx-2 text-xl font-normal">/</span>
+                                <span className="text-[#60a5fa] text-2xl">{(assignment.answers?.length || 0) * (assignment.template?.maxRating || 5)}</span>
                             </p>
                         </div>
-                        <div className="p-6 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200 rounded-3xl space-y-2 shadow-sm">
-                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">Overall Score</p>
-                            <p className="text-3xl font-black text-indigo-700">
+                        <div className={`p-6 ${appraisalGradientSoft} border border-[#bfdbfe] rounded-3xl space-y-2 shadow-sm`}>
+                            <p className="text-[10px] font-bold text-[#2463eb] uppercase tracking-wider">Overall Score</p>
+                            <p className="text-3xl font-black text-[#1d4ed8]">
                                 {assignment.totalScore?.toFixed(1) || '0.0'}%
                             </p>
                         </div>
@@ -405,7 +539,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
                                         <div className="flex-1 space-y-2">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-black text-[#5D5FEF] bg-[#5D5FEF]/10 px-2 py-0.5 rounded-full uppercase">Question</span>
+                                                <span className="text-[10px] font-black text-[#2463eb] bg-[#eff6ff] px-2 py-0.5 rounded-full uppercase">Question</span>
                                                 {question.isRequired && <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">* Required</span>}
                                             </div>
                                             <h4 className="text-base font-bold text-slate-800 leading-relaxed">{question.questionText}</h4>
@@ -424,8 +558,8 @@ export const ManagerEvaluationPage: React.FC = () => {
                                                             disabled={isReadOnly}
                                                             className={`h-11 w-11 rounded-xl flex items-center justify-center text-sm font-black transition-all ${
                                                                 isSelected 
-                                                                ? 'bg-[#5D5FEF] text-white shadow-lg shadow-[#5D5FEF]/30 ring-2 ring-[#5D5FEF]/50 ring-offset-2' + (!isReadOnly ? ' scale-110' : '') 
-                                                                : 'bg-white border-2 border-slate-100 text-slate-400 hover:border-[#5D5FEF]/30 hover:text-[#5D5FEF] hover:bg-slate-50'
+                                                                ? 'bg-[#2463eb] text-white shadow-lg shadow-[#2463eb]/30 ring-2 ring-[#2463eb]/50 ring-offset-2' + (!isReadOnly ? ' scale-110' : '') 
+                                                                : 'bg-white border-2 border-slate-100 text-slate-400 hover:border-[#2463eb]/30 hover:text-[#2463eb] hover:bg-slate-50'
                                                             } ${isReadOnly ? 'cursor-default' : 'hover:scale-105 active:scale-95'}`}
                                                         >
                                                             {ratingValue}
@@ -444,7 +578,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                             value={answers[question.id]?.comments || ''}
                                             onChange={(e) => !isReadOnly && handleAnswerCommentChange(question.id, e.target.value)}
                                             readOnly={isReadOnly}
-                                            className="flex-1 bg-slate-50/50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-[#5D5FEF]/20 transition-all resize-none h-24"
+                                            className="flex-1 bg-slate-50/50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-[#2463eb]/20 transition-all resize-none h-24"
                                         />
                                     </div>
                                 </div>
@@ -461,7 +595,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                     <div className="relative z-10 space-y-10">
                         <div className="space-y-4">
                             <h3 className="text-2xl font-black flex items-center gap-3">
-                                <MessageSquare className="text-amber-400" /> Final Feedback
+                                <MessageSquare className="text-[#60a5fa]" /> Final Feedback
                             </h3>
                             <p className="text-slate-400 text-sm max-w-xl">
                                 Provide overall summary of the employee performance for this period. 
@@ -470,28 +604,28 @@ export const ManagerEvaluationPage: React.FC = () => {
                             <textarea
                                 placeholder={isReadOnly ? "No summary feedback" : "Your summary comments..."}
                                 value={comments}
-                                onChange={(e) => !isReadOnly && setComments(e.target.value)}
+                                onChange={(e) => !isReadOnly && setValue('comments', e.target.value, { shouldDirty: true, shouldTouch: true })}
                                 readOnly={isReadOnly}
-                                className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-sm focus:ring-2 focus:ring-amber-500/50 transition-all resize-none h-40"
+                                className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-sm focus:ring-2 focus:ring-[#2463eb]/50 transition-all resize-none h-40"
                             />
                         </div>
 
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-xl font-black flex items-center gap-3">
-                                            <PenLine className="text-amber-400" /> Digital Signature
+                                            <PenLine className="text-[#60a5fa]" /> Digital Signature
                                         </h3>
                                         {!isReadOnly && defaultSignature && (
                                             <button 
                                                 onClick={handleUseDefaultSignature}
-                                                className="text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-white transition-colors flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10"
+                                                className="text-[10px] font-black uppercase tracking-widest text-[#60a5fa] hover:text-white transition-colors flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10"
                                             >
                                                 <CheckCircle2 size={12} /> Use Saved Signature
                                             </button>
                                         )}
                                     </div>
                                     
-                                    <div className="relative bg-white/5 border-2 border-white/10 rounded-3xl overflow-hidden group hover:border-amber-400/50 transition-all">
+                                    <div className="relative bg-white/5 border-2 border-white/10 rounded-3xl overflow-hidden group hover:border-[#2463eb]/50 transition-all">
                                         {isReadOnly ? (
                                             <div className="h-40 flex items-center justify-center p-6 bg-white rounded-3xl">
                                                 {assignment.managerSignature ? (
@@ -513,20 +647,30 @@ export const ManagerEvaluationPage: React.FC = () => {
                                                             className="max-w-full max-h-full object-contain opacity-90 transition-transform group-hover:scale-105"
                                                         />
                                                         <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <span className="text-[9px] font-black text-[#5D5FEF] bg-[#5D5FEF]/5 px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw Manually</span>
+                                                            <span className="text-[9px] font-black text-[#2463eb] bg-[#eff6ff] px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw Manually</span>
                                                         </div>
                                                     </div>
                                                 )}
                                                 <SignatureCanvas
                                                     ref={sigCanvas}
+                                                    clearOnResize={false}
+                                                    penColor="#0f172a"
                                                     onBegin={() => setIsUsingSavedSignature(false)}
                                                     onEnd={() => {
-                                                        setSignature(sigCanvas.current.getCanvas().toDataURL());
+                                                        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+                                                            setValue(
+                                                                'signature',
+                                                                captureDrawnSignatureDataUrl(sigCanvas.current.getCanvas()),
+                                                                { shouldDirty: true, shouldTouch: true },
+                                                            );
+                                                        }
                                                         setIsUsingSavedSignature(false);
                                                     }}
                                                     canvasProps={{
-                                                        className: "w-full h-40 cursor-crosshair",
-                                                        style: { background: 'white' }
+                                                        width: SIGNATURE_PAD_WIDTH,
+                                                        height: SIGNATURE_PAD_HEIGHT,
+                                                        className: 'w-full h-40 cursor-crosshair touch-none',
+                                                        style: { background: 'white' },
                                                     }}
                                                 />
                                                 <button
@@ -540,19 +684,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                     </div>
                                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Authorized Manager Signature</p>
                                 </div>
-                                
-                                {!isReadOnly && (
-                                    <div className="flex justify-end pt-4">
-                                        <button
-                                            onClick={handleSubmit}
-                                            disabled={submitting}
-                                            className="group bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-10 py-5 rounded-[2rem] font-black text-lg shadow-2xl shadow-orange-500/20 transition-all flex items-center justify-center gap-4"
-                                        >
-                                            {submitting ? 'SUBMITTING...' : 'FINALIZE & SUBMIT'}
-                                            <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform" />
-                                        </button>
-                                    </div>
-                                )}
+
                                  {isReadOnly && (
                                     <div className="flex flex-col md:flex-row justify-end gap-6">
                                         <div className="bg-white rounded-[2rem] p-6 border border-slate-100 flex items-center gap-4 shadow-xl">
@@ -585,6 +717,17 @@ export const ManagerEvaluationPage: React.FC = () => {
                             </div>
                 </section>
             </main>
+
+            <ConfirmActionModal
+                isOpen={showSubmitConfirm}
+                onClose={() => !submitting && setShowSubmitConfirm(false)}
+                onConfirm={handleConfirmSubmit}
+                title="Submit Evaluation"
+                message="Submitting this evaluation will finalize it and send it to HR. You will not be able to make further changes."
+                confirmText="Submit Evaluation"
+                cancelText="Cancel"
+                isLoading={submitting}
+            />
 
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');

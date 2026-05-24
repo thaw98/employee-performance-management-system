@@ -24,6 +24,7 @@ import {
 import { useGetDepartmentByIdQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionByIdQuery } from '../../features/position/api/positionApi';
 import { toast } from 'react-hot-toast';
+import { kpisGradientBr, kpisGradientR } from '../../features/kpi/kpisTheme';
 
 export const PositionKpiDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -82,7 +83,7 @@ export const PositionKpiDetailPage: React.FC = () => {
           </div>
           <button
             onClick={() => setIsEditModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-200 uppercase tracking-widest"
+            className={`flex items-center gap-2 px-4 py-2 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-[#dbeafe] hover:from-[#1d4ed8] hover:to-[#1e40af] uppercase tracking-widest ${kpisGradientR}`}
           >
             <Target size={16} /> Update Actuals
           </button>
@@ -96,8 +97,8 @@ export const PositionKpiDetailPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4 group hover:border-indigo-100 transition-all">
-          <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4 group hover:border-[#dbeafe] transition-all">
+          <div className="w-14 h-14 bg-[#eff6ff] text-[#2463eb] rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
             <Briefcase size={28} />
           </div>
           <div className="min-w-0">
@@ -107,8 +108,8 @@ export const PositionKpiDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4 group hover:border-blue-100 transition-all">
-          <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4 group hover:border-[#dbeafe] transition-all">
+          <div className="w-14 h-14 bg-[#eff6ff] text-[#2463eb] rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
             <LayoutGrid size={28} />
           </div>
           <div>
@@ -141,7 +142,7 @@ export const PositionKpiDetailPage: React.FC = () => {
       <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
         <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center text-indigo-600">
+            <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center text-[#2463eb]">
               <Target size={20} />
             </div>
             <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Position Performance Records</h2>
@@ -170,20 +171,20 @@ export const PositionKpiDetailPage: React.FC = () => {
                 <tr key={kpi.id || idx} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="py-5 px-8">
                     <div className="flex flex-col">
-                      <span className="text-xs font-black text-slate-900 uppercase tracking-tight group-hover:text-indigo-600 transition-colors">{kpi.name}</span>
+                      <span className="text-xs font-black text-slate-900 uppercase tracking-tight group-hover:text-[#2463eb] transition-colors">{kpi.name}</span>
                       <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{kpi.category}</span>
                     </div>
                   </td>
                   <td className="py-5 px-6 text-center text-xs font-bold text-slate-700">{kpi.target}</td>
                   <td className="py-5 px-6 text-center">
-                    <span className={`px-3 py-1 rounded-lg text-xs font-black ${kpi.actual ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-slate-100 text-slate-400'}`}>
+                    <span className={`px-3 py-1 rounded-lg text-xs font-black ${kpi.actual ? 'bg-[#eff6ff] text-[#1d4ed8] border border-[#dbeafe]' : 'bg-slate-100 text-slate-400'}`}>
                       {kpi.actual || '—'}
                     </span>
                   </td>
                   <td className="py-5 px-6 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">{kpi.unit}</td>
                   <td className="py-5 px-4 text-center text-xs font-bold text-slate-600">{kpi.weight}%</td>
                   <td className="py-5 px-4 text-center text-xs font-black text-emerald-600">{kpi.score?.toFixed(2) || '0.00'}%</td>
-                  <td className="py-5 px-8 text-right font-black text-indigo-600 text-sm italic">{kpi.weightedScore?.toFixed(2) || '0.00'}</td>
+                  <td className="py-5 px-8 text-right font-black text-[#2463eb] text-sm italic">{kpi.weightedScore?.toFixed(2) || '0.00'}</td>
                 </tr>
               ))}
             </tbody>
@@ -290,7 +291,7 @@ const PositionKpiEditModal: React.FC<PositionKpiEditModalProps> = ({ department,
       <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-100">
         <div className="flex justify-between items-center p-8 border-b border-slate-100 bg-white">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
+            <div className={`w-12 h-12 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#2463eb]/20 ${kpisGradientBr}`}>
               <Target size={24} />
             </div>
             <div>
@@ -310,7 +311,7 @@ const PositionKpiEditModal: React.FC<PositionKpiEditModalProps> = ({ department,
                 <th className="py-5 px-8 border-r border-slate-200/50">KPI Specification</th>
                 <th className="py-5 px-4 text-center border-r border-slate-200/50">Target</th>
                 <th className="py-5 px-4 text-center border-r border-slate-200/50">Unit</th>
-                <th className="py-5 px-8 text-center border-r border-slate-200/50 bg-indigo-50/30 text-indigo-600">Actual Value</th>
+                <th className="py-5 px-8 text-center border-r border-slate-200/50 bg-[#eff6ff]/80 text-[#2463eb]">Actual Value</th>
                 <th className="py-5 px-4 text-center border-r border-slate-200/50">Weight</th>
                 <th className="py-5 px-8 text-center border-r border-slate-200/50 bg-emerald-50/30 text-emerald-600">Score (%)</th>
                 <th className="py-5 px-8 text-right">Weighted</th>
@@ -329,12 +330,12 @@ const PositionKpiEditModal: React.FC<PositionKpiEditModalProps> = ({ department,
                     <span className="text-xs font-bold text-slate-700">{kpi.target}</span>
                   </td>
                   <td className="py-5 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase tracking-widest">{kpi.unit}</td>
-                  <td className="py-5 px-6 border-r border-slate-100 bg-indigo-50/10">
+                  <td className="py-5 px-6 border-r border-slate-100 bg-[#2463eb]/[0.03]">
                     <input 
                       type="text" 
                       value={kpi.actual || ''} 
                       onChange={(e) => handleChange(idx, 'actual', e.target.value)}
-                      className="w-full px-4 py-2.5 bg-white border-2 border-slate-100 rounded-xl text-xs font-black focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all text-center shadow-sm placeholder:text-slate-300"
+                      className="w-full px-4 py-2.5 bg-white border-2 border-slate-100 rounded-xl text-xs font-black focus:outline-none focus:border-[#2463eb] focus:ring-4 focus:ring-[#2463eb]/20 transition-all text-center shadow-sm placeholder:text-slate-300"
                       placeholder="Enter actual..."
                     />
                   </td>
@@ -361,7 +362,7 @@ const PositionKpiEditModal: React.FC<PositionKpiEditModalProps> = ({ department,
             <tfoot>
               <tr className="bg-slate-50 border-t-2 border-slate-200">
                 <td colSpan={6} className="py-6 px-8 text-right text-xs font-black text-slate-900 uppercase tracking-widest border-r border-slate-200">Total Position Score</td>
-                <td className="py-6 px-8 text-right text-base font-black text-indigo-600 tracking-tight bg-indigo-50/30 italic">
+                <td className="py-6 px-8 text-right text-base font-black text-[#2463eb] tracking-tight bg-[#eff6ff]/50 italic">
                   {totalWeightedScore.toFixed(2)}%
                 </td>
               </tr>
@@ -387,7 +388,7 @@ const PositionKpiEditModal: React.FC<PositionKpiEditModalProps> = ({ department,
           <button 
             onClick={() => handleSave('SUBMITTED')}
             disabled={isUpdating || editedKpis.length === 0}
-            className="px-10 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 hover:shadow-2xl hover:shadow-slate-900/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`px-10 py-3 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:from-[#1d4ed8] hover:to-[#1e40af] hover:shadow-2xl hover:shadow-[#2463eb]/25 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#dbeafe] ${kpisGradientR}`}
           >
             {isUpdating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <ShieldCheck size={18} />}
             Finalize Actuals

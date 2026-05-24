@@ -77,9 +77,9 @@ export function EmployeeAppraisalsPage() {
                 </div>
 
                 <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-xl">
-                        <ShieldCheck size={18} className="text-emerald-600" />
-                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-[#eff6ff] rounded-xl">
+                        <ShieldCheck size={18} className="text-[#2463eb]" />
+                        <span className="text-[10px] font-black text-[#1d4ed8] uppercase tracking-widest">
                             {assignments.filter(a => a.status === 'HR_APPROVED').length} Completed
                         </span>
                     </div>
@@ -89,11 +89,11 @@ export function EmployeeAppraisalsPage() {
             {/* Search and Filters */}
             <div className="bg-white p-4 rounded-[28px] border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
                 <div className="relative flex-1 group w-full">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#2463eb] transition-colors" size={18} />
                     <input 
                         type="text" 
                         placeholder="Search by period or evaluator..." 
-                        className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                        className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-[#2463eb]/20 transition-all"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -103,21 +103,21 @@ export function EmployeeAppraisalsPage() {
             {/* Assignments List */}
             {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                    <div className="w-12 h-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
+                    <div className="w-12 h-12 border-4 border-[#dbeafe] border-t-[#2463eb] rounded-full animate-spin" />
                     <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Loading appraisals...</p>
                 </div>
             ) : filteredAssignments.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {filteredAssignments.map((assignment) => (
-                        <div key={assignment.id} className="group bg-white rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-500 overflow-hidden">
+                        <div key={assignment.id} className="group bg-white rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-[#2463eb]/5 transition-all duration-500 overflow-hidden">
                             <div className="p-8 space-y-6">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 font-black text-xl shadow-inner group-hover:scale-110 transition-transform">
+                                        <div className="w-14 h-14 bg-[#eff6ff] rounded-2xl flex items-center justify-center text-[#2463eb] font-black text-xl shadow-inner group-hover:scale-110 transition-transform">
                                             <FileText size={24} />
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-black text-slate-900 group-hover:text-emerald-600 transition-colors">
+                                            <h3 className="text-xl font-black text-slate-900 group-hover:text-[#2463eb] transition-colors">
                                                 {assignment.template?.name || 'Performance Appraisal'}
                                             </h3>
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-1.5">
@@ -169,7 +169,7 @@ export function EmployeeAppraisalsPage() {
                                     {assignment.status === 'HR_APPROVED' || assignment.status === 'LOCKED' ? (
                                         <Link 
                                             to={`/employee/appraisals/${assignment.id}/view`}
-                                            className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 hover:-translate-y-0.5 transition-all"
+                                            className="flex items-center gap-2 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg shadow-[#dbeafe] hover:from-[#1d4ed8] hover:to-[#1e40af] hover:-translate-y-0.5 transition-all"
                                         >
                                             View Report <ArrowRight size={16} />
                                         </Link>

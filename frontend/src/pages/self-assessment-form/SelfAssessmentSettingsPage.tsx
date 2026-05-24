@@ -28,6 +28,9 @@ import {
   tenPointYesMinRatingOptions,
 } from '../../features/selfAssessmentForm/ratingSystem';
 
+const SETTINGS_PRIMARY = '#2463eb';
+const SETTINGS_PRIMARY_DARK = '#1d4ed8';
+
 type RatingOption = {
   value: SelfAssessmentRatingSystem;
   title: string;
@@ -166,7 +169,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
     <div className="min-h-screen px-6 py-6 md:px-8 animate-fade-in">
       {/* ─── Breadcrumb ─── */}
       <nav className="mb-2 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-        <span className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium">
+        <span className="text-[#2463eb] dark:text-[#60a5fa] font-medium">
           Home
         </span>
         <ChevronDown size={10} className="-rotate-90 opacity-50" />
@@ -181,10 +184,10 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="relative">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
               <Settings2 size={22} className="text-white" />
             </div>
-            <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 text-[9px] font-bold text-white shadow-sm">
+            <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-[9px] font-bold text-white shadow-sm">
               <Sparkles size={10} />
             </div>
           </div>
@@ -214,9 +217,13 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
         style={{ animationDelay: '60ms' }}
       >
         <div className="relative px-5 py-4">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#5D5FEF]/[0.03] via-transparent to-[#5D5FEF]/[0.03] dark:from-[#5D5FEF]/[0.05] dark:via-transparent dark:to-[#5D5FEF]/[0.05]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#2463eb]/[0.03] via-transparent to-[#2463eb]/[0.03] dark:from-[#2463eb]/[0.05] dark:via-transparent dark:to-[#2463eb]/[0.05]" />
           <div className="relative">
-            <SelfAssessmentReviewCycleInfo variant="inline" />
+            <SelfAssessmentReviewCycleInfo
+              variant="inline"
+              primaryColor={SETTINGS_PRIMARY}
+              primaryColorDark={SETTINGS_PRIMARY_DARK}
+            />
           </div>
         </div>
       </div>
@@ -289,7 +296,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
         <div className="p-6">
           {isLoading ? (
             <div className="flex items-center gap-4 rounded-xl border border-slate-200/80 bg-slate-50/80 px-5 py-8 dark:border-slate-700/60 dark:bg-slate-900/30">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#5D5FEF] border-t-transparent" />
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2463eb] border-t-transparent" />
               <div>
                 <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                   Loading settings…
@@ -343,13 +350,13 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                       disabled={!isRatingScaleEditable}
                       className={`group relative overflow-hidden rounded-2xl border-2 p-0 text-left transition-all duration-300 ${
                         checked
-                          ? 'border-[#5D5FEF] bg-gradient-to-br from-[#5D5FEF]/[0.03] to-[#7C7EF5]/[0.01] shadow-lg shadow-[#5D5FEF]/10 dark:border-[#5D5FEF] dark:from-[#5D5FEF]/10 dark:to-[#7C7EF5]/5 dark:shadow-[#5D5FEF]/5'
+                          ? 'border-[#2463eb] bg-gradient-to-br from-[#2463eb]/[0.03] to-[#1d4ed8]/[0.01] shadow-lg shadow-[#2463eb]/10 dark:border-[#2463eb] dark:from-[#2463eb]/10 dark:to-[#1d4ed8]/5 dark:shadow-[#2463eb]/5'
                           : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-md dark:border-slate-700/60 dark:bg-slate-800/60 dark:hover:border-slate-600'
                       } ${!isRatingScaleEditable ? 'cursor-not-allowed opacity-70' : ''}`}
                     >
                       {/* Selection indicator glow */}
                       {checked && (
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#5D5FEF]/[0.05] to-transparent dark:from-[#5D5FEF]/[0.10]" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#2463eb]/[0.05] to-transparent dark:from-[#2463eb]/[0.10]" />
                       )}
 
                       <div className="relative p-5">
@@ -358,7 +365,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                           <div
                             className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
                               checked
-                                ? 'bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25'
+                                ? 'bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25'
                                 : `${option.lightBg} ring-1 ${option.ring}`
                             }`}
                           >
@@ -378,7 +385,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                                 <span
                                   className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                                     checked
-                                      ? 'bg-[#5D5FEF]/15 text-[#5D5FEF] dark:bg-[#5D5FEF]/25 dark:text-[#8b8ef7]'
+                                      ? 'bg-[#2463eb]/15 text-[#2463eb] dark:bg-[#2463eb]/25 dark:text-[#60a5fa]'
                                       : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
                                   }`}
                                 >
@@ -395,7 +402,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                           <div
                             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300 ${
                               checked
-                                ? 'border-[#5D5FEF] bg-[#5D5FEF] dark:border-[#8b8ef7] dark:bg-[#8b8ef7]'
+                                ? 'border-[#2463eb] bg-[#2463eb] dark:border-[#60a5fa] dark:bg-[#60a5fa]'
                                 : 'border-slate-300 dark:border-slate-600'
                             }`}
                           >
@@ -417,7 +424,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                               key={feature}
                               className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
                                 checked
-                                  ? 'bg-[#5D5FEF]/10 text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]'
+                                  ? 'bg-[#2463eb]/10 text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]'
                                   : 'bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300'
                               }`}
                             >
@@ -477,7 +484,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                       value={tenPointYesMinRating}
                       onChange={(event) => setTenPointYesMinRating(Number(event.target.value))}
                       disabled={!isRatingScaleEditable || isSaving}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 disabled:cursor-not-allowed disabled:opacity-60 md:w-52 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 disabled:cursor-not-allowed disabled:opacity-60 md:w-52 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                     >
                       {tenPointYesMinRatingOptions.map((rating) => (
                         <option key={rating} value={rating}>
@@ -511,7 +518,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
               <div
                 className={`mt-6 flex flex-wrap items-center gap-3 rounded-xl border px-5 py-4 transition-all duration-300 ${
                   isDirty
-                    ? 'border-[#5D5FEF]/20 bg-gradient-to-r from-[#5D5FEF]/[0.03] to-transparent dark:border-[#5D5FEF]/30 dark:from-[#5D5FEF]/[0.06]'
+                    ? 'border-[#2463eb]/20 bg-gradient-to-r from-[#2463eb]/[0.03] to-transparent dark:border-[#2463eb]/30 dark:from-[#2463eb]/[0.06]'
                     : 'border-slate-200/60 bg-slate-50/50 dark:border-slate-700/40 dark:bg-slate-800/30'
                 }`}
               >
@@ -519,7 +526,7 @@ export const SelfAssessmentSettingsPage: React.FC = () => {
                   type="button"
                   onClick={handleSave}
                   disabled={isSaving || isFetching || !isDirty || !isRatingScaleEditable}
-                  className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:brightness-100"
+                  className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:shadow-[#2463eb]/30 hover:brightness-110 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:brightness-100"
                 >
                   {isSaving ? (
                     <>

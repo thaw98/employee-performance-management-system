@@ -237,7 +237,7 @@ export function EmployeeMeetingsPage() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="meetings-theme max-w-7xl mx-auto space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">My Meetings</h1>
@@ -245,7 +245,7 @@ export function EmployeeMeetingsPage() {
                 </div>
                 <button
                     onClick={openRequestModal}
-                    className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors shadow-sm"
+                    className="bg-[#2463eb] text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#1d4ed8] transition-colors shadow-sm"
                 >
                     <Plus size={18} /> Request Meeting
                 </button>
@@ -278,12 +278,12 @@ export function EmployeeMeetingsPage() {
                                 onChange={(e) => setSearchName(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
                                 placeholder="Search title..."
-                                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none"
                             />
                         </div>
                         <button 
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`p-2 rounded-xl border transition-all ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-500 hover:text-blue-600'}`}
+                            className={`p-2 rounded-xl border transition-all ${showFilters ? 'bg-[#dbeafe] border-[#bfdbfe] text-[#2463eb]' : 'bg-white border-slate-200 text-slate-600 hover:border-[#2463eb] hover:text-[#2463eb]'}`}
                         >
                             <Filter size={20} />
                         </button>
@@ -298,7 +298,7 @@ export function EmployeeMeetingsPage() {
                         <select 
                             value={subStatus}
                             onChange={(e) => { setSubStatus(e.target.value); setPage(0); }}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#2463eb]"
                         >
                             <option value="ALL">All (History)</option>
                             <option value="COMPLETED">Completed Only</option>
@@ -311,7 +311,7 @@ export function EmployeeMeetingsPage() {
                             type="date"
                             value={fromDate}
                             onChange={(e) => setFromDate(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#2463eb]"
                         />
                     </div>
                     <div className="flex items-end gap-2">
@@ -321,7 +321,7 @@ export function EmployeeMeetingsPage() {
                                 type="date"
                                 value={toDate}
                                 onChange={(e) => setToDate(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500"
+                                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#2463eb]"
                             />
                         </div>
                         <button 
@@ -346,15 +346,15 @@ export function EmployeeMeetingsPage() {
                     <div 
                         key={m.id} 
                         onClick={() => (m.status === 'COMPLETED' || m.status === 'CANCELLED') && navigate(`/employee/meetings/${m.id}`)}
-                        className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between transition-all group ${ (m.status === 'COMPLETED' || m.status === 'CANCELLED') ? 'cursor-pointer hover:border-blue-200' : 'hover:border-blue-200'}`}
+                        className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between transition-all group ${ (m.status === 'COMPLETED' || m.status === 'CANCELLED') ? 'cursor-pointer hover:border-[#bfdbfe]' : 'hover:border-[#bfdbfe]'}`}
                     >
                         <div>
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 className="font-bold text-slate-800 text-lg leading-tight group-hover:text-blue-700 transition-colors">{m.title}</h3>
-                                    <p className={`text-xs font-bold uppercase tracking-wider mt-1 ${m.status === 'CANCELLED' ? 'text-rose-500' : 'text-blue-600'}`}>{m.status}</p>
+                                    <h3 className="font-bold text-slate-800 text-lg leading-tight group-hover:text-[#1d4ed8] transition-colors">{m.title}</h3>
+                                    <p className={`text-xs font-bold uppercase tracking-wider mt-1 ${m.status === 'CANCELLED' ? 'text-rose-500' : 'text-[#2463eb]'}`}>{m.status}</p>
                                 </div>
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${m.status === 'CANCELLED' ? 'bg-rose-50 text-rose-500' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${m.status === 'CANCELLED' ? 'bg-rose-50 text-rose-500' : 'bg-slate-100 text-slate-500 group-hover:bg-[#dbeafe] group-hover:text-[#2463eb]'}`}>
                                     {m.status === 'CANCELLED' ? <XCircle size={18} /> : (m.status === 'COMPLETED' ? <CheckCircle size={18} /> : <User size={18} />)}
                                 </div>
                             </div>
@@ -387,7 +387,7 @@ export function EmployeeMeetingsPage() {
                                     <>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleAccept(m.id); }}
-                                            className="bg-emerald-50 text-emerald-600 px-3 py-2 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors flex items-center gap-1 text-sm font-bold"
+                                            className="bg-[#dbeafe] text-[#2463eb] px-3 py-2 rounded-xl border border-[#bfdbfe] hover:bg-[#bfdbfe] transition-colors flex items-center gap-1 text-sm font-bold"
                                         >
                                             <Check size={16} /> Accept
                                         </button>
@@ -410,12 +410,12 @@ export function EmployeeMeetingsPage() {
                                 )}
 
                                 {m.status === 'RESCHEDULE_MGR' && (
-                                    <div className="w-full mt-4 bg-blue-50 p-4 rounded-xl border border-blue-100">
-                                        <p className="text-xs font-bold text-blue-800 uppercase mb-1">Reschedule Requested</p>
-                                        <p className="text-sm text-blue-900 mb-2 font-medium">Proposed: {new Date(m.proposedTime).toLocaleString()}</p>
+                                    <div className="w-full mt-4 bg-[#dbeafe] p-4 rounded-xl border border-[#dbeafe]">
+                                        <p className="text-xs font-bold text-[#1e40af] uppercase mb-1">Reschedule Requested</p>
+                                        <p className="text-sm text-[#1e3a8a] mb-2 font-medium">Proposed: {new Date(m.proposedTime).toLocaleString()}</p>
                                         <div className="flex gap-2 mt-3">
-                                            <button onClick={(e) => { e.stopPropagation(); handleAcceptReschedule(m.id); }} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">Accept</button>
-                                            <button onClick={(e) => { e.stopPropagation(); openReschedule(m.id); }} className="flex-1 bg-white border border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors">Propose</button>
+                                            <button onClick={(e) => { e.stopPropagation(); handleAcceptReschedule(m.id); }} className="flex-1 bg-[#2463eb] text-white py-2 rounded-lg text-xs font-bold hover:bg-[#1d4ed8] transition-colors">Accept</button>
+                                            <button onClick={(e) => { e.stopPropagation(); openReschedule(m.id); }} className="flex-1 bg-white border border-[#bfdbfe] text-[#1d4ed8] py-2 rounded-lg text-xs font-bold hover:bg-[#dbeafe] transition-colors">Propose</button>
                                         </div>
                                     </div>
                                 )}
@@ -425,7 +425,7 @@ export function EmployeeMeetingsPage() {
                         {activeTab === 'COMPLETED' && (
                             <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Click to view details</span>
-                                <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 group-hover:text-blue-500 transition-all" />
+                                <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 group-hover:text-[#2463eb] transition-all" />
                             </div>
                         )}
                     </div>
@@ -446,7 +446,7 @@ export function EmployeeMeetingsPage() {
                             <button
                                 key={i}
                                 onClick={() => setPage(i)}
-                                className={`w-10 h-10 rounded-lg font-bold text-sm transition-all ${page === i ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 border border-transparent'}`}
+                                className={`w-10 h-10 rounded-lg font-bold text-sm transition-all ${page === i ? 'bg-[#2463eb] text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 border border-transparent'}`}
                             >
                                 {i + 1}
                             </button>
@@ -481,7 +481,7 @@ export function EmployeeMeetingsPage() {
                                     min={minDateTime}
                                     value={proposedTime}
                                     onChange={(e) => setProposedTime(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
                                 />
                             </div>
                             <div>
@@ -491,13 +491,13 @@ export function EmployeeMeetingsPage() {
                                     rows={4}
                                     value={rescheduleReason}
                                     onChange={(e) => setRescheduleReason(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all resize-none"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all resize-none"
                                     placeholder="Please explain why you need to reschedule..."
                                 />
                             </div>
                             <button 
                                 type="submit"
-                                className="w-full bg-blue-600 text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-blue-700 transition-colors shadow-md mt-2"
+                                className="w-full bg-[#2463eb] text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-[#1d4ed8] transition-colors shadow-md mt-2"
                             >
                                 Send Request
                             </button>
@@ -528,7 +528,7 @@ export function EmployeeMeetingsPage() {
                                     type="text"
                                     value={requestTitle}
                                     onChange={(e) => setRequestTitle(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
                                     placeholder="e.g., Career discussion"
                                 />
                             </div>
@@ -540,7 +540,7 @@ export function EmployeeMeetingsPage() {
                                     min={minDateTime}
                                     value={requestScheduledTime}
                                     onChange={(e) => setRequestScheduledTime(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
                                 />
                             </div>
                             <div>
@@ -552,7 +552,7 @@ export function EmployeeMeetingsPage() {
                                     step="15"
                                     value={requestDurationMinutes}
                                     onChange={(e) => setRequestDurationMinutes(parseInt(e.target.value))}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
                                 />
                             </div>
                             <div>
@@ -561,14 +561,14 @@ export function EmployeeMeetingsPage() {
                                     rows={3}
                                     value={requestDescription}
                                     onChange={(e) => setRequestDescription(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all resize-none"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all resize-none"
                                     placeholder="Brief agenda or topics to discuss..."
                                 />
                             </div>
                             <button
                                 type="submit"
                                 disabled={requestableManagers.length === 0}
-                                className="w-full bg-blue-600 text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-blue-700 transition-colors shadow-md mt-2 disabled:opacity-50"
+                                className="w-full bg-[#2463eb] text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-[#1d4ed8] transition-colors shadow-md mt-2 disabled:opacity-50"
                             >
                                 Send Request
                             </button>
