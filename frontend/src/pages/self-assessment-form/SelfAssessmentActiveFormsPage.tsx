@@ -40,6 +40,7 @@ import {
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { PaginationBar } from '../../components/common/PaginationBar';
 import { SelfAssessmentReviewCycleInfo } from './SelfAssessmentReviewCycleInfo';
+import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
 
 function formatDate(iso?: string | null) {
   if (!iso) return '-';
@@ -1028,45 +1029,25 @@ export const SelfAssessmentActiveFormsPage: React.FC = () => {
         )}
       </div>
       {unlockTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-          <button
-            type="button"
-            aria-label="Close unlock retake confirmation"
-            className="absolute inset-0 bg-slate-900/45 backdrop-blur-sm"
-            onClick={() => !isUnlockingRetake && setUnlockTarget(null)}
-          />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-900/25 dark:text-amber-300">
-              <LockOpen size={20} />
-            </div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Unlock Retake</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              This clears only the submitted retake answers for {unlockTarget.employee.employeeName}. The original self-assessment, selected retake questions, warning comments, signatures, comments, deadlines, and assignment details will stay unchanged.
-            </p>
-            <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              The employee or manager must edit and resubmit the same retake before the next approval step can continue.
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                disabled={isUnlockingRetake}
-                onClick={() => setUnlockTarget(null)}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isUnlockingRetake}
-                onClick={handleConfirmUnlockRetake}
-                className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-60"
-              >
-                <LockOpen size={15} />
-                {isUnlockingRetake ? 'Unlocking...' : 'Unlock Retake'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmActionModal
+            isOpen={!!unlockTarget}
+            onClose={() => !isUnlockingRetake && setUnlockTarget(null)}
+            onConfirm={handleConfirmUnlockRetake}
+            title="Unlock Retake for Editing"
+            message="This will clear only the submitted retake answers for this employee. The original self-assessment, selected retake questions, warning comments, signatures, deadlines, and assignment details will remain unchanged."
+            description="The employee or manager must edit and resubmit the same retake before the next approval step can continue."
+            confirmText="Yes, Unlock Retake"
+            cancelText="Cancel"
+            isLoading={isUnlockingRetake}
+            variant="warning"
+            icon={<LockOpen size={22} />}
+            employeeName={unlockTarget.employee.employeeName}
+            warningItems={[
+                'Only the retake answers will be cleared — the original form stays intact',
+                'The employee or manager must resubmit the retake before approval can proceed',
+                'Warning comments, signatures, and assignment details are preserved',
+            ]}
+        />
       )}
     </div>
   );
