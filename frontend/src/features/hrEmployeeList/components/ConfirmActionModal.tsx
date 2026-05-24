@@ -54,7 +54,7 @@ function ConfirmActionModal({
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <div className="sm:flex sm:items-start">
                     <div className={`mx-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10 ${
-                      variant === 'danger' ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'
+                      variant === 'danger' ? 'bg-red-100 text-red-600' : 'bg-[#dbeafe] text-[#2463eb]'
                     }`}>
                         {variant === 'danger' ? (
                             <i className="bi bi-exclamation-triangle-fill text-xl"></i>
@@ -81,7 +81,7 @@ function ConfirmActionModal({
                     className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto ${
                       variant === 'danger'
                         ? 'bg-red-600 hover:bg-red-500 disabled:bg-red-300'
-                        : 'bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-300'
+                        : 'bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] disabled:opacity-50'
                     }`}
                     onClick={onConfirm}
                   >

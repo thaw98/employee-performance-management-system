@@ -1,5 +1,6 @@
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react'
 import { CheckCircle, Mail, UserPlus, List, X } from 'lucide-react'
+import { createAccountGradient, createAccountGradientBr } from './createAccountTheme'
 
 interface CreateEmployeeSuccessModalProps {
   open: boolean
@@ -30,7 +31,7 @@ export function CreateEmployeeSuccessModal({
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
         <DialogPanel className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
           {/* Accent strip */}
-          <div className="h-1.5 bg-gradient-to-r from-teal-400 via-emerald-500 to-green-400" />
+          <div className={`h-1.5 ${createAccountGradient}`} />
 
           {/* Close button */}
           <button
@@ -44,7 +45,7 @@ export function CreateEmployeeSuccessModal({
           <div className="px-8 pt-8 pb-6">
             {/* Animated success icon */}
             <div className="mb-5 flex justify-center">
-              <div className="animate-scale-in flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-green-500 text-white shadow-lg shadow-emerald-500/30">
+              <div className={`animate-scale-in flex h-16 w-16 items-center justify-center rounded-2xl ${createAccountGradientBr} text-white shadow-lg shadow-[#2463eb]/30`}>
                 <CheckCircle size={32} strokeWidth={2.5} />
               </div>
             </div>
@@ -65,7 +66,7 @@ export function CreateEmployeeSuccessModal({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-slate-500">Staff ID</span>
-                  <span className="font-mono font-bold text-teal-700">{staffNo}</span>
+                  <span className="font-mono font-bold text-[#1d4ed8]">{staffNo}</span>
                 </div>
               </div>
             </div>
@@ -99,7 +100,7 @@ export function CreateEmployeeSuccessModal({
                 <button
                   type="button"
                   onClick={onCreateAnother}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/25 transition hover:shadow-lg active:scale-[0.98]"
+                  className={`inline-flex items-center justify-center gap-2 rounded-xl ${createAccountGradient} px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#2463eb]/25 transition hover:shadow-lg active:scale-[0.98]`}
                 >
                   <UserPlus size={15} />
                   Create Another

@@ -114,9 +114,9 @@ function EmployeeViewModal({
 
   const tabClasses = useCallback(
     ({ selected }: { selected: boolean }) =>
-      `px-4 py-2.5 text-sm font-medium leading-5 rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 ${
+      `px-4 py-2.5 text-sm font-medium leading-5 rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#60a5fa] focus:ring-offset-1 ${
         selected
-          ? 'bg-indigo-600 text-white shadow-sm'
+          ? 'bg-[#2463eb] text-white shadow-sm'
           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
       }`,
     []
@@ -151,7 +151,7 @@ function EmployeeViewModal({
             >
               <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all w-full max-w-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-white">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[#eff6ff] to-white">
                   <Dialog.Title className="text-lg font-semibold text-gray-900">
                     Employee Details
                   </Dialog.Title>
@@ -168,7 +168,7 @@ function EmployeeViewModal({
                 <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">
                   {isLoading && (
                     <div className="flex flex-col items-center justify-center py-16">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2463eb] mb-4"></div>
                       <p className="text-sm text-gray-500">Loading employee details…</p>
                     </div>
                   )}
@@ -182,7 +182,7 @@ function EmployeeViewModal({
                       <p className="text-sm text-gray-500 mb-4">Please try again.</p>
                       <button
                         onClick={onRetry}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white text-sm font-medium hover:from-[#1d4ed8] hover:to-[#1e40af] transition-colors"
                       >
                         <i className="bi bi-arrow-clockwise"></i>
                         Retry
@@ -198,11 +198,11 @@ function EmployeeViewModal({
                           <img
                             src={profilePictureUrl}
                             alt={data.fullName}
-                            className="h-16 w-16 rounded-full object-cover border-2 border-indigo-100 shadow-sm"
+                            className="h-16 w-16 rounded-full object-cover border-2 border-[#dbeafe] shadow-sm"
                             onError={() => setFailedImageUrl(profilePictureUrl)}
                           />
                         ) : (
-                          <div className="h-16 w-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xl font-bold border-2 border-indigo-200">
+                          <div className="h-16 w-16 rounded-full bg-[#dbeafe] flex items-center justify-center text-[#1d4ed8] text-xl font-bold border-2 border-[#bfdbfe]">
                             {initials}
                           </div>
                         )}
@@ -430,7 +430,7 @@ function EmployeeViewModal({
                                   <button
                                     type="button"
                                     onClick={() => setShowMakePermanent(true)}
-                                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-700"
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-3 py-2 text-xs font-semibold text-white transition-colors hover:from-[#1d4ed8] hover:to-[#1e40af]"
                                   >
                                     <CheckCircle2 size={13} />
                                     Make Permanent
@@ -438,7 +438,7 @@ function EmployeeViewModal({
                                   <button
                                     type="button"
                                     onClick={() => setShowReturn(true)}
-                                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#eff6ff] px-3 py-2 text-xs font-semibold text-[#1d4ed8] transition-colors hover:bg-[#dbeafe]"
                                   >
                                     <RotateCcw size={13} />
                                     Return

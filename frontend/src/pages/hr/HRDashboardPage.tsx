@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 
 import axios from '../../app/axiosInstance'
+import { getNotificationSourceLabel } from '../../features/notification/notificationSourceLabels'
 
 type NameValue = {
   name: string
@@ -308,7 +309,15 @@ export function HRDashboardPage() {
                 <h2 className="text-lg font-black text-slate-950 dark:text-white">Meeting Schedule</h2>
                 <p className="mt-1 text-xs font-semibold text-slate-500">Upcoming meetings involving the logged-in HR user</p>
               </div>
-              <CalendarClock className="text-blue-600" size={22} />
+              <div className="flex shrink-0 items-center gap-3">
+                <Link
+                  to="/hr/meetings?section=schedule"
+                  className="text-xs font-black uppercase tracking-widest text-blue-600 transition hover:underline"
+                >
+                  View All
+                </Link>
+                <CalendarClock className="text-blue-600" size={22} />
+              </div>
             </div>
             <div className="mt-5 space-y-3">
               {meetingError ? (
@@ -339,8 +348,16 @@ export function HRDashboardPage() {
               <h2 className="text-lg font-black text-slate-950 dark:text-white">Recent Activity</h2>
               <p className="mt-1 text-xs font-semibold text-slate-500">Latest HR and performance notifications</p>
             </div>
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-50 text-blue-700">
-              <Activity size={20} />
+            <div className="flex shrink-0 items-center gap-3">
+              <Link
+                to="/hr/notifications"
+                className="text-xs font-black uppercase tracking-widest text-blue-600 transition hover:underline"
+              >
+                View All
+              </Link>
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-blue-50 text-blue-700">
+                <Activity size={20} />
+              </div>
             </div>
           </div>
           <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
@@ -361,7 +378,7 @@ export function HRDashboardPage() {
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700 dark:bg-slate-900">
-                    {activity.source}
+                    {getNotificationSourceLabel(activity.source)}
                   </span>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                     {formatDate(activity.createdAt)} {formatTime(activity.createdAt)}

@@ -51,7 +51,7 @@ export const KpiAuditLogsPage: React.FC = () => {
 
   const getActionColor = (action: string) => {
     if (action.includes('CREATED') || action.includes('SUBMITTED')) return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-    if (action.includes('UPDATED') || action.includes('DRAFT')) return 'bg-blue-50 text-blue-600 border-blue-100';
+    if (action.includes('UPDATED') || action.includes('DRAFT')) return 'bg-[#dbeafe] text-[#2463eb] border-[#bfdbfe]';
     if (action.includes('DELETED')) return 'bg-rose-50 text-rose-600 border-rose-100';
     return 'bg-slate-50 text-slate-600 border-slate-100';
   };
@@ -70,7 +70,7 @@ export const KpiAuditLogsPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase flex items-center gap-3">
-            <ClipboardList className="text-indigo-600" size={28} />
+            <ClipboardList className="text-[#2463eb]" size={28} />
             KPI Audit Logs
           </h1>
           <p className="text-slate-500 text-sm font-medium mt-1">Traceability for all KPI-related changes in the system.</p>
@@ -86,7 +86,7 @@ export const KpiAuditLogsPage: React.FC = () => {
               placeholder="Search by user or description..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none font-bold text-slate-800 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none font-bold text-slate-800 transition-all"
             />
           </div>
 
@@ -95,7 +95,7 @@ export const KpiAuditLogsPage: React.FC = () => {
             <select 
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none font-bold text-slate-800 transition-all appearance-none cursor-pointer"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none font-bold text-slate-800 transition-all appearance-none cursor-pointer"
             >
               <option value="ALL">All Target Types</option>
               <option value="EMPLOYEE_KPI">Employee KPIs</option>
@@ -131,7 +131,7 @@ export const KpiAuditLogsPage: React.FC = () => {
                 <tr>
                   <td colSpan={6} className="py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-10 h-10 border-4 border-[#2463eb] border-t-transparent rounded-full animate-spin"></div>
                       <p className="text-slate-400 font-bold text-xs uppercase tracking-widest animate-pulse">Loading Audit Logs...</p>
                     </div>
                   </td>
@@ -156,7 +156,7 @@ export const KpiAuditLogsPage: React.FC = () => {
                   <React.Fragment key={log.id}>
                     <tr 
                       onClick={() => toggleExpand(log.id)}
-                      className={`hover:bg-slate-50/80 transition-all cursor-pointer group ${expandedRow === log.id ? 'bg-indigo-50/30' : ''}`}
+                      className={`hover:bg-slate-50/80 transition-all cursor-pointer group ${expandedRow === log.id ? 'bg-[#eff6ff]' : ''}`}
                     >
                       <td className="py-4 px-6 whitespace-nowrap">
                         <div className="flex flex-col">
@@ -195,7 +195,7 @@ export const KpiAuditLogsPage: React.FC = () => {
                         </p>
                       </td>
                       <td className="py-4 px-6 text-right">
-                        {expandedRow === log.id ? <ChevronUp size={16} className="text-indigo-600" /> : <ChevronDown size={16} className="text-slate-300" />}
+                        {expandedRow === log.id ? <ChevronUp size={16} className="text-[#2463eb]" /> : <ChevronDown size={16} className="text-slate-300 group-hover:text-[#2463eb]" />}
                       </td>
                     </tr>
                     {expandedRow === log.id && (
@@ -246,7 +246,7 @@ export const KpiAuditLogsPage: React.FC = () => {
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest transition-colors"
+                className="px-4 py-2 bg-[#2463eb] border border-[#2463eb] text-white text-xs font-black rounded-xl hover:bg-[#1d4ed8] hover:border-[#1d4ed8] disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest transition-colors"
               >
                 Next
               </button>

@@ -24,7 +24,7 @@ export default function PipUnifiedLog({ pipId }: PipUnifiedLogProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-10">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2463eb] border-t-transparent"></div>
         <span className="ml-3 text-sm text-slate-500 font-medium">Loading activity history...</span>
       </div>
     )
@@ -72,7 +72,7 @@ function LogEntry({ update, isLatest }: { update: PipProgressUpdate; isLatest?: 
   return (
     <div className="relative pl-12 group">
       {/* Timeline Dot */}
-      <div className="absolute left-0 mt-1.5 flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-blue-50 text-blue-600 shadow-sm transition-transform group-hover:scale-110">
+      <div className="absolute left-0 mt-1.5 flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-[#eff6ff] text-[#2463eb] shadow-sm transition-transform group-hover:scale-110">
         <i className="bi bi-pencil-square text-xs"></i>
       </div>
 
@@ -83,7 +83,7 @@ function LogEntry({ update, isLatest }: { update: PipProgressUpdate; isLatest?: 
             Progress Update
           </span>
           {isLatest && (
-            <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white uppercase tracking-wider animate-pulse">
+            <span className="rounded-full bg-[#2463eb] px-2 py-0.5 text-[10px] font-black text-white uppercase tracking-wider animate-pulse">
               Latest
             </span>
           )}
@@ -101,14 +101,14 @@ function LogEntry({ update, isLatest }: { update: PipProgressUpdate; isLatest?: 
                 <i className="bi bi-arrow-right text-slate-300 text-[10px]"></i>
               </>
             )}
-            <span className={`text-sm font-extrabold ${update.newPercentage >= 100 ? 'text-emerald-600' : 'text-blue-600'}`}>
+            <span className={`text-sm font-extrabold ${update.newPercentage >= 100 ? 'text-emerald-600' : 'text-[#2463eb]'}`}>
               {update.newPercentage}%
             </span>
           </div>
 
           <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden max-w-[100px]">
             <div
-              className={`h-full transition-all duration-500 ${update.newPercentage >= 70 ? 'bg-emerald-500' : update.newPercentage >= 30 ? 'bg-blue-500' : 'bg-orange-500'}`}
+              className={`h-full transition-all duration-500 ${update.newPercentage >= 70 ? 'bg-emerald-500' : update.newPercentage >= 30 ? 'bg-[#2463eb]' : 'bg-orange-500'}`}
               style={{ width: `${update.newPercentage}%` }}
             ></div>
           </div>
@@ -123,7 +123,7 @@ function LogEntry({ update, isLatest }: { update: PipProgressUpdate; isLatest?: 
 
         {update.feedback && (
           <div className="mt-3 relative">
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-100 rounded-full"></div>
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#dbeafe] rounded-full"></div>
             <div className="pl-4 py-1">
               <p className="break-words text-sm text-slate-600 italic leading-relaxed">
                 "{update.feedback}"

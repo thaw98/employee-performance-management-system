@@ -6,8 +6,15 @@ import { Target, Users, Building2, TrendingUp, ChevronLeft, ChevronRight, Filter
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx-js-style';
 import { toast } from 'react-hot-toast';
-
-const COLORS = ['#0855BF', '#10B981', '#F59E0B', '#6366F1', '#EC4899', '#8B5CF6', '#14B8A6', '#F43F5E'];
+import {
+  KPI_REPORTS_BAR_FILL,
+  KPI_REPORTS_CHART_AXIS,
+  KPI_REPORTS_CHART_COLORS,
+  KPI_REPORTS_CHART_GRID,
+  KPI_REPORTS_PIE_STROKE,
+  KPI_REPORTS_PIE_STROKE_WIDTH,
+  kpisGradientR,
+} from '../../features/kpi/kpisTheme';
 
 export function getPerformanceLevel(score?: number | null): string | null {
   if (score === undefined || score === null) return null;
@@ -22,7 +29,7 @@ export function getPerformanceLevelBadgeStyle(level: string): string {
     case 'High Performer':
       return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     case 'Good Performer':
-      return 'bg-blue-50 text-blue-700 border-blue-200';
+      return 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]';
     case 'Low Performer':
       return 'bg-orange-50 text-orange-700 border-orange-200';
     case 'Poor Performer':
@@ -255,35 +262,35 @@ export default function KpiReportsPage() {
           if (r === 0) {
             cell.s = {
               font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: 'FFFFFF' } },
-              fill: { fgColor: { rgb: 'F97316' } }, // Premium Orange
+              fill: { fgColor: { rgb: '2463EB' } },
               alignment: { horizontal: 'center', vertical: 'center' }
             };
           }
           // Row 2: Period & Export Date
           else if (r === 1) {
             cell.s = {
-              font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: 'EA580C' } },
-              fill: { fgColor: { rgb: 'FFF7ED' } }, // Pale Orange
+              font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: '1D4ED8' } },
+              fill: { fgColor: { rgb: 'EFF6FF' } },
               alignment: { 
                 horizontal: c < (isDeptActive ? 3 : 6) ? 'left' : 'right', 
                 vertical: 'center' 
               },
               border: {
-                bottom: { style: 'thin', color: { rgb: 'FED7AA' } }
+                bottom: { style: 'thin', color: { rgb: 'BFDBFE' } }
               }
             };
           }
           // Row 3: Headers exactly as in the layout
           else if (r === 2) {
             cell.s = {
-              font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: 'EA580C' } }, // Dark Orange
-              fill: { fgColor: { rgb: 'FFEDD5' } }, // Light Orange
+              font: { name: 'Segoe UI', sz: 11, bold: true, color: { rgb: '1E40AF' } },
+              fill: { fgColor: { rgb: 'DBEAFE' } },
               alignment: { horizontal: 'center', vertical: 'center' },
               border: {
-                top: { style: 'medium', color: { rgb: 'EA580C' } },
-                bottom: { style: 'medium', color: { rgb: 'EA580C' } },
-                left: { style: 'thin', color: { rgb: 'FFEDD5' } },
-                right: { style: 'thin', color: { rgb: 'FFEDD5' } }
+                top: { style: 'medium', color: { rgb: '2463EB' } },
+                bottom: { style: 'medium', color: { rgb: '2463EB' } },
+                left: { style: 'thin', color: { rgb: 'DBEAFE' } },
+                right: { style: 'thin', color: { rgb: 'DBEAFE' } }
               }
             };
           }
@@ -339,7 +346,7 @@ export default function KpiReportsPage() {
               if (lvl === 'High Performer') {
                 cell.s.font.color = { rgb: '10B981' }; // Green
               } else if (lvl === 'Good Performer') {
-                cell.s.font.color = { rgb: '3B82F6' }; // Blue
+                cell.s.font.color = { rgb: '2463EB' };
               } else if (lvl === 'Low Performer') {
                 cell.s.font.color = { rgb: 'F97316' }; // Orange
               } else if (lvl === 'Poor Performer') {
@@ -406,7 +413,7 @@ export default function KpiReportsPage() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-[#bfdbfe] border-t-[#2463eb] rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -422,7 +429,7 @@ export default function KpiReportsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           {/* Department Filter */}
           <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-2xl border border-slate-100 shadow-sm h-12">
-            <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 bg-[#eff6ff] text-[#2463eb] rounded-lg flex items-center justify-center flex-shrink-0">
               <Filter size={16} />
             </div>
             <select
@@ -445,7 +452,7 @@ export default function KpiReportsPage() {
           {/* Filter/Sort Dropdown */}
           {activeTab === 'employee' && (
             <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-2xl border border-slate-100 shadow-sm h-12">
-              <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 bg-[#eff6ff] text-[#2463eb] rounded-lg flex items-center justify-center flex-shrink-0">
                 <Filter size={16} />
               </div>
               <select
@@ -470,7 +477,7 @@ export default function KpiReportsPage() {
         {/* Export to Excel Button */}
         <button
           onClick={handleExportExcel}
-          className="flex items-center justify-center gap-2.5 px-5 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-emerald-100 hover:scale-[1.02] active:scale-[0.98] cursor-pointer sm:ml-auto"
+          className={`flex items-center justify-center gap-2.5 px-5 h-12 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-sm shadow-[#dbeafe] hover:from-[#1d4ed8] hover:to-[#1e40af] hover:scale-[1.02] active:scale-[0.98] cursor-pointer sm:ml-auto ${kpisGradientR}`}
         >
           <FileSpreadsheet size={16} />
           <span>Export Excel</span>
@@ -480,7 +487,7 @@ export default function KpiReportsPage() {
       {/* KPI Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-[#eff6ff] text-[#2463eb] rounded-xl flex items-center justify-center">
             <Target size={24} />
           </div>
           <div>
@@ -498,7 +505,7 @@ export default function KpiReportsPage() {
           </div>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-[#eff6ff] text-[#1d4ed8] rounded-xl flex items-center justify-center">
             <Building2 size={24} />
           </div>
           <div>
@@ -521,7 +528,7 @@ export default function KpiReportsPage() {
         {/* Department Distribution */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-6 flex items-center gap-2">
-            <Building2 size={16} className="text-indigo-600" />
+            <Building2 size={16} className="text-[#2463eb]" />
             KPIs Distribution by Department
           </h3>
           <div className="h-[300px]">
@@ -534,16 +541,29 @@ export default function KpiReportsPage() {
                     cy="50%"
                     innerRadius={70}
                     outerRadius={100}
-                    paddingAngle={2}
+                    paddingAngle={3}
                     dataKey="value"
+                    stroke={KPI_REPORTS_PIE_STROKE}
+                    strokeWidth={KPI_REPORTS_PIE_STROKE_WIDTH}
                     label={({ name, percent }) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
+                    labelLine={{ stroke: KPI_REPORTS_CHART_AXIS.fill, strokeWidth: 1 }}
                   >
                     {departmentChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={KPI_REPORTS_CHART_COLORS[index % KPI_REPORTS_CHART_COLORS.length]}
+                        stroke={KPI_REPORTS_PIE_STROKE}
+                        strokeWidth={KPI_REPORTS_PIE_STROKE_WIDTH}
+                      />
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{
+                      borderRadius: '12px',
+                      border: '1px solid #cbd5e1',
+                      boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)',
+                      fontWeight: 600,
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -556,32 +576,44 @@ export default function KpiReportsPage() {
         {/* Timeline Chart */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-6 flex items-center gap-2">
-            <TrendingUp size={16} className="text-indigo-600" />
+            <TrendingUp size={16} className="text-[#2463eb]" />
             KPI Assignment Over Time
           </h3>
           <div className="h-[300px]">
             {timelineChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={timelineChartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={KPI_REPORTS_CHART_GRID} />
                   <XAxis
                     dataKey="name"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: '#64748b', fontWeight: 600 }}
+                    tick={KPI_REPORTS_CHART_AXIS}
                     dy={10}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: '#64748b', fontWeight: 600 }}
+                    tick={KPI_REPORTS_CHART_AXIS}
                     dx={-10}
                   />
                   <Tooltip
-                    cursor={{ fill: '#f8fafc' }}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    cursor={{ fill: '#e2e8f0' }}
+                    contentStyle={{
+                      borderRadius: '12px',
+                      border: '1px solid #cbd5e1',
+                      boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)',
+                      fontWeight: 600,
+                    }}
                   />
-                  <Bar dataKey="Records" fill="#4f46e5" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                  <Bar
+                    dataKey="Records"
+                    fill={KPI_REPORTS_BAR_FILL}
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={50}
+                    stroke="#0d5c56"
+                    strokeWidth={1}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -597,7 +629,7 @@ export default function KpiReportsPage() {
           onClick={() => setActiveTab('employee')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-200 border ${
             activeTab === 'employee'
-              ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100/50'
+              ? `border-[#2463eb] text-white shadow-lg shadow-[#dbeafe]/50 ${kpisGradientR}`
               : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
           }`}
         >
@@ -608,7 +640,7 @@ export default function KpiReportsPage() {
           onClick={() => setActiveTab('department')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-black uppercase tracking-wider transition-all duration-200 border ${
             activeTab === 'department'
-              ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100/50'
+              ? `border-[#2463eb] text-white shadow-lg shadow-[#dbeafe]/50 ${kpisGradientR}`
               : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
           }`}
         >
@@ -623,14 +655,14 @@ export default function KpiReportsPage() {
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h3 className="text-base font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <Building2 size={18} className="text-indigo-600" />
+                <Building2 size={18} className="text-[#2463eb]" />
                 Department Performance Comparison
               </h3>
               <p className="text-xs font-medium text-slate-400 mt-1">
                 Comparative overview of active departments, total staff size, department managers, and their average performance score
               </p>
             </div>
-            <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-full uppercase tracking-wider">
+            <span className="px-3 py-1 bg-[#eff6ff] text-[#1d4ed8] text-xs font-bold rounded-full uppercase tracking-wider">
               {sortedDepartmentComparisonData.length} Departments
             </span>
           </div>
@@ -661,7 +693,13 @@ export default function KpiReportsPage() {
                       </td>
                       <td className="py-4 px-6 font-bold text-slate-900 whitespace-nowrap">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                          <div
+                            className="w-2.5 h-2.5 rounded-full ring-2 ring-white"
+                            style={{
+                              backgroundColor:
+                                KPI_REPORTS_CHART_COLORS[idx % KPI_REPORTS_CHART_COLORS.length],
+                            }}
+                          />
                           {dept.departmentName}
                         </div>
                       </td>
@@ -678,7 +716,7 @@ export default function KpiReportsPage() {
                           {dept.managerName || '-'}
                         </div>
                       </td>
-                      <td className="py-4 px-6 text-right font-black text-indigo-600 text-base whitespace-nowrap">
+                      <td className="py-4 px-6 text-right font-black text-[#2463eb] text-base whitespace-nowrap">
                         {dept.totalScore !== undefined && dept.totalScore !== null ? (
                           `${Number(dept.totalScore).toFixed(2)}%`
                         ) : (
@@ -706,7 +744,7 @@ export default function KpiReportsPage() {
               <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">Employee KPI Performance Directory</h3>
               <p className="text-xs font-medium text-slate-400 mt-1">Detailed list of employee KPI definitions, total assigned KPIs, and performance scores</p>
             </div>
-            <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-full uppercase tracking-wider">
+            <span className="px-3 py-1 bg-[#eff6ff] text-[#1d4ed8] text-xs font-bold rounded-full uppercase tracking-wider">
               {filteredData.length} Records
             </span>
           </div>
@@ -747,7 +785,7 @@ export default function KpiReportsPage() {
                         </td>
                         <td className="py-4 px-6 text-slate-500 font-medium whitespace-nowrap">{item.positionName}</td>
                         <td className="py-4 px-6 text-center whitespace-nowrap">
-                          <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-full">
+                          <span className="px-2.5 py-1 bg-[#eff6ff] text-[#2463eb] text-xs font-black rounded-full">
                             {item.totalKpis}
                           </span>
                         </td>

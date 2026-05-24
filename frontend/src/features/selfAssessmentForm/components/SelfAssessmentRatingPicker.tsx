@@ -53,8 +53,8 @@ function TenPointScaleWireframe({
                 inactive || !isAllowed
                   ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-600'
                   : isSelected
-                    ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm dark:border-emerald-400 dark:bg-emerald-600'
-                    : 'border-slate-300 bg-white text-slate-700 hover:border-emerald-400 hover:bg-emerald-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-950/40'
+                    ? 'border-[#2463eb] bg-[#2463eb] text-white shadow-sm dark:border-[#60a5fa] dark:bg-[#2463eb]'
+                    : 'border-slate-300 bg-white text-slate-700 hover:border-[#2463eb] hover:bg-[#eff6ff] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-[#2463eb]/60 dark:hover:bg-[#1e3a8a]/40'
               }`}
             >
               {n}
@@ -161,8 +161,8 @@ function FivePointNumericWireframe({
                 inactive || !isAllowed
                   ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-600'
                   : isSelected
-                    ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm dark:border-emerald-400 dark:bg-emerald-600'
-                    : 'border-slate-300 bg-white text-slate-700 hover:border-emerald-400 hover:bg-emerald-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-950/40'
+                    ? 'border-[#2463eb] bg-[#2463eb] text-white shadow-sm dark:border-[#60a5fa] dark:bg-[#2463eb]'
+                    : 'border-slate-300 bg-white text-slate-700 hover:border-[#2463eb] hover:bg-[#eff6ff] dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-[#2463eb]/60 dark:hover:bg-[#1e3a8a]/40'
               }`}
             >
               {n}

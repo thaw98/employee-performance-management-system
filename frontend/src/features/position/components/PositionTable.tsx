@@ -54,8 +54,8 @@ function PositionTable({
         header: 'Position Name',
         cell: (info) => (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-lg flex items-center justify-center">
-              <Briefcase className="w-4 h-4 text-indigo-600" />
+            <div className="w-8 h-8 bg-gradient-to-br from-[#eff6ff] to-[#dbeafe] rounded-lg flex items-center justify-center">
+              <Briefcase className="w-4 h-4 text-[#2463eb]" />
             </div>
             <span className="text-slate-700 font-medium">{info.getValue() as string}</span>
           </div>
@@ -67,7 +67,7 @@ function PositionTable({
         cell: (info) => {
           const value = info.getValue() as string
           return (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 text-xs font-semibold">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#eff6ff] to-[#dbeafe] text-[#1d4ed8] text-xs font-semibold">
               <Layers className="w-3.5 h-3.5" />
               {value}
             </span>
@@ -80,7 +80,7 @@ function PositionTable({
         cell: (info) => {
           const value = info.getValue() as string
           return (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 text-xs font-semibold">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#eff6ff] to-[#dbeafe] text-[#1d4ed8] text-xs font-semibold">
               <Shield className="w-3.5 h-3.5" />
               {value}
             </span>
@@ -97,7 +97,7 @@ function PositionTable({
               {onShowAssignedDepartments && (
                 <button
                   onClick={() => onShowAssignedDepartments(row)}
-                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-blue-700 transition-all duration-200 hover:bg-blue-50 active:scale-95"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-[#2463eb] transition-all duration-200 hover:bg-[#eff6ff] active:scale-95"
                   title="Assigned Departments"
                 >
                   <i className="bi bi-diagram-3 text-sm" aria-hidden />
@@ -106,7 +106,7 @@ function PositionTable({
               )}
               <button
                 onClick={() => onEdit(row.positionId)}
-                className="p-2.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+                className="p-2.5 text-slate-500 hover:bg-[#eff6ff] hover:text-[#2463eb] rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
                 title="Edit Position"
               >
                 <Edit2 className="w-4 h-4" />
@@ -142,7 +142,7 @@ function PositionTable({
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="relative">
-          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+          <Loader2 className="w-12 h-12 text-[#2463eb] animate-spin" />
         </div>
         <p className="mt-4 text-sm text-slate-500 font-medium">Loading positions...</p>
       </div>
@@ -165,9 +165,9 @@ function PositionTable({
                     {flexRender(header.column.columnDef.header, header.getContext())}
                     <span className="ml-1">
                       {header.column.getIsSorted() === 'asc' ? (
-                        <ArrowUp className="w-4 h-4 text-indigo-600" />
+                        <ArrowUp className="w-4 h-4 text-[#2463eb]" />
                       ) : header.column.getIsSorted() === 'desc' ? (
-                        <ArrowDown className="w-4 h-4 text-indigo-600" />
+                        <ArrowDown className="w-4 h-4 text-[#2463eb]" />
                       ) : (
                         <ArrowUpDown className="w-4 h-4 text-slate-400 hover:text-slate-600" />
                       )}
@@ -181,7 +181,7 @@ function PositionTable({
         <tbody className="divide-y divide-slate-200 bg-white">
           {table.getRowModel().rows.length > 0 ? (
             table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="hover:bg-gradient-to-r hover:from-indigo-50/30 hover:to-purple-50/30 transition-all duration-200 group">
+              <tr key={row.id} className="hover:bg-gradient-to-r hover:from-[#eff6ff]/50 hover:to-[#dbeafe]/30 transition-all duration-200 group">
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="px-6 py-4 text-sm text-slate-700">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

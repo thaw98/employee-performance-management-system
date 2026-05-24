@@ -59,10 +59,10 @@ function PositionRoleEditModal({ isOpen, onClose, levelCode }: PositionRoleEditM
           <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
             <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" enterTo="opacity-100 translate-y-0 sm:scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 translate-y-0 sm:scale-100" leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
               <Dialog.Panel className="w-full max-w-5xl transform overflow-hidden rounded-3xl bg-white shadow-2xl transition-all">
-                <div className="px-6 py-5 sm:px-8 border-b border-slate-200 bg-gradient-to-r from-indigo-500/5 to-purple-500/5">
+                <div className="px-6 py-5 sm:px-8 border-b border-slate-200 bg-gradient-to-r from-[#2463eb]/5 to-[#1d4ed8]/5">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-200">
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#dbeafe]">
                         <Layers className="w-5 h-5 text-white" />
                       </div>
                       <div className="min-w-0">
@@ -81,7 +81,7 @@ function PositionRoleEditModal({ isOpen, onClose, levelCode }: PositionRoleEditM
                 <div className="p-6 sm:p-8 max-h-[70vh] overflow-y-auto">
                   {(isLoading || isFetching || isRolesLoading) && (
                     <div className="flex flex-col items-center justify-center py-16">
-                      <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                      <Loader2 className="w-10 h-10 text-[#2463eb] animate-spin" />
                       <p className="mt-3 text-sm text-slate-500 font-medium">Loading positions and roles...</p>
                     </div>
                   )}
@@ -118,8 +118,8 @@ function PositionRoleEditModal({ isOpen, onClose, levelCode }: PositionRoleEditM
                               <tr key={position.positionId}>
                                 <td className="px-5 py-4">
                                   <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center">
-                                      <Briefcase className="w-4 h-4 text-indigo-600" />
+                                    <div className="w-9 h-9 rounded-lg bg-[#eff6ff] flex items-center justify-center">
+                                      <Briefcase className="w-4 h-4 text-[#2463eb]" />
                                     </div>
                                     <div>
                                       <p className="text-sm font-bold text-slate-900">{position.positionCode}</p>
@@ -137,7 +137,7 @@ function PositionRoleEditModal({ isOpen, onClose, levelCode }: PositionRoleEditM
                                     <select
                                       value={selectedRoleId || ''}
                                       onChange={(event) => setSelectedRoles((current) => ({ ...current, [position.positionId]: Number(event.target.value) }))}
-                                      className="w-full min-w-56 pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl appearance-none bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none"
+                                      className="w-full min-w-56 pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl appearance-none bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-[#dbeafe] focus:border-[#2463eb] focus:outline-none"
                                     >
                                       <option value="">Select Role</option>
                                       {roles.map((role) => (
@@ -152,7 +152,7 @@ function PositionRoleEditModal({ isOpen, onClose, levelCode }: PositionRoleEditM
                                     type="button"
                                     onClick={() => handleSave(position.positionId)}
                                     disabled={isSaving || unchanged || !selectedRoleId}
-                                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     <Check className="w-4 h-4" />
                                     Save

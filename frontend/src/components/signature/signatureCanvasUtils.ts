@@ -1,5 +1,9 @@
 const MAX_DRAWN_SIGNATURE_REQUEST_BYTES = 3 * 1024 * 1024
 
+/** Internal canvas resolution for inline signature pads (CSS may scale display size). */
+export const SIGNATURE_PAD_WIDTH = 520
+export const SIGNATURE_PAD_HEIGHT = 160
+
 export function estimateDataUrlBytes(dataUrl: string): number {
   const commaIndex = dataUrl.indexOf(',')
   if (commaIndex < 0) return 0
@@ -60,4 +64,8 @@ export function trimSignatureCanvas(sourceCanvas: HTMLCanvasElement): HTMLCanvas
     0,
   )
   return trimmedCanvas
+}
+
+export function captureDrawnSignatureDataUrl(canvas: HTMLCanvasElement): string {
+  return exportSignatureDataUrl(trimSignatureCanvas(canvas))
 }

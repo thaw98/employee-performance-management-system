@@ -8,6 +8,7 @@ import {
   type PositionOptionDto,
 } from '../../hrCreateEmployee/hrEmployeeAccountApi'
 import { useReturnFromTemporaryMutation, useGetHomeDepartmentQuery } from '../employeeTransferApi'
+import { employeeListInputBase as inputBase } from '../employeeListTheme'
 
 interface ReturnModalProps {
   isOpen: boolean
@@ -17,7 +18,6 @@ interface ReturnModalProps {
   onSuccess?: () => void
 }
 
-const inputBase = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-400 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]'
 const readOnlyInput = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 cursor-not-allowed'
 
 export function ReturnModal({ isOpen, employeeId, employeeName, onClose, onSuccess }: ReturnModalProps) {

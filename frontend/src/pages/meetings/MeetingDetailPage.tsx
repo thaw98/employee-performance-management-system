@@ -135,7 +135,7 @@ export function MeetingDetailPage() {
 
     if (!meeting) return (
         <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-            <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-600 rounded-full animate-spin"></div>
+            <div className="w-12 h-12 border-4 border-slate-200 border-t-[#2463eb] rounded-full animate-spin"></div>
             <p className="text-slate-500 font-bold animate-pulse">Loading meeting details...</p>
         </div>
     );
@@ -146,7 +146,7 @@ export function MeetingDetailPage() {
     const isEmployee = user?.id === meeting.employeeUserId;
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6 pb-20 px-4">
+        <div className="meetings-theme max-w-7xl mx-auto space-y-6 pb-20 px-4">
             <div className="flex items-center justify-between">
                 <button 
                     onClick={() => navigate(-1)}
@@ -156,8 +156,8 @@ export function MeetingDetailPage() {
                 </button>
                 <div className="flex items-center gap-2">
                     <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                        meeting.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
-                        meeting.status === 'ONGOING' ? 'bg-blue-100 text-blue-700 border border-blue-200 animate-pulse' :
+                        meeting.status === 'COMPLETED' ? 'bg-[#dbeafe] text-[#1d4ed8] border border-[#bfdbfe]' :
+                        meeting.status === 'ONGOING' ? 'bg-[#dbeafe] text-[#1d4ed8] border border-[#bfdbfe] animate-pulse' :
                         meeting.status === 'CANCELLED' ? 'bg-rose-100 text-rose-700 border border-rose-200' :
                         'bg-slate-100 text-slate-700 border border-slate-200'
                     }`}>
@@ -171,9 +171,9 @@ export function MeetingDetailPage() {
                 <div className="lg:col-span-2 space-y-8">
                     {/* Header Card */}
                     <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 overflow-hidden relative">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-[100px] -mr-10 -mt-10 opacity-50"></div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#dbeafe] rounded-bl-[100px] -mr-10 -mt-10 opacity-50"></div>
                         <div className="relative">
-                            <div className="flex items-center gap-2 text-emerald-600 mb-4">
+                            <div className="flex items-center gap-2 text-[#2463eb] mb-4">
                                 <ClipboardList size={18} />
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">Meeting Details</span>
                             </div>
@@ -231,13 +231,13 @@ export function MeetingDetailPage() {
                         <div className={`p-8 rounded-[32px] shadow-xl border ${meeting.status === 'CANCELLED' ? 'bg-rose-950/20 border-rose-900/30' : 'bg-slate-900 border-slate-800'} text-white`}>
                             <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-3">
-                                    {meeting.status === 'CANCELLED' ? <XCircle className="text-rose-400" size={20} /> : <History className="text-emerald-400" size={20} />}
+                                    {meeting.status === 'CANCELLED' ? <XCircle className="text-rose-400" size={20} /> : <History className="text-[#93c5fd]" size={20} />}
                                     <h3 className="font-black uppercase tracking-widest text-sm">{meeting.status === 'CANCELLED' ? 'Cancellation Details' : 'Meeting Timeline'}</h3>
                                 </div>
                                 {meeting.status === 'ONGOING' ? (
-                                    <div className="flex items-center gap-3 bg-emerald-500/10 px-4 py-2 rounded-2xl border border-emerald-500/20">
-                                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></div>
-                                        <span className="text-emerald-400 font-black text-xs uppercase tracking-widest">Live: {duration}</span>
+                                    <div className="flex items-center gap-3 bg-[#2463eb]/10 px-4 py-2 rounded-2xl border border-[#2463eb]/20">
+                                        <div className="w-2 h-2 rounded-full bg-[#2463eb] animate-ping"></div>
+                                        <span className="text-[#93c5fd] font-black text-xs uppercase tracking-widest">Live: {duration}</span>
                                     </div>
                                 ) : (
                                     <div className="bg-white/5 px-4 py-2 rounded-2xl border border-white/10">
@@ -259,10 +259,10 @@ export function MeetingDetailPage() {
 
                                 {meeting.actualStartTime && (
                                     <div className="relative">
-                                        <div className="absolute -left-[27px] top-1 w-4 h-4 rounded-full bg-emerald-500 border-4 border-slate-900 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                                        <div className="absolute -left-[27px] top-1 w-4 h-4 rounded-full bg-[#2463eb] border-4 border-slate-900 shadow-[0_0_10px_rgba(36,99,235,0.5)]"></div>
                                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
                                             <div>
-                                                <p className="text-xs font-black text-emerald-500 uppercase tracking-widest">Actual Start</p>
+                                                <p className="text-xs font-black text-[#2463eb] uppercase tracking-widest">Actual Start</p>
                                                 <p className="text-sm font-bold">{formatDateTime(meeting.actualStartTime)}</p>
                                             </div>
                                             <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 bg-white/5 px-3 py-1 rounded-lg">
@@ -303,7 +303,7 @@ export function MeetingDetailPage() {
                             {isManager && meeting.status === 'ONGOING' && (
                                 <button 
                                     onClick={handleFinishMeeting}
-                                    className="w-full mt-10 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-[20px] font-black uppercase tracking-widest text-sm transition-all shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-3"
+                                    className="w-full mt-10 bg-[#2463eb] hover:bg-[#1d4ed8] text-white py-4 rounded-[20px] font-black uppercase tracking-widest text-sm transition-all shadow-lg shadow-[#1e3a8a]/20 flex items-center justify-center gap-3"
                                 >
                                     <CheckCircle size={20} /> End Meeting & Save Notes
                                 </button>
@@ -324,10 +324,10 @@ export function MeetingDetailPage() {
 
                     {/* Final Summary Notes */}
                     {meeting.status === 'COMPLETED' && meeting.summaryNotes && (
-                        <div className="bg-emerald-50 p-8 rounded-[32px] border border-emerald-100 shadow-sm relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-200/20 rounded-bl-[100px] -mr-10 -mt-10"></div>
+                        <div className="bg-[#dbeafe] p-8 rounded-[32px] border border-[#dbeafe] shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-[#bfdbfe]/40 rounded-bl-[100px] -mr-10 -mt-10"></div>
                             <div className="relative">
-                                <div className="flex items-center gap-2 text-emerald-600 mb-4">
+                                <div className="flex items-center gap-2 text-[#2463eb] mb-4">
                                     <CheckCircle size={16} />
                                     <h3 className="text-[10px] font-black uppercase tracking-widest">Final Meeting Summary</h3>
                                 </div>
@@ -340,10 +340,10 @@ export function MeetingDetailPage() {
                 {/* Sidebar Column: Notes */}
                 <div className="space-y-8">
                     {/* Manager Notes */}
-                    <div className="bg-indigo-50/50 p-6 rounded-[32px] border border-indigo-100 flex flex-col h-[500px]">
+                    <div className="bg-[#dbeafe]/50 p-6 rounded-[32px] border border-[#bfdbfe] flex flex-col h-[500px]">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
+                                <div className="w-10 h-10 rounded-2xl bg-[#2463eb] text-white flex items-center justify-center shadow-lg shadow-[#dbeafe]">
                                     <User size={20} />
                                 </div>
                                 <div>
@@ -353,15 +353,15 @@ export function MeetingDetailPage() {
                             </div>
                         </div>
                         
-                        <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-indigo-200">
+                        <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-[#bfdbfe]">
                             {managerNotes.length === 0 && (
                                 <div className="h-full flex flex-col items-center justify-center opacity-40">
-                                    <MessageSquare size={32} className="text-indigo-300 mb-2" />
+                                    <MessageSquare size={32} className="text-[#93c5fd] mb-2" />
                                     <p className="text-[10px] font-black uppercase tracking-widest">No notes yet</p>
                                 </div>
                             )}
                             {managerNotes.map(note => (
-                                <div key={note.id} className="bg-white p-4 rounded-2xl shadow-sm border border-indigo-50">
+                                <div key={note.id} className="bg-white p-4 rounded-2xl shadow-sm border border-[#dbeafe]">
                                     <p className="text-slate-700 text-sm whitespace-pre-wrap font-medium">{note.content}</p>
                                     <p className="text-[10px] text-slate-400 mt-2 font-bold text-right">
                                         {formatDate(note.createdDate)} {new Date(note.createdDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -377,9 +377,9 @@ export function MeetingDetailPage() {
                                         value={newNote}
                                         onChange={e => setNewNote(e.target.value)}
                                         placeholder="Add a manager note..."
-                                        className="w-full bg-white border border-indigo-100 rounded-2xl pl-4 pr-12 py-3 text-xs font-bold outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none h-20 shadow-sm"
+                                        className="w-full bg-white border border-[#bfdbfe] rounded-2xl pl-4 pr-12 py-3 text-xs font-bold outline-none focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] resize-none h-20 shadow-sm"
                                     />
-                                    <button type="submit" className="absolute bottom-3 right-3 w-8 h-8 bg-indigo-600 text-white rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-colors shadow-md">
+                                    <button type="submit" className="absolute bottom-3 right-3 w-8 h-8 bg-[#2463eb] text-white rounded-xl flex items-center justify-center hover:bg-[#1d4ed8] transition-colors shadow-md">
                                         <Send size={14} />
                                     </button>
                                 </div>
@@ -388,10 +388,10 @@ export function MeetingDetailPage() {
                     </div>
 
                     {/* Employee Notes */}
-                    <div className="bg-teal-50/50 p-6 rounded-[32px] border border-teal-100 flex flex-col h-[500px]">
+                    <div className="bg-[#dbeafe]/30 p-6 rounded-[32px] border border-[#bfdbfe] flex flex-col h-[500px]">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-lg shadow-teal-200">
+                                <div className="w-10 h-10 rounded-2xl bg-[#1d4ed8] text-white flex items-center justify-center shadow-lg shadow-[#dbeafe]">
                                     <User size={20} />
                                 </div>
                                 <div>
@@ -401,15 +401,15 @@ export function MeetingDetailPage() {
                             </div>
                         </div>
                         
-                        <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-teal-200">
+                        <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-[#bfdbfe]">
                             {employeeNotes.length === 0 && (
                                 <div className="h-full flex flex-col items-center justify-center opacity-40">
-                                    <MessageSquare size={32} className="text-teal-300 mb-2" />
+                                    <MessageSquare size={32} className="text-[#93c5fd] mb-2" />
                                     <p className="text-[10px] font-black uppercase tracking-widest">No notes yet</p>
                                 </div>
                             )}
                             {employeeNotes.map(note => (
-                                <div key={note.id} className="bg-white p-4 rounded-2xl shadow-sm border border-teal-50">
+                                <div key={note.id} className="bg-white p-4 rounded-2xl shadow-sm border border-[#dbeafe]">
                                     <p className="text-slate-700 text-sm whitespace-pre-wrap font-medium">{note.content}</p>
                                     <p className="text-[10px] text-slate-400 mt-2 font-bold text-right">
                                         {formatDate(note.createdDate)} {new Date(note.createdDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -425,9 +425,9 @@ export function MeetingDetailPage() {
                                         value={newNote}
                                         onChange={e => setNewNote(e.target.value)}
                                         placeholder="Add an employee note..."
-                                        className="w-full bg-white border border-teal-100 rounded-2xl pl-4 pr-12 py-3 text-xs font-bold outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 resize-none h-20 shadow-sm"
+                                        className="w-full bg-white border border-[#bfdbfe] rounded-2xl pl-4 pr-12 py-3 text-xs font-bold outline-none focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] resize-none h-20 shadow-sm"
                                     />
-                                    <button type="submit" className="absolute bottom-3 right-3 w-8 h-8 bg-teal-600 text-white rounded-xl flex items-center justify-center hover:bg-teal-700 transition-colors shadow-md">
+                                    <button type="submit" className="absolute bottom-3 right-3 w-8 h-8 bg-[#1d4ed8] text-white rounded-xl flex items-center justify-center hover:bg-[#1e40af] transition-colors shadow-md">
                                         <Send size={14} />
                                     </button>
                                 </div>
@@ -442,7 +442,7 @@ export function MeetingDetailPage() {
                     <div className="bg-white rounded-[40px] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="bg-slate-800 p-8 text-white flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <CheckCircle size={28} className="text-emerald-400" />
+                                <CheckCircle size={28} className="text-[#93c5fd]" />
                                 <h2 className="text-2xl font-black uppercase tracking-tight">End & Finalize</h2>
                             </div>
                             <button onClick={() => setIsEndModalOpen(false)} className="text-slate-400 hover:text-white transition-colors p-2">
@@ -462,7 +462,7 @@ export function MeetingDetailPage() {
                                     rows={6}
                                     value={summaryNotes}
                                     onChange={(e) => setSummaryNotes(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-[28px] px-5 py-4 text-sm font-bold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all resize-none shadow-inner"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-[28px] px-5 py-4 text-sm font-bold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all resize-none shadow-inner"
                                     placeholder="Discuss key points, decisions made, and next steps..."
                                 />
                             </div>
@@ -476,7 +476,7 @@ export function MeetingDetailPage() {
                                 </button>
                                 <button 
                                     type="submit"
-                                    className="flex-[2] bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100 flex items-center justify-center gap-2"
+                                    className="flex-[2] bg-[#2463eb] text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-[#1d4ed8] transition-colors shadow-lg shadow-[#dbeafe] flex items-center justify-center gap-2"
                                 >
                                     <CheckCircle size={18} /> Confirm & Finalize
                                 </button>

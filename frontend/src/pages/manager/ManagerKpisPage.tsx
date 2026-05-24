@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Target, X, Save, AlertCircle, CheckCircle2, History, Calendar } from 'lucide-react';
 import { useGetManagerTeamQuery, useGetLatestKpisByEmployeeQuery, useUpdateManagerKpiActualsMutation, useGetEmployeeKpiHistoryQuery, type Kpi } from '../../features/kpi/kpiApi';
+import { KPI_CHART_COLORS } from '../../features/kpi/kpisTheme';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -96,7 +97,7 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
                   className="h-full border-r border-white/20 last:border-0"
                   style={{ 
                     width: `${kpi.weight}%`,
-                    backgroundColor: ['#0855BF', '#10B981', '#6366F1', '#F59E0B', '#EC4899', '#8B5CF6', '#14B8A6'][idx % 7]
+                    backgroundColor: KPI_CHART_COLORS[idx % KPI_CHART_COLORS.length]
                   }}
                 />
               ))}
@@ -143,7 +144,7 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
                             type="text" 
                             value={kpi.actual || ''} 
                             onChange={(e) => handleChange(idx, 'actual', e.target.value)}
-                            className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
+                            className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-[#2463eb] focus:ring-2 focus:ring-[#2463eb]/20 transition-all text-center shadow-sm"
                             placeholder="—"
                           />
                         </div>
@@ -159,7 +160,7 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
                           min="0" max="100"
                           value={kpi.score || ''} 
                           onChange={(e) => handleChange(idx, 'score', parseFloat(e.target.value))}
-                          className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
+                          className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-[#2463eb] focus:ring-2 focus:ring-[#2463eb]/20 transition-all text-center shadow-sm"
                         />
                       </td>
                       <td className="py-4 px-6 text-right">
@@ -176,7 +177,7 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
                 <tfoot>
                   <tr className="bg-slate-50/50 border-t-2 border-slate-200">
                     <td colSpan={7} className="py-4 px-6 text-right text-xs font-black text-slate-900 uppercase tracking-widest border-r border-slate-200">Total Score</td>
-                    <td className="py-4 px-6 text-right text-sm font-black text-blue-600 tracking-tight bg-blue-50/30">
+                    <td className="py-4 px-6 text-right text-sm font-black text-[#2463eb] tracking-tight bg-[#eff6ff]/50">
                       {totalWeightedScore.toFixed(2)}
                     </td>
                   </tr>
@@ -204,7 +205,7 @@ const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => voi
           <button 
             onClick={() => handleSave('SUBMITTED')}
             disabled={isUpdating || editedKpis.length === 0}
-            className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-2.5 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white rounded-xl font-bold text-sm hover:from-[#1d4ed8] hover:to-[#1e40af] shadow-lg shadow-[#2463eb]/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isUpdating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Target size={16} />}
             Submit KPIs
@@ -257,7 +258,7 @@ const KpiHistoryModal = ({ employee, onClose }: { employee: any, onClose: () => 
         <div className="flex justify-between items-center p-6 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2 mb-1">
-               <History className="text-indigo-600" size={24} />
+               <History className="text-[#2463eb]" size={24} />
                <h2 className="text-xl font-black text-slate-900">KPI History</h2>
             </div>
             <p className="text-sm font-medium text-slate-500">Employee: <span className="font-bold text-slate-900">{employee.name}</span></p>
@@ -274,7 +275,7 @@ const KpiHistoryModal = ({ employee, onClose }: { employee: any, onClose: () => 
                placeholder="Filter by period (e.g. 2026-2027)" 
                value={periodFilter}
                onChange={(e) => setPeriodFilter(e.target.value)}
-               className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none font-bold text-slate-800 shadow-sm"
+               className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-[#2463eb]/20 focus:border-[#2463eb] outline-none font-bold text-slate-800 shadow-sm"
              />
           </div>
         </div>
@@ -304,7 +305,7 @@ const KpiHistoryModal = ({ employee, onClose }: { employee: any, onClose: () => 
                       <tr className="bg-slate-50/80 group">
                         <td colSpan={7} className="py-2.5 px-6 border-y border-slate-100">
                           <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 bg-indigo-600 text-white rounded-md flex items-center justify-center shadow-sm">
+                            <div className="w-6 h-6 bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white rounded-md flex items-center justify-center shadow-sm shadow-[#2463eb]/20">
                                <Calendar size={12} />
                             </div>
                             <span className="font-black text-slate-800 text-[10px] uppercase tracking-widest">{month}</span>
@@ -372,7 +373,7 @@ export function ManagerKpisPage() {
       status: emp.status || 'ACTIVE',
       score: 0,
       initial: emp.name ? emp.name.charAt(0) : 'U',
-      color: ['bg-amber-100 text-amber-700', 'bg-blue-100 text-blue-700', 'bg-emerald-100 text-emerald-700', 'bg-purple-100 text-purple-700'][idx % 4]
+      color: ['bg-[#eff6ff] text-[#2463eb]', 'bg-[#dbeafe] text-[#1d4ed8]', 'bg-[#bfdbfe] text-[#1e40af]', 'bg-[#93c5fd]/30 text-[#1e40af]'][idx % 4]
     })) : [];
 
   return (
@@ -408,7 +409,7 @@ export function ManagerKpisPage() {
                   {member.initial}
                 </div>
                 <div>
-                  <h4 className="text-xs font-black text-slate-900 leading-none mb-1 uppercase tracking-tight group-hover:text-blue-600 transition-colors">{member.name}</h4>
+                  <h4 className="text-xs font-black text-slate-900 leading-none mb-1 uppercase tracking-tight group-hover:text-[#2463eb] transition-colors">{member.name}</h4>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{member.role}</p>
                 </div>
               </div>
@@ -427,14 +428,14 @@ export function ManagerKpisPage() {
                 <div className="text-right flex items-center gap-2">
                   <button 
                     onClick={(e) => { e.stopPropagation(); setSelectedHistoryEmployee(member); }}
-                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                    className="p-2 text-slate-400 hover:text-[#2463eb] hover:bg-[#eff6ff] rounded-xl transition-all"
                     title="View KPI History"
                   >
                     <History size={18} />
                   </button>
                   <button 
                     onClick={(e) => { e.stopPropagation(); setSelectedEmployee(member); }}
-                    className="flex items-center gap-2 text-blue-600 text-xs font-bold p-2 hover:bg-blue-50 rounded-xl transition-all"
+                    className="flex items-center gap-2 text-[#2463eb] text-xs font-bold p-2 hover:bg-[#eff6ff] rounded-xl transition-all"
                   >
                     Update Actuals <Target size={14} />
                   </button>

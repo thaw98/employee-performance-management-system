@@ -104,7 +104,7 @@ export function FaqSupportPage() {
       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-300">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#dbeafe] text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
               <HelpCircle size={24} />
             </div>
             <div>
@@ -120,7 +120,7 @@ export function FaqSupportPage() {
                 onClick={() => setStatus(option.value)}
                 className={`rounded-xl px-4 py-2 text-xs font-black transition-all ${
                   status === option.value
-                    ? 'bg-cyan-600 text-white shadow-sm dark:bg-cyan-500 dark:text-slate-950'
+                    ? 'bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white shadow-sm shadow-[#2463eb]/25'
                     : 'text-slate-500 hover:bg-white hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'
                 }`}
               >
@@ -137,7 +137,7 @@ export function FaqSupportPage() {
             <Inbox size={18} />
             Questions
           </div>
-          {isFetching && !isLoading && <Loader2 size={18} className="animate-spin text-cyan-600" />}
+          {isFetching && !isLoading && <Loader2 size={18} className="animate-spin text-[#2463eb]" />}
         </div>
 
         {isLoading ? (
@@ -156,7 +156,7 @@ export function FaqSupportPage() {
             <button
               type="button"
               onClick={() => refetch()}
-              className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-sm font-black text-white hover:bg-cyan-700"
+              className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-2 text-sm font-black text-white shadow-md shadow-[#2463eb]/25 hover:brightness-110"
             >
               <RefreshCw size={16} />
               Retry
@@ -182,7 +182,7 @@ export function FaqSupportPage() {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
+                      <span className="rounded-full bg-[#dbeafe] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#2463eb] dark:bg-[#2463eb]/30 dark:text-[#60a5fa]">
                         {question.category}
                       </span>
                       <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
@@ -213,7 +213,7 @@ export function FaqSupportPage() {
                     <button
                       type="button"
                       onClick={() => openReply(question)}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-600 px-4 py-3 text-xs font-black text-white transition-all hover:bg-cyan-700 active:scale-95"
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-3 text-xs font-black text-white shadow-md shadow-[#2463eb]/25 transition-all hover:brightness-110 active:scale-95"
                     >
                       {question.status === 'ANSWERED' ? <CheckCircle2 size={16} /> : <MessageSquareReply size={16} />}
                       {question.status === 'ANSWERED' ? 'Update Reply' : 'Reply'}
@@ -242,7 +242,7 @@ export function FaqSupportPage() {
           <div className="absolute inset-0 bg-slate-900/45" onClick={() => !isReplying && setSelectedQuestion(null)} />
           <div className="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900">
             <div className="mb-5">
-              <p className="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-300">{selectedQuestion.category}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#2463eb] dark:text-[#60a5fa]">{selectedQuestion.category}</p>
               <h2 className="mt-2 text-xl font-black text-slate-900 dark:text-white">{selectedQuestion.subject}</h2>
               <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500 dark:text-slate-400">{selectedQuestion.question}</p>
             </div>
@@ -251,7 +251,7 @@ export function FaqSupportPage() {
               onChange={(event) => setReplyText(event.target.value)}
               rows={7}
               maxLength={5000}
-              className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-cyan-300 focus:ring-2 focus:ring-cyan-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-[#2463eb] focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
               placeholder="Write HR reply..."
             />
             <div className="mt-5 flex justify-end gap-2">
@@ -267,7 +267,7 @@ export function FaqSupportPage() {
                 type="button"
                 disabled={isReplying}
                 onClick={submitReply}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-sm font-black text-white hover:bg-cyan-700 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-2 text-sm font-black text-white shadow-md shadow-[#2463eb]/25 hover:brightness-110 disabled:opacity-50"
               >
                 {isReplying ? <Loader2 size={16} className="animate-spin" /> : <MessageSquareReply size={16} />}
                 Send Reply

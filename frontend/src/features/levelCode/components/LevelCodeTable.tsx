@@ -27,7 +27,7 @@ function LevelCodeTable({ data, isLoading, onRowClick, onEdit, sorting, setSorti
         accessorKey: 'code',
         header: 'Level Code',
         cell: (info) => (
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-100 text-purple-700 text-xs font-bold">
+          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#eff6ff] to-[#dbeafe] text-[#1d4ed8] text-xs font-bold">
             <Layers className="w-3.5 h-3.5" />
             {info.getValue() as string}
           </span>
@@ -38,7 +38,7 @@ function LevelCodeTable({ data, isLoading, onRowClick, onEdit, sorting, setSorti
         header: 'Position Count',
         cell: (info) => (
           <span className="inline-flex items-center gap-2 text-slate-700 font-semibold">
-            <Users className="w-4 h-4 text-indigo-500" />
+            <Users className="w-4 h-4 text-[#2463eb]" />
             {info.getValue() as number}
           </span>
         ),
@@ -53,7 +53,7 @@ function LevelCodeTable({ data, isLoading, onRowClick, onEdit, sorting, setSorti
               event.stopPropagation()
               onEdit(info.row.original)
             }}
-            className="p-2.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all duration-200 active:scale-95"
+            className="p-2.5 text-slate-500 hover:bg-[#eff6ff] hover:text-[#2463eb] rounded-lg transition-all duration-200 active:scale-95"
             title="Edit Level Code"
           >
             <Pencil className="w-4 h-4" />
@@ -76,7 +76,7 @@ function LevelCodeTable({ data, isLoading, onRowClick, onEdit, sorting, setSorti
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+        <Loader2 className="w-12 h-12 text-[#2463eb] animate-spin" />
         <p className="mt-4 text-sm text-slate-500 font-medium">Loading level codes...</p>
       </div>
     )
@@ -97,8 +97,8 @@ function LevelCodeTable({ data, isLoading, onRowClick, onEdit, sorting, setSorti
                   <div className="flex items-center gap-2">
                     {flexRender(header.column.columnDef.header, header.getContext())}
                     {header.column.getCanSort() && (
-                      header.column.getIsSorted() === 'asc' ? <ArrowUp className="w-4 h-4 text-indigo-600" /> :
-                      header.column.getIsSorted() === 'desc' ? <ArrowDown className="w-4 h-4 text-indigo-600" /> :
+                      header.column.getIsSorted() === 'asc' ? <ArrowUp className="w-4 h-4 text-[#2463eb]" /> :
+                      header.column.getIsSorted() === 'desc' ? <ArrowDown className="w-4 h-4 text-[#2463eb]" /> :
                       <ArrowUpDown className="w-4 h-4 text-slate-400" />
                     )}
                   </div>
@@ -112,7 +112,7 @@ function LevelCodeTable({ data, isLoading, onRowClick, onEdit, sorting, setSorti
             <tr
               key={row.id}
               onClick={() => onRowClick(row.original)}
-              className="cursor-pointer hover:bg-gradient-to-r hover:from-indigo-50/30 hover:to-purple-50/30 transition-all duration-200"
+              className="cursor-pointer hover:bg-gradient-to-r hover:from-[#eff6ff]/50 hover:to-[#dbeafe]/30 transition-all duration-200"
             >
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id} className="px-6 py-4 text-sm text-slate-700">

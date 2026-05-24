@@ -171,11 +171,11 @@ export const SelfAssessmentAssignedEmployeesPage: React.FC = () => {
   return (
     <div className="min-h-screen px-6 py-6 md:px-8 animate-fade-in">
       <nav className="mb-2 flex items-center gap-1.5 text-sm text-slate-400 dark:text-slate-500">
-        <span className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium">Home</span>
+        <span className="text-[#2463eb] dark:text-[#60a5fa] font-medium">Home</span>
         <ChevronDown size={12} className="-rotate-90 opacity-50" />
         <span>Self Assessment</span>
         <ChevronDown size={12} className="-rotate-90 opacity-50" />
-        <Link to="/hr/self-assessment/assignments" className="font-medium text-slate-500 hover:text-[#5D5FEF] dark:text-slate-400">
+        <Link to="/hr/self-assessment/assignments" className="font-medium text-slate-500 hover:text-[#2463eb] dark:text-slate-400">
           Assignments
         </Link>
         <ChevronDown size={12} className="-rotate-90 opacity-50" />
@@ -206,10 +206,10 @@ export const SelfAssessmentAssignedEmployeesPage: React.FC = () => {
         <>
           <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
             <div className="relative px-6 py-5">
-              <div className="absolute inset-0 bg-gradient-to-r from-[#5D5FEF]/[0.04] via-transparent to-[#5D5FEF]/[0.03] dark:from-[#5D5FEF]/[0.07]" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#2463eb]/[0.04] via-transparent to-[#2463eb]/[0.03] dark:from-[#2463eb]/[0.07]" />
               <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
                     <Users size={26} className="text-white" />
                   </div>
                   <div>
@@ -240,8 +240,8 @@ export const SelfAssessmentAssignedEmployeesPage: React.FC = () => {
 
           <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80">
             <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-5 dark:border-slate-700/60">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-900/30 dark:to-violet-800/20">
-                <FileText size={20} className="text-violet-600 dark:text-violet-400" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb]/10 to-[#1d4ed8]/5 dark:from-[#2463eb]/20 dark:to-[#1d4ed8]/10">
+                <FileText size={20} className="text-[#2463eb] dark:text-[#60a5fa]" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">Current-Cycle Forms</h2>
@@ -300,7 +300,7 @@ export const SelfAssessmentAssignedEmployeesPage: React.FC = () => {
                           <td className="px-4 py-3.5 text-right">
                             <Link
                               to={`/hr/self-assessment/reviews/${form.id}`}
-                              className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                              className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#2463eb]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
                             >
                               <Eye size={13} />
                               View

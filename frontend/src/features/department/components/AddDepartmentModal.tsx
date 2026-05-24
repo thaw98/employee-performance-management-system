@@ -6,6 +6,11 @@ import { z } from 'zod'
 import toast from 'react-hot-toast'
 import { X, Save, Building2, Hash, AlertCircle, User } from 'lucide-react'
 import { useCreateDepartmentMutation, useGetManagersQuery } from '../api/departmentApi'
+import {
+  departmentsGradientBr,
+  departmentsGradientR,
+  departmentsGradientRHover,
+} from '../departmentsTheme'
 
 const departmentSchema = z.object({
   departmentCode: z.string().trim().min(1, 'Department code is required.'),
@@ -89,7 +94,7 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
               <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 transition-all">
 
                 {/* Gradient Header */}
-                <div className="relative bg-gradient-to-br from-blue-600 to-indigo-600 px-6 py-5 overflow-hidden">
+                <div className={`relative ${departmentsGradientBr} px-6 py-5 overflow-hidden`}>
                   <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full pointer-events-none" />
                   <div className="absolute bottom-0 left-16 w-16 h-16 bg-white/5 rounded-full pointer-events-none" />
                   <div className="relative flex items-start justify-between gap-3">
@@ -101,7 +106,7 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
                         <Dialog.Title as="h2" className="text-base font-bold text-white leading-tight">
                           Add New Department
                         </Dialog.Title>
-                        <p className="text-blue-100 text-xs mt-0.5">Fill in the details to create a department</p>
+                        <p className="text-[#dbeafe] text-xs mt-0.5">Fill in the details to create a department</p>
                       </div>
                     </div>
                     <button
@@ -132,7 +137,7 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
                         focus:ring-2 focus:ring-offset-0 placeholder:font-normal placeholder:text-slate-400
                         ${errors.departmentCode
                           ? 'border-red-300 bg-red-50/50 focus:border-red-400 focus:ring-red-100 text-red-900'
-                          : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-400 focus:ring-blue-100 text-slate-800'
+                          : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2463eb] focus:ring-[#dbeafe] text-slate-800'
                         }`}
                     />
                     {errors.departmentCode && (
@@ -158,7 +163,7 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
                         focus:ring-2 focus:ring-offset-0 placeholder:font-normal placeholder:text-slate-400
                         ${errors.departmentName
                           ? 'border-red-300 bg-red-50/50 focus:border-red-400 focus:ring-red-100 text-red-900'
-                          : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-400 focus:ring-blue-100 text-slate-800'
+                          : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2463eb] focus:ring-[#dbeafe] text-slate-800'
                         }`}
                     />
                     {errors.departmentName && (
@@ -182,7 +187,7 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
                         focus:ring-2 focus:ring-offset-0 appearance-none cursor-pointer
                         ${errors.managerId
                           ? 'border-red-300 bg-red-50/50 focus:border-red-400 focus:ring-red-100 text-red-900'
-                          : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-400 focus:ring-blue-100 text-slate-800'
+                          : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-[#2463eb] focus:ring-[#dbeafe] text-slate-800'
                         }`}
                       style={{
                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
@@ -221,10 +226,10 @@ export default function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDe
                     <button
                       type="submit"
                       disabled={isLoading}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
-                        bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold
-                        shadow-lg shadow-blue-600/25 hover:from-blue-700 hover:to-indigo-700
-                        active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
+                        ${departmentsGradientR} text-white text-sm font-bold
+                        shadow-lg shadow-[#2463eb]/25 ${departmentsGradientRHover}
+                        active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
                       {isLoading ? (
                         <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

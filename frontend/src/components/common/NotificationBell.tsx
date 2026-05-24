@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import {
@@ -104,7 +104,11 @@ function getNotificationActionLabel(notification: NotificationItem) {
   return null;
 }
 
-export function NotificationBell() {
+interface NotificationBellProps {
+  variant?: 'default' | 'dash'
+}
+
+export function NotificationBell({ variant = 'default' }: NotificationBellProps) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -187,6 +191,178 @@ export function NotificationBell() {
   };
 
   const open = Boolean(anchorEl);
+  const [dashOpen, setDashOpen] = useState(false);
+  const dashWrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (variant !== 'dash') return;
+    function handleClickOutside(event: MouseEvent) {
+      if (dashWrapRef.current && !dashWrapRef.current.contains(event.target as Node)) {
+        setDashOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [variant]);
+
+  if (variant === 'dash') {
+    const emptyLabel =
+      notifications.length === 0
+        ? 'No notifications yet'
+        : selectedTab === 'unread'
+          ? 'No unread notifications'
+          : selectedTab === 'read'
+            ? 'No read notifications'
+            : 'No notifications';
+
+    return (
+      <>
+        <div className={`top-bar-notify-wrap${dashOpen ? ' is-open' : ''}`} ref={dashWrapRef}>
+          <button
+            type="button"
+            className="top-bar-notify-btn"
+            aria-label="Notifications"
+            aria-expanded={dashOpen}
+            aria-haspopup="true"
+            onClick={() => setDashOpen(!dashOpen)}
+          >
+            <i className="bi bi-bell" />
+            {unreadCount > 0 && <span className="top-bar-notify-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+          </button>
+
+          {dashOpen && (
+            <div className="notify-dropdown" role="dialog" aria-label="Notifications">
+              <div className="notify-dropdown-header">
+                <div className="notify-dropdown-title-block">
+                  <span className="notify-dropdown-icon-wrap">
+                    <i className="bi bi-bell-fill" />
+                  </span>
+                  <div>
+                    <h2 className="notify-dropdown-title">Notifications</h2>
+                    <p className="notify-dropdown-subtitle">
+                      {unreadCount === 1 ? '1 unread' : `${unreadCount} unread`}
+                    </p>
+                  </div>
+                </div>
+                <div className="notify-dropdown-actions">
+                  <button
+                    type="button"
+                    className="notify-action-btn"
+                    title="Mark all as read"
+                    disabled={unreadCount === 0 || isMarkingAll}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleReadAll();
+                    }}
+                  >
+                    <i className="bi bi-check2-all" />
+                  </button>
+                  <button
+                    type="button"
+                    className="notify-action-btn notify-action-btn--danger"
+                    title="Clear all"
+                    disabled={notifications.length === 0 || isFetching || isClearing}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setClearError('');
+                      setIsClearConfirmOpen(true);
+                    }}
+                  >
+                    <i className="bi bi-trash3" />
+                  </button>
+                </div>
+              </div>
+              <div className="notify-tabs" role="tablist">
+                {(['all', 'unread', 'read'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    className={`notify-tab${selectedTab === tab ? ' active' : ''}`}
+                    role="tab"
+                    aria-selected={selectedTab === tab}
+                    onClick={() => setSelectedTab(tab)}
+                  >
+                    {tab === 'all' ? 'All' : tab === 'unread' ? 'Unread' : 'Read'}
+                  </button>
+                ))}
+              </div>
+              <div className="notify-list" role="tabpanel">
+                {isFetching && notifications.length === 0 ? (
+                  <div className="notify-empty">
+                    <CircularProgress size={24} />
+                  </div>
+                ) : filteredNotifications.length === 0 ? (
+                  <div className="notify-empty">
+                    <div className="notify-empty-icon">
+                      <i className="bi bi-bell-slash" />
+                    </div>
+                    <p>{emptyLabel}</p>
+                  </div>
+                ) : (
+                  filteredNotifications.map((notification) => (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      className={`notify-item${notification.read ? '' : ' unread'}`}
+                      onClick={() => {
+                        setDashOpen(false);
+                        void handleNotificationClick(notification);
+                      }}
+                    >
+                      <div className="notify-item-content">
+                        <h3 className="notify-item-title">{getNotificationTitle(notification)}</h3>
+                        <p className="notify-item-body">{formatNotificationMessage(notification)}</p>
+                        <time className="notify-item-time">{formatCreatedAt(notification.createdAt)}</time>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+              <div className="notify-dropdown-footer">
+                <button type="button" className="notify-view-all" onClick={handleViewAll}>
+                  <span>View All Notifications</span>
+                  <i className="bi bi-arrow-right" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <Dialog
+          open={isClearConfirmOpen}
+          onClose={() => {
+            if (!isClearing) setIsClearConfirmOpen(false);
+          }}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle sx={{ fontSize: 18, fontWeight: 900 }}>Clear all notifications?</DialogTitle>
+          <DialogContent sx={{ color: 'rgb(71 85 105)', fontSize: 14, fontWeight: 600 }}>
+            This action cannot be undone.
+            {clearError ? (
+              <Alert severity="error" sx={{ mt: 2, fontSize: 12, fontWeight: 700 }}>
+                {clearError}
+              </Alert>
+            ) : null}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button disabled={isClearing} onClick={() => setIsClearConfirmOpen(false)} sx={{ textTransform: 'none', fontWeight: 800 }}>
+              Cancel
+            </Button>
+            <Button
+              disabled={isClearing}
+              onClick={() => void handleClearAll()}
+              variant="contained"
+              color="error"
+              sx={{ textTransform: 'none', fontWeight: 900 }}
+            >
+              {isClearing ? 'Clearing...' : 'Clear All'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </>
+    );
+  }
 
   return (
     <>

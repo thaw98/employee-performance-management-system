@@ -9,8 +9,17 @@ import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
+import {
+    APPRAISAL_PRIMARY,
+    appraisalGradientBtn,
+    appraisalGradientIcon,
+    appraisalGradientSoft,
+} from '../../features/appraisals/appraisalTheme';
+import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
 
-const PRIMARY = '#0855BF';
+type ConfirmableAction = 'approve' | 'reject' | 'return' | 'unlock' | 'lock' | 'reset';
+
+const PRIMARY = APPRAISAL_PRIMARY;
 
 interface Question {
     id: number;
@@ -102,6 +111,9 @@ export function AppraisalSubmissionsPage() {
     const [isUsingSavedSignature, setIsUsingSavedSignature] = useState(false);
     const [showTopOnly, setShowTopOnly] = useState(false);
     const [showBottomOnly, setShowBottomOnly] = useState(false);
+    const [confirmAction, setConfirmAction] = useState<ConfirmableAction | null>(null);
+    const [lockTargetId, setLockTargetId] = useState<number | null>(null);
+    const [resetTargetId, setResetTargetId] = useState<number | null>(null);
 
     // KPI Edit Modal for HR
     const [isKpiModalOpen, setIsKpiModalOpen] = useState(false);
@@ -221,6 +233,54 @@ export function AppraisalSubmissionsPage() {
         }
     };
 
+    const requestActionConfirmation = (action: ConfirmableAction) => {
+        if (!selectedAsmt) return;
+
+        if (!comments.trim() && action !== 'approve') {
+            toast.error('Comments are required for this action');
+            return;
+        }
+        if (action === 'approve' && !signature) {
+            toast.error('Signature is required for approval');
+            return;
+        }
+
+        setConfirmAction(action);
+    };
+
+    const requestLockConfirmation = (id: number) => {
+        setLockTargetId(id);
+        setConfirmAction('lock');
+    };
+
+    const requestResetConfirmation = (id: number) => {
+        setResetTargetId(id);
+        setConfirmAction('reset');
+    };
+
+    const clearConfirmation = () => {
+        setConfirmAction(null);
+        setLockTargetId(null);
+        setResetTargetId(null);
+    };
+
+    const handleConfirmAction = () => {
+        if (!confirmAction) return;
+        if (confirmAction === 'lock') {
+            if (lockTargetId != null) {
+                void handleLock(lockTargetId);
+            }
+            return;
+        }
+        if (confirmAction === 'reset') {
+            if (resetTargetId != null) {
+                void handleReset(resetTargetId);
+            }
+            return;
+        }
+        void handleAction(confirmAction);
+    };
+
     const handleAction = async (action: 'approve' | 'reject' | 'return' | 'unlock') => {
         if (!selectedAsmt) return;
 
@@ -256,6 +316,7 @@ export function AppraisalSubmissionsPage() {
 
             // Refresh data
             await fetchSubmissions();
+            clearConfirmation();
         } catch (err: any) {
             const errorMessage = err.response?.data?.message || `Failed to ${action} appraisal`;
             toast.error(errorMessage);
@@ -267,14 +328,27 @@ export function AppraisalSubmissionsPage() {
     };
 
     const handleLock = async (id: number) => {
+        setIsActionLoading(true);
+        setActionInProgress('lock');
         try {
             await axios.post(`/appraisal-assignments/${id}/lock`);
             toast.success('Appraisal locked successfully');
-            fetchSubmissions();
+            if (selectedAsmt?.id === id) {
+                setSelectedAsmt(null);
+                setComments('');
+                setSignature('');
+                setIsUsingSavedSignature(false);
+                sigCanvas.current?.clear();
+            }
+            await fetchSubmissions();
+            clearConfirmation();
         } catch (err: any) {
             const errorMessage = err.response?.data?.message || 'Failed to lock appraisal';
             toast.error(errorMessage);
             console.error('Lock error:', err);
+        } finally {
+            setIsActionLoading(false);
+            setActionInProgress(null);
         }
     };
 
@@ -284,8 +358,15 @@ export function AppraisalSubmissionsPage() {
         try {
             await axios.post(`/appraisal-assignments/${id}/reset`);
             toast.success('Appraisal reset to pending manager successfully');
-            setSelectedAsmt(null);
-            fetchSubmissions();
+            if (selectedAsmt?.id === id) {
+                setSelectedAsmt(null);
+                setComments('');
+                setSignature('');
+                setIsUsingSavedSignature(false);
+                sigCanvas.current?.clear();
+            }
+            await fetchSubmissions();
+            clearConfirmation();
         } catch (err: any) {
             const errorMessage = err.response?.data?.message || 'Failed to reset appraisal';
             toast.error(errorMessage);
@@ -321,7 +402,66 @@ export function AppraisalSubmissionsPage() {
         setIsUsingSavedSignature(false);
         sigCanvas.current?.clear();
         setActionInProgress(null);
+        clearConfirmation();
     };
+
+    const confirmActionCopy = (() => {
+        const lockSubmission =
+            lockTargetId != null ? submissions.find((s) => s.id === lockTargetId) : null;
+        const resetSubmission =
+            resetTargetId != null ? submissions.find((s) => s.id === resetTargetId) : null;
+        const employeeName =
+            lockSubmission?.employee.employeeName
+            ?? resetSubmission?.employee.employeeName
+            ?? selectedAsmt?.employee.employeeName
+            ?? 'this employee';
+        switch (confirmAction) {
+            case 'approve':
+                return {
+                    title: 'Approve & Finalize',
+                    message: `Approve the appraisal for ${employeeName}? This will mark it as HR approved and record your signature.`,
+                    confirmText: 'Approve & Finalize',
+                    variant: 'primary' as const,
+                };
+            case 'return':
+                return {
+                    title: 'Return Appraisal',
+                    message: `Return the appraisal for ${employeeName} to the manager for corrections? Your comments will be included.`,
+                    confirmText: 'Return',
+                    variant: 'primary' as const,
+                };
+            case 'reject':
+                return {
+                    title: 'Reject Appraisal',
+                    message: `Reject the appraisal for ${employeeName}? This cannot be undone without a reset. Your comments will be included.`,
+                    confirmText: 'Reject',
+                    variant: 'danger' as const,
+                };
+            case 'unlock':
+                return {
+                    title: 'Unlock for Correction',
+                    message: `Unlock the finalized appraisal for ${employeeName}? HR and managers will be able to make corrections again. Your comments will be included.`,
+                    confirmText: 'Unlock for Correction',
+                    variant: 'primary' as const,
+                };
+            case 'lock':
+                return {
+                    title: 'Lock Appraisal (Finalize)',
+                    message: `Lock the appraisal for ${employeeName}? This finalizes the record and prevents further edits unless unlocked by HR.`,
+                    confirmText: 'Lock Appraisal',
+                    variant: 'primary' as const,
+                };
+            case 'reset':
+                return {
+                    title: 'Reset for Re-evaluation',
+                    message: `Reset the rejected appraisal for ${employeeName}? It will return to pending manager status so the manager can submit a new evaluation.`,
+                    confirmText: 'Reset Appraisal',
+                    variant: 'primary' as const,
+                };
+            default:
+                return null;
+        }
+    })();
 
     const handleDownloadPdf = async (a: Submission) => {
         try {
@@ -463,7 +603,7 @@ export function AppraisalSubmissionsPage() {
             case 'LOCKED':
                 return 'bg-slate-100 text-slate-600 border-slate-200';
             case 'SUBMITTED':
-                return 'bg-blue-50 text-blue-700 border-blue-200';
+                return 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]';
             case 'PENDING':
                 return 'bg-purple-50 text-purple-700 border-purple-200';
             case 'LOCKED':
@@ -491,7 +631,7 @@ export function AppraisalSubmissionsPage() {
                         }}
                         className={`px-6 py-3 rounded-[20px] text-[10px] font-black uppercase tracking-widest transition-all ${
                             activeTab === status 
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
+                            ? 'bg-[#2463eb] text-white shadow-lg shadow-[#dbeafe]' 
                             : 'text-slate-400 hover:bg-slate-50'
                         }`}
                     >
@@ -505,7 +645,7 @@ export function AppraisalSubmissionsPage() {
 
             {/* Header with Search & Filters */}
             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex flex-col gap-6">
                     <div>
                         <h1 className="text-4xl font-black tracking-tight" style={{ color: PRIMARY }}>
                             Review & Approve Appraisals
@@ -514,10 +654,10 @@ export function AppraisalSubmissionsPage() {
                             Track, review and finalize performance appraisal cycles.
                         </p>
                     </div>
-                        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                            {(activeTab === 'HR_APPROVED' || activeTab === 'LOCKED') && (
-                                <>
-                                    <button
+
+                    {(activeTab === 'HR_APPROVED' || activeTab === 'LOCKED') && (
+                        <div className="flex flex-wrap items-center gap-4">
+                            <button
                                         onClick={() => {
                                             setShowTopOnly(!showTopOnly);
                                             setShowBottomOnly(false);
@@ -549,15 +689,17 @@ export function AppraisalSubmissionsPage() {
                                     >
                                         <FileText size={16} /> Export Summary (PDF)
                                     </button>
-                                </>
-                            )}
+                        </div>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-4">
                             {/* Search */}
-                        <div className="relative group w-full md:w-64">
+                        <div className="relative group w-full sm:w-64">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input
                                 type="text"
                                 placeholder="Search employee..."
-                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none"
+                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 focus:border-[#2463eb] focus:bg-white rounded-2xl text-sm font-medium transition-all outline-none"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
@@ -572,7 +714,7 @@ export function AppraisalSubmissionsPage() {
                                     setFilterDept(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value));
                                     setFilterPos('ALL');
                                 }}
-                                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
+                                className="w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100"
                             >
                                 <option value="ALL">All Departments</option>
                                 {departments.map(d => (
@@ -589,7 +731,7 @@ export function AppraisalSubmissionsPage() {
                                 value={filterPos}
                                 onChange={(e) => setFilterPos(e.target.value)}
                                 disabled={filterDept === 'ALL'}
-                                className={`w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100 ${filterDept === 'ALL' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`w-full pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] outline-none transition-all font-bold text-[11px] uppercase tracking-widest appearance-none text-slate-600 cursor-pointer hover:bg-slate-100 ${filterDept === 'ALL' ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <option value="ALL">All Positions</option>
                                 {positions.map(p => (
@@ -636,12 +778,12 @@ export function AppraisalSubmissionsPage() {
                                     <tr key={sa.id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="p-6">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                                                <div className={`w-10 h-10 ${appraisalGradientSoft} rounded-full flex items-center justify-center text-[#2463eb]`}>
                                                     <User size={20} />
                                                 </div>
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <div className="font-bold text-slate-700 group-hover:text-blue-600 transition-colors">
+                                                        <div className="font-bold text-slate-700 group-hover:text-[#2463eb] transition-colors">
                                                             {sa.employee.employeeName}
                                                         </div>
                                                         {sa.totalScore && sa.totalScore > 0 && sa.totalScore === maxScore && showTopOnly && (
@@ -656,7 +798,7 @@ export function AppraisalSubmissionsPage() {
                                                         )}
                                                     </div>
                                                     <div className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">
-                                                        {sa.employee.employeeId || 'N/A'} • {sa.employee.department?.name || 'No Dept'} • <span className="text-blue-500 font-bold">{sa.employee.position?.name || 'No Position'}</span>
+                                                        {sa.employee.employeeId || 'N/A'} • {sa.employee.department?.name || 'No Dept'} • <span className="text-[#2463eb] font-bold">{sa.employee.position?.name || 'No Position'}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -666,7 +808,7 @@ export function AppraisalSubmissionsPage() {
                                         </td>
                                         <td className="p-6 text-center">
                                             <div className="inline-flex flex-col items-center">
-                                                <span className="text-lg font-bold text-blue-600">
+                                                <span className="text-lg font-bold text-[#2463eb]">
                                                     {sa.totalScore ? `${sa.totalScore.toFixed(1)}%` : '—'}
                                                 </span>
                                                 <span className="text-[9px] font-bold uppercase text-slate-400">
@@ -683,7 +825,7 @@ export function AppraisalSubmissionsPage() {
                                             <div className="flex items-center justify-center gap-2">
                                                 <button
                                                     onClick={() => setSelectedAsmt(sa)}
-                                                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"
+                                                    className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-[#eff6ff] hover:text-[#2463eb] transition-all flex items-center justify-center"
                                                     title="View Details"
                                                 >
                                                     <Eye size={18} />
@@ -699,7 +841,7 @@ export function AppraisalSubmissionsPage() {
                                                 )}
                                                 {sa.status === 'HR_APPROVED' && (
                                                     <button
-                                                        onClick={() => handleLock(sa.id)}
+                                                        onClick={() => requestLockConfirmation(sa.id)}
                                                         className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-all flex items-center justify-center"
                                                         title="Lock Appraisal"
                                                     >
@@ -708,7 +850,7 @@ export function AppraisalSubmissionsPage() {
                                                 )}
                                                 {sa.status === 'REJECTED' && (
                                                     <button
-                                                        onClick={() => handleReset(sa.id)}
+                                                        onClick={() => requestResetConfirmation(sa.id)}
                                                         className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition-all flex items-center justify-center"
                                                         title="Reset/Re-evaluate Appraisal"
                                                     >
@@ -737,7 +879,7 @@ export function AppraisalSubmissionsPage() {
                                     setCurrentPage(prev => prev - 1);
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
-                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
+                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-[#2463eb] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
                             >
                                 <RotateCcw size={18} className="rotate-180" />
                             </button>
@@ -749,7 +891,7 @@ export function AppraisalSubmissionsPage() {
                                         setCurrentPage(page);
                                         window.scrollTo({ top: 0, behavior: 'smooth' });
                                     }}
-                                    className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === page ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
+                                    className={`w-10 h-10 rounded-xl text-[10px] font-black transition-all ${currentPage === page ? 'bg-[#2463eb] text-white shadow-lg shadow-[#dbeafe]' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'}`}
                                 >
                                     {page}
                                 </button>
@@ -761,7 +903,7 @@ export function AppraisalSubmissionsPage() {
                                     setCurrentPage(prev => prev + 1);
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                 }}
-                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
+                                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-[#2463eb] hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 transition-all bg-white shadow-sm"
                             >
                                 <RotateCcw size={18} />
                             </button>
@@ -777,7 +919,7 @@ export function AppraisalSubmissionsPage() {
                         {/* Modal Header */}
                         <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-white">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-2xl shadow-lg shadow-blue-200">
+                                <div className={`p-3 ${appraisalGradientIcon} text-white rounded-2xl shadow-lg shadow-[#dbeafe]`}>
                                     <FileText size={24} />
                                 </div>
                                 <div>
@@ -814,12 +956,12 @@ export function AppraisalSubmissionsPage() {
                         <div className="flex-1 overflow-y-auto p-10 space-y-8">
                             {/* Summary Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200 rounded-3xl space-y-2">
-                                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Points Achieved</p>
-                                    <p className="text-3xl font-black text-blue-700 italic">
+                                <div className={`p-6 ${appraisalGradientSoft} border border-[#bfdbfe] rounded-3xl space-y-2`}>
+                                    <p className="text-[10px] font-bold text-[#2463eb] uppercase tracking-wider">Points Achieved</p>
+                                    <p className="text-3xl font-black text-[#1d4ed8] italic">
                                         {selectedAsmt.answers?.reduce((acc, curr) => acc + (curr.rating || 0), 0)}
-                                        <span className="text-blue-300 mx-2 text-xl font-normal">/</span>
-                                        <span className="text-blue-400 text-2xl">{(selectedAsmt.answers?.length || 0) * 5}</span>
+                                        <span className="text-[#93c5fd] mx-2 text-xl font-normal">/</span>
+                                        <span className="text-[#60a5fa] text-2xl">{(selectedAsmt.answers?.length || 0) * (selectedAsmt.template?.maxRating || 5)}</span>
                                     </p>
                                 </div>
                                 <div className="p-6 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border border-indigo-200 rounded-3xl space-y-2">
@@ -845,7 +987,7 @@ export function AppraisalSubmissionsPage() {
                             {/* Detailed Answers Section */}
                             <div className="space-y-6">
                                 <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
-                                    <div className="w-1.5 h-6 bg-blue-600 rounded-full shadow-sm shadow-blue-500/50" />
+                                    <div className="w-1.5 h-6 bg-[#2463eb] rounded-full shadow-sm shadow-[#2463eb]/50" />
                                     Evaluation Responses
                                 </h4>
                                 
@@ -877,18 +1019,18 @@ export function AppraisalSubmissionsPage() {
                                                                     {/* Rating Display */}
                                                                     <div className="flex items-center gap-1.5 bg-slate-50/50 p-1.5 rounded-2xl border border-slate-100 self-start lg:self-center">
                                                                         {[...Array(maxRating)].map((_, i) => {
-                                                                            const num = i + 1;
-                                                                            const isSelected = answer?.rating === num;
+                                                                            const ratingValue = maxRating - i;
+                                                                            const isSelected = answer?.rating === ratingValue;
                                                                             return (
                                                                                 <div 
-                                                                                    key={num}
+                                                                                    key={ratingValue}
                                                                                     className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black transition-all ${
                                                                                         isSelected 
-                                                                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-500/20 scale-110 z-10' 
+                                                                                        ? 'bg-[#2463eb] text-white shadow-lg shadow-[#2463eb]/30 ring-2 ring-[#2463eb]/20 scale-110 z-10' 
                                                                                         : 'bg-white text-slate-200 border border-slate-100'
                                                                                     }`}
                                                                                 >
-                                                                                    {num}
+                                                                                    {ratingValue}
                                                                                 </div>
                                                                             );
                                                                         })}
@@ -896,9 +1038,9 @@ export function AppraisalSubmissionsPage() {
                                                                 </div>
                                                                 
                                                                 {answer?.comments && (
-                                                                    <div className="ml-8 flex items-start gap-3 p-4 bg-blue-50/30 rounded-2xl border border-blue-50/50">
-                                                                        <MessageSquare size={14} className="text-blue-400 mt-0.5" />
-                                                                        <p className="text-[11px] text-blue-800 font-medium italic leading-relaxed">
+                                                                    <div className="ml-8 flex items-start gap-3 p-4 bg-[#eff6ff]/30 rounded-2xl border border-[#eff6ff]/50">
+                                                                        <MessageSquare size={14} className="text-[#60a5fa] mt-0.5" />
+                                                                        <p className="text-[11px] text-[#1e40af] font-medium italic leading-relaxed">
                                                                             "{answer.comments}"
                                                                         </p>
                                                                     </div>
@@ -959,7 +1101,7 @@ export function AppraisalSubmissionsPage() {
                                                         <td className="p-3 font-medium text-slate-800">{kpi.name}</td>
                                                         <td className="p-3">{kpi.target} {kpi.unit}</td>
                                                         <td className="p-3 font-bold text-slate-700">{kpi.actual || '-'}</td>
-                                                        <td className="p-3 font-black text-blue-600">{kpi.score || '-'}</td>
+                                                        <td className="p-3 font-black text-[#2463eb]">{kpi.score || '-'}</td>
                                                         <td className="p-3">
                                                             <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-slate-200 text-slate-600">
                                                                 {kpi.status}
@@ -1007,7 +1149,7 @@ export function AppraisalSubmissionsPage() {
                                         HR Review Comments
                                     </label>
                                     <textarea
-                                        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-4 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:bg-white transition-all resize-none"
+                                        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-4 text-sm font-medium text-slate-700 outline-none focus:border-[#2463eb] focus:bg-white transition-all resize-none"
                                         placeholder="Enter your professional assessment and feedback..."
                                         rows={4}
                                         value={comments}
@@ -1025,7 +1167,7 @@ export function AppraisalSubmissionsPage() {
                                             {defaultSignature && (
                                                 <button 
                                                     onClick={handleUseDefaultSignature}
-                                                    className="text-[9px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 transition-colors flex items-center gap-1.5"
+                                                    className="text-[9px] font-black uppercase tracking-widest text-[#2463eb] hover:text-[#1d4ed8] transition-colors flex items-center gap-1.5"
                                                     type="button"
                                                 >
                                                     <RotateCcw size={10} /> Use Saved Signature
@@ -1044,7 +1186,7 @@ export function AppraisalSubmissionsPage() {
                                                         className="max-w-full max-h-full object-contain opacity-90 transition-transform group-hover:scale-105"
                                                     />
                                                     <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw</span>
+                                                        <span className="text-[8px] font-black text-[#2463eb] bg-[#eff6ff] px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw</span>
                                                     </div>
                                                 </div>
                                             )}
@@ -1081,9 +1223,9 @@ export function AppraisalSubmissionsPage() {
                                     <div className="flex flex-col justify-end gap-3">
                                         {selectedAsmt.status === 'LOCKED' ? (
                                             <button
-                                                onClick={() => handleAction('unlock')}
+                                                onClick={() => requestActionConfirmation('unlock')}
                                                 disabled={isActionLoading || !comments.trim()}
-                                                className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                className="w-full py-4 bg-[#2463eb] text-white rounded-2xl font-bold text-sm shadow-lg shadow-[#dbeafe] hover:bg-[#1d4ed8] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 {actionInProgress === 'unlock' ? (
                                                     <Loader2 className="animate-spin" size={18} />
@@ -1094,7 +1236,7 @@ export function AppraisalSubmissionsPage() {
                                             </button>
                                         ) : selectedAsmt.status === 'REJECTED' ? (
                                             <button
-                                                onClick={() => handleReset(selectedAsmt.id)}
+                                                onClick={() => requestResetConfirmation(selectedAsmt.id)}
                                                 disabled={isActionLoading}
                                                 className="w-full py-4 bg-amber-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-amber-200 hover:bg-amber-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                                             >
@@ -1108,15 +1250,20 @@ export function AppraisalSubmissionsPage() {
                                         ) : selectedAsmt.status === 'HR_APPROVED' ? (
                                              <>
                                                  <button
-                                                     onClick={() => handleLock(selectedAsmt.id)}
-                                                     className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-lg shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-3"
+                                                     onClick={() => requestLockConfirmation(selectedAsmt.id)}
+                                                     disabled={isActionLoading}
+                                                     className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-lg shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                                                  >
-                                                     <Lock size={18} />
+                                                     {actionInProgress === 'lock' ? (
+                                                         <Loader2 className="animate-spin" size={18} />
+                                                     ) : (
+                                                         <Lock size={18} />
+                                                     )}
                                                      LOCK FOREVER (FINALIZE)
                                                  </button>
                                                  <div className="grid grid-cols-2 gap-3 mt-3">
                                                      <button
-                                                         onClick={() => handleAction('return')}
+                                                         onClick={() => requestActionConfirmation('return')}
                                                          disabled={isActionLoading || !comments.trim()}
                                                          className="py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all flex items-center justify-center gap-2 border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                          title="Return Approved Appraisal for Correction"
@@ -1129,7 +1276,7 @@ export function AppraisalSubmissionsPage() {
                                                          RETURN
                                                      </button>
                                                      <button
-                                                         onClick={() => handleAction('reject')}
+                                                         onClick={() => requestActionConfirmation('reject')}
                                                          disabled={isActionLoading || !comments.trim()}
                                                          className="py-3.5 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 transition-all flex items-center justify-center gap-2 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                          title="Reject Approved Appraisal"
@@ -1146,9 +1293,9 @@ export function AppraisalSubmissionsPage() {
                                         ) : (selectedAsmt.status === 'SUBMITTED' || selectedAsmt.status === 'RETURNED') ? (
                                             <>
                                                 <button
-                                                    onClick={() => handleAction('approve')}
+                                                    onClick={() => requestActionConfirmation('approve')}
                                                     disabled={isActionLoading || !signature}
-                                                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-200 hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    className={`w-full py-4 ${appraisalGradientBtn} text-white rounded-2xl font-bold text-sm shadow-lg shadow-[#dbeafe] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed`}
                                                 >
                                                     {actionInProgress === 'approve' ? (
                                                         <Loader2 className="animate-spin" size={18} />
@@ -1160,7 +1307,7 @@ export function AppraisalSubmissionsPage() {
 
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <button
-                                                        onClick={() => handleAction('return')}
+                                                        onClick={() => requestActionConfirmation('return')}
                                                         disabled={isActionLoading || !comments.trim()}
                                                         className="py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all flex items-center justify-center gap-2 border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
@@ -1172,7 +1319,7 @@ export function AppraisalSubmissionsPage() {
                                                         RETURN
                                                     </button>
                                                     <button
-                                                        onClick={() => handleAction('reject')}
+                                                        onClick={() => requestActionConfirmation('reject')}
                                                         disabled={isActionLoading || !comments.trim()}
                                                         className="py-3.5 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 transition-all flex items-center justify-center gap-2 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
@@ -1192,6 +1339,20 @@ export function AppraisalSubmissionsPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {confirmActionCopy && (
+                <ConfirmActionModal
+                    isOpen={confirmAction !== null}
+                    onClose={() => !isActionLoading && clearConfirmation()}
+                    onConfirm={handleConfirmAction}
+                    title={confirmActionCopy.title}
+                    message={confirmActionCopy.message}
+                    confirmText={confirmActionCopy.confirmText}
+                    cancelText="Cancel"
+                    isLoading={isActionLoading}
+                    variant={confirmActionCopy.variant}
+                />
             )}
 
             {/* KPI Edit Modal for HR */}
@@ -1336,7 +1497,7 @@ const KpiEditModal = ({ employee, period, onClose }: { employee: any, period?: s
                                                     type="text" 
                                                     value={kpi.actual || ''} 
                                                     onChange={(e) => handleChange(idx, 'actual', e.target.value)}
-                                                    className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
+                                                    className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-[#2463eb] transition-all text-center shadow-sm"
                                                     placeholder="—"
                                                 />
                                             </td>
@@ -1351,7 +1512,7 @@ const KpiEditModal = ({ employee, period, onClose }: { employee: any, period?: s
                                                     min="0" max="100"
                                                     value={kpi.score || ''} 
                                                     onChange={(e) => handleChange(idx, 'score', parseFloat(e.target.value))}
-                                                    className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 transition-all text-center shadow-sm"
+                                                    className="w-full px-3 py-2 bg-white border-2 border-slate-100 rounded-xl text-xs font-bold focus:outline-none focus:border-[#2463eb] transition-all text-center shadow-sm"
                                                 />
                                             </td>
                                             <td className="py-4 px-6 text-right font-black text-slate-900 tracking-tight">
@@ -1363,7 +1524,7 @@ const KpiEditModal = ({ employee, period, onClose }: { employee: any, period?: s
                                 <tfoot>
                                     <tr className="bg-slate-50/50 border-t-2 border-slate-200">
                                         <td colSpan={6} className="py-4 px-6 text-right text-xs font-black text-slate-900 uppercase tracking-widest border-r border-slate-200">Total Score</td>
-                                        <td className="py-4 px-6 text-right text-sm font-black text-blue-600 tracking-tight bg-blue-50/30">
+                                        <td className="py-4 px-6 text-right text-sm font-black text-[#2463eb] tracking-tight bg-[#eff6ff]/30">
                                             {totalWeightedScore.toFixed(2)}
                                         </td>
                                     </tr>

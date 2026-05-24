@@ -89,16 +89,12 @@ function PositionModal({
             >
               <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-3xl bg-white shadow-2xl transition-all">
                 <div className="relative overflow-hidden">
-                  <div className={`absolute inset-0 bg-gradient-to-r ${isEdit ? 'from-blue-500/5 to-purple-500/5' : 'from-indigo-500/5 to-purple-500/5'}`} />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#2463eb]/5 to-[#1d4ed8]/5" />
 
                   <div className="relative px-6 py-5 sm:px-8 border-b border-slate-200">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${
-                          isEdit
-                            ? 'bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-200'
-                            : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-200'
-                        }`}>
+                        <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#dbeafe]">
                           {isEdit ? (
                             <Pencil className="w-5 h-5 text-white" />
                           ) : (
@@ -142,11 +138,11 @@ function PositionModal({
                                className={`w-full pl-11 pr-4 py-3 border rounded-xl transition-all duration-200 focus:ring-2 focus:outline-none ${
                                  errors.positionCode
                                    ? 'border-red-300 focus:ring-red-200 focus:border-red-500'
-                                   : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-500 hover:border-slate-300'
+                                   : 'border-slate-200 focus:ring-[#dbeafe] focus:border-[#2463eb] hover:border-slate-300'
                                } bg-white`}
                                placeholder="e.g. SE001"
                              />
-                             <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                             <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#2463eb] transition-colors" />
                            </div>
                            {errors.positionCode && (
                              <div className="flex items-start gap-1.5 text-sm text-red-500 mt-1">
@@ -169,11 +165,11 @@ function PositionModal({
                                className={`w-full pl-11 pr-4 py-3 border rounded-xl transition-all duration-200 focus:ring-2 focus:outline-none ${
                                  errors.positionName
                                    ? 'border-red-300 focus:ring-red-200 focus:border-red-500'
-                                   : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-500 hover:border-slate-300'
+                                   : 'border-slate-200 focus:ring-[#dbeafe] focus:border-[#2463eb] hover:border-slate-300'
                                } bg-white`}
                                placeholder="e.g. Software Engineer"
                              />
-                             <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                             <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#2463eb] transition-colors" />
                            </div>
                            {errors.positionName && (
                              <div className="flex items-start gap-1.5 text-sm text-red-500 mt-1">
@@ -197,7 +193,7 @@ function PositionModal({
                                className={`w-full pl-11 pr-10 py-3 border rounded-xl appearance-none transition-all duration-200 focus:ring-2 focus:outline-none bg-white cursor-pointer ${
                                  errors.levelCodeId
                                    ? 'border-red-300 focus:ring-red-200 focus:border-red-500'
-                                   : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-500 hover:border-slate-300'
+                                   : 'border-slate-200 focus:ring-[#dbeafe] focus:border-[#2463eb] hover:border-slate-300'
                                }`}
                              >
                                <option value="">Select Level Code</option>
@@ -207,7 +203,7 @@ function PositionModal({
                                  </option>
                                ))}
                              </select>
-                             <Layers className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                             <Layers className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#2463eb] transition-colors" />
                              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none flex items-center justify-center">
                                <X className="w-3 h-3 rotate-45" />
                              </div>
@@ -232,7 +228,7 @@ function PositionModal({
                                className={`w-full pl-11 pr-10 py-3 border rounded-xl appearance-none transition-all duration-200 focus:ring-2 focus:outline-none bg-white cursor-pointer ${
                                  errors.roleId
                                    ? 'border-red-300 focus:ring-red-200 focus:border-red-500'
-                                   : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-500 hover:border-slate-300'
+                                   : 'border-slate-200 focus:ring-[#dbeafe] focus:border-[#2463eb] hover:border-slate-300'
                                }`}
                              >
                                <option value="">Select Role</option>
@@ -242,7 +238,7 @@ function PositionModal({
                                  </option>
                                ))}
                              </select>
-                             <Shield className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                             <Shield className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#2463eb] transition-colors" />
                              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none flex items-center justify-center">
                                <X className="w-3 h-3 rotate-45" />
                              </div>
@@ -274,11 +270,7 @@ function PositionModal({
                          <button
                            type="submit"
                            disabled={isSubmitting || isLoading}
-                           className={`px-6 py-3 text-sm font-semibold text-white rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                             isEdit
-                               ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300'
-                               : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300'
-                           }`}
+                           className="px-6 py-3 text-sm font-semibold text-white rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] shadow-lg shadow-[#dbeafe] hover:shadow-xl"
                          >
                            {(isSubmitting || isLoading) ? (
                              <>

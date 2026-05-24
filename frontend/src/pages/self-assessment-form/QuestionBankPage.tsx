@@ -112,10 +112,10 @@ export const QuestionBankPage: React.FC = () => {
       label: 'Total Questions',
       value: questions.length,
       icon: BookOpen,
-      iconColor: 'text-blue-600 dark:text-blue-400',
-      iconBg: 'bg-blue-50 dark:bg-blue-900/30',
-      ring: 'ring-blue-500/20',
-      bgGlow: 'bg-blue-500/10',
+      iconColor: 'text-[#2463eb] dark:text-[#60a5fa]',
+      iconBg: 'bg-[#2463eb]/10 dark:bg-[#2463eb]/20',
+      ring: 'ring-[#2463eb]/20',
+      bgGlow: 'bg-[#2463eb]/10',
     },
     {
       label: 'Active',
@@ -163,7 +163,7 @@ export const QuestionBankPage: React.FC = () => {
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="relative">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
               <BookOpen size={22} className="text-white" />
             </div>
             <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-[9px] font-bold text-white shadow-sm">
@@ -184,7 +184,7 @@ export const QuestionBankPage: React.FC = () => {
         <button
           type="button"
           onClick={openCreateModal}
-          className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:shadow-xl hover:shadow-emerald-500/30 hover:brightness-110 active:scale-[0.97]"
+          className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:shadow-[#2463eb]/30 hover:brightness-110 active:scale-[0.97]"
         >
           <Plus size={16} strokeWidth={2.5} />
           Add Question
@@ -230,7 +230,7 @@ export const QuestionBankPage: React.FC = () => {
               <p className="text-xs text-slate-400 dark:text-slate-500">
                 {filteredQuestions.length} of {questions.length} question{questions.length !== 1 ? 's' : ''}
                 {hasActiveFilters && (
-                  <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-[#5D5FEF]/10 px-2 py-0.5 text-[10px] font-bold text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                  <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-[#2463eb]/10 px-2 py-0.5 text-[10px] font-bold text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
                     <Filter size={9} />Filtered
                   </span>
                 )}
@@ -246,13 +246,13 @@ export const QuestionBankPage: React.FC = () => {
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
-              <input id="qb-search" type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search questions..." className="w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 pl-11 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF]" />
+              <input id="qb-search" type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search questions..." className="w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 pl-11 text-sm text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#2463eb]" />
               {searchTerm && (
                 <button type="button" onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"><X size={14} /></button>
               )}
             </div>
             <label className="inline-flex items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition-all cursor-pointer select-none hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
-              <input type="checkbox" checked={includeInactive} onChange={(event) => setIncludeInactive(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-[#5D5FEF] focus:ring-[#5D5FEF]/20" />
+              <input type="checkbox" checked={includeInactive} onChange={(event) => setIncludeInactive(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-[#2463eb] focus:ring-[#2463eb]/20" />
               Show inactive
             </label>
           </div>
@@ -277,7 +277,7 @@ export const QuestionBankPage: React.FC = () => {
                   <tr>
                     <td colSpan={3} className="px-5 py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
-                        <Loader2 size={28} className="animate-spin text-[#5D5FEF]/60" />
+                        <Loader2 size={28} className="animate-spin text-[#2463eb]/60" />
                         <p className="text-sm font-medium text-slate-400 dark:text-slate-500">Loading questions...</p>
                       </div>
                     </td>
@@ -286,12 +286,12 @@ export const QuestionBankPage: React.FC = () => {
                   filteredQuestions.map((question, index) => (
                     <tr
                       key={question.id}
-                      className="group transition-all duration-200 hover:bg-[#5D5FEF]/[0.02] dark:hover:bg-[#5D5FEF]/[0.04]"
+                      className="group transition-all duration-200 hover:bg-[#2463eb]/[0.02] dark:hover:bg-[#2463eb]/[0.04]"
                       style={{ animationDelay: `${index * 30}ms` }}
                     >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb]/10 to-[#1d4ed8]/5 text-[#2463eb] dark:from-[#2463eb]/20 dark:to-[#1d4ed8]/10 dark:text-[#60a5fa]">
                             <HelpCircle size={16} />
                           </div>
                           <p className="font-medium text-slate-900 dark:text-white">
@@ -367,7 +367,7 @@ export const QuestionBankPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={openCreateModal}
-                            className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:brightness-110"
+                            className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-4 py-2 text-xs font-bold text-white shadow-sm shadow-[#2463eb]/20 transition-all hover:brightness-110"
                           >
                             <Plus size={13} strokeWidth={2.5} />
                             Add Question
@@ -389,7 +389,7 @@ export const QuestionBankPage: React.FC = () => {
           <div className="w-full max-w-lg rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
             <div className="mb-5 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-md shadow-[#2463eb]/20">
                   {modalMode === 'edit' ? <Edit2 size={16} className="text-white" /> : <Plus size={16} className="text-white" />}
                 </div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -417,7 +417,7 @@ export const QuestionBankPage: React.FC = () => {
                   value={questionText}
                   onChange={(event) => setQuestionText(event.target.value)}
                   placeholder="Enter your question text..."
-                  className="w-full rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF] resize-none"
+                  className="w-full rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#2463eb] resize-none"
                 />
               </div>
 
@@ -425,7 +425,7 @@ export const QuestionBankPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isCreating || isUpdating}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {(isCreating || isUpdating) && <Loader2 size={14} className="animate-spin" />}
                   {modalMode === 'edit' ? 'Save Changes' : 'Add Question'}

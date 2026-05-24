@@ -59,7 +59,9 @@ export function AppNavbar() {
   const rolePrefix = getRolePrefix()
 
   const formattedDay = time.toLocaleDateString('en-US', { weekday: 'long' })
-  const formattedDate = time.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const formattedDate = time
+    .toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    .replace(/, (\d{4})$/, ' $1')
   const formattedTime = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
 
   return (

@@ -359,10 +359,10 @@ export default function EmployeeListPage() {
             <button
               onClick={handleDownloadTemplate}
               disabled={templateDownloading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-indigo-200 bg-white text-indigo-700 text-sm font-semibold hover:bg-indigo-50 disabled:opacity-60 transition shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#bfdbfe] bg-white text-[#1d4ed8] text-sm font-semibold hover:bg-[#eff6ff] disabled:opacity-60 transition shadow-sm"
             >
               {templateDownloading ? (
-                <span className="inline-block w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                <span className="inline-block w-3.5 h-3.5 border-2 border-[#60a5fa] border-t-transparent rounded-full animate-spin" />
               ) : (
                 <i className="bi bi-download"></i>
               )}
@@ -382,7 +382,7 @@ export default function EmployeeListPage() {
             </button>
             <button
               onClick={() => setImportModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white text-sm font-semibold hover:from-[#1d4ed8] hover:to-[#1e40af] transition shadow-sm shadow-[#dbeafe]"
             >
               <i className="bi bi-file-earmark-arrow-up"></i>
               Import Employees
@@ -441,7 +441,7 @@ export default function EmployeeListPage() {
               <select
                 value={size}
                 onChange={(e) => handleSizeChange(Number(e.target.value))}
-                className="text-sm font-medium text-gray-700 border border-gray-200 rounded-lg px-2 py-1 bg-white hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all cursor-pointer"
+                className="text-sm font-medium text-gray-700 border border-gray-200 rounded-lg px-2 py-1 bg-white hover:border-[#93c5fd] focus:outline-none focus:ring-2 focus:ring-[#dbeafe] transition-all cursor-pointer"
               >
                 {[10, 25, 50].map((s) => (
                   <option key={s} value={s}>{s}</option>
@@ -491,8 +491,8 @@ export default function EmployeeListPage() {
                     onClick={() => handlePageSelect(p)}
                     className={`min-w-[36px] h-9 rounded-lg text-sm font-semibold transition-all border ${
                       page === p
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-100'
-                        : 'text-gray-600 border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700'
+                        ? 'bg-[#2463eb] text-white border-[#2463eb] shadow-sm shadow-[#dbeafe]'
+                        : 'text-gray-600 border-gray-200 bg-white hover:bg-[#eff6ff] hover:border-[#bfdbfe] hover:text-[#1d4ed8]'
                     }`}
                   >
                     {p + 1}

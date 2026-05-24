@@ -54,6 +54,13 @@ public class AppraisalAssignmentController {
         return ResponseEntity.ok(ApiResponse.ok("Appraisal evaluation submitted", saved));
     }
 
+    @PostMapping("/{id}/draft")
+    public ResponseEntity<ApiResponse<AppraisalAssignment>> saveDraft(@PathVariable Long id,
+                                                                      @RequestBody com.epms.backend.dto.EvaluationRequest req) {
+        AppraisalAssignment saved = appraisalAssignmentService.saveDraft(id, req);
+        return ResponseEntity.ok(ApiResponse.ok("Appraisal evaluation draft saved", saved));
+    }
+
     @GetMapping("/{id}/form")
     public ResponseEntity<ApiResponse<AppraisalAssignment>> getEvaluationForm(@PathVariable Long id) {
         AppraisalAssignment assignment = appraisalAssignmentService.getById(id);

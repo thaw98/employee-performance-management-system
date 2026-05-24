@@ -3,6 +3,7 @@ import toast from 'react-hot-toast'
 import { CheckCircle2, X } from 'lucide-react'
 
 import { useMakePermanentMutation, type TransferHistoryItem } from '../employeeTransferApi'
+import { employeeListInputBase as inputBase } from '../employeeListTheme'
 
 interface MakePermanentModalProps {
   isOpen: boolean
@@ -13,7 +14,6 @@ interface MakePermanentModalProps {
   onSuccess?: () => void
 }
 
-const inputBase = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-400 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]'
 const readOnlyInput = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600'
 
 function todayString() {
@@ -92,7 +92,7 @@ export function MakePermanentModal({
         <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-sm shadow-[#dbeafe]">
                 <CheckCircle2 size={18} />
               </div>
               <div>
@@ -161,7 +161,7 @@ export function MakePermanentModal({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-6 py-2.5 text-sm font-bold text-white transition-colors hover:from-[#1d4ed8] hover:to-[#1e40af] disabled:opacity-50 shadow-sm shadow-[#dbeafe]"
               >
                 {isLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : null}
                 Make Permanent

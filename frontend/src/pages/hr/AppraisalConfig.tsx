@@ -14,7 +14,9 @@ import {
     Search
 } from 'lucide-react';
 
-const PRIMARY = '#0855BF';
+import { APPRAISAL_PRIMARY } from '../../features/appraisals/appraisalTheme';
+
+const PRIMARY = APPRAISAL_PRIMARY;
 
 interface Category {
     id: number;
@@ -213,14 +215,14 @@ export default function AppraisalConfigPage() {
                     <div className="flex bg-slate-100 p-1.5 rounded-2xl">
                         <button
                             onClick={() => setActiveTab('category')}
-                            className={`px-6 py-3 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'category' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-6 py-3 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'category' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <Layers size={16} />
                             CATEGORIES
                         </button>
                         <button
                             onClick={() => setActiveTab('questions')}
-                            className={`px-6 py-3 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'questions' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-6 py-3 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'questions' ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <HelpCircle size={16} />
                             QUESTIONS
@@ -236,7 +238,7 @@ export default function AppraisalConfigPage() {
                         <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest pl-2">Appraisal Categories ({categories.length})</h3>
                         <button
                             onClick={handleOpenCategoryCreate}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs transition-all shadow-lg shadow-blue-100 active:scale-95"
+                            className="flex items-center gap-2 px-4 py-2 bg-[#2463eb] hover:bg-[#1d4ed8] text-white rounded-xl font-bold text-xs transition-all shadow-lg shadow-[#dbeafe] active:scale-95"
                         >
                             <Plus size={16} strokeWidth={3} />
                             ADD CATEGORY
@@ -272,7 +274,7 @@ export default function AppraisalConfigPage() {
                                             </td>
                                             <td className="p-6">
                                                 <div className="flex justify-center gap-3">
-                                                    <button onClick={() => handleEditCategory(cat)} className="w-9 h-9 rounded-lg bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"><Pencil size={16} /></button>
+                                                    <button onClick={() => handleEditCategory(cat)} className="w-9 h-9 rounded-lg bg-slate-50 text-slate-400 hover:bg-[#eff6ff] hover:text-[#2463eb] transition-all flex items-center justify-center"><Pencil size={16} /></button>
                                                     <button onClick={() => setShowDeleteConfirm({ type: 'category', id: cat.id })} className="w-9 h-9 rounded-lg bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"><Trash2 size={16} /></button>
                                                 </div>
                                             </td>
@@ -296,7 +298,7 @@ export default function AppraisalConfigPage() {
                                     <button
                                         key={cat.id}
                                         onClick={() => setSelectedCategoryId(cat.id)}
-                                        className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all group ${selectedCategoryId === cat.id ? 'border-blue-600 bg-blue-50/50 text-blue-700' : 'border-slate-100 hover:border-slate-200 text-slate-600'}`}
+                                        className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all group ${selectedCategoryId === cat.id ? 'border-[#2463eb] bg-[#eff6ff]/50 text-[#1d4ed8]' : 'border-slate-100 hover:border-slate-200 text-slate-600'}`}
                                     >
                                         <span className="text-xs font-black uppercase text-left">{cat.name}</span>
                                         <ChevronRight size={16} className={`transition-transform ${selectedCategoryId === cat.id ? 'translate-x-1' : 'opacity-0 group-hover:opacity-100'}`} />
@@ -313,7 +315,7 @@ export default function AppraisalConfigPage() {
                                 <button
                                     disabled={!selectedCategoryId}
                                     onClick={handleOpenQuestionCreate}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:grayscale text-white rounded-xl font-bold text-xs transition-all shadow-lg shadow-blue-100 active:scale-95"
+                                    className="flex items-center gap-2 px-4 py-2 bg-[#2463eb] hover:bg-[#1d4ed8] disabled:opacity-50 disabled:grayscale text-white rounded-xl font-bold text-xs transition-all shadow-lg shadow-[#dbeafe] active:scale-95"
                                 >
                                     <Plus size={16} strokeWidth={3} />
                                     ADD QUESTION
@@ -356,7 +358,7 @@ export default function AppraisalConfigPage() {
                                                         </td>
                                                         <td className="p-6 text-center">
                                                             <div className="flex justify-center gap-3">
-                                                                <button onClick={() => handleEditQuestion(q)} className="w-9 h-9 rounded-lg bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center"><Pencil size={16} /></button>
+                                                                <button onClick={() => handleEditQuestion(q)} className="w-9 h-9 rounded-lg bg-slate-50 text-slate-400 hover:bg-[#eff6ff] hover:text-[#2463eb] transition-all flex items-center justify-center"><Pencil size={16} /></button>
                                                                 <button onClick={() => setShowDeleteConfirm({ type: 'question', id: q.id })} className="w-9 h-9 rounded-lg bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all flex items-center justify-center"><Trash2 size={16} /></button>
                                                             </div>
                                                         </td>
@@ -385,7 +387,7 @@ export default function AppraisalConfigPage() {
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Category Name</label>
                                 <input
-                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all"
+                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#2463eb] transition-all"
                                     value={categoryForm.name}
                                     onChange={e => setCategoryForm({ ...categoryForm, name: e.target.value })}
                                     placeholder="e.g. Core Skills"
@@ -394,7 +396,7 @@ export default function AppraisalConfigPage() {
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Description</label>
                                 <textarea
-                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all h-32"
+                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#2463eb] transition-all h-32"
                                     value={categoryForm.description}
                                     onChange={e => setCategoryForm({ ...categoryForm, description: e.target.value })}
                                     placeholder="Optional description..."
@@ -409,7 +411,7 @@ export default function AppraisalConfigPage() {
                         </div>
                         <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
                             <button onClick={() => setShowCategoryModal(false)} className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 rounded-2xl font-black text-xs hover:bg-slate-100 transition-all">CANCEL</button>
-                            <button onClick={handleSaveCategory} disabled={isLoading} className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+                            <button onClick={handleSaveCategory} disabled={isLoading} className="flex-[2] py-4 bg-[#2463eb] text-white rounded-2xl font-black text-xs shadow-xl shadow-[#dbeafe] hover:bg-[#1d4ed8] transition-all flex items-center justify-center gap-2">
                                 {isLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle2 size={16} />}
                                 <span>{editingCategory ? 'UPDATE CATEGORY' : 'CREATE CATEGORY'}</span>
                             </button>
@@ -431,7 +433,7 @@ export default function AppraisalConfigPage() {
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Question Content</label>
                                 <textarea
-                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all h-32"
+                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-700 outline-none focus:border-[#2463eb] transition-all h-32"
                                     value={questionForm.questionText}
                                     onChange={e => setQuestionForm({ ...questionForm, questionText: e.target.value })}
                                     placeholder="Enter appraisal question..."
@@ -441,7 +443,7 @@ export default function AppraisalConfigPage() {
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Answer Type</label>
                                     <select
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all appearance-none"
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#2463eb] transition-all appearance-none"
                                         value={questionForm.answerType}
                                         onChange={e => setQuestionForm({ ...questionForm, answerType: e.target.value })}
                                     >
@@ -454,7 +456,7 @@ export default function AppraisalConfigPage() {
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sort Order</label>
                                     <input
                                         type="number"
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all"
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none focus:border-[#2463eb] transition-all"
                                         value={questionForm.sortOrder}
                                         onChange={e => setQuestionForm({ ...questionForm, sortOrder: parseInt(e.target.value) || 0 })}
                                     />
@@ -462,7 +464,7 @@ export default function AppraisalConfigPage() {
                             </div>
                             <div className="flex items-center justify-between gap-4">
                                 <label className="flex-1 flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 cursor-pointer">
-                                    <input type="checkbox" className="w-5 h-5 rounded-lg text-blue-600 focus:ring-0" checked={questionForm.isRequired} onChange={e => setQuestionForm({ ...questionForm, isRequired: e.target.checked })} />
+                                    <input type="checkbox" className="w-5 h-5 rounded-lg text-[#2463eb] focus:ring-0" checked={questionForm.isRequired} onChange={e => setQuestionForm({ ...questionForm, isRequired: e.target.checked })} />
                                     <span className="text-xs font-black uppercase text-slate-500">Required</span>
                                 </label>
                                 <label className="flex-1 flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 cursor-pointer">
@@ -473,7 +475,7 @@ export default function AppraisalConfigPage() {
                         </div>
                         <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
                             <button onClick={() => setShowQuestionModal(false)} className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 rounded-2xl font-black text-xs hover:bg-slate-100 transition-all">CANCEL</button>
-                            <button onClick={handleSaveQuestion} disabled={isLoading} className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+                            <button onClick={handleSaveQuestion} disabled={isLoading} className="flex-[2] py-4 bg-[#2463eb] text-white rounded-2xl font-black text-xs shadow-xl shadow-[#dbeafe] hover:bg-[#1d4ed8] transition-all flex items-center justify-center gap-2">
                                 {isLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle2 size={16} />}
                                 <span>{editingQuestion ? 'UPDATE QUESTION' : 'CREATE QUESTION'}</span>
                             </button>

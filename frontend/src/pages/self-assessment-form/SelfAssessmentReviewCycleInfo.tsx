@@ -40,11 +40,16 @@ function cycleStatusClass(status: string) {
 type SelfAssessmentReviewCycleInfoProps = {
   className?: string;
   variant?: 'card' | 'inline';
+  /** Primary accent (e.g. settings page brand blue). Defaults to legacy purple. */
+  primaryColor?: string;
+  primaryColorDark?: string;
 };
 
 export function SelfAssessmentReviewCycleInfo({
   className,
   variant = 'card',
+  primaryColor = '#5D5FEF',
+  primaryColorDark = '#7C7EF5',
 }: SelfAssessmentReviewCycleInfoProps) {
   const { data: activeCycles = [], isLoading: cyclesLoading } =
     useGetActiveReviewCyclesQuery();
@@ -69,8 +74,17 @@ export function SelfAssessmentReviewCycleInfo({
     <div className="flex-1 min-w-0">
       {cyclesLoading || allCyclesLoading ? (
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#5D5FEF]/10 dark:bg-[#5D5FEF]/20">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#5D5FEF]/30 border-t-[#5D5FEF]" />
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl dark:opacity-90"
+            style={{ backgroundColor: `${primaryColor}1a` }}
+          >
+            <div
+              className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
+              style={{
+                borderColor: `${primaryColor}4d`,
+                borderTopColor: primaryColor,
+              }}
+            />
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
@@ -88,8 +102,16 @@ export function SelfAssessmentReviewCycleInfo({
                   ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20'
                   : isUpcoming
                     ? 'bg-gradient-to-br from-sky-500 to-blue-600 shadow-sky-500/20'
-                    : 'bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-[#5D5FEF]/20'
+                    : ''
               }`}
+              style={
+                !isActive && !isUpcoming
+                  ? {
+                      backgroundImage: `linear-gradient(to bottom right, ${primaryColor}, ${primaryColorDark})`,
+                      boxShadow: `0 4px 6px -1px ${primaryColor}33`,
+                    }
+                  : undefined
+              }
             >
               <CalendarRange className="h-4 w-4 text-white" aria-hidden />
             </div>

@@ -109,6 +109,12 @@ const getDateRangeLabel = (startDate: string, endDate: string) => {
   return 'All dates'
 }
 
+const FILTER_LABEL_CLASS =
+  'mb-2 block min-h-[2rem] text-xs font-bold uppercase leading-tight tracking-wider text-slate-500'
+const FILTER_CONTROL_CLASS =
+  'h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
+const FILTER_SELECT_CLASS = `${FILTER_CONTROL_CLASS} disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-700`
+
 const buildPipExportRows = (bundles: PipExportBundle[]) => ({
   details: [
     [
@@ -522,11 +528,11 @@ export default function PipMonitoringPage() {
 
       {/* Advanced Filters */}
       <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {/* Department Filter - Only for HR or if Manager has multiple (unlikely based on current backend) */}
           {(isHr || isManager) && (
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Department</label>
+            <div className="min-w-0">
+              <label className={FILTER_LABEL_CLASS}>Department</label>
               <select
                 value={filterDept || ''}
                 onChange={(e) => {
@@ -534,7 +540,7 @@ export default function PipMonitoringPage() {
                   setFilterPos(undefined) // Reset position when department changes
                 }}
                 disabled={!isHr}
-                className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-700"
+                className={FILTER_SELECT_CLASS}
               >
                 {isHr ? <option value="">All Departments</option> : <option value="">{managerDepartmentName}</option>}
                 {isHr && departments.map((d) => (
@@ -548,12 +554,12 @@ export default function PipMonitoringPage() {
 
           {/* Position Filter */}
           {(isHr || isManager) && (
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Position</label>
+            <div className="min-w-0">
+              <label className={FILTER_LABEL_CLASS}>Position</label>
               <select
                 value={filterPos || ''}
                 onChange={(e) => setFilterPos(e.target.value ? Number(e.target.value) : undefined)}
-                className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className={FILTER_SELECT_CLASS}
               >
                 <option value="">All Positions</option>
                 {positions.map((p) => (
@@ -566,12 +572,12 @@ export default function PipMonitoringPage() {
           )}
 
           {/* Status Filter */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Status</label>
+          <div className="min-w-0">
+            <label className={FILTER_LABEL_CLASS}>Status</label>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className={FILTER_SELECT_CLASS}
             >
               <option value="">All Statuses</option>
               {Object.keys(STATUS_COLORS).map((s) => (
@@ -582,28 +588,28 @@ export default function PipMonitoringPage() {
 
           {/* Employee Name Search */}
           {(isHr || isManager) && (
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Employee Name</label>
+            <div className="min-w-0">
+              <label className={FILTER_LABEL_CLASS}>Employee Name</label>
               <div className="relative">
-                <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <i className="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search..."
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 pl-9 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className={`${FILTER_CONTROL_CLASS} pl-9 pr-4`}
                 />
               </div>
             </div>
           )}
 
           {(isHr || isManager) && (
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Employee</label>
+            <div className="min-w-0">
+              <label className={FILTER_LABEL_CLASS}>Employee</label>
               <select
                 value={selectedEmployeeId || ''}
                 onChange={(e) => setSelectedEmployeeId(e.target.value ? Number(e.target.value) : undefined)}
-                className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className={FILTER_SELECT_CLASS}
               >
                 <option value="">All Employees</option>
                 {employeeFilterOptions.map((employee) => (
@@ -616,34 +622,34 @@ export default function PipMonitoringPage() {
           )}
 
           {/* Start Date */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Start Date From</label>
+          <div className="min-w-0">
+            <label className={FILTER_LABEL_CLASS}>Start Date</label>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className={FILTER_CONTROL_CLASS}
             />
           </div>
 
           {/* End Date */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">End Date To</label>
+          <div className="min-w-0">
+            <label className={FILTER_LABEL_CLASS}>End Date</label>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className={FILTER_CONTROL_CLASS}
             />
           </div>
 
           {(isHr || isManager) && (
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">PIP</label>
+            <div className="min-w-0">
+              <label className={FILTER_LABEL_CLASS}>PIP</label>
               <select
                 value={selectedPipId || ''}
                 onChange={(e) => setSelectedPipId(e.target.value ? Number(e.target.value) : undefined)}
-                className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className={FILTER_SELECT_CLASS}
               >
                 <option value="">All PIPs</option>
                 {filteredPips.map((pip) => (

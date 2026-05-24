@@ -19,6 +19,11 @@ import {
 } from 'lucide-react';
 import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
+import {
+    appraisalGradientIcon,
+    appraisalGradientBtn,
+    appraisalGradientSoft,
+} from '../../features/appraisals/appraisalTheme';
 
 interface AppraisalAssignment {
     id: number;
@@ -107,7 +112,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
         const dateStr = formatCycleDate(new Date().toISOString().split('T')[0]);
 
         // Header
-        doc.setFillColor(8, 85, 191);
+        doc.setFillColor(36, 99, 235);
         doc.rect(0, 0, 297, 40, 'F');
         
         doc.setTextColor(255, 255, 255);
@@ -177,7 +182,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
             case 'PENDING_MANAGER':
                 return 'bg-amber-50 text-amber-600 border-amber-100';
             case 'SUBMITTED':
-                return 'bg-blue-50 text-blue-600 border-blue-100';
+                return 'bg-[#eff6ff] text-[#2463eb] border-[#dbeafe]';
             case 'HR_APPROVED':
                 return 'bg-emerald-50 text-emerald-600 border-emerald-100';
             case 'REJECTED':
@@ -236,7 +241,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
             <div className="flex flex-col md:flex-col justify-between items-start md:items-start gap-6">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
-                        <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200">
+                        <div className={`w-12 h-12 ${appraisalGradientIcon} text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#2463eb]/20`}>
                             <Award size={24} />
                         </div>
                         Team Appraisals
@@ -254,7 +259,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                             placeholder="Search employees..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all font-medium text-sm"
+                            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] focus:border-[#2463eb] outline-none transition-all font-medium text-sm"
                         />
                     </div>
                     
@@ -267,7 +272,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                 }}
                                 className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
                                     showTopOnly 
-                                    ? 'bg-amber-500 text-white shadow-amber-200' 
+                                    ? `${appraisalGradientBtn} text-white shadow-[#2463eb]/20` 
                                     : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-50'
                                 }`}
                             >
@@ -302,7 +307,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                         <select
                             value={filterPosition}
                             onChange={(e) => setFilterPosition(e.target.value)}
-                            className="pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all font-black text-[10px] uppercase tracking-widest appearance-none min-w-[160px] text-slate-600"
+                            className="pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#2463eb] focus:border-[#2463eb] outline-none transition-all font-black text-[10px] uppercase tracking-widest appearance-none min-w-[160px] text-slate-600"
                         >
                             <option value="ALL">All Positions</option>
                             {uniquePositions.map(pos => (
@@ -317,7 +322,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                             <button
                                 key={status}
                                 onClick={() => setFilterStatus(status)}
-                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filterStatus === status ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filterStatus === status ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                             >
                                 {status === 'PENDING_MANAGER' ? 'PENDING' : status === 'RETURNED' ? 'RETURNED' : status === 'SUBMITTED' ? 'SUBMITTED' : status === 'HR_APPROVED' ? 'APPROVED' : status === 'REJECTED' ? 'REJECTED' : status === 'LOCKED' ? 'FINALIZED' : 'ALL'}
                             </button>
@@ -348,7 +353,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                     {currentItems.map((assignment) => (
                         <div 
                             key={assignment.id}
-                            className="group bg-white rounded-[2.5rem] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-amber-100/50 hover:translate-y-[-8px] transition-all duration-500 relative overflow-hidden"
+                            className="group bg-white rounded-[2.5rem] border border-slate-100 p-6 hover:shadow-2xl hover:shadow-[#2463eb]/10 hover:translate-y-[-8px] transition-all duration-500 relative overflow-hidden"
                         >
                             {/* Status Badge */}
                             <div className={`absolute top-6 right-6 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tight border ${getStatusStyle(assignment.status)}`}>
@@ -358,11 +363,11 @@ export const ManagerAppraisalsPage: React.FC = () => {
                             <div className="space-y-6">
                                 {/* Employee Profile */}
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-14 h-14 ${assignment.status === 'SUBMITTED' ? 'bg-slate-900 text-white' : 'bg-amber-100 text-amber-700'} rounded-2xl flex items-center justify-center font-black text-xl shadow-inner group-hover:scale-110 transition-transform`}>
+                                    <div className={`w-14 h-14 ${assignment.status === 'SUBMITTED' ? 'bg-slate-900 text-white' : `${appraisalGradientSoft} text-[#2463eb]`} rounded-2xl flex items-center justify-center font-black text-xl shadow-inner group-hover:scale-110 transition-transform`}>
                                         {(assignment.employee.employeeName || 'E').charAt(0)}
                                     </div>
                                     <div className="space-y-1">
-                                        <h3 className="text-xl font-black text-slate-900 group-hover:text-[#5D5FEF] transition-colors">
+                                        <h3 className="text-xl font-black text-slate-900 group-hover:text-[#2463eb] transition-colors">
                                             {assignment.employee.employeeName || 'N/A'}
                                         </h3>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
@@ -406,13 +411,13 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                 </div>
 
                                 {/* Cycle Info */}
-                                <div className="bg-amber-50/30 p-4 rounded-3xl border border-amber-100/50 space-y-2">
+                                <div className={`${appraisalGradientSoft} p-4 rounded-3xl border border-[#bfdbfe]/50 space-y-2`}>
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 text-amber-600">
+                                        <div className="flex items-center gap-2 text-[#2463eb]">
                                             <Calendar size={14} />
                                             <span className="text-[10px] font-black uppercase tracking-widest">Active Cycle</span>
                                         </div>
-                                        <span className="text-[9px] font-bold text-amber-500">{assignment.period.name}</span>
+                                        <span className="text-[9px] font-bold text-[#1d4ed8]">{assignment.period.name}</span>
                                     </div>
                                     <div className="flex items-center justify-between text-[11px]">
                                         <span className="font-bold text-slate-400 uppercase">Deadline:</span>
@@ -428,7 +433,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                         to={`/manager/appraisals/${assignment.id}/evaluate`}
                                         className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm ${
                                             (assignment.status === 'PENDING_MANAGER' || assignment.status === 'RETURNED')
-                                            ? 'bg-slate-900 text-white hover:bg-amber-600 hover:shadow-lg hover:shadow-amber-200'
+                                            ? 'bg-slate-900 text-white hover:bg-[#2463eb] hover:shadow-lg hover:shadow-[#2463eb]/20'
                                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                     >
@@ -453,7 +458,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                             </div>
 
                             {/* Background Decoration */}
-                            <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-amber-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity blur-2xl" />
+                            <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-[#eff6ff] rounded-full opacity-0 group-hover:opacity-100 transition-opacity blur-2xl" />
                         </div>
                     ))}
                 </div>
@@ -470,7 +475,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                         <button
                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                             disabled={currentPage === 1}
-                            className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-amber-500 hover:text-amber-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                            className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-[#2463eb] hover:text-[#2463eb] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                         >
                             <ChevronRight size={18} className="rotate-180" />
                         </button>
@@ -488,7 +493,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                                     <button
                                         key={pageNum}
                                         onClick={() => setCurrentPage(pageNum)}
-                                        className={`w-10 h-10 rounded-xl font-black text-xs transition-all ${currentPage === pageNum ? 'bg-amber-500 text-white shadow-lg shadow-amber-200 scale-110' : 'text-slate-400 hover:bg-slate-50'}`}
+                                        className={`w-10 h-10 rounded-xl font-black text-xs transition-all ${currentPage === pageNum ? `${appraisalGradientBtn} text-white shadow-lg shadow-[#2463eb]/20 scale-110` : 'text-slate-400 hover:bg-slate-50'}`}
                                     >
                                         {pageNum}
                                     </button>
@@ -499,7 +504,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
                         <button
                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                             disabled={currentPage === totalPages}
-                            className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-amber-500 hover:text-amber-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                            className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:border-[#2463eb] hover:text-[#2463eb] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                         >
                             <ChevronRight size={18} />
                         </button>

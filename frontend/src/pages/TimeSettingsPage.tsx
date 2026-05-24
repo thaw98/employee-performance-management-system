@@ -290,7 +290,7 @@ export function TimeSettingsPage() {
           </p>
           <Link
             to="/hr/settings/system"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl text-sm font-black"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#2463eb] text-white rounded-2xl text-sm font-black hover:bg-[#1d4ed8] transition-colors"
           >
             Back to System Settings
           </Link>
@@ -304,7 +304,7 @@ export function TimeSettingsPage() {
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
       <div className="mb-8">
         <nav className="flex items-center gap-2 text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">
-          <Link to="/hr/settings/system" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+          <Link to="/hr/settings/system" className="hover:text-[#2463eb] dark:hover:text-[#60a5fa] transition-colors">
             System Settings
           </Link>
           <ChevronRight size={14} />
@@ -321,10 +321,10 @@ export function TimeSettingsPage() {
           <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md animate-in slide-in-from-bottom-4">
             <div className="p-8">
               <div className="flex items-center gap-3 mb-8">
-                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-[#dbeafe] dark:bg-[#2463eb]/20 text-[#2463eb] dark:text-[#60a5fa] rounded-xl flex items-center justify-center">
                   {loadingGlobal ? <Loader2 size={20} className="animate-spin" /> : <Calendar size={20} />}
                 </div>
-                <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Time Settings Configuration <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-400 px-2 py-0.5 rounded-full uppercase tracking-tighter">Global</span></h2>
+                <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Time Settings Configuration <span className="ml-2 text-[10px] bg-[#dbeafe] text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa] px-2 py-0.5 rounded-full uppercase tracking-tighter">Global</span></h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -338,7 +338,7 @@ export function TimeSettingsPage() {
                           onClick={() => setYearType(type)}
                           className={`p-4 rounded-xl border-2 text-left transition-all ${
                             yearType === type 
-                              ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/10' 
+                              ? 'border-[#2463eb] bg-[#eff6ff] dark:bg-[#2463eb]/10' 
                               : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900'
                           }`}
                         >
@@ -371,7 +371,7 @@ export function TimeSettingsPage() {
                           }}
                           className={`py-3 rounded-xl border-2 font-bold text-xs transition-all ${
                             (dur === 'Custom' && duration !== '6 Months' && duration !== '1 Year') || (duration === dur)
-                              ? 'border-emerald-600 bg-emerald-600 text-white shadow-lg shadow-emerald-100 dark:shadow-none' 
+                              ? 'border-[#2463eb] bg-[#2463eb] text-white shadow-lg shadow-[#dbeafe] dark:shadow-none' 
                               : 'border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800'
                           }`}
                         >
@@ -405,7 +405,7 @@ export function TimeSettingsPage() {
                               setDuration('1 Months');
                             }
                           }}
-                          className="w-24 bg-slate-50 dark:bg-slate-800 border-2 border-emerald-500/30 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 focus:border-emerald-500 outline-none transition-all"
+                          className="w-24 bg-slate-50 dark:bg-slate-800 border-2 border-[#2463eb]/30 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-200 focus:border-[#2463eb] outline-none transition-all"
                         />
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Months Range (1-12)</span>
                       </div>
@@ -414,7 +414,7 @@ export function TimeSettingsPage() {
                 </div>
 
                   <div className="flex flex-col justify-center">
-                    <div className="bg-[#115e59] text-white p-8 rounded-3xl space-y-6 shadow-xl shadow-emerald-900/20 relative overflow-hidden">
+                    <div className="bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white p-8 rounded-3xl space-y-6 shadow-xl shadow-[#2463eb]/25 relative overflow-hidden">
                       {/* Decorative Background Element */}
                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 -mr-10 -mt-10 rounded-full blur-2xl" />
                       
@@ -436,36 +436,36 @@ export function TimeSettingsPage() {
                              key={idx} 
                              className={`p-4 rounded-2xl transition-all duration-300 flex items-center justify-between border ${
                                displayStatus === 'ACTIVE'
-                               ? 'bg-white text-emerald-900 border-white shadow-lg scale-[1.02]'
+                               ? 'bg-white text-[#1e3a8a] border-white shadow-lg scale-[1.02]'
                                : displayStatus === 'UPCOMING'
-                               ? 'bg-emerald-950/35 border-emerald-500/20 text-emerald-100/75 backdrop-blur-[1px]'
-                               : 'bg-emerald-800/40 border-emerald-700/50 text-emerald-100/60'
+                               ? 'bg-[#1d4ed8]/35 border-[#2463eb]/20 text-blue-100/75 backdrop-blur-[1px]'
+                               : 'bg-[#1e40af]/40 border-[#1d4ed8]/50 text-blue-100/60'
                              }`}
                            >
                               <div className="flex flex-col">
                                  <span className={`text-[10px] font-black uppercase tracking-tighter ${
                                    displayStatus === 'ACTIVE'
-                                     ? 'text-emerald-600'
+                                     ? 'text-[#2463eb]'
                                      : displayStatus === 'UPCOMING'
-                                     ? 'text-emerald-300/55'
-                                     : 'text-emerald-400/50'
+                                     ? 'text-blue-300/55'
+                                     : 'text-blue-400/50'
                                  }`}>
                                     {c.name}
                                  </span>
-                                 <span className={`text-sm font-black tracking-tight ${displayStatus === 'UPCOMING' ? 'text-emerald-100/75' : ''}`}>
+                                 <span className={`text-sm font-black tracking-tight ${displayStatus === 'UPCOMING' ? 'text-blue-100/75' : ''}`}>
                                    {formatDate(c.startDate)} - {formatDate(c.endDate)}
                                  </span>
-                                 <span className={`text-[9px] font-black uppercase tracking-widest ${displayStatus === 'UPCOMING' ? 'text-emerald-200/45' : 'opacity-70'}`}>
+                                 <span className={`text-[9px] font-black uppercase tracking-widest ${displayStatus === 'UPCOMING' ? 'text-blue-200/45' : 'opacity-70'}`}>
                                    {c.requiresEmployeeSubmission ? 'Employee submission' : 'Annual roll-up'} - {c.cycleType}
                                  </span>
                               </div>
                               <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${
-                                displayStatus === 'ACTIVE' ? 'bg-emerald-100 text-emerald-600' :
-                                displayStatus === 'UPCOMING' ? 'bg-sky-50 text-sky-700 shadow-sm' : 'bg-slate-100 text-slate-500'
+                                displayStatus === 'ACTIVE' ? 'bg-[#dbeafe] text-[#2463eb]' :
+                                displayStatus === 'UPCOMING' ? 'bg-white/90 text-[#1d4ed8] shadow-sm' : 'bg-slate-100 text-slate-500'
                               }`}>
                                  <div className={`w-1.5 h-1.5 rounded-full ${
-                                   displayStatus === 'ACTIVE' ? 'bg-emerald-500' :
-                                   displayStatus === 'UPCOMING' ? 'bg-sky-500' : 'bg-slate-400'
+                                   displayStatus === 'ACTIVE' ? 'bg-[#2463eb]' :
+                                   displayStatus === 'UPCOMING' ? 'bg-[#60a5fa]' : 'bg-slate-400'
                                  }`} />
                                  <span className="text-[9px] font-black uppercase tracking-widest">
                                    {displayStatus === 'ACTIVE' ? 'Active' : displayStatus === 'UPCOMING' ? 'Upcoming' : 'Closed'}
@@ -474,7 +474,7 @@ export function TimeSettingsPage() {
                            </div>
                          )})}
                          {displayCycles.length === 0 && (
-                           <div className="p-4 rounded-2xl bg-emerald-800/40 border border-emerald-700/50 text-emerald-100/70 text-xs font-bold">
+                           <div className="p-4 rounded-2xl bg-[#1e40af]/40 border border-[#1d4ed8]/50 text-blue-100/70 text-xs font-bold">
                              Save time settings to refresh the API preview.
                            </div>
                          )}
@@ -490,7 +490,7 @@ export function TimeSettingsPage() {
            <button 
              onClick={() => setShowSaveModal(true)}
              disabled={isSaving}
-             className="px-8 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-emerald-600/30 hover:shadow-xl hover:shadow-emerald-600/40 hover:-translate-y-0.5 transition-all flex items-center gap-2 transform active:scale-95 disabled:opacity-50 disabled:hover:translate-y-0"
+             className="px-8 py-3 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white rounded-2xl text-sm font-black shadow-lg shadow-[#2463eb]/30 hover:shadow-xl hover:shadow-[#2463eb]/40 hover:-translate-y-0.5 transition-all flex items-center gap-2 transform active:scale-95 disabled:opacity-50 disabled:hover:translate-y-0"
            >
               {isSaving ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -508,7 +508,7 @@ export function TimeSettingsPage() {
         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => !isSaving && setShowSaveModal(false)} />
         <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-white/20 relative z-10 overflow-hidden animate-in zoom-in-95 duration-300">
           <div className="p-8 pb-4 text-center">
-            <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-6 scale-110 shadow-inner">
+            <div className="w-20 h-20 bg-[#dbeafe] dark:bg-[#2463eb]/20 text-[#2463eb] dark:text-[#60a5fa] rounded-3xl flex items-center justify-center mx-auto mb-6 scale-110 shadow-inner">
               <Calendar size={40} strokeWidth={2.5} />
             </div>
             <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Save Time Settings?</h3>
@@ -520,7 +520,7 @@ export function TimeSettingsPage() {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm transition-all shadow-lg shadow-emerald-600/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-4 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] text-white rounded-2xl font-black text-sm transition-all shadow-lg shadow-[#2463eb]/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
               Confirm Save
