@@ -13,9 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @Slf4j
 public class PipReopenWorkflowSchemaMigrationInitializer implements BeanPostProcessor {
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory
-            .getLogger(PipReopenWorkflowSchemaMigrationInitializer.class);
-
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
         if (!"dataSource".equals(beanName) || !(bean instanceof DataSource dataSource)) {
