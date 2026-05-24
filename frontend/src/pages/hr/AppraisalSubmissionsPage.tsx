@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2, Building2, ChevronDown, Award, MessageSquare, Target, Download } from 'lucide-react';
@@ -1105,43 +1106,28 @@ export function AppraisalSubmissionsPage() {
                                                 RESET FOR RE-EVALUATION
                                             </button>
                                         ) : selectedAsmt.status === 'HR_APPROVED' ? (
-                                             <>
-                                                 <button
-                                                     onClick={() => handleLock(selectedAsmt.id)}
-                                                     className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-lg shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-3"
-                                                 >
-                                                     <Lock size={18} />
-                                                     LOCK FOREVER (FINALIZE)
-                                                 </button>
-                                                 <div className="grid grid-cols-2 gap-3 mt-3">
-                                                     <button
-                                                         onClick={() => handleAction('return')}
-                                                         disabled={isActionLoading || !comments.trim()}
-                                                         className="py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all flex items-center justify-center gap-2 border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                         title="Return Approved Appraisal for Correction"
-                                                     >
-                                                         {actionInProgress === 'return' ? (
-                                                             <Loader2 className="animate-spin" size={14} />
-                                                         ) : (
-                                                             <RotateCcw size={14} />
-                                                         )}
-                                                         RETURN
-                                                     </button>
-                                                     <button
-                                                         onClick={() => handleAction('reject')}
-                                                         disabled={isActionLoading || !comments.trim()}
-                                                         className="py-3.5 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 transition-all flex items-center justify-center gap-2 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                         title="Reject Approved Appraisal"
-                                                     >
-                                                         {actionInProgress === 'reject' ? (
-                                                             <Loader2 className="animate-spin" size={14} />
-                                                         ) : (
-                                                             <XCircle size={14} />
-                                                         )}
-                                                         REJECT
-                                                     </button>
-                                                 </div>
-                                             </>
+                                            <>
+                                                <button
+                                                    onClick={() => handleLock(selectedAsmt.id)}
+                                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-lg shadow-slate-200 hover:bg-black transition-all flex items-center justify-center gap-3"
+                                                >
+                                                    <Lock size={18} />
+                                                    LOCK FOREVER (FINALIZE)
+                                                </button>
+                                                <button
+                                                    onClick={() => handleAction('reject')}
+                                                    disabled={isActionLoading || !comments.trim()}
+                                                    className="mt-3 w-full py-3.5 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 transition-all flex items-center justify-center gap-2 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="Reject Approved Appraisal"
+                                                >
+                                                    {actionInProgress === 'reject' ? (
+                                                        <Loader2 className="animate-spin" size={14} />
+                                                    ) : (
+                                                        <XCircle size={14} />
+                                                    )}
+                                                    REJECT
+                                                </button>
+                                            </>
                                         ) : (selectedAsmt.status === 'SUBMITTED' || selectedAsmt.status === 'RETURNED') ? (
                                             <>
                                                 <button
