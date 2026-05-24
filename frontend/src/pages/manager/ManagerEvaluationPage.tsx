@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { useRhfAutosave, withRetry, type SaveResult, type Transport } from 'react-hook-form-autosave';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { 
@@ -24,6 +26,12 @@ import SignatureCanvas from 'react-signature-canvas';
 import { useRef } from 'react';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
+
+interface EvaluationFormData {
+    answers: Record<string, { rating: number; comments: string }>;
+    comments: string;
+    signature: string;
+}
 
 interface Question {
     id: number;
@@ -76,18 +84,70 @@ interface Assignment {
     updatedAt?: string;
 }
 
+const toEvaluationPayload = (data: EvaluationFormData, includeSignature: boolean) => ({
+    answers: Object.entries(data.answers).map(([qId, answer]) => ({
+        questionId: Number(qId),
+        rating: answer.rating,
+        comments: answer.comments,
+    })),
+    comments: data.comments,
+    ...(includeSignature ? { signature: data.signature } : {}),
+});
+
 export const ManagerEvaluationPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [assignment, setAssignment] = useState<Assignment | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [answers, setAnswers] = useState<Record<number, { rating: number, comments: string }>>({});
-    const [comments, setComments] = useState('');
-    const [signature, setSignature] = useState('');
+    const [savingDraft, setSavingDraft] = useState(false);
     const [isUsingSavedSignature, setIsUsingSavedSignature] = useState(false);
     const sigCanvas = useRef<any>(null);
     const [defaultSignature, setDefaultSignature] = useState<string | null>(null);
+    const form = useForm<EvaluationFormData>({
+        defaultValues: {
+            answers: {},
+            comments: '',
+            signature: '',
+        },
+    });
+    const { getValues, reset, setValue, watch, formState } = form;
+    const answers = watch('answers');
+    const comments = watch('comments');
+    const signature = watch('signature');
+    const isReadOnly = assignment?.status !== 'PENDING_MANAGER' && assignment?.status !== 'RETURNED';
+    const autosaveDisabled = loading || !assignment || Boolean(isReadOnly);
+
+    const draftTransport = useMemo<Transport>(() => {
+        const transport: Transport = async (payload) => {
+            try {
+                await axios.post(`/appraisal-assignments/${id}/draft`, payload);
+                return { ok: true };
+            } catch (error: any) {
+                return {
+                    ok: false,
+                    error: new Error(error?.response?.data?.message || 'Failed to save draft'),
+                } satisfies SaveResult;
+            }
+        };
+
+        return withRetry(transport, { maxRetries: 3 });
+    }, [id]);
+
+    const autosave = useRhfAutosave<EvaluationFormData>({
+        form,
+        transport: draftTransport,
+        config: {
+            debounceMs: 2000,
+            maxRetries: 3,
+            debug: false,
+        },
+        validateBeforeSave: 'none',
+        selectPayload: (values) => values,
+        shouldSave: ({ isDirty, dirtyFields }) =>
+            !autosaveDisabled && (isDirty || Object.keys(dirtyFields).length > 0),
+        mapPayload: () => toEvaluationPayload(getValues(), false),
+    });
 
     useEffect(() => {
         fetchForm();
@@ -120,11 +180,11 @@ export const ManagerEvaluationPage: React.FC = () => {
     useEffect(() => {
         if (!loading && assignment && defaultSignature) {
             if (!signature) {
-                setSignature(defaultSignature);
+                setValue('signature', defaultSignature, { shouldDirty: false });
                 setIsUsingSavedSignature(true);
             }
         }
-    }, [loading, assignment, defaultSignature]);
+    }, [loading, assignment, defaultSignature, setValue, signature]);
     const fetchForm = async () => {
         try {
             setLoading(true);
@@ -152,9 +212,11 @@ export const ManagerEvaluationPage: React.FC = () => {
                     });
                 }
                 
-                setAnswers(initialAnswers);
-                setComments(response.data.data.managerComments || '');
-                setSignature(response.data.data.managerSignature || '');
+                reset({
+                    answers: initialAnswers,
+                    comments: response.data.data.managerComments || '',
+                    signature: response.data.data.managerSignature || '',
+                });
             }
         } catch (error) {
             toast.error('Failed to load evaluation form');
@@ -165,30 +227,35 @@ export const ManagerEvaluationPage: React.FC = () => {
     };
 
     const handleRatingChange = (questionId: number, rating: number) => {
-        setAnswers(prev => ({
-            ...prev,
-            [questionId]: { ...prev[questionId], rating }
-        }));
+        setValue(`answers.${questionId}.rating`, rating, { shouldDirty: true, shouldTouch: true });
     };
 
     const handleAnswerCommentChange = (questionId: number, comments: string) => {
-        setAnswers(prev => ({
-            ...prev,
-            [questionId]: { ...prev[questionId], comments }
-        }));
+        setValue(`answers.${questionId}.comments`, comments, { shouldDirty: true, shouldTouch: true });
     };
+
+    const captureSignature = useCallback(() => {
+        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
+            return sigCanvas.current.getCanvas().toDataURL();
+        }
+        const currentSignature = getValues('signature');
+        if (currentSignature) {
+            return currentSignature;
+        }
+        return defaultSignature || '';
+    }, [defaultSignature, getValues]);
 
     const handleClearSignature = () => {
         if (sigCanvas.current) {
             sigCanvas.current.clear();
         }
-        setSignature('');
+        setValue('signature', '', { shouldDirty: true, shouldTouch: true });
         setIsUsingSavedSignature(false);
     };
 
     const handleUseDefaultSignature = () => {
         if (defaultSignature) {
-            setSignature(defaultSignature);
+            setValue('signature', defaultSignature, { shouldDirty: true, shouldTouch: true });
             setIsUsingSavedSignature(true);
             toast.success("Default signature applied");
         } else {
@@ -196,15 +263,44 @@ export const ManagerEvaluationPage: React.FC = () => {
         }
     };
 
-    const handleSubmit = async () => {
-        // Capture signature if drawn but not yet in state
-        let finalSignature = signature;
-        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
-            finalSignature = sigCanvas.current.getCanvas().toDataURL();
-        } else if (!finalSignature && defaultSignature) {
-            // Auto-use default signature if canvas is empty and no signature selected yet
-            finalSignature = defaultSignature;
+    const handleSaveDraft = async () => {
+        try {
+            setSavingDraft(true);
+            if (formState.isDirty || autosave.hasPendingChanges) {
+                const result = await autosave.flush();
+                if (!result?.ok) {
+                    toast.error(result?.error?.message || 'Failed to save draft');
+                    return;
+                }
+            }
+
+            const finalSignature = captureSignature();
+            setValue('signature', finalSignature, { shouldDirty: false });
+            await axios.post(`/appraisal-assignments/${id}/draft`, toEvaluationPayload({
+                ...getValues(),
+                signature: finalSignature,
+            }, true));
+            toast.success('Draft saved');
+            await fetchForm();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Failed to save draft');
+        } finally {
+            setSavingDraft(false);
         }
+    };
+
+    const handleSubmit = async () => {
+        if (autosave.hasPendingChanges || formState.isDirty) {
+            const result = await autosave.flush();
+            if (!result?.ok) {
+                toast.error(result?.error?.message || 'Please save changes before submitting');
+                return;
+            }
+        }
+
+        // Capture signature if drawn but not yet in state
+        let finalSignature = captureSignature();
+        setValue('signature', finalSignature, { shouldDirty: false });
 
         // Validation
         const unanswered = Object.values(answers).some(a => a.rating === 0);
@@ -220,15 +316,10 @@ export const ManagerEvaluationPage: React.FC = () => {
 
         try {
             setSubmitting(true);
-            const payload = {
-                answers: Object.entries(answers).map(([qId, data]) => ({
-                    questionId: parseInt(qId),
-                    rating: data.rating,
-                    comments: data.comments
-                })),
-                comments,
-                signature: finalSignature
-            };
+            const payload = toEvaluationPayload({
+                ...getValues(),
+                signature: finalSignature,
+            }, true);
 
             const response = await axios.post(`/appraisal-assignments/${id}/evaluate`, payload);
             if (response.data.success) {
@@ -258,7 +349,20 @@ export const ManagerEvaluationPage: React.FC = () => {
     const empName = assignment.employee?.employeeName || assignment.employee?.fullName || (assignment.employee as any)?.full_name || 'Employee';
     const deptName = assignment.employee?.department?.departmentName || assignment.employee?.department?.name || 'N/A';
     const posName = (assignment.employee as any)?.position?.positionName || (assignment.employee as any)?.position?.name || 'N/A';
-    const isReadOnly = assignment.status !== 'PENDING_MANAGER' && assignment.status !== 'RETURNED';
+    const saveStatus = autosave.isSaving
+        ? 'Saving...'
+        : autosave.lastError
+            ? 'Save failed'
+            : autosave.hasPendingChanges || formState.isDirty
+                ? 'Unsaved changes'
+                : 'All changes saved';
+    const saveStatusTone = autosave.isSaving
+        ? 'text-blue-600'
+        : autosave.lastError
+            ? 'text-red-600'
+            : autosave.hasPendingChanges || formState.isDirty
+                ? 'text-amber-600'
+                : 'text-emerald-600';
 
     return (
         <div className="min-h-screen bg-slate-50/50 pb-20">
@@ -282,14 +386,27 @@ export const ManagerEvaluationPage: React.FC = () => {
                         </div>
                     </div>
                     {!isReadOnly && (
-                        <button
-                            onClick={handleSubmit}
-                            disabled={submitting}
-                            className="flex items-center gap-2 bg-[#5D5FEF] text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#5D5FEF]/20 hover:bg-[#4C4EDE] transition-all disabled:opacity-50"
-                        >
-                            {submitting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                            Submit Evaluation
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <span className={`hidden text-xs font-bold sm:inline ${saveStatusTone}`}>
+                                {saveStatus}
+                            </span>
+                            <button
+                                onClick={handleSaveDraft}
+                                disabled={savingDraft || autosave.isSaving}
+                                className="flex items-center gap-2 border border-slate-200 bg-white text-slate-700 px-4 py-2.5 rounded-2xl font-bold text-sm shadow-sm hover:bg-slate-50 transition-all disabled:opacity-50"
+                            >
+                                {savingDraft || autosave.isSaving ? <Loader2 size={18} className="animate-spin" /> : <Clock size={18} />}
+                                Save Draft
+                            </button>
+                            <button
+                                onClick={handleSubmit}
+                                disabled={submitting || savingDraft}
+                                className="flex items-center gap-2 bg-[#5D5FEF] text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#5D5FEF]/20 hover:bg-[#4C4EDE] transition-all disabled:opacity-50"
+                            >
+                                {submitting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                                Submit Evaluation
+                            </button>
+                        </div>
                     )}
                     {isReadOnly && (
                         <div className="flex items-center gap-3">
@@ -470,7 +587,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                             <textarea
                                 placeholder={isReadOnly ? "No summary feedback" : "Your summary comments..."}
                                 value={comments}
-                                onChange={(e) => !isReadOnly && setComments(e.target.value)}
+                                onChange={(e) => !isReadOnly && setValue('comments', e.target.value, { shouldDirty: true, shouldTouch: true })}
                                 readOnly={isReadOnly}
                                 className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-sm focus:ring-2 focus:ring-amber-500/50 transition-all resize-none h-40"
                             />
@@ -521,7 +638,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                                     ref={sigCanvas}
                                                     onBegin={() => setIsUsingSavedSignature(false)}
                                                     onEnd={() => {
-                                                        setSignature(sigCanvas.current.getCanvas().toDataURL());
+                                                        setValue('signature', sigCanvas.current.getCanvas().toDataURL(), { shouldDirty: true, shouldTouch: true });
                                                         setIsUsingSavedSignature(false);
                                                     }}
                                                     canvasProps={{

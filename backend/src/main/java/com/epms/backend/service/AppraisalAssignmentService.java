@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -93,6 +94,25 @@ public class AppraisalAssignmentService {
     }
 
     @Transactional
+    public AppraisalAssignment saveDraft(Long id, com.epms.backend.dto.EvaluationRequest req) {
+        AppraisalAssignment assignment = getById(id);
+
+        if (assignment.getStatus() != AppraisalStatus.PENDING_MANAGER && assignment.getStatus() != AppraisalStatus.RETURNED) {
+            throw new RuntimeException("Draft can only be saved for pending or returned appraisals.");
+        }
+
+        replaceAnswers(assignment, req);
+        assignment.setManagerComments(req.getComments());
+        if (req.getSignature() != null) {
+            assignment.setManagerSignature(req.getSignature());
+        }
+        assignment.setUpdatedAt(Instant.now());
+        recalculateScore(assignment);
+
+        return appraisalAssignmentRepository.save(assignment);
+    }
+
+    @Transactional
     public AppraisalAssignment submitEvaluation(Long id, com.epms.backend.dto.EvaluationRequest req, Long userId, Long roleId) {
         AppraisalAssignment assignment = getById(id);
 
@@ -100,19 +120,15 @@ public class AppraisalAssignmentService {
             throw new RuntimeException("Evaluation can only be submitted for pending or returned appraisals.");
         }
 
-        // Clear existing answers if any (in case of re-submission/return)
-        assignment.getAnswers().clear();
-
-        for (com.epms.backend.dto.EvaluationRequest.AnswerRequest answerReq : req.getAnswers()) {
-            com.epms.backend.entity.AppraisalAnswer answer = new com.epms.backend.entity.AppraisalAnswer();
-            answer.setAssignment(assignment);
-            answer.setQuestion(appraisalQuestionRepository.findById(answerReq.getQuestionId())
-                    .orElseThrow(() -> new RuntimeException("Question not found: " + answerReq.getQuestionId())));
-            answer.setRating(answerReq.getRating().intValue());
-            answer.setComments(answerReq.getComments());
-            assignment.getAnswers().add(answer);
+        if (req.getSignature() == null || req.getSignature().isBlank()) {
+            throw new RuntimeException("Signature is required to submit evaluation.");
+        }
+        if (req.getAnswers() == null || req.getAnswers().isEmpty()
+                || req.getAnswers().stream().anyMatch(a -> a.getRating() == null || a.getRating() <= 0)) {
+            throw new RuntimeException("All ratings are required to submit evaluation.");
         }
 
+        replaceAnswers(assignment, req);
         assignment.setStatus(AppraisalStatus.SUBMITTED);
         assignment.setManagerComments(req.getComments());
         assignment.setManagerSignature(req.getSignature());
@@ -120,23 +136,7 @@ public class AppraisalAssignmentService {
         assignment.setSubmittedAt(Instant.now());
         assignment.setUpdatedAt(Instant.now());
 
-        // Calculate total score
-        if (!assignment.getAnswers().isEmpty()) {
-            double sum = assignment.getAnswers().stream()
-                    .mapToDouble(a -> a.getRating() != null ? a.getRating() : 0.0)
-                    .sum();
-            
-            double maxRating = (assignment.getTemplate() != null && assignment.getTemplate().getMaxRating() != null) 
-                    ? assignment.getTemplate().getMaxRating() 
-                    : 5.0;
-            
-            assignment.setTotalScore((sum / (assignment.getAnswers().size() * maxRating)) * 100);
-            
-            if (assignment.getTotalScore() >= 90) assignment.setRatingCategory("EXCEPTIONAL");
-            else if (assignment.getTotalScore() >= 75) assignment.setRatingCategory("GOOD");
-            else if (assignment.getTotalScore() >= 50) assignment.setRatingCategory("AVERAGE");
-            else assignment.setRatingCategory("NEEDS_IMPROVEMENT");
-        }
+        recalculateScore(assignment);
 
         AppraisalAssignment saved = appraisalAssignmentRepository.save(assignment);
         
@@ -375,6 +375,49 @@ public class AppraisalAssignmentService {
         } catch (Exception e) {
             System.err.println("Failed to initiate manager notification: " + e.getMessage());
         }
+    }
+
+    private void replaceAnswers(AppraisalAssignment assignment, com.epms.backend.dto.EvaluationRequest req) {
+        assignment.getAnswers().clear();
+
+        if (req.getAnswers() == null) {
+            return;
+        }
+
+        req.getAnswers().stream()
+                .filter(Objects::nonNull)
+                .forEach(answerReq -> {
+                    com.epms.backend.entity.AppraisalAnswer answer = new com.epms.backend.entity.AppraisalAnswer();
+                    answer.setAssignment(assignment);
+                    answer.setQuestion(appraisalQuestionRepository.findById(answerReq.getQuestionId())
+                            .orElseThrow(() -> new RuntimeException("Question not found: " + answerReq.getQuestionId())));
+                    answer.setRating(answerReq.getRating() != null ? answerReq.getRating().intValue() : null);
+                    answer.setComments(answerReq.getComments());
+                    assignment.getAnswers().add(answer);
+                });
+    }
+
+    private void recalculateScore(AppraisalAssignment assignment) {
+        if (assignment.getAnswers() == null || assignment.getAnswers().isEmpty()) {
+            assignment.setTotalScore(null);
+            assignment.setRatingCategory(null);
+            return;
+        }
+
+        double sum = assignment.getAnswers().stream()
+                .mapToDouble(a -> a.getRating() != null ? a.getRating() : 0.0)
+                .sum();
+
+        double maxRating = (assignment.getTemplate() != null && assignment.getTemplate().getMaxRating() != null)
+                ? assignment.getTemplate().getMaxRating()
+                : 5.0;
+
+        assignment.setTotalScore((sum / (assignment.getAnswers().size() * maxRating)) * 100);
+
+        if (assignment.getTotalScore() >= 90) assignment.setRatingCategory("EXCEPTIONAL");
+        else if (assignment.getTotalScore() >= 75) assignment.setRatingCategory("GOOD");
+        else if (assignment.getTotalScore() >= 50) assignment.setRatingCategory("AVERAGE");
+        else assignment.setRatingCategory("NEEDS_IMPROVEMENT");
     }
 
     private boolean isProbationEmployee(AppraisalAssignment assignment) {
