@@ -39,6 +39,7 @@ export function AppNavbar() {
   const getPageTitle = () => {
     const path = location.pathname
     if (path.includes('profile')) return 'User Profile'
+    if (path.includes('settings/system/time')) return 'Time Settings'
     if (path.includes('settings')) return 'System Settings'
     if (path.includes('feedback')) return '360° Feedback'
     if (path.includes('performance')) return 'Performance'

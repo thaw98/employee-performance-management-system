@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { CalendarRange, Clock, AlertCircle } from 'lucide-react';
 import { useGetActiveReviewCyclesQuery, useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi';
 
@@ -132,7 +133,7 @@ export function SelfAssessmentReviewCycleInfo({
               No review cycle configured
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Create cycles in System Settings to enable self-assessments.
+              Create cycles in <Link to="/hr/settings/system/time" className="text-emerald-600 hover:underline">Time Settings</Link> to enable self-assessments.
             </p>
           </div>
         </div>

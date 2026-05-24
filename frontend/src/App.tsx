@@ -30,6 +30,7 @@ import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage'
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { SystemSettingsPage } from './pages/SystemSettingsPage';
+import { TimeSettingsPage } from './pages/TimeSettingsPage';
 import { DefaultSignaturePage } from './pages/DefaultSignaturePage';
 
 // Performance Modules
@@ -188,6 +189,7 @@ function App() {
             <Route path="settings/profile" element={<Navigate to="/hr/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
             <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="settings/system/time" element={<TimeSettingsPage />} />
             <Route path="self-assessment/templates" element={<SelfAssessmentFormTemplatePage />} />
             <Route path="self-assessment/templates/create" element={<CreateSelfAssessmentTemplatePage />} />
             <Route path="self-assessment/templates/:templateId/edit" element={<EditSelfAssessmentTemplatePage />} />
