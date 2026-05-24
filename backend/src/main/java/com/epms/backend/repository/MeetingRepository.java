@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.time.Instant;
 
 @Repository
 public interface MeetingRepository extends JpaRepository<Meeting, Long>, JpaSpecificationExecutor<Meeting> {
@@ -18,4 +19,6 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long>, JpaSpec
     Page<Meeting> findByEmployeeId(Long employeeId, Pageable pageable);
     Page<Meeting> findByEmployeeIdAndStatusIn(Long employeeId, List<MeetingStatus> statuses, Pageable pageable);
     List<Meeting> findByStatusIn(List<MeetingStatus> statuses);
+    long countByScheduledTimeAfterAndStatusIn(Instant scheduledTime, List<MeetingStatus> statuses);
+    long countByScheduledTimeBetweenAndStatusIn(Instant start, Instant end, List<MeetingStatus> statuses);
 }

@@ -1,412 +1,298 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  Users,
-  Calendar,
-  Target,
-  MessageSquare,
-  TrendingUp,
-  ExternalLink,
-  Zap,
-  X,
-  Save,
-  PenLine,
-  AlertTriangle,
-} from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from 'recharts';
-import { useGetManagerTeamQuery, useGetLatestKpisByEmployeeQuery, useUpdateManagerKpiActualsMutation, type Kpi } from '../../features/kpi/kpiApi';
-import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
-import toast from 'react-hot-toast';
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Activity, AlertTriangle, CalendarClock, ClipboardCheck, PenLine, Target, Users } from 'lucide-react'
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-interface PerformanceData {
-  name: string;
-  score: number;
+import axios from '../../app/axiosInstance'
+import { useGetManagerTeamQuery } from '../../features/kpi/kpiApi'
+import { useGetDefaultSignatureQuery } from '../../features/user/userApi'
+
+type MeetingItem = {
+  id: number
+  title: string
+  scheduledTime?: string
+  meetingTime?: string
+  status: string
 }
 
-interface TeamMember {
-  name: string;
-  role: string;
-  status: string;
-  score: number;
-  initial: string;
-  color: string;
-  id?: number;
+type ActivityItem = {
+  id: number
+  title: string
+  message: string
+  source: string
+  createdAt: string
+  read?: boolean
 }
 
-const KpiEditModal = ({ employee, onClose }: { employee: any, onClose: () => void }) => {
-  const { data: kpis, isLoading } = useGetLatestKpisByEmployeeQuery(employee.id);
-  const [updateKpis, { isLoading: isUpdating }] = useUpdateManagerKpiActualsMutation();
-  const [editedKpis, setEditedKpis] = useState<Kpi[]>([]);
+type TeamKpiSummary = {
+  employeeId: number
+  employeeName: string
+  kpiCount: number
+  submittedCount: number
+  averageScore: number
+}
+
+const chartColors = ['#2563eb', '#06b6d4', '#8b5cf6', '#10b981', '#f97316', '#ec4899']
+
+const formatNumber = (value: number | undefined) => new Intl.NumberFormat().format(value ?? 0)
+
+const formatDate = (value?: string) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+const formatTime = (value?: string) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+}
+
+function EmptyPanel({ message }: { message: string }) {
+  return (
+    <div className="grid min-h-32 place-items-center rounded-3xl border border-dashed border-blue-200 bg-blue-50/70 px-4 text-center text-sm font-bold text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+      {message}
+    </div>
+  )
+}
+
+export function ManagerDashboardPage() {
+  const { data: teamData = [], isLoading: isTeamLoading } = useGetManagerTeamQuery()
+  const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery()
+  const [meetings, setMeetings] = useState<MeetingItem[]>([])
+  const [activities, setActivities] = useState<ActivityItem[]>([])
+  const [teamKpis, setTeamKpis] = useState<TeamKpiSummary[]>([])
+  const [meetingError, setMeetingError] = useState('')
+  const [activityError, setActivityError] = useState('')
+  const [kpiError, setKpiError] = useState('')
+  const hasDefaultSignature = Boolean(defaultSigResponse?.data)
 
   useEffect(() => {
-    if (kpis) {
-      setEditedKpis(kpis.map(k => ({...k})));
-    }
-  }, [kpis]);
+    let active = true
+    const meetingStatuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED,ONGOING'
 
-  const handleChange = (index: number, field: keyof Kpi, value: any) => {
-    const updated = [...editedKpis];
-    const kpi = { ...updated[index], [field]: value };
+    const loadDashboard = async () => {
+      const [meetingResult, activityResult] = await Promise.allSettled([
+        axios.get(`/meetings/manager?statuses=${meetingStatuses}&page=0&size=5&sortBy=oldest`),
+        axios.get('/notifications?status=all&page=0&size=8'),
+      ])
 
-    // Auto-calculate if actual value changed
-    if (field === 'actual') {
-      const actualStr = String(value || '');
-      const targetStr = String(kpi.target || '');
-      const weight = Number(kpi.weight || 0);
+      if (!active) return
 
-      const actualNum = parseFloat(actualStr.replace(/[^0-9.]/g, ''));
-      const targetNum = parseFloat(targetStr.replace(/[^0-9.]/g, ''));
-
-      if (!isNaN(actualNum) && !isNaN(targetNum) && targetNum !== 0) {
-        // Basic calculation: (Actual / Target) * 100
-        const score = (actualNum / targetNum) * 100;
-        kpi.score = Number(score.toFixed(2));
-        kpi.weightedScore = Number(((score * weight) / 100).toFixed(2));
+      if (meetingResult.status === 'fulfilled') {
+        setMeetings(meetingResult.value.data?.data?.content ?? [])
       } else {
-        kpi.score = 0;
-        kpi.weightedScore = 0;
+        setMeetingError('Unable to load your upcoming meetings.')
+      }
+
+      if (activityResult.status === 'fulfilled') {
+        setActivities(activityResult.value.data?.data?.content ?? [])
+      } else {
+        setActivityError('Unable to load recent activity.')
       }
     }
 
-    updated[index] = kpi;
-    setEditedKpis(updated);
-  };
-
-  const handleSave = async (status: 'DRAFT' | 'SUBMITTED') => {
-    try {
-      const kpisWithStatus = editedKpis.map(k => ({ ...k, status }));
-      await updateKpis({ employeeId: employee.id, kpis: kpisWithStatus }).unwrap();
-      toast.success(status === 'DRAFT' ? 'KPIs saved as draft' : 'KPIs submitted successfully');
-      onClose();
-    } catch (err: any) {
-      toast.error(err.data?.message || `Failed to ${status === 'DRAFT' ? 'save draft' : 'submit'} KPIs`);
+    loadDashboard()
+    return () => {
+      active = false
     }
-  };
+  }, [])
 
-  const totalWeightedScore = editedKpis.reduce((acc, kpi) => acc + (kpi.weightedScore || 0), 0);
+  useEffect(() => {
+    let active = true
 
-  return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex justify-between items-center p-6 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-               <h2 className="text-xl font-black text-slate-900">Update KPI Actuals</h2>
-               {editedKpis[0]?.status === 'DRAFT' && (
-                 <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded-full uppercase tracking-widest">Draft</span>
-               )}
-            </div>
-            <p className="text-sm font-medium text-slate-500">Employee: <span className="font-bold text-slate-900">{employee.name}</span></p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
-            <X size={20} />
-          </button>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-0 bg-white">
-          {isLoading ? (
-            <div className="flex justify-center items-center h-40"><div className="w-6 h-6 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin"></div></div>
-          ) : editedKpis.length === 0 ? (
-            <div className="text-center text-slate-500 py-10 font-medium">No KPIs found for this employee.</div>
-          ) : (
-            <div className="min-w-full">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200">
-                    <th className="py-4 px-6 border-r border-slate-200">KPI</th>
-                    <th className="py-4 px-4 border-r border-slate-200">Category</th>
-                    <th className="py-4 px-4 text-center border-r border-slate-200">Target</th>
-                    <th className="py-4 px-4 text-center border-r border-slate-200">Unit</th>
-                    <th className="py-4 px-4 text-center border-r border-slate-200">Actual</th>
-                    <th className="py-4 px-4 text-center border-r border-slate-200">Weight (%)</th>
-                    <th className="py-4 px-4 text-center border-r border-slate-200">Score (%)</th>
-                    <th className="py-4 px-6 text-right">Weighted Score</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {editedKpis.map((kpi, idx) => (
-                    <tr key={kpi.id || idx} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4 px-6 text-xs font-bold text-slate-900 border-r border-slate-100">{kpi.name}</td>
-                      <td className="py-4 px-4 text-[11px] font-medium text-slate-500 border-r border-slate-100 uppercase">{kpi.category}</td>
-                      <td className="py-4 px-4 text-center text-xs font-bold text-slate-700 border-r border-slate-100">{kpi.target}</td>
-                      <td className="py-4 px-4 text-center text-[10px] font-black text-slate-400 border-r border-slate-100 uppercase">{kpi.unit}</td>
-                      <td className="py-4 px-2 border-r border-slate-100">
-                        <input 
-                          type="text" 
-                          value={kpi.actual || ''} 
-                          onChange={(e) => handleChange(idx, 'actual', e.target.value)}
-                          className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-center"
-                          placeholder="—"
-                        />
-                      </td>
-                      <td className="py-4 px-4 text-center text-xs font-black text-slate-900 border-r border-slate-100">{kpi.weight}%</td>
-                      <td className="py-4 px-2 border-r border-slate-100">
-                        <input 
-                          type="number" 
-                          min="0" max="100"
-                          value={kpi.score || ''} 
-                          onChange={(e) => handleChange(idx, 'score', parseFloat(e.target.value))}
-                          className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-center"
-                        />
-                      </td>
-                      <td className="py-4 px-2">
-                        <input 
-                          type="number" 
-                          value={kpi.weightedScore || ''} 
-                          onChange={(e) => handleChange(idx, 'weightedScore', parseFloat(e.target.value))}
-                          className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-right"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-slate-50/50 border-t-2 border-slate-200">
-                    <td colSpan={7} className="py-4 px-6 text-right text-xs font-black text-slate-900 uppercase tracking-widest border-r border-slate-200">Total Score</td>
-                    <td className="py-4 px-6 text-right text-sm font-black text-blue-600 tracking-tight bg-blue-50/30">
-                      {totalWeightedScore.toFixed(2)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
-        </div>
+    const loadTeamKpis = async () => {
+      setKpiError('')
+      if (teamData.length === 0) {
+        setTeamKpis([])
+        return
+      }
 
-        <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
-          <button 
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={() => handleSave('DRAFT')}
-            disabled={isUpdating || editedKpis.length === 0}
-            className="px-5 py-2.5 bg-slate-100 text-slate-900 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200"
-          >
-            {isUpdating ? <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin"></div> : <Save size={16} />}
-            Save as Draft
-          </button>
-          <button 
-            onClick={() => handleSave('SUBMITTED')}
-            disabled={isUpdating || editedKpis.length === 0}
-            className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isUpdating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Target size={16} />}
-            Submit KPIs
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+      const results = await Promise.allSettled(
+        teamData.map(async (member) => {
+          const response = await axios.get(`/kpis/latest/${member.id}`)
+          const kpis = response.data ?? []
+          const scores = kpis
+            .map((kpi: any) => Number(kpi.weightedScore ?? kpi.score ?? 0))
+            .filter((value: number) => Number.isFinite(value) && value > 0)
+          return {
+            employeeId: member.id,
+            employeeName: member.name,
+            kpiCount: kpis.length,
+            submittedCount: kpis.filter((kpi: any) => String(kpi.status ?? '').toUpperCase() === 'SUBMITTED').length,
+            averageScore: scores.length ? Math.round(scores.reduce((sum: number, value: number) => sum + value, 0) / scores.length) : 0,
+          }
+        }),
+      )
 
-export function ManagerDashboardPage() {
-  const { data: teamData, isLoading: isTeamLoading } = useGetManagerTeamQuery();
-  const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery();
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
-  const hasDefaultSignature = Boolean(defaultSigResponse?.data);
+      if (!active) return
 
-  const teamMembers: TeamMember[] = teamData ? teamData.map((emp, idx) => ({
-    id: emp.id,
-    name: emp.name,
-    role: emp.role,
-    status: emp.status || 'ACTIVE',
-    score: 0,
-    initial: emp.name ? emp.name.charAt(0) : 'U',
-    color: ['bg-amber-100 text-amber-700', 'bg-blue-100 text-blue-700', 'bg-emerald-100 text-emerald-700', 'bg-purple-100 text-purple-700'][idx % 4]
-  })) : [];
+      const fulfilled = results
+        .filter((result): result is PromiseFulfilledResult<TeamKpiSummary> => result.status === 'fulfilled')
+        .map((result) => result.value)
 
-  const data: PerformanceData[] = teamMembers.map(tm => ({ name: tm.name, score: tm.score }));
+      if (fulfilled.length !== teamData.length) {
+        setKpiError('Some team KPI records could not be loaded.')
+      }
+      setTeamKpis(fulfilled)
+    }
+
+    loadTeamKpis()
+    return () => {
+      active = false
+    }
+  }, [teamData])
+
+  const teamAverage = useMemo(() => {
+    const scored = teamKpis.map((item) => item.averageScore).filter((value) => value > 0)
+    if (scored.length === 0) return 0
+    return Math.round(scored.reduce((sum, value) => sum + value, 0) / scored.length)
+  }, [teamKpis])
+
+  const submittedKpiCount = teamKpis.reduce((sum, item) => sum + item.submittedCount, 0)
+  const totalKpiCount = teamKpis.reduce((sum, item) => sum + item.kpiCount, 0)
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Welcome Section */}
-      <div className="flex justify-between items-end">
+    <div className="min-h-full space-y-6 bg-[#f5f9ff] text-slate-900 dark:bg-slate-950 dark:text-white">
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Manager Dashboard</h1>
-          <p className="text-slate-500 font-medium">Monitor and manage your team's performance</p>
+          <h1 className="text-3xl font-black tracking-tight text-slate-950 dark:text-white">Manager Dashboard</h1>
+          <p className="mt-2 text-sm font-semibold text-slate-500">Monitor your team KPIs, meetings, and latest performance activity.</p>
         </div>
-        <div className="flex flex-wrap gap-3 justify-end">
-          <Link
-            to="/manager/settings/signature"
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-black text-slate-800 hover:border-amber-300 hover:bg-amber-50/80 transition-all"
-          >
-            <PenLine size={14} className="text-amber-600" />
-            Signature settings
-          </Link>
-          <a href="/manager/pip" className="flex items-center gap-2 px-4 py-2 bg-slate-900 rounded-xl text-xs font-black text-white hover:shadow-lg transition-all">
-            <Zap size={14} className="text-amber-400" />
-            Team PIPs
-          </a>
-        </div>
-      </div>
+        <Link to="/manager/settings/signature" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 dark:shadow-none">
+          <PenLine size={18} /> Signature Settings
+        </Link>
+      </section>
 
       {!isDefaultSigLoading && !hasDefaultSignature && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 rounded-[24px] border border-amber-200 bg-amber-50/90 dark:bg-amber-950/30 dark:border-amber-900/50">
+        <div className="flex flex-col gap-4 rounded-3xl border border-amber-200 bg-amber-50/90 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/30">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0 text-amber-700 dark:text-amber-400">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
               <AlertTriangle size={20} />
             </div>
             <div>
               <p className="text-sm font-black text-slate-900 dark:text-slate-100">Set up your signature</p>
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-1 max-w-xl">
-                A default signature is required for self-assessment reviews and other approvals. Configure it in signature settings.
+              <p className="mt-1 max-w-xl text-xs font-medium text-slate-600 dark:text-slate-400">
+                A default signature is required for self-assessment reviews and approvals.
               </p>
             </div>
           </div>
-          <Link
-            to="/manager/settings/signature"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl text-xs font-black hover:opacity-90 transition-opacity shrink-0"
-          >
-            <PenLine size={14} />
-            Open signature settings
+          <Link to="/manager/settings/signature" className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-black text-white transition-opacity hover:opacity-90 dark:bg-slate-100 dark:text-slate-900">
+            <PenLine size={14} /> Open signature settings
           </Link>
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Team Size</p>
-            <h3 className="text-3xl font-black text-slate-900">{isTeamLoading ? '-' : teamMembers.length}</h3>
-            <p className="text-[10px] font-bold text-amber-600 uppercase mt-1">Direct reports</p>
-          </div>
-          <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm">
-            <Users size={24} />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Pending 1-on-1s</p>
-            <h3 className="text-3xl font-black text-slate-900">0</h3>
-            <p className="text-[10px] font-bold text-blue-600 uppercase mt-1">Scheduled meetings</p>
-          </div>
-          <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
-            <Calendar size={24} />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Team Avg Score</p>
-            <h3 className="text-3xl font-black text-slate-900">86.4</h3>
-            <p className="text-[10px] font-bold text-emerald-600 uppercase mt-1">KPI average</p>
-          </div>
-          <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm">
-            <TrendingUp size={24} />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-[24px] border border-slate-100 shadow-sm flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Feedback</p>
-            <h3 className="text-3xl font-black text-slate-900">0%</h3>
-            <p className="text-[10px] font-bold text-amber-600 uppercase mt-1">Completion rate</p>
-          </div>
-          <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-700 shadow-sm">
-            <MessageSquare size={24} />
-          </div>
-        </div>
-      </div>
-
-      {/* Main Blocks */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Performance Chart */}
-        <div className="lg:col-span-2 bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-black text-slate-900">Team KPI Performance</h3>
-              <p className="text-xs font-bold text-slate-400">Average KPI scores by team member</p>
-            </div>
-            <button className="text-slate-400 hover:text-slate-900 transition-colors">
-              <ExternalLink size={18} />
-            </button>
-          </div>
-
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                layout="vertical"
-                data={data}
-                margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
-                barSize={40}
-              >
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" hide domain={[0, 100]} />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }}
-                  width={100}
-                />
-                <Tooltip
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                />
-                <Bar dataKey="score" fill="#c2410c" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Team Members List */}
-        <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-black text-slate-900">Team Members</h3>
-              <p className="text-xs font-bold text-slate-400">Status of your direct reports</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {teamMembers.length === 0 && !isTeamLoading && (
-              <p className="text-sm text-slate-500 font-medium text-center py-4">No team members found.</p>
-            )}
-            {teamMembers.map((member) => (
-              <div 
-                key={member.name} 
-                onClick={() => setSelectedEmployee(member)}
-                className="flex items-center justify-between p-4 bg-[#f8fafc] rounded-24 transition-all hover:shadow-md cursor-pointer border border-transparent hover:border-slate-200"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 ${member.color} rounded-full flex items-center justify-center font-black text-xs`}>
-                    {member.initial}
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black text-slate-900 leading-none mb-1 uppercase tracking-tight">{member.name}</h4>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{member.role}</p>
-                  </div>
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: 'Team Size', value: isTeamLoading ? '-' : formatNumber(teamData.length), helper: 'Direct reports', icon: Users, tone: 'bg-blue-50 text-blue-700' },
+          { label: 'Upcoming Meetings', value: meetingError ? '-' : formatNumber(meetings.length), helper: meetingError || 'Scheduled with team', icon: CalendarClock, tone: 'bg-cyan-50 text-cyan-700' },
+          { label: 'Team Avg Score', value: `${teamAverage}%`, helper: 'Latest KPI average', icon: Target, tone: 'bg-emerald-50 text-emerald-700' },
+          { label: 'Submitted KPIs', value: formatNumber(submittedKpiCount), helper: `${formatNumber(totalKpiCount)} total KPI records`, icon: ClipboardCheck, tone: 'bg-amber-50 text-amber-700' },
+        ].map((card) => {
+          const Icon = card.icon
+          return (
+            <div key={card.label} className="rounded-3xl border border-white/80 bg-white p-5 shadow-sm ring-1 ring-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:ring-slate-800">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{card.label}</p>
+                  <p className="mt-3 text-3xl font-black text-slate-950 dark:text-white">{card.value}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">{card.helper}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-black text-slate-900 tracking-tighter mb-1">{member.score}</p>
-                  <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${member.status === 'SUBMITTED' ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-500'
-                    }`}>
-                    {member.status}
-                  </span>
+                <div className={`grid h-12 w-12 place-items-center rounded-2xl ${card.tone}`}>
+                  <Icon size={22} />
                 </div>
               </div>
-            ))}
+            </div>
+          )
+        })}
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-white/80 bg-white p-5 shadow-sm ring-1 ring-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:ring-slate-800">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-slate-950 dark:text-white">Team KPI Distribution</h2>
+                <p className="mt-1 text-xs font-semibold text-slate-500">Latest average KPI score by team member</p>
+              </div>
+              <Target className="text-blue-600" size={22} />
+            </div>
+            {kpiError ? <p className="mt-3 text-xs font-bold text-amber-600">{kpiError}</p> : null}
+            <div className="mt-5 h-[420px]">
+              {teamKpis.length ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={teamKpis.map((item) => ({ name: item.employeeName, value: item.averageScore }))} layout="vertical" margin={{ left: 12, right: 28 }}>
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={160} tick={{ fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                    <Tooltip />
+                    <Bar dataKey="value" radius={[0, 12, 12, 0]} barSize={24}>
+                      {teamKpis.map((_, index) => <Cell key={index} fill={chartColors[index % chartColors.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyPanel message={isTeamLoading ? 'Loading team KPI data...' : 'No team KPI data is available yet.'} />
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/80 bg-white p-5 shadow-sm ring-1 ring-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:ring-slate-800">
+            <h2 className="text-lg font-black text-slate-950 dark:text-white">Meeting Schedule</h2>
+            <p className="mt-1 text-xs font-semibold text-slate-500">Upcoming meetings involving you</p>
+            <div className="mt-5 space-y-3">
+              {meetingError ? (
+                <div className="rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700">{meetingError}</div>
+              ) : meetings.length === 0 ? (
+                <EmptyPanel message="You have no upcoming meetings." />
+              ) : meetings.map((meeting) => {
+                const dateValue = meeting.scheduledTime || meeting.meetingTime
+                return (
+                  <Link key={meeting.id} to={`/manager/meetings/${meeting.id}`} className="grid gap-3 rounded-2xl border border-blue-50 bg-blue-50/60 p-4 transition hover:bg-blue-50 sm:grid-cols-[1fr_auto] sm:items-center dark:border-slate-800 dark:bg-slate-800">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black text-slate-950 dark:text-white">{meeting.title}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{formatDate(dateValue)} at {formatTime(dateValue)}</p>
+                    </div>
+                    <span className="w-fit rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700 shadow-sm dark:bg-slate-900">{meeting.status}</span>
+                  </Link>
+                )
+              })}
+            </div>
           </div>
         </div>
-      </div>
-      
-      {selectedEmployee && (
-        <KpiEditModal employee={selectedEmployee} onClose={() => setSelectedEmployee(null)} />
-      )}
+
+        <aside className="flex max-h-[520px] flex-col overflow-hidden rounded-3xl border border-white/80 bg-white p-5 shadow-sm ring-1 ring-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:ring-slate-800 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black text-slate-950 dark:text-white">Recent Activity</h2>
+              <p className="mt-1 text-xs font-semibold text-slate-500">Latest team and performance notifications</p>
+            </div>
+            <Activity className="text-blue-600" size={22} />
+          </div>
+          <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+            {activityError ? (
+              <div className="rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700">{activityError}</div>
+            ) : activities.length === 0 ? (
+              <EmptyPanel message="No recent activity is available." />
+            ) : activities.map((activity) => (
+              <Link key={activity.id} to="/manager/notifications" className="block rounded-2xl border border-blue-50 bg-blue-50/50 p-4 transition hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-800">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-black text-slate-950 dark:text-white">{activity.title}</p>
+                    <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">{activity.message}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-widest ${activity.read ? 'bg-slate-100 text-slate-500' : 'bg-blue-600 text-white'}`}>
+                    {activity.read ? 'Read' : 'New'}
+                  </span>
+                </div>
+                <p className="mt-3 text-[10px] font-black uppercase tracking-widest text-slate-400">{activity.source} · {formatDate(activity.createdAt)} {formatTime(activity.createdAt)}</p>
+              </Link>
+            ))}
+          </div>
+        </aside>
+      </section>
     </div>
-  );
+  )
 }
-
-
