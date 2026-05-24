@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { Search, Eye, CheckCircle, XCircle, RotateCcw, Lock, Unlock, FileText, User, Loader2, Building2, ChevronDown, Award, MessageSquare, Target, Download } from 'lucide-react';
+import { Search, Eye, CheckCircle, CheckCircle2, XCircle, RotateCcw, Lock, Unlock, LockOpen, FileText, User, Loader2, Building2, ChevronDown, Award, MessageSquare, Target, Download } from 'lucide-react';
 import { formatDate } from '../../utils/dateUtils';
 import SignatureCanvas from 'react-signature-canvas';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
@@ -16,6 +16,7 @@ import {
     appraisalGradientSoft,
 } from '../../features/appraisals/appraisalTheme';
 import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
+import ReturnConfirmationModal from '../../features/appraisals/ReturnConfirmationModal';
 
 type ConfirmableAction = 'approve' | 'reject' | 'return' | 'unlock' | 'lock' | 'reset';
 
@@ -114,6 +115,7 @@ export function AppraisalSubmissionsPage() {
     const [confirmAction, setConfirmAction] = useState<ConfirmableAction | null>(null);
     const [lockTargetId, setLockTargetId] = useState<number | null>(null);
     const [resetTargetId, setResetTargetId] = useState<number | null>(null);
+    const [showReturnModal, setShowReturnModal] = useState(false);
 
     // KPI Edit Modal for HR
     const [isKpiModalOpen, setIsKpiModalOpen] = useState(false);
@@ -262,6 +264,7 @@ export function AppraisalSubmissionsPage() {
         setConfirmAction(null);
         setLockTargetId(null);
         setResetTargetId(null);
+        setShowReturnModal(false);
     };
 
     const handleConfirmAction = () => {
@@ -403,6 +406,7 @@ export function AppraisalSubmissionsPage() {
         sigCanvas.current?.clear();
         setActionInProgress(null);
         clearConfirmation();
+        setShowReturnModal(false);
     };
 
     const confirmActionCopy = (() => {
@@ -410,7 +414,7 @@ export function AppraisalSubmissionsPage() {
             lockTargetId != null ? submissions.find((s) => s.id === lockTargetId) : null;
         const resetSubmission =
             resetTargetId != null ? submissions.find((s) => s.id === resetTargetId) : null;
-        const employeeName =
+        const empName =
             lockSubmission?.employee.employeeName
             ?? resetSubmission?.employee.employeeName
             ?? selectedAsmt?.employee.employeeName
@@ -418,45 +422,93 @@ export function AppraisalSubmissionsPage() {
         switch (confirmAction) {
             case 'approve':
                 return {
-                    title: 'Approve & Finalize',
-                    message: `Approve the appraisal for ${employeeName}? This will mark it as HR approved and record your signature.`,
-                    confirmText: 'Approve & Finalize',
-                    variant: 'primary' as const,
+                    title: 'Approve & Finalize Appraisal',
+                    message: 'You are about to approve and finalize this performance appraisal. This action confirms that HR has reviewed all evaluation responses and accepts the submitted scores.',
+                    description: 'Your digital signature will be recorded as proof of HR approval. The appraisal status will change to HR Approved.',
+                    confirmText: 'Yes, Approve & Finalize',
+                    variant: 'success' as const,
+                    icon: <CheckCircle2 size={22} />,
+                    employeeName: empName,
+                    warningItems: [
+                        'The appraisal will be marked as HR Approved and visible to the employee',
+                        'Your digital signature will be permanently attached to this record',
+                        'Further changes will require unlocking by HR',
+                    ],
                 };
             case 'return':
                 return {
-                    title: 'Return Appraisal',
-                    message: `Return the appraisal for ${employeeName} to the manager for corrections? Your comments will be included.`,
-                    confirmText: 'Return',
-                    variant: 'primary' as const,
+                    title: 'Return for Correction',
+                    message: 'This appraisal will be sent back to the manager for revisions. The manager will be notified to review and resubmit the evaluation.',
+                    description: 'Your review comments will be included with the returned appraisal for the manager\'s reference.',
+                    confirmText: 'Yes, Return Appraisal',
+                    variant: 'warning' as const,
+                    icon: <RotateCcw size={22} />,
+                    employeeName: empName,
+                    warningItems: [
+                        'The appraisal status will change to Returned',
+                        'The manager must resubmit before it can be reviewed again',
+                        'Your comments will be visible to the manager',
+                    ],
                 };
             case 'reject':
                 return {
                     title: 'Reject Appraisal',
-                    message: `Reject the appraisal for ${employeeName}? This cannot be undone without a reset. Your comments will be included.`,
-                    confirmText: 'Reject',
+                    message: 'You are about to reject this performance appraisal. This is a significant action that indicates the evaluation does not meet required standards.',
+                    description: 'Your rejection comments will be documented. A reset will be required before the appraisal can be re-evaluated.',
+                    confirmText: 'Yes, Reject Appraisal',
                     variant: 'danger' as const,
+                    icon: <XCircle size={22} />,
+                    employeeName: empName,
+                    warningItems: [
+                        'This action cannot be undone without a manual reset by HR',
+                        'The appraisal will be marked as Rejected permanently',
+                        'A reset must be initiated to allow re-evaluation',
+                    ],
                 };
             case 'unlock':
                 return {
                     title: 'Unlock for Correction',
-                    message: `Unlock the finalized appraisal for ${employeeName}? HR and managers will be able to make corrections again. Your comments will be included.`,
-                    confirmText: 'Unlock for Correction',
-                    variant: 'primary' as const,
+                    message: 'This finalized appraisal will be unlocked so that corrections can be made. HR and managers will regain editing access.',
+                    description: 'The appraisal record will become editable again. Ensure all corrections are completed before re-locking.',
+                    confirmText: 'Yes, Unlock for Correction',
+                    variant: 'info' as const,
+                    icon: <LockOpen size={22} />,
+                    employeeName: empName,
+                    warningItems: [
+                        'The appraisal will become editable by HR and managers',
+                        'Scores and comments may be modified after unlocking',
+                        'The record must be re-approved and locked to finalize again',
+                    ],
                 };
             case 'lock':
                 return {
-                    title: 'Lock Appraisal (Finalize)',
-                    message: `Lock the appraisal for ${employeeName}? This finalizes the record and prevents further edits unless unlocked by HR.`,
-                    confirmText: 'Lock Appraisal',
-                    variant: 'primary' as const,
+                    title: 'Lock & Finalize Appraisal',
+                    message: 'This appraisal will be permanently locked and finalized. The record will be archived and no further edits will be permitted.',
+                    description: 'Only an HR administrator can unlock this appraisal in the future. This is the final step in the appraisal workflow.',
+                    confirmText: 'Yes, Lock & Finalize',
+                    variant: 'dark' as const,
+                    icon: <Lock size={22} />,
+                    employeeName: empName,
+                    warningItems: [
+                        'No further edits will be possible after locking',
+                        'The appraisal will be permanently archived as finalized',
+                        'Only HR can unlock this record if corrections are needed later',
+                    ],
                 };
             case 'reset':
                 return {
                     title: 'Reset for Re-evaluation',
-                    message: `Reset the rejected appraisal for ${employeeName}? It will return to pending manager status so the manager can submit a new evaluation.`,
-                    confirmText: 'Reset Appraisal',
-                    variant: 'primary' as const,
+                    message: 'This rejected appraisal will be reset to pending manager status. The manager will be able to submit a completely new evaluation.',
+                    description: 'The previous evaluation data will be cleared, allowing the manager to start a fresh assessment.',
+                    confirmText: 'Yes, Reset Appraisal',
+                    variant: 'warning' as const,
+                    icon: <RotateCcw size={22} />,
+                    employeeName: empName,
+                    warningItems: [
+                        'The appraisal will return to Pending Manager status',
+                        'The manager will need to complete a new evaluation',
+                        'Previous scores and responses will be cleared',
+                    ],
                 };
             default:
                 return null;
@@ -1261,22 +1313,25 @@ export function AppraisalSubmissionsPage() {
                                                      )}
                                                      LOCK FOREVER (FINALIZE)
                                                  </button>
-                                                 <div className="grid grid-cols-2 gap-3 mt-3">
-                                                     <button
-                                                         onClick={() => requestActionConfirmation('return')}
-                                                         disabled={isActionLoading || !comments.trim()}
-                                                         className="py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all flex items-center justify-center gap-2 border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                         title="Return Approved Appraisal for Correction"
-                                                     >
-                                                         {actionInProgress === 'return' ? (
-                                                             <Loader2 className="animate-spin" size={14} />
-                                                         ) : (
-                                                             <RotateCcw size={14} />
-                                                         )}
-                                                         RETURN
-                                                     </button>
-                                                     <button
-                                                         onClick={() => requestActionConfirmation('reject')}
+                                                  <div className="grid grid-cols-2 gap-3 mt-3">
+                                                      <button
+                                                          onClick={() => {
+                                                              if (!comments.trim()) { toast.error('Comments are required for this action'); return; }
+                                                              setShowReturnModal(true);
+                                                          }}
+                                                          disabled={isActionLoading || !comments.trim()}
+                                                          className="py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all flex items-center justify-center gap-2 border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                          title="Return Approved Appraisal for Correction"
+                                                      >
+                                                          {actionInProgress === 'return' ? (
+                                                              <Loader2 className="animate-spin" size={14} />
+                                                          ) : (
+                                                              <RotateCcw size={14} />
+                                                          )}
+                                                          RETURN
+                                                      </button>
+                                                      <button
+                                                          onClick={() => requestActionConfirmation('reject')}
                                                          disabled={isActionLoading || !comments.trim()}
                                                          className="py-3.5 bg-red-50 text-red-700 rounded-xl font-bold text-xs hover:bg-red-100 transition-all flex items-center justify-center gap-2 border border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                          title="Reject Approved Appraisal"
@@ -1305,19 +1360,22 @@ export function AppraisalSubmissionsPage() {
                                                     APPROVE & FINALIZE
                                                 </button>
 
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <button
-                                                        onClick={() => requestActionConfirmation('return')}
-                                                        disabled={isActionLoading || !comments.trim()}
-                                                        className="py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all flex items-center justify-center gap-2 border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        {actionInProgress === 'return' ? (
-                                                            <Loader2 className="animate-spin" size={14} />
-                                                        ) : (
-                                                            <RotateCcw size={14} />
-                                                        )}
-                                                        RETURN
-                                                    </button>
+                                                 <div className="grid grid-cols-2 gap-3">
+                                                     <button
+                                                         onClick={() => {
+                                                             if (!comments.trim()) { toast.error('Comments are required for this action'); return; }
+                                                             setShowReturnModal(true);
+                                                         }}
+                                                         disabled={isActionLoading || !comments.trim()}
+                                                         className="py-3.5 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs hover:bg-amber-100 transition-all flex items-center justify-center gap-2 border border-amber-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                     >
+                                                         {actionInProgress === 'return' ? (
+                                                             <Loader2 className="animate-spin" size={14} />
+                                                         ) : (
+                                                             <RotateCcw size={14} />
+                                                         )}
+                                                         RETURN
+                                                     </button>
                                                     <button
                                                         onClick={() => requestActionConfirmation('reject')}
                                                         disabled={isActionLoading || !comments.trim()}
@@ -1341,17 +1399,39 @@ export function AppraisalSubmissionsPage() {
                 </div>
             )}
 
-            {confirmActionCopy && (
+            {confirmActionCopy && confirmAction !== 'return' && (
                 <ConfirmActionModal
-                    isOpen={confirmAction !== null}
+                    isOpen={confirmAction !== null && confirmAction !== 'return'}
                     onClose={() => !isActionLoading && clearConfirmation()}
                     onConfirm={handleConfirmAction}
                     title={confirmActionCopy.title}
                     message={confirmActionCopy.message}
+                    description={confirmActionCopy.description}
+                    warningItems={confirmActionCopy.warningItems}
                     confirmText={confirmActionCopy.confirmText}
                     cancelText="Cancel"
                     isLoading={isActionLoading}
                     variant={confirmActionCopy.variant}
+                    icon={confirmActionCopy.icon}
+                    employeeName={confirmActionCopy.employeeName}
+                />
+            )}
+
+            {showReturnModal && selectedAsmt && (
+                <ReturnConfirmationModal
+                    isOpen={showReturnModal}
+                    onClose={() => !isActionLoading && setShowReturnModal(false)}
+                    onConfirm={() => void handleAction('return')}
+                    isLoading={isActionLoading && actionInProgress === 'return'}
+                    employeeName={selectedAsmt.employee.employeeName}
+                    employeeId={selectedAsmt.employee.employeeId}
+                    department={selectedAsmt.employee.department?.name}
+                    position={selectedAsmt.employee.position?.name}
+                    period={selectedAsmt.period?.name}
+                    totalScore={selectedAsmt.totalScore}
+                    ratingCategory={selectedAsmt.ratingCategory}
+                    currentStatus={selectedAsmt.status}
+                    comments={comments}
                 />
             )}
 
