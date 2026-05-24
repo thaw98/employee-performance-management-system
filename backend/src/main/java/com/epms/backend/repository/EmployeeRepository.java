@@ -64,6 +64,19 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long>, JpaSp
 	java.util.List<Employee> findByDepartment_IdAndPosition_Id(Long departmentId, Long positionId);
 
 	java.util.List<Employee> findByDepartmentPosition_Id(Long departmentPositionId);
+
+	long countByEmploymentStatus(EmployeeStatus employmentStatus);
+
+	@Query("""
+			SELECT COALESCE(d.name, 'Unassigned'), COUNT(e)
+			FROM Employee e
+			LEFT JOIN e.department d
+			WHERE e.employmentStatus = com.epms.backend.entity.EmployeeStatus.ACTIVE
+			GROUP BY d.name
+			ORDER BY COUNT(e) DESC, d.name ASC
+			""")
+	List<Object[]> countActiveEmployeesByDepartment();
+
 	@Query("""
 			select e
 			from Employee e

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -38,6 +39,18 @@ public interface PipRepository extends JpaRepository<Pip, Long>, JpaSpecificatio
     boolean existsByEmployeeAndStatusIn(Employee employee, List<String> statuses);
 
     List<Pip> findByStatusInAndEndDateLessThanEqual(List<String> statuses, LocalDate endDate);
+
+    long countByStatusIn(List<String> statuses);
+
+    long countByStatusInAndEndDateLessThanEqual(List<String> statuses, LocalDate endDate);
+
+    @Query("""
+            SELECT p.status, COUNT(p)
+            FROM Pip p
+            GROUP BY p.status
+            ORDER BY COUNT(p) DESC, p.status ASC
+            """)
+    List<Object[]> countByStatusGroup();
 
     default List<Pip> findByFilters(String status, Long departmentId, LocalDate startDate, LocalDate endDate) {
         Specification<Pip> spec = (root, query, cb) -> {

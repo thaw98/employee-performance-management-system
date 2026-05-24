@@ -40,6 +40,15 @@ public interface SelfAssessmentFormRepository extends JpaRepository<SelfAssessme
 
     boolean existsByCycle(ReviewCycle cycle);
 
+    long countByCycle(ReviewCycle cycle);
+
+    long countByCycleAndStatusIn(ReviewCycle cycle, List<SelfAssessmentFormStatus> statuses);
+
+    long countByCycleAndStatusInAndDeadlineDateBefore(
+            ReviewCycle cycle,
+            List<SelfAssessmentFormStatus> statuses,
+            LocalDate date);
+
     List<SelfAssessmentForm> findByTemplate(SelfAssessmentFormTemplate template);
 
     boolean existsByTemplate(SelfAssessmentFormTemplate template);

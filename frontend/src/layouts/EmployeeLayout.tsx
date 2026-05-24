@@ -23,6 +23,7 @@ import type { RootState } from '../app/store';
 import { logout } from '../features/auth/authSlice';
 import { ProfileDropdown } from '../components/layout/ProfileDropdown';
 import { NotificationBell } from '../components/common/NotificationBell';
+import { usePersistentSidebarCollapse } from '../components/layout/usePersistentSidebarCollapse';
 import {
   EMPLOYEE_SELF_ASSESSMENT_BASE_PATH,
   EMPLOYEE_SELF_ASSESSMENT_HISTORY_PATH,
@@ -46,6 +47,7 @@ const EmployeeLayout: React.FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isSidebarCollapsed, toggleSidebarCollapsed } = usePersistentSidebarCollapse(user);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -105,23 +107,29 @@ const EmployeeLayout: React.FC = () => {
   return (
     <div className="flex h-screen bg-transparent font-sans transition-colors duration-300">
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-colors duration-300">
+      <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300`}>
         {/* Brand Header */}
-        <div className="p-6 bg-[#115e59] text-white">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/20">
+        <div className={`${isSidebarCollapsed ? 'p-4' : 'p-6'} bg-[#115e59] text-white`}>
+          <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
+            <button
+              type="button"
+              onClick={toggleSidebarCollapsed}
+              className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/20 transition-colors hover:bg-white/30"
+              title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
               <ShieldCheck size={24} />
-            </div>
-            <div>
+            </button>
+            {!isSidebarCollapsed && <div>
               <h1 className="font-black text-xl tracking-tight leading-none uppercase">EPMS</h1>
               <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mt-1">Performance System</p>
-            </div>
+            </div>}
           </div>
         </div>
 
         {/* User Profile Card */}
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-           <div className="flex items-center gap-3">
+        <div className={`${isSidebarCollapsed ? 'p-4' : 'p-6'} border-b border-slate-100 dark:border-slate-800`}>
+           <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
               <div className="w-12 h-12 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold overflow-hidden shadow-inner shrink-0">
               {user?.profilePictureUrl ? (
                  <img src={resolveProfilePictureSrc(user.profilePictureUrl)} className="w-full h-full object-cover" alt="Profile" />
@@ -129,18 +137,18 @@ const EmployeeLayout: React.FC = () => {
                  initialsFromName(user?.name)
               )}
             </div>
-              <div className="flex-1 min-w-0">
+              {!isSidebarCollapsed && <div className="flex-1 min-w-0">
                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate uppercase mt-1">{user?.name}</h4>
                  <div className="flex items-center gap-2">
                     <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase truncate">SE</p>
                     <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-[8px] font-black uppercase">EMPLOYEE</span>
                  </div>
-              </div>
+              </div>}
            </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1 dark:bg-slate-900 transition-colors duration-300">
+        <nav className={`${isSidebarCollapsed ? 'p-3' : 'p-4'} flex-1 overflow-y-auto space-y-1 dark:bg-slate-900 transition-colors duration-300`}>
           {menuItems.map((item) => {
             const currentPath = `${location.pathname}${location.search}`;
             const itemPathname = item.path.split('?')[0];
@@ -174,14 +182,18 @@ const EmployeeLayout: React.FC = () => {
                       : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                       }`}
                   >
-                    <Link to={item.path || '#'} className="flex-1 flex items-center gap-3 px-4 py-3">
-                      <span className={isActive ? 'text-emerald-700' : 'text-slate-400'}>
+                    <Link
+                      to={item.path || '#'}
+                      title={item.label}
+                      className={`${isSidebarCollapsed ? 'h-12 w-full justify-center px-0' : 'flex-1 gap-3 px-4 py-3'} flex items-center`}
+                    >
+                      <span className={`${isActive ? 'text-emerald-700' : 'text-slate-400'} flex h-5 w-5 shrink-0 items-center justify-center`}>
                         {item.icon}
                       </span>
-                      {item.label}
+                      {!isSidebarCollapsed && item.label}
                     </Link>
 
-                    <button
+                    {!isSidebarCollapsed && <button
                       type="button"
                       onClick={(e) => {
                         e.preventDefault();
@@ -194,10 +206,10 @@ const EmployeeLayout: React.FC = () => {
                         size={16}
                         className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                       />
-                    </button>
+                    </button>}
                   </div>
 
-                  {isExpanded && (
+                  {isExpanded && !isSidebarCollapsed && (
                     <div className="pl-7 pr-3 space-y-1 mt-1">
                       {item.subItems.map((subItem) => {
                         const isSubActive = matchesPath(subItem.path);
@@ -228,30 +240,32 @@ const EmployeeLayout: React.FC = () => {
               <Link
                 key={item.label}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${isActive
+                title={item.label}
+                className={`flex items-center ${isSidebarCollapsed ? 'h-12 justify-center px-0' : 'gap-3 px-4 py-3'} rounded-xl text-sm font-bold transition-all ${isActive
                   ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
                   : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                   }`}
               >
-                <span className={isActive ? 'text-emerald-700' : 'text-slate-400'}>{item.icon}</span>
-                {item.label}
+                <span className={`${isActive ? 'text-emerald-700' : 'text-slate-400'} flex h-5 w-5 shrink-0 items-center justify-center`}>{item.icon}</span>
+                {!isSidebarCollapsed && item.label}
               </Link>
             );
           })}
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors duration-300">
+        <div className={`${isSidebarCollapsed ? 'p-3' : 'p-4'} border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors duration-300`}>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+            title="Sign Out"
+            className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} py-3 text-sm font-bold text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors`}
           >
             <LayoutDashboard size={20} className="rotate-180" />
-            Sign Out
+            {!isSidebarCollapsed && 'Sign Out'}
           </button>
-          <div className="mt-4 px-4 text-[9px] font-bold text-slate-300 dark:text-slate-600 uppercase transition-colors">
+          {!isSidebarCollapsed && <div className="mt-4 px-4 text-[9px] font-bold text-slate-300 dark:text-slate-600 uppercase transition-colors">
             EPMS v1.0 • 2026
-          </div>
+          </div>}
         </div>
       </aside>
 

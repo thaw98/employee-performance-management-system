@@ -1,8 +1,20 @@
 import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useAppSelector } from '../../app/hooks'
 import { useGetProfileQuery } from '../../features/user/userApi'
+import {
+  applyGoogleTranslateCookie,
+  applyLanguageFont,
+  ensureGoogleTranslateWidget,
+  getSavedLanguagePreference,
+  hasGoogleTranslateCookie,
+  isMyanmarLanguage,
+  retryGoogleTranslateSelection,
+  saveLanguagePreference,
+} from '../../utils/googleTranslatePreference'
 
 export function ThemeBootstrap() {
+  const location = useLocation()
   const isLoggedin = useAppSelector((state) => state.auth.isAuthenticated)
   const { data: profileResponse } = useGetProfileQuery(undefined, {
     skip: !isLoggedin
@@ -10,50 +22,76 @@ export function ThemeBootstrap() {
   
   const theme = profileResponse?.data?.theme || 'light'
   const wallpaperUrl = profileResponse?.data?.wallpaperUrl
-  const language = profileResponse?.data?.language
+  const language = profileResponse?.data?.language || getSavedLanguagePreference()
 
   useEffect(() => {
     const applyLanguage = () => {
-      if (language === 'Myanmar (Burmese)') {
-        if (!document.getElementById('google-translate-script')) {
-          const script = document.createElement('script')
-          script.id = 'google-translate-script'
-          script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
-          document.body.appendChild(script)
+      const isMyanmar = isMyanmarLanguage(language)
+      const normalizedLanguage = isMyanmar ? 'Myanmar' : 'English'
+      applyLanguageFont(normalizedLanguage)
+      if (language) {
+        saveLanguagePreference(normalizedLanguage)
+      }
 
-          const gtScript = document.createElement('script')
-          gtScript.id = 'google-translate-init'
-          gtScript.innerHTML = `
-            function googleTranslateElementInit() {
-              new google.translate.TranslateElement({pageLanguage: 'en', includedLanguages: 'my,en', autoDisplay: false}, 'google_translate_element');
-            }
-          `
-          document.body.appendChild(gtScript)
-          
-          if (!document.getElementById('google_translate_element')) {
-              const div = document.createElement('div')
-              div.id = 'google_translate_element'
-              div.style.display = 'none'
-              document.body.appendChild(div)
-          }
-        }
+      if (isMyanmar) {
+        ensureGoogleTranslateWidget()
         
-        if (document.cookie.indexOf('googtrans=/en/my') === -1) {
-            document.cookie = 'googtrans=/en/my; path=/; domain=' + window.location.hostname
-            document.cookie = 'googtrans=/en/my; path=/; domain=localhost'
-            document.cookie = 'googtrans=/en/my; path=/;'
+        if (!hasGoogleTranslateCookie('Myanmar')) {
+            applyGoogleTranslateCookie('Myanmar')
             window.location.reload()
+            return
         }
+        retryGoogleTranslateSelection('Myanmar')
       } else if (language) {
-        if (document.cookie.indexOf('googtrans=') !== -1) {
-            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname
-            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost'
-            document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+        if (document.cookie.includes('googtrans=')) {
+            applyGoogleTranslateCookie('English')
             window.location.reload()
+            return
         }
+        retryGoogleTranslateSelection('English')
       }
     }
     applyLanguage()
+  }, [language])
+
+  useEffect(() => {
+    if (!isMyanmarLanguage(language)) return
+
+    retryGoogleTranslateSelection('Myanmar')
+    const delayedRetries = [
+      window.setTimeout(() => retryGoogleTranslateSelection('Myanmar', 4), 750),
+      window.setTimeout(() => retryGoogleTranslateSelection('Myanmar', 4), 1800),
+    ]
+
+    return () => {
+      delayedRetries.forEach(window.clearTimeout)
+    }
+  }, [language, location.pathname, location.search])
+
+  useEffect(() => {
+    if (!isMyanmarLanguage(language)) return
+
+    let timeoutId: number | null = null
+    const observer = new MutationObserver(() => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId)
+      }
+      timeoutId = window.setTimeout(() => {
+        retryGoogleTranslateSelection('Myanmar', 3)
+      }, 350)
+    })
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    })
+
+    return () => {
+      observer.disconnect()
+      if (timeoutId) {
+        window.clearTimeout(timeoutId)
+      }
+    }
   }, [language])
 
   useEffect(() => {

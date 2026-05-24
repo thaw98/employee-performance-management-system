@@ -3,6 +3,14 @@ import { Moon, Sun, Globe, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw,
 import axios from '../app/axiosInstance'
 import { toast } from 'react-hot-toast'
 import { useGetProfileQuery, useUpdateProfileMutation, useUpdateWallpaperMutation, useDeleteWallpaperMutation } from '../features/user/userApi'
+import {
+  applyGoogleTranslateCookie,
+  applyLanguageFont,
+  ensureGoogleTranslateWidget,
+  retryGoogleTranslateSelection,
+  saveLanguagePreference,
+  setGoogleTranslateWidgetVisible,
+} from '../utils/googleTranslatePreference'
 
 type ReviewCycle = {
   id: number | null
@@ -26,6 +34,7 @@ export function SystemSettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [theme, setTheme] = useState<'light' | 'dark' | 'wallpaper'>('light')
+  const [language, setLanguage] = useState<'Myanmar' | 'English'>('English')
   const [timezone, setTimezone] = useState('UTC+06:30 (Yangon)')
   const [timeFormat, setTimeFormat] = useState('12h')
   const [isSaving, setIsSaving] = useState(false)
@@ -48,6 +57,9 @@ export function SystemSettingsPage() {
     if (profileResponse?.data?.theme) {
       setTheme(profileResponse.data.theme as any)
     }
+    if (profileResponse?.data?.language) {
+      setLanguage(profileResponse.data.language.toLowerCase().includes('myanmar') || profileResponse.data.language.toLowerCase().includes('burmese') ? 'Myanmar' : 'English')
+    }
     if (profileResponse?.data?.timezone) {
       setTimezone(profileResponse.data.timezone)
     }
@@ -59,6 +71,11 @@ export function SystemSettingsPage() {
       fetchGlobalTimeSettings()
     }
   }, [profileResponse, isHR])
+
+  useEffect(() => {
+    ensureGoogleTranslateWidget(true)
+    return () => setGoogleTranslateWidgetVisible(false)
+  }, [])
 
   const fetchGlobalTimeSettings = async () => {
     try {
@@ -114,6 +131,9 @@ export function SystemSettingsPage() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
+      const savedLanguage = profileResponse?.data?.language?.toLowerCase().includes('myanmar') || profileResponse?.data?.language?.toLowerCase().includes('burmese')
+        ? 'Myanmar'
+        : 'English'
       // 1. Save Global Time Settings first (HR Only)
       if (isHR) {
         await axios.post('/feedback/time-settings', { yearType, duration })
@@ -123,16 +143,16 @@ export function SystemSettingsPage() {
       if (pendingWallpaper === 'remove') {
           await deleteWallpaper().unwrap()
           if (theme === 'wallpaper') {
-             await updateProfile({ theme: 'light', timezone, timeFormat }).unwrap()
+             await updateProfile({ theme: 'light', language, timezone, timeFormat }).unwrap()
              setTheme('light')
           } else {
-             await updateProfile({ theme, timezone, timeFormat }).unwrap()
+             await updateProfile({ theme, language, timezone, timeFormat }).unwrap()
           }
       } else if (pendingWallpaper instanceof File && theme === 'wallpaper') {
         await updateWallpaper(pendingWallpaper).unwrap()
-        await updateProfile({ timezone, timeFormat }).unwrap()
+        await updateProfile({ language, timezone, timeFormat }).unwrap()
       } else {
-        await updateProfile({ theme, timezone, timeFormat }).unwrap()
+        await updateProfile({ theme, language, timezone, timeFormat }).unwrap()
       }
 
       if (isHR) {
@@ -150,6 +170,14 @@ export function SystemSettingsPage() {
 
       setPendingWallpaper(null)
       toast.success(isHR ? 'Settings saved. Current duration is applied and future year type is queued when needed.' : 'Changes saved!')
+      if (language !== savedLanguage) {
+        saveLanguagePreference(language)
+        applyLanguageFont(language)
+        ensureGoogleTranslateWidget(true)
+        applyGoogleTranslateCookie(language)
+        window.setTimeout(() => retryGoogleTranslateSelection(language), 100)
+        window.location.reload()
+      }
     } catch (err: any) {
       console.error("Failed to save system settings", err)
       const message = err?.response?.data?.message || 'Failed to save settings.'
@@ -348,12 +376,19 @@ export function SystemSettingsPage() {
       await deleteWallpaper().unwrap()
       await updateProfile({ 
         theme: 'light', 
+        language: 'English',
         timezone: 'UTC+06:30 (Yangon)',
         timeFormat: '12h' 
       }).unwrap()
 
       setShowResetModal(false)
       toast.success('Changes saved!')
+      saveLanguagePreference('English')
+      applyLanguageFont('English')
+      ensureGoogleTranslateWidget(true)
+      applyGoogleTranslateCookie('English')
+      window.setTimeout(() => retryGoogleTranslateSelection('English'), 100)
+      window.location.reload()
     } catch (err) {
       console.error("Reset failed", err)
       toast.error('Failed to reset settings.')
@@ -440,17 +475,35 @@ export function SystemSettingsPage() {
           </div>
         </div>
 
-        {/* Preferences Section */}
+        {/* Language and Region Section */}
         <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md">
           <div className="p-8">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-10 h-10 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl flex items-center justify-center">
                 <Globe size={20} />
               </div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Regional & Preferences</h2>
+              <h2 className="text-lg font-black text-slate-900 dark:text-slate-200 tracking-tight">Language and Region</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Language</label>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value as 'Myanmar' | 'English')}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none"
+                  >
+                     <option className="dark:bg-slate-900" value="Myanmar">Myanmar</option>
+                     <option className="dark:bg-slate-900" value="English">English</option>
+                  </select>
+                  <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 leading-relaxed">
+                    Applies across the application and is saved to your profile.
+                  </p>
+                  <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 leading-relaxed">
+                    If the page does not translate after saving, use the Google selector below.
+                  </p>
+               </div>
+
                <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Time Zone Preference</label>
                   <select 
