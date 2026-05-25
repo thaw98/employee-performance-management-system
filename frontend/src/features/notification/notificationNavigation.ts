@@ -91,7 +91,7 @@ export function getNotificationsPath(pathname: string) {
 }
 
 export function getFaqSupportPath(pathname: string) {
-  return pathname.startsWith('/hr') ? '/hr/settings/faq-support' : `/${getRolePrefix(pathname)}/settings/system`;
+  return pathname.startsWith('/hr') ? '/hr/settings/faq-support' : `/${getRolePrefix(pathname)}/faq`;
 }
 
 type NotificationNavigationInput = Pick<NotificationItem, 'source' | 'title' | 'message' | 'targetId'>;

@@ -77,7 +77,8 @@ public class MeetingController {
             @RequestParam(defaultValue = "10") int size) {
         try {
             List<MeetingStatus> statusList = parseStatuses(statuses);
-            java.time.Instant from = (fromDate != null && !fromDate.isBlank()) ? java.time.Instant.parse(fromDate) : null;
+            java.time.Instant from = (fromDate != null && !fromDate.isBlank()) ? java.time.Instant.parse(fromDate)
+                    : null;
             java.time.Instant to = (toDate != null && !toDate.isBlank()) ? java.time.Instant.parse(toDate) : null;
             org.springframework.data.domain.Sort sort = switch (sortBy) {
                 case "oldest" -> org.springframework.data.domain.Sort.by("scheduledTime").ascending();
@@ -213,6 +214,24 @@ public class MeetingController {
                     "position", e.getPosition() != null ? e.getPosition().getName() : "N/A"))
                     .collect(Collectors.toList());
             return ResponseEntity.ok(new ApiResponse<>(true, "Eligible employees fetched", response));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/hr-employees")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getHrEmployees() {
+        try {
+            User user = getCurrentUser();
+            Long requesterEmployeeId = user.getEmployee() != null ? user.getEmployee().getId() : null;
+            List<Employee> eligible = meetingService.getHrEmployees(requesterEmployeeId);
+            List<Map<String, Object>> response = eligible.stream().map(e -> Map.<String, Object>of(
+                    "id", e.getId(),
+                    "name", e.getEmployeeName(),
+                    "department", e.getDepartment() != null ? e.getDepartment().getName() : "N/A",
+                    "position", e.getPosition() != null ? e.getPosition().getName() : "N/A"))
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(new ApiResponse<>(true, "HR employees fetched", response));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new ApiResponse<>(false, e.getMessage(), null));
         }

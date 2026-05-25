@@ -115,7 +115,7 @@ class PipServiceProbationRuleTest {
     }
 
     @Test
-    void getLowPerformers_excludesEmployeesWithKpiScoreAtOrAboveTwentyOnePercent() {
+    void getLowPerformers_excludesEmployeesWithKpiScoreAtOrAboveSixtyNinePercent() {
         Employee managerEmployee = new Employee();
         managerEmployee.setId(10L);
 
@@ -139,10 +139,39 @@ class PipServiceProbationRuleTest {
         when(employeeRepository.findAll()).thenReturn(List.of(lowPerformer, ineligible));
         when(kpiRepository.findLatestPeriodByEmployee_Id(1L)).thenReturn(Optional.of("May 2026"));
         when(kpiRepository.findByEmployee_IdAndPeriod(1L, "May 2026"))
-                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("20.99"))));
+                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("68.99"))));
         when(kpiRepository.findLatestPeriodByEmployee_Id(2L)).thenReturn(Optional.of("May 2026"));
         when(kpiRepository.findByEmployee_IdAndPeriod(2L, "May 2026"))
-                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("21.00"))));
+                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("69.00"))));
+
+        List<EligibleEmployeeDTO> result = pipService.getLowPerformers(managerUser);
+
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getEmployeeId());
+    }
+
+    @Test
+    void getLowPerformers_includesSameDepartmentEmployeesBelowSixtyNinePercent() {
+        Department department = newDepartment(99L, null);
+
+        Employee managerEmployee = new Employee();
+        managerEmployee.setId(10L);
+        managerEmployee.setDepartment(department);
+
+        User managerUser = new User();
+        managerUser.setEmployee(managerEmployee);
+
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setEmployeeId("E001");
+        employee.setEmployeeName("Same Department Employee");
+        employee.setDepartment(department);
+        employee.setStaffType(newStaffType(StaffTypes.PERMANENT));
+
+        when(employeeRepository.findAll()).thenReturn(List.of(employee));
+        when(kpiRepository.findLatestPeriodByEmployee_Id(1L)).thenReturn(Optional.of("May 2026"));
+        when(kpiRepository.findByEmployee_IdAndPeriod(1L, "May 2026"))
+                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("68.99"))));
 
         List<EligibleEmployeeDTO> result = pipService.getLowPerformers(managerUser);
 

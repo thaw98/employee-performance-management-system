@@ -67,6 +67,43 @@ type PipExportBundle = {
   trainingHistory: TrainingRecord[]
 }
 
+const groupTrainingRecordsByPip = (records: TrainingRecord[]) => Object.values(
+  records.reduce<Record<string, TrainingRecord>>((groups, record) => {
+    const key = record.pipId == null
+      ? [
+        record.trainingProvider || '',
+        record.startDate || '',
+        record.endDate || record.completionDate || '',
+        record.completionStatus || record.status || '',
+        record.totalCompletedHours ?? '',
+      ].join('|')
+      : `pip-${record.pipId}`
+    const existing = groups[key]
+    if (!existing) {
+      groups[key] = { ...record }
+      return groups
+    }
+
+    const names = new Set(
+      [existing.trainingName, record.trainingName]
+        .flatMap((name) => (name || '').split('\n'))
+        .map((name) => name.trim())
+        .filter(Boolean),
+    )
+    groups[key] = {
+      ...existing,
+      trainingName: Array.from(names).join('\n'),
+      percentageCompletion: Math.max(existing.percentageCompletion ?? 0, record.percentageCompletion ?? 0),
+      feedbackNotes: [existing.feedbackNotes, record.feedbackNotes]
+        .map((note) => note?.trim())
+        .filter(Boolean)
+        .filter((note, index, notes) => notes.indexOf(note) === index)
+        .join('\n'),
+    }
+    return groups
+  }, {}),
+)
+
 const formatDateValue = (value?: string) => {
   if (!value) return ''
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
@@ -101,6 +138,18 @@ const getPipObjectiveSummary = (pip: Pip) => pip.objectives
 const getPipMeetingSummary = (pip: Pip) => (pip.followUpMeetings ?? [])
   .map((meeting) => `${formatDateTimeValue(meeting.meetingTime)} - ${meeting.status}`)
   .join('; ')
+
+const getUniquePips = (pips?: Pip[]) => {
+  if (!pips) return []
+  return Array.from(
+    pips.reduce<Map<number, Pip>>((byId, pip) => {
+      if (!byId.has(pip.id)) {
+        byId.set(pip.id, pip)
+      }
+      return byId
+    }, new Map()).values(),
+  )
+}
 
 const getDateRangeLabel = (startDate: string, endDate: string) => {
   if (startDate && endDate) return `${formatDateValue(startDate)} to ${formatDateValue(endDate)}`
@@ -186,7 +235,7 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
   ],
   training: [
     ['PIP Reference', 'Employee', 'Department', 'Position', 'Training', 'Provider', 'Start Date', 'End Date', 'Status', 'Completed Hours', 'Completion %', 'Feedback / Notes'],
-    ...bundles.flatMap(({ pip, trainingHistory }) => trainingHistory.map((training) => [
+    ...bundles.flatMap(({ pip, trainingHistory }) => groupTrainingRecordsByPip(trainingHistory).map((training) => [
       `PIP #${pip.id}`,
       getPipEmployeeName(pip),
       getPipDepartmentName(pip),
@@ -226,6 +275,7 @@ export default function PipMonitoringPage() {
   const { data: pips, isLoading, isError, error } = useGetPipsQuery({
     departmentId: departmentFilter,
     positionId: filterPos,
+    pipId: selectedPipId,
     employeeName: searchName,
     status: filterStatus || undefined,
     startDate: startDate || undefined,
@@ -340,10 +390,11 @@ export default function PipMonitoringPage() {
     || endDate
     || selectedPipId,
   )
+  const uniquePips = useMemo(() => getUniquePips(pips), [pips])
 
   const filteredPips = useMemo(() => {
-    if (!pips) return []
-    return pips.filter((pip) => {
+    return uniquePips.filter((pip) => {
+      if (selectedPipId != null && pip.id !== selectedPipId) return false
       if (selectedEmployeeId == null) return true
       return getPipEmployeeRecordId(pip) === selectedEmployeeId
     }).sort((a, b) => {
@@ -356,17 +407,20 @@ export default function PipMonitoringPage() {
       const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime()
       return timeB - timeA
     })
-  }, [pips, selectedEmployeeId])
+  }, [uniquePips, selectedEmployeeId, selectedPipId])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [filterDept, filterPos, filterStatus, searchName, selectedEmployeeId, startDate, endDate, rowsPerPage])
+  }, [filterDept, filterPos, filterStatus, searchName, selectedEmployeeId, selectedPipId, startDate, endDate, rowsPerPage])
 
-  const totalPages = Math.max(1, Math.ceil(filteredPips.length / rowsPerPage))
+  const tablePips = selectedPipId == null
+    ? filteredPips
+    : filteredPips.filter((pip) => pip.id === selectedPipId)
+  const totalPages = Math.max(1, Math.ceil(tablePips.length / rowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
-  const startIndex = filteredPips.length === 0 ? 0 : (safeCurrentPage - 1) * rowsPerPage + 1
-  const endIndex = Math.min(safeCurrentPage * rowsPerPage, filteredPips.length)
-  const paginatedPips = filteredPips.slice((safeCurrentPage - 1) * rowsPerPage, safeCurrentPage * rowsPerPage)
+  const startIndex = tablePips.length === 0 ? 0 : (safeCurrentPage - 1) * rowsPerPage + 1
+  const endIndex = Math.min(safeCurrentPage * rowsPerPage, tablePips.length)
+  const paginatedPips = tablePips.slice((safeCurrentPage - 1) * rowsPerPage, safeCurrentPage * rowsPerPage)
   const selectedPip = selectedPipId == null ? undefined : filteredPips.find((pip) => pip.id === selectedPipId)
   const exportTargetPips = useMemo(() => selectedPip ? [selectedPip] : filteredPips, [filteredPips, selectedPip])
   const exportEmployeeCount = useMemo(() => new Set(
@@ -648,11 +702,14 @@ export default function PipMonitoringPage() {
               <label className={FILTER_LABEL_CLASS}>PIP</label>
               <select
                 value={selectedPipId || ''}
-                onChange={(e) => setSelectedPipId(e.target.value ? Number(e.target.value) : undefined)}
+                onChange={(e) => {
+                  const nextPipId = Number.parseInt(e.target.value, 10)
+                  setSelectedPipId(Number.isFinite(nextPipId) ? nextPipId : undefined)
+                }}
                 className={FILTER_SELECT_CLASS}
               >
                 <option value="">All PIPs</option>
-                {filteredPips.map((pip) => (
+                {uniquePips.map((pip) => (
                   <option key={pip.id} value={pip.id}>
                     PIP #{pip.id} - {getPipEmployeeName(pip)}
                   </option>
@@ -772,7 +829,7 @@ export default function PipMonitoringPage() {
                 </tr>
               )
             })}
-            {filteredPips.length === 0 && (
+            {tablePips.length === 0 && (
               <tr>
                 <td colSpan={isHr ? 9 : 8} className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center justify-center text-slate-400">
@@ -819,12 +876,12 @@ export default function PipMonitoringPage() {
           </div>
         </section>
       )}
-      {filteredPips.length > 0 && (
+      {tablePips.length > 0 && (
         <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-md shadow-slate-100 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
             <span>
               Showing <span className="font-bold text-slate-700">{startIndex} - {endIndex}</span> of{' '}
-              <span className="font-bold text-slate-700">{filteredPips.length}</span> employees
+              <span className="font-bold text-slate-700">{tablePips.length}</span> employees
             </span>
             <label className="flex items-center gap-2">
               <span className="text-slate-400">Rows:</span>

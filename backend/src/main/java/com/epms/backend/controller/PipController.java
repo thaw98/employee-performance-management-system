@@ -65,12 +65,13 @@ public class PipController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) Long pipId,
             @RequestParam(required = false) String employeeName,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
-        List<Pip> pips = pipService.searchPips(departmentId, positionId, employeeName, status, startDate, endDate,
+        List<Pip> pips = pipService.searchPips(departmentId, positionId, pipId, employeeName, status, startDate, endDate,
                 user);
         return ResponseEntity.ok(ApiResponse.ok("PIPs retrieved successfully", pips));
     }
@@ -105,6 +106,16 @@ public class PipController {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         return ResponseEntity
                 .ok(ApiResponse.ok("PIP note added successfully", pipService.addPipNote(id, request, user)));
+    }
+
+    @PutMapping("/notes/{noteId}")
+    public ResponseEntity<ApiResponse<PipCommunicationNoteDto>> updatePipNote(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long noteId,
+            @RequestBody PipCommunicationNoteRequest request) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        return ResponseEntity
+                .ok(ApiResponse.ok("PIP note updated successfully", pipService.updatePipNote(noteId, request, user)));
     }
 
     @GetMapping("/notes")

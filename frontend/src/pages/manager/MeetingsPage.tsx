@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import {
@@ -7,6 +7,13 @@ import {
     ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+
+const isHrEmployeeOption = (employee: any) => {
+    const searchableText = [employee.position, employee.department, employee.name]
+        .filter(Boolean)
+        .join(' ');
+    return /(^|\W)(hr|human resources?)(\W|$)/i.test(searchableText);
+};
 
 export function MeetingsPage() {
     const [meetings, setMeetings] = useState<any[]>([]);
@@ -17,6 +24,7 @@ export function MeetingsPage() {
     const location = useLocation();
     const isHrView = location.pathname.startsWith('/hr/');
     const hrSection = (searchParams.get('section') || 'schedule') as 'schedule' | 'history';
+    const isFaqHrMeeting = searchParams.get('target') === 'hr';
     const activeTab = (searchParams.get('tab') || 'UPCOMING') as 'UPCOMING' | 'ONGOING' | 'COMPLETED';
     const setActiveTab = (tab: string) => {
         const nextParams = new URLSearchParams(searchParams);
@@ -67,6 +75,10 @@ export function MeetingsPage() {
     const [description, setDescription] = useState('');
     const [scheduledTime, setScheduledTime] = useState('');
     const [durationMinutes, setDurationMinutes] = useState(45);
+    const selectableEmployees = useMemo(
+        () => (isFaqHrMeeting ? eligibleEmployees.filter(isHrEmployeeOption) : eligibleEmployees),
+        [eligibleEmployees, isFaqHrMeeting]
+    );
 
     const now = new Date();
     const minDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -90,25 +102,30 @@ export function MeetingsPage() {
             if ((!isHrView || hrSection === 'schedule') && activeTab !== 'COMPLETED') fetchMeetings();
         }, 30000); 
         return () => clearInterval(interval);
-    }, [activeTab, page, sortBy, selectedDept, subStatus, hrSection, isHrView]);
+    }, [activeTab, page, sortBy, selectedDept, subStatus, hrSection, isHrView, isFaqHrMeeting]);
 
     useEffect(() => {
         const requestedEmployeeId = searchParams.get('employeeId');
         const requestedEmployeeName = searchParams.get('employeeName');
         const requestedDescription = searchParams.get('meetingDescription');
+        const requestedAction = searchParams.get('action');
         if (requestedDescription) {
             setDescription(requestedDescription);
             setTitle(requestedDescription);
         }
-        const matchedEmployee = eligibleEmployees.find(emp => String(emp.id) === requestedEmployeeId)
-            || eligibleEmployees.find(emp => requestedEmployeeName && emp.name?.trim().toLowerCase() === requestedEmployeeName.trim().toLowerCase());
+        if (isFaqHrMeeting && !requestedDescription && !title) {
+            setTitle('FAQ clarification with HR');
+            setDescription('Need more information about an FAQ topic.');
+        }
+        const matchedEmployee = selectableEmployees.find(emp => String(emp.id) === requestedEmployeeId)
+            || selectableEmployees.find(emp => requestedEmployeeName && emp.name?.trim().toLowerCase() === requestedEmployeeName.trim().toLowerCase());
         if (matchedEmployee) {
             setEmployeeId(String(matchedEmployee.id));
             setIsModalOpen(true);
-        } else if (requestedDescription) {
+        } else if (requestedDescription || requestedAction === 'schedule') {
             setIsModalOpen(true);
         }
-    }, [eligibleEmployees, searchParams]);
+    }, [selectableEmployees, searchParams, isFaqHrMeeting, title]);
 
     const fetchMeetings = async () => {
         try {
@@ -172,7 +189,7 @@ export function MeetingsPage() {
 
     const fetchEligibleEmployees = async () => {
         try {
-            const resp = await axios.get('/meetings/eligible-employees');
+            const resp = await axios.get(isFaqHrMeeting ? '/meetings/hr-employees' : '/meetings/eligible-employees');
             setEligibleEmployees(resp.data.data || []);
         } catch (err) {
             console.error('Failed to load eligible employees');
@@ -205,6 +222,13 @@ export function MeetingsPage() {
         fetchMeetings();
     };
 
+    const closeScheduleModal = () => {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('action');
+        setSearchParams(nextParams);
+        setIsModalOpen(false);
+    };
+
     const handleSchedule = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
@@ -217,7 +241,7 @@ export function MeetingsPage() {
             };
             await axios.post('/meetings', payload);
             toast.success('Meeting scheduled successfully');
-            setIsModalOpen(false);
+            closeScheduleModal();
             fetchMeetings();
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to schedule meeting');
@@ -636,7 +660,7 @@ export function MeetingsPage() {
                     <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="bg-slate-800 p-6 text-white flex justify-between items-center">
                             <h2 className="text-xl font-black uppercase tracking-tight">Schedule Meeting</h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                            <button onClick={closeScheduleModal} className="text-slate-400 hover:text-white transition-colors">
                                 <XCircle size={24} />
                             </button>
                         </div>
@@ -649,8 +673,15 @@ export function MeetingsPage() {
                                     onChange={(e) => setEmployeeId(e.target.value)}
                                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
                                 >
-                                    <option value="">Select a subordinate...</option>
-                                    {eligibleEmployees.map(emp => (
+                                    <option value="">
+                                        {isFaqHrMeeting ? 'Select HR employee...' : 'Select a subordinate...'}
+                                    </option>
+                                    {selectableEmployees.length === 0 && (
+                                        <option value="" disabled>
+                                            {isFaqHrMeeting ? 'No HR employees available' : 'No employees available'}
+                                        </option>
+                                    )}
+                                    {selectableEmployees.map(emp => (
                                         <option key={emp.id} value={emp.id}>{emp.name} ({emp.position})</option>
                                     ))}
                                 </select>

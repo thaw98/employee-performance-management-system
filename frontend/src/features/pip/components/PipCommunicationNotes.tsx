@@ -4,6 +4,7 @@ import {
   useAddPipNoteMutation,
   useDeletePipNoteMutation,
   useGetPipNotesQuery,
+  useUpdatePipNoteMutation,
 } from '../pipApi'
 import { formatDateTime } from '../../../utils/dateUtils'
 
@@ -49,6 +50,8 @@ export function PipCommunicationNotes({
   const [showModal, setShowModal] = useState(false)
   const [content, setContent] = useState('')
   const [selectedNoteType, setSelectedNoteType] = useState<PipNoteType>('COMMUNICATION')
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null)
+  const [editingContent, setEditingContent] = useState('')
 
   const communicationQuery = useGetPipNotesQuery({
     pipId,
@@ -73,6 +76,7 @@ export function PipCommunicationNotes({
 
   const [addPipNote, { isLoading: isAdding }] = useAddPipNoteMutation()
   const [deletePipNote, { isLoading: isDeleting }] = useDeletePipNoteMutation()
+  const [updatePipNote, { isLoading: isUpdating }] = useUpdatePipNoteMutation()
 
   const openAddModal = (noteType: PipNoteType) => {
     setSelectedNoteType(noteType)
@@ -98,8 +102,37 @@ export function PipCommunicationNotes({
   const handleDelete = async (note: PipCommunicationNote) => {
     try {
       await deletePipNote({ noteId: note.id, pipId }).unwrap()
+      if (editingNoteId === note.id) {
+        setEditingNoteId(null)
+        setEditingContent('')
+      }
     } catch (error: any) {
       onError?.(error?.data?.message || error?.error || 'Failed to delete note.')
+    }
+  }
+
+  const openEdit = (note: PipCommunicationNote) => {
+    setEditingNoteId(note.id)
+    setEditingContent(note.content)
+  }
+
+  const cancelEdit = () => {
+    setEditingNoteId(null)
+    setEditingContent('')
+  }
+
+  const handleUpdate = async (note: PipCommunicationNote) => {
+    const trimmedContent = editingContent.trim()
+    if (!trimmedContent) {
+      onError?.('Note content is required.')
+      return
+    }
+
+    try {
+      await updatePipNote({ noteId: note.id, pipId, content: trimmedContent }).unwrap()
+      cancelEdit()
+    } catch (error: any) {
+      onError?.(error?.data?.message || error?.error || 'Failed to update note.')
     }
   }
 
@@ -151,6 +184,8 @@ export function PipCommunicationNotes({
                   <div className="space-y-4">
                     {notes.map((note) => {
                       const canDelete = isHr || note.author.id === currentUserId
+                      const canEdit = canDelete
+                      const isEditing = editingNoteId === note.id
                       return (
                         <div key={note.id} className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm">
                           <div className="mb-3 flex items-start justify-between gap-4">
@@ -158,18 +193,61 @@ export function PipCommunicationNotes({
                               <p className="text-sm font-bold text-slate-900">{getAuthorName(note)}</p>
                               <p className="text-xs font-medium text-slate-400">{formatDateTime(note.createdAt)}</p>
                             </div>
-                            {canDelete && (
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(note)}
-                                disabled={isDeleting}
-                                className="rounded-md px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-red-300"
-                              >
-                                Delete
-                              </button>
+                            {(canEdit || canDelete) && (
+                              <div className="flex shrink-0 items-center gap-1">
+                                {canEdit && !isEditing && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openEdit(note)}
+                                    className="rounded-md px-2 py-1 text-xs font-semibold text-[#2463eb] hover:bg-[#eff6ff]"
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+                                {canDelete && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(note)}
+                                    disabled={isDeleting || isUpdating}
+                                    className="rounded-md px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-red-300"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
-                          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{note.content}</p>
+                          {isEditing ? (
+                            <div className="space-y-3">
+                              <textarea
+                                rows={4}
+                                value={editingContent}
+                                onChange={(event) => setEditingContent(event.target.value)}
+                                className="block w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 focus:border-[#2463eb] focus:outline-none"
+                                placeholder="Write the PIP note..."
+                              />
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={cancelEdit}
+                                  disabled={isUpdating}
+                                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdate(note)}
+                                  disabled={isUpdating || !editingContent.trim()}
+                                  className="rounded-lg bg-[#2463eb] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
+                                >
+                                  {isUpdating ? 'Saving...' : 'Save'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{note.content}</p>
+                          )}
                         </div>
                       )
                     })}
