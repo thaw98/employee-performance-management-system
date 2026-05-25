@@ -46,7 +46,7 @@ export const SelfAssessmentAssignmentTabsPage: React.FC = () => {
                 onClick={() => switchTab(tab.id)}
                 className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all ${
                   isActive
-                    ? 'bg-[#5D5FEF] text-white shadow-sm shadow-[#5D5FEF]/20'
+                    ? 'bg-[#2463eb] text-white shadow-sm shadow-[#2463eb]/20'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
                 }`}
               >

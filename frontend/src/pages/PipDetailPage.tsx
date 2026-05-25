@@ -101,12 +101,12 @@ export default function PipDetailPage() {
     if (status === 'AUTO_CLOSED') return 'bg-amber-100 text-amber-700'
     if (status === 'REOPEN_REQUESTED') return 'bg-orange-100 text-orange-700'
     if (status === 'DENIED') return 'bg-red-100 text-red-700'
-    return 'bg-blue-100 text-blue-700'
+    return 'bg-[#dbeafe] text-[#1d4ed8]'
   }
   const getTrainingStatusClass = (status?: string) => {
     const normalized = status?.trim().toUpperCase()
     if (normalized === 'COMPLETED') return 'bg-emerald-100 text-emerald-700'
-    if (normalized === 'IN_PROGRESS') return 'bg-blue-100 text-blue-700'
+    if (normalized === 'IN_PROGRESS') return 'bg-[#dbeafe] text-[#1d4ed8]'
     if (normalized === 'NOT_STARTED') return 'bg-slate-100 text-slate-600'
     return 'bg-amber-100 text-amber-700'
   }
@@ -399,7 +399,7 @@ export default function PipDetailPage() {
           {canManagerMarkResult && (
             <button
               onClick={() => setShowCloseModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="flex items-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]"
             >
               <i className="bi bi-check-circle" /> Mark Result
             </button>
@@ -407,7 +407,7 @@ export default function PipDetailPage() {
           {canEmployeeSign && (
             <button
               onClick={() => setShowEmployeeSignModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="flex items-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]"
             >
               <i className="bi bi-pen" /> Sign PIP
             </button>
@@ -415,7 +415,7 @@ export default function PipDetailPage() {
           {canManagerSign && (
             <button
               onClick={() => setShowManagerSignModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="flex items-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]"
             >
               <i className="bi bi-pen" /> Sign PIP
             </button>
@@ -476,7 +476,7 @@ export default function PipDetailPage() {
                             feedback: ''
                           })
                         }}
-                        className="text-sm font-semibold text-blue-600 hover:text-blue-800"
+                        className="text-sm font-semibold text-[#2463eb] hover:text-[#1e40af]"
                       >
                         Update
                       </button>
@@ -485,7 +485,7 @@ export default function PipDetailPage() {
                   <div className="flex items-center gap-4">
                     <div className="h-2 w-full rounded-full bg-slate-100">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${obj.progressPercentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                        className={`h-full rounded-full transition-all duration-500 ${obj.progressPercentage === 100 ? 'bg-green-500' : 'bg-[#2463eb]'}`}
                         style={{ width: `${obj.progressPercentage}%` }}
                       />
                     </div>
@@ -526,7 +526,7 @@ export default function PipDetailPage() {
                 {pip.followUpMeetings?.map((m) => (
                   <div key={m.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-4">
                     <div className="flex items-center gap-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#dbeafe] text-[#2463eb]">
                         <i className="bi bi-calendar-check" />
                       </div>
                       <div>
@@ -570,7 +570,7 @@ export default function PipDetailPage() {
                     key={value}
                     type="button"
                     onClick={() => setTrainingHistoryFilter(value as typeof trainingHistoryFilter)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold ${trainingHistoryFilter === value ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold ${trainingHistoryFilter === value ? 'bg-white text-[#1d4ed8] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     {label}
                   </button>
@@ -668,7 +668,7 @@ export default function PipDetailPage() {
               {pip.extendedEndDate && (
                 <div>
                   <p className="text-xs text-slate-500">Extended End Date</p>
-                  <p className="font-medium text-blue-700">{formatDate(pip.extendedEndDate)}</p>
+                  <p className="font-medium text-[#1d4ed8]">{formatDate(pip.extendedEndDate)}</p>
                 </div>
               )}
               {pip.finalCloseDate && (
@@ -688,14 +688,14 @@ export default function PipDetailPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-slate-500">Completed</p>
-                  <p className="text-lg font-bold text-blue-600">{pip.completedHours}</p>
+                  <p className="text-lg font-bold text-[#2463eb]">{pip.completedHours}</p>
                 </div>
               </div>
               {pip.finalOutcome && (
                 <>
                   <div className="pt-4 border-t border-slate-100">
                     <p className="text-xs text-slate-500">Final Outcome</p>
-                    <p className="font-bold text-blue-600">{pip.finalOutcome}</p>
+                    <p className="font-bold text-[#2463eb]">{pip.finalOutcome}</p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Closing Remarks</p>
@@ -790,7 +790,7 @@ export default function PipDetailPage() {
                     value={updateValue.percentage}
                     onChange={(e) => setUpdateValue({ ...updateValue, percentage: parseInt(e.target.value) })}
                   />
-                  <span className="text-sm font-bold text-blue-600">{updateValue.percentage}%</span>
+                  <span className="text-sm font-bold text-[#2463eb]">{updateValue.percentage}%</span>
                 </div>
               </div>
               <div>
@@ -799,7 +799,7 @@ export default function PipDetailPage() {
                   type="number"
                   min={pip.completedHours}
                   max={pip.totalHours}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-[#2463eb] focus:outline-none"
                   value={updateValue.completedHours}
                   onChange={(e) => setUpdateValue({ ...updateValue, completedHours: parseInt(e.target.value) })}
                 />
@@ -808,7 +808,7 @@ export default function PipDetailPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700">Feedback / Notes</label>
                 <textarea
-                  className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-500 focus:outline-none"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-[#2463eb] focus:outline-none"
                   rows={3}
                   placeholder="Describe progress made..."
                   value={updateValue.feedback}
@@ -818,7 +818,7 @@ export default function PipDetailPage() {
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setShowUpdateModal({ open: false, objectiveId: null })} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
-              <button onClick={handleUpdateProgress} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Save Update</button>
+              <button onClick={handleUpdateProgress} className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]">Save Update</button>
             </div>
           </div>
         </div>
@@ -836,7 +836,7 @@ export default function PipDetailPage() {
                   required
                   min={minMeetingDate}
                   max={maxMeetingDate}
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
                   value={meetingDate}
                   onChange={(e) => setMeetingDate(e.target.value)}
                 />
@@ -847,7 +847,7 @@ export default function PipDetailPage() {
                   <select
                     value={meetingHour}
                     onChange={e => setMeetingHour(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-[#2463eb] outline-none"
                   >
                     {Array.from({ length: 12 }, (_, i) => (i + 1).toString()).map(h => (
                       <option key={h} value={h}>{h}</option>
@@ -859,7 +859,7 @@ export default function PipDetailPage() {
                   <select
                     value={meetingMinute}
                     onChange={e => setMeetingMinute(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-[#2463eb] outline-none"
                   >
                     {['00', '15', '30', '45'].map(m => (
                       <option key={m} value={m}>{m}</option>
@@ -871,7 +871,7 @@ export default function PipDetailPage() {
                   <select
                     value={meetingPeriod}
                     onChange={e => setMeetingPeriod(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-blue-500 outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-[#2463eb] outline-none"
                   >
                     <option value="AM">AM</option>
                     <option value="PM">PM</option>
@@ -881,7 +881,7 @@ export default function PipDetailPage() {
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setShowMeetingModal(false)} className="px-4 py-2 text-sm font-medium text-slate-600">Cancel</button>
-              <button onClick={handleScheduleMeeting} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Schedule</button>
+              <button onClick={handleScheduleMeeting} className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8]">Schedule</button>
             </div>
           </div>
         </div>
@@ -895,7 +895,7 @@ export default function PipDetailPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700">Result</label>
                 <select
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
                   value={closeData.finalOutcome}
                   onChange={(e) => setCloseData({ ...closeData, finalOutcome: e.target.value })}
                 >
@@ -907,7 +907,7 @@ export default function PipDetailPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700">Manager Comments</label>
                 <textarea
-                  className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-500 focus:outline-none"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-[#2463eb] focus:outline-none"
                   rows={4}
                   placeholder="Sum up the improvement journey..."
                   value={closeData.closingRemarks}
@@ -920,7 +920,7 @@ export default function PipDetailPage() {
               <button
                 onClick={handleClosePip}
                 disabled={!closeData.finalOutcome.trim() || !closeData.closingRemarks.trim()}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
               >
                 Save Result
               </button>
@@ -940,7 +940,7 @@ export default function PipDetailPage() {
                     <p className="text-sm font-medium text-slate-900">Default Signature</p>
                     <p className="mt-1 text-xs text-slate-500">Your signature from Signature Settings will be recorded for this PIP.</p>
                   </div>
-                  <Link to={signatureSettingsPath} className="shrink-0 text-xs font-semibold text-blue-600 hover:underline">
+                  <Link to={signatureSettingsPath} className="shrink-0 text-xs font-semibold text-[#2463eb] hover:underline">
                     Signature Settings
                   </Link>
                 </div>
@@ -964,7 +964,7 @@ export default function PipDetailPage() {
               <button
                 onClick={handleEmployeeSign}
                 disabled={isSigningEmployee || isDefaultSigLoading || !hasDefaultSignature}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
               >
                 {isSigningEmployee ? 'Signing...' : 'Sign PIP'}
               </button>
@@ -984,7 +984,7 @@ export default function PipDetailPage() {
                     <p className="text-sm font-medium text-slate-900">Default Signature</p>
                     <p className="mt-1 text-xs text-slate-500">Your signature from Signature Settings will be recorded for this PIP.</p>
                   </div>
-                  <Link to={signatureSettingsPath} className="shrink-0 text-xs font-semibold text-blue-600 hover:underline">
+                  <Link to={signatureSettingsPath} className="shrink-0 text-xs font-semibold text-[#2463eb] hover:underline">
                     Signature Settings
                   </Link>
                 </div>
@@ -1008,7 +1008,7 @@ export default function PipDetailPage() {
               <button
                 onClick={handleManagerSign}
                 disabled={isSigningManager || isDefaultSigLoading || !hasDefaultSignature}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
               >
                 {isSigningManager ? 'Signing...' : 'Sign PIP'}
               </button>
@@ -1025,7 +1025,7 @@ export default function PipDetailPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700">Reason for Reopening</label>
                 <select
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
                   value={reopenReasonType}
                   onChange={(e) => setReopenReasonType(e.target.value)}
                 >
@@ -1038,7 +1038,7 @@ export default function PipDetailPage() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Custom Reason</label>
                   <textarea
-                    className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-500 focus:outline-none"
+                    className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-[#2463eb] focus:outline-none"
                     rows={4}
                     placeholder="State the reason for further action..."
                     value={customReason}
@@ -1064,7 +1064,7 @@ export default function PipDetailPage() {
               <input
                 type="date"
                 min={minReopenApprovalDate}
-                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
                 value={extendedEndDate}
                 onChange={(e) => setExtendedEndDate(e.target.value)}
               />
@@ -1091,7 +1091,7 @@ export default function PipDetailPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700">Reason</label>
                 <select
-                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
                   value={reviewReasonType}
                   onChange={(e) => setReviewReasonType(e.target.value)}
                 >
@@ -1105,7 +1105,7 @@ export default function PipDetailPage() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Custom Reason</label>
                   <textarea
-                    className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-blue-500 focus:outline-none"
+                    className="mt-1 block w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-[#2463eb] focus:outline-none"
                     rows={4}
                     placeholder="Enter deny reason..."
                     value={reviewCustomReason}

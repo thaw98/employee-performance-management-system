@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Target, ChevronLeft, Calendar, Building2, LayoutGrid, Award, ShieldCheck, FileEdit, Lock, Save, X } from 'lucide-react';
+import { Target, ChevronLeft, Calendar, Building2, LayoutGrid, Award, ShieldCheck, FileEdit, Lock, Save, X } from 'lucide-react';import { MonthYearPicker } from '../../components/common/MonthYearPicker';
+const getCurrentMonthValue = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${now.getFullYear()}-${month}`;
+};
+
+const formatMonthYear = (monthValue: string) => {
+  if (!monthValue) return '';
+  const [year, month] = monthValue.split('-');
+  if (!year || !month) return monthValue;
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+};
 import { 
   useGetDepartmentKpisQuery,
   useUpdateDepartmentHrKpiActualsMutation,
@@ -13,7 +26,8 @@ export const DepartmentKpiDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const departmentId = searchParams.get('departmentId');
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('2026-2027');
+  const [selectedPeriodMonth, setSelectedPeriodMonth] = useState<string>(getCurrentMonthValue());
+  const selectedPeriodLabel = formatMonthYear(selectedPeriodMonth);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const { data: deptResponse, isLoading: deptLoading } = useGetDepartmentByIdQuery(Number(departmentId), {
@@ -21,7 +35,7 @@ export const DepartmentKpiDetailPage: React.FC = () => {
   });
 
   const { data: kpis, isLoading: kpisLoading, refetch } = useGetDepartmentKpisQuery(
-    { departmentId: Number(departmentId), period: selectedPeriod },
+    { departmentId: Number(departmentId), period: selectedPeriodLabel },
     { skip: !departmentId }
   );
 
@@ -52,14 +66,10 @@ export const DepartmentKpiDetailPage: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm">
             <Calendar size={16} className="text-slate-400" />
-            <select 
-              value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="text-xs font-black text-slate-700 outline-none bg-transparent uppercase tracking-wider"
-            >
-              <option value="2026-2027">2026-2027</option>
-              <option value="2025-2026">2025-2026</option>
-            </select>
+            <div className="flex items-center gap-3">
+              <MonthYearPicker value={selectedPeriodMonth} onChange={setSelectedPeriodMonth} />
+              <span className="text-[10px] text-slate-500">{selectedPeriodLabel}</span>
+            </div>
           </div>
           <button
             onClick={() => setIsEditModalOpen(true)}

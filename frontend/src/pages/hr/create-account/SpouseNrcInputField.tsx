@@ -49,7 +49,7 @@ export function SpouseNrcInputField({ control, errors, setValue }: SpouseNrcInpu
       </label>
       <div
         className={`flex items-stretch overflow-hidden rounded-lg border bg-white transition-colors ${
-          hasError ? 'border-red-500' : 'border-slate-300 focus-within:border-blue-500'
+          hasError ? 'border-red-500' : 'border-slate-300 focus-within:border-[#2463eb]'
         }`}
       >
         <Controller
@@ -153,7 +153,7 @@ export function SpouseNrcInputField({ control, errors, setValue }: SpouseNrcInpu
         <p className="text-xs text-red-600">{String(errors.spouseNrcNumber.message)}</p>
       ) : null}
       {nrcPreview ? (
-        <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+        <div className="mt-2 rounded-lg border border-[#dbeafe] bg-[#eff6ff] px-4 py-3">
           <span className="mb-0.5 block text-xs text-slate-400">Spouse NRC preview</span>
           <span className="font-mono text-sm font-semibold text-slate-800">{nrcPreview}</span>
         </div>

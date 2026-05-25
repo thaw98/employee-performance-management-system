@@ -293,7 +293,7 @@ function ProgressBar({ current, total }: { current: number; total: number }) {
     <div className="space-y-2.5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ClipboardCheck size={15} className={complete ? 'text-emerald-600' : 'text-slate-400'} />
+          <ClipboardCheck size={15} className={complete ? 'text-[#2463eb]' : 'text-slate-400'} />
           <span className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300">
             Completion Progress
           </span>
@@ -311,8 +311,8 @@ function ProgressBar({ current, total }: { current: number; total: number }) {
         <div
           className={`h-full rounded-full transition-all duration-700 ease-out ${
             complete
-              ? 'bg-gradient-to-r from-emerald-500 via-emerald-500 to-teal-400'
-              : 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+              ? 'bg-gradient-to-r from-[#2463eb] via-[#2463eb] to-[#3b82f6]'
+              : 'bg-gradient-to-r from-[#2463eb] to-[#3b82f6]'
           }`}
           style={{ width: `${pct}%` }}
         />
@@ -338,7 +338,7 @@ function YesNoToggle({
         onClick={() => onChange('Yes')}
         className={`min-w-[88px] rounded-lg px-5 py-2 text-sm font-semibold transition-all ${
           value === 'Yes'
-            ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-600/30'
+            ? 'bg-[#2463eb] text-white shadow-sm ring-1 ring-[#2463eb]/30'
             : disabled
               ? 'cursor-not-allowed text-slate-300 dark:text-slate-600'
               : 'text-slate-600 hover:bg-white hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
@@ -667,7 +667,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-emerald-200 border-t-emerald-600" />
+          <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-[#dbeafe] border-t-[#2463eb]" />
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading form…</p>
         </div>
       </div>
@@ -726,24 +726,24 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       ? 'bg-rose-500'
       : autosave.hasPendingChanges
         ? 'animate-pulse bg-amber-500'
-        : 'bg-emerald-500';
+        : 'bg-[#2463eb]';
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-32">
       {/* ───── Hero Header ───── */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/40 shadow-sm dark:border-slate-700 dark:from-slate-800 dark:via-slate-800 dark:to-emerald-950/20">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-gradient-to-br from-emerald-200/40 to-teal-100/0 blur-3xl dark:from-emerald-900/20" />
-        <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-gradient-to-tr from-sky-100/40 to-transparent blur-3xl dark:from-sky-900/10" />
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-white to-[#eff6ff]/40 shadow-sm dark:border-slate-700 dark:from-slate-800 dark:via-slate-800 dark:to-[#1e3a8a]/20">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-gradient-to-br from-[#bfdbfe]/40 to-[#eff6ff]/0 blur-3xl dark:from-[#1e3a8a]/20" />
+        <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-gradient-to-tr from-[#dbeafe]/40 to-transparent blur-3xl dark:from-[#1e3a8a]/10" />
 
         <div className="relative px-7 pt-7 pb-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 ring-1 ring-white/40 dark:ring-emerald-400/20">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-lg shadow-[#2463eb]/20 ring-1 ring-white/40 dark:ring-[#60a5fa]/20">
                 <ClipboardCheck size={22} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1d4ed8] dark:text-[#60a5fa]">
                     Performance Review
                   </span>
                 </div>
@@ -875,7 +875,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               type="button"
               onClick={() => setShowAcknowledgeConfirm(true)}
               disabled={isAcknowledging}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:-translate-y-px hover:shadow-lg disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#dbeafe] transition-all hover:-translate-y-px hover:shadow-lg disabled:opacity-50"
             >
               <ThumbsUp size={14} />
               {isAcknowledging ? 'Acknowledging…' : 'Acknowledge'}
@@ -887,7 +887,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       {(formData?.employeeRemarks || formData?.overallRemarks || formData?.managerComments || formData?.hrReviewReason || formData?.employeeDisputeReason) && (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800/60">
           <div className="flex items-start gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-6 py-4 dark:border-slate-700 dark:from-slate-800/80 dark:to-slate-800/40">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-sm">
               <MessageSquare size={16} />
             </span>
             <div className="min-w-0 flex-1 pt-0.5">
@@ -982,7 +982,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   key={answer.id}
                   className={`group overflow-hidden rounded-2xl border bg-white shadow-sm transition-all hover:shadow-md dark:bg-slate-800/60 ${
                     isAnswered
-                      ? 'border-emerald-200/70 dark:border-emerald-800/50'
+                      ? 'border-[#bfdbfe]/70 dark:border-[#1e40af]/50'
                       : 'border-slate-200 dark:border-slate-700'
                   }`}
                 >
@@ -991,7 +991,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold tabular-nums shadow-sm ring-1 ring-inset transition-all ${
                         isAnswered
-                          ? 'bg-emerald-600 text-white ring-emerald-700/30'
+                          ? 'bg-[#2463eb] text-white ring-[#1d4ed8]/30'
                           : 'bg-white text-slate-600 ring-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-600'
                       }`}
                     >
@@ -1080,7 +1080,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                                 disabled={!canEditQuestion || isRetakeMode}
                                 rows={2}
                                 placeholder="Add any remarks for this question…"
-                                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-100/60 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500 dark:focus:border-emerald-500 dark:focus:bg-slate-900 dark:focus:ring-emerald-900/40"
+                                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-[#2463eb] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#dbeafe]/60 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500 dark:focus:border-[#2463eb] dark:focus:bg-slate-900 dark:focus:ring-[#1e3a8a]/40"
                               />
                               <div className="mt-1 flex items-start justify-end">
                                 <span className="shrink-0 text-xs text-slate-400">{remarksLen}/500</span>
@@ -1168,7 +1168,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           {/* ───── Additional Remarks ───── */}
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800/60">
             <div className="flex items-start gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white px-6 py-4 dark:border-slate-700 dark:from-slate-800/80 dark:to-slate-800/40">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-sm">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-sm">
                 <Sparkles size={16} />
               </span>
               <div className="min-w-0 flex-1 pt-0.5">
@@ -1186,7 +1186,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                 disabled={isReadOnly || isRetakeMode}
                 rows={4}
                 placeholder="Share any additional thoughts, context, or feedback you'd like to include…"
-                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-emerald-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-100/60 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500 dark:focus:border-emerald-500 dark:focus:bg-slate-900 dark:focus:ring-emerald-900/40"
+                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 transition-all focus:border-[#2463eb] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#dbeafe]/60 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500 dark:focus:border-[#2463eb] dark:focus:bg-slate-900 dark:focus:ring-[#1e3a8a]/40"
               />
               <div className="mt-1 flex items-start justify-end">
                 <span className="shrink-0 text-xs text-slate-400">{employeeRemarksLen}/500</span>
@@ -1249,7 +1249,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 	                  type="button"
 	                  onClick={() => (isRetakeMode ? setShowRetakeSubmitConfirm(true) : setShowSubmitConfirm(true))}
 	                  disabled={isRetakeMode ? isSubmittingRetake : (isSubmitting || !isSubmissionComplete)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 ring-1 ring-emerald-600/20 transition-all hover:-translate-y-px hover:shadow-lg hover:shadow-emerald-500/30 disabled:translate-y-0 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#dbeafe] ring-1 ring-[#2463eb]/20 transition-all hover:-translate-y-px hover:shadow-lg hover:shadow-[#2463eb]/30 disabled:translate-y-0 disabled:opacity-50"
                 >
                   <Send size={15} />
 	                  {isRetakeMode ? 'Submit Retake' : 'Submit Assessment'}
@@ -1366,7 +1366,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-700">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#eff6ff] text-[#2463eb] dark:bg-[#1e3a8a]/40 dark:text-[#60a5fa]">
                   <ThumbsUp size={18} />
                 </div>
                 <div>
@@ -1400,7 +1400,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
               <button
                 onClick={onAcknowledge}
                 disabled={isAcknowledging}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:shadow-lg hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#dbeafe] transition-all hover:shadow-lg hover:shadow-[#2463eb]/30 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <ThumbsUp size={16} />
                 {isAcknowledging ? 'Acknowledging…' : 'Confirm Acknowledge'}
@@ -1416,7 +1416,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-700">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
                   <Send size={18} />
                 </div>
                 <div>
@@ -1461,7 +1461,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                 type="button"
                 onClick={handleConfirmRetakeSubmit}
                 disabled={isSubmittingRetake}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:shadow-lg hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#dbeafe] transition-all hover:shadow-lg hover:shadow-[#2463eb]/30 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CheckCircle2 size={16} />
                 {isSubmittingRetake ? 'Submitting…' : 'Confirm Submit Retake'}
@@ -1477,7 +1477,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-700">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/20">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
                   <Send size={18} />
                 </div>
                 <div>
@@ -1542,7 +1542,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                   || isDefaultSigLoading
                   || (needsInlineSignature && !hasPadDrawing)
                 }
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-all hover:shadow-lg hover:shadow-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#dbeafe] transition-all hover:shadow-lg hover:shadow-[#2463eb]/30 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CheckCircle2 size={16} />
                 {isSavingInlineSignature ? 'Saving signature…' : isSubmitting ? 'Submitting…' : 'Confirm Submit'}

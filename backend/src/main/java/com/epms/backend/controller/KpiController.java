@@ -33,7 +33,8 @@ public class KpiController {
     @GetMapping("/me/latest")
     public ResponseEntity<List<KpiDto>> getMyLatestKpis() {
         try {
-            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
             Long userId = Long.parseLong(userIdStr);
             return ResponseEntity.ok(kpiService.getMyLatestKpis(userId));
         } catch (Exception e) {
@@ -55,7 +56,8 @@ public class KpiController {
     @PostMapping("/setup")
     public ResponseEntity<List<KpiDto>> setupKpis(@RequestBody List<KpiDto> kpiDtos) {
         try {
-            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
             Long userId = Long.parseLong(userIdStr);
             return ResponseEntity.ok(kpiService.saveKpis(kpiDtos, userId));
         } catch (IllegalArgumentException e) {
@@ -76,7 +78,8 @@ public class KpiController {
     @PostMapping("/position/setup")
     public ResponseEntity<List<PositionKpiDto>> setupPositionKpis(@RequestBody List<PositionKpiDto> dtoList) {
         try {
-            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
             Long userId = Long.parseLong(userIdStr);
             return ResponseEntity.ok(kpiService.savePositionKpis(dtoList, userId));
         } catch (IllegalArgumentException e) {
@@ -96,7 +99,8 @@ public class KpiController {
     @PostMapping("/department/setup")
     public ResponseEntity<List<DepartmentKpiDto>> setupDepartmentKpis(@RequestBody List<DepartmentKpiDto> dtoList) {
         try {
-            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
             Long userId = Long.parseLong(userIdStr);
             return ResponseEntity.ok(kpiService.saveDepartmentKpis(dtoList, userId));
         } catch (IllegalArgumentException e) {
@@ -112,7 +116,8 @@ public class KpiController {
             @PathVariable Long employeeId,
             @RequestBody List<KpiDto> kpiUpdates) {
         try {
-            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
             Long userId = Long.parseLong(userIdStr);
             return ResponseEntity.ok(kpiService.updateKpiActualsByManager(userId, employeeId, kpiUpdates));
         } catch (Exception e) {
@@ -126,7 +131,8 @@ public class KpiController {
             @PathVariable Long employeeId,
             @RequestBody List<KpiDto> kpiUpdates) {
         try {
-            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
             Long userId = Long.parseLong(userIdStr);
             return ResponseEntity.ok(kpiService.updateKpiActualsByHr(userId, employeeId, kpiUpdates));
         } catch (Exception e) {
@@ -141,7 +147,8 @@ public class KpiController {
             @PathVariable Long departmentId,
             @RequestBody List<DepartmentKpiDto> updates) {
         try {
-            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
             Long userId = Long.parseLong(userIdStr);
             return ResponseEntity.ok(kpiService.updateDepartmentKpiActualsByHr(userId, departmentId, updates));
         } catch (Exception e) {
@@ -157,9 +164,11 @@ public class KpiController {
             @PathVariable Long positionId,
             @RequestBody List<PositionKpiDto> updates) {
         try {
-            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
             Long userId = Long.parseLong(userIdStr);
-            return ResponseEntity.ok(kpiService.updatePositionKpiActualsByHr(userId, departmentId, positionId, updates));
+            return ResponseEntity
+                    .ok(kpiService.updatePositionKpiActualsByHr(userId, departmentId, positionId, updates));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body(e.getMessage() != null ? e.getMessage() : "An error occurred");
@@ -169,7 +178,8 @@ public class KpiController {
     @GetMapping("/manager/team")
     public ResponseEntity<List<java.util.Map<String, Object>>> getManagerTeam() {
         try {
-            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
             Long userId = Long.parseLong(userIdStr);
             return ResponseEntity.ok(kpiService.getManagerTeam(userId));
         } catch (Exception e) {
@@ -213,20 +223,23 @@ public class KpiController {
     }
 
     @GetMapping("/history/summary")
-    public ResponseEntity<List<com.epms.backend.dto.KpiHistorySummaryDto>> getAllHistorySummary() {
-        return ResponseEntity.ok(kpiService.getAllKpiHistorySummary());
+    public ResponseEntity<List<com.epms.backend.dto.KpiHistorySummaryDto>> getAllHistorySummary(
+            @RequestParam(required = false) String period) {
+        return ResponseEntity.ok(kpiService.getAllKpiHistorySummary(period));
     }
 
     @GetMapping("/history/department-comparison")
-    public ResponseEntity<List<com.epms.backend.dto.DepartmentComparisonDto>> getDepartmentComparison() {
-        return ResponseEntity.ok(kpiService.getDepartmentComparison());
+    public ResponseEntity<List<com.epms.backend.dto.DepartmentComparisonDto>> getDepartmentComparison(
+            @RequestParam(required = false) String period) {
+        return ResponseEntity.ok(kpiService.getDepartmentComparison(period));
     }
 
     @PreAuthorize("hasRole('HR')")
     @PostMapping("/hr/reset-monthly")
     public ResponseEntity<Void> performMonthlyReset() {
         try {
-            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+            String userIdStr = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
             Long userId = Long.parseLong(userIdStr);
             kpiService.performMonthlyReset(userId);
             return ResponseEntity.ok().build();

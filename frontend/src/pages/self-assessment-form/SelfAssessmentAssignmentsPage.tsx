@@ -236,7 +236,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
         accessorFn: (row) => row.title,
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb]/10 to-[#1d4ed8]/5 text-[#2463eb] dark:from-[#2463eb]/20 dark:to-[#1d4ed8]/10 dark:text-[#60a5fa]">
               <FileText size={16} />
             </div>
             <div className="min-w-0">
@@ -334,7 +334,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
           row.original.isAssignedToDeadline ? (
             <Link
               to={`/hr/self-assessment/assignments/${row.original.id}/assigned-employees`}
-              className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+              className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#2463eb]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
             >
               <Eye size={13} />
               View
@@ -343,7 +343,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setDeadlineModalTemplate(row.original)}
-              className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+              className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#2463eb]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
             >
               <CalendarDays size={13} />
               Assign Deadline
@@ -394,7 +394,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
     <div className="min-h-screen px-6 py-6 md:px-8 animate-fade-in">
       {/* Breadcrumb */}
       <nav className="mb-2 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-        <span className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium">Home</span>
+        <span className="text-[#2463eb] dark:text-[#60a5fa] font-medium">Home</span>
         <ChevronDown size={10} className="-rotate-90 opacity-50" />
         <span>Self Assessment</span>
         <ChevronDown size={10} className="-rotate-90 opacity-50" />
@@ -405,7 +405,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="relative">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
               <Send size={22} className="text-white" />
             </div>
             {existingTemplatesForActiveCycle.length > 0 && (
@@ -426,7 +426,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
         {activeSubmissionCycle ? (
           <Link
             to="/hr/self-assessment/assign-forms"
-            className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:-translate-y-0.5 hover:shadow-[#5D5FEF]/30"
+            className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:-translate-y-0.5 hover:shadow-[#2463eb]/30"
           >
             <Send size={16} />
             Assign Forms
@@ -472,10 +472,10 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
       {/* Active Cycle Info Banner */}
       <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '240ms' }}>
         <div className="relative px-5 py-4">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#5D5FEF]/[0.03] via-transparent to-[#5D5FEF]/[0.03] dark:from-[#5D5FEF]/[0.05] dark:via-transparent dark:to-[#5D5FEF]/[0.05]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#2463eb]/[0.03] via-transparent to-[#2463eb]/[0.03] dark:from-[#2463eb]/[0.05] dark:via-transparent dark:to-[#2463eb]/[0.05]" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-md shadow-[#2463eb]/20">
                 <CalendarRange className="h-4 w-4 text-white" aria-hidden />
               </div>
               <div className="text-sm">
@@ -483,7 +483,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                   <span className="font-bold text-slate-900 dark:text-white">Assignment Cycle</span>
                   <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
                   {activeSubmissionCycle ? (
-                    <span className="font-medium text-[#5D5FEF] dark:text-[#8b8ef7]">
+                    <span className="font-medium text-[#2463eb] dark:text-[#60a5fa]">
                       {activeSubmissionCycle.name}
                     </span>
                   ) : (
@@ -498,7 +498,11 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
               </div>
             </div>
             <div className="hidden sm:block sm:h-8 sm:w-px sm:shrink-0 sm:bg-gradient-to-b sm:from-transparent sm:via-slate-200 sm:to-transparent dark:sm:via-slate-700" />
-            <SelfAssessmentReviewCycleInfo variant="inline" />
+            <SelfAssessmentReviewCycleInfo
+              variant="inline"
+              primaryColor="#2463eb"
+              primaryColorDark="#1d4ed8"
+            />
           </div>
         </div>
       </div>
@@ -508,8 +512,8 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
         {/* Card Header */}
         <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-700/60 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-900/30 dark:to-violet-800/20">
-              <ClipboardList size={18} className="text-violet-600 dark:text-violet-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb]/10 to-[#1d4ed8]/5 dark:from-[#2463eb]/20 dark:to-[#1d4ed8]/10">
+              <ClipboardList size={18} className="text-[#2463eb] dark:text-[#60a5fa]" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Cycle Templates</h2>
@@ -554,7 +558,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
             </Link>
             <Link
               to="/hr/self-assessment/templates"
-              className="group/link inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+              className="group/link inline-flex items-center gap-1.5 rounded-xl bg-[#2463eb]/[0.06] px-3.5 py-2 text-xs font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
             >
               Manage Templates
               <ChevronRight size={14} className="transition-transform group-hover/link:translate-x-0.5" />
@@ -589,7 +593,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                     }}
                     className={`inline-flex min-h-9 items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
                       isActive
-                        ? 'bg-[#5D5FEF] text-white shadow-sm shadow-[#5D5FEF]/20'
+                        ? 'bg-[#2463eb] text-white shadow-sm shadow-[#2463eb]/20'
                         : 'text-slate-500 hover:bg-white hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'
                     }`}
                   >
@@ -640,7 +644,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
               <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/60">
                 <FileText size={36} className="text-slate-300 dark:text-slate-500" />
               </div>
-              <div className="absolute -right-2 -bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
+              <div className="absolute -right-2 -bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
                 <Plus size={14} className="text-white" />
               </div>
             </div>
@@ -652,7 +656,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
             </p>
             <Link
               to="/hr/self-assessment/templates/create"
-              className="group mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:-translate-y-0.5"
+              className="group mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:-translate-y-0.5"
             >
               <Plus size={16} />
               Create Template
@@ -676,7 +680,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setDeadlineTab('all')}
-              className="mt-3 text-xs font-semibold text-[#5D5FEF] hover:underline dark:text-[#8b8ef7]"
+              className="mt-3 text-xs font-semibold text-[#2463eb] hover:underline dark:text-[#60a5fa]"
             >
               View all templates
             </button>
@@ -690,11 +694,11 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                   key={row.id}
                   className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:bg-slate-800/80"
                 >
-                  <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#5D5FEF]/5 blur-2xl transition-all duration-500 group-hover:scale-150 dark:bg-[#5D5FEF]/10" />
+                  <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#2463eb]/5 blur-2xl transition-all duration-500 group-hover:scale-150 dark:bg-[#2463eb]/10" />
                   <div className="relative">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb]/10 to-[#1d4ed8]/5 text-[#2463eb] dark:from-[#2463eb]/20 dark:to-[#1d4ed8]/10 dark:text-[#60a5fa]">
                           <FileText size={18} />
                         </div>
                         <div className="min-w-0">
@@ -732,7 +736,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                       {t.isAssignedToDeadline ? (
                         <Link
                           to={`/hr/self-assessment/assignments/${t.id}/assigned-employees`}
-                          className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                          className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#2463eb]/[0.06] px-3 py-1.5 text-xs font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
                         >
                           <Eye size={13} />
                           View
@@ -741,7 +745,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setDeadlineModalTemplate(t)}
-                          className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-xs font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                          className="group/btn inline-flex items-center gap-1.5 rounded-xl bg-[#2463eb]/[0.06] px-3 py-1.5 text-xs font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
                         >
                           <CalendarDays size={13} />
                           Assign Deadline
@@ -789,7 +793,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                 {assignmentTable.getRowModel().rows.map((row) => (
                   <tr
                     key={row.id}
-                    className="group transition-all duration-200 hover:bg-[#5D5FEF]/[0.02] dark:hover:bg-[#5D5FEF]/[0.04]"
+                    className="group transition-all duration-200 hover:bg-[#2463eb]/[0.02] dark:hover:bg-[#2463eb]/[0.04]"
                   >
                     {row.getVisibleCells().map((cell) => {
                       const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
@@ -832,7 +836,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Bulk Assignment Rules</h3>
               <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                 Employees are assigned only when they are <span className="font-semibold text-slate-700 dark:text-slate-300">active</span>, <span className="font-semibold text-slate-700 dark:text-slate-300">non-probation</span>, have an <span className="font-semibold text-slate-700 dark:text-slate-300">active user account</span>, and have a matching active template for the current cycle. Existing active-cycle forms are skipped. Use{' '}
-                <Link to="/hr/self-assessment/assign-forms" className="font-semibold text-[#5D5FEF] hover:underline dark:text-[#8b8ef7]">
+                <Link to="/hr/self-assessment/assign-forms" className="font-semibold text-[#2463eb] hover:underline dark:text-[#60a5fa]">
                   Assign Self-Assessment Forms
                 </Link>{' '}
                 to run an assignment.
@@ -900,7 +904,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                         min={activeSubmissionCycle.startDate}
                         max={activeSubmissionCycle.endDate}
                         onChange={(event) => setModalStartDate(event.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                       />
                       <CalendarDays
                         className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -925,7 +929,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                         min={activeSubmissionCycle.startDate}
                         max={activeSubmissionCycle.endDate}
                         onChange={(event) => setModalEmployeeDeadline(event.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                       />
                       <CalendarDays
                         className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -952,7 +956,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                         min={managerReviewMinDate || activeSubmissionCycle.startDate}
                         max={activeSubmissionCycle.endDate}
                         onChange={(event) => setModalManagerDeadline(event.target.value)}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm font-medium text-slate-900 shadow-sm focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white"
                       />
                       <CalendarDays
                         className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -988,7 +992,7 @@ export const SelfAssessmentAssignmentsPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isSettingDeadline}
-                    className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60"
+                    className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60"
                   >
                     {isSettingDeadline ? 'Saving…' : 'Assign Deadline'}
                   </button>

@@ -1,0 +1,9 @@
+/* Meetings feature — primary #2463eb (matches dash accent) */
+.meetings-theme {
+  --meetings-primary: #2463eb;
+  --meetings-primary-hover: #1d4ed8;
+  --meetings-primary-dark: #1e40af;
+  --meetings-primary-light: #dbeafe;
+  --meetings-primary-border: #bfdbfe;
+  --meetings-primary-muted: #93c5fd;
+}

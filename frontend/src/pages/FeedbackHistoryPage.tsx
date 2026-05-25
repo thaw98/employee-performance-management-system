@@ -6,10 +6,9 @@ import {
     Printer, 
     Eye, 
     Search,
-    ChevronLeft,
-    ChevronRight,
     Download
 } from 'lucide-react';
+import { PaginationBar } from '../components/common/PaginationBar';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
@@ -45,7 +44,9 @@ export function FeedbackHistoryPage() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
     const [totalPages, setTotalPages] = useState(0);
+    const [totalItems, setTotalItems] = useState(0);
     const [reviewCycles, setReviewCycles] = useState<any[]>([]);
     const [filters, setFilters] = useState({
         reviewCycleId: '',
@@ -62,36 +63,9 @@ export function FeedbackHistoryPage() {
     const [details, setDetails] = useState<FeedbackDetail[]>([]);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const getPageItems = (): (number | 'ellipsis')[] => {
-        if (totalPages <= 7) {
-            return Array.from({ length: totalPages }, (_, index) => index);
-        }
-
-        const candidatePages = new Set<number>([
-            0, 1, 2,
-            totalPages - 3, totalPages - 2, totalPages - 1,
-            page - 1, page, page + 1,
-        ]);
-
-        const normalizedPages = [...candidatePages]
-            .filter((value) => value >= 0 && value < totalPages)
-            .sort((left, right) => left - right);
-
-        const items: (number | 'ellipsis')[] = [];
-        let previous: number | null = null;
-        for (const pageNumber of normalizedPages) {
-            if (previous !== null && pageNumber - previous > 1) {
-                items.push('ellipsis');
-            }
-            items.push(pageNumber);
-            previous = pageNumber;
-        }
-        return items;
-    };
-
     useEffect(() => {
         fetchHistory();
-    }, [page, filters]);
+    }, [page, pageSize, filters]);
 
     useEffect(() => {
         fetchReviewCycles();
@@ -116,7 +90,7 @@ export function FeedbackHistoryPage() {
             setLoading(true);
             const params = new URLSearchParams({
                 page: String(page),
-                size: '10'
+                size: String(pageSize),
             });
             Object.entries(filters).forEach(([key, value]) => {
                 if (value) params.set(key, value);
@@ -124,6 +98,7 @@ export function FeedbackHistoryPage() {
             const resp = await axios.get(`/feedback/history?${params.toString()}`);
             setHistory(resp.data.data.content);
             setTotalPages(resp.data.data.totalPages);
+            setTotalItems(resp.data.data.totalElements ?? 0);
         } catch (err) {
             toast.error('Failed to load history');
         } finally {
@@ -468,41 +443,20 @@ export function FeedbackHistoryPage() {
                 </Dialog>
             </Transition>
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-3 pt-4 flex-wrap">
-                    <button 
-                        disabled={page === 0}
-                        onClick={() => setPage(p => p - 1)}
-                        className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 disabled:opacity-30 transition-all shadow-sm"
-                    >
-                        <ChevronLeft size={20} />
-                    </button>
-                    {getPageItems().map((item, index) =>
-                        item === 'ellipsis' ? (
-                            <span key={`ellipsis-${index}`} className="px-1 text-slate-400 text-sm select-none">...</span>
-                        ) : (
-                            <button
-                                key={item}
-                                onClick={() => setPage(item)}
-                                className={`min-w-[42px] h-10 px-3 rounded-xl text-sm font-black border transition-all ${
-                                    item === page
-                                        ? 'bg-blue-600 border-blue-600 text-white'
-                                        : 'bg-white border-slate-100 text-slate-500 hover:text-slate-800'
-                                }`}
-                            >
-                                {item + 1}
-                            </button>
-                        )
-                    )}
-                    <button 
-                        disabled={page >= totalPages - 1}
-                        onClick={() => setPage(p => p + 1)}
-                        className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 disabled:opacity-30 transition-all shadow-sm"
-                    >
-                        <ChevronRight size={20} />
-                    </button>
-                </div>
+            {!loading && totalItems > 0 && (
+                <PaginationBar
+                    pageIndex={page}
+                    pageSize={pageSize}
+                    pageCount={Math.max(1, totalPages)}
+                    totalItems={totalItems}
+                    itemLabel="records"
+                    rowsPerPageOptions={[5, 10, 20, 50]}
+                    onPageIndexChange={setPage}
+                    onPageSizeChange={(nextSize) => {
+                        setPageSize(nextSize);
+                        setPage(0);
+                    }}
+                />
             )}
         </div>
     );

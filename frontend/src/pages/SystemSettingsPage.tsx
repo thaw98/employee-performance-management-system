@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Moon, Sun, Globe, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, AlertTriangle, X, Calendar, ChevronRight } from 'lucide-react'
+import { Moon, Sun, Globe, Save, Loader2, Image as ImageIcon, Trash2, RotateCcw, AlertTriangle, X, Calendar, ChevronRight, ChevronDown } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useGetProfileQuery, useUpdateProfileMutation, useUpdateWallpaperMutation, useDeleteWallpaperMutation } from '../features/user/userApi'
 import {
@@ -245,14 +245,17 @@ export function SystemSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                <div className="space-y-2 notranslate" translate="no">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Language</label>
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value as 'Myanmar' | 'English')}
-                    className="notranslate w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none"
-                  >
-                     <option className="dark:bg-slate-900 notranslate" value="Myanmar">Myanmar</option>
-                     <option className="dark:bg-slate-900 notranslate" value="English">English</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value as 'Myanmar' | 'English')}
+                      className="notranslate w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl pl-4 pr-10 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none cursor-pointer"
+                    >
+                       <option className="dark:bg-slate-900 notranslate" value="Myanmar">Myanmar</option>
+                       <option className="dark:bg-slate-900 notranslate" value="English">English</option>
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" size={16} />
+                  </div>
                   <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 leading-relaxed">
                     Applies across the application after you click Save Settings.
                   </p>
@@ -260,26 +263,32 @@ export function SystemSettingsPage() {
 
                <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Time Zone Preference</label>
-                  <select 
-                    value={timezone}
-                    onChange={(e) => setTimezone(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none"
-                  >
-                     <option className="dark:bg-slate-900">UTC+06:30 (Yangon)</option>
-                     <option className="dark:bg-slate-900">UTC+00:00 (GMT)</option>
-                  </select>
+                  <div className="relative">
+                    <select 
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl pl-4 pr-10 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none cursor-pointer"
+                    >
+                       <option className="dark:bg-slate-900">UTC+06:30 (Yangon)</option>
+                       <option className="dark:bg-slate-900">UTC+00:00 (GMT)</option>
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" size={16} />
+                  </div>
                </div>
 
                <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-1">Clock Display Format</label>
-                  <select 
-                    value={timeFormat}
-                    onChange={(e) => setTimeFormat(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none"
-                  >
-                     <option className="dark:bg-slate-900" value="12h">12-Hour Clock (AM/PM)</option>
-                     <option className="dark:bg-slate-900" value="24h">24-Hour Clock (Military)</option>
-                  </select>
+                  <div className="relative">
+                    <select 
+                      value={timeFormat}
+                      onChange={(e) => setTimeFormat(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-xl pl-4 pr-10 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 transition-all appearance-none cursor-pointer"
+                    >
+                       <option className="dark:bg-slate-900" value="12h">12-Hour Clock (AM/PM)</option>
+                       <option className="dark:bg-slate-900" value="24h">24-Hour Clock (Military)</option>
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" size={16} />
+                  </div>
                </div>
             </div>
           </div>
@@ -287,11 +296,11 @@ export function SystemSettingsPage() {
         {isHR && (
           <Link
             to="/hr/settings/system/time"
-            className="block bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-800 group"
+            className="block bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md hover:border-[#2463eb]/30 dark:hover:border-[#2463eb]/40 group"
           >
                         <div className="p-8 flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-[#dbeafe] dark:bg-[#2463eb]/20 text-[#2463eb] dark:text-[#60a5fa] rounded-xl flex items-center justify-center">
                   <Calendar size={20} />
                 </div>
                 <div>
@@ -301,7 +310,7 @@ export function SystemSettingsPage() {
                   </p>
                 </div>
               </div>
-              <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-600 transition-colors" />
+              <ChevronRight size={20} className="text-slate-300 group-hover:text-[#2463eb] transition-colors" />
             </div>
           </Link>
         )}

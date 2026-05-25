@@ -13,6 +13,7 @@ import { Camera, Upload, Trash2, RefreshCw, Hash, User, Globe } from 'lucide-rea
 import type { CreateEmployeeAccountFormValues } from '../../../features/hrCreateEmployee/schemas/createEmployeeAccountSchema'
 import { NrcInputField } from './NrcInputField'
 import { titleForGender, withGenderTitle } from '../../../utils/personName'
+import { createAccountInputBase } from './createAccountTheme'
 
 const RELIGIONS = ['Buddhist', 'Christian', 'Muslim', 'Hindu'] as const
 
@@ -45,7 +46,7 @@ interface EmployeeInformationStepProps {
 function SectionHeader({ icon: Icon, title }: { icon: React.ComponentType<{ size?: number; className?: string }>; title: string }) {
   return (
     <div className="md:col-span-2 flex items-center gap-3 pb-1 pt-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eff6ff] text-[#2463eb]">
         <Icon size={16} />
       </div>
       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h3>
@@ -60,7 +61,7 @@ function DupBadge({ status, entityName }: { status: Dup; entityName: string }) {
     <div className="mt-1.5 flex items-center gap-2">
       {status === 'checking' ? (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-teal-600" />
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-[#2463eb]" />
           Checking {entityName}…
         </span>
       ) : null}
@@ -80,10 +81,8 @@ function DupBadge({ status, entityName }: { status: Dup; entityName: string }) {
   )
 }
 
-const inputBase =
-  'w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none ring-0 transition-all duration-200 placeholder:text-slate-300 focus:border-teal-400 focus:shadow-[0_0_0_3px_rgba(20,184,166,0.1)]'
-const inputNormal = `${inputBase} border-slate-200`
-const inputError = `${inputBase} border-red-300 bg-red-50/30`
+const inputNormal = `${createAccountInputBase} border-slate-200`
+const inputError = `${createAccountInputBase} border-red-300 bg-red-50/30`
 
 export function EmployeeInformationStep({
   register,
@@ -153,10 +152,10 @@ export function EmployeeInformationStep({
         {profilePhotoPreviewUrl ? (
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
-              <div className="h-28 w-28 overflow-hidden rounded-2xl border-2 border-teal-200 shadow-lg shadow-teal-500/10">
+              <div className="h-28 w-28 overflow-hidden rounded-2xl border-2 border-[#dbeafe] shadow-lg shadow-[#2463eb]/10">
                 <img src={profilePhotoPreviewUrl} alt="Profile preview" className="h-full w-full object-cover" />
               </div>
-              <div className="absolute -right-1 -bottom-1 flex h-7 w-7 items-center justify-center rounded-full bg-teal-500 text-white shadow-md">
+              <div className="absolute -right-1 -bottom-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#2463eb] text-white shadow-md">
                 <Camera size={14} />
               </div>
             </div>
@@ -186,7 +185,7 @@ export function EmployeeInformationStep({
           <div
             role="button"
             tabIndex={0}
-            className="group flex w-full max-w-sm cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-linear-to-b from-slate-50 to-white px-6 py-8 text-center transition-all hover:border-teal-300 hover:from-teal-50/30 hover:to-white hover:shadow-md"
+            className="group flex w-full max-w-sm cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-linear-to-b from-slate-50 to-white px-6 py-8 text-center transition-all hover:border-[#93c5fd] hover:from-[#eff6ff]/80 hover:to-white hover:shadow-md"
             onClick={() => photoInputRef.current?.click()}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') photoInputRef.current?.click()
@@ -194,7 +193,7 @@ export function EmployeeInformationStep({
             onDragOver={(e) => e.preventDefault()}
             onDrop={handlePhotoDrop}
           >
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-100 text-teal-600 shadow-inner transition-transform group-hover:scale-110">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#dbeafe] text-[#2463eb] shadow-inner transition-transform group-hover:scale-110">
               <Upload size={22} />
             </div>
             <div>
@@ -208,26 +207,26 @@ export function EmployeeInformationStep({
 
       {/* ── Staff Number Banner ── */}
       {!hideStaffBanner && (
-        <div className="rounded-xl border border-teal-200/50 bg-linear-to-r from-teal-50 to-emerald-50 p-5">
+        <div className="rounded-xl border border-[#dbeafe] bg-linear-to-r from-[#eff6ff] to-[#dbeafe] p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-teal-600 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#2463eb] shadow-sm">
               <Hash size={18} />
             </div>
             <div className="flex-1">
-              <p className="text-xs font-bold uppercase tracking-wider text-teal-700">Next Auto Staff Number</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-[#1d4ed8]">Next Auto Staff Number</p>
               {nextStaffLoading ? (
                 <div className="mt-1.5 flex items-center gap-2 text-sm text-slate-600">
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-teal-200 border-t-teal-600" />
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#dbeafe] border-t-[#2463eb]" />
                   Loading…
                 </div>
               ) : (
-                <p className="mt-1 font-mono text-3xl font-black tracking-tight text-teal-900 tabular-nums">
+                <p className="mt-1 font-mono text-3xl font-black tracking-tight text-[#1e3a8a] tabular-nums">
                   {autoStaffDisplay || '—'}
                 </p>
               )}
             </div>
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-teal-700/70">
+          <p className="mt-3 text-xs leading-relaxed text-[#1d4ed8]/70">
             Auto-assigned from the next available number. You can override it below if your policy allows.
           </p>
         </div>

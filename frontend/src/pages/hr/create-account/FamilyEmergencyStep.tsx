@@ -7,6 +7,7 @@ import type { CreateEmployeeAccountFormValues } from '../../../features/hrCreate
 import { toTitleCasePersonName } from '../../../utils/personName'
 import { FatherNrcInputField } from './FatherNrcInputField'
 import { SpouseNrcInputField } from './SpouseNrcInputField'
+import { createAccountInputBase } from './createAccountTheme'
 
 interface FamilyEmergencyStepProps {
   register: UseFormRegister<CreateEmployeeAccountFormValues>
@@ -18,7 +19,7 @@ interface FamilyEmergencyStepProps {
 function SectionHeader({ icon: Icon, title }: { icon: React.ComponentType<{ size?: number; className?: string }>; title: string }) {
   return (
     <div className="md:col-span-2 flex items-center gap-3 pb-1 pt-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eff6ff] text-[#2463eb]">
         <Icon size={16} />
       </div>
       <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h3>
@@ -27,10 +28,8 @@ function SectionHeader({ icon: Icon, title }: { icon: React.ComponentType<{ size
   )
 }
 
-const inputBase =
-  'w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none ring-0 transition-all duration-200 placeholder:text-slate-300 focus:border-teal-400 focus:shadow-[0_0_0_3px_rgba(20,184,166,0.1)]'
-const inputNormal = `${inputBase} border-slate-200`
-const inputError = `${inputBase} border-red-300 bg-red-50/30`
+const inputNormal = `${createAccountInputBase} border-slate-200`
+const inputError = `${createAccountInputBase} border-red-300 bg-red-50/30`
 
 /** Matches Step 1 Phone Number and phone validation (+ optional + 8–15 digits). */
 const PHONE_INPUT_MAX_LENGTH = 20
@@ -65,7 +64,7 @@ export function FamilyEmergencyStep({ register, control, errors, setValue }: Fam
           <label
             className={`group relative flex cursor-pointer items-center gap-4 rounded-xl border-2 p-5 transition-all ${
               maritalStatus === 'Single'
-                ? 'border-teal-500 bg-linear-to-br from-teal-50 to-emerald-50 shadow-md shadow-teal-500/10'
+                ? 'border-[#2463eb] bg-linear-to-br from-[#eff6ff] to-[#dbeafe] shadow-md shadow-[#2463eb]/10'
                 : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
             }`}
           >
@@ -73,18 +72,18 @@ export function FamilyEmergencyStep({ register, control, errors, setValue }: Fam
             <div
               className={`flex h-11 w-11 items-center justify-center rounded-xl transition ${
                 maritalStatus === 'Single'
-                  ? 'bg-teal-500 text-white shadow-md shadow-teal-500/25'
+                  ? 'bg-[#2463eb] text-white shadow-md shadow-[#2463eb]/25'
                   : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
               }`}
             >
               <Heart size={20} />
             </div>
             <div>
-              <p className={`text-sm font-bold ${maritalStatus === 'Single' ? 'text-teal-900' : 'text-slate-700'}`}>Single</p>
+              <p className={`text-sm font-bold ${maritalStatus === 'Single' ? 'text-[#1e3a8a]' : 'text-slate-700'}`}>Single</p>
               <p className="mt-0.5 text-xs text-slate-500">Not married</p>
             </div>
             {maritalStatus === 'Single' ? (
-              <div className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-teal-500 text-white">
+              <div className="absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#2463eb] text-white">
                 <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
                   <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>

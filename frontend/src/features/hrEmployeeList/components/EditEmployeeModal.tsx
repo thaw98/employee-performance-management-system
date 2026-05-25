@@ -298,7 +298,7 @@ export default function EditEmployeeModal({
           {/* ── Header ── */}
           <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 shrink-0">
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#dbeafe]">
                 <Pencil size={20} />
               </div>
               <div>
@@ -339,7 +339,7 @@ export default function EditEmployeeModal({
                   onClick={() => setActiveTab(tab)}
                   className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${
                     isActive
-                      ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/40'
+                      ? 'text-[#2463eb] border-b-2 border-[#2463eb] bg-[#eff6ff]/40'
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -353,7 +353,7 @@ export default function EditEmployeeModal({
           <div className="flex-1 overflow-y-auto">
             {isEmpLoading ? (
               <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#2463eb]" />
               </div>
             ) : (
               <FormProvider {...form}>
@@ -472,7 +472,7 @@ export default function EditEmployeeModal({
                                       min={minTransitionDate}
                                       value={transitionDate}
                                       onChange={(e) => setTransitionDate(e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none"
+                                      className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#2463eb] focus:ring-[#dbeafe] focus:outline-none"
                                     />
                                     <p className="mt-1 text-xs text-gray-500">
                                       Must be after probation start date ({formatDateDisplay(probationStartDate)}).
@@ -504,7 +504,7 @@ export default function EditEmployeeModal({
               type="submit"
               form="edit-employee-form"
               disabled={isUpdating || isStatusUpdating || isEmpLoading}
-              className="flex items-center gap-2 px-7 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold shadow-md hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-7 py-2.5 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white text-sm font-bold shadow-md shadow-[#dbeafe] hover:from-[#1d4ed8] hover:to-[#1e40af] active:scale-95 transition-all disabled:opacity-50"
             >
               {isUpdating || isStatusUpdating ? (
                 <div className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />

@@ -9,6 +9,11 @@ import {
   useGetPositionsQuery,
   type PositionDto,
 } from '../../position/api/positionApi'
+import {
+  departmentsGradientBr,
+  departmentsGradientR,
+  departmentsGradientRHover,
+} from '../../department/departmentsTheme'
 
 interface AddPositionToDepartmentDrawerProps {
   isOpen: boolean
@@ -120,7 +125,7 @@ export default function AddPositionToDepartmentDrawer({
             >
               <Dialog.Panel className="pointer-events-auto w-screen max-w-md">
                 <div className="flex h-full flex-col overflow-y-scroll bg-white shadow-xl">
-                  <div className="relative bg-gradient-to-br from-blue-600 to-indigo-600 px-6 py-5 overflow-hidden flex-shrink-0">
+                  <div className={`relative ${departmentsGradientBr} px-6 py-5 overflow-hidden flex-shrink-0`}>
                     <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full pointer-events-none" />
                     <div className="absolute bottom-0 left-16 w-16 h-16 bg-white/5 rounded-full pointer-events-none" />
                     <div className="relative flex items-start justify-between gap-3">
@@ -132,7 +137,7 @@ export default function AddPositionToDepartmentDrawer({
                           <Dialog.Title as="h2" className="text-base font-bold text-white leading-tight">
                             Add Position
                           </Dialog.Title>
-                          <p className="text-blue-100 text-xs mt-0.5">Map an existing position to this department</p>
+                          <p className="text-[#dbeafe] text-xs mt-0.5">Map an existing position to this department</p>
                         </div>
                       </div>
                       <button
@@ -160,7 +165,7 @@ export default function AddPositionToDepartmentDrawer({
                           onFocus={() => setShowDropdown(true)}
                           placeholder="Type to search positions..."
                           autoComplete="off"
-                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 transition-all outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:font-normal placeholder:text-slate-400"
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-medium text-slate-800 transition-all outline-none focus:bg-white focus:border-[#2463eb] focus:ring-2 focus:ring-[#dbeafe] placeholder:font-normal placeholder:text-slate-400"
                         />
                         {positionId && (
                           <button
@@ -184,7 +189,7 @@ export default function AddPositionToDepartmentDrawer({
                         >
                           {isFetching ? (
                             <div className="flex items-center justify-center py-8">
-                              <div className="h-5 w-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                              <div className="h-5 w-5 border-2 border-[#2463eb]/30 border-t-[#2463eb] rounded-full animate-spin" />
                             </div>
                           ) : availablePositions.length > 0 ? (
                             availablePositions.map((position) => (
@@ -192,15 +197,15 @@ export default function AddPositionToDepartmentDrawer({
                                 key={position.positionId}
                                 type="button"
                                 onClick={() => handleSelectPosition(position)}
-                                className="w-full px-4 py-3 flex items-center justify-between hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-b-0"
+                                className="w-full px-4 py-3 flex items-center justify-between hover:bg-[#eff6ff] transition-colors border-b border-slate-100 last:border-b-0"
                               >
                                 <div className="flex items-center gap-3">
-                                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center">
+                                  <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${departmentsGradientBr} flex items-center justify-center`}>
                                     <BriefcaseBusiness size={14} className="text-white" />
                                   </div>
                                   <div className="flex flex-col items-start">
                                     <span className="font-semibold text-slate-800 text-sm">{position.positionName}</span>
-                                    <span className="font-mono font-semibold text-blue-700 text-xs">{position.positionCode}</span>
+                                    <span className="font-mono font-semibold text-[#1d4ed8] text-xs">{position.positionCode}</span>
                                   </div>
                                 </div>
                                 <ChevronRight size={16} className="text-slate-300" />
@@ -231,7 +236,7 @@ export default function AddPositionToDepartmentDrawer({
                       type="submit"
                       form="add-position-form"
                       disabled={isSaving || !positionId}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold shadow-lg shadow-blue-600/25 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl ${departmentsGradientR} text-white text-sm font-bold shadow-lg shadow-[#2463eb]/25 ${departmentsGradientRHover} active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
                       {isSaving ? (
                         <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

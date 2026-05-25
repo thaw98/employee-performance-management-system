@@ -5,8 +5,17 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { FileSpreadsheet, ChevronLeft, ChevronRight, Users, Target, Calendar, Building2, Filter } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
 import { format } from 'date-fns';
+import {
+  KPI_REPORTS_BAR_FILL,
+  KPI_REPORTS_CHART_AXIS,
+  KPI_REPORTS_CHART_COLORS,
+  KPI_REPORTS_CHART_GRID,
+  KPI_REPORTS_PIE_STROKE,
+  KPI_REPORTS_PIE_STROKE_WIDTH,
+  kpisGradientBr,
+  kpisGradientR,
+} from '../../features/kpi/kpisTheme';
 
-const ORANGE_COLORS = ['#F97316', '#FB923C', '#F59E0B', '#FBBF24', '#EA580C', '#C2410C'];
 const PAGE_SIZE = 10;
 
 export function getPerformanceLevel(score?: number | null): string | null {
@@ -22,7 +31,7 @@ export function getPerformanceLevelBadgeStyle(level: string): string {
     case 'High Performer':
       return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     case 'Good Performer':
-      return 'bg-blue-50 text-blue-700 border-blue-200';
+      return 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]';
     case 'Low Performer':
       return 'bg-orange-50 text-orange-700 border-orange-200';
     case 'Poor Performer':
@@ -59,7 +68,7 @@ function getInitials(name?: string) {
 
 export default function ManagerKpiReportsPage() {
   const { data: profileResponse, isLoading: isProfileLoading } = useGetProfileQuery();
-  const { data: summaryData = [], isLoading: isSummaryLoading } = useGetKpiHistorySummaryQuery();
+  const { data: summaryData = [], isLoading: isSummaryLoading } = useGetKpiHistorySummaryQuery({});
   const [currentPage, setCurrentPage] = useState(1);
   const [filterSortOpt, setFilterSortOpt] = useState('high-to-low');
 
@@ -189,19 +198,19 @@ export default function ManagerKpiReportsPage() {
         if (rowIndex === 0) {
           style = {
             font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: 'FFFFFF' } },
-            fill: { fgColor: { rgb: 'F97316' } },
+            fill: { fgColor: { rgb: '2463EB' } },
             alignment: { horizontal: 'center', vertical: 'center' },
           };
         } else if (rowIndex === 1) {
           style = {
-            font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: 'C2410C' } },
-            fill: { fgColor: { rgb: 'FFEDD5' } },
+            font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: '1D4ED8' } },
+            fill: { fgColor: { rgb: 'EFF6FF' } },
             alignment: { horizontal: colIndex < 6 ? 'left' : 'right', vertical: 'center' },
           };
         } else if (rowIndex === 2) {
           style = {
-            font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: 'B45309' } },
-            fill: { fgColor: { rgb: 'FEF3C7' } },
+            font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: '1E40AF' } },
+            fill: { fgColor: { rgb: 'DBEAFE' } },
             alignment: { horizontal: 'center', vertical: 'center' },
           };
         } else if (rowIndex === data.length - 1) {
@@ -225,9 +234,9 @@ export default function ManagerKpiReportsPage() {
             if (lvl === 'High Performer') {
               style.font.color = { rgb: '10B981' };
             } else if (lvl === 'Good Performer') {
-              style.font.color = { rgb: '3B82F6' };
+              style.font.color = { rgb: '2463EB' };
             } else if (lvl === 'Low Performer') {
-              style.font.color = { rgb: 'F97316' };
+              style.font.color = { rgb: 'F59E0B' };
             } else if (lvl === 'Poor Performer') {
               style.font.color = { rgb: 'EF4444' };
             }
@@ -254,7 +263,7 @@ export default function ManagerKpiReportsPage() {
         <div className="flex flex-wrap items-center gap-3">
           {/* Filter/Sort Dropdown */}
           <div className="flex items-center gap-3 bg-white p-2 px-3 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="w-8 h-8 bg-amber-50 text-amber-700 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-[#eff6ff] text-[#2463eb] rounded-lg flex items-center justify-center">
               <Filter size={16} />
             </div>
             <select
@@ -277,7 +286,7 @@ export default function ManagerKpiReportsPage() {
           <button
             type="button"
             onClick={handleExportExcel}
-            className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-amber-700 h-[48px]"
+            className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold text-white shadow-sm shadow-[#dbeafe] transition hover:from-[#1d4ed8] hover:to-[#1e40af] h-[48px] ${kpisGradientR}`}
           >
             <FileSpreadsheet size={18} />
             Export Excel
@@ -318,7 +327,7 @@ export default function ManagerKpiReportsPage() {
               <h2 className="text-lg font-black text-slate-900">KPIs Distribution by Position</h2>
               <p className="mt-1 text-sm text-slate-500">Share of unique KPI records by job position.</p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#eff6ff] px-3 py-2 text-sm font-semibold text-[#1d4ed8]">
               <Building2 size={16} /> {filteredSummaries.length} records
             </div>
           </div>
@@ -338,12 +347,27 @@ export default function ManagerKpiReportsPage() {
                     outerRadius={110}
                     innerRadius={60}
                     paddingAngle={4}
+                    stroke={KPI_REPORTS_PIE_STROKE}
+                    strokeWidth={KPI_REPORTS_PIE_STROKE_WIDTH}
                   >
                     {positionDistribution.map((entry, index) => (
-                      <Cell key={entry.name} fill={ORANGE_COLORS[index % ORANGE_COLORS.length]} />
+                      <Cell
+                        key={entry.name}
+                        fill={KPI_REPORTS_CHART_COLORS[index % KPI_REPORTS_CHART_COLORS.length]}
+                        stroke={KPI_REPORTS_PIE_STROKE}
+                        strokeWidth={KPI_REPORTS_PIE_STROKE_WIDTH}
+                      />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: any) => [`${value ?? ''}`, 'Records'] as [string, string]} />
+                  <Tooltip
+                    formatter={(value: any) => [`${value ?? ''}`, 'Records'] as [string, string]}
+                    contentStyle={{
+                      borderRadius: '12px',
+                      border: '1px solid #cbd5e1',
+                      boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)',
+                      fontWeight: 600,
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -356,7 +380,7 @@ export default function ManagerKpiReportsPage() {
               <h2 className="text-lg font-black text-slate-900">KPI Records Over Time</h2>
               <p className="mt-1 text-sm text-slate-500">Monthly KPI activity for your department.</p>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-100 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#bfdbfe] bg-[#eff6ff] px-3 py-2 text-sm font-semibold text-[#1d4ed8]">
               <Calendar size={16} /> Periods
             </div>
           </div>
@@ -369,11 +393,25 @@ export default function ManagerKpiReportsPage() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={recordsOverTime} margin={{ top: 12, right: 0, left: -16, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-                  <XAxis dataKey="period" tick={{ fontSize: 12, fill: '#64748B' }} />
-                  <YAxis tick={{ fontSize: 12, fill: '#64748B' }} />
-                  <Tooltip formatter={(value: any) => [`${value ?? ''}`, 'Records'] as [string, string]} />
-                  <Bar dataKey="count" fill="#F97316" radius={[8, 8, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={KPI_REPORTS_CHART_GRID} vertical={false} />
+                  <XAxis dataKey="period" tick={KPI_REPORTS_CHART_AXIS} />
+                  <YAxis tick={KPI_REPORTS_CHART_AXIS} />
+                  <Tooltip
+                    formatter={(value: any) => [`${value ?? ''}`, 'Records'] as [string, string]}
+                    contentStyle={{
+                      borderRadius: '12px',
+                      border: '1px solid #cbd5e1',
+                      boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)',
+                      fontWeight: 600,
+                    }}
+                  />
+                  <Bar
+                    dataKey="count"
+                    fill={KPI_REPORTS_BAR_FILL}
+                    radius={[8, 8, 0, 0]}
+                    stroke="#0d5c56"
+                    strokeWidth={1}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -418,7 +456,7 @@ export default function ManagerKpiReportsPage() {
                   <tr key={`${item.employeeId}-${item.period}`} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 font-black">{getInitials(item.employeeName)}</div>
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl font-black text-white ${kpisGradientBr}`}>{getInitials(item.employeeName)}</div>
                         <div>
                           <p className="font-black text-slate-900">{item.employeeName || 'Unknown'}</p>
                           <p className="text-xs text-slate-500">{item.managerName || 'Manager'}</p>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { 
-    Plus, Calendar, Clock, User, CheckCircle, XCircle, 
+import {
+    Plus, Calendar, Clock, User, CheckCircle, XCircle,
     MessageSquare, Play, Square, Search, Filter,
     ChevronLeft, ChevronRight
 } from 'lucide-react';
@@ -152,8 +152,34 @@ export function MeetingsPage() {
                 if (toDate) url += `&toDate=${new Date(toDate).toISOString()}`;
             }
 
+            if (isHrView && hrSection === 'schedule' && activeTab !== 'COMPLETED') {
+                let employeeUrl = `/meetings/employee?statuses=${statuses}&page=${page}&size=${pageSize}&sortBy=${sortBy}`;
+                if (searchName) employeeUrl += `&searchName=${encodeURIComponent(searchName)}`;
+                if (selectedDept) employeeUrl += `&departmentId=${selectedDept}`;
+
+                const [managerResp, employeeResp] = await Promise.all([axios.get(url), axios.get(employeeUrl)]);
+                const managerMeetings = (managerResp.data.data.content || []).map((meeting) => ({
+                    ...meeting,
+                    perspective: 'manager',
+                }));
+                const employeeMeetings = (employeeResp.data.data.content || []).map((meeting) => ({
+                    ...meeting,
+                    perspective: 'employee',
+                }));
+                const mergedMeetings = Array.from(
+                    new Map([...managerMeetings, ...employeeMeetings].map((meeting) => [meeting.id, meeting])).values(),
+                ).sort((a, b) => {
+                    const aTime = new Date(a.scheduledTime || a.meetingTime || '').getTime();
+                    const bTime = new Date(b.scheduledTime || b.meetingTime || '').getTime();
+                    return sortBy === 'oldest' ? aTime - bTime : bTime - aTime;
+                });
+                setMeetings(mergedMeetings);
+                setTotalPages(Math.max(managerResp.data.data.totalPages || 0, employeeResp.data.data.totalPages || 0));
+                return;
+            }
+
             const resp = await axios.get(url);
-            setMeetings(resp.data.data.content || []);
+            setMeetings((resp.data.data.content || []).map((meeting: any) => ({ ...meeting, perspective: 'manager' })));
             setTotalPages(resp.data.data.totalPages || 0);
         } catch (err: any) {
             const errorMsg = err.response?.data?.message || 'Failed to load meetings';
@@ -245,6 +271,16 @@ export function MeetingsPage() {
         setIsRescheduleModalOpen(true);
     };
 
+    const handleAccept = async (id: number) => {
+        try {
+            await axios.put(`/meetings/${id}/accept`);
+            toast.success('Meeting accepted');
+            fetchMeetings();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to accept meeting');
+        }
+    };
+
     const handleAcceptReschedule = async (id: number) => {
         try {
             await axios.put(`/meetings/${id}/accept-reschedule`);
@@ -305,7 +341,7 @@ export function MeetingsPage() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="meetings-theme max-w-7xl mx-auto space-y-6">
             <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <div>
                     <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
@@ -320,7 +356,7 @@ export function MeetingsPage() {
                 {(!isHrView || hrSection === 'schedule') && (
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm"
+                        className="bg-[#2463eb] text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-[#1d4ed8] transition-colors shadow-sm"
                     >
                         <Plus size={18} /> Schedule Meeting
                     </button>
@@ -355,12 +391,12 @@ export function MeetingsPage() {
                                 onChange={(e) => setSearchName(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
                                 placeholder="Search employee..."
-                                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none"
                             />
                         </div>
                         <button 
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`p-2 rounded-xl border transition-all ${showFilters ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600'}`}
+                            className={`p-2 rounded-xl border transition-all ${showFilters ? 'bg-[#dbeafe] border-[#bfdbfe] text-[#2463eb]' : 'bg-white border-slate-200 text-slate-600 hover:border-[#2463eb] hover:text-[#2463eb]'}`}
                         >
                             <Filter size={20} />
                         </button>
@@ -379,12 +415,12 @@ export function MeetingsPage() {
                             onChange={(e) => setSearchName(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
                             placeholder="Search employee or manager..."
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+                            className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none"
                         />
                     </div>
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className={`p-2 rounded-xl border transition-all ${showFilters ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-500 hover:text-emerald-600'}`}
+                        className={`p-2 rounded-xl border transition-all ${showFilters ? 'bg-[#dbeafe] border-[#bfdbfe] text-[#2463eb]' : 'bg-white border-slate-200 text-slate-600 hover:border-[#2463eb] hover:text-[#2463eb]'}`}
                     >
                         <Filter size={20} />
                     </button>
@@ -398,7 +434,7 @@ export function MeetingsPage() {
                         <select 
                             value={subStatus}
                             onChange={(e) => { setSubStatus(e.target.value); setPage(0); }}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#2463eb]"
                         >
                             <option value="ALL">{isHrView && hrSection === 'history' ? 'All completed/cancelled' : 'All (History)'}</option>
                             <option value="COMPLETED">Completed Only</option>
@@ -410,7 +446,7 @@ export function MeetingsPage() {
                         <select
                             value={selectedDept}
                             onChange={(e) => { setSelectedDept(e.target.value); setPage(0); }}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#2463eb]"
                         >
                             <option value="">All Departments</option>
                             {departments.map((dept: any) => (
@@ -424,7 +460,7 @@ export function MeetingsPage() {
                             type="date"
                             value={fromDate}
                             onChange={(e) => setFromDate(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500"
+                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#2463eb]"
                         />
                     </div>
                     <div className="flex items-end gap-2">
@@ -434,7 +470,7 @@ export function MeetingsPage() {
                                 type="date"
                                 value={toDate}
                                 onChange={(e) => setToDate(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500"
+                                className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#2463eb]"
                             />
                         </div>
                         <button 
@@ -460,20 +496,21 @@ export function MeetingsPage() {
                         (isHrView && hrSection === 'history') ||
                         (!isHrView && (m.status === 'COMPLETED' || m.status === 'CANCELLED'));
                     const detailPath = isHrView ? `/hr/meetings/${m.id}` : `/manager/meetings/${m.id}`;
+                    const isInvitedMeeting = isHrView && m.perspective === 'employee';
 
                     return (
                     <div 
                         key={m.id} 
                         onClick={() => canOpenDetails && navigate(detailPath)}
-                        className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between transition-all group ${canOpenDetails ? 'cursor-pointer hover:border-emerald-200' : 'hover:border-emerald-200'}`}
+                        className={`bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between transition-all group ${canOpenDetails ? 'cursor-pointer hover:border-[#bfdbfe]' : 'hover:border-[#bfdbfe]'}`}
                     >
                         <div>
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 className="font-bold text-slate-800 text-lg leading-tight group-hover:text-emerald-700 transition-colors">{m.title}</h3>
-                                    <p className={`text-xs font-bold uppercase tracking-wider mt-1 ${m.status === 'CANCELLED' ? 'text-rose-500' : 'text-emerald-600'}`}>{m.status}</p>
+                                    <h3 className="font-bold text-slate-800 text-lg leading-tight group-hover:text-[#1d4ed8] transition-colors">{m.title}</h3>
+                                    <p className={`text-xs font-bold uppercase tracking-wider mt-1 ${m.status === 'CANCELLED' ? 'text-rose-500' : 'text-[#2463eb]'}`}>{m.status}</p>
                                 </div>
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${m.status === 'CANCELLED' ? 'bg-rose-50 text-rose-500' : 'bg-slate-100 text-slate-500 group-hover:bg-emerald-100 group-hover:text-emerald-600'}`}>
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${m.status === 'CANCELLED' ? 'bg-rose-50 text-rose-500' : 'bg-slate-100 text-slate-500 group-hover:bg-[#dbeafe] group-hover:text-[#2463eb]'}`}>
                                     {m.status === 'CANCELLED' ? <XCircle size={18} /> : (m.status === 'COMPLETED' ? <CheckCircle size={18} /> : <User size={18} />)}
                                 </div>
                             </div>
@@ -496,7 +533,18 @@ export function MeetingsPage() {
 
                         {activeTab !== 'COMPLETED' && (!isHrView || hrSection === 'schedule') && (
                             <div className="space-y-4">
-                                {m.status === 'RESCHEDULE_REQUESTED' && (
+                                {isInvitedMeeting && m.status === 'PENDING' && (
+                                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                                        <p className="text-xs font-bold text-emerald-800 uppercase mb-1">Meeting Invitation</p>
+                                        <p className="text-xs text-emerald-700 mb-3">Accept the meeting or propose another time.</p>
+                                        <div className="flex gap-2">
+                                            <button onClick={(e) => { e.stopPropagation(); handleAccept(m.id); }} className="flex-1 bg-emerald-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors">Accept</button>
+                                            <button onClick={(e) => { e.stopPropagation(); openRescheduleModal(m); }} className="flex-1 bg-white border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold hover:bg-emerald-50 transition-colors">Reschedule</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!isInvitedMeeting && m.status === 'RESCHEDULE_REQUESTED' && (
                                     <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
                                         <p className="text-xs font-bold text-amber-800 uppercase mb-1">Reschedule Requested</p>
                                         <p className="text-sm text-amber-900 mb-2 font-medium">Proposed: {new Date(m.proposedTime).toLocaleString()}</p>
@@ -507,7 +555,18 @@ export function MeetingsPage() {
                                     </div>
                                 )}
 
-                                {m.status === 'CANCEL_REQUESTED' && (
+                                {isInvitedMeeting && m.status === 'RESCHEDULE_MGR' && (
+                                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                        <p className="text-xs font-bold text-blue-800 uppercase mb-1">Reschedule Proposed</p>
+                                        <p className="text-sm text-blue-900 mb-2 font-medium">Proposed: {new Date(m.proposedTime).toLocaleString()}</p>
+                                        <div className="flex gap-2 mt-3">
+                                            <button onClick={(e) => { e.stopPropagation(); handleAcceptReschedule(m.id); }} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">Accept</button>
+                                            <button onClick={(e) => { e.stopPropagation(); openRescheduleModal(m); }} className="flex-1 bg-white border border-blue-200 text-blue-700 py-2 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors">Propose</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!isInvitedMeeting && m.status === 'CANCEL_REQUESTED' && (
                                     <div className="bg-rose-50 p-4 rounded-xl border border-rose-100">
                                         <p className="text-xs font-bold text-rose-800 uppercase mb-1">Cancellation Requested</p>
                                         <p className="text-xs text-rose-700 italic mb-3 line-clamp-2">"{m.cancellationReason}"</p>
@@ -526,16 +585,16 @@ export function MeetingsPage() {
                                         <MessageSquare size={16} /> Details
                                     </button>
                                     
-                                    {activeTab === 'UPCOMING' && m.status === 'ACCEPTED' && (
+                                    {activeTab === 'UPCOMING' && !isInvitedMeeting && m.status === 'ACCEPTED' && (
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleStatusUpdate(m.id, 'ONGOING'); }}
-                                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-2 text-sm font-bold shadow-lg shadow-emerald-100"
+                                            className="bg-[#2463eb] text-white px-4 py-2 rounded-xl hover:bg-[#1d4ed8] transition-all flex items-center gap-2 text-sm font-bold shadow-lg shadow-[#dbeafe]"
                                         >
                                             <Play size={16} /> Start
                                         </button>
                                     )}
 
-                                    {activeTab === 'ONGOING' && (
+                                    {activeTab === 'ONGOING' && !isInvitedMeeting && (
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleFinishMeeting(m.id); }}
                                             className="flex-1 bg-rose-600 text-white py-2 rounded-xl hover:bg-rose-700 transition-all flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-rose-100"
@@ -550,14 +609,14 @@ export function MeetingsPage() {
                         {activeTab === 'COMPLETED' && (!isHrView || hrSection === 'schedule') && (
                             <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Click to view details</span>
-                                <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 group-hover:text-emerald-500 transition-all" />
+                                <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 group-hover:text-[#2463eb] transition-all" />
                             </div>
                         )}
 
                         {isHrView && hrSection === 'history' && (
                             <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Click to view details</span>
-                                <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 group-hover:text-emerald-500 transition-all" />
+                                <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 group-hover:text-[#2463eb] transition-all" />
                             </div>
                         )}
                     </div>
@@ -579,7 +638,7 @@ export function MeetingsPage() {
                             <button
                                 key={i}
                                 onClick={() => setPage(i)}
-                                className={`w-10 h-10 rounded-lg font-bold text-sm transition-all ${page === i ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 border border-transparent'}`}
+                                className={`w-10 h-10 rounded-lg font-bold text-sm transition-all ${page === i ? 'bg-[#2463eb] text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 border border-transparent'}`}
                             >
                                 {i + 1}
                             </button>
@@ -612,7 +671,7 @@ export function MeetingsPage() {
                                     required
                                     value={employeeId}
                                     onChange={(e) => setEmployeeId(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
                                 >
                                     <option value="">
                                         {isFaqHrMeeting ? 'Select HR employee...' : 'Select a subordinate...'}
@@ -634,7 +693,7 @@ export function MeetingsPage() {
                                     type="text"
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
                                     placeholder="e.g., Q2 Performance Review"
                                 />
                             </div>
@@ -646,7 +705,7 @@ export function MeetingsPage() {
                                     min={minDateTime}
                                     value={scheduledTime}
                                     onChange={(e) => setScheduledTime(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -659,7 +718,7 @@ export function MeetingsPage() {
                                         step="15"
                                         value={durationMinutes}
                                         onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
                                     />
                                 </div>
                             </div>
@@ -669,13 +728,13 @@ export function MeetingsPage() {
                                     rows={3}
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all resize-none"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all resize-none"
                                     placeholder="Brief agenda or topics to discuss..."
                                 />
                             </div>
                             <button 
                                 type="submit"
-                                className="w-full bg-emerald-600 text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-emerald-700 transition-colors shadow-md mt-2"
+                                className="w-full bg-[#2463eb] text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-[#1d4ed8] transition-colors shadow-md mt-2"
                             >
                                 Schedule Meeting
                             </button>
@@ -702,7 +761,7 @@ export function MeetingsPage() {
                                     min={minDateTime}
                                     value={rescheduleProposedTime}
                                     onChange={(e) => setRescheduleProposedTime(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
                                 />
                             </div>
                             <div>
@@ -712,13 +771,13 @@ export function MeetingsPage() {
                                     rows={4}
                                     value={rescheduleReason}
                                     onChange={(e) => setRescheduleReason(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all resize-none"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all resize-none"
                                     placeholder="Explain why you are proposing a new time..."
                                 />
                             </div>
                             <button 
                                 type="submit"
-                                className="w-full bg-emerald-600 text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-emerald-700 transition-colors shadow-md mt-2"
+                                className="w-full bg-[#2463eb] text-white py-3 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-[#1d4ed8] transition-colors shadow-md mt-2"
                             >
                                 Send Proposal
                             </button>
@@ -732,7 +791,7 @@ export function MeetingsPage() {
                     <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
                         <div className="bg-slate-800 p-6 text-white flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <CheckCircle size={24} className="text-emerald-400" />
+                                <CheckCircle size={24} className="text-[#93c5fd]" />
                                 <h2 className="text-xl font-black uppercase tracking-tight">End Meeting & Finalize</h2>
                             </div>
                             <button onClick={() => setIsEndModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
@@ -742,7 +801,7 @@ export function MeetingsPage() {
                         <form onSubmit={handleFinishSubmit} className="p-6 space-y-5">
                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                 <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                                    Are you sure you want to end this meeting? This will mark the meeting as <span className="font-bold text-emerald-600">COMPLETED</span> and record the actual end time.
+                                    Are you sure you want to end this meeting? This will mark the meeting as <span className="font-bold text-[#2463eb]">COMPLETED</span> and record the actual end time.
                                 </p>
                             </div>
                             <div>
@@ -752,7 +811,7 @@ export function MeetingsPage() {
                                     rows={5}
                                     value={summaryNotes}
                                     onChange={(e) => setSummaryNotes(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all resize-none shadow-inner"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all resize-none shadow-inner"
                                     placeholder="Write a brief summary of the discussion, key takeaways, and any action items..."
                                 />
                             </div>
@@ -766,7 +825,7 @@ export function MeetingsPage() {
                                 </button>
                                 <button 
                                     type="submit"
-                                    className="flex-[2] bg-emerald-600 text-white py-3.5 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-100 flex items-center justify-center gap-2"
+                                    className="flex-[2] bg-[#2463eb] text-white py-3.5 rounded-xl font-black uppercase tracking-wider text-sm hover:bg-[#1d4ed8] transition-colors shadow-lg shadow-[#dbeafe] flex items-center justify-center gap-2"
                                 >
                                     <CheckCircle size={18} /> Confirm & End Meeting
                                 </button>

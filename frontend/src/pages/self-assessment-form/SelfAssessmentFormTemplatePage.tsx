@@ -69,7 +69,7 @@ function phaseForCycleDates(startDate: string, endDate: string, today: string): 
 }
 
 const filterControlClass =
-  'w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#5D5FEF]';
+  'w-full rounded-xl border border-slate-200/80 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:border-[#2463eb]';
 
 export const SelfAssessmentFormTemplatePage: React.FC = () => {
   const navigate = useNavigate();
@@ -294,7 +294,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
           const template = row.original;
           return (
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb]/10 to-[#1d4ed8]/5 text-[#2463eb] dark:from-[#2463eb]/20 dark:to-[#1d4ed8]/10 dark:text-[#60a5fa]">
                 <FileText size={16} />
               </div>
               <div className="min-w-0">
@@ -445,7 +445,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                 className={`group/btn inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${
                   template.isLocked
                     ? 'border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700/60 dark:hover:text-slate-200'
-                    : 'bg-[#5D5FEF]/[0.06] text-[#5D5FEF] hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20'
+                    : 'bg-[#2463eb]/[0.06] text-[#2463eb] hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20'
                 }`}
               >
                 {template.isLocked ? (
@@ -501,7 +501,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
     <div className="min-h-screen px-6 py-6 md:px-8 animate-fade-in">
       {/* ─── Breadcrumb ─── */}
       <nav className="mb-2 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-        <span className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium">Home</span>
+        <span className="text-[#2463eb] dark:text-[#60a5fa] font-medium">Home</span>
         <ChevronDown size={10} className="-rotate-90 opacity-50" />
         <span>Self Assessment</span>
         <ChevronDown size={10} className="-rotate-90 opacity-50" />
@@ -512,7 +512,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="relative">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
               <ClipboardList size={22} className="text-white" />
             </div>
             <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-[9px] font-bold text-white shadow-sm">
@@ -535,7 +535,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/hr/self-assessment/settings')}
-              className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-[#5D5FEF]/30 bg-white px-5 py-2.5 text-sm font-bold text-[#5D5FEF] shadow-sm transition-all hover:border-[#5D5FEF]/50 hover:bg-[#5D5FEF]/5 hover:shadow-md active:scale-[0.97] dark:border-[#5D5FEF]/40 dark:bg-slate-800 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/10"
+              className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-[#2463eb]/30 bg-white px-5 py-2.5 text-sm font-bold text-[#2463eb] shadow-sm transition-all hover:border-[#2463eb]/50 hover:bg-[#2463eb]/5 hover:shadow-md active:scale-[0.97] dark:border-[#2463eb]/40 dark:bg-slate-800 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/10"
             >
               <Settings size={16} strokeWidth={2.5} />
               Settings
@@ -544,7 +544,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate(`${routeBase.replace('/templates', '/question-bank')}`)}
-            className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-[#5D5FEF]/30 bg-white px-5 py-2.5 text-sm font-bold text-[#5D5FEF] shadow-sm transition-all hover:border-[#5D5FEF]/50 hover:bg-[#5D5FEF]/5 hover:shadow-md active:scale-[0.97] dark:border-[#5D5FEF]/40 dark:bg-slate-800 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/10"
+            className="group inline-flex items-center gap-2.5 rounded-xl border-2 border-[#2463eb]/30 bg-white px-5 py-2.5 text-sm font-bold text-[#2463eb] shadow-sm transition-all hover:border-[#2463eb]/50 hover:bg-[#2463eb]/5 hover:shadow-md active:scale-[0.97] dark:border-[#2463eb]/40 dark:bg-slate-800 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/10"
           >
             <BookOpen size={16} strokeWidth={2.5} />
             Question Bank
@@ -553,7 +553,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/hr/self-assessment/templates/create')}
-              className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 active:scale-[0.97]"
+              className="group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:shadow-[#2463eb]/30 hover:brightness-110 active:scale-[0.97]"
             >
               <Plus size={16} strokeWidth={2.5} />
               Create Template
@@ -592,10 +592,10 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
       {/* ─── Review Cycle Info Banner ─── */}
       <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '240ms' }}>
         <div className="relative px-5 py-4">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#5D5FEF]/[0.03] via-transparent to-[#5D5FEF]/[0.03] dark:from-[#5D5FEF]/[0.05] dark:via-transparent dark:to-[#5D5FEF]/[0.05]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#2463eb]/[0.03] via-transparent to-[#2463eb]/[0.03] dark:from-[#2463eb]/[0.05] dark:via-transparent dark:to-[#2463eb]/[0.05]" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-md shadow-[#2463eb]/20">
                 <CalendarRange className="h-4 w-4 text-white" aria-hidden />
               </div>
               <div className="text-sm">
@@ -605,7 +605,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                   {timeSettingsLoading ? (
                     <span className="text-slate-400 animate-pulse">Loading...</span>
                   ) : displayDuration ? (
-                    <span className="font-medium text-[#5D5FEF] dark:text-[#8b8ef7]">{displayDuration}</span>
+                    <span className="font-medium text-[#2463eb] dark:text-[#60a5fa]">{displayDuration}</span>
                   ) : (
                     <span className="text-slate-400">Not configured</span>
                   )}
@@ -636,7 +636,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
               <p className="text-xs text-slate-400 dark:text-slate-500">
                 {filteredTemplates.length} of {allTemplates.length} template{allTemplates.length !== 1 ? 's' : ''}
                 {hasActiveFilters && (
-                  <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-[#5D5FEF]/10 px-2 py-0.5 text-[10px] font-bold text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                  <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-[#2463eb]/10 px-2 py-0.5 text-[10px] font-bold text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
                     <Filter size={9} />
                     Filtered
                   </span>
@@ -679,10 +679,10 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
         </div>
 
         {!isManager && copiedTemplate && (
-          <div className="border-b border-slate-100 bg-[#5D5FEF]/[0.03] px-6 py-4 dark:border-slate-700/60 dark:bg-[#5D5FEF]/10">
+          <div className="border-b border-slate-100 bg-[#2463eb]/[0.03] px-6 py-4 dark:border-slate-700/60 dark:bg-[#2463eb]/10">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#5D5FEF] shadow-sm ring-1 ring-[#5D5FEF]/15 dark:bg-slate-800 dark:text-[#8b8ef7] dark:ring-[#5D5FEF]/25">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#2463eb] shadow-sm ring-1 ring-[#2463eb]/15 dark:bg-slate-800 dark:text-[#60a5fa] dark:ring-[#2463eb]/25">
                   <Copy size={16} />
                 </span>
                 <div className="min-w-0">
@@ -705,7 +705,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleContinueCopiedTemplate}
-                  className="group inline-flex items-center gap-1.5 rounded-xl bg-[#5D5FEF] px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-[#5D5FEF]/20 transition-all hover:bg-[#5153dc] active:scale-[0.98] dark:bg-[#6f72f4] dark:hover:bg-[#6265e8]"
+                  className="group inline-flex items-center gap-1.5 rounded-xl bg-[#2463eb] px-3.5 py-2 text-xs font-bold text-white shadow-sm shadow-[#2463eb]/20 transition-all hover:bg-[#1d4ed8] active:scale-[0.98] dark:bg-[#2463eb] dark:hover:bg-[#1d4ed8]"
                 >
                   Continue
                   <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
@@ -749,14 +749,14 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                   onClick={() => setExpandedFilters(!expandedFilters)}
                   className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
                     expandedFilters || hasActiveFilters
-                      ? 'border-[#5D5FEF]/30 bg-[#5D5FEF]/[0.04] text-[#5D5FEF] dark:border-[#5D5FEF]/40 dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7]'
+                      ? 'border-[#2463eb]/30 bg-[#2463eb]/[0.04] text-[#2463eb] dark:border-[#2463eb]/40 dark:bg-[#2463eb]/10 dark:text-[#60a5fa]'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-500'
                   } shadow-sm`}
                 >
                   <SlidersHorizontal size={15} />
                   Filters
                   {hasActiveFilters && (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#5D5FEF] text-[10px] font-bold text-white">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2463eb] text-[10px] font-bold text-white">
                       {[searchQuery.trim() !== '', cyclePhaseFilter !== 'all', departmentFilter !== '', positionFilter !== ''].filter(Boolean).length}
                     </span>
                   )}
@@ -871,7 +871,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                       {templateTable.getRowModel().rows.map((row) => (
                         <tr
                           key={row.id}
-                          className="group transition-all duration-200 hover:bg-[#5D5FEF]/[0.02] dark:hover:bg-[#5D5FEF]/[0.04]"
+                          className="group transition-all duration-200 hover:bg-[#2463eb]/[0.02] dark:hover:bg-[#2463eb]/[0.04]"
                         >
                           {row.getVisibleCells().map((cell) => {
                             const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
@@ -935,13 +935,13 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                         className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up"
                         style={{ animationDelay: `${index * 40}ms` }}
                       >
-                        <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#5D5FEF]/[0.03] blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-[#5D5FEF]/[0.06] dark:bg-[#5D5FEF]/[0.05] dark:group-hover:bg-[#5D5FEF]/[0.10]" />
+                        <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#2463eb]/[0.03] blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-[#2463eb]/[0.06] dark:bg-[#2463eb]/[0.05] dark:group-hover:bg-[#2463eb]/[0.10]" />
 
                         <div className="relative">
                           {/* Card Header */}
                           <div className="mb-4 flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF]/10 to-[#7C7EF5]/5 text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/10 dark:text-[#8b8ef7]">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb]/10 to-[#1d4ed8]/5 text-[#2463eb] dark:from-[#2463eb]/20 dark:to-[#1d4ed8]/10 dark:text-[#60a5fa]">
                                 <FileText size={18} />
                               </div>
                               <div className="min-w-0">
@@ -1021,7 +1021,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
                               className={`group/btn flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all ${
                                 template.isLocked
                                   ? 'border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700/60'
-                                  : 'bg-[#5D5FEF]/[0.06] text-[#5D5FEF] hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20'
+                                  : 'bg-[#2463eb]/[0.06] text-[#2463eb] hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20'
                               }`}
                             >
                               {template.isLocked ? (
@@ -1068,7 +1068,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
               <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/60">
                 <ClipboardList size={36} className="text-slate-300 dark:text-slate-500" />
               </div>
-              <div className="absolute -right-2 -bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
+              <div className="absolute -right-2 -bottom-2 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
                 <Plus size={14} className="text-white" />
               </div>
             </div>
@@ -1080,7 +1080,7 @@ export const SelfAssessmentFormTemplatePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate('/hr/self-assessment/templates/create')}
-                className="group mt-6 inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:brightness-110 active:scale-[0.97]"
+                className="group mt-6 inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:shadow-[#2463eb]/30 hover:brightness-110 active:scale-[0.97]"
               >
                 <Plus size={16} strokeWidth={2.5} />
                 Create Your First Template

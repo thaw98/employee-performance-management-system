@@ -28,6 +28,10 @@ import type { DepartmentDto } from '../../../features/department/types'
 import AddDepartmentModal from '../../../features/department/components/AddDepartmentModal'
 import EditDepartmentModal from '../../../features/department/components/EditDepartmentModal'
 import ConfirmActionModal from '../../../features/hrEmployeeList/components/ConfirmActionModal'
+import {
+  departmentsGradientBr,
+  departmentsGradientHero,
+} from '../../../features/department/departmentsTheme'
 
 const isDepartmentActive = (status: unknown): boolean => {
   return String(status ?? '').trim().toLowerCase() === 'active'
@@ -219,7 +223,7 @@ export default function DepartmentListPage() {
         cell: (info) => {
           const code = String((info.getValue() as string) ?? '').trim() || getDepartmentCodeForDisplay(info.row.original)
           return (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 font-mono font-semibold text-blue-700 text-xs tracking-wide">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-[#eff6ff] border border-[#dbeafe] font-mono font-semibold text-[#1d4ed8] text-xs tracking-wide">
               {code || '-'}
             </span>
           )
@@ -230,12 +234,12 @@ export default function DepartmentListPage() {
         header: 'Department Name',
         cell: (info) => (
           <div className="flex items-center gap-2.5">
-            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-sm">
+            <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${departmentsGradientBr} flex items-center justify-center shadow-sm`}>
               <Building2 size={14} className="text-white" />
             </div>
             <Link
               to={`/hr/departments/${info.row.original.departmentId}`}
-              className="font-semibold text-slate-800 text-sm hover:underline hover:text-blue-700 transition-colors"
+              className="font-semibold text-slate-800 text-sm hover:underline hover:text-[#1d4ed8] transition-colors"
             >
               {info.getValue() as string}
             </Link>
@@ -289,7 +293,7 @@ export default function DepartmentListPage() {
                   setSelectedDept(row)
                   setIsEditOpen(true)
                 }}
-                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white border border-blue-100 hover:border-blue-600 transition-all duration-200"
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
                 title="Edit Department"
               >
                 <Edit2 size={13} />
@@ -308,7 +312,7 @@ export default function DepartmentListPage() {
               </button>
               <Link
                 to={`/hr/departments/${row.departmentId}`}
-                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-600 hover:text-white border border-violet-100 hover:border-violet-600 transition-all duration-200"
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
                 title="View Positions"
               >
                 <BriefcaseBusiness size={13} />
@@ -337,8 +341,8 @@ export default function DepartmentListPage() {
   })
 
   const getSortIcon = (isSorted: false | 'asc' | 'desc') => {
-    if (isSorted === 'asc') return <ArrowUp size={13} className="text-blue-500" />
-    if (isSorted === 'desc') return <ArrowDown size={13} className="text-blue-500" />
+    if (isSorted === 'asc') return <ArrowUp size={13} className="text-[#2463eb]" />
+    if (isSorted === 'desc') return <ArrowDown size={13} className="text-[#2463eb]" />
     return <ArrowUpDown size={13} className="text-slate-300 group-hover:text-slate-400 transition-colors" />
   }
 
@@ -366,7 +370,7 @@ export default function DepartmentListPage() {
         </div>
         <button
           onClick={() => window.location.reload()}
-          className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+          className="px-5 py-2.5 bg-[#2463eb] text-white rounded-xl text-sm font-bold hover:bg-[#1d4ed8] transition-colors shadow-lg shadow-[#2463eb]/20"
         >
           Try Again
         </button>
@@ -379,7 +383,7 @@ export default function DepartmentListPage() {
   return (
     <div className="min-h-screen bg-slate-50/50">
       {/* ── Hero Header Banner ── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 px-6 pt-8 pb-16 mx-0">
+      <div className={`relative overflow-hidden ${departmentsGradientHero} px-6 pt-8 pb-16 mx-0`}>
         {/* Decorative circles */}
         <div className="absolute -top-10 -right-10 w-64 h-64 bg-white/5 rounded-full pointer-events-none" />
         <div className="absolute top-8 right-20 w-32 h-32 bg-white/5 rounded-full pointer-events-none" />
@@ -392,12 +396,12 @@ export default function DepartmentListPage() {
             </div>
             <div>
               <h1 className="text-2xl font-extrabold text-white tracking-tight">Department Management</h1>
-              <p className="text-blue-100 text-sm mt-0.5">Manage and organize your company departments</p>
+              <p className="text-[#dbeafe] text-sm mt-0.5">Manage and organize your company departments</p>
             </div>
           </div>
           <button
             onClick={() => setIsAddOpen(true)}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-blue-700 rounded-xl font-bold text-sm shadow-xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-[#2463eb] rounded-xl font-bold text-sm shadow-xl hover:bg-[#eff6ff] active:scale-95 transition-all w-full sm:w-auto"
           >
             <Plus size={18} />
             Add New Department
@@ -410,8 +414,8 @@ export default function DepartmentListPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Total */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-              <LayoutGrid size={20} className="text-indigo-600" />
+            <div className="w-11 h-11 rounded-xl bg-[#eff6ff] flex items-center justify-center flex-shrink-0">
+              <LayoutGrid size={20} className="text-[#2463eb]" />
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total</p>
@@ -462,7 +466,7 @@ export default function DepartmentListPage() {
               value={globalFilter ?? ''}
               onChange={(e) => setGlobalFilter(e.target.value)}
               placeholder="Search departments..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/15 focus:border-blue-400 outline-none transition-all placeholder:text-slate-400"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-[#2463eb]/15 focus:border-[#2463eb] outline-none transition-all placeholder:text-slate-400"
             />
           </div>
           <p className="text-xs font-medium text-slate-500 flex-shrink-0">
@@ -502,7 +506,7 @@ export default function DepartmentListPage() {
                   <tr>
                     <td colSpan={columns.length}>
                       <div className="flex flex-col items-center justify-center py-24 gap-3 text-slate-400">
-                        <Loader2 size={36} className="animate-spin text-blue-500" />
+                        <Loader2 size={36} className="animate-spin text-[#2463eb]" />
                         <p className="text-sm font-semibold text-slate-500">Loading departments…</p>
                       </div>
                     </td>
@@ -511,7 +515,7 @@ export default function DepartmentListPage() {
                   table.getRowModel().rows.map((row, idx) => (
                     <tr
                       key={row.id}
-                      className={`transition-colors hover:bg-blue-50/30 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}
+                      className={`transition-colors hover:bg-[#2463eb]/[0.06] ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <td key={cell.id} className="px-5 py-3.5 whitespace-nowrap">
@@ -567,7 +571,7 @@ export default function DepartmentListPage() {
                   <select
                     value={table.getState().pagination.pageSize}
                     onChange={(e) => table.setPageSize(Number(e.target.value))}
-                    className="py-1 pl-2 pr-6 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer appearance-none"
+                    className="py-1 pl-2 pr-6 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 cursor-pointer appearance-none"
                     style={{
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
                       backgroundRepeat: 'no-repeat',
@@ -621,7 +625,7 @@ export default function DepartmentListPage() {
                         onClick={() => table.setPageIndex(page as number)}
                         className={`min-w-[32px] h-8 text-xs font-bold rounded-lg border transition-all ${
                           page === current
-                            ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                            ? 'bg-[#2463eb] border-[#2463eb] text-white shadow-sm'
                             : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
                         }`}
                       >

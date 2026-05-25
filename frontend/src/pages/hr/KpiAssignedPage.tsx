@@ -1,7 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useGetEmployeesKpiStatusQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
+import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
+
+const getCurrentMonthValue = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${now.getFullYear()}-${month}`;
+};
+
+const formatMonthYear = (monthValue: string) => {
+  if (!monthValue) return '';
+  const [year, month] = monthValue.split('-');
+  if (!year || !month) return monthValue;
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+};
 import {
   useGetPositionsKpiStatusQuery,
   useGetDepartmentsKpiStatusQuery,
@@ -10,8 +25,13 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Eye, UserCheck, Target, X, CheckCircle2, AlertCircle, Users, LayoutGrid, RotateCcw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { kpisGradientBr } from '../../features/kpi/kpisTheme';
 
 type ViewMode = 'employee' | 'position' | 'department';
+
+const primaryFocusRing = 'focus:ring-2 focus:ring-[#2463eb]/15 focus:border-[#2463eb]';
+const primaryTabActive = 'bg-white text-[#2463eb] shadow-sm';
+const primaryActionHover = 'hover:text-[#2463eb] hover:bg-[#eff6ff]';
 
 export const KpiAssignedPage: React.FC = () => {
   const navigate = useNavigate();
@@ -20,14 +40,15 @@ export const KpiAssignedPage: React.FC = () => {
   const [selectedDept, setSelectedDept] = useState<number | undefined>(undefined);
   const [selectedPos, setSelectedPos] = useState<number | undefined>(undefined);
   const [kpiStatus, setKpiStatus] = useState<'DEFINED' | 'NOT_DEFINED' | ''>('');
-  const [period, setPeriod] = useState('2026-2027');
+  const [periodMonth, setPeriodMonth] = useState(getCurrentMonthValue());
+  const selectedPeriodLabel = formatMonthYear(periodMonth);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [viewMode, searchTerm, selectedDept, selectedPos, kpiStatus, period]);
+  }, [viewMode, searchTerm, selectedDept, selectedPos, kpiStatus, periodMonth]);
 
   // Employee Data
   const { data: employeesResponse, isLoading: employeesLoading } = useGetEmployeesKpiStatusQuery({
@@ -36,18 +57,18 @@ export const KpiAssignedPage: React.FC = () => {
     departmentId: selectedDept,
     positionId: selectedPos,
     kpiStatus,
-    period
+    period: selectedPeriodLabel
   }, { skip: viewMode !== 'employee' });
 
   // Position Data
   const { data: positionsStatusResponse, isLoading: positionsLoading } = useGetPositionsKpiStatusQuery({
     departmentId: selectedDept,
-    period
+    period: selectedPeriodLabel
   }, { skip: viewMode !== 'position' });
 
   // Department Data
   const { data: departmentsStatusResponse, isLoading: deptsLoading } = useGetDepartmentsKpiStatusQuery({
-    period
+    period: selectedPeriodLabel
   }, { skip: viewMode !== 'department' });
 
   const { data: departmentsResponse } = useGetDepartmentsQuery();
@@ -163,7 +184,7 @@ export const KpiAssignedPage: React.FC = () => {
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-100"
+            className={`px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none ${primaryFocusRing}`}
           >
             <option value="2024-2025">2024-2025</option>
             <option value="2025-2026">2025-2026</option>
@@ -184,19 +205,19 @@ export const KpiAssignedPage: React.FC = () => {
       <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
         <button
           onClick={() => { setViewMode('employee'); handleClearFilters(); }}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${viewMode === 'employee' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${viewMode === 'employee' ? primaryTabActive : 'text-slate-500 hover:text-slate-700'}`}
         >
           <UserCheck size={14} /> Employee
         </button>
         <button
           onClick={() => { setViewMode('position'); handleClearFilters(); }}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${viewMode === 'position' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${viewMode === 'position' ? primaryTabActive : 'text-slate-500 hover:text-slate-700'}`}
         >
           <Users size={14} /> Position
         </button>
         <button
           onClick={() => { setViewMode('department'); handleClearFilters(); }}
-          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${viewMode === 'department' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black transition-all uppercase tracking-widest ${viewMode === 'department' ? primaryTabActive : 'text-slate-500 hover:text-slate-700'}`}
         >
           <LayoutGrid size={14} /> Department
         </button>
@@ -205,9 +226,9 @@ export const KpiAssignedPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div 
           onClick={() => setKpiStatus('')}
-          className={`bg-white p-6 rounded-3xl border transition-all cursor-pointer hover:shadow-md ${kpiStatus === '' ? 'border-blue-500 ring-1 ring-blue-500' : 'border-slate-100 shadow-sm'} flex items-center gap-4`}
+          className={`bg-white p-6 rounded-3xl border transition-all cursor-pointer hover:shadow-md ${kpiStatus === '' ? 'border-[#2463eb] ring-1 ring-[#2463eb]' : 'border-slate-100 shadow-sm'} flex items-center gap-4`}
         >
-          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-[#2463eb]/20 ${kpisGradientBr}`}>
             {viewMode === 'employee' ? <UserCheck size={24} /> : viewMode === 'position' ? <Users size={24} /> : <LayoutGrid size={24} />}
           </div>
           <div>
@@ -253,7 +274,7 @@ export const KpiAssignedPage: React.FC = () => {
                 placeholder={`Search ${viewMode}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none font-medium"
+                className={`w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none font-medium ${primaryFocusRing}`}
               />
             </div>
 
@@ -265,7 +286,7 @@ export const KpiAssignedPage: React.FC = () => {
                     setSelectedDept(e.target.value ? Number(e.target.value) : undefined);
                     setSelectedPos(undefined);
                   }}
-                  className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none font-medium appearance-none"
+                  className={`flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none font-medium appearance-none ${primaryFocusRing}`}
                 >
                   <option value="">All Departments</option>
                   {departments.map(d => (
@@ -279,7 +300,7 @@ export const KpiAssignedPage: React.FC = () => {
                   value={selectedPos || ''}
                   onChange={(e) => setSelectedPos(e.target.value ? Number(e.target.value) : undefined)}
                   disabled={!selectedDept}
-                  className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none font-medium appearance-none disabled:bg-slate-50 disabled:text-slate-400"
+                  className={`flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none font-medium appearance-none disabled:bg-slate-50 disabled:text-slate-400 ${primaryFocusRing}`}
                 >
                   <option value="">All Positions</option>
                   {positionsList.map(p => (
@@ -291,7 +312,7 @@ export const KpiAssignedPage: React.FC = () => {
               <div className="flex bg-slate-100 p-1 rounded-2xl flex-1">
                 <button
                   onClick={() => setKpiStatus('')}
-                  className={`flex-1 px-4 py-1.5 rounded-xl text-xs font-black transition-all uppercase tracking-tight ${kpiStatus === '' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 px-4 py-1.5 rounded-xl text-xs font-black transition-all uppercase tracking-tight ${kpiStatus === '' ? primaryTabActive : 'text-slate-500 hover:text-slate-700'}`}
                 >
                   All Status
                 </button>
@@ -383,7 +404,7 @@ export const KpiAssignedPage: React.FC = () => {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => navigate(`/hr/kpi-detail?employeeId=${emp.employeeId}`)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            className={`p-2 text-slate-400 rounded-xl transition-all ${primaryActionHover}`}
                             title="View Details"
                           >
                             <Eye size={18} />
@@ -417,7 +438,7 @@ export const KpiAssignedPage: React.FC = () => {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => navigate(`/hr/position-kpi-detail?departmentId=${pos.departmentId}&positionId=${pos.positionId}`)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            className={`p-2 text-slate-400 rounded-xl transition-all ${primaryActionHover}`}
                             title="View Position KPI Details"
                           >
                             <Eye size={18} />
@@ -446,7 +467,7 @@ export const KpiAssignedPage: React.FC = () => {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => navigate(`/hr/department-kpi-detail?departmentId=${dept.departmentId}`)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            className={`p-2 text-slate-400 rounded-xl transition-all ${primaryActionHover}`}
                             title="View Department KPI Details"
                           >
                             <Eye size={18} />

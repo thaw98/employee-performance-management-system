@@ -140,9 +140,9 @@ export default function EmployeeImportModal({ isOpen, onClose, onImportSuccess, 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[#eff6ff] to-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] flex items-center justify-center shadow shadow-[#dbeafe]">
               <i className="bi bi-file-earmark-spreadsheet text-white text-lg"></i>
             </div>
             <div>
@@ -163,18 +163,18 @@ export default function EmployeeImportModal({ isOpen, onClose, onImportSuccess, 
           {step === 'upload' && (
             <div className="space-y-5">
               {/* Template hint */}
-              <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                <i className="bi bi-info-circle text-blue-500 text-lg flex-shrink-0"></i>
-                <p className="text-sm text-blue-800">
+              <div className="flex items-center gap-3 p-4 bg-[#eff6ff] rounded-xl border border-[#bfdbfe]">
+                <i className="bi bi-info-circle text-[#2463eb] text-lg flex-shrink-0"></i>
+                <p className="text-sm text-[#1e40af]">
                   Download the template, fill it in, then upload it here.
                 </p>
                 <button
                   onClick={handleDownloadTemplate}
                   disabled={templateLoading}
-                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-60 transition shrink-0"
+                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-[#bfdbfe] text-[#1d4ed8] rounded-lg hover:bg-[#eff6ff] disabled:opacity-60 transition shrink-0"
                 >
                   {templateLoading ? (
-                    <span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                    <span className="inline-block w-3 h-3 border-2 border-[#60a5fa] border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <i className="bi bi-download"></i>
                   )}
@@ -189,9 +189,9 @@ export default function EmployeeImportModal({ isOpen, onClose, onImportSuccess, 
                 </label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition group"
+                  className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-[#60a5fa] hover:bg-[#eff6ff]/30 transition group"
                 >
-                  <i className="bi bi-cloud-upload text-3xl text-gray-300 group-hover:text-indigo-400 transition"></i>
+                  <i className="bi bi-cloud-upload text-3xl text-gray-300 group-hover:text-[#2463eb] transition"></i>
                   {selectedFile ? (
                     <p className="mt-2 text-sm font-medium text-gray-700">{selectedFile.name}</p>
                   ) : (
@@ -263,7 +263,7 @@ export default function EmployeeImportModal({ isOpen, onClose, onImportSuccess, 
                 <button
                   onClick={handleValidate}
                   disabled={!selectedFile || isValidating}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white text-sm font-semibold hover:from-[#1d4ed8] hover:to-[#1e40af] disabled:opacity-50 transition shadow-sm shadow-[#dbeafe]"
                 >
                   {isValidating ? (
                     <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

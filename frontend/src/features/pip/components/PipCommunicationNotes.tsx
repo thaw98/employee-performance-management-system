@@ -114,7 +114,7 @@ export function PipCommunicationNotes({
           <button
             type="button"
             onClick={() => openAddModal('COMMUNICATION')}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
           >
             <i className="bi bi-plus-lg" />
             Add Note
@@ -182,7 +182,7 @@ export function PipCommunicationNotes({
                       <button
                         type="button"
                         onClick={() => setVisibleSizes((sizes) => ({ ...sizes, [section.type]: sizes[section.type] + INITIAL_SIZE }))}
-                        className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50"
+                        className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-[#2463eb] hover:bg-[#eff6ff]"
                       >
                         See More
                       </button>
@@ -214,7 +214,7 @@ export function PipCommunicationNotes({
                   key={section.type}
                   type="button"
                   onClick={() => setSelectedNoteType(section.type)}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${selectedNoteType === section.type ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${selectedNoteType === section.type ? 'bg-white text-[#1d4ed8] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   {section.label}
                 </button>
@@ -224,7 +224,7 @@ export function PipCommunicationNotes({
               rows={6}
               value={content}
               onChange={(event) => setContent(event.target.value)}
-              className="block w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 focus:border-blue-500 focus:outline-none"
+              className="block w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-800 focus:border-[#2463eb] focus:outline-none"
               placeholder="Write the PIP note..."
             />
             <div className="mt-6 flex justify-end gap-3">
@@ -242,7 +242,7 @@ export function PipCommunicationNotes({
                 type="button"
                 onClick={handleAdd}
                 disabled={isAdding || !content.trim()}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                className="rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:bg-[#93c5fd]"
               >
                 {isAdding ? 'Saving...' : 'Save Note'}
               </button>
