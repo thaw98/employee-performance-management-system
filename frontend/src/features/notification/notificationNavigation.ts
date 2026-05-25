@@ -30,6 +30,11 @@ function isManagerSelfAssessmentOwnFormNotification(notification: NotificationNa
   ) && !searchableText.includes('FOR YOUR REVIEW');
 }
 
+function isSelfAssessmentUnlockRequestedNotification(notification: NotificationNavigationInput) {
+  const searchableText = `${notification.title ?? ''} ${notification.message ?? ''}`.toUpperCase();
+  return searchableText.includes('UNLOCK REQUESTED') || searchableText.includes('REQUESTED HR UNLOCK');
+}
+
 export function getSelfAssessmentPath(pathname: string, formId?: number | null, notification?: NotificationNavigationInput) {
   if (pathname.startsWith('/manager')) {
     if (notification && isManagerSelfAssessmentOwnFormNotification(notification)) {
@@ -39,6 +44,9 @@ export function getSelfAssessmentPath(pathname: string, formId?: number | null, 
   }
 
   if (pathname.startsWith('/hr')) {
+    if (notification && isSelfAssessmentUnlockRequestedNotification(notification)) {
+      return '/hr/self-assessment/unlock-requests';
+    }
     return formId ? `/hr/self-assessment/reviews/${formId}` : '/hr/self-assessment/review-queue';
   }
 
