@@ -1079,15 +1079,6 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
-    hrUnlockRetake: builder.mutation<SelfAssessmentFormDto, { formId: number }>({
-      query: ({ formId }) => ({
-        url: `/self-assessment-forms/${formId}/unlock-retake`,
-        method: 'POST',
-      }),
-      invalidatesTags: ['SelfAssessmentForm'],
-      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
-    }),
-
     employeeAcknowledge: builder.mutation<SelfAssessmentFormDto, number>({
       query: (formId) => ({
         url: `/self-assessment-forms/${formId}/acknowledge`,
@@ -1296,7 +1287,6 @@ export const {
   useHrReturnDisputedReviewMutation,
   useHrApproveFormMutation,
   useHrReopenFormMutation,
-  useHrUnlockRetakeMutation,
   useGetAllTemplatesQuery,
   useGetTemplateByIdQuery,
   useCopyTemplateMutation,

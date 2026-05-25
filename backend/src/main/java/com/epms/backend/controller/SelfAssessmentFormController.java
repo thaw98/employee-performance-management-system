@@ -308,19 +308,6 @@ public class SelfAssessmentFormController {
         }
     }
 
-    @PostMapping("/{id}/unlock-retake")
-    @PreAuthorize("principal.roleId == 1")
-    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrUnlockRetake(
-            @PathVariable Long id,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        try {
-            SelfAssessmentFormDto form = selfAssessmentFormService.hrUnlockRetake(id, principal.getId());
-            return ResponseEntity.ok(ApiResponse.ok("Retake unlocked", form));
-        } catch (RuntimeException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
-        }
-    }
-
     @PostMapping("/{id}/retake-submit")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> employeeSubmitRetake(
             @PathVariable Long id,
