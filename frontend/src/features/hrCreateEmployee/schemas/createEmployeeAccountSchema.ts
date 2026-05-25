@@ -195,11 +195,7 @@ export const employeeInformationSchema = z
 export const familyEmergencyInformationSchema = z
   .object({
     maritalStatus: z.enum(['Single', 'Married'], { message: 'Marital status is required' }),
-    spouseName: z
-      .string()
-      .trim()
-      .min(1, 'Spouse name is required')
-      .max(50, 'Max 50 characters'),
+    spouseName: z.string().trim().max(50, 'Max 50 characters').optional(),
     spouseNrcStateCode: z.string().optional(),
     spouseNrcTownshipCode: z.string().optional(),
     spouseNrcType: z.string().optional(),

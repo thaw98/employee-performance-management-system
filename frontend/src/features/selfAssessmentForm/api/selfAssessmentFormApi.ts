@@ -26,6 +26,9 @@ export interface SelfAssessmentFormTemplateDto {
   positionName: string
   reviewCycleId: number | null
   reviewCycleName: string | null
+  timelineMode: 'REVIEW_CYCLE' | 'MANUAL'
+  manualStartDate: string | null
+  manualEndDate: string | null
   isActive: boolean
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
@@ -71,6 +74,9 @@ export interface CreateTemplateRequest {
   deletedQuestions?: QuestionRequest[]
   /** Omit or null to use the active employee-submission cycle on the server. */
   reviewCycleId?: number | null
+  timelineMode?: 'REVIEW_CYCLE' | 'MANUAL'
+  manualStartDate?: string | null
+  manualEndDate?: string | null
   ratingSystem?: SelfAssessmentRatingSystem
   tenPointYesMinRating?: number | null
 }
@@ -255,6 +261,7 @@ export interface SelfAssessmentFormDto {
   hrReviewReasonAt: string | null
   hrName: string | null
   submissionAttempts: SelfAssessmentSubmissionAttemptDto[]
+  pendingUnlockRequest?: SelfAssessmentUnlockRequestDto | null
 }
 
 export interface FormListDto {
@@ -317,6 +324,10 @@ export interface SelfAssessmentAssignmentRequest {
   startDate: string
   deadlineDate: string
   managerReviewDeadlineDate: string
+  timelineMode?: 'REVIEW_CYCLE' | 'MANUAL'
+  reviewCycleId?: number | null
+  manualStartDate?: string | null
+  manualEndDate?: string | null
 }
 
 export interface SelfAssessmentAssignmentResponse {
@@ -324,7 +335,7 @@ export interface SelfAssessmentAssignmentResponse {
   skippedExistingCount: number
   skippedNoTemplateCount: number
   skippedIneligibleCount: number
-  activeCycle: CycleInfoDto
+  activeCycle: CycleInfoDto | null
 }
 
 export type SelfAssessmentAssignmentPreviewStatus = 'NOT_ASSIGNED' | 'ALREADY_ASSIGNED' | 'NO_TEMPLATE'
@@ -333,6 +344,10 @@ export interface SelfAssessmentAssignmentPreviewRequest {
   targets: TemplateTargetPairRequest[]
   deadlineDate: string
   managerReviewDeadlineDate: string
+  timelineMode?: 'REVIEW_CYCLE' | 'MANUAL'
+  reviewCycleId?: number | null
+  manualStartDate?: string | null
+  manualEndDate?: string | null
 }
 
 export interface SelfAssessmentAssignmentPreviewDto {
@@ -470,6 +485,81 @@ export interface HrReopenFormRequest {
   signatureId?: number | null
 }
 
+export type SelfAssessmentUnlockReasonCode =
+  | 'TYPO_COMMENT'
+  | 'WRONG_RATING'
+  | 'INCOMPLETE_ANSWER'
+  | 'WRONG_ANSWER'
+  | 'OTHER'
+
+export type SelfAssessmentUnlockHrRejectReasonCode =
+  | 'INSUFFICIENT_JUSTIFICATION'
+  | 'NO_SUBSTANTIVE_ERROR'
+  | 'PAST_ALLOWED_WINDOW'
+  | 'MANAGER_REVIEW_IN_PROGRESS'
+  | 'DUPLICATE_REQUEST'
+  | 'OTHER'
+
+export const SELF_ASSESSMENT_UNLOCK_REASON_OPTIONS: { value: SelfAssessmentUnlockReasonCode; label: string }[] = [
+  { value: 'TYPO_COMMENT', label: 'Typo or comment correction' },
+  { value: 'WRONG_RATING', label: 'Wrong rating selected' },
+  { value: 'INCOMPLETE_ANSWER', label: 'Incomplete answer' },
+  { value: 'WRONG_ANSWER', label: 'Wrong answer selected' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+export const SELF_ASSESSMENT_UNLOCK_REJECT_REASON_OPTIONS: {
+  value: SelfAssessmentUnlockHrRejectReasonCode
+  label: string
+}[] = [
+  { value: 'INSUFFICIENT_JUSTIFICATION', label: 'Insufficient justification for unlock' },
+  { value: 'NO_SUBSTANTIVE_ERROR', label: 'No substantive error in submission' },
+  { value: 'PAST_ALLOWED_WINDOW', label: 'Past allowed edit window' },
+  { value: 'MANAGER_REVIEW_IN_PROGRESS', label: 'Manager review already in progress' },
+  { value: 'DUPLICATE_REQUEST', label: 'Duplicate or unnecessary request' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+export type SelfAssessmentUnlockRequestStatus = 'PENDING' | 'UNLOCKED' | 'REJECTED'
+
+export interface SelfAssessmentUnlockRequestActionRequest {
+  reasonCode: SelfAssessmentUnlockReasonCode
+  reasonText?: string | null
+}
+
+export interface SelfAssessmentUnlockRejectRequest {
+  reasonCode: SelfAssessmentUnlockHrRejectReasonCode
+  reasonText?: string | null
+}
+
+export interface SelfAssessmentUnlockRequestUnlockRequest extends SelfAssessmentUnlockRequestActionRequest {
+  unlockDeadline: string
+}
+
+export interface SelfAssessmentUnlockRequestDto {
+  id: number
+  formId: number
+  employeeId: number
+  employeeNumber: string | null
+  employeeName: string | null
+  requestedByUserId: number
+  requestedByName: string | null
+  resolvedByUserId: number | null
+  resolvedByName: string | null
+  status: SelfAssessmentUnlockRequestStatus
+  reasonCode: SelfAssessmentUnlockReasonCode
+  reasonText: string | null
+  hrReasonCode: string | null
+  hrReasonText: string | null
+  unlockDeadline: string | null
+  requestedAt: string
+  resolvedAt: string | null
+  formTitle: string | null
+  cycleId: number | null
+  cycleName: string | null
+  managerReviewDeadlineDate: string | null
+}
+
 type UnknownRecord = Record<string, unknown>
 
 const isRecord = (value: unknown): value is UnknownRecord => {
@@ -585,6 +675,47 @@ const normalizeSubmissionAttempt = (source: UnknownRecord): SelfAssessmentSubmis
   answers: getArray(source.answers).map(a => normalizeAttemptAnswer(isRecord(a) ? a : {})),
 })
 
+const normalizeUnlockReasonCode = (value: unknown): SelfAssessmentUnlockReasonCode => {
+  return value === 'TYPO_COMMENT'
+    || value === 'WRONG_RATING'
+    || value === 'INCOMPLETE_ANSWER'
+    || value === 'WRONG_ANSWER'
+    || value === 'OTHER'
+    ? value
+    : 'OTHER'
+}
+
+const normalizeUnlockStatus = (value: unknown): SelfAssessmentUnlockRequestStatus => {
+  return value === 'UNLOCKED' || value === 'REJECTED' ? value : 'PENDING'
+}
+
+const normalizeUnlockRequest = (request: unknown): SelfAssessmentUnlockRequestDto => {
+  const source = isRecord(request) ? request : {}
+  return {
+    id: getNumber(source.id),
+    formId: getNumber(source.formId),
+    employeeId: getNumber(source.employeeId),
+    employeeNumber: getOptionalString(source.employeeNumber) ?? null,
+    employeeName: getOptionalString(source.employeeName) ?? null,
+    requestedByUserId: getNumber(source.requestedByUserId),
+    requestedByName: getOptionalString(source.requestedByName) ?? null,
+    resolvedByUserId: source.resolvedByUserId != null ? getNumber(source.resolvedByUserId) : null,
+    resolvedByName: getOptionalString(source.resolvedByName) ?? null,
+    status: normalizeUnlockStatus(source.status),
+    reasonCode: normalizeUnlockReasonCode(source.reasonCode),
+    reasonText: getOptionalString(source.reasonText) ?? null,
+    hrReasonCode: getOptionalString(source.hrReasonCode) ?? null,
+    hrReasonText: getOptionalString(source.hrReasonText) ?? null,
+    unlockDeadline: getOptionalString(source.unlockDeadline) ?? null,
+    requestedAt: getString(source.requestedAt),
+    resolvedAt: getOptionalString(source.resolvedAt) ?? null,
+    formTitle: getOptionalString(source.formTitle) ?? null,
+    cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
+    cycleName: getOptionalString(source.cycleName) ?? null,
+    managerReviewDeadlineDate: getOptionalString(source.managerReviewDeadlineDate) ?? null,
+  }
+}
+
 const normalizeAdjustment = (source: UnknownRecord): AdjustmentDto => {
   return {
     id: getNumber(source.id),
@@ -669,6 +800,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     hrReviewReasonAt: getOptionalString(source.hrReviewReasonAt) ?? null,
     hrName: getOptionalString(source.hrName) ?? null,
     submissionAttempts: getArray(source.submissionAttempts).map(a => normalizeSubmissionAttempt(isRecord(a) ? a : {})),
+    pendingUnlockRequest: source.pendingUnlockRequest ? normalizeUnlockRequest(source.pendingUnlockRequest) : null,
   }
 }
 
@@ -733,7 +865,7 @@ const normalizeAssignmentResponse = (response: unknown): SelfAssessmentAssignmen
     skippedExistingCount: getNumber(source.skippedExistingCount),
     skippedNoTemplateCount: getNumber(source.skippedNoTemplateCount),
     skippedIneligibleCount: getNumber(source.skippedIneligibleCount),
-    activeCycle: normalizeCycleInfo(source.activeCycle) ?? { id: 0, name: '', code: '', startDate: '', endDate: '' },
+    activeCycle: normalizeCycleInfo(source.activeCycle),
   }
 }
 
@@ -798,6 +930,9 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
     positionName: getString(source.positionName),
     reviewCycleId: source.reviewCycleId != null ? getNumber(source.reviewCycleId) : null,
     reviewCycleName: getOptionalString(source.reviewCycleName) ?? null,
+    timelineMode: getString(source.timelineMode).toUpperCase() === 'MANUAL' ? 'MANUAL' : 'REVIEW_CYCLE',
+    manualStartDate: getOptionalString(source.manualStartDate) ?? null,
+    manualEndDate: getOptionalString(source.manualEndDate) ?? null,
     isActive: getBoolean(source.isActive),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),
@@ -1079,15 +1214,6 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
-    hrUnlockRetake: builder.mutation<SelfAssessmentFormDto, { formId: number }>({
-      query: ({ formId }) => ({
-        url: `/self-assessment-forms/${formId}/unlock-retake`,
-        method: 'POST',
-      }),
-      invalidatesTags: ['SelfAssessmentForm'],
-      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
-    }),
-
     employeeAcknowledge: builder.mutation<SelfAssessmentFormDto, number>({
       query: (formId) => ({
         url: `/self-assessment-forms/${formId}/acknowledge`,
@@ -1105,6 +1231,42 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['SelfAssessmentForm'],
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
+    requestSelfAssessmentUnlock: builder.mutation<SelfAssessmentUnlockRequestDto, { formId: number; request: SelfAssessmentUnlockRequestActionRequest }>({
+      query: ({ formId, request }) => ({
+        url: `/self-assessment-forms/${formId}/unlock-requests/me`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm', 'SelfAssessmentUnlockRequest'],
+      transformResponse: (response: unknown) => normalizeUnlockRequest(getResponseData(response)),
+    }),
+
+    getSelfAssessmentUnlockRequests: builder.query<SelfAssessmentUnlockRequestDto[], void>({
+      query: () => '/self-assessment-forms/hr/unlock-requests',
+      providesTags: ['SelfAssessmentUnlockRequest'],
+      transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeUnlockRequest),
+    }),
+
+    unlockSelfAssessmentRequest: builder.mutation<SelfAssessmentUnlockRequestDto, { requestId: number; request: SelfAssessmentUnlockRequestUnlockRequest }>({
+      query: ({ requestId, request }) => ({
+        url: `/self-assessment-forms/hr/unlock-requests/${requestId}/unlock`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm', 'SelfAssessmentUnlockRequest'],
+      transformResponse: (response: unknown) => normalizeUnlockRequest(getResponseData(response)),
+    }),
+
+    rejectSelfAssessmentUnlockRequest: builder.mutation<SelfAssessmentUnlockRequestDto, { requestId: number; request: SelfAssessmentUnlockRejectRequest }>({
+      query: ({ requestId, request }) => ({
+        url: `/self-assessment-forms/hr/unlock-requests/${requestId}/reject`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm', 'SelfAssessmentUnlockRequest'],
+      transformResponse: (response: unknown) => normalizeUnlockRequest(getResponseData(response)),
     }),
 
     getAllTemplates: builder.query<SelfAssessmentFormTemplateDto[], void>({
@@ -1296,7 +1458,6 @@ export const {
   useHrReturnDisputedReviewMutation,
   useHrApproveFormMutation,
   useHrReopenFormMutation,
-  useHrUnlockRetakeMutation,
   useGetAllTemplatesQuery,
   useGetTemplateByIdQuery,
   useCopyTemplateMutation,
@@ -1317,5 +1478,9 @@ export const {
   useUpdateQuestionBankItemStatusMutation,
   useEmployeeAcknowledgeMutation,
   useEmployeeDisputeMutation,
+  useRequestSelfAssessmentUnlockMutation,
+  useGetSelfAssessmentUnlockRequestsQuery,
+  useUnlockSelfAssessmentRequestMutation,
+  useRejectSelfAssessmentUnlockRequestMutation,
   useGetScoreRecordsQuery,
 } = selfAssessmentFormApi

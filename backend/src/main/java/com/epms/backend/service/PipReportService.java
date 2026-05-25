@@ -835,9 +835,8 @@ public class PipReportService {
 
     private List<Pip> filterReportPips(String status, Long departmentId, Long positionId, String employeeName,
             Long employeeId, Long pipId, LocalDate startDate, LocalDate endDate, User actor) {
-        return pipService.searchPips(departmentId, positionId, employeeName, status, startDate, endDate, actor)
+        return pipService.searchPips(departmentId, positionId, pipId, employeeName, status, startDate, endDate, actor)
                 .stream()
-                .filter(pip -> pipId == null || (pip.getId() != null && pip.getId().equals(pipId)))
                 .filter(pip -> employeeId == null
                         || (pip.getEmployee() != null && pip.getEmployee().getId() != null
                                 && pip.getEmployee().getId().equals(employeeId)))

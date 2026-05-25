@@ -53,7 +53,10 @@ export function DepartmentAutocomplete({
               <i className="bi bi-chevron-expand" aria-hidden />
             </ComboboxButton>
           </div>
-          <ComboboxOptions className="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg focus:outline-none">
+          <ComboboxOptions
+            anchor="bottom start"
+            className="z-50 mt-1 max-h-60 w-(--anchor-width) overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg focus:outline-none"
+          >
             {filtered.length === 0 ? (
               <div className="px-3 py-2 text-sm text-slate-500">No departments</div>
             ) : (

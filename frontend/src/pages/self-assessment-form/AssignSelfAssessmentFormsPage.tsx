@@ -23,7 +23,7 @@ import {
   FileQuestion,
   UserCheck,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetEmployeesQuery, type EmployeeListItem } from '../../features/hrEmployeeList/hrEmployeeApi';
@@ -241,6 +241,12 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
   onAssignmentSuccess,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const timelineMode: 'REVIEW_CYCLE' | 'MANUAL' = searchParams.get('timelineMode') === 'MANUAL' ? 'MANUAL' : 'REVIEW_CYCLE';
+  const manualStartDate = searchParams.get('manualStartDate') ?? '';
+  const manualEndDate = searchParams.get('manualEndDate') ?? '';
+  const isManualTimeline = timelineMode === 'MANUAL' && Boolean(manualStartDate && manualEndDate);
   const [assignmentMode, setAssignmentMode] = useState<SelfAssessmentAssignmentMode>('DEPARTMENTS');
   const [departmentIds, setDepartmentIds] = useState<number[]>([]);
   const [positionIds, setPositionIds] = useState<number[]>([]);
@@ -269,13 +275,19 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
   const selectAssignmentMode = (value: string) => setAssignmentMode(value as SelfAssessmentAssignmentMode);
 
   useEffect(() => {
+    if (isManualTimeline) {
+      setStartDate(manualStartDate);
+      setDeadlineDate(manualEndDate);
+      setManagerReviewDeadlineDate(manualEndDate);
+      return;
+    }
     if (!activeSubmissionCycle) return;
     const start = activeSubmissionCycle.startDate ?? '';
     const end = activeSubmissionCycle.endDate ?? '';
     setStartDate(start);
     setDeadlineDate(end);
     setManagerReviewDeadlineDate(end);
-  }, [activeSubmissionCycle]);
+  }, [activeSubmissionCycle, isManualTimeline, manualEndDate, manualStartDate]);
 
   const departments = departmentsResponse?.data ?? [];
   const positions = positionsResponse?.data?.content ?? [];
@@ -428,8 +440,8 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
 
   const employeeAudienceCount = selectedEmployeeIds.length;
 
-  const cycleStart = activeSubmissionCycle?.startDate ?? '';
-  const cycleEnd = activeSubmissionCycle?.endDate ?? '';
+  const cycleStart = isManualTimeline ? manualStartDate : activeSubmissionCycle?.startDate ?? '';
+  const cycleEnd = isManualTimeline ? manualEndDate : activeSubmissionCycle?.endDate ?? '';
   const managerReviewMinDate = deadlineDate || cycleStart;
 
   const assignmentPreviewTargets = useMemo(() => {
@@ -505,13 +517,13 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
 
   const previewSelectionEmptyMessage = (() => {
     if (assignmentMode === 'DEPARTMENTS') {
-      return 'Select at least one department to preview matching active-cycle templates.';
+	      return `Select at least one department to preview matching ${isManualTimeline ? 'manual' : 'active-cycle'} templates.`;
     }
     if (assignmentMode === 'POSITIONS') {
-      return 'Select at least one position to preview matching active-cycle templates.';
+	      return `Select at least one position to preview matching ${isManualTimeline ? 'manual' : 'active-cycle'} templates.`;
     }
     if (assignmentMode === 'SPECIFIC_EMPLOYEES') {
-      return 'Select at least one employee to preview matching active-cycle templates.';
+	      return `Select at least one employee to preview matching ${isManualTimeline ? 'manual' : 'active-cycle'} templates.`;
     }
     return 'Choose a department and position pair or add a hybrid rule to preview templates.';
   })();
@@ -522,10 +534,13 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
     managerReviewDeadlineDate &&
     assignmentPreviewTargets.length > 0
       ? {
-          targets: assignmentPreviewTargets,
-          deadlineDate,
-          managerReviewDeadlineDate,
-        }
+	          targets: assignmentPreviewTargets,
+	          deadlineDate,
+	          managerReviewDeadlineDate,
+	          timelineMode,
+	          manualStartDate: isManualTimeline ? manualStartDate : null,
+	          manualEndDate: isManualTimeline ? manualEndDate : null,
+	        }
       : skipToken;
 
   const {
@@ -563,7 +578,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
   }, [assignmentMode, departmentIds.length, effectiveHybridRules.length, positionIds.length, selectedEmployeeIds.length]);
 
   const validate = () => {
-    if (!activeSubmissionCycle) return 'No active employee-submission review cycle is available';
+	    if (!isManualTimeline && !activeSubmissionCycle) return 'No active employee-submission review cycle is available';
     if (assignmentMode === 'DEPARTMENTS' && departmentIds.length === 0) return 'Please select at least one department';
     if (assignmentMode === 'POSITIONS' && positionIds.length === 0) return 'Please select at least one position';
     if (assignmentMode === 'HYBRID' && effectiveHybridRules.length === 0) {
@@ -581,11 +596,14 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
     if (deadlineDate > managerReviewDeadlineDate) {
       return 'Manager review deadline cannot be earlier than the employee deadline.';
     }
-    const cycleStartDate = activeSubmissionCycle.startDate;
-    const cycleEndDate = activeSubmissionCycle.endDate;
-    if ([startDate, deadlineDate, managerReviewDeadlineDate].some((date) => date < cycleStartDate || date > cycleEndDate)) {
-      return 'Start date, employee deadline, and manager deadline must be within the active cycle';
-    }
+	    const cycleStartDate = cycleStart;
+	    const cycleEndDate = cycleEnd;
+	    if (!isManualTimeline && [startDate, deadlineDate, managerReviewDeadlineDate].some((date) => date < cycleStartDate || date > cycleEndDate)) {
+	      return 'Start date, employee deadline, and manager deadline must be within the active cycle';
+	    }
+	    if (isManualTimeline && (startDate !== manualStartDate || deadlineDate !== manualEndDate || managerReviewDeadlineDate !== manualEndDate)) {
+	      return 'Manual assignment dates must match the selected manual timeline';
+	    }
     return null;
   };
 
@@ -608,10 +626,13 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
             assignmentMode: 'HYBRID',
             departmentIds: [rule.departmentId],
             positionIds: [rule.positionId],
-            startDate,
-            deadlineDate,
-            managerReviewDeadlineDate,
-          }).unwrap();
+	            startDate,
+	            deadlineDate,
+	            managerReviewDeadlineDate,
+	            timelineMode,
+	            manualStartDate: isManualTimeline ? manualStartDate : null,
+	            manualEndDate: isManualTimeline ? manualEndDate : null,
+	          }).unwrap();
           createdCount += result.createdCount;
           skippedExistingCount += result.skippedExistingCount;
           skippedNoTemplateCount += result.skippedNoTemplateCount;
@@ -625,10 +646,13 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
           departmentIds,
           positionIds,
           employeeIds: selectedEmployeeIds,
-          startDate,
-          deadlineDate,
-          managerReviewDeadlineDate,
-        }).unwrap();
+	          startDate,
+	          deadlineDate,
+	          managerReviewDeadlineDate,
+	          timelineMode,
+	          manualStartDate: isManualTimeline ? manualStartDate : null,
+	          manualEndDate: isManualTimeline ? manualEndDate : null,
+	        }).unwrap();
         toast.success(formatAssignmentSuccessMessage(result.createdCount));
       }
       if (onAssignmentSuccess) {
@@ -1395,9 +1419,10 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   <input
                     type="date"
                     value={startDate}
-                    min={cycleStart}
-                    max={cycleEnd}
-                    onChange={(event) => setStartDate(event.target.value)}
+	                    min={cycleStart}
+	                    max={cycleEnd}
+	                    disabled={isManualTimeline}
+	                    onChange={(event) => setStartDate(event.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#2463eb]"
                   />
                 </div>
@@ -1417,9 +1442,10 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   <input
                     type="date"
                     value={deadlineDate}
-                    min={cycleStart}
-                    max={cycleEnd}
-                    onChange={(event) => setDeadlineDate(event.target.value)}
+	                    min={cycleStart}
+	                    max={cycleEnd}
+	                    disabled={isManualTimeline}
+	                    onChange={(event) => setDeadlineDate(event.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#2463eb]"
                   />
                 </div>
@@ -1439,9 +1465,10 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   <input
                     type="date"
                     value={managerReviewDeadlineDate}
-                    min={managerReviewMinDate}
-                    max={cycleEnd}
-                    onChange={(event) => setManagerReviewDeadlineDate(event.target.value)}
+	                    min={managerReviewMinDate}
+	                    max={cycleEnd}
+	                    disabled={isManualTimeline}
+	                    onChange={(event) => setManagerReviewDeadlineDate(event.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#2463eb]"
                   />
                 </div>
@@ -1458,14 +1485,14 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                     Final approval
                   </p>
                   <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
-                    HR final approval uses the active review cycle end date:{' '}
+	                    HR final approval uses the {isManualTimeline ? 'manual end date' : 'active review cycle end date'}:{' '}
                     <span className="font-semibold text-slate-900 dark:text-white">{formatCycleDate(cycleEnd)}</span>.
                   </p>
                 </div>
               </div>
             )}
 
-            {!activeSubmissionCycle && (
+	            {!isManualTimeline && !activeSubmissionCycle && (
               <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-200/60 bg-amber-50/50 px-4 py-2.5 dark:border-amber-800/40 dark:bg-amber-900/10">
                 <AlertCircle size={14} className="shrink-0 text-amber-500 dark:text-amber-400" />
                 <span className="text-xs font-medium text-amber-700 dark:text-amber-300">

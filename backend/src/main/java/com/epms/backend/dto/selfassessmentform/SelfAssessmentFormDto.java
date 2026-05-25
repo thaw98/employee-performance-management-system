@@ -67,5 +67,6 @@ public record SelfAssessmentFormDto(
         String hrReviewReason,
         Instant hrReviewReasonAt,
         String hrName,
-        List<SelfAssessmentSubmissionAttemptDto> submissionAttempts
+        List<SelfAssessmentSubmissionAttemptDto> submissionAttempts,
+        SelfAssessmentUnlockRequestDto pendingUnlockRequest
 ) {}

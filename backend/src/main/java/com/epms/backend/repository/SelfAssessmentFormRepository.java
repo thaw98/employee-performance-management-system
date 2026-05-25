@@ -55,9 +55,22 @@ public interface SelfAssessmentFormRepository extends JpaRepository<SelfAssessme
 
     boolean existsByEmployeeAndCycle(Employee employee, ReviewCycle cycle);
 
+    boolean existsByEmployeeAndTemplateAndStartDateAndDeadlineDateAndManagerReviewDeadlineDate(
+            Employee employee,
+            SelfAssessmentFormTemplate template,
+            LocalDate startDate,
+            LocalDate deadlineDate,
+            LocalDate managerReviewDeadlineDate);
+
     long countByTemplateAndCycleAndDeadlineDateAndManagerReviewDeadlineDate(
             SelfAssessmentFormTemplate template,
             ReviewCycle cycle,
+            LocalDate deadlineDate,
+            LocalDate managerReviewDeadlineDate);
+
+    long countByTemplateAndCycleIsNullAndStartDateAndDeadlineDateAndManagerReviewDeadlineDate(
+            SelfAssessmentFormTemplate template,
+            LocalDate startDate,
             LocalDate deadlineDate,
             LocalDate managerReviewDeadlineDate);
 }

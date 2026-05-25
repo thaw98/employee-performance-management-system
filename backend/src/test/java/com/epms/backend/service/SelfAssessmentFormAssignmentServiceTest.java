@@ -42,6 +42,7 @@ import com.epms.backend.repository.SelfAssessmentFormAdjustmentRepository;
 import com.epms.backend.repository.SelfAssessmentFormRepository;
 import com.epms.backend.repository.SelfAssessmentSettingsRepository;
 import com.epms.backend.repository.SelfAssessmentFormTemplateRepository;
+import com.epms.backend.repository.SelfAssessmentUnlockRequestRepository;
 import com.epms.backend.repository.SignatureRepository;
 import com.epms.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -102,6 +103,8 @@ class SelfAssessmentFormAssignmentServiceTest {
     private SelfAssessmentSettingsRepository settingsRepository;
     @Mock
     private ReportingManagerResolver reportingManagerResolver;
+    @Mock
+    private SelfAssessmentUnlockRequestRepository unlockRequestRepository;
 
     private SelfAssessmentFormService service;
 
@@ -123,7 +126,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 userRepository,
                 notificationRepository,
                 settingsRepository,
-                reportingManagerResolver);
+                reportingManagerResolver,
+                unlockRequestRepository);
     }
 
     @Test
@@ -307,7 +311,11 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(),
                 LocalDate.of(2026, 5, 5),
                 LocalDate.of(2026, 5, 10),
-                LocalDate.of(2026, 5, 15));
+                LocalDate.of(2026, 5, 15),
+                null,
+                null,
+                null,
+                null);
 
         SelfAssessmentAssignmentResponse response = service.assignSelfAssessmentForms(request, 99L);
 
@@ -326,7 +334,11 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(),
                 LocalDate.of(2026, 5, 10),
                 LocalDate.of(2026, 5, 16),
-                LocalDate.of(2026, 5, 15));
+                LocalDate.of(2026, 5, 15),
+                null,
+                null,
+                null,
+                null);
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> service.assignSelfAssessmentForms(request, 99L));
 
@@ -438,11 +450,81 @@ class SelfAssessmentFormAssignmentServiceTest {
                 null,
                 7L,
                 null,
+                null,
+                null,
+                null,
                 null), 99L);
 
         ArgumentCaptor<SelfAssessmentFormTemplate> templateCaptor = ArgumentCaptor.forClass(SelfAssessmentFormTemplate.class);
         verify(templateRepository).saveAndFlush(templateCaptor.capture());
         assertEquals(SelfAssessmentRatingSystem.TEN_POINT, templateCaptor.getValue().getRatingSystem());
+    }
+
+    @Test
+    void createTemplate_manualTimelineStoresNullCycleAndManualDates() {
+        LocalDate start = LocalDate.of(2026, 6, 1);
+        LocalDate end = LocalDate.of(2026, 6, 30);
+
+        when(departmentRepository.findById(10L)).thenReturn(Optional.of(department(10L)));
+        when(positionRepository.findById(20L)).thenReturn(Optional.of(position(20L)));
+        when(templateRepository.findActiveManualByDepartmentAndPositionAndDateRange(10L, 20L, start, end))
+                .thenReturn(Optional.empty());
+        when(settingsRepository.findById(SelfAssessmentSettings.SINGLETON_ID)).thenReturn(Optional.empty());
+        when(settingsRepository.save(any(SelfAssessmentSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(templateRepository.saveAndFlush(any(SelfAssessmentFormTemplate.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(templateRepository.save(any(SelfAssessmentFormTemplate.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createTemplate(new CreateTemplateRequest(
+                "Manual Template",
+                10L,
+                20L,
+                List.of(new QuestionRequest(null, "What did you achieve?", 0)),
+                null,
+                null,
+                "MANUAL",
+                start,
+                end,
+                null,
+                null), 99L);
+
+        ArgumentCaptor<SelfAssessmentFormTemplate> templateCaptor = ArgumentCaptor.forClass(SelfAssessmentFormTemplate.class);
+        verify(templateRepository).saveAndFlush(templateCaptor.capture());
+        assertNull(templateCaptor.getValue().getReviewCycle());
+        assertEquals(start, templateCaptor.getValue().getManualStartDate());
+        assertEquals(end, templateCaptor.getValue().getManualEndDate());
+        verify(reviewCycleService, never()).resolveCycleForSelfAssessmentTemplate(any());
+    }
+
+    @Test
+    void createTemplate_manualTimelineRejectsDuplicateDateRange() {
+        LocalDate start = LocalDate.of(2026, 6, 1);
+        LocalDate end = LocalDate.of(2026, 6, 30);
+        SelfAssessmentFormTemplate existing = template(100L, 10L, 20L, null);
+        existing.setManualStartDate(start);
+        existing.setManualEndDate(end);
+
+        when(departmentRepository.findById(10L)).thenReturn(Optional.of(department(10L)));
+        when(positionRepository.findById(20L)).thenReturn(Optional.of(position(20L)));
+        when(templateRepository.findActiveManualByDepartmentAndPositionAndDateRange(10L, 20L, start, end))
+                .thenReturn(Optional.of(existing));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.createTemplate(new CreateTemplateRequest(
+                "Manual Template",
+                10L,
+                20L,
+                List.of(new QuestionRequest(null, "What did you achieve?", 0)),
+                null,
+                null,
+                "MANUAL",
+                start,
+                end,
+                null,
+                null), 99L));
+
+        assertTrue(ex.getMessage().contains("active manual template"));
+        verify(templateRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -869,86 +951,6 @@ class SelfAssessmentFormAssignmentServiceTest {
         assertEquals(List.of(3L, 1L), response.forms().stream().map(form -> form.employee().id()).toList());
     }
 
-    @Test
-    void hrUnlockRetake_allowsActiveCycleRegularFormPendingRetakeManagerReview() {
-        ReviewCycle cycle = cycle();
-        Employee employee = employee(1L, 10L, 20L);
-        employee.getUserAccount().setRole(role(3L));
-        SelfAssessmentForm form = retakeForm(SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW, employee, cycle);
-        SelfAssessmentFormAnswer requested = form.getAnswers().get(0);
-        String warningComment = requested.getRetakeRequestComment();
-
-        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
-        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
-        when(formRepository.save(form)).thenReturn(form);
-        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
-
-        service.hrUnlockRetake(200L, 99L);
-
-        assertEquals(SelfAssessmentFormStatus.PENDING_EMPLOYEE_RETAKE, form.getStatus());
-        assertNull(form.getRetakeSubmittedAt());
-        assertNull(form.getManagerApprovedRetakeAt());
-        assertTrue(form.getRetakeRequestUsed());
-        assertTrue(requested.getRetakeRequested());
-        assertEquals(warningComment, requested.getRetakeRequestComment());
-        assertNull(requested.getRetakeYesNoAnswer());
-        assertNull(requested.getRetakeRating());
-        assertNull(requested.getRetakeReason());
-        assertNull(requested.getRetakeSubmittedAt());
-        assertNull(requested.getRetakeApproved());
-        assertEquals("Yes", requested.getYesNoAnswer());
-        assertEquals(4, requested.getRating());
-        verify(auditService).record(
-                eq(com.epms.backend.audit.AuditActionType.SELF_ASSESSMENT_FORM_HR_UNLOCKED_RETAKE),
-                eq(com.epms.backend.audit.AuditTargetType.SELF_ASSESSMENT_FORM),
-                eq(200L),
-                eq(99L),
-                eq(null),
-                eq("HR unlocked submitted retake answers for editing and resubmission"),
-                eq(null));
-    }
-
-    @Test
-    void hrUnlockRetake_allowsManagerSelfAssessmentPendingFinalApprovalWithSubmittedRetake() {
-        ReviewCycle cycle = cycle();
-        Employee manager = employee(2L, 10L, 20L);
-        manager.getUserAccount().setRole(role(2L));
-        SelfAssessmentForm form = retakeForm(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL, manager, cycle);
-        form.getAnswers().get(0).setFinalApprovedYesNo("No");
-        form.getAnswers().get(0).setFinalApprovedRating(2);
-        form.setFinalApprovedTotalScore(40.0);
-
-        when(formRepository.findById(200L)).thenReturn(Optional.of(form));
-        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
-        when(formRepository.save(form)).thenReturn(form);
-        when(adjustmentRepository.findByForm(form)).thenReturn(List.of());
-
-        service.hrUnlockRetake(200L, 99L);
-
-        assertEquals(SelfAssessmentFormStatus.PENDING_EMPLOYEE_RETAKE, form.getStatus());
-        assertNull(form.getRetakeSubmittedAt());
-        assertNull(form.getFinalApprovedTotalScore());
-        assertNull(form.getAnswers().get(0).getFinalApprovedYesNo());
-        assertNull(form.getAnswers().get(0).getFinalApprovedRating());
-    }
-
-    @Test
-    void hrUnlockRetake_rejectsIneligibleStatusesAndRegularPendingFinalApproval() {
-        ReviewCycle cycle = cycle();
-        Employee finalizedEmployee = employee(1L, 10L, 20L);
-        finalizedEmployee.getUserAccount().setRole(role(3L));
-        SelfAssessmentForm finalized = retakeForm(SelfAssessmentFormStatus.FINALIZED_LOCKED, finalizedEmployee, cycle);
-        when(formRepository.findById(200L)).thenReturn(Optional.of(finalized));
-        when(reviewCycleService.getActiveSubmissionCycle()).thenReturn(cycle);
-        assertThrows(RuntimeException.class, () -> service.hrUnlockRetake(200L, 99L));
-
-        Employee employee = employee(3L, 10L, 20L);
-        employee.getUserAccount().setRole(role(3L));
-        SelfAssessmentForm regularPendingFinal = retakeForm(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL, employee, cycle);
-        when(formRepository.findById(201L)).thenReturn(Optional.of(regularPendingFinal));
-        assertThrows(RuntimeException.class, () -> service.hrUnlockRetake(201L, 99L));
-    }
-
     private static SelfAssessmentAssignmentRequest request(String mode) {
         return new SelfAssessmentAssignmentRequest(
                 mode,
@@ -957,14 +959,22 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(),
                 LocalDate.of(2026, 5, 5),
                 LocalDate.of(2026, 5, 10),
-                LocalDate.of(2026, 5, 15));
+                LocalDate.of(2026, 5, 15),
+                null,
+                null,
+                null,
+                null);
     }
 
     private static SelfAssessmentAssignmentPreviewRequest previewRequest(Long departmentId, Long positionId) {
         return new SelfAssessmentAssignmentPreviewRequest(
                 List.of(new TemplateTargetPairRequest(departmentId, positionId)),
                 LocalDate.of(2026, 5, 10),
-                LocalDate.of(2026, 5, 15));
+                LocalDate.of(2026, 5, 15),
+                null,
+                null,
+                null,
+                null);
     }
 
     private static ReviewCycle cycle() {

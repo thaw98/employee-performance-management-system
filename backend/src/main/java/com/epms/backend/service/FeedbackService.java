@@ -796,6 +796,9 @@ public class FeedbackService {
         dto.setEvaluateeId(draft.getEvaluatee().getId());
         dto.setEvaluateeName(draft.getEvaluatee().getEmployeeName());
         dto.setEvaluateeStaffNo(draft.getEvaluatee().getEmployeeId());
+        dto.setEvaluateeLevelCode(draft.getEvaluatee().getPosition() != null && draft.getEvaluatee().getPosition().getLevelCode() != null
+                ? draft.getEvaluatee().getPosition().getLevelCode().getCode()
+                : null);
         dto.setEvaluateePosition(draft.getEvaluatee().getPosition() != null ? draft.getEvaluatee().getPosition().getName() : "N/A");
         dto.setEvaluateeDepartment(draft.getEvaluatee().getDepartment() != null ? draft.getEvaluatee().getDepartment().getName() : "N/A");
         dto.setRole(draft.getRole());
