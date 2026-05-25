@@ -1,9 +1,18 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    global: 'globalThis',
+  },
+  resolve: {
+    alias: {
+      stream: resolve(__dirname, 'node_modules/stream-browserify'),
+    },
+  },
   server: {
     proxy: {
       '/api': {
@@ -16,4 +25,4 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setupTests.ts',
   },
-})
+});
