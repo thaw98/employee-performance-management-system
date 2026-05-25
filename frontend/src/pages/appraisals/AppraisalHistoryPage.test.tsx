@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppraisalHistoryPage } from './AppraisalHistoryPage';
@@ -25,60 +25,89 @@ vi.mock('../../utils/downloadBlobFile', () => ({
 
 const historyRows = [
   {
+    assignmentId: 1001,
     cycleId: 1,
     cycleName: 'Q1 2026',
     cycleStartDate: '2026-01-01',
     cycleEndDate: '2026-03-31',
-    departmentId: 10,
+    employeeName: 'Aye Aye',
+    employeeId: 'EMP-100',
+    staffNo: 'EMP-100',
     departmentName: 'Engineering',
-    positionId: 20,
     positionName: 'Developer',
-    totalCount: 2,
-    hrApprovedCount: 1,
-    finalizedCount: 1,
-    averageScore: 86.5,
+    status: 'LOCKED',
+    statusLabel: 'Finalized',
+    score: 86.5,
   },
   {
+    assignmentId: 1002,
     cycleId: 2,
     cycleName: 'Q2 2026',
     cycleStartDate: '2026-04-01',
     cycleEndDate: '2026-06-30',
-    departmentId: 11,
+    employeeName: 'Mya Mya',
+    employeeId: 'EMP-200',
+    staffNo: 'EMP-200',
     departmentName: 'Finance',
-    positionId: 21,
     positionName: 'Analyst',
-    totalCount: 1,
-    hrApprovedCount: 1,
-    finalizedCount: 0,
-    averageScore: 74,
+    status: 'HR_APPROVED',
+    statusLabel: 'HR Approved',
+    score: 74,
   },
 ];
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.clearAllMocks();
 });
 
 describe('AppraisalHistoryPage', () => {
-  it('renders grouped history rows', async () => {
+  it('defaults to table view and renders employee detail columns', async () => {
     axiosGetMock.mockResolvedValueOnce({ data: { data: historyRows } });
 
     render(<AppraisalHistoryPage mode="hr" />);
 
-    expect(await screen.findByRole('heading', { name: 'Engineering' })).toBeTruthy();
-    expect(screen.getAllByText('Developer').length).toBeGreaterThan(0);
-    expect(screen.getByRole('heading', { name: 'Finance' })).toBeTruthy();
-    expect(screen.getByText('86.5%')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Table view' })).toHaveAttribute('aria-pressed', 'true');
+    const table = screen.getByRole('table');
+    ['Employee Name', 'Staff No', 'Position', 'Department', 'Cycle', 'Status', 'Score', 'Date Range'].forEach((heading) => {
+      expect(within(table).getByRole('columnheader', { name: heading })).toBeTruthy();
+    });
+    expect(within(table).getByText('Aye Aye')).toBeTruthy();
+    expect(within(table).getByText('EMP-100')).toBeTruthy();
+    expect(within(table).getByText('Engineering')).toBeTruthy();
+    expect(within(table).getByText('Developer')).toBeTruthy();
+    expect(within(table).getByText('Q1 2026')).toBeTruthy();
+    expect(within(table).getByText('86.5%')).toBeTruthy();
   });
 
-  it('filters rows by department, position, status, and search', async () => {
+  it('switches between table and grid and restores the saved view', async () => {
     axiosGetMock.mockResolvedValueOnce({ data: { data: historyRows } });
     render(<AppraisalHistoryPage mode="hr" />);
 
-    await screen.findByRole('heading', { name: 'Engineering' });
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('button', { name: 'Grid view' }));
+
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(localStorage.getItem('appraisalHistoryViewMode')).toBe('grid');
+    expect(screen.getByRole('heading', { name: 'Aye Aye' })).toBeTruthy();
+    cleanup();
+
+    axiosGetMock.mockResolvedValueOnce({ data: { data: historyRows } });
+    render(<AppraisalHistoryPage mode="hr" />);
+
+    expect(await screen.findByRole('button', { name: 'Grid view' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('filters rows by department, position, status, employee search, and staff no search', async () => {
+    axiosGetMock.mockResolvedValueOnce({ data: { data: historyRows } });
+    render(<AppraisalHistoryPage mode="hr" />);
+
+    await screen.findByText('Aye Aye');
     await userEvent.selectOptions(screen.getByLabelText('Department'), 'Finance');
-    expect(screen.queryByRole('heading', { name: 'Engineering' })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Finance' })).toBeTruthy();
+    expect(screen.queryByText('Aye Aye')).toBeNull();
+    expect(screen.getByText('Mya Mya')).toBeTruthy();
 
     await userEvent.selectOptions(screen.getByLabelText('Position'), 'Developer');
     expect(screen.getByText('No History Found')).toBeTruthy();
@@ -88,10 +117,33 @@ describe('AppraisalHistoryPage', () => {
     expect(screen.getByText('No History Found')).toBeTruthy();
 
     await userEvent.selectOptions(screen.getByLabelText('Department'), 'ALL');
-    expect(screen.getByRole('heading', { name: 'Engineering' })).toBeTruthy();
+    expect(screen.getByText('Aye Aye')).toBeTruthy();
 
-    await userEvent.type(screen.getByPlaceholderText('Search history...'), 'finance');
-    expect(screen.getByText('No History Found')).toBeTruthy();
+    await userEvent.clear(screen.getByPlaceholderText('Search history...'));
+    await userEvent.type(screen.getByPlaceholderText('Search history...'), 'EMP-100');
+    expect(screen.getByText('Aye Aye')).toBeTruthy();
+    expect(screen.queryByText('Mya Mya')).toBeNull();
+
+    await userEvent.selectOptions(screen.getByLabelText('Status'), 'ALL');
+    await userEvent.clear(screen.getByPlaceholderText('Search history...'));
+    await userEvent.type(screen.getByPlaceholderText('Search history...'), 'mya');
+    expect(screen.getByText('Mya Mya')).toBeTruthy();
+    expect(screen.queryByText('Aye Aye')).toBeNull();
+  });
+
+  it('recalculates top stats from filtered employee rows', async () => {
+    axiosGetMock.mockResolvedValueOnce({ data: { data: historyRows } });
+    render(<AppraisalHistoryPage mode="hr" />);
+
+    await screen.findByText('Aye Aye');
+    expect(screen.getByText('Completed').closest('.bg-white')?.textContent).toContain('2');
+    expect(screen.getAllByText('HR Approved')[0].closest('.bg-white')?.textContent).toContain('1');
+    expect(screen.getAllByText('Finalized')[0].closest('.bg-white')?.textContent).toContain('1');
+
+    await userEvent.selectOptions(screen.getByLabelText('Status'), 'Finalized');
+    expect(screen.getByText('Completed').closest('.bg-white')?.textContent).toContain('1');
+    expect(screen.getAllByText('HR Approved')[0].closest('.bg-white')?.textContent).toContain('0');
+    expect(screen.getAllByText('Finalized')[0].closest('.bg-white')?.textContent).toContain('1');
   });
 
   it('exports the selected cycle as an Excel blob', async () => {
@@ -104,7 +156,7 @@ describe('AppraisalHistoryPage', () => {
       });
 
     render(<AppraisalHistoryPage mode="manager" />);
-    await screen.findByRole('heading', { name: 'Engineering' });
+    await screen.findByText('Aye Aye');
     await userEvent.selectOptions(screen.getByLabelText('Cycle'), '2');
     await userEvent.click(screen.getByRole('button', { name: /export cycle/i }));
 

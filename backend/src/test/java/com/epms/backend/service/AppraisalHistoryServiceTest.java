@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.when;
 
 import com.epms.backend.StaffTypes;
-import com.epms.backend.dto.appraisal.AppraisalHistorySummaryRowDto;
+import com.epms.backend.dto.appraisal.AppraisalHistoryDetailRowDto;
 import com.epms.backend.entity.AppraisalAssignment;
 import com.epms.backend.entity.AppraisalCycle;
 import com.epms.backend.entity.AppraisalStatus;
@@ -58,12 +58,10 @@ class AppraisalHistoryServiceTest {
         AppraisalAssignment probation = assignment(3L, q1, employee(102L, "EMP-102", engineering, developer, null, StaffTypes.PROBATION), null, AppraisalStatus.LOCKED);
         when(assignmentRepository.findAll()).thenReturn(List.of(approved, finalized, probation));
 
-        List<AppraisalHistorySummaryRowDto> rows = service.getHistory(900L, 1L);
+        List<AppraisalHistoryDetailRowDto> rows = service.getHistory(900L, 1L);
 
-        assertEquals(1, rows.size());
-        assertEquals(2, rows.get(0).totalCount());
-        assertEquals(1, rows.get(0).hrApprovedCount());
-        assertEquals(1, rows.get(0).finalizedCount());
+        assertEquals(2, rows.size());
+        assertEquals(List.of(1L, 2L), rows.stream().map(AppraisalHistoryDetailRowDto::assignmentId).toList());
     }
 
     @Test
@@ -75,10 +73,9 @@ class AppraisalHistoryServiceTest {
         AppraisalAssignment outsideAssignment = assignment(4L, q1, employee(103L, "EMP-103", department(23L, "Ops", null), developer, null, StaffTypes.PERMANENT), null, AppraisalStatus.LOCKED);
         when(assignmentRepository.findAll()).thenReturn(List.of(evaluatorAssignment, directReportAssignment, managedDepartmentAssignment, outsideAssignment));
 
-        List<AppraisalHistorySummaryRowDto> rows = service.getHistory(200L, 2L);
+        List<AppraisalHistoryDetailRowDto> rows = service.getHistory(200L, 2L);
 
-        long total = rows.stream().mapToLong(AppraisalHistorySummaryRowDto::totalCount).sum();
-        assertEquals(3, total);
+        assertEquals(3, rows.size());
     }
 
     @Test
@@ -87,10 +84,10 @@ class AppraisalHistoryServiceTest {
         AppraisalAssignment other = assignment(2L, q1, employee(101L, "EMP-101", engineering, developer, null, StaffTypes.PERMANENT), null, AppraisalStatus.HR_APPROVED);
         when(assignmentRepository.findAll()).thenReturn(List.of(own, other));
 
-        List<AppraisalHistorySummaryRowDto> rows = service.getHistory(100L, 4L);
+        List<AppraisalHistoryDetailRowDto> rows = service.getHistory(100L, 4L);
 
         assertEquals(1, rows.size());
-        assertEquals(1, rows.get(0).totalCount());
+        assertEquals(100L, rows.get(0).employeeDbId());
     }
 
     @Test
@@ -101,10 +98,27 @@ class AppraisalHistoryServiceTest {
         AppraisalAssignment locked = assignment(4L, q1, employee(103L, "EMP-103", engineering, developer, null, StaffTypes.PERMANENT), null, AppraisalStatus.LOCKED);
         when(assignmentRepository.findAll()).thenReturn(List.of(draft, submitted, approved, locked));
 
-        List<AppraisalHistorySummaryRowDto> rows = service.getHistory(900L, 1L);
+        List<AppraisalHistoryDetailRowDto> rows = service.getHistory(900L, 1L);
 
-        assertEquals(1, rows.size());
-        assertEquals(2, rows.get(0).totalCount());
+        assertEquals(2, rows.size());
+        assertEquals(List.of("HR Approved", "Finalized"), rows.stream().map(AppraisalHistoryDetailRowDto::statusLabel).toList());
+    }
+
+    @Test
+    void historyDetailRowsIncludeEmployeeIdentityAndOrgFields() {
+        AppraisalAssignment approved = assignment(1L, q1, employee(100L, "EMP-100", engineering, developer, null, StaffTypes.PERMANENT), null, AppraisalStatus.HR_APPROVED);
+        when(assignmentRepository.findAll()).thenReturn(List.of(approved));
+
+        List<AppraisalHistoryDetailRowDto> rows = service.getHistory(900L, 1L);
+
+        AppraisalHistoryDetailRowDto row = rows.get(0);
+        assertEquals(1L, row.assignmentId());
+        assertEquals("EMP-100", row.employeeId());
+        assertEquals("EMP-100", row.staffNo());
+        assertEquals("EMP-100 Name", row.employeeName());
+        assertEquals("Engineering", row.departmentName());
+        assertEquals("Developer", row.positionName());
+        assertEquals(88.0, row.score());
     }
 
     @Test
@@ -130,7 +144,7 @@ class AppraisalHistoryServiceTest {
                             summaryHeader.getCell(3).getStringCellValue(),
                             summaryHeader.getCell(4).getStringCellValue()
                     });
-            assertEquals("Employee ID", detailHeader.getCell(5).getStringCellValue());
+            assertEquals("Staff No", detailHeader.getCell(5).getStringCellValue());
             assertEquals("HR Approved Date", detailHeader.getCell(11).getStringCellValue());
         }
     }

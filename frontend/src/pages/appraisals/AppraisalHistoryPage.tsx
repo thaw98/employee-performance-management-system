@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { Award, Building2, Calendar, ChevronDown, Download, FileSpreadsheet, Filter, History, Search } from 'lucide-react';
+import { Award, Briefcase, Building2, Calendar, ChevronDown, Download, FileSpreadsheet, Filter, History, LayoutGrid, List, Search, User } from 'lucide-react';
 import { downloadBlobFile } from '../../utils/downloadBlobFile';
 import {
   appraisalGradientBtn,
@@ -10,36 +10,60 @@ import {
 } from '../../features/appraisals/appraisalTheme';
 
 interface AppraisalHistoryRow {
+  assignmentId: number;
   cycleId: number;
   cycleName: string;
   cycleStartDate?: string | null;
   cycleEndDate?: string | null;
-  departmentId?: number | null;
+  employeeName?: string | null;
+  employeeId?: string | null;
+  staffNo?: string | null;
   departmentName?: string | null;
-  positionId?: number | null;
   positionName?: string | null;
-  totalCount: number;
-  hrApprovedCount: number;
-  finalizedCount: number;
-  averageScore?: number | null;
+  status?: string | null;
+  statusLabel?: string | null;
+  score?: number | null;
 }
 
 type RoleMode = 'hr' | 'manager' | 'employee';
+type ViewMode = 'table' | 'grid';
 
 interface AppraisalHistoryPageProps {
   mode: RoleMode;
 }
 
 const ALL = 'ALL';
+const VIEW_MODE_STORAGE_KEY = 'appraisalHistoryViewMode';
+
+function getInitialViewMode(): ViewMode {
+  if (typeof window === 'undefined') return 'table';
+  return localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'grid' ? 'grid' : 'table';
+}
 
 function formatDate(value?: string | null) {
   if (!value) return 'N/A';
   return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
 }
 
+function formatDateRange(row: AppraisalHistoryRow) {
+  return `${formatDate(row.cycleStartDate)} - ${formatDate(row.cycleEndDate)}`;
+}
+
 function formatPercent(value?: number | null) {
   if (value == null || Number.isNaN(value)) return '0.0%';
   return `${value.toFixed(1)}%`;
+}
+
+function staffNo(row: AppraisalHistoryRow) {
+  return row.staffNo || row.employeeId || 'N/A';
+}
+
+function employeeName(row: AppraisalHistoryRow) {
+  return row.employeeName || 'Unnamed Employee';
+}
+
+function statusLabel(row: AppraisalHistoryRow) {
+  return row.statusLabel || (row.status === 'LOCKED' ? 'Finalized' : row.status === 'HR_APPROVED' ? 'HR Approved' : 'N/A');
 }
 
 function selectedCycleName(rows: AppraisalHistoryRow[], cycleId: string) {
@@ -65,6 +89,11 @@ export function AppraisalHistoryPage({ mode }: AppraisalHistoryPageProps) {
   const [departmentFilter, setDepartmentFilter] = useState(ALL);
   const [positionFilter, setPositionFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
+  const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode);
+
+  useEffect(() => {
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     let active = true;
@@ -109,24 +138,27 @@ export function AppraisalHistoryPage({ mode }: AppraisalHistoryPageProps) {
 
   const filteredRows = rows.filter((row) => {
     const term = searchTerm.toLowerCase();
-    const matchesSearch = !term
-      || row.cycleName.toLowerCase().includes(term)
-      || (row.departmentName ?? '').toLowerCase().includes(term)
-      || (row.positionName ?? '').toLowerCase().includes(term);
+    const searchValues = [
+      row.cycleName,
+      row.departmentName,
+      row.positionName,
+      row.employeeName,
+      row.staffNo,
+      row.employeeId,
+    ];
+    const matchesSearch = !term || searchValues.some((value) => (value ?? '').toLowerCase().includes(term));
     const matchesCycle = cycleFilter === ALL || String(row.cycleId) === cycleFilter;
     const matchesDepartment = departmentFilter === ALL || row.departmentName === departmentFilter;
     const matchesPosition = positionFilter === ALL || row.positionName === positionFilter;
-    const matchesStatus = statusFilter === ALL
-      || (statusFilter === 'HR_APPROVED' && row.hrApprovedCount > 0)
-      || (statusFilter === 'LOCKED' && row.finalizedCount > 0);
+    const matchesStatus = statusFilter === ALL || row.status === statusFilter;
     return matchesSearch && matchesCycle && matchesDepartment && matchesPosition && matchesStatus;
   });
 
   const totals = filteredRows.reduce(
     (acc, row) => ({
-      total: acc.total + row.totalCount,
-      approved: acc.approved + row.hrApprovedCount,
-      finalized: acc.finalized + row.finalizedCount,
+      total: acc.total + 1,
+      approved: acc.approved + (row.status === 'HR_APPROVED' ? 1 : 0),
+      finalized: acc.finalized + (row.status === 'LOCKED' ? 1 : 0),
     }),
     { total: 0, approved: 0, finalized: 0 },
   );
@@ -173,39 +205,31 @@ export function AppraisalHistoryPage({ mode }: AppraisalHistoryPageProps) {
             </div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={!canExport || exporting}
-          className={`inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${canExport ? `${appraisalGradientBtn} text-white shadow-[#2463eb]/20` : 'bg-slate-100 text-slate-400'}`}
-        >
-          <FileSpreadsheet size={17} />
-          {exporting ? 'Exporting...' : 'Export Cycle'}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex items-center rounded-2xl bg-slate-100 p-1 border border-slate-200" aria-label="History view mode">
+            <ViewModeButton active={viewMode === 'table'} label="Table" onClick={() => setViewMode('table')}>
+              <List size={15} />
+            </ViewModeButton>
+            <ViewModeButton active={viewMode === 'grid'} label="Grid" onClick={() => setViewMode('grid')}>
+              <LayoutGrid size={15} />
+            </ViewModeButton>
+          </div>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={!canExport || exporting}
+            className={`inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${canExport ? `${appraisalGradientBtn} text-white shadow-[#2463eb]/20` : 'bg-slate-100 text-slate-400'}`}
+          >
+            <FileSpreadsheet size={17} />
+            {exporting ? 'Exporting...' : 'Export Cycle'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Completed</span>
-            <Award size={18} className="text-[#2463eb]" />
-          </div>
-          <p className="text-3xl font-black text-slate-900 mt-3">{totals.total}</p>
-        </div>
-        <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">HR Approved</span>
-            <Filter size={18} className="text-emerald-600" />
-          </div>
-          <p className="text-3xl font-black text-emerald-600 mt-3">{totals.approved}</p>
-        </div>
-        <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Finalized</span>
-            <Download size={18} className="text-slate-800" />
-          </div>
-          <p className="text-3xl font-black text-slate-900 mt-3">{totals.finalized}</p>
-        </div>
+        <StatCard label="Completed" value={totals.total} icon={<Award size={18} className="text-[#2463eb]" />} tone="text-slate-900" />
+        <StatCard label="HR Approved" value={totals.approved} icon={<Filter size={18} className="text-emerald-600" />} tone="text-emerald-600" />
+        <StatCard label="Finalized" value={totals.finalized} icon={<Download size={18} className="text-slate-800" />} tone="text-slate-900" />
       </div>
 
       <section className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-5">
@@ -259,43 +283,128 @@ export function AppraisalHistoryPage({ mode }: AppraisalHistoryPageProps) {
           <h3 className="mt-5 text-xl font-black text-slate-800">No History Found</h3>
           <p className="mt-2 text-sm font-semibold text-slate-400">Approved and finalized appraisal records will appear here.</p>
         </div>
+      ) : viewMode === 'table' ? (
+        <HistoryTable rows={filteredRows} />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {filteredRows.map((row) => (
-            <article key={`${row.cycleId}-${row.departmentId ?? 'none'}-${row.positionId ?? 'none'}`} className="bg-white rounded-[32px] border border-slate-100 p-6 shadow-sm hover:shadow-xl hover:shadow-[#2463eb]/5 transition-all">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black text-[#2463eb] uppercase tracking-widest flex items-center gap-2">
-                    <Calendar size={13} /> {row.cycleName}
-                  </p>
-                  <h3 className="mt-2 text-xl font-black text-slate-900">{row.departmentName || 'Unassigned Department'}</h3>
-                  <p className="mt-1 text-sm font-bold text-slate-500 flex items-center gap-2">
-                    <Building2 size={15} /> {row.positionName || 'Unassigned Position'}
-                  </p>
-                </div>
-                <div className={`${appraisalGradientSoft} rounded-2xl px-4 py-3 text-right min-w-24`}>
-                  <p className="text-[9px] font-black text-[#2463eb] uppercase tracking-widest">Average</p>
-                  <p className="text-xl font-black text-slate-900">{formatPercent(row.averageScore)}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 mt-6">
-                <Metric label="Total" value={row.totalCount} tone="text-slate-900" />
-                <Metric label="Approved" value={row.hrApprovedCount} tone="text-emerald-600" />
-                <Metric label="Finalized" value={row.finalizedCount} tone="text-slate-900" />
-              </div>
-
-              <div className="mt-5 pt-5 border-t border-slate-100 flex flex-wrap items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <span>{formatDate(row.cycleStartDate)}</span>
-                <span>-</span>
-                <span>{formatDate(row.cycleEndDate)}</span>
-                {row.finalizedCount > 0 && <span className="ml-auto px-3 py-1 rounded-full bg-slate-900 text-white">Finalized</span>}
-              </div>
-            </article>
-          ))}
-        </div>
+        <HistoryGrid rows={filteredRows} />
       )}
     </div>
+  );
+}
+
+function ViewModeButton({ active, label, onClick, children }: { active: boolean; label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      aria-label={`${label} view`}
+      title={`${label} view`}
+      onClick={onClick}
+      className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${active ? 'bg-white text-[#2463eb] shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+    >
+      {children}
+      {label}
+    </button>
+  );
+}
+
+function StatCard({ label, value, icon, tone }: { label: string; value: number; icon: React.ReactNode; tone: string }) {
+  return (
+    <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+        {icon}
+      </div>
+      <p className={`text-3xl font-black mt-3 ${tone}`}>{value}</p>
+    </div>
+  );
+}
+
+function HistoryTable({ rows }: { rows: AppraisalHistoryRow[] }) {
+  return (
+    <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-slate-100">
+          <thead className="bg-slate-50">
+            <tr>
+              {['Employee Name', 'Staff No', 'Position', 'Department', 'Cycle', 'Status', 'Score', 'Date Range'].map((heading) => (
+                <th key={heading} scope="col" className="px-5 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {rows.map((row) => (
+              <tr key={row.assignmentId} className="hover:bg-slate-50/70 transition-colors">
+                <td className="px-5 py-4 text-sm font-black text-slate-900 whitespace-nowrap">{employeeName(row)}</td>
+                <td className="px-5 py-4 text-sm font-bold text-slate-600 whitespace-nowrap">{staffNo(row)}</td>
+                <td className="px-5 py-4 text-sm font-semibold text-slate-600 whitespace-nowrap">{row.positionName || 'Unassigned Position'}</td>
+                <td className="px-5 py-4 text-sm font-semibold text-slate-600 whitespace-nowrap">{row.departmentName || 'Unassigned Department'}</td>
+                <td className="px-5 py-4 text-sm font-bold text-slate-900 whitespace-nowrap">{row.cycleName}</td>
+                <td className="px-5 py-4 whitespace-nowrap"><StatusPill row={row} /></td>
+                <td className="px-5 py-4 text-sm font-black text-slate-900 whitespace-nowrap">{formatPercent(row.score)}</td>
+                <td className="px-5 py-4 text-sm font-semibold text-slate-500 whitespace-nowrap">{formatDateRange(row)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function HistoryGrid({ rows }: { rows: AppraisalHistoryRow[] }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {rows.map((row) => (
+        <article key={row.assignmentId} className="bg-white rounded-[32px] border border-slate-100 p-6 shadow-sm hover:shadow-xl hover:shadow-[#2463eb]/5 transition-all">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black text-[#2463eb] uppercase tracking-widest flex items-center gap-2">
+                <User size={13} /> {staffNo(row)}
+              </p>
+              <h3 className="mt-2 text-xl font-black text-slate-900 break-words">{employeeName(row)}</h3>
+              <p className="mt-1 text-sm font-bold text-slate-500 flex items-center gap-2">
+                <Briefcase size={15} /> {row.positionName || 'Unassigned Position'}
+              </p>
+            </div>
+            <div className={`${appraisalGradientSoft} rounded-2xl px-4 py-3 text-right min-w-24`}>
+              <p className="text-[9px] font-black text-[#2463eb] uppercase tracking-widest">Score</p>
+              <p className="text-xl font-black text-slate-900">{formatPercent(row.score)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+            <DetailItem icon={<Building2 size={14} />} label="Department" value={row.departmentName || 'Unassigned Department'} />
+            <DetailItem icon={<Calendar size={14} />} label="Cycle" value={row.cycleName} />
+            <DetailItem label="Status" value={statusLabel(row)} />
+            <DetailItem label="Date Range" value={formatDateRange(row)} />
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function DetailItem({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4 min-w-0">
+      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+        {icon}
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-black text-slate-800 break-words">{value}</p>
+    </div>
+  );
+}
+
+function StatusPill({ row }: { row: AppraisalHistoryRow }) {
+  const finalized = row.status === 'LOCKED';
+  return (
+    <span className={`inline-flex items-center rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${finalized ? 'bg-slate-900 text-white' : 'bg-emerald-50 text-emerald-700'}`}>
+      {statusLabel(row)}
+    </span>
   );
 }
 
@@ -322,14 +431,5 @@ function SelectFilter({
       </select>
       <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
     </label>
-  );
-}
-
-function Metric({ label, value, tone }: { label: string; value: number; tone: string }) {
-  return (
-    <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
-      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-      <p className={`mt-1 text-2xl font-black ${tone}`}>{value}</p>
-    </div>
   );
 }

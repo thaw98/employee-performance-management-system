@@ -15,6 +15,7 @@ public record AppraisalHistoryDetailRowDto(
         String positionName,
         Long employeeDbId,
         String employeeId,
+        String staffNo,
         String employeeName,
         String status,
         String statusLabel,

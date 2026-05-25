@@ -1,7 +1,7 @@
 package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
-import com.epms.backend.dto.appraisal.AppraisalHistorySummaryRowDto;
+import com.epms.backend.dto.appraisal.AppraisalHistoryDetailRowDto;
 import com.epms.backend.entity.AppraisalAssignment;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.AppraisalAssignmentService;
@@ -46,9 +46,9 @@ public class AppraisalAssignmentController {
     }
 
     @GetMapping("/history")
-    public ResponseEntity<ApiResponse<List<AppraisalHistorySummaryRowDto>>> getHistory(Authentication auth) {
+    public ResponseEntity<ApiResponse<List<AppraisalHistoryDetailRowDto>>> getHistory(Authentication auth) {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
-        List<AppraisalHistorySummaryRowDto> rows = appraisalHistoryService.getHistory(
+        List<AppraisalHistoryDetailRowDto> rows = appraisalHistoryService.getHistory(
                 principal.getEmployeeDbId(),
                 principal.getRoleId());
         return ResponseEntity.ok(ApiResponse.ok("Fetched appraisal history", rows));

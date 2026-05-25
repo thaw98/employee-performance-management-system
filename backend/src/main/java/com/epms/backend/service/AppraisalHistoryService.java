@@ -49,9 +49,11 @@ public class AppraisalHistoryService {
     private final AppraisalCycleRepository appraisalCycleRepository;
 
     @Transactional(readOnly = true)
-    public List<AppraisalHistorySummaryRowDto> getHistory(Long employeeId, Long roleId) {
+    public List<AppraisalHistoryDetailRowDto> getHistory(Long employeeId, Long roleId) {
         List<AppraisalAssignment> scoped = getScopedHistoryAssignments(employeeId, roleId, null);
-        return toSummaryRows(scoped);
+        return scoped.stream()
+                .map(this::toDetailRow)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -193,6 +195,7 @@ public class AppraisalHistoryService {
                 position != null ? position.getName() : null,
                 employee != null ? employee.getId() : null,
                 employee != null ? employee.getEmployeeId() : null,
+                employee != null ? employee.getEmployeeId() : null,
                 employee != null ? employee.getEmployeeName() : null,
                 assignment.getStatus().name(),
                 displayStatus(assignment.getStatus()),
@@ -252,7 +255,7 @@ public class AppraisalHistoryService {
         CellStyle instantStyle = instantStyle(workbook);
         String[] headers = {
                 "Cycle Name", "Start Date", "End Date", "Department", "Position",
-                "Employee ID", "Employee Name", "Status", "Score", "Rating Category",
+                "Staff No", "Employee Name", "Status", "Score", "Rating Category",
                 "Submitted Date", "HR Approved Date", "Finalized Date"
         };
         Row headerRow = sheet.createRow(0);
@@ -270,7 +273,7 @@ public class AppraisalHistoryService {
             setLocalDate(excelRow.createCell(2), row.cycleEndDate(), dateStyle);
             excelRow.createCell(3).setCellValue(nullToBlank(row.departmentName()));
             excelRow.createCell(4).setCellValue(nullToBlank(row.positionName()));
-            excelRow.createCell(5).setCellValue(nullToBlank(row.employeeId()));
+            excelRow.createCell(5).setCellValue(nullToBlank(row.staffNo()));
             excelRow.createCell(6).setCellValue(nullToBlank(row.employeeName()));
             excelRow.createCell(7).setCellValue(nullToBlank(row.statusLabel()));
             excelRow.createCell(8).setCellValue(row.score() == null ? 0.0 : row.score());
