@@ -7,7 +7,7 @@ import { FIRST_LOGIN_SET_PASSWORD_PATH } from './paths';
 
 interface ProtectedRouteProps {
   children?: ReactNode;
-  allowedRoleGroups?: ('HR' | 'MANAGER' | 'EMPLOYEE')[];
+  allowedRoleGroups?: ('HR' | 'MANAGER' | 'EMPLOYEE' | 'AUDIT')[];
 }
 
 export function ProtectedRoute({ children, allowedRoleGroups }: ProtectedRouteProps) {
@@ -28,7 +28,6 @@ export function ProtectedRoute({ children, allowedRoleGroups }: ProtectedRoutePr
   if (allowedRoleGroups && allowedRoleGroups.length > 0) {
     const userRoleGroup = getRoleGroup(user);
     if (!allowedRoleGroups.includes(userRoleGroup)) {
-      // Redirect to their own dashboard
       const dashboardPath = getDashboardPath(user);
       return <Navigate to={dashboardPath} replace />;
     }
