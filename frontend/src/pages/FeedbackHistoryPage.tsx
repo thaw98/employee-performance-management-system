@@ -334,7 +334,7 @@ export function FeedbackHistoryPage() {
                                         </span>
                                     </td>
                                     <td className="p-6 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                        <div className="flex items-center justify-end gap-2">
                                             <button 
                                                 onClick={() => generatePDF(item.id)}
                                                 className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center shadow-sm"
