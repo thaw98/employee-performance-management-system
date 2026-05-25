@@ -148,7 +148,7 @@ function StepIndicator({ step, label, active }: { step: number; label: string; a
       <div
         className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-all duration-300 ${
           active
-            ? 'bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] text-white shadow-md shadow-[#5D5FEF]/25'
+            ? 'bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/25'
             : 'bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-500'
         }`}
       >
@@ -156,7 +156,7 @@ function StepIndicator({ step, label, active }: { step: number; label: string; a
       </div>
       <span
         className={`text-xs font-bold uppercase tracking-wider transition-colors ${
-          active ? 'text-[#5D5FEF] dark:text-[#8b8ef7]' : 'text-slate-400 dark:text-slate-500'
+          active ? 'text-[#2463eb] dark:text-[#60a5fa]' : 'text-slate-400 dark:text-slate-500'
         }`}
       >
         {label}
@@ -721,7 +721,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
     <div className="min-h-screen px-6 py-6 md:px-8 animate-fade-in">
       {/* Breadcrumb */}
       <nav className="mb-2 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-        <Link to="/hr/self-assessment/assignments" className="text-[#5D5FEF] dark:text-[#8b8ef7] font-medium hover:underline">
+        <Link to="/hr/self-assessment/assignments" className="text-[#2463eb] dark:text-[#60a5fa] font-medium hover:underline">
           Assignments
         </Link>
         <ChevronDown size={10} className="-rotate-90 opacity-50" />
@@ -732,7 +732,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="relative">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-lg shadow-[#5D5FEF]/25">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25">
               <Send size={22} className="text-white" />
             </div>
             <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 text-[9px] font-bold text-white shadow-sm">
@@ -786,10 +786,10 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
       {/* Active Cycle Info Banner */}
       <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '240ms' }}>
         <div className="relative px-5 py-4">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#5D5FEF]/[0.03] via-transparent to-[#5D5FEF]/[0.03] dark:from-[#5D5FEF]/[0.05] dark:via-transparent dark:to-[#5D5FEF]/[0.05]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#2463eb]/[0.03] via-transparent to-[#2463eb]/[0.03] dark:from-[#2463eb]/[0.05] dark:via-transparent dark:to-[#2463eb]/[0.05]" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-md shadow-[#2463eb]/20">
                 <CalendarRange className="h-4 w-4 text-white" aria-hidden />
               </div>
               <div className="text-sm">
@@ -797,7 +797,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   <span className="font-bold text-slate-900 dark:text-white">Assignment Cycle</span>
                   <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-600" />
                   {activeSubmissionCycle ? (
-                    <span className="font-medium text-[#5D5FEF] dark:text-[#8b8ef7]">
+                    <span className="font-medium text-[#2463eb] dark:text-[#60a5fa]">
                       {activeSubmissionCycle.name}
                     </span>
                   ) : (
@@ -812,7 +812,11 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
               </div>
             </div>
             <div className="hidden sm:block sm:h-8 sm:w-px sm:shrink-0 sm:bg-gradient-to-b sm:from-transparent sm:via-slate-200 sm:to-transparent dark:sm:via-slate-700" />
-            <SelfAssessmentReviewCycleInfo variant="inline" />
+            <SelfAssessmentReviewCycleInfo
+              variant="inline"
+              primaryColor="#2463eb"
+              primaryColorDark="#1d4ed8"
+            />
           </div>
         </div>
       </div>
@@ -821,11 +825,11 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
       <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
         {/* Card Header */}
         <div className="relative border-b border-slate-100 px-6 py-5 dark:border-slate-700/60">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#5D5FEF]/[0.02] via-transparent to-[#5D5FEF]/[0.02] dark:from-[#5D5FEF]/[0.04] dark:via-transparent dark:to-[#5D5FEF]/[0.04]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#2463eb]/[0.02] via-transparent to-[#2463eb]/[0.02] dark:from-[#2463eb]/[0.04] dark:via-transparent dark:to-[#2463eb]/[0.04]" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-900/30 dark:to-violet-800/20">
-                <Send size={18} className="text-violet-600 dark:text-violet-400" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb]/10 to-[#1d4ed8]/5 dark:from-[#2463eb]/30 dark:to-[#1d4ed8]/20">
+                <Send size={18} className="text-[#2463eb] dark:text-[#60a5fa]" />
               </div>
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">Assignment Configuration</h2>
@@ -857,7 +861,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
           {/* Step 1: Audience Type */}
           <section>
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-md shadow-[#2463eb]/20">
                 <Users size={14} className="text-white" />
               </div>
               <div>
@@ -872,7 +876,8 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                 title="Specific Departments"
                 description={['All positions in selected departments', 'Best for department-wide reviews']}
                 icon={<Building2 size={18} />}
-                badge={createCountBadge(departmentAudienceCount)}
+                badge={createCountBadge(departmentAudienceCount, 'blue')}
+                accent="blue"
                 onSelect={selectAssignmentMode}
               />
               <AudienceCard
@@ -881,7 +886,8 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                 title="Specific Positions"
                 description={['Across all departments', 'Role-based assessments']}
                 icon={<BriefcaseBusiness size={18} />}
-                badge={createCountBadge(positionAudienceCount)}
+                badge={createCountBadge(positionAudienceCount, 'blue')}
+                accent="blue"
                 onSelect={selectAssignmentMode}
               />
               <AudienceCard
@@ -890,7 +896,8 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                 title="Hybrid Selection"
                 description={['Departments + specific positions', 'Most flexible option']}
                 icon={<Layers3 size={18} />}
-                badge={createCountBadge(hybridAudienceCount)}
+                badge={createCountBadge(hybridAudienceCount, 'blue')}
+                accent="blue"
                 onSelect={selectAssignmentMode}
               />
               <AudienceCard
@@ -899,7 +906,8 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                 title="Employee Name"
                 description={['Select individual employees', 'Assign by name or staff no.']}
                 icon={<UserCheck size={18} />}
-                badge={createCountBadge(employeeAudienceCount)}
+                badge={createCountBadge(employeeAudienceCount, 'blue')}
+                accent="blue"
                 onSelect={selectAssignmentMode}
               />
             </div>
@@ -910,11 +918,11 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
             <section className="animate-fade-in-up">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Layers3 size={14} className="text-[#5D5FEF] dark:text-[#8b8ef7]" />
+                  <Layers3 size={14} className="text-[#2463eb] dark:text-[#60a5fa]" />
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-bold text-slate-900 dark:text-white">Hybrid Rules</h3>
-                      <span className="rounded-full bg-[#5D5FEF]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                      <span className="rounded-full bg-[#2463eb]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
                         Most Flexible
                       </span>
                     </div>
@@ -927,7 +935,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   <select
                     value={hybridRuleDepartmentId ?? ''}
                     onChange={(event) => setHybridRuleDepartmentId(event.target.value ? Number(event.target.value) : null)}
-                    className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-3 text-sm font-medium text-slate-700 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-3 text-sm font-medium text-slate-700 shadow-sm focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                   >
                     <option value="">Select department</option>
                     {departments.map((department) => (
@@ -939,7 +947,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   <select
                     value={hybridRulePositionId ?? ''}
                     onChange={(event) => setHybridRulePositionId(event.target.value ? Number(event.target.value) : null)}
-                    className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-3 text-sm font-medium text-slate-700 shadow-sm focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                    className="w-full rounded-xl border border-slate-200/80 bg-white px-3 py-3 text-sm font-medium text-slate-700 shadow-sm focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                   >
                     <option value="">All Positions</option>
                     {positions.map((position) => (
@@ -951,7 +959,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   <button
                     type="button"
                     onClick={addHybridRule}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#5D5FEF]/25 bg-[#5D5FEF]/10 px-4 py-2.5 text-sm font-semibold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/15 dark:border-[#5D5FEF]/30 dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#2463eb]/25 bg-[#2463eb]/10 px-4 py-2.5 text-sm font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/15 dark:border-[#2463eb]/30 dark:bg-[#2463eb]/20 dark:text-[#60a5fa]"
                   >
                     <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/70 text-base leading-none dark:bg-slate-900/60">
                       +
@@ -985,7 +993,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                 )}
 
                 <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-4 text-sm dark:border-slate-700 dark:bg-slate-900/50">
-                  <p className="mb-1.5 text-sm font-bold uppercase tracking-wide text-[#5D5FEF] dark:text-[#8b8ef7]">Summary</p>
+                  <p className="mb-1.5 text-sm font-bold uppercase tracking-wide text-[#2463eb] dark:text-[#60a5fa]">Summary</p>
                   {hybridSummary.lines.length === 0 ? (
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                       Add rules above to preview matched employees based on each department and position pair.
@@ -1035,7 +1043,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   <button
                     type="button"
                     onClick={selectAllDepartments}
-                    className="rounded-lg bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-xs font-bold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                    className="rounded-lg bg-[#2463eb]/[0.06] px-3 py-1.5 text-xs font-bold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
                   >
                     Select all
                   </button>
@@ -1060,14 +1068,14 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                           <label
                             className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition-all duration-200 ${
                               isSelected
-                                ? 'bg-[#5D5FEF]/[0.04] dark:bg-[#5D5FEF]/[0.06]'
+                                ? 'bg-[#2463eb]/[0.04] dark:bg-[#2463eb]/[0.06]'
                                 : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
                             }`}
                           >
                             <div
                               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ${
                                 isSelected
-                                  ? 'border-[#5D5FEF] bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-sm shadow-[#5D5FEF]/20'
+                                  ? 'border-[#2463eb] bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-sm shadow-[#2463eb]/20'
                                   : 'border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800'
                               }`}
                             >
@@ -1106,7 +1114,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   Selected{' '}
                   <span className="font-bold text-slate-900 dark:text-white">{departmentIds.length}</span>{' '}
                   of {departments.length} departments —{' '}
-                  <span className="font-bold text-[#5D5FEF] dark:text-[#8b8ef7]">
+                  <span className="font-bold text-[#2463eb] dark:text-[#60a5fa]">
                     {formatEmployeeCount(departmentAudienceCount)}
                   </span>
                 </span>
@@ -1132,7 +1140,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   <button
                     type="button"
                     onClick={selectAllFilteredPositions}
-                    className="rounded-lg bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-xs font-bold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                    className="rounded-lg bg-[#2463eb]/[0.06] px-3 py-1.5 text-xs font-bold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
                   >
                     Select all{positionSearchQuery.trim() ? ' visible' : ''}
                   </button>
@@ -1156,7 +1164,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   value={positionSearchQuery}
                   onChange={(e) => setPositionSearchQuery(e.target.value)}
                   placeholder="Search positions..."
-                  className="w-full rounded-xl border border-slate-200/80 bg-white py-2.5 pl-11 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#5D5FEF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-800 dark:focus:border-[#5D5FEF]"
+                  className="w-full rounded-xl border border-slate-200/80 bg-white py-2.5 pl-11 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#2463eb] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-800 dark:focus:border-[#2463eb]"
                 />
               </div>
 
@@ -1172,14 +1180,14 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                             <label
                               className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition-all duration-200 ${
                                 isSelected
-                                  ? 'bg-[#5D5FEF]/[0.04] dark:bg-[#5D5FEF]/[0.06]'
+                                  ? 'bg-[#2463eb]/[0.04] dark:bg-[#2463eb]/[0.06]'
                                   : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
                               }`}
                             >
                               <div
                                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ${
                                   isSelected
-                                    ? 'border-[#5D5FEF] bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-sm shadow-[#5D5FEF]/20'
+                                    ? 'border-[#2463eb] bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-sm shadow-[#2463eb]/20'
                                     : 'border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800'
                                 }`}
                               >
@@ -1231,7 +1239,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   Selected{' '}
                   <span className="font-bold text-slate-900 dark:text-white">{positionIds.length}</span>{' '}
                   of {positions.length} positions —{' '}
-                  <span className="font-bold text-[#5D5FEF] dark:text-[#8b8ef7]">
+                  <span className="font-bold text-[#2463eb] dark:text-[#60a5fa]">
                     {formatEmployeeCount(positionAudienceCount)}
                   </span>
                 </span>
@@ -1257,7 +1265,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   <button
                     type="button"
                     onClick={() => setSelectedEmployeeIds(activeEmployees.map((e) => e.employeeId))}
-                    className="rounded-lg bg-[#5D5FEF]/[0.06] px-3 py-1.5 text-xs font-bold text-[#5D5FEF] transition-all hover:bg-[#5D5FEF]/[0.12] dark:bg-[#5D5FEF]/10 dark:text-[#8b8ef7] dark:hover:bg-[#5D5FEF]/20"
+                    className="rounded-lg bg-[#2463eb]/[0.06] px-3 py-1.5 text-xs font-bold text-[#2463eb] transition-all hover:bg-[#2463eb]/[0.12] dark:bg-[#2463eb]/10 dark:text-[#60a5fa] dark:hover:bg-[#2463eb]/20"
                   >
                     Select all
                   </button>
@@ -1281,7 +1289,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                   value={employeeSearchQuery}
                   onChange={(e) => setEmployeeSearchQuery(e.target.value)}
                   placeholder="Search by name, staff no., department, or position..."
-                  className="w-full rounded-xl border border-slate-200/80 bg-white py-2.5 pl-11 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#5D5FEF] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-800 dark:focus:border-[#5D5FEF]"
+                  className="w-full rounded-xl border border-slate-200/80 bg-white py-2.5 pl-11 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#2463eb] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:focus:bg-slate-800 dark:focus:border-[#2463eb]"
                 />
               </div>
 
@@ -1296,14 +1304,14 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                             <label
                               className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition-all duration-200 ${
                                 isSelected
-                                  ? 'bg-[#5D5FEF]/[0.04] dark:bg-[#5D5FEF]/[0.06]'
+                                  ? 'bg-[#2463eb]/[0.04] dark:bg-[#2463eb]/[0.06]'
                                   : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
                               }`}
                             >
                               <div
                                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all duration-200 ${
                                   isSelected
-                                    ? 'border-[#5D5FEF] bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-sm shadow-[#5D5FEF]/20'
+                                    ? 'border-[#2463eb] bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-sm shadow-[#2463eb]/20'
                                     : 'border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800'
                                 }`}
                               >
@@ -1390,7 +1398,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                     min={cycleStart}
                     max={cycleEnd}
                     onChange={(event) => setStartDate(event.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#5D5FEF]"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#2463eb]"
                   />
                 </div>
               </div>
@@ -1412,7 +1420,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                     min={cycleStart}
                     max={cycleEnd}
                     onChange={(event) => setDeadlineDate(event.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#5D5FEF]"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#2463eb]"
                   />
                 </div>
               </div>
@@ -1434,7 +1442,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                     min={managerReviewMinDate}
                     max={cycleEnd}
                     onChange={(event) => setManagerReviewDeadlineDate(event.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#5D5FEF] focus:outline-none focus:ring-2 focus:ring-[#5D5FEF]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#5D5FEF]"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/20 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:focus:border-[#2463eb]"
                   />
                 </div>
               </div>
@@ -1544,12 +1552,12 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
           )}
 
           {/* Target Summary */}
-          <div className="relative overflow-hidden rounded-xl border border-slate-200/60 bg-gradient-to-r from-[#5D5FEF]/[0.04] via-white to-[#5D5FEF]/[0.04] px-5 py-4 dark:border-slate-700/60 dark:from-[#5D5FEF]/[0.06] dark:via-slate-800 dark:to-[#5D5FEF]/[0.06]">
-            <div className="absolute -left-2 -top-2 h-16 w-16 rounded-full bg-[#5D5FEF]/[0.06] blur-2xl dark:bg-[#5D5FEF]/[0.10]" />
-            <div className="absolute -bottom-2 -right-2 h-16 w-16 rounded-full bg-[#5D5FEF]/[0.06] blur-2xl dark:bg-[#5D5FEF]/[0.10]" />
+          <div className="relative overflow-hidden rounded-xl border border-slate-200/60 bg-gradient-to-r from-[#2463eb]/[0.04] via-white to-[#2463eb]/[0.04] px-5 py-4 dark:border-slate-700/60 dark:from-[#2463eb]/[0.06] dark:via-slate-800 dark:to-[#2463eb]/[0.06]">
+            <div className="absolute -left-2 -top-2 h-16 w-16 rounded-full bg-[#2463eb]/[0.06] blur-2xl dark:bg-[#2463eb]/[0.10]" />
+            <div className="absolute -bottom-2 -right-2 h-16 w-16 rounded-full bg-[#2463eb]/[0.06] blur-2xl dark:bg-[#2463eb]/[0.10]" />
             <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#5D5FEF] to-[#7C7EF5] shadow-md shadow-[#5D5FEF]/20">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-md shadow-[#2463eb]/20">
                   <Target size={18} className="text-white" />
                 </div>
                 <div className="min-w-0">
@@ -1568,7 +1576,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-slate-500 dark:text-slate-400">Estimated reach:</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#5D5FEF]/10 to-[#7C7EF5]/10 px-3 py-1 text-sm font-extrabold text-[#5D5FEF] dark:from-[#5D5FEF]/20 dark:to-[#7C7EF5]/20 dark:text-[#8b8ef7]">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#2463eb]/10 to-[#1d4ed8]/10 px-3 py-1 text-sm font-extrabold text-[#2463eb] dark:from-[#2463eb]/20 dark:to-[#1d4ed8]/20 dark:text-[#60a5fa]">
                   <Users size={13} />
                   {formatEmployeeCount(
                     assignmentMode === 'HYBRID' ? hybridSummary.totalUnique : currentAudienceCount,
@@ -1597,7 +1605,7 @@ export const AssignSelfAssessmentFormsPage: React.FC<AssignSelfAssessmentFormsPa
                 type="button"
                 onClick={handleAssign}
                 disabled={isAssigning || !activeSubmissionCycle}
-                className="group inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#5D5FEF] to-[#7C7EF5] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5D5FEF]/25 transition-all hover:shadow-xl hover:shadow-[#5D5FEF]/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-lg"
+                className="group inline-flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:shadow-[#2463eb]/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-lg"
               >
                 <CalendarCheck size={16} />
                 {isAssigning ? 'Assigning...' : 'Assign Forms'}

@@ -66,7 +66,7 @@ export const SelfAssessmentTemplatePreviewModal: React.FC<SelfAssessmentTemplate
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-700">
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-[#5D5FEF] dark:text-[#8b8ef7]">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[#2463eb] dark:text-[#60a5fa]">
               Self-Assessment Preview
             </p>
             <h2
@@ -82,7 +82,7 @@ export const SelfAssessmentTemplatePreviewModal: React.FC<SelfAssessmentTemplate
                 </span>
               ) : null}
               {positionLabel ? (
-                <span className="rounded-full bg-[#5D5FEF]/10 px-3 py-1 text-[#5D5FEF] dark:bg-[#5D5FEF]/20 dark:text-[#8b8ef7]">
+                <span className="rounded-full bg-[#2463eb]/10 px-3 py-1 text-[#2463eb] dark:bg-[#2463eb]/20 dark:text-[#60a5fa]">
                   {positionLabel}
                 </span>
               ) : null}
@@ -169,7 +169,7 @@ export const SelfAssessmentTemplatePreviewModal: React.FC<SelfAssessmentTemplate
                   className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900/30"
                 >
                   <div className="flex items-start gap-4 border-b border-slate-100 bg-slate-50/80 px-5 py-4 dark:border-slate-700 dark:bg-slate-800/60">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#5D5FEF] text-sm font-bold text-white shadow-sm">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#2463eb] text-sm font-bold text-white shadow-sm">
                       {index + 1}
                     </span>
                     <p className="pt-1 text-sm font-semibold leading-relaxed text-slate-900 dark:text-white">

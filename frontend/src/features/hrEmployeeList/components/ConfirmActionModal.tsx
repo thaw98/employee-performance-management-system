@@ -202,11 +202,11 @@ function ConfirmActionModal({
                                             {displayIcon}
                                         </div>
                                         <div className="flex-1 min-w-0 pt-0.5">
-                                            <Dialog.Title as="h3" className="text-[17px] font-bold leading-snug text-slate-900">
+                                            <Dialog.Title as="h3" className="text-xl font-bold leading-snug text-slate-900">
                                                 {title}
                                             </Dialog.Title>
                                             {employeeName && (
-                                                <p className="mt-1 text-[13px] font-medium text-slate-500">
+                                                <p className="mt-1 text-[15px] font-medium text-slate-500">
                                                     {employeeName}
                                                 </p>
                                             )}
@@ -214,14 +214,14 @@ function ConfirmActionModal({
                                     </div>
 
                                     <div className="mt-4 ml-0">
-                                        <p className="text-[13px] leading-relaxed text-slate-600">
+                                        <p className="text-[15px] leading-relaxed text-slate-600">
                                             {message}
                                         </p>
                                     </div>
 
                                     {description && (
                                         <div className="mt-3 ml-0">
-                                            <p className="text-[12px] leading-relaxed text-slate-500">
+                                            <p className="text-[14px] leading-relaxed text-slate-500">
                                                 {description}
                                             </p>
                                         </div>
@@ -233,14 +233,14 @@ function ConfirmActionModal({
                                         <div className={`h-px bg-gradient-to-r ${cfg.dividerGradient}`} />
                                         <div className="px-7 py-4">
                                             <div className={`rounded-xl border ${cfg.warningBorder} ${cfg.warningBg} p-4`}>
-                                                <p className={`text-[10px] font-bold uppercase tracking-widest ${cfg.warningText} mb-2.5`}>
+                                                <p className={`text-xs font-bold uppercase tracking-widest ${cfg.warningText} mb-2.5`}>
                                                     Please note
                                                 </p>
                                                 <ul className="space-y-2">
                                                     {warningItems.map((item, idx) => (
                                                         <li key={idx} className="flex items-start gap-2.5">
                                                             <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${cfg.warningDot} shrink-0`} />
-                                                            <span className={`text-[12px] leading-relaxed ${cfg.warningText}`}>
+                                                            <span className={`text-[14px] leading-relaxed ${cfg.warningText}`}>
                                                                 {item}
                                                             </span>
                                                         </li>
@@ -257,7 +257,7 @@ function ConfirmActionModal({
                                     <button
                                         type="button"
                                         disabled={isLoading}
-                                        className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-600 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 hover:text-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-[15px] font-semibold text-slate-600 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 hover:text-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         onClick={onClose}
                                     >
                                         <ArrowLeft size={15} />
@@ -266,7 +266,7 @@ function ConfirmActionModal({
                                     <button
                                         type="button"
                                         disabled={isLoading}
-                                        className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[13px] font-semibold text-white shadow-lg ${cfg.confirmBg} ${cfg.confirmHover} shadow-sm ${cfg.confirmShadow} transition-all disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98]`}
+                                        className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[15px] font-semibold text-white shadow-lg ${cfg.confirmBg} ${cfg.confirmHover} shadow-sm ${cfg.confirmShadow} transition-all disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98]`}
                                         onClick={onConfirm}
                                     >
                                         {isLoading ? (
