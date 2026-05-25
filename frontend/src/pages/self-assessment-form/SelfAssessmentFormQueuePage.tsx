@@ -23,7 +23,7 @@ import {
   useGetHrReviewFormsQuery,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { PaginationBar } from '../../components/common/PaginationBar';
-import { kpisGradientBr, kpisGradientR } from '../../features/kpi/kpisTheme';
+import { kpisGradientBr } from '../../features/kpi/kpisTheme';
 
 type StatusKey = 'SUBMITTED' | 'MANAGER_REVIEWED' | 'APPROVED' | 'REJECTED' | 'OTHER';
 type SortField = 'name' | 'department' | 'position' | 'status' | 'score';
@@ -136,6 +136,16 @@ function getAvatarColor(name: string) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+/** Progress bar fill color by score % (aligned with SelfAssessmentScoreRecordsPage). */
+function getScoreBarColor(score: number): string {
+  const clamped = Math.min(100, Math.max(0, score));
+  if (clamped >= 86) return 'bg-emerald-500';
+  if (clamped >= 71) return 'bg-[#2463eb]';
+  if (clamped >= 60) return 'bg-yellow-500';
+  if (clamped >= 40) return 'bg-orange-500';
+  return 'bg-red-500';
 }
 
 export const SelfAssessmentFormQueuePage: React.FC = () => {
@@ -571,7 +581,7 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
                         <div className="flex items-center gap-1.5">
                           <div className="h-1.5 w-12 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                             <div
-                              className={`h-full rounded-full ${kpisGradientR} transition-all`}
+                              className={`h-full rounded-full transition-all ${getScoreBarColor(form.totalScore)}`}
                               style={{ width: `${Math.min(form.totalScore, 100)}%` }}
                             />
                           </div>
@@ -598,9 +608,17 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
                       <span className="truncate">{cfg.label}</span>
                     </span>
                     {form.totalScore !== null && form.totalScore !== undefined && (
-                      <span className="text-[11px] font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                        Score: {form.totalScore?.toFixed(1)}%
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-1.5 w-10 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                          <div
+                            className={`h-full rounded-full ${getScoreBarColor(form.totalScore)}`}
+                            style={{ width: `${Math.min(form.totalScore, 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-[11px] font-semibold tabular-nums text-slate-500 dark:text-slate-400">
+                          {form.totalScore?.toFixed(1)}%
+                        </span>
+                      </div>
                     )}
                   </div>
                 </button>
