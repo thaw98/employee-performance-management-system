@@ -3,6 +3,7 @@ package com.epms.backend.dto.selfassessmentform;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import java.time.LocalDate;
 import java.util.List;
 
 public record CreateTemplateRequest(
@@ -13,6 +14,9 @@ public record CreateTemplateRequest(
         List<QuestionRequest> deletedQuestions,
         /** When null, the active employee-submission cycle is used (existing behavior). */
         Long reviewCycleId,
+        String timelineMode,
+        LocalDate manualStartDate,
+        LocalDate manualEndDate,
         String ratingSystem,
         Integer tenPointYesMinRating
 ) {}

@@ -3,6 +3,12 @@ import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOption
 
 import type { PositionOptionDto } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
 
+function formatPositionLabel(p: PositionOptionDto): string {
+  const name = p.positionName?.trim() ?? ''
+  const level = p.levelCodeName?.trim()
+  return level ? `${name} (${level})` : name
+}
+
 interface PositionAutocompleteProps {
   positions: PositionOptionDto[]
   value: number | null
@@ -29,7 +35,14 @@ export function PositionAutocomplete({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return positions
-    return positions.filter((p) => p.positionName.toLowerCase().includes(q))
+    return positions.filter((p) => {
+      const label = formatPositionLabel(p).toLowerCase()
+      return (
+        label.includes(q) ||
+        p.positionName.toLowerCase().includes(q) ||
+        (p.levelCodeName?.toLowerCase().includes(q) ?? false)
+      )
+    })
   }, [positions, query])
 
   return (
@@ -44,7 +57,7 @@ export function PositionAutocomplete({
           <div className="flex rounded-lg border border-slate-300 bg-white shadow-sm focus-within:border-[#2463eb] focus-within:ring-2 focus-within:ring-[#2463eb]/20">
             <ComboboxInput
               className="w-full rounded-lg border-0 bg-transparent py-2.5 pr-10 pl-3 text-sm text-slate-900 focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400"
-              displayValue={(p: PositionOptionDto | null) => p?.positionName ?? ''}
+              displayValue={(p: PositionOptionDto | null) => (p ? formatPositionLabel(p) : '')}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={placeholder}
               autoComplete="off"
@@ -53,7 +66,10 @@ export function PositionAutocomplete({
               <i className="bi bi-chevron-expand" aria-hidden />
             </ComboboxButton>
           </div>
-          <ComboboxOptions className="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg focus:outline-none">
+          <ComboboxOptions
+            anchor="bottom start"
+            className="z-50 mt-1 max-h-60 w-(--anchor-width) overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg focus:outline-none"
+          >
             {filtered.length === 0 ? (
               <div className="px-3 py-2 text-sm text-slate-500">No positions</div>
             ) : (
@@ -63,7 +79,7 @@ export function PositionAutocomplete({
                   value={p}
                   className="cursor-pointer px-3 py-2 text-sm text-slate-800 data-focus:bg-[#eff6ff] data-selected:font-semibold data-selected:text-[#1d4ed8]"
                 >
-                  {p.positionName} ({p.positionCode})
+                  {formatPositionLabel(p)}
                 </ComboboxOption>
               ))
             )}

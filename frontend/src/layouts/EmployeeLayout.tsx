@@ -53,7 +53,15 @@ const EmployeeLayout: React.FC = () => {
 
   const menuItems: DashMenuItem[] = [
     { label: 'Dashboard', path: '/employee/dashboard', icon: <LayoutDashboard size={18} /> },
-    { label: 'Appraisals', path: '/employee/appraisals', icon: <FileText size={18} /> },
+    {
+      label: 'Appraisals',
+      path: '/employee/appraisals',
+      icon: <FileText size={18} />,
+      subItems: [
+        { label: 'My Appraisals', path: '/employee/appraisals', icon: <ClipboardList size={16} /> },
+        { label: 'History', path: '/employee/appraisals/history', icon: <History size={16} /> },
+      ],
+    },
     { label: 'My KPIs', path: '/employee/kpis', icon: <Target size={18} /> },
     { label: 'My PIPs', path: '/employee/pip', icon: <TrendingUp size={18} /> },
     {

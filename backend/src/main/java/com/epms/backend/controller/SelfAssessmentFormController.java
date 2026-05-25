@@ -243,6 +243,66 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @PostMapping("/{id}/unlock-requests/me")
+    public ResponseEntity<ApiResponse<SelfAssessmentUnlockRequestDto>> requestUnlock(
+            @PathVariable Long id,
+            @Valid @RequestBody SelfAssessmentUnlockRequestActionRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee employee = getEmployeeFromPrincipal(principal);
+            SelfAssessmentUnlockRequestDto dto = selfAssessmentFormService.requestUnlock(id, employee, request);
+            return ResponseEntity.ok(ApiResponse.ok("Unlock request submitted", dto));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/hr/unlock-requests")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<List<SelfAssessmentUnlockRequestDto>>> getHrUnlockRequests() {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok(
+                    "Unlock requests retrieved",
+                    selfAssessmentFormService.getHrUnlockRequests()));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/hr/unlock-requests/{requestId}/unlock")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SelfAssessmentUnlockRequestDto>> unlockRequest(
+            @PathVariable Long requestId,
+            @Valid @RequestBody SelfAssessmentUnlockRequestUnlockRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SelfAssessmentUnlockRequestDto dto = selfAssessmentFormService.unlockSelfAssessmentRequest(
+                    requestId,
+                    request,
+                    principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Self-assessment unlocked", dto));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/hr/unlock-requests/{requestId}/reject")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SelfAssessmentUnlockRequestDto>> rejectUnlockRequest(
+            @PathVariable Long requestId,
+            @Valid @RequestBody SelfAssessmentUnlockRejectRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SelfAssessmentUnlockRequestDto dto = selfAssessmentFormService.rejectSelfAssessmentRequest(
+                    requestId,
+                    request,
+                    principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Unlock request rejected", dto));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/manager-review")
     @PreAuthorize("principal.roleId == 2 or principal.roleId == 4")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> managerReview(
@@ -303,19 +363,6 @@ public class SelfAssessmentFormController {
             return ResponseEntity.ok().headers(headers).body(bytes);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
-        } catch (RuntimeException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
-        }
-    }
-
-    @PostMapping("/{id}/unlock-retake")
-    @PreAuthorize("principal.roleId == 1")
-    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrUnlockRetake(
-            @PathVariable Long id,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        try {
-            SelfAssessmentFormDto form = selfAssessmentFormService.hrUnlockRetake(id, principal.getId());
-            return ResponseEntity.ok(ApiResponse.ok("Retake unlocked", form));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }

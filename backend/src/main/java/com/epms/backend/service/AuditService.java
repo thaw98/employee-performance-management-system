@@ -34,6 +34,12 @@ public class AuditService {
 	@Transactional(propagation = Propagation.MANDATORY)
 	public void record(String actionType, String targetType, Long targetId, Long performedByUserId,
 			Long performedByRoleId, String description, String metadataJson) {
+		record(actionType, targetType, targetId, performedByUserId, performedByRoleId, description, metadataJson, null, null);
+	}
+
+	@Transactional(propagation = Propagation.MANDATORY)
+	public void record(String actionType, String targetType, Long targetId, Long performedByUserId,
+			Long performedByRoleId, String description, String metadataJson, String beforeData, String afterData) {
 		AuditLog log = new AuditLog();
 		log.setActionType(actionType);
 		log.setTargetType(targetType);
@@ -42,6 +48,8 @@ public class AuditService {
 		log.setPerformedByRoleId(performedByRoleId);
 		log.setDescription(description);
 		log.setMetadataJson(metadataJson);
+		log.setBeforeData(beforeData);
+		log.setAfterData(afterData);
 		log.setCreatedAt(Instant.now());
 		auditLogRepository.save(log);
 	}

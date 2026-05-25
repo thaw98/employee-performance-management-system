@@ -32,6 +32,7 @@ interface Evaluatee {
     id: number;
     name: string;
     staffNo: string;
+    levelCode?: string | null;
     position: string;
     department: string;
     profilePictureUrl?: string;
@@ -44,6 +45,7 @@ interface FeedbackDraft {
     evaluateeId: number;
     evaluateeName: string;
     evaluateeStaffNo?: string;
+    evaluateeLevelCode?: string | null;
     evaluateePosition?: string;
     evaluateeDepartment?: string;
     role: 'MANAGER' | 'PEER' | 'SUBORDINATE';
@@ -60,6 +62,13 @@ interface FeedbackFormData {
     ratings: Record<string, number | undefined>;
     comments: Record<string, string>;
     anonymous: boolean;
+}
+
+function formatEvaluateeMeta(staffNo: string, levelCode?: string | null) {
+    const parts: string[] = [];
+    if (levelCode) parts.push(levelCode);
+    if (staffNo) parts.push(`Staff ID: ${staffNo}`);
+    return parts.length > 0 ? parts.join(' · ') : '—';
 }
 
 export function GiveFeedbackPage() {
@@ -350,6 +359,7 @@ export function GiveFeedbackPage() {
             id: draft.evaluateeId,
             name: draft.evaluateeName,
             staffNo: draft.evaluateeStaffNo || '',
+            levelCode: draft.evaluateeLevelCode ?? null,
             position: draft.evaluateePosition || 'N/A',
             department: draft.evaluateeDepartment || 'N/A',
             given: false,
@@ -398,6 +408,7 @@ export function GiveFeedbackPage() {
         return [
             draft.evaluateeName,
             draft.evaluateeStaffNo,
+            draft.evaluateeLevelCode,
             draft.evaluateePosition,
             draft.evaluateeDepartment,
             draft.role
@@ -537,7 +548,9 @@ export function GiveFeedbackPage() {
                                 )}
                                         <div className="text-left">
                                             <p className="text-xs font-black text-blue-700">{selectedEvaluatee.name}</p>
-                                            <p className="text-[10px] font-bold text-slate-400">#{selectedEvaluatee.staffNo}</p>
+                                            <p className="text-[10px] font-bold text-slate-400">
+                                                {formatEvaluateeMeta(selectedEvaluatee.staffNo, selectedEvaluatee.levelCode)}
+                                            </p>
                                         </div>
                                     </div>
                                 ) : (
@@ -592,7 +605,9 @@ export function GiveFeedbackPage() {
                                                             <p className={`text-xs font-black ${selectedEvaluatee?.id === ev.id ? 'text-blue-700' : 'text-slate-700'}`}>
                                                                 {ev.name}
                                                             </p>
-                                                            <p className="text-[10px] font-bold text-slate-400">#{ev.staffNo}</p>
+                                                            <p className="text-[10px] font-bold text-slate-400">
+                                                                {formatEvaluateeMeta(ev.staffNo, ev.levelCode)}
+                                                            </p>
                                                         </div>
                                                     </div>
 
@@ -621,7 +636,13 @@ export function GiveFeedbackPage() {
 
                         {selectedEvaluatee && (
                             <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl space-y-3 animate-in fade-in duration-300">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1">
+                                            <Star size={10} /> Level Code
+                                        </p>
+                                        <p className="text-xs font-bold text-blue-800">{selectedEvaluatee.levelCode || 'N/A'}</p>
+                                    </div>
                                     <div className="space-y-1">
                                         <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1">
                                             <Briefcase size={10} /> Position
@@ -880,7 +901,8 @@ export function GiveFeedbackPage() {
                                                         </span>
                                                     </div>
                                                     <p className="text-[11px] font-bold text-slate-400 truncate">
-                                                        {draft.evaluateeStaffNo || 'No staff no'} • {draft.evaluateePosition || 'N/A'}
+                                                        {formatEvaluateeMeta(draft.evaluateeStaffNo || '', draft.evaluateeLevelCode)}
+                                                        {' • '}{draft.evaluateePosition || 'N/A'}
                                                     </p>
                                                     {draft.updatedAt && (
                                                         <p className="text-[10px] font-bold text-slate-400 mt-1 flex items-center gap-1">

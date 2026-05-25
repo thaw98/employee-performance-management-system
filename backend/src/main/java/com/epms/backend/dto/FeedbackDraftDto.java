@@ -11,6 +11,7 @@ public class FeedbackDraftDto {
     private Long evaluateeId;
     private String evaluateeName;
     private String evaluateeStaffNo;
+    private String evaluateeLevelCode;
     private String evaluateePosition;
     private String evaluateeDepartment;
     private String role;

@@ -26,6 +26,7 @@ import { MyKpisPage } from './pages/employee/MyKpisPage';
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
 import { EmployeeAppraisalsPage } from './pages/employee/EmployeeAppraisalsPage';
 import { EmployeeAppraisalViewPage } from './pages/employee/EmployeeAppraisalViewPage';
+import { AppraisalHistoryPage } from './pages/appraisals/AppraisalHistoryPage';
 import { CreateEmployeeAccountPage } from './pages/hr/CreateEmployeeAccountPage';
 import EmployeeListPage from './pages/hr/employees/EmployeeListPage';
 import { UserProfilePage } from './pages/UserProfilePage';
@@ -76,6 +77,7 @@ import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAss
 import { SelfAssessmentAssignedEmployeesPage } from './pages/self-assessment-form/SelfAssessmentAssignedEmployeesPage';
 import { SelfAssessmentScoreRecordsPage } from './pages/self-assessment-form/SelfAssessmentScoreRecordsPage';
 import { SelfAssessmentAuditLogsPage } from './pages/self-assessment-form/SelfAssessmentAuditLogsPage';
+import { SelfAssessmentUnlockRequestsPage } from './pages/self-assessment-form/SelfAssessmentUnlockRequestsPage';
 
 // Meetings
 import { MeetingsPage } from './pages/manager/MeetingsPage';
@@ -179,6 +181,7 @@ function App() {
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
             <Route path="appraisals" element={<AppraisalsPage />} />
             <Route path="appraisals/submissions" element={<AppraisalSubmissionsPage />} />
+            <Route path="appraisals/history" element={<AppraisalHistoryPage mode="hr" />} />
             <Route path="kpi-management" element={<KpiManagementPage />} />
             <Route path="kpi-assigned" element={<KpiAssignedPage />} />
             <Route path="kpi-detail" element={<KpiDetailPage />} />
@@ -212,6 +215,7 @@ function App() {
             />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment/review-queue" element={<SelfAssessmentFormQueuePage />} />
+            <Route path="self-assessment/unlock-requests" element={<SelfAssessmentUnlockRequestsPage />} />
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
@@ -246,6 +250,7 @@ function App() {
             <Route path="pip/create" element={<PipCreatePage />} />
             <Route path="pip/:id" element={<PipDetailPage />} />
             <Route path="appraisals" element={<ManagerAppraisalsPage />} />
+            <Route path="appraisals/history" element={<AppraisalHistoryPage mode="manager" />} />
             <Route path="appraisals/:id/evaluate" element={<ManagerEvaluationPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
@@ -302,6 +307,7 @@ function App() {
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="notifications" element={<NotificationPage />} />
             <Route path="appraisals" element={<EmployeeAppraisalsPage />} />
+            <Route path="appraisals/history" element={<AppraisalHistoryPage mode="employee" />} />
             <Route path="appraisals/:id/view" element={<EmployeeAppraisalViewPage />} />
             <Route path="reports" element={<EmployeeReportsPage />} />
             <Route path="reports/feedback" element={<FeedbackReportPage mode="employee" />} />

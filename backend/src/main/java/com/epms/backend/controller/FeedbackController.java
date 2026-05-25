@@ -154,6 +154,9 @@ public class FeedbackController {
                 m.put("id", e.getId());
                 m.put("name", e.getEmployeeName());
                 m.put("staffNo", e.getEmployeeId());
+                m.put("levelCode", e.getPosition() != null && e.getPosition().getLevelCode() != null
+                        ? e.getPosition().getLevelCode().getCode()
+                        : null);
                 m.put("position", e.getPosition() != null ? e.getPosition().getName() : "N/A");
                 m.put("department", e.getDepartment() != null ? e.getDepartment().getName() : "N/A");
                 m.put("profilePictureUrl", e.getProfilePictureUrl());

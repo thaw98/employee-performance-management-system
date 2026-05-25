@@ -1,7 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X } from 'lucide-react';
+import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, Download, FolderOpen } from 'lucide-react';
+import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
+import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
+import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
+import {
+  useGetKpisByEmployeeQuery,
+  useSetupKpisMutation,
+  useGetPositionKpisQuery,
+  useSetupPositionKpisMutation,
+  useGetDepartmentKpisQuery,
+  useSetupDepartmentKpisMutation
+} from '../../features/kpi/kpiApi';
+import { useGetDepartmentByIdQuery } from '../../features/department/api/departmentApi';
+import { useGetCategoriesQuery, useAddCategoryMutation } from '../../features/kpi/kpiCategoryApi';
+import {
+  useGetKpiTemplatesQuery,
+  useCreateKpiTemplateMutation
+} from '../../features/kpi/kpiTemplateApi';
+import { toast } from 'react-hot-toast';
 
 const getCurrentMonthValue = () => {
   const now = new Date();
@@ -25,24 +43,6 @@ const isMonthInPast = (monthValue: string) => {
   const current = new Date(now.getFullYear(), now.getMonth(), 1);
   return selected < current;
 };
-import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
-import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
-import {
-  useGetKpisByEmployeeQuery,
-  useSetupKpisMutation,
-  useGetPositionKpisQuery,
-  useSetupPositionKpisMutation,
-  useGetDepartmentKpisQuery,
-  useSetupDepartmentKpisMutation
-} from '../../features/kpi/kpiApi';
-import { useGetDepartmentByIdQuery } from '../../features/department/api/departmentApi';
-import { useGetCategoriesQuery, useAddCategoryMutation } from '../../features/kpi/kpiCategoryApi';
-import {
-  useGetKpiTemplatesQuery,
-  useCreateKpiTemplateMutation
-} from '../../features/kpi/kpiTemplateApi';
-import { toast } from 'react-hot-toast';
-import { ClipboardList, Download, FolderOpen } from 'lucide-react';
 
 export const KpiManagementPage: React.FC = () => {
   const [searchParams] = useSearchParams();

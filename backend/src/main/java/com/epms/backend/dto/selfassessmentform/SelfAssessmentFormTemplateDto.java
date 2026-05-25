@@ -1,6 +1,7 @@
 package com.epms.backend.dto.selfassessmentform;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 public record SelfAssessmentFormTemplateDto(
@@ -12,6 +13,9 @@ public record SelfAssessmentFormTemplateDto(
         String positionName,
         Long reviewCycleId,
         String reviewCycleName,
+        String timelineMode,
+        LocalDate manualStartDate,
+        LocalDate manualEndDate,
         boolean isActive,
         String ratingSystem,
         Integer tenPointYesMinRating,

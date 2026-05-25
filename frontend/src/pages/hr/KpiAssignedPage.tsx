@@ -181,15 +181,7 @@ export const KpiAssignedPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Period:</span>
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            className={`px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none ${primaryFocusRing}`}
-          >
-            <option value="2024-2025">2024-2025</option>
-            <option value="2025-2026">2025-2026</option>
-            <option value="2026-2027">2026-2027</option>
-          </select>
+          <MonthYearPicker value={periodMonth} onChange={setPeriodMonth} />
           <button 
             onClick={handleResetKpis}
             disabled={isResetting}
