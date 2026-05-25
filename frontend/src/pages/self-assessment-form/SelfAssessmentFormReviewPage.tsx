@@ -646,7 +646,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     if (!selectedFormId || !selectedForm) return;
     const flaggedAnswers = selectedForm.answers.filter(answer => answer.retakeRequested);
     if (flaggedAnswers.length === 0) {
-      toast.error('No warned questions are available to force change');
+      toast.error('No warned questions are available for manager override');
       return;
     }
 
@@ -690,14 +690,14 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
           comments: managerComments || undefined,
         },
       }).unwrap();
-      toast.success('Retake force change sent to HR for final approval');
+      toast.success('Manager override sent to HR for final approval');
       setShowForceChangeModal(false);
       refetchForm();
       if (!isEmployeeDetail) {
         void refetchManagerForms();
       }
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to force change retake');
+      toast.error(error?.data?.message || 'Failed to send manager override');
     }
   };
 
@@ -1396,7 +1396,7 @@ Review Submissions
 	                            className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-800 transition-all hover:bg-amber-100 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200 dark:hover:bg-amber-900/35"
 	                          >
 	                            <PenLine size={16} />
-	                            Force Change
+	                            Manager Override
 	                          </button>
 	                          <button
                             type="button"
@@ -1592,7 +1592,7 @@ Review Submissions
 		                            )}
 		                            {answer.managerForceChangeReason && (
 		                              <p className="mt-2 text-sm font-semibold leading-relaxed text-amber-800 dark:text-amber-200">
-		                                Manager force-change reason: {answer.managerForceChangeReason}
+			                                Manager override reason: {answer.managerForceChangeReason}
 		                              </p>
 		                            )}
 		                          </div>
@@ -2201,7 +2201,7 @@ Review Submissions
                   <PenLine size={20} className="text-amber-700 dark:text-amber-300" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Force Change Retake</h3>
+	                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Manager Override Retake</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Final values are recorded separately. Second-attempt answers will not be replaced.
                   </p>
@@ -2325,7 +2325,7 @@ Review Submissions
                 className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-amber-500/20 transition-all disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isForceChangingRetake ? <Loader2 size={16} className="animate-spin" /> : <PenLine size={16} />}
-                Confirm Force Change
+	                Confirm Manager Override
               </button>
             </div>
           </div>

@@ -1552,7 +1552,7 @@ Instant now = Instant.now();
                 .orElseThrow(() -> new RuntimeException("Form not found"));
 
         if (!canManagerReview(form, manager)) {
-            throw new RuntimeException("You are not authorized to force-change this retake");
+            throw new RuntimeException("You are not authorized to perform a manager override for this retake");
         }
         if (form.getStatus() != SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW) {
             throw new RuntimeException("Form is not pending retake manager review");
@@ -1595,7 +1595,7 @@ Instant now = Instant.now();
                 throw new RuntimeException("Submit a final value for every warned question");
             }
             if (answer.getRetakeYesNoAnswer() == null || answer.getRetakeRating() == null) {
-                throw new RuntimeException("All requested retake questions must be submitted before force change");
+                throw new RuntimeException("All requested retake questions must be submitted before manager override");
             }
             if (!ratingSystem.isValidYesNo(finalValue.finalYesNoAnswer())
                     || finalValue.finalYesNoAnswer() == null
@@ -1645,7 +1645,7 @@ Instant now = Instant.now();
 	                saved.getId(),
 	                manager.getUserAccount().getId(),
 	                null,
-	                "Manager force-changed retake final values. Score: " + saved.getFinalApprovedTotalScore(),
+	                "Manager override retake final values. Score: " + saved.getFinalApprovedTotalScore(),
 	                null,
 	                beforeSnapshot,
 	                snapshotAnswers(saved));

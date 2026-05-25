@@ -409,7 +409,7 @@ public class SelfAssessmentFormController {
         try {
             Employee manager = getEmployeeFromPrincipal(principal);
             SelfAssessmentFormDto form = selfAssessmentFormService.managerForceChangeRetake(id, manager, request);
-            return ResponseEntity.ok(ApiResponse.ok("Retake force-changed", form));
+            return ResponseEntity.ok(ApiResponse.ok("Manager override submitted", form));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
