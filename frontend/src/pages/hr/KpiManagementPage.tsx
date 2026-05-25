@@ -2,6 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X } from 'lucide-react';
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
+
+const getCurrentMonthValue = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${now.getFullYear()}-${month}`;
+};
+
+const formatMonthYear = (monthValue: string) => {
+  if (!monthValue) return '';
+  const [year, month] = monthValue.split('-');
+  if (!year || !month) return monthValue;
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+};
+
+const isMonthInPast = (monthValue: string) => {
+  if (!monthValue) return false;
+  const [year, month] = monthValue.split('-').map(Number);
+  const selected = new Date(year, month - 1, 1);
+  const now = new Date();
+  const current = new Date(now.getFullYear(), now.getMonth(), 1);
+  return selected < current;
+};
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
 import {
@@ -30,7 +53,9 @@ export const KpiManagementPage: React.FC = () => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(initialEmpId ? Number(initialEmpId) : null);
   const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
   const [selectedPosId, setSelectedPosId] = useState<number | null>(null);
-  const [period, setPeriod] = useState('2026-2027');
+  const [periodMonth, setPeriodMonth] = useState(getCurrentMonthValue());
+  const currentMonthValue = getCurrentMonthValue();
+  const selectedPeriodLabel = formatMonthYear(periodMonth);
   const [kpis, setKpis] = useState<any[]>([]);
 
   useEffect(() => {
@@ -45,7 +70,7 @@ export const KpiManagementPage: React.FC = () => {
   const employees = employeesResponse?.data?.content || [];
 
   const { data: existingKpis, refetch: refetchKpis } = useGetKpisByEmployeeQuery(
-    { employeeId: selectedEmployeeId!, period },
+    { employeeId: selectedEmployeeId!, period: selectedPeriodLabel },
     { skip: mode !== 'individual' || !selectedEmployeeId }
   );
 
@@ -57,7 +82,7 @@ export const KpiManagementPage: React.FC = () => {
   const positions = positionsResponse?.data || [];
 
   const { data: existingPosKpis, refetch: refetchPosKpis } = useGetPositionKpisQuery(
-    { departmentId: selectedDeptId!, positionId: selectedPosId!, period },
+    { departmentId: selectedDeptId!, positionId: selectedPosId!, period: selectedPeriodLabel },
     { skip: mode !== 'position' || !selectedDeptId || !selectedPosId }
   );
 
@@ -65,7 +90,7 @@ export const KpiManagementPage: React.FC = () => {
   const selectedDeptDetail = deptDetailResponse?.data;
 
   const { data: existingDeptKpis, refetch: refetchDeptKpis } = useGetDepartmentKpisQuery(
-    { departmentId: selectedDeptId!, period },
+    { departmentId: selectedDeptId!, period: selectedPeriodLabel },
     { skip: mode !== 'department' || !selectedDeptId }
   );
 
@@ -123,6 +148,7 @@ export const KpiManagementPage: React.FC = () => {
         departmentId: selectedDeptId!
       };
 
+      const [year, month] = periodMonth.split('-').map(Number);
       return {
         ...base,
         name: item.name,
@@ -130,7 +156,10 @@ export const KpiManagementPage: React.FC = () => {
         target: item.target,
         unit: item.unit,
         weight: item.weight,
-        period
+        period: selectedPeriodLabel,
+        year,
+        month,
+        periodLabel: selectedPeriodLabel
       };
     });
     setKpis(templateKpis);
@@ -240,7 +269,10 @@ export const KpiManagementPage: React.FC = () => {
       weight: 0,
       score: 0,
       weightedScore: 0,
-      period,
+      period: selectedPeriodLabel,
+      year: Number(periodMonth.split('-')[0]),
+      month: Number(periodMonth.split('-')[1]),
+      periodLabel: selectedPeriodLabel,
       status: 'DRAFT'
     } : mode === 'position' ? {
       departmentId: selectedDeptId!,
@@ -250,7 +282,10 @@ export const KpiManagementPage: React.FC = () => {
       target: '',
       unit: '',
       weight: 0,
-      period
+      period: selectedPeriodLabel,
+      year: Number(periodMonth.split('-')[0]),
+      month: Number(periodMonth.split('-')[1]),
+      periodLabel: selectedPeriodLabel
     } : {
       departmentId: selectedDeptId!,
       name: '',
@@ -258,7 +293,10 @@ export const KpiManagementPage: React.FC = () => {
       target: '',
       unit: '',
       weight: 0,
-      period
+      period: selectedPeriodLabel,
+      year: Number(periodMonth.split('-')[0]),
+      month: Number(periodMonth.split('-')[1]),
+      periodLabel: selectedPeriodLabel
     };
     setKpis([...kpis, newKpi]);
   };
@@ -310,22 +348,34 @@ export const KpiManagementPage: React.FC = () => {
       return;
     }
 
+    if (isMonthInPast(periodMonth)) {
+      toast.error('Cannot create KPI setup for past months. Please choose current or a future month.');
+      return;
+    }
+
     if (totalWeight !== 100) {
       toast.error(`Total weight must be 100%. Current total: ${totalWeight}%`);
       return;
     }
 
     try {
+      const periodPayload = {
+        period: selectedPeriodLabel,
+        year: Number(periodMonth.split('-')[0]),
+        month: Number(periodMonth.split('-')[1]),
+        periodLabel: selectedPeriodLabel
+      };
+
       if (mode === 'individual') {
-        await setupKpis(kpis.map(k => ({ ...k, employeeId: selectedEmployeeId }))).unwrap();
+        await setupKpis(kpis.map(k => ({ ...k, employeeId: selectedEmployeeId, ...periodPayload }))).unwrap();
         toast.success('Individual KPI setup saved successfully');
         refetchKpis();
       } else if (mode === 'position') {
-        await setupPosKpis(kpis.map(k => ({ ...k, departmentId: selectedDeptId, positionId: selectedPosId }))).unwrap();
+        await setupPosKpis(kpis.map(k => ({ ...k, departmentId: selectedDeptId, positionId: selectedPosId, ...periodPayload }))).unwrap();
         toast.success('Position KPIs saved and applied to all employees');
         refetchPosKpis();
       } else if (mode === 'department') {
-        await setupDeptKpis(kpis.map(k => ({ ...k, departmentId: selectedDeptId }))).unwrap();
+        await setupDeptKpis(kpis.map(k => ({ ...k, departmentId: selectedDeptId, ...periodPayload }))).unwrap();
         toast.success('Department KPIs saved successfully');
         refetchDeptKpis();
       }
@@ -449,15 +499,8 @@ export const KpiManagementPage: React.FC = () => {
           )}
           <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Period</span>
-            <select
-              className="bg-transparent border-none text-sm font-bold text-slate-900 focus:ring-0 outline-none"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-            >
-              <option value="2025-2026">2025-2026</option>
-              <option value="2026-2027">2026-2027</option>
-              <option value="2027-2028">2027-2028</option>
-            </select>
+            <MonthYearPicker value={periodMonth} onChange={setPeriodMonth} />
+            <span className="text-[10px] text-slate-500">{selectedPeriodLabel}</span>
           </div>
         </div>
       </div>

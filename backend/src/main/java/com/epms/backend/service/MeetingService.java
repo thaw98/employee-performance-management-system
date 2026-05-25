@@ -47,8 +47,9 @@ public class MeetingService {
         Employee employee = employeeRepository.findById(request.employeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
         boolean isHrScheduler = isHrEmployee(manager);
+        boolean isHrTarget = isHrEmployee(employee);
 
-        if (isHrScheduler) {
+        if (isHrScheduler || isHrTarget) {
             if (employee.getEmploymentStatus() != EmployeeStatus.ACTIVE) {
                 throw new RuntimeException("Can only schedule meetings with active employees");
             }
@@ -101,7 +102,17 @@ public class MeetingService {
         }
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
-        Employee manager = employee.getManager();
+        Employee manager = null;
+        if (request.employeeId() != null) {
+            Employee requestedManager = employeeRepository.findById(request.employeeId())
+                    .orElseThrow(() -> new RuntimeException("HR employee not found"));
+            if (!isHrEmployee(requestedManager)) {
+                throw new RuntimeException("Selected meeting target must be HR");
+            }
+            manager = requestedManager;
+        } else {
+            manager = employee.getManager();
+        }
         if (manager == null) {
             throw new RuntimeException("No reporting manager is assigned to this employee");
         }
@@ -586,6 +597,16 @@ public class MeetingService {
                 .filter(e -> e.getEmploymentStatus() == EmployeeStatus.ACTIVE)
                 .filter(e -> e.getUserAccount() != null && e.getUserAccount().isActive())
                 .filter(e -> hrEmployeeId == null || !e.getId().equals(hrEmployeeId))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Employee> getHrEmployees(Long requesterEmployeeId) {
+        return employeeRepository.findAll().stream()
+                .filter(e -> e.getEmploymentStatus() == EmployeeStatus.ACTIVE)
+                .filter(e -> e.getUserAccount() != null && e.getUserAccount().isActive())
+                .filter(this::isHrEmployee)
+                .filter(e -> requesterEmployeeId == null || !e.getId().equals(requesterEmployeeId))
                 .collect(Collectors.toList());
     }
 

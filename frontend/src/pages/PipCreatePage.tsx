@@ -230,7 +230,7 @@ export default function PipCreatePage() {
                     label="Select Low Performer"
                     placeholder="Search by name, ID or department"
                     error={Boolean(errors.employeeId)}
-                    helperText={errors.employeeId?.message || "Only employees with KPI score < 21% are shown."}
+                    helperText={errors.employeeId?.message || "Only employees with KPI score < 69% are shown."}
                   />
                 )}
                 renderOption={(props, option) => {
@@ -253,7 +253,26 @@ export default function PipCreatePage() {
             type="number"
             label="Total Hours"
             fullWidth
-            slotProps={{ htmlInput: { min: 1, dir: 'ltr', style: { textAlign: 'left' } } }}
+            slotProps={{
+              htmlInput: {
+                min: 1,
+                dir: 'ltr',
+                inputMode: 'numeric',
+                pattern: '[0-9]*',
+                style: { textAlign: 'left' },
+                onKeyDown: (event) => {
+                  if (['e', 'E', '+', '-', '.'].includes(event.key)) {
+                    event.preventDefault()
+                  }
+                },
+                onPaste: (event) => {
+                  const pastedText = event.clipboardData.getData('text')
+                  if (!/^\d+$/.test(pastedText)) {
+                    event.preventDefault()
+                  }
+                },
+              },
+            }}
             {...register('totalHours', { valueAsNumber: true })}
             error={Boolean(errors.totalHours)}
             helperText={errors.totalHours?.message}

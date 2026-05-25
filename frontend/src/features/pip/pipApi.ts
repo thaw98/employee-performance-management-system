@@ -70,6 +70,7 @@ export interface Pip {
 
 export interface TrainingRecord {
   id: number
+  pipId?: number | null
   trainingName: string
   trainingProvider?: string
   startDate: string
@@ -409,6 +410,7 @@ const normalizeTrainingRecord = (record: unknown): TrainingRecord => {
 
   return {
     id: getNumber(source.id),
+    pipId: source.pipId == null ? null : getNumber(source.pipId),
     trainingName: getString(source.trainingName),
     trainingProvider: getOptionalString(source.trainingProvider),
     startDate: getString(source.startDate),
@@ -488,7 +490,7 @@ const normalizeNotesPage = (page: unknown): PipNotesPage => {
 
 export const pipApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getPips: builder.query<Pip[], { departmentId?: number; positionId?: number; employeeName?: string; status?: string; startDate?: string; endDate?: string } | void>({
+    getPips: builder.query<Pip[], { departmentId?: number; positionId?: number; pipId?: number; employeeName?: string; status?: string; startDate?: string; endDate?: string } | void>({
       query: (params) => ({
         url: '/pips',
         params: params || undefined,
@@ -516,6 +518,15 @@ export const pipApi = baseApi.injectEndpoints({
         body: { content, noteType },
       }),
       invalidatesTags: (_result, _error, { pipId }) => [{ type: 'PIPNote', id: pipId }, 'PIPNote'],
+      transformResponse: (response: unknown) => normalizeNote(getResponseData(response)),
+    }),
+    updatePipNote: builder.mutation<PipCommunicationNote, { noteId: number; pipId?: number; content: string }>({
+      query: ({ noteId, content }) => ({
+        url: `/pips/notes/${noteId}`,
+        method: 'PUT',
+        body: { content },
+      }),
+      invalidatesTags: (_result, _error, { pipId }) => pipId ? [{ type: 'PIPNote', id: pipId }, 'PIPNote'] : ['PIPNote'],
       transformResponse: (response: unknown) => normalizeNote(getResponseData(response)),
     }),
     getAllPipNotes: builder.query<PipNotesPage, { employeeId?: number; managerId?: number; departmentId?: number; employeeName?: string; noteType?: 'COMMUNICATION' | 'FOLLOWUP'; pipStatus?: string; dateFrom?: string; dateTo?: string; page?: number; size?: number } | void>({
@@ -660,6 +671,7 @@ export const {
   useAddPipNoteMutation,
   useGetAllPipNotesQuery,
   useDeletePipNoteMutation,
+  useUpdatePipNoteMutation,
   useCreatePipMutation,
   useUpdateProgressMutation,
   useScheduleMeetingMutation,

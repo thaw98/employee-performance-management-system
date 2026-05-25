@@ -701,6 +701,8 @@
 .dash-shell .profile-dropdown-icon--violet i { color: var(--dash-accent); }
 .dash-shell .profile-dropdown-icon--gray { background: #f1f5f9; }
 .dash-shell .profile-dropdown-icon--gray i { color: #64748b; }
+.dash-shell .profile-dropdown-icon--cyan { background: #ecfeff; }
+.dash-shell .profile-dropdown-icon--cyan i { color: #0891b2; }
 .dash-shell .profile-dropdown-icon--green { background: #ecfdf5; }
 .dash-shell .profile-dropdown-icon--green i { color: #16a34a; }
 .dash-shell .profile-dropdown-icon--red { background: #fef2f2; }

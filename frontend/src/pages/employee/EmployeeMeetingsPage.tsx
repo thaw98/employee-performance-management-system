@@ -53,6 +53,8 @@ export function EmployeeMeetingsPage() {
     const [requestDescription, setRequestDescription] = useState('');
     const [requestScheduledTime, setRequestScheduledTime] = useState('');
     const [requestDurationMinutes, setRequestDurationMinutes] = useState(45);
+    const [selectedHrEmployeeId, setSelectedHrEmployeeId] = useState('');
+    const isFaqHrMeeting = searchParams.get('target') === 'hr';
 
     // Reschedule Modal state
     const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
@@ -84,9 +86,13 @@ export function EmployeeMeetingsPage() {
 
     useEffect(() => {
         if (searchParams.get('action') === 'request') {
+            if (isFaqHrMeeting && !requestTitle) {
+                setRequestTitle('FAQ clarification with HR');
+                setRequestDescription('Need more information about an FAQ topic.');
+            }
             setIsRequestModalOpen(true);
         }
-    }, [searchParams]);
+    }, [searchParams, isFaqHrMeeting, requestTitle]);
 
     useEffect(() => {
         fetchMeetings();
@@ -95,7 +101,7 @@ export function EmployeeMeetingsPage() {
             if (activeTab !== 'COMPLETED') fetchMeetings();
         }, 30000);
         return () => clearInterval(interval);
-    }, [activeTab, page, sortBy, subStatus]);
+    }, [activeTab, page, sortBy, subStatus, isFaqHrMeeting]);
 
     const fetchMeetings = async () => {
         try {
@@ -125,7 +131,7 @@ export function EmployeeMeetingsPage() {
 
     const fetchRequestableManagers = async () => {
         try {
-            const resp = await axios.get('/meetings/requestable-managers');
+            const resp = await axios.get(isFaqHrMeeting ? '/meetings/hr-employees' : '/meetings/requestable-managers');
             setRequestableManagers(resp.data.data || []);
         } catch (err) {
             console.error('Failed to load requestable managers');
@@ -142,6 +148,7 @@ export function EmployeeMeetingsPage() {
         e.preventDefault();
         try {
             await axios.post('/meetings/request', {
+                employeeId: isFaqHrMeeting ? parseInt(selectedHrEmployeeId) : undefined,
                 title: requestTitle,
                 description: requestDescription,
                 scheduledTime: new Date(requestScheduledTime).toISOString(),
@@ -153,6 +160,7 @@ export function EmployeeMeetingsPage() {
             setRequestDescription('');
             setRequestScheduledTime('');
             setRequestDurationMinutes(45);
+            setSelectedHrEmployeeId('');
             fetchMeetings();
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to request meeting');
@@ -516,10 +524,28 @@ export function EmployeeMeetingsPage() {
                         </div>
                         <form onSubmit={handleRequestMeeting} className="p-6 space-y-5">
                             <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Manager</label>
-                                <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700">
-                                    {requestableManagers[0]?.name || 'No manager assigned'}
-                                </div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                                    {isFaqHrMeeting ? 'HR Employee' : 'Manager'}
+                                </label>
+                                {isFaqHrMeeting ? (
+                                    <select
+                                        required
+                                        value={selectedHrEmployeeId}
+                                        onChange={(e) => setSelectedHrEmployeeId(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    >
+                                        <option value="">Select HR employee...</option>
+                                        {requestableManagers.map((hrEmployee) => (
+                                            <option key={hrEmployee.id} value={hrEmployee.id}>
+                                                {hrEmployee.name} ({hrEmployee.department})
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700">
+                                        {requestableManagers[0]?.name || 'No manager assigned'}
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Meeting Title</label>
