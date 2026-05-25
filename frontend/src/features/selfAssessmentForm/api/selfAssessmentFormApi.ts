@@ -26,6 +26,9 @@ export interface SelfAssessmentFormTemplateDto {
   positionName: string
   reviewCycleId: number | null
   reviewCycleName: string | null
+  timelineMode: 'REVIEW_CYCLE' | 'MANUAL'
+  manualStartDate: string | null
+  manualEndDate: string | null
   isActive: boolean
   ratingSystem: SelfAssessmentRatingSystem
   tenPointYesMinRating: number
@@ -71,6 +74,9 @@ export interface CreateTemplateRequest {
   deletedQuestions?: QuestionRequest[]
   /** Omit or null to use the active employee-submission cycle on the server. */
   reviewCycleId?: number | null
+  timelineMode?: 'REVIEW_CYCLE' | 'MANUAL'
+  manualStartDate?: string | null
+  manualEndDate?: string | null
   ratingSystem?: SelfAssessmentRatingSystem
   tenPointYesMinRating?: number | null
 }
@@ -318,6 +324,10 @@ export interface SelfAssessmentAssignmentRequest {
   startDate: string
   deadlineDate: string
   managerReviewDeadlineDate: string
+  timelineMode?: 'REVIEW_CYCLE' | 'MANUAL'
+  reviewCycleId?: number | null
+  manualStartDate?: string | null
+  manualEndDate?: string | null
 }
 
 export interface SelfAssessmentAssignmentResponse {
@@ -325,7 +335,7 @@ export interface SelfAssessmentAssignmentResponse {
   skippedExistingCount: number
   skippedNoTemplateCount: number
   skippedIneligibleCount: number
-  activeCycle: CycleInfoDto
+  activeCycle: CycleInfoDto | null
 }
 
 export type SelfAssessmentAssignmentPreviewStatus = 'NOT_ASSIGNED' | 'ALREADY_ASSIGNED' | 'NO_TEMPLATE'
@@ -334,6 +344,10 @@ export interface SelfAssessmentAssignmentPreviewRequest {
   targets: TemplateTargetPairRequest[]
   deadlineDate: string
   managerReviewDeadlineDate: string
+  timelineMode?: 'REVIEW_CYCLE' | 'MANUAL'
+  reviewCycleId?: number | null
+  manualStartDate?: string | null
+  manualEndDate?: string | null
 }
 
 export interface SelfAssessmentAssignmentPreviewDto {
@@ -851,7 +865,7 @@ const normalizeAssignmentResponse = (response: unknown): SelfAssessmentAssignmen
     skippedExistingCount: getNumber(source.skippedExistingCount),
     skippedNoTemplateCount: getNumber(source.skippedNoTemplateCount),
     skippedIneligibleCount: getNumber(source.skippedIneligibleCount),
-    activeCycle: normalizeCycleInfo(source.activeCycle) ?? { id: 0, name: '', code: '', startDate: '', endDate: '' },
+    activeCycle: normalizeCycleInfo(source.activeCycle),
   }
 }
 
@@ -916,6 +930,9 @@ const normalizeTemplate = (template: unknown): SelfAssessmentFormTemplateDto => 
     positionName: getString(source.positionName),
     reviewCycleId: source.reviewCycleId != null ? getNumber(source.reviewCycleId) : null,
     reviewCycleName: getOptionalString(source.reviewCycleName) ?? null,
+    timelineMode: getString(source.timelineMode).toUpperCase() === 'MANUAL' ? 'MANUAL' : 'REVIEW_CYCLE',
+    manualStartDate: getOptionalString(source.manualStartDate) ?? null,
+    manualEndDate: getOptionalString(source.manualEndDate) ?? null,
     isActive: getBoolean(source.isActive),
     ratingSystem: normalizeRatingSystem(source.ratingSystem),
     tenPointYesMinRating: normalizeTenPointYesMinRating(source.tenPointYesMinRating),

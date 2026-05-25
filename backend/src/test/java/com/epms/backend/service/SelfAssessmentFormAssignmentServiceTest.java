@@ -311,7 +311,11 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(),
                 LocalDate.of(2026, 5, 5),
                 LocalDate.of(2026, 5, 10),
-                LocalDate.of(2026, 5, 15));
+                LocalDate.of(2026, 5, 15),
+                null,
+                null,
+                null,
+                null);
 
         SelfAssessmentAssignmentResponse response = service.assignSelfAssessmentForms(request, 99L);
 
@@ -330,7 +334,11 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(),
                 LocalDate.of(2026, 5, 10),
                 LocalDate.of(2026, 5, 16),
-                LocalDate.of(2026, 5, 15));
+                LocalDate.of(2026, 5, 15),
+                null,
+                null,
+                null,
+                null);
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> service.assignSelfAssessmentForms(request, 99L));
 
@@ -442,11 +450,81 @@ class SelfAssessmentFormAssignmentServiceTest {
                 null,
                 7L,
                 null,
+                null,
+                null,
+                null,
                 null), 99L);
 
         ArgumentCaptor<SelfAssessmentFormTemplate> templateCaptor = ArgumentCaptor.forClass(SelfAssessmentFormTemplate.class);
         verify(templateRepository).saveAndFlush(templateCaptor.capture());
         assertEquals(SelfAssessmentRatingSystem.TEN_POINT, templateCaptor.getValue().getRatingSystem());
+    }
+
+    @Test
+    void createTemplate_manualTimelineStoresNullCycleAndManualDates() {
+        LocalDate start = LocalDate.of(2026, 6, 1);
+        LocalDate end = LocalDate.of(2026, 6, 30);
+
+        when(departmentRepository.findById(10L)).thenReturn(Optional.of(department(10L)));
+        when(positionRepository.findById(20L)).thenReturn(Optional.of(position(20L)));
+        when(templateRepository.findActiveManualByDepartmentAndPositionAndDateRange(10L, 20L, start, end))
+                .thenReturn(Optional.empty());
+        when(settingsRepository.findById(SelfAssessmentSettings.SINGLETON_ID)).thenReturn(Optional.empty());
+        when(settingsRepository.save(any(SelfAssessmentSettings.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(templateRepository.saveAndFlush(any(SelfAssessmentFormTemplate.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(templateRepository.save(any(SelfAssessmentFormTemplate.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createTemplate(new CreateTemplateRequest(
+                "Manual Template",
+                10L,
+                20L,
+                List.of(new QuestionRequest(null, "What did you achieve?", 0)),
+                null,
+                null,
+                "MANUAL",
+                start,
+                end,
+                null,
+                null), 99L);
+
+        ArgumentCaptor<SelfAssessmentFormTemplate> templateCaptor = ArgumentCaptor.forClass(SelfAssessmentFormTemplate.class);
+        verify(templateRepository).saveAndFlush(templateCaptor.capture());
+        assertNull(templateCaptor.getValue().getReviewCycle());
+        assertEquals(start, templateCaptor.getValue().getManualStartDate());
+        assertEquals(end, templateCaptor.getValue().getManualEndDate());
+        verify(reviewCycleService, never()).resolveCycleForSelfAssessmentTemplate(any());
+    }
+
+    @Test
+    void createTemplate_manualTimelineRejectsDuplicateDateRange() {
+        LocalDate start = LocalDate.of(2026, 6, 1);
+        LocalDate end = LocalDate.of(2026, 6, 30);
+        SelfAssessmentFormTemplate existing = template(100L, 10L, 20L, null);
+        existing.setManualStartDate(start);
+        existing.setManualEndDate(end);
+
+        when(departmentRepository.findById(10L)).thenReturn(Optional.of(department(10L)));
+        when(positionRepository.findById(20L)).thenReturn(Optional.of(position(20L)));
+        when(templateRepository.findActiveManualByDepartmentAndPositionAndDateRange(10L, 20L, start, end))
+                .thenReturn(Optional.of(existing));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.createTemplate(new CreateTemplateRequest(
+                "Manual Template",
+                10L,
+                20L,
+                List.of(new QuestionRequest(null, "What did you achieve?", 0)),
+                null,
+                null,
+                "MANUAL",
+                start,
+                end,
+                null,
+                null), 99L));
+
+        assertTrue(ex.getMessage().contains("active manual template"));
+        verify(templateRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -881,14 +959,22 @@ class SelfAssessmentFormAssignmentServiceTest {
                 List.of(),
                 LocalDate.of(2026, 5, 5),
                 LocalDate.of(2026, 5, 10),
-                LocalDate.of(2026, 5, 15));
+                LocalDate.of(2026, 5, 15),
+                null,
+                null,
+                null,
+                null);
     }
 
     private static SelfAssessmentAssignmentPreviewRequest previewRequest(Long departmentId, Long positionId) {
         return new SelfAssessmentAssignmentPreviewRequest(
                 List.of(new TemplateTargetPairRequest(departmentId, positionId)),
                 LocalDate.of(2026, 5, 10),
-                LocalDate.of(2026, 5, 15));
+                LocalDate.of(2026, 5, 15),
+                null,
+                null,
+                null,
+                null);
     }
 
     private static ReviewCycle cycle() {

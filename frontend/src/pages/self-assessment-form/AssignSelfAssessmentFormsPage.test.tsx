@@ -8,6 +8,7 @@ import { AssignSelfAssessmentFormsPage } from './AssignSelfAssessmentFormsPage'
 const navigateMock = vi.fn()
 const assignFormsMock = vi.fn()
 const previewHookMock = vi.fn()
+let locationSearch = ''
 
 vi.mock('react-router-dom', () => ({
   Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
@@ -16,6 +17,7 @@ vi.mock('react-router-dom', () => ({
     </a>
   ),
   useNavigate: () => navigateMock,
+  useLocation: () => ({ search: locationSearch }),
 }))
 
 vi.mock('react-hot-toast', () => ({
@@ -152,6 +154,7 @@ describe('AssignSelfAssessmentFormsPage assignment preview', () => {
     navigateMock.mockReset()
     assignFormsMock.mockReset()
     previewHookMock.mockReset()
+    locationSearch = ''
     previewHookMock.mockReturnValue({
       data: previewData,
       isFetching: false,
@@ -272,6 +275,9 @@ describe('AssignSelfAssessmentFormsPage assignment preview', () => {
         startDate: '2026-05-01',
         deadlineDate: '2026-05-31',
         managerReviewDeadlineDate: '2026-05-31',
+        timelineMode: 'REVIEW_CYCLE',
+        manualStartDate: null,
+        manualEndDate: null,
       })
     })
   })

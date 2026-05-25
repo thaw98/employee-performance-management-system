@@ -106,17 +106,31 @@ public class SelfAssessmentFormService {
 
     @Transactional
     public SelfAssessmentFormTemplateDto createTemplate(CreateTemplateRequest request, Long userId) {
-        ReviewCycle cycle = reviewCycleService.resolveCycleForSelfAssessmentTemplate(request.reviewCycleId());
+        boolean manualTimeline = isManualTimeline(request.timelineMode());
+        LocalDate manualStartDate = null;
+        LocalDate manualEndDate = null;
+        ReviewCycle cycle = null;
+        if (manualTimeline) {
+            validateManualTemplateDates(request.manualStartDate(), request.manualEndDate());
+            manualStartDate = request.manualStartDate();
+            manualEndDate = request.manualEndDate();
+        } else {
+            cycle = reviewCycleService.resolveCycleForSelfAssessmentTemplate(request.reviewCycleId());
+        }
         Department department = departmentRepository.findById(request.departmentId())
                 .orElseThrow(() -> new RuntimeException("Department not found"));
         Position position = positionRepository.findById(request.positionId())
                 .orElseThrow(() -> new RuntimeException("Position not found"));
 
-        Optional<SelfAssessmentFormTemplate> existing = templateRepository
-                .findActiveByDepartmentAndPositionAndReviewCycleId(
+        Optional<SelfAssessmentFormTemplate> existing = manualTimeline
+                ? templateRepository.findActiveManualByDepartmentAndPositionAndDateRange(
+                        request.departmentId(), request.positionId(), manualStartDate, manualEndDate)
+                : templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
                         request.departmentId(), request.positionId(), cycle.getId());
         if (existing.isPresent()) {
-            throw new RuntimeException("An active template already exists for this department, position, and review cycle");
+            throw new RuntimeException(manualTimeline
+                    ? "An active manual template already exists for this department, position, and date range"
+                    : "An active template already exists for this department, position, and review cycle");
         }
 
         SelfAssessmentFormTemplate template = new SelfAssessmentFormTemplate();
@@ -124,6 +138,8 @@ public class SelfAssessmentFormService {
         template.setDepartment(department);
         template.setPosition(position);
         template.setReviewCycle(cycle);
+        template.setManualStartDate(manualStartDate);
+        template.setManualEndDate(manualEndDate);
         template.setRatingSystem(resolveTemplateRatingSystem(request.ratingSystem()));
         template.setTenPointYesMinRating(resolveTemplateTenPointYesMinRating(request.tenPointYesMinRating()));
         template.setActive(true);
@@ -246,13 +262,23 @@ Instant now = Instant.now();
         assertTemplateEditable(template);
 
         Long rcId = template.getReviewCycle() != null ? template.getReviewCycle().getId() : null;
+        boolean manualTimeline = isManualTemplate(template);
         Optional<SelfAssessmentFormTemplate> existing = rcId != null
                 ? templateRepository.findActiveByDepartmentAndPositionAndReviewCycleIdExcluding(
                         request.departmentId(), request.positionId(), rcId, id)
-                : templateRepository.findActiveByDepartmentAndPositionWithNullReviewCycleExcluding(
-                        request.departmentId(), request.positionId(), id);
+                : manualTimeline
+                        ? templateRepository.findActiveManualByDepartmentAndPositionAndDateRangeExcluding(
+                                request.departmentId(),
+                                request.positionId(),
+                                template.getManualStartDate(),
+                                template.getManualEndDate(),
+                                id)
+                        : templateRepository.findActiveByDepartmentAndPositionWithNullReviewCycleExcluding(
+                                request.departmentId(), request.positionId(), id);
         if (existing.isPresent() && request.isActive()) {
-            throw new RuntimeException("An active template already exists for this department, position, and review cycle");
+            throw new RuntimeException(manualTimeline
+                    ? "An active manual template already exists for this department, position, and date range"
+                    : "An active template already exists for this department, position, and review cycle");
         }
 
         Department department = departmentRepository.findById(request.departmentId())
@@ -633,12 +659,17 @@ Instant now = Instant.now();
         AssignmentMode assignmentMode = parseAssignmentMode(request.assignmentMode());
         validateAssignmentSelections(assignmentMode, request.departmentIds(), request.positionIds(), request.employeeIds());
 
-        ReviewCycle activeCycle = requireActiveCycle();
-        validateAssignmentDeadlines(
-                request.startDate(),
-                request.deadlineDate(),
-                request.managerReviewDeadlineDate(),
-                activeCycle);
+        boolean manualTimeline = isManualTimeline(request.timelineMode());
+        ReviewCycle activeCycle = manualTimeline ? null : requireActiveCycle();
+        if (manualTimeline) {
+            validateManualAssignmentTimeline(request);
+        } else {
+            validateAssignmentDeadlines(
+                    request.startDate(),
+                    request.deadlineDate(),
+                    request.managerReviewDeadlineDate(),
+                    activeCycle);
+        }
 
         Set<Long> departmentIds = toIdSet(request.departmentIds());
         Set<Long> positionIds = toIdSet(request.positionIds());
@@ -657,11 +688,10 @@ Instant now = Instant.now();
             if (!matchesAssignmentMode(employee, assignmentMode, departmentIds, positionIds, employeeIdSet)) {
                 continue;
             }
-            if (formRepository.existsByEmployeeAndCycle(employee, activeCycle)) {
+            if (!manualTimeline && formRepository.existsByEmployeeAndCycle(employee, activeCycle)) {
                 skippedExisting++;
                 continue;
             }
-
             Long departmentId = getEmployeeDepartmentId(employee);
             Long positionId = getEmployeePositionId(employee);
             if (departmentId == null || positionId == null) {
@@ -669,18 +699,35 @@ Instant now = Instant.now();
                 continue;
             }
 
-            Optional<SelfAssessmentFormTemplate> templateOpt = templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
-                    departmentId,
-                    positionId,
-                    activeCycle.getId());
+            Optional<SelfAssessmentFormTemplate> templateOpt = manualTimeline
+                    ? templateRepository.findActiveManualByDepartmentAndPositionAndDateRange(
+                            departmentId,
+                            positionId,
+                            request.manualStartDate(),
+                            request.manualEndDate())
+                    : templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
+                            departmentId,
+                            positionId,
+                            activeCycle.getId());
             if (templateOpt.isEmpty()) {
                 skippedNoTemplate++;
+                continue;
+            }
+            SelfAssessmentFormTemplate template = templateOpt.get();
+
+            if (manualTimeline && formRepository.existsByEmployeeAndTemplateAndStartDateAndDeadlineDateAndManagerReviewDeadlineDate(
+                    employee,
+                    template,
+                    request.startDate(),
+                    request.deadlineDate(),
+                    request.managerReviewDeadlineDate())) {
+                skippedExisting++;
                 continue;
             }
 
             SelfAssessmentForm form = createAssignedDraftForm(
                     employee,
-                    templateOpt.get(),
+                    template,
                     activeCycle,
                     request.startDate(),
                     request.deadlineDate(),
@@ -735,37 +782,49 @@ Instant now = Instant.now();
                 skippedExisting,
                 skippedNoTemplate,
                 skippedIneligible,
-                toCycleInfo(activeCycle));
+                activeCycle != null ? toCycleInfo(activeCycle) : null);
     }
 
     @Transactional(readOnly = true)
     public List<SelfAssessmentAssignmentPreviewDto> previewSelfAssessmentAssignments(
             SelfAssessmentAssignmentPreviewRequest request) {
-        ReviewCycle activeCycle = requireActiveCycle();
-        validateAssignmentDeadlines(
-                request.deadlineDate(),
-                request.deadlineDate(),
-                request.managerReviewDeadlineDate(),
-                activeCycle);
+        boolean manualTimeline = isManualTimeline(request.timelineMode());
+        ReviewCycle activeCycle = manualTimeline ? null : requireActiveCycle();
+        if (manualTimeline) {
+            validateManualPreviewTimeline(request);
+        } else {
+            validateAssignmentDeadlines(
+                    request.deadlineDate(),
+                    request.deadlineDate(),
+                    request.managerReviewDeadlineDate(),
+                    activeCycle);
+        }
 
         return request.targets().stream()
-                .map(target -> previewSelfAssessmentAssignmentTarget(target, request, activeCycle))
+                .map(target -> previewSelfAssessmentAssignmentTarget(target, request, activeCycle, manualTimeline))
                 .collect(Collectors.toList());
     }
 
     private SelfAssessmentAssignmentPreviewDto previewSelfAssessmentAssignmentTarget(
             TemplateTargetPairRequest target,
             SelfAssessmentAssignmentPreviewRequest request,
-            ReviewCycle activeCycle) {
+            ReviewCycle activeCycle,
+            boolean manualTimeline) {
         Department department = departmentRepository.findById(target.departmentId())
                 .orElseThrow(() -> new RuntimeException("Department not found"));
         Position position = positionRepository.findById(target.positionId())
                 .orElseThrow(() -> new RuntimeException("Position not found"));
 
-        Optional<SelfAssessmentFormTemplate> templateOpt = templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
-                target.departmentId(),
-                target.positionId(),
-                activeCycle.getId());
+        Optional<SelfAssessmentFormTemplate> templateOpt = manualTimeline
+                ? templateRepository.findActiveManualByDepartmentAndPositionAndDateRange(
+                        target.departmentId(),
+                        target.positionId(),
+                        request.manualStartDate(),
+                        request.manualEndDate())
+                : templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
+                        target.departmentId(),
+                        target.positionId(),
+                        activeCycle.getId());
 
         if (templateOpt.isEmpty()) {
             return new SelfAssessmentAssignmentPreviewDto(
@@ -782,11 +841,17 @@ Instant now = Instant.now();
         }
 
         SelfAssessmentFormTemplate template = templateOpt.get();
-        long assignedCount = formRepository.countByTemplateAndCycleAndDeadlineDateAndManagerReviewDeadlineDate(
-                template,
-                activeCycle,
-                request.deadlineDate(),
-                request.managerReviewDeadlineDate());
+        long assignedCount = manualTimeline
+                ? formRepository.countByTemplateAndCycleIsNullAndStartDateAndDeadlineDateAndManagerReviewDeadlineDate(
+                        template,
+                        request.manualStartDate(),
+                        request.deadlineDate(),
+                        request.managerReviewDeadlineDate())
+                : formRepository.countByTemplateAndCycleAndDeadlineDateAndManagerReviewDeadlineDate(
+                        template,
+                        activeCycle,
+                        request.deadlineDate(),
+                        request.managerReviewDeadlineDate());
         int questionCount = (int) template.getQuestions().stream()
                 .filter(question -> question.getDeletedAt() == null)
                 .count();
@@ -2004,7 +2069,7 @@ Instant now = Instant.now();
     private SelfAssessmentForm createAssignedDraftForm(
             Employee employee,
             SelfAssessmentFormTemplate template,
-            ReviewCycle activeCycle,
+            ReviewCycle cycle,
             LocalDate startDate,
             LocalDate deadlineDate,
             LocalDate managerReviewDeadlineDate,
@@ -2013,13 +2078,13 @@ Instant now = Instant.now();
         SelfAssessmentForm form = new SelfAssessmentForm();
         form.setEmployee(employee);
         form.setTemplate(template);
-        form.setCycle(activeCycle);
+        form.setCycle(cycle);
         form.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()));
         form.setTenPointYesMinRating(resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()));
         form.setStartDate(startDate);
         form.setDeadlineDate(deadlineDate);
         form.setManagerReviewDeadlineDate(managerReviewDeadlineDate);
-        form.setFinalApprovalDeadlineDate(activeCycle.getEndDate());
+        form.setFinalApprovalDeadlineDate(cycle != null ? cycle.getEndDate() : managerReviewDeadlineDate);
         form.setAssignedAt(assignedAt);
         form.setAssignedBy(assignedBy);
         form.setStatus(SelfAssessmentFormStatus.DRAFT);
@@ -2056,6 +2121,67 @@ Instant now = Instant.now();
             case "SPECIFIC_EMPLOYEES", "EMPLOYEE_NAMES", "EMPLOYEES" -> AssignmentMode.SPECIFIC_EMPLOYEES;
             default -> throw new RuntimeException("Invalid assignment mode");
         };
+    }
+
+    private boolean isManualTimeline(String value) {
+        return value != null && "MANUAL".equalsIgnoreCase(value.trim());
+    }
+
+    private boolean isManualTemplate(SelfAssessmentFormTemplate template) {
+        return template.getReviewCycle() == null
+                && template.getManualStartDate() != null
+                && template.getManualEndDate() != null;
+    }
+
+    private void validateManualTemplateDates(LocalDate manualStartDate, LocalDate manualEndDate) {
+        if (manualStartDate == null || manualEndDate == null) {
+            throw new RuntimeException("Manual start date and end date are required");
+        }
+        if (manualStartDate.isAfter(manualEndDate)) {
+            throw new RuntimeException("Manual end date cannot be earlier than the start date");
+        }
+    }
+
+    private void validateManualAssignmentTimeline(SelfAssessmentAssignmentRequest request) {
+        validateManualTemplateDates(request.manualStartDate(), request.manualEndDate());
+        validateManualAssignmentDates(
+                request.startDate(),
+                request.deadlineDate(),
+                request.managerReviewDeadlineDate(),
+                request.manualStartDate(),
+                request.manualEndDate());
+    }
+
+    private void validateManualPreviewTimeline(SelfAssessmentAssignmentPreviewRequest request) {
+        validateManualTemplateDates(request.manualStartDate(), request.manualEndDate());
+        validateManualAssignmentDates(
+                request.manualStartDate(),
+                request.deadlineDate(),
+                request.managerReviewDeadlineDate(),
+                request.manualStartDate(),
+                request.manualEndDate());
+    }
+
+    private void validateManualAssignmentDates(
+            LocalDate startDate,
+            LocalDate deadlineDate,
+            LocalDate managerReviewDeadlineDate,
+            LocalDate manualStartDate,
+            LocalDate manualEndDate) {
+        if (startDate == null || deadlineDate == null || managerReviewDeadlineDate == null) {
+            throw new RuntimeException("Start date, employee deadline, and manager review deadlines are required");
+        }
+        if (startDate.isAfter(deadlineDate)) {
+            throw new RuntimeException("Employee deadline cannot be earlier than the start date.");
+        }
+        if (deadlineDate.isAfter(managerReviewDeadlineDate)) {
+            throw new RuntimeException("Manager review deadline cannot be earlier than the employee deadline.");
+        }
+        if (!startDate.equals(manualStartDate)
+                || !deadlineDate.equals(manualEndDate)
+                || !managerReviewDeadlineDate.equals(manualEndDate)) {
+            throw new RuntimeException("Manual assignment dates must match the selected manual template timeline");
+        }
     }
 
     private SelfAssessmentRatingSystem parseRatingSystem(String value) {
@@ -2854,6 +2980,9 @@ Instant now = Instant.now();
                 template.getPosition().getName(),
                 template.getReviewCycle() != null ? template.getReviewCycle().getId() : null,
                 template.getReviewCycle() != null ? template.getReviewCycle().getName() : null,
+                isManualTemplate(template) ? "MANUAL" : "REVIEW_CYCLE",
+                template.getManualStartDate(),
+                template.getManualEndDate(),
                 template.isActive(),
                 SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()).name(),
                 resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()),
