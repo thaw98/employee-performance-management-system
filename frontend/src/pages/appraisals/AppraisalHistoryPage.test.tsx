@@ -170,6 +170,27 @@ describe('AppraisalHistoryPage', () => {
     expect(toastSuccessMock).toHaveBeenCalledWith('Appraisal history exported successfully');
   });
 
+  it('paginates filtered history rows', async () => {
+    const manyRows = Array.from({ length: 12 }, (_, index) => ({
+      ...historyRows[0],
+      assignmentId: 2000 + index,
+      employeeName: `Employee ${index + 1}`,
+      staffNo: `EMP-${index + 1}`,
+    }));
+    axiosGetMock.mockResolvedValueOnce({ data: { data: manyRows } });
+    render(<AppraisalHistoryPage mode="hr" />);
+
+    await screen.findByText('Employee 1');
+    expect(screen.getByText(/Showing/)).toHaveTextContent('1');
+    expect(screen.getByText(/Showing/)).toHaveTextContent('10');
+    expect(screen.getByText(/Showing/)).toHaveTextContent('12 records');
+    expect(screen.queryByText('Employee 11')).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: '2' }));
+    expect(await screen.findByText('Employee 11')).toBeTruthy();
+    expect(screen.queryByText('Employee 1')).toBeNull();
+  });
+
   it('renders empty state cleanly', async () => {
     axiosGetMock.mockResolvedValueOnce({ data: { data: [] } });
     render(<AppraisalHistoryPage mode="employee" />);

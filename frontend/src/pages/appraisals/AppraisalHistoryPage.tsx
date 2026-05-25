@@ -8,6 +8,7 @@ import {
   appraisalGradientIcon,
   appraisalGradientSoft,
 } from '../../features/appraisals/appraisalTheme';
+import { PaginationBar } from '../../components/common/PaginationBar';
 
 interface AppraisalHistoryRow {
   assignmentId: number;
@@ -90,6 +91,8 @@ export function AppraisalHistoryPage({ mode }: AppraisalHistoryPageProps) {
   const [positionFilter, setPositionFilter] = useState(ALL);
   const [statusFilter, setStatusFilter] = useState(ALL);
   const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
@@ -153,6 +156,23 @@ export function AppraisalHistoryPage({ mode }: AppraisalHistoryPageProps) {
     const matchesStatus = statusFilter === ALL || row.status === statusFilter;
     return matchesSearch && matchesCycle && matchesDepartment && matchesPosition && matchesStatus;
   });
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [searchTerm, cycleFilter, departmentFilter, positionFilter, statusFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const paginatedRows = useMemo(
+    () => filteredRows.slice(pageIndex * pageSize, pageIndex * pageSize + pageSize),
+    [filteredRows, pageIndex, pageSize],
+  );
+
+  useEffect(() => {
+    const maxPageIndex = Math.max(0, pageCount - 1);
+    if (pageIndex > maxPageIndex) {
+      setPageIndex(maxPageIndex);
+    }
+  }, [pageCount, pageIndex]);
 
   const totals = filteredRows.reduce(
     (acc, row) => ({
@@ -283,10 +303,27 @@ export function AppraisalHistoryPage({ mode }: AppraisalHistoryPageProps) {
           <h3 className="mt-5 text-xl font-black text-slate-800">No History Found</h3>
           <p className="mt-2 text-sm font-semibold text-slate-400">Approved and finalized appraisal records will appear here.</p>
         </div>
-      ) : viewMode === 'table' ? (
-        <HistoryTable rows={filteredRows} />
       ) : (
-        <HistoryGrid rows={filteredRows} />
+        <>
+          {viewMode === 'table' ? (
+            <HistoryTable rows={paginatedRows} />
+          ) : (
+            <HistoryGrid rows={paginatedRows} />
+          )}
+          <PaginationBar
+            pageIndex={pageIndex}
+            pageSize={pageSize}
+            pageCount={pageCount}
+            totalItems={filteredRows.length}
+            itemLabel="records"
+            rowsPerPageOptions={[5, 10, 20, 50]}
+            onPageIndexChange={setPageIndex}
+            onPageSizeChange={(nextSize) => {
+              setPageSize(nextSize);
+              setPageIndex(0);
+            }}
+          />
+        </>
       )}
     </div>
   );
