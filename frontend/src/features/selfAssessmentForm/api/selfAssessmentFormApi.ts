@@ -478,10 +478,43 @@ export type SelfAssessmentUnlockReasonCode =
   | 'WRONG_ANSWER'
   | 'OTHER'
 
+export type SelfAssessmentUnlockHrRejectReasonCode =
+  | 'INSUFFICIENT_JUSTIFICATION'
+  | 'NO_SUBSTANTIVE_ERROR'
+  | 'PAST_ALLOWED_WINDOW'
+  | 'MANAGER_REVIEW_IN_PROGRESS'
+  | 'DUPLICATE_REQUEST'
+  | 'OTHER'
+
+export const SELF_ASSESSMENT_UNLOCK_REASON_OPTIONS: { value: SelfAssessmentUnlockReasonCode; label: string }[] = [
+  { value: 'TYPO_COMMENT', label: 'Typo or comment correction' },
+  { value: 'WRONG_RATING', label: 'Wrong rating selected' },
+  { value: 'INCOMPLETE_ANSWER', label: 'Incomplete answer' },
+  { value: 'WRONG_ANSWER', label: 'Wrong answer selected' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+export const SELF_ASSESSMENT_UNLOCK_REJECT_REASON_OPTIONS: {
+  value: SelfAssessmentUnlockHrRejectReasonCode
+  label: string
+}[] = [
+  { value: 'INSUFFICIENT_JUSTIFICATION', label: 'Insufficient justification for unlock' },
+  { value: 'NO_SUBSTANTIVE_ERROR', label: 'No substantive error in submission' },
+  { value: 'PAST_ALLOWED_WINDOW', label: 'Past allowed edit window' },
+  { value: 'MANAGER_REVIEW_IN_PROGRESS', label: 'Manager review already in progress' },
+  { value: 'DUPLICATE_REQUEST', label: 'Duplicate or unnecessary request' },
+  { value: 'OTHER', label: 'Other' },
+]
+
 export type SelfAssessmentUnlockRequestStatus = 'PENDING' | 'UNLOCKED' | 'REJECTED'
 
 export interface SelfAssessmentUnlockRequestActionRequest {
   reasonCode: SelfAssessmentUnlockReasonCode
+  reasonText?: string | null
+}
+
+export interface SelfAssessmentUnlockRejectRequest {
+  reasonCode: SelfAssessmentUnlockHrRejectReasonCode
   reasonText?: string | null
 }
 
@@ -502,7 +535,7 @@ export interface SelfAssessmentUnlockRequestDto {
   status: SelfAssessmentUnlockRequestStatus
   reasonCode: SelfAssessmentUnlockReasonCode
   reasonText: string | null
-  hrReasonCode: SelfAssessmentUnlockReasonCode | null
+  hrReasonCode: string | null
   hrReasonText: string | null
   unlockDeadline: string | null
   requestedAt: string
@@ -657,7 +690,7 @@ const normalizeUnlockRequest = (request: unknown): SelfAssessmentUnlockRequestDt
     status: normalizeUnlockStatus(source.status),
     reasonCode: normalizeUnlockReasonCode(source.reasonCode),
     reasonText: getOptionalString(source.reasonText) ?? null,
-    hrReasonCode: source.hrReasonCode != null ? normalizeUnlockReasonCode(source.hrReasonCode) : null,
+    hrReasonCode: getOptionalString(source.hrReasonCode) ?? null,
     hrReasonText: getOptionalString(source.hrReasonText) ?? null,
     unlockDeadline: getOptionalString(source.unlockDeadline) ?? null,
     requestedAt: getString(source.requestedAt),
@@ -1209,7 +1242,7 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeUnlockRequest(getResponseData(response)),
     }),
 
-    rejectSelfAssessmentUnlockRequest: builder.mutation<SelfAssessmentUnlockRequestDto, { requestId: number; request: SelfAssessmentUnlockRequestActionRequest }>({
+    rejectSelfAssessmentUnlockRequest: builder.mutation<SelfAssessmentUnlockRequestDto, { requestId: number; request: SelfAssessmentUnlockRejectRequest }>({
       query: ({ requestId, request }) => ({
         url: `/self-assessment-forms/hr/unlock-requests/${requestId}/reject`,
         method: 'POST',

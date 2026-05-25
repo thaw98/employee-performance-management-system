@@ -35,6 +35,7 @@ import {
   BadgeCheck,
   ThumbsUp,
   ThumbsDown,
+  KeyRound,
 } from 'lucide-react';
 import {
   useGetReviewFormsQuery,
@@ -50,6 +51,8 @@ import {
   useHrRejectManagerReviewMutation,
   useHrApproveFormMutation,
   useHrReopenFormMutation,
+  useUnlockSelfAssessmentRequestMutation,
+  type SelfAssessmentUnlockReasonCode,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { SelfAssessmentSignatureGrid } from '../../features/selfAssessmentForm/components/SelfAssessmentSignatureGrid';
 import { YesNoRatingDisplay } from '../../features/selfAssessmentForm/components/YesNoRatingDisplay';
@@ -227,6 +230,14 @@ const HR_ADJUSTMENT_REJECTION_REASONS = [
 
 const HR_ADJUSTMENT_REJECTION_OTHER = 'Other';
 
+const UNLOCK_REASON_OPTIONS: { value: SelfAssessmentUnlockReasonCode; label: string }[] = [
+  { value: 'TYPO_COMMENT', label: 'Typo or comment correction' },
+  { value: 'WRONG_RATING', label: 'Wrong rating selected' },
+  { value: 'INCOMPLETE_ANSWER', label: 'Incomplete answer' },
+  { value: 'WRONG_ANSWER', label: 'Wrong answer selected' },
+  { value: 'OTHER', label: 'Other' },
+];
+
 function ScoreBar({ value, max = 100, color = '#2463eb', label }: { value: number; max?: number; color?: string; label?: string }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
   return (
@@ -335,6 +346,10 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockReasonCode, setUnlockReasonCode] = useState<SelfAssessmentUnlockReasonCode | ''>('');
+  const [unlockReasonText, setUnlockReasonText] = useState('');
+  const [unlockDeadline, setUnlockDeadline] = useState('');
 
   const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError, refetch: refetchManagerForms } = useGetReviewFormsQuery(undefined, {
     skip: isHr || isEmployeeDetail,
@@ -387,6 +402,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [hrRejectManagerReview, { isLoading: isHrRejecting }] = useHrRejectManagerReviewMutation();
   const [hrApproveForm, { isLoading: isApproving }] = useHrApproveFormMutation();
   const [hrReopenForm, { isLoading: isReopening }] = useHrReopenFormMutation();
+  const [unlockSelfAssessmentRequest, { isLoading: isUnlocking }] = useUnlockSelfAssessmentRequestMutation();
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
@@ -440,6 +456,8 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     const s = (selectedForm?.status ?? '').toUpperCase();
     return s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED';
   }, [selectedForm?.status]);
+  const pendingUnlockRequest = selectedForm?.pendingUnlockRequest ?? null;
+  const canHrUnlockPendingRequest = isHr && !isEmployeeDetail && pendingUnlockRequest?.status === 'PENDING';
 
   const hasPendingManagerAdjustments = useMemo(
     () => selectedForm?.answers?.some(
@@ -710,6 +728,54 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     }
   };
 
+  const closeUnlockModal = () => {
+    setShowUnlockModal(false);
+    setUnlockReasonCode('');
+    setUnlockReasonText('');
+    setUnlockDeadline('');
+  };
+
+  const handleHrUnlockRequest = async () => {
+    if (!pendingUnlockRequest || !unlockReasonCode) {
+      toast.error('Select an unlock reason');
+      return;
+    }
+    if (unlockReasonCode === 'OTHER' && !unlockReasonText.trim()) {
+      toast.error('Enter unlock reason details');
+      return;
+    }
+    if (!unlockDeadline) {
+      toast.error('Set a resubmission deadline');
+      return;
+    }
+    if (pendingUnlockRequest.managerReviewDeadlineDate && unlockDeadline >= pendingUnlockRequest.managerReviewDeadlineDate) {
+      toast.error('Deadline must be before manager review deadline');
+      return;
+    }
+
+    try {
+      await unlockSelfAssessmentRequest({
+        requestId: pendingUnlockRequest.id,
+        request: {
+          reasonCode: unlockReasonCode,
+          reasonText: unlockReasonCode === 'OTHER' ? unlockReasonText.trim() : null,
+          unlockDeadline,
+        },
+      }).unwrap();
+      toast.success('Form unlocked');
+      closeUnlockModal();
+      refetchForm();
+      if (isHr) {
+        void (selectedFormId ? refetchAllForms() : refetchHrForms());
+      }
+    } catch (error: unknown) {
+      const message = error && typeof error === 'object' && 'data' in error
+        ? (error as { data?: { message?: string } }).data?.message
+        : undefined;
+      toast.error(message || 'Failed to unlock form');
+    }
+  };
+
   const handleExportPdf = async () => {
     if (!selectedForm) return;
 
@@ -820,6 +886,17 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2.5">
+          {canHrUnlockPendingRequest && (
+            <button
+              type="button"
+              onClick={() => setShowUnlockModal(true)}
+              disabled={isUnlocking}
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-bold text-white shadow-md shadow-indigo-500/20 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            >
+              {isUnlocking ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
+              Unlock
+            </button>
+          )}
           {selectedForm && (
             <button
               type="button"
@@ -2187,6 +2264,105 @@ Review Submissions
                 )}
                 {approvalMode === 'adjustment' ? 'Approve Adjustments' : 'Confirm Approval'}
               </button>
+            </div>
+          </div>
+        </div>
+      , portalRoot)}
+
+      {canHrUnlockPendingRequest && showUnlockModal && portalRoot && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !isUnlocking && closeUnlockModal()} />
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
+            <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+                  <KeyRound size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Unlock Self-Assessment</h3>
+                  <p className="text-sm text-indigo-100">
+                    {pendingUnlockRequest?.requestedByName || selectedForm?.employee?.employeeName || 'Requester'} asked to edit this form
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4 p-6">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Resubmission Deadline
+                </label>
+                <input
+                  type="date"
+                  value={unlockDeadline}
+                  max={pendingUnlockRequest?.managerReviewDeadlineDate ?? undefined}
+                  onChange={(e) => setUnlockDeadline(e.target.value)}
+                  className={filterControlClass}
+                />
+                {pendingUnlockRequest?.managerReviewDeadlineDate && (
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Must be before {formatDateDayMonthYear(pendingUnlockRequest.managerReviewDeadlineDate)}.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  HR Reason
+                </label>
+                <select
+                  value={unlockReasonCode}
+                  onChange={(e) => {
+                    const value = e.target.value as SelfAssessmentUnlockReasonCode | '';
+                    setUnlockReasonCode(value);
+                    if (value !== 'OTHER') setUnlockReasonText('');
+                  }}
+                  className={filterControlClass}
+                >
+                  <option value="">Select a reason...</option>
+                  {UNLOCK_REASON_OPTIONS.map((reason) => (
+                    <option key={reason.value} value={reason.value}>
+                      {reason.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {unlockReasonCode === 'OTHER' && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Reason Details
+                  </label>
+                  <textarea
+                    value={unlockReasonText}
+                    onChange={(e) => setUnlockReasonText(e.target.value)}
+                    rows={4}
+                    className={`${filterControlClass} resize-none`}
+                    placeholder="Explain why this form is being unlocked..."
+                  />
+                </div>
+              )}
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeUnlockModal}
+                  disabled={isUnlocking}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleHrUnlockRequest()}
+                  disabled={
+                    isUnlocking
+                    || !unlockDeadline
+                    || !unlockReasonCode
+                    || (unlockReasonCode === 'OTHER' && !unlockReasonText.trim())
+                  }
+                  className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 shadow-md shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isUnlocking ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
+                  Unlock
+                </button>
+              </div>
             </div>
           </div>
         </div>

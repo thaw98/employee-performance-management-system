@@ -1891,7 +1891,7 @@ Instant now = Instant.now();
         String beforeSnapshot = snapshotAnswers(form);
         unlockRequest.setStatus(SelfAssessmentUnlockRequestStatus.UNLOCKED);
         unlockRequest.setResolvedBy(hrUser);
-        unlockRequest.setHrReasonCode(request.reasonCode());
+        unlockRequest.setHrReasonCode(request.reasonCode().name());
         unlockRequest.setHrReasonText(normalizeReasonText(request.reasonText()));
         unlockRequest.setUnlockDeadline(request.unlockDeadline());
         unlockRequest.setResolvedAt(Instant.now());
@@ -1924,7 +1924,7 @@ Instant now = Instant.now();
     @Transactional
     public SelfAssessmentUnlockRequestDto rejectSelfAssessmentRequest(
             Long requestId,
-            SelfAssessmentUnlockRequestActionRequest request,
+            SelfAssessmentUnlockRejectRequest request,
             Long hrUserId) {
         SelfAssessmentUnlockRequest unlockRequest = unlockRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Unlock request not found"));
@@ -1934,7 +1934,7 @@ Instant now = Instant.now();
         User hrUser = findHrUser(hrUserId);
         unlockRequest.setStatus(SelfAssessmentUnlockRequestStatus.REJECTED);
         unlockRequest.setResolvedBy(hrUser);
-        unlockRequest.setHrReasonCode(request.reasonCode());
+        unlockRequest.setHrReasonCode(request.reasonCode().name());
         unlockRequest.setHrReasonText(normalizeReasonText(request.reasonText()));
         unlockRequest.setResolvedAt(Instant.now());
         SelfAssessmentUnlockRequest saved = unlockRequestRepository.save(unlockRequest);
@@ -3299,7 +3299,7 @@ Instant now = Instant.now();
                 request.getStatus() != null ? request.getStatus().name() : null,
                 request.getReasonCode() != null ? request.getReasonCode().name() : null,
                 request.getReasonText(),
-                request.getHrReasonCode() != null ? request.getHrReasonCode().name() : null,
+                request.getHrReasonCode(),
                 request.getHrReasonText(),
                 request.getUnlockDeadline(),
                 request.getRequestedAt(),

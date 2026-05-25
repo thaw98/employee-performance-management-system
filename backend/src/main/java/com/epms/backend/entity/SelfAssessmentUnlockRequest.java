@@ -63,9 +63,8 @@ public class SelfAssessmentUnlockRequest {
     @Column(name = "reason_text", columnDefinition = "TEXT")
     private String reasonText;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "hr_reason_code", length = 40)
-    private SelfAssessmentUnlockReasonCode hrReasonCode;
+    private String hrReasonCode;
 
     @Column(name = "hr_reason_text", columnDefinition = "TEXT")
     private String hrReasonText;

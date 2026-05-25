@@ -290,7 +290,7 @@ public class SelfAssessmentFormController {
     @PreAuthorize("principal.roleId == 1")
     public ResponseEntity<ApiResponse<SelfAssessmentUnlockRequestDto>> rejectUnlockRequest(
             @PathVariable Long requestId,
-            @Valid @RequestBody SelfAssessmentUnlockRequestActionRequest request,
+            @Valid @RequestBody SelfAssessmentUnlockRejectRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
         try {
             SelfAssessmentUnlockRequestDto dto = selfAssessmentFormService.rejectSelfAssessmentRequest(

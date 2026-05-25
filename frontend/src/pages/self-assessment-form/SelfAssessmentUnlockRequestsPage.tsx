@@ -1,33 +1,36 @@
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, KeyRound, Search, XCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
   useGetSelfAssessmentUnlockRequestsQuery,
   useRejectSelfAssessmentUnlockRequestMutation,
   useUnlockSelfAssessmentRequestMutation,
+  SELF_ASSESSMENT_UNLOCK_REASON_OPTIONS,
+  SELF_ASSESSMENT_UNLOCK_REJECT_REASON_OPTIONS,
+  type SelfAssessmentUnlockHrRejectReasonCode,
   type SelfAssessmentUnlockReasonCode,
   type SelfAssessmentUnlockRequestDto,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { formatDateDayMonthYear } from '../../utils/dateUtils';
 
-const REASONS: { value: SelfAssessmentUnlockReasonCode; label: string }[] = [
-  { value: 'TYPO_COMMENT', label: 'Typo or comment correction' },
-  { value: 'WRONG_RATING', label: 'Wrong rating selected' },
-  { value: 'INCOMPLETE_ANSWER', label: 'Incomplete answer' },
-  { value: 'WRONG_ANSWER', label: 'Wrong answer selected' },
-  { value: 'OTHER', label: 'Other' },
-];
+const employeeReasonLabel = (value?: string | null) =>
+  SELF_ASSESSMENT_UNLOCK_REASON_OPTIONS.find((r) => r.value === value)?.label ?? value ?? 'Other';
 
-const reasonLabel = (value?: string | null) => REASONS.find((r) => r.value === value)?.label ?? 'Other';
+const hrRejectReasonLabel = (value?: string | null) =>
+  SELF_ASSESSMENT_UNLOCK_REJECT_REASON_OPTIONS.find((r) => r.value === value)?.label ?? value ?? 'Other';
+
 const fmt = (value?: string | null) => (value ? formatDateDayMonthYear(value) : 'N/A');
 
 export const SelfAssessmentUnlockRequestsPage: React.FC = () => {
+  const navigate = useNavigate();
   const { data = [], isLoading, refetch } = useGetSelfAssessmentUnlockRequestsQuery();
   const [unlockRequest] = useUnlockSelfAssessmentRequestMutation();
   const [rejectRequest] = useRejectSelfAssessmentUnlockRequestMutation();
   const [selected, setSelected] = useState<SelfAssessmentUnlockRequestDto | null>(null);
   const [mode, setMode] = useState<'unlock' | 'reject' | null>(null);
-  const [reasonCode, setReasonCode] = useState<SelfAssessmentUnlockReasonCode | ''>('');
+  const [unlockReasonCode, setUnlockReasonCode] = useState<SelfAssessmentUnlockReasonCode | ''>('');
+  const [rejectReasonCode, setRejectReasonCode] = useState<SelfAssessmentUnlockHrRejectReasonCode | ''>('');
   const [reasonText, setReasonText] = useState('');
   const [deadline, setDeadline] = useState('');
   const [query, setQuery] = useState('');
@@ -45,14 +48,17 @@ export const SelfAssessmentUnlockRequestsPage: React.FC = () => {
   const closeModal = () => {
     setSelected(null);
     setMode(null);
-    setReasonCode('');
+    setUnlockReasonCode('');
+    setRejectReasonCode('');
     setReasonText('');
     setDeadline('');
   };
 
+  const activeReasonCode = mode === 'reject' ? rejectReasonCode : unlockReasonCode;
+
   const submitDecision = async () => {
-    if (!selected || !mode || !reasonCode) return;
-    if (reasonCode === 'OTHER' && !reasonText.trim()) {
+    if (!selected || !mode || !activeReasonCode) return;
+    if (activeReasonCode === 'OTHER' && !reasonText.trim()) {
       toast.error('Please enter reason details');
       return;
     }
@@ -67,12 +73,25 @@ export const SelfAssessmentUnlockRequestsPage: React.FC = () => {
       }
     }
     try {
-      const request = { reasonCode, reasonText: reasonCode === 'OTHER' ? reasonText.trim() : null };
+      const reasonTextValue = activeReasonCode === 'OTHER' ? reasonText.trim() : null;
       if (mode === 'unlock') {
-        await unlockRequest({ requestId: selected.id, request: { ...request, unlockDeadline: deadline } }).unwrap();
+        await unlockRequest({
+          requestId: selected.id,
+          request: {
+            reasonCode: unlockReasonCode as SelfAssessmentUnlockReasonCode,
+            reasonText: reasonTextValue,
+            unlockDeadline: deadline,
+          },
+        }).unwrap();
         toast.success('Form unlocked');
       } else {
-        await rejectRequest({ requestId: selected.id, request }).unwrap();
+        await rejectRequest({
+          requestId: selected.id,
+          request: {
+            reasonCode: rejectReasonCode as SelfAssessmentUnlockHrRejectReasonCode,
+            reasonText: reasonTextValue,
+          },
+        }).unwrap();
         toast.success('Unlock request rejected');
       }
       closeModal();
@@ -81,6 +100,8 @@ export const SelfAssessmentUnlockRequestsPage: React.FC = () => {
       toast.error(error?.data?.message || 'Failed to resolve request');
     }
   };
+
+  const reasonOptions = mode === 'reject' ? SELF_ASSESSMENT_UNLOCK_REJECT_REASON_OPTIONS : SELF_ASSESSMENT_UNLOCK_REASON_OPTIONS;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -125,13 +146,27 @@ export const SelfAssessmentUnlockRequestsPage: React.FC = () => {
                     {item.employeeName || 'N/A'}
                     <div className="text-xs font-medium text-slate-500">{item.employeeNumber || 'N/A'}</div>
                   </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                    {item.formTitle || 'Self Assessment Form'}
-                    <div className="text-xs text-slate-500">{item.cycleName || 'N/A'}</div>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/hr/self-assessment/reviews/${item.formId}`, { state: { formId: item.formId } })}
+                      className="text-left text-slate-700 transition-colors hover:text-indigo-600 dark:text-slate-200 dark:hover:text-indigo-400"
+                    >
+                      <span className="font-medium underline-offset-2 hover:underline">
+                        {item.formTitle || 'Self Assessment Form'}
+                      </span>
+                      <div className="text-xs text-slate-500">{item.cycleName || 'N/A'}</div>
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                    {reasonLabel(item.reasonCode)}
+                    {employeeReasonLabel(item.reasonCode)}
                     {item.reasonText && <div className="mt-1 max-w-xs text-xs text-slate-500">{item.reasonText}</div>}
+                    {item.status === 'REJECTED' && item.hrReasonCode && (
+                      <div className="mt-2 text-xs text-rose-600 dark:text-rose-400">
+                        HR rejection: {hrRejectReasonLabel(item.hrReasonCode)}
+                        {item.hrReasonText && ` — ${item.hrReasonText}`}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{fmt(item.managerReviewDeadlineDate)}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{fmt(item.requestedAt)}</td>
@@ -172,13 +207,27 @@ export const SelfAssessmentUnlockRequestsPage: React.FC = () => {
                 </div>
               )}
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">HR reason</label>
-                <select value={reasonCode} onChange={(e) => setReasonCode(e.target.value as SelfAssessmentUnlockReasonCode | '')} className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  {mode === 'reject' ? 'Rejection reason' : 'HR reason'}
+                </label>
+                <select
+                  value={activeReasonCode}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (mode === 'reject') {
+                      setRejectReasonCode(value as SelfAssessmentUnlockHrRejectReasonCode | '');
+                    } else {
+                      setUnlockReasonCode(value as SelfAssessmentUnlockReasonCode | '');
+                    }
+                    if (value !== 'OTHER') setReasonText('');
+                  }}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                >
                   <option value="">Select a reason...</option>
-                  {REASONS.map((reason) => <option key={reason.value} value={reason.value}>{reason.label}</option>)}
+                  {reasonOptions.map((reason) => <option key={reason.value} value={reason.value}>{reason.label}</option>)}
                 </select>
               </div>
-              {reasonCode === 'OTHER' && (
+              {activeReasonCode === 'OTHER' && (
                 <textarea value={reasonText} onChange={(e) => setReasonText(e.target.value)} rows={4} className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-white" placeholder="Enter details..." />
               )}
             </div>
