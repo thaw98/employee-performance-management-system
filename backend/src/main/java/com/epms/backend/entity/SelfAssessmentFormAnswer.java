@@ -74,4 +74,13 @@ public class SelfAssessmentFormAnswer {
 
     @Column(name = "retake_approved")
     private Boolean retakeApproved;
+
+    @Column(name = "manager_force_changed")
+    private Boolean managerForceChanged = false;
+
+    @Column(name = "manager_force_change_reason", columnDefinition = "TEXT")
+    private String managerForceChangeReason;
+
+    @Column(name = "manager_force_changed_at")
+    private java.time.Instant managerForceChangedAt;
 }

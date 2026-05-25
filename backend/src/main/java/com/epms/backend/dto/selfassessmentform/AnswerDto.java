@@ -19,5 +19,8 @@ public record AnswerDto(
         Integer retakeRating,
         String retakeReason,
         java.time.Instant retakeSubmittedAt,
-        Boolean retakeApproved
+        Boolean retakeApproved,
+        Boolean managerForceChanged,
+        String managerForceChangeReason,
+        java.time.Instant managerForceChangedAt
 ) {}

@@ -46,6 +46,7 @@ import {
   useManagerRequestRetakeMutation,
   useHrRequestRetakeMutation,
   useManagerApproveRetakeMutation,
+  useManagerForceChangeRetakeMutation,
   useHrReturnDisputedReviewMutation,
   useHrApproveManagerReviewMutation,
   useHrRejectManagerReviewMutation,
@@ -55,6 +56,7 @@ import {
   SELF_ASSESSMENT_UNLOCK_HR_APPROVE_REASON_OPTIONS,
   type SelfAssessmentUnlockHrApproveReasonCode,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
+import { getRatingOptions, isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
 import { SelfAssessmentSignatureGrid } from '../../features/selfAssessmentForm/components/SelfAssessmentSignatureGrid';
 import { YesNoRatingDisplay } from '../../features/selfAssessmentForm/components/YesNoRatingDisplay';
 import { exportSelfAssessmentReviewPdf } from '../../features/selfAssessmentForm/exportSelfAssessmentReviewPdf';
@@ -342,6 +344,12 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockReasonCode, setUnlockReasonCode] = useState<SelfAssessmentUnlockHrApproveReasonCode | ''>('');
   const [unlockReasonText, setUnlockReasonText] = useState('');
+  const [showForceChangeModal, setShowForceChangeModal] = useState(false);
+  const [forceChangeAnswers, setForceChangeAnswers] = useState<Record<number, {
+    yesNoAnswer: string;
+    rating: number | null;
+    reason: string;
+  }>>({});
 
   const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError, refetch: refetchManagerForms } = useGetReviewFormsQuery(undefined, {
     skip: isHr || isEmployeeDetail,
@@ -389,6 +397,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [managerRequestRetake, { isLoading: isRequestingRetake }] = useManagerRequestRetakeMutation();
   const [hrRequestRetake, { isLoading: isRequestingHrRetake }] = useHrRequestRetakeMutation();
   const [managerApproveRetake, { isLoading: isApprovingRetake }] = useManagerApproveRetakeMutation();
+  const [managerForceChangeRetake, { isLoading: isForceChangingRetake }] = useManagerForceChangeRetakeMutation();
   const [hrReturnDisputedReview, { isLoading: isHrReturningDispute }] = useHrReturnDisputedReviewMutation();
   const [hrApproveManagerReview, { isLoading: isHrApproving }] = useHrApproveManagerReviewMutation();
   const [hrRejectManagerReview, { isLoading: isHrRejecting }] = useHrRejectManagerReviewMutation();
@@ -457,6 +466,24 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     ) ?? false,
     [selectedForm?.answers],
   );
+
+  useEffect(() => {
+    if (selectedForm?.status !== 'PENDING_RETAKE_MANAGER_REVIEW') {
+      setForceChangeAnswers({});
+      return;
+    }
+    const next: Record<number, { yesNoAnswer: string; rating: number | null; reason: string }> = {};
+    selectedForm.answers
+      .filter(answer => answer.retakeRequested)
+      .forEach(answer => {
+        next[answer.id] = {
+          yesNoAnswer: answer.finalApprovedYesNo ?? answer.retakeYesNoAnswer ?? answer.yesNoAnswer ?? '',
+          rating: answer.finalApprovedRating ?? answer.retakeRating ?? answer.rating ?? null,
+          reason: answer.managerForceChangeReason ?? '',
+        };
+      });
+    setForceChangeAnswers(next);
+  }, [selectedForm?.id, selectedForm?.status, selectedForm?.answers]);
 
   const handleRetakeCommentChange = (answerId: number, comment: string) => {
     setRetakeComments(prev => ({ ...prev, [answerId]: comment }));
@@ -590,6 +617,87 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
       }
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to approve retake');
+    }
+  };
+
+  const handleForceChangeAnswer = (
+    answerId: number,
+    patch: Partial<{ yesNoAnswer: string; rating: number | null; reason: string }>,
+  ) => {
+    setForceChangeAnswers(prev => ({
+      ...prev,
+      [answerId]: {
+        yesNoAnswer: prev[answerId]?.yesNoAnswer ?? '',
+        rating: prev[answerId]?.rating ?? null,
+        reason: prev[answerId]?.reason ?? '',
+        ...patch,
+      },
+    }));
+  };
+
+  const hasForceChangeDifference = (answer: any) => {
+    const current = forceChangeAnswers[answer.id];
+    if (!current) return false;
+    return current.yesNoAnswer !== (answer.retakeYesNoAnswer ?? '')
+      || current.rating !== (answer.retakeRating ?? null);
+  };
+
+  const handleManagerForceChangeRetake = async () => {
+    if (!selectedFormId || !selectedForm) return;
+    const flaggedAnswers = selectedForm.answers.filter(answer => answer.retakeRequested);
+    if (flaggedAnswers.length === 0) {
+      toast.error('No warned questions are available to force change');
+      return;
+    }
+
+    const answers = flaggedAnswers.map(answer => {
+      const finalValue = forceChangeAnswers[answer.id];
+      return {
+        answerId: answer.id,
+        finalYesNoAnswer: finalValue?.yesNoAnswer ?? '',
+        finalRating: finalValue?.rating ?? null,
+        reason: finalValue?.reason?.trim() || null,
+      };
+    });
+
+    if (answers.some(answer => !answer.finalYesNoAnswer || answer.finalRating == null)) {
+      toast.error('Choose a final answer and rating for every warned question');
+      return;
+    }
+    if (flaggedAnswers.some(answer => {
+      const finalValue = forceChangeAnswers[answer.id];
+      return finalValue
+        && !isRatingValidForAnswer(selectedForm.ratingSystem, finalValue.yesNoAnswer, finalValue.rating, selectedForm.tenPointYesMinRating);
+    })) {
+      toast.error('Choose a valid rating for each final answer');
+      return;
+    }
+    if (flaggedAnswers.some(answer => hasForceChangeDifference(answer) && !forceChangeAnswers[answer.id]?.reason.trim())) {
+      toast.error('Add a reason for each changed warned question');
+      return;
+    }
+
+    try {
+      await managerForceChangeRetake({
+        formId: selectedFormId,
+        request: {
+          answers: answers.map(answer => ({
+            answerId: answer.answerId,
+            finalYesNoAnswer: answer.finalYesNoAnswer,
+            finalRating: answer.finalRating ?? 0,
+            reason: answer.reason,
+          })),
+          comments: managerComments || undefined,
+        },
+      }).unwrap();
+      toast.success('Retake force change sent to HR for final approval');
+      setShowForceChangeModal(false);
+      refetchForm();
+      if (!isEmployeeDetail) {
+        void refetchManagerForms();
+      }
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to force change retake');
     }
   };
 
@@ -1274,15 +1382,23 @@ Review Submissions
                           </div>
                         </div>
                         <div className="flex flex-wrap justify-end gap-3 p-4">
-                          <button
-                            type="button"
-                            onClick={handleScheduleMeeting}
-                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700/60"
-                          >
-                            <CalendarDays size={16} />
-                            Schedule Meeting
-                          </button>
-                          <button
+	                          <button
+	                            type="button"
+	                            onClick={handleScheduleMeeting}
+	                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700/60"
+	                          >
+	                            <CalendarDays size={16} />
+	                            Schedule Meeting
+	                          </button>
+	                          <button
+	                            type="button"
+	                            onClick={() => setShowForceChangeModal(true)}
+	                            className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-2.5 text-sm font-bold text-amber-800 transition-all hover:bg-amber-100 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200 dark:hover:bg-amber-900/35"
+	                          >
+	                            <PenLine size={16} />
+	                            Force Change
+	                          </button>
+	                          <button
                             type="button"
                             onClick={() => setShowManagerApproveRetakeModal(true)}
                             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-xl"
@@ -1469,12 +1585,17 @@ Review Submissions
 	                                {isManagerSelfAssessment ? 'HR warning' : 'Manager warning'}: {answer.retakeRequestComment}
 	                              </p>
 	                            )}
-	                            {answer.retakeReason && (
-	                              <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-	                                {isManagerSelfAssessment ? 'Manager reason' : 'Employee reason'}: {answer.retakeReason}
-	                              </p>
-	                            )}
-	                          </div>
+		                            {answer.retakeReason && (
+		                              <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+		                                {isManagerSelfAssessment ? 'Manager reason' : 'Employee reason'}: {answer.retakeReason}
+		                              </p>
+		                            )}
+		                            {answer.managerForceChangeReason && (
+		                              <p className="mt-2 text-sm font-semibold leading-relaxed text-amber-800 dark:text-amber-200">
+		                                Manager force-change reason: {answer.managerForceChangeReason}
+		                              </p>
+		                            )}
+		                          </div>
 	                        )}
                         {!answer.managerProposedYesNo && answer.finalApprovedYesNo && (
                           <div className="mt-3 ml-10 rounded-xl border border-emerald-300/50 bg-emerald-50/40 p-3 dark:border-emerald-600/40 dark:bg-emerald-900/15">
@@ -2061,6 +2182,150 @@ Review Submissions
                   <Send size={16} />
                 )}
                 Confirm Retake
+              </button>
+            </div>
+          </div>
+        </div>
+      , portalRoot)}
+
+      {!isHr && !isEmployeeDetail && showForceChangeModal && portalRoot && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !isForceChangingRetake && setShowForceChangeModal(false)}
+          />
+          <div className="relative max-h-[88vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
+            <div className="border-b border-slate-200/70 px-6 py-5 dark:border-slate-700/60">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/30">
+                  <PenLine size={20} className="text-amber-700 dark:text-amber-300" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Force Change Retake</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Final values are recorded separately. Second-attempt answers will not be replaced.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="max-h-[62vh] space-y-3 overflow-y-auto px-6 py-5">
+              {selectedForm?.answers
+                .slice()
+                .sort((a, b) => a.sortOrder - b.sortOrder)
+                .map((answer, index) => {
+                  const editable = answer.retakeRequested;
+                  const current = forceChangeAnswers[answer.id] ?? {
+                    yesNoAnswer: answer.retakeYesNoAnswer ?? answer.yesNoAnswer ?? '',
+                    rating: answer.retakeRating ?? answer.rating ?? null,
+                    reason: answer.managerForceChangeReason ?? '',
+                  };
+                  const changed = editable && hasForceChangeDifference(answer);
+                  const ratingOptions = getRatingOptions(
+                    selectedForm.ratingSystem,
+                    current.yesNoAnswer,
+                    selectedForm.tenPointYesMinRating,
+                  );
+
+                  return (
+                    <div
+                      key={answer.id}
+                      className={`rounded-xl border p-4 ${
+                        editable
+                          ? 'border-amber-300/70 bg-amber-50/40 dark:border-amber-700/60 dark:bg-amber-900/15'
+                          : 'border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/30'
+                      }`}
+                    >
+                      <div className="mb-3 flex items-start gap-3">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold leading-relaxed text-slate-900 dark:text-white">{answer.questionText}</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-700 dark:bg-slate-800">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Retake</span>
+                              <YesNoRatingDisplay yesNo={answer.retakeYesNoAnswer ?? answer.yesNoAnswer} rating={answer.retakeRating ?? answer.rating} size="sm" />
+                            </div>
+                            {!editable && (
+                              <span className="inline-flex items-center rounded-lg bg-slate-200/70 px-2.5 py-1 text-xs font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                                Read-only
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {editable ? (
+                        <div className="grid gap-3 md:grid-cols-[10rem_1fr]">
+                          <label className="space-y-1">
+                            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Final answer</span>
+                            <select
+                              value={current.yesNoAnswer}
+                              onChange={(event) => handleForceChangeAnswer(answer.id, {
+                                yesNoAnswer: event.target.value,
+                                rating: null,
+                              })}
+                              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                            >
+                              <option value="">Select</option>
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
+                            </select>
+                          </label>
+                          <div className="space-y-1">
+                            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Final rating</span>
+                            <div className="flex flex-wrap gap-2">
+                              {ratingOptions.map(rating => (
+                                <button
+                                  key={rating}
+                                  type="button"
+                                  onClick={() => handleForceChangeAnswer(answer.id, { rating })}
+                                  className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-bold transition-colors ${
+                                    current.rating === rating
+                                      ? 'border-amber-600 bg-amber-600 text-white'
+                                      : 'border-slate-300 bg-white text-slate-700 hover:border-amber-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200'
+                                  }`}
+                                >
+                                  {rating}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          {changed && (
+                            <label className="space-y-1 md:col-span-2">
+                              <span className="text-xs font-bold text-amber-800 dark:text-amber-200">Reason for changed final value</span>
+                              <textarea
+                                value={current.reason}
+                                onChange={(event) => handleForceChangeAnswer(answer.id, { reason: event.target.value })}
+                                rows={3}
+                                className="w-full resize-none rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-slate-800 dark:border-amber-700 dark:bg-slate-900 dark:text-slate-100"
+                                placeholder="Explain why the final value differs from the employee's retake answer"
+                              />
+                            </label>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-200/70 px-6 py-4 dark:border-slate-700/60">
+              <button
+                type="button"
+                onClick={() => setShowForceChangeModal(false)}
+                disabled={isForceChangingRetake}
+                className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700/60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleManagerForceChangeRetake()}
+                disabled={isForceChangingRetake}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-amber-500/20 transition-all disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isForceChangingRetake ? <Loader2 size={16} className="animate-spin" /> : <PenLine size={16} />}
+                Confirm Force Change
               </button>
             </div>
           </div>

@@ -185,7 +185,7 @@ const buildAttemptAnswerRows = (
     answer.remarks?.trim() || '-',
   ]
   if (includeRetakeReason) {
-    row.push(answer.retakeReason?.trim() || '-')
+    row.push(answer.managerForceChangeReason?.trim() || answer.retakeReason?.trim() || '-')
   }
   return row
 })
@@ -207,9 +207,10 @@ const buildSubmissionAttemptsFallback = (
         sortOrder: answer.sortOrder,
         yesNoAnswer: answer.yesNoAnswer,
         rating: answer.rating,
-        remarks: answer.remarks,
-        retakeReason: null,
-      })),
+	        remarks: answer.remarks,
+	        retakeReason: null,
+	        managerForceChangeReason: null,
+	      })),
     })
   }
 
@@ -241,9 +242,10 @@ const buildSubmissionAttemptsFallback = (
             sortOrder: answer.sortOrder,
             yesNoAnswer: answer.retakeYesNoAnswer,
             rating: answer.retakeRating,
-            remarks: answer.remarks,
-            retakeReason: answer.retakeReason,
-          }
+	            remarks: answer.remarks,
+	            retakeReason: answer.retakeReason,
+	            managerForceChangeReason: null,
+	          }
         }
         return {
           answerId: answer.id,
@@ -251,12 +253,36 @@ const buildSubmissionAttemptsFallback = (
           sortOrder: answer.sortOrder,
           yesNoAnswer: answer.yesNoAnswer,
           rating: answer.rating,
-          remarks: answer.remarks,
-          retakeReason: null,
-        }
-      }),
-    })
-  }
+	          remarks: answer.remarks,
+	          retakeReason: null,
+	          managerForceChangeReason: null,
+	        }
+	      }),
+	    })
+	  }
+
+	  if (form.managerForceChangeApprovedAt) {
+	    const managerReasons = sortedAnswers
+	      .map(answer => answer.managerForceChangeReason?.trim())
+	      .filter((value): value is string => Boolean(value))
+	    const uniqueManagerReasons = [...new Set(managerReasons)]
+
+	    attempts.push({
+	      attemptNumber: attempts.length + 1,
+	      submittedAt: form.managerForceChangeApprovedAt,
+	      retakeReason: uniqueManagerReasons.length > 0 ? uniqueManagerReasons.join('; ') : null,
+	      answers: sortedAnswers.map(answer => ({
+	        answerId: answer.id,
+	        questionText: answer.questionText,
+	        sortOrder: answer.sortOrder,
+	        yesNoAnswer: answer.finalApprovedYesNo,
+	        rating: answer.finalApprovedRating,
+	        remarks: answer.remarks,
+	        retakeReason: null,
+	        managerForceChangeReason: answer.managerForceChangeReason,
+	      })),
+	    })
+	  }
 
   return attempts
 }
@@ -286,9 +312,10 @@ export const resolveAttemptsForExport = (
           sortOrder: answer.sortOrder,
           yesNoAnswer: answer.yesNoAnswer,
           rating: answer.rating,
-          remarks: answer.remarks,
-          retakeReason: null,
-        })),
+	          remarks: answer.remarks,
+	          retakeReason: null,
+	          managerForceChangeReason: null,
+	        })),
     }]
   }
 

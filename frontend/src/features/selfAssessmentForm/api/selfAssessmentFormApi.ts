@@ -150,6 +150,7 @@ export interface SelfAssessmentAttemptAnswerDto {
   rating: number | null
   remarks: string | null
   retakeReason: string | null
+  managerForceChangeReason: string | null
 }
 
 export interface SelfAssessmentSubmissionAttemptDto {
@@ -179,6 +180,9 @@ export interface AnswerDto {
   retakeReason: string | null
   retakeSubmittedAt: string | null
   retakeApproved: boolean | null
+  managerForceChanged: boolean
+  managerForceChangeReason: string | null
+  managerForceChangedAt: string | null
 }
 
 export interface AdjustmentDto {
@@ -256,6 +260,7 @@ export interface SelfAssessmentFormDto {
   retakeSubmittedAt: string | null
   retakeRequestUsed: boolean
   managerApprovedRetakeAt: string | null
+  managerForceChangeApprovedAt: string | null
   hrReviewRequired: boolean | null
   hrReviewReason: string | null
   hrReviewReasonAt: string | null
@@ -456,6 +461,18 @@ export interface EmployeeRetakeSubmitRequest {
 }
 
 export interface ManagerApproveRetakeRequest {
+  comments?: string | null
+}
+
+export interface ManagerForceChangeRetakeAnswerRequest {
+  answerId: number
+  finalYesNoAnswer: string
+  finalRating: number
+  reason?: string | null
+}
+
+export interface ManagerForceChangeRetakeRequest {
+  answers: ManagerForceChangeRetakeAnswerRequest[]
   comments?: string | null
 }
 
@@ -676,6 +693,9 @@ const normalizeAnswer = (source: UnknownRecord): AnswerDto => {
     retakeReason: getOptionalString(source.retakeReason) ?? null,
     retakeSubmittedAt: getOptionalString(source.retakeSubmittedAt) ?? null,
     retakeApproved: source.retakeApproved != null ? getBoolean(source.retakeApproved) : null,
+    managerForceChanged: getBoolean(source.managerForceChanged),
+    managerForceChangeReason: getOptionalString(source.managerForceChangeReason) ?? null,
+    managerForceChangedAt: getOptionalString(source.managerForceChangedAt) ?? null,
   }
 }
 
@@ -687,6 +707,7 @@ const normalizeAttemptAnswer = (source: UnknownRecord): SelfAssessmentAttemptAns
   rating: source.rating != null ? getNumber(source.rating) : null,
   remarks: getOptionalString(source.remarks) ?? null,
   retakeReason: getOptionalString(source.retakeReason) ?? null,
+  managerForceChangeReason: getOptionalString(source.managerForceChangeReason) ?? null,
 })
 
 const normalizeSubmissionAttempt = (source: UnknownRecord): SelfAssessmentSubmissionAttemptDto => ({
@@ -816,6 +837,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     retakeSubmittedAt: getOptionalString(source.retakeSubmittedAt) ?? null,
     retakeRequestUsed: getBoolean(source.retakeRequestUsed),
     managerApprovedRetakeAt: getOptionalString(source.managerApprovedRetakeAt) ?? null,
+    managerForceChangeApprovedAt: getOptionalString(source.managerForceChangeApprovedAt) ?? null,
     hrReviewRequired: source.hrReviewRequired != null ? getBoolean(source.hrReviewRequired) : null,
     hrReviewReason: getOptionalString(source.hrReviewReason) ?? null,
     hrReviewReasonAt: getOptionalString(source.hrReviewReasonAt) ?? null,
@@ -1185,6 +1207,16 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
+    managerForceChangeRetake: builder.mutation<SelfAssessmentFormDto, { formId: number; request: ManagerForceChangeRetakeRequest }>({
+      query: ({ formId, request }) => ({
+        url: `/self-assessment-forms/${formId}/manager-force-change-retake`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
     hrApproveManagerReview: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrApproveManagerReviewRequest }>({
       query: ({ formId, request }) => ({
         url: `/self-assessment-forms/${formId}/hr-approve-manager-review`,
@@ -1477,6 +1509,7 @@ export const {
   useHrRequestRetakeMutation,
   useEmployeeRetakeSubmitMutation,
   useManagerApproveRetakeMutation,
+  useManagerForceChangeRetakeMutation,
   useHrApproveManagerReviewMutation,
   useHrRejectManagerReviewMutation,
   useHrReturnDisputedReviewMutation,

@@ -63,6 +63,7 @@ public record SelfAssessmentFormDto(
         Instant retakeSubmittedAt,
         Boolean retakeRequestUsed,
         Instant managerApprovedRetakeAt,
+        Instant managerForceChangeApprovedAt,
         Boolean hrReviewRequired,
         String hrReviewReason,
         Instant hrReviewReasonAt,

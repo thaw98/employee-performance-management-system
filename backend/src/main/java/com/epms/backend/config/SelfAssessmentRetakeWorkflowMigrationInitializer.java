@@ -38,6 +38,7 @@ public class SelfAssessmentRetakeWorkflowMigrationInitializer implements BeanPos
         addColumnIfMissing(jdbc, "self_assessment_form", "retake_submitted_at", "DATETIME(6) NULL");
         addColumnIfMissing(jdbc, "self_assessment_form", "retake_request_used", "TINYINT(1) NOT NULL DEFAULT 0");
         addColumnIfMissing(jdbc, "self_assessment_form", "manager_approved_retake_at", "DATETIME(6) NULL");
+        addColumnIfMissing(jdbc, "self_assessment_form", "manager_force_change_approved_at", "DATETIME(6) NULL");
 
         if (tableExists(jdbc, "self_assessment_form_answer")) {
             addColumnIfMissing(jdbc, "self_assessment_form_answer", "retake_requested", "TINYINT(1) NOT NULL DEFAULT 0");
@@ -47,6 +48,9 @@ public class SelfAssessmentRetakeWorkflowMigrationInitializer implements BeanPos
             addColumnIfMissing(jdbc, "self_assessment_form_answer", "retake_reason", "TEXT NULL");
             addColumnIfMissing(jdbc, "self_assessment_form_answer", "retake_submitted_at", "DATETIME(6) NULL");
             addColumnIfMissing(jdbc, "self_assessment_form_answer", "retake_approved", "TINYINT(1) NULL");
+            addColumnIfMissing(jdbc, "self_assessment_form_answer", "manager_force_changed", "TINYINT(1) NOT NULL DEFAULT 0");
+            addColumnIfMissing(jdbc, "self_assessment_form_answer", "manager_force_change_reason", "TEXT NULL");
+            addColumnIfMissing(jdbc, "self_assessment_form_answer", "manager_force_changed_at", "DATETIME(6) NULL");
         }
     }
 
