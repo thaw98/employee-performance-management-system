@@ -101,6 +101,7 @@ const HrLayout: React.FC = () => {
       subItems: [
         { label: 'Management', path: '/hr/appraisals', icon: <LayoutDashboard size={16} /> },
         { label: 'Review Submissions', path: '/hr/appraisals/submissions', icon: <Inbox size={16} /> },
+        { label: 'History', path: '/hr/appraisals/history', icon: <History size={16} /> },
       ],
     },
     {

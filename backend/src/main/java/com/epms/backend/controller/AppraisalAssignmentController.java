@@ -1,10 +1,14 @@
 package com.epms.backend.controller;
 
 import com.epms.backend.common.ApiResponse;
+import com.epms.backend.dto.appraisal.AppraisalHistorySummaryRowDto;
 import com.epms.backend.entity.AppraisalAssignment;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.AppraisalAssignmentService;
+import com.epms.backend.service.AppraisalHistoryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +21,7 @@ import java.util.List;
 public class AppraisalAssignmentController {
 
     private final AppraisalAssignmentService appraisalAssignmentService;
+    private final AppraisalHistoryService appraisalHistoryService;
 
     @GetMapping
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR')")
@@ -38,6 +43,29 @@ public class AppraisalAssignmentController {
         List<AppraisalAssignment> assignments = appraisalAssignmentService.getAssignmentsForEvaluator(principal.getEmployeeDbId());
         System.out.println("DEBUG: Found " + assignments.size() + " assignments.");
         return ResponseEntity.ok(ApiResponse.ok("Fetched team assignments", assignments));
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<ApiResponse<List<AppraisalHistorySummaryRowDto>>> getHistory(Authentication auth) {
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        List<AppraisalHistorySummaryRowDto> rows = appraisalHistoryService.getHistory(
+                principal.getEmployeeDbId(),
+                principal.getRoleId());
+        return ResponseEntity.ok(ApiResponse.ok("Fetched appraisal history", rows));
+    }
+
+    @GetMapping("/history/export/excel")
+    public ResponseEntity<byte[]> exportHistoryExcel(@RequestParam Long cycleId, Authentication auth) {
+        UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
+        byte[] workbook = appraisalHistoryService.exportCycleWorkbook(
+                cycleId,
+                principal.getEmployeeDbId(),
+                principal.getRoleId());
+        String filename = appraisalHistoryService.buildExportFilename(cycleId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(workbook);
     }
 
     @GetMapping("/{id}")
