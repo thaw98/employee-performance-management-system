@@ -49,7 +49,7 @@ public class PipService {
     private static final String STATUS_SCHEDULED = "SCHEDULED";
     private static final String DECISION_APPROVED = "APPROVED";
     private static final String DECISION_REJECTED = "REJECTED";
-    private static final BigDecimal PIP_KPI_SCORE_THRESHOLD = BigDecimal.valueOf(21);
+    private static final BigDecimal PIP_KPI_SCORE_THRESHOLD = BigDecimal.valueOf(69);
 
     private final PipRepository pipRepository;
     private final PipObjectiveRepository objectiveRepository;
@@ -67,10 +67,11 @@ public class PipService {
         if (manager.getEmployee() == null) {
             return new ArrayList<>();
         }
-        Long managerEmployeeId = manager.getEmployee().getId();
+        Employee managerEmployee = manager.getEmployee();
+        Long managerEmployeeId = managerEmployee.getId();
         return employeeRepository.findAll().stream()
                 .filter(employee -> employee.getId() != null && !employee.getId().equals(managerEmployeeId))
-                .filter(employee -> isManagedBy(employee, managerEmployeeId))
+                .filter(employee -> isManagedBy(employee, managerEmployee))
                 .filter(employee -> !isProbationEmployee(employee))
                 .filter(employee -> !hasBlockingPip(employee))
                 .map(employee -> new EligibleEmployeeWithScore(employee, getLatestKpiTotalScore(employee)))
@@ -117,7 +118,7 @@ public class PipService {
         Employee employee = employeeRepository.findById(request.getEmployeeId())
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        if (!isManagedBy(employee, managerEmployee.getId())) {
+        if (!isManagedBy(employee, managerEmployee)) {
             throw new RuntimeException("You can only create PIPs for employees under your supervision");
         }
         if (isProbationEmployee(employee)) {
@@ -125,7 +126,7 @@ public class PipService {
         }
         BigDecimal kpiScore = getLatestKpiTotalScore(employee);
         if (kpiScore == null || kpiScore.compareTo(PIP_KPI_SCORE_THRESHOLD) >= 0) {
-            throw new RuntimeException("Only employees with KPI score below 21% can be assigned to PIP");
+            throw new RuntimeException("Only employees with KPI score below 69% can be assigned to PIP");
         }
 
         boolean hasOpenPip = pipRepository.findByEmployeeAndStatusIn(employee,
@@ -186,12 +187,13 @@ public class PipService {
         return pipRepository.findAll();
     }
 
-    public List<Pip> searchPips(Long departmentId, Long positionId, String employeeName, String status,
+    public List<Pip> searchPips(Long departmentId, Long positionId, Long pipId, String employeeName, String status,
             LocalDate startDate, LocalDate endDate, User actor) {
         autoCloseExpiredPips();
         Specification<Pip> spec = (root, query, cb) -> {
             // Eagerly fetch nested entities to avoid LazyInitializationException and ensure data is present in JSON
             if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                query.distinct(true);
                 jakarta.persistence.criteria.Fetch<Pip, Employee> employeeFetch = root.fetch("employee", jakarta.persistence.criteria.JoinType.LEFT);
                 employeeFetch.fetch("department", jakarta.persistence.criteria.JoinType.LEFT);
                 employeeFetch.fetch("position", jakarta.persistence.criteria.JoinType.LEFT);
@@ -224,6 +226,10 @@ public class PipService {
 
             if (positionId != null) {
                 predicates.add(cb.equal(root.get("employee").get("position").get("id"), positionId));
+            }
+
+            if (pipId != null) {
+                predicates.add(cb.equal(root.get("id"), pipId));
             }
 
             if (employeeName != null && !employeeName.isBlank()) {
@@ -316,6 +322,24 @@ public class PipService {
         note.setUpdatedDate(Instant.now());
         PipCommunicationNote savedNote = communicationNoteRepository.save(note);
         notifyPipRelatedUsers(pip, actor, (savedNote.getNoteType() == PipNoteType.FOLLOWUP ? "Followup note added" : "Communication note added"));
+        return toNoteDto(savedNote);
+    }
+
+    @Transactional
+    public PipCommunicationNoteDto updatePipNote(Long noteId, PipCommunicationNoteRequest request, User actor) {
+        PipCommunicationNote note = communicationNoteRepository.findById(noteId)
+                .orElseThrow(() -> new RuntimeException("PIP note not found"));
+        if (!isHr(actor) && (note.getAuthor() == null || !note.getAuthor().getId().equals(actor.getId()))) {
+            throw new RuntimeException("Only the note author or HR can edit this note");
+        }
+        if (request == null || request.getContent() == null || request.getContent().trim().isEmpty()) {
+            throw new RuntimeException("Note content is required");
+        }
+
+        note.setContent(request.getContent().trim());
+        note.setUpdatedDate(Instant.now());
+        PipCommunicationNote savedNote = communicationNoteRepository.save(note);
+        notifyPipRelatedUsers(savedNote.getPip(), actor, "PIP note updated");
         return toNoteDto(savedNote);
     }
 
@@ -1015,18 +1039,24 @@ public class PipService {
         return "MANAGER".equals(role) || "DEPARTMENT_HEAD".equals(role) || "TEAM_HEAD".equals(role);
     }
 
-    private boolean isManagedBy(Employee employee, Long managerEmployeeId) {
-        if (employee == null || managerEmployeeId == null) {
+    private boolean isManagedBy(Employee employee, Employee managerEmployee) {
+        if (employee == null || managerEmployee == null || managerEmployee.getId() == null) {
             return false;
         }
+        Long managerEmployeeId = managerEmployee.getId();
         if (employee.getManager() != null && employee.getManager().getId().equals(managerEmployeeId)) {
             return true;
         }
-        if (employee.getDepartment() == null) {
-            return false;
+        if (employee.getDepartment() != null) {
+            Long departmentManagerId = employee.getDepartment().getManagerId();
+            if (departmentManagerId != null && departmentManagerId.equals(managerEmployeeId)) {
+                return true;
+            }
+            return managerEmployee.getDepartment() != null
+                    && employee.getDepartment().getId() != null
+                    && employee.getDepartment().getId().equals(managerEmployee.getDepartment().getId());
         }
-        Long departmentManagerId = employee.getDepartment().getManagerId();
-        return departmentManagerId != null && departmentManagerId.equals(managerEmployeeId);
+        return false;
     }
 
     private boolean isProbationEmployee(Employee employee) {

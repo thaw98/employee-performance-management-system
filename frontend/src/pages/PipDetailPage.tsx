@@ -12,6 +12,7 @@ import {
   useReviewPipMutation,
   useGetTrainingHistoryQuery,
 } from '../features/pip/pipApi'
+import type { TrainingRecord } from '../features/pip/pipApi'
 import { useSelector } from 'react-redux'
 import type { RootState } from '../app/store'
 import { formatDate, formatDateTime } from '../utils/dateUtils'
@@ -118,6 +119,42 @@ export default function PipDetailPage() {
     if (trainingHistoryFilter === 'ALL') return true
     return (entry.completionStatus || entry.status).toUpperCase() === trainingHistoryFilter
   })
+  const groupedTrainingHistory = Object.values(
+    filteredTrainingHistory.reduce<Record<string, TrainingRecord>>((groups, entry) => {
+      const key = entry.pipId == null
+        ? [
+          entry.trainingProvider || '',
+          entry.startDate || '',
+          entry.endDate || entry.completionDate || '',
+          entry.completionStatus || entry.status || '',
+          entry.totalCompletedHours ?? '',
+        ].join('|')
+        : `pip-${entry.pipId}`
+      const existing = groups[key]
+      if (!existing) {
+        groups[key] = { ...entry }
+        return groups
+      }
+
+      const names = new Set(
+        [existing.trainingName, entry.trainingName]
+          .flatMap((name) => (name || '').split('\n'))
+          .map((name) => name.trim())
+          .filter(Boolean),
+      )
+      groups[key] = {
+        ...existing,
+        trainingName: Array.from(names).join('\n'),
+        percentageCompletion: Math.max(existing.percentageCompletion ?? 0, entry.percentageCompletion ?? 0),
+        feedbackNotes: [existing.feedbackNotes, entry.feedbackNotes]
+          .map((note) => note?.trim())
+          .filter(Boolean)
+          .filter((note, index, notes) => notes.indexOf(note) === index)
+          .join('\n'),
+      }
+      return groups
+    }, {}),
+  )
   const getTrainingCompletionPercentage = (percentage?: number, status?: string) => {
     if (typeof percentage === 'number' && Number.isFinite(percentage)) {
       return `${percentage}%`
@@ -581,7 +618,7 @@ export default function PipDetailPage() {
               {isTrainingHistoryLoading && (
                 <p className="py-4 text-center text-slate-500">Loading training records...</p>
               )}
-              {!isTrainingHistoryLoading && filteredTrainingHistory.length > 0 && (
+              {!isTrainingHistoryLoading && groupedTrainingHistory.length > 0 && (
                 <div className="min-w-[980px]">
                   <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
                     <thead>
@@ -597,10 +634,10 @@ export default function PipDetailPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredTrainingHistory.map((t) => (
+                      {groupedTrainingHistory.map((t) => (
                         <tr key={t.id} className="align-top">
                           <td className="px-3 py-4">
-                            <p className="font-medium text-slate-800">{t.trainingName || '-'}</p>
+                            <p className="whitespace-pre-wrap font-medium text-slate-800">{t.trainingName || '-'}</p>
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-slate-600">{t.trainingProvider || '-'}</td>
                           <td className="whitespace-nowrap px-3 py-4 text-slate-600">{formatDate(t.startDate)}</td>
@@ -625,7 +662,7 @@ export default function PipDetailPage() {
                   </table>
                 </div>
               )}
-              {!isTrainingHistoryLoading && filteredTrainingHistory.length === 0 && (
+              {!isTrainingHistoryLoading && groupedTrainingHistory.length === 0 && (
                 <p className="py-4 text-center text-slate-500">
                   {trainingHistoryFilter === 'ALL' ? 'No training records found for this employee.' : `No ${formatTrainingStatus(trainingHistoryFilter).toLowerCase()} training history records found.`}
                 </p>
