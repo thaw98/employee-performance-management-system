@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 export interface DashSubMenuItem {
   label: string
@@ -45,17 +45,14 @@ function defaultIsItemActive(item: DashMenuItem, pathname: string, search: strin
 
 export function DashMenuNav({ items, isCollapsed }: DashMenuNavProps) {
   const location = useLocation()
+  const navigate = useNavigate()
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     setExpandedMenus({})
   }, [location.pathname, location.search])
 
-  const toggleExpand = (label: string, currentlyExpanded: boolean) => {
-    if (currentlyExpanded) {
-      setExpandedMenus((prev) => ({ ...prev, [label]: false }))
-      return
-    }
+  const expandSection = (label: string) => {
     const next: Record<string, boolean> = {}
     for (const menuItem of items) {
       if (menuItem.subItems?.length) {
@@ -63,6 +60,23 @@ export function DashMenuNav({ items, isCollapsed }: DashMenuNavProps) {
       }
     }
     setExpandedMenus(next)
+  }
+
+  const handleParentClick = (item: DashMenuItem, isExpanded: boolean) => {
+    const firstChildPath = item.subItems![0].path
+    const isOnFirstChild = item.isSubActive
+      ? item.isSubActive(firstChildPath, location.pathname, location.search)
+      : defaultIsSubActive(firstChildPath, location.pathname, location.search)
+
+    if (isExpanded && isOnFirstChild) {
+      setExpandedMenus((prev) => ({ ...prev, [item.label]: false }))
+      return
+    }
+
+    if (!isExpanded) {
+      expandSection(item.label)
+    }
+    navigate(firstChildPath)
   }
 
   return (
@@ -88,7 +102,7 @@ export function DashMenuNav({ items, isCollapsed }: DashMenuNavProps) {
                 title={item.label}
                 className={`nav-link nav-parent${isActive || hasActiveChild ? ' active' : ''}`}
                 aria-expanded={isExpanded}
-                onClick={() => toggleExpand(item.label, isExpanded)}
+                onClick={() => handleParentClick(item, isExpanded)}
                 onMouseEnter={item.onMouseEnter}
                 onFocus={item.onFocus}
               >

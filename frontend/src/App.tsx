@@ -91,6 +91,8 @@ import EmployeeReportsPage from './pages/reports/employee/PipReportPage';
 import FeedbackReportPage from './pages/reports/FeedbackReportPage';
 import AppraisalReportsPage from './pages/hr/AppraisalReportsPage';
 import SelfAssessmentReportPage from './pages/reports/SelfAssessmentReportPage';
+import PerformanceReportPage from './pages/hr/PerformanceReportPage';
+import PerformanceReportDetailPage from './pages/hr/PerformanceReportDetailPage';
 
 const TOAST_DEDUP_MS = 600;
 const recentToastTimestamps = new Map<string, number>();
@@ -226,6 +228,8 @@ function App() {
             <Route path="reports/feedback" element={<FeedbackReportPage mode="hr" />} />
             <Route path="reports/appraisal" element={<AppraisalReportsPage />} />
             <Route path="reports/self-assessment" element={<SelfAssessmentReportPage mode="hr" />} />
+            <Route path="performance-reports" element={<PerformanceReportPage />} />
+            <Route path="performance-reports/:employeeId" element={<PerformanceReportDetailPage />} />
             <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
           </Route>
         </Route>
