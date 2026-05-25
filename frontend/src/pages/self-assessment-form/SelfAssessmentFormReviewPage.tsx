@@ -52,7 +52,8 @@ import {
   useHrApproveFormMutation,
   useHrReopenFormMutation,
   useUnlockSelfAssessmentRequestMutation,
-  type SelfAssessmentUnlockReasonCode,
+  SELF_ASSESSMENT_UNLOCK_HR_APPROVE_REASON_OPTIONS,
+  type SelfAssessmentUnlockHrApproveReasonCode,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { SelfAssessmentSignatureGrid } from '../../features/selfAssessmentForm/components/SelfAssessmentSignatureGrid';
 import { YesNoRatingDisplay } from '../../features/selfAssessmentForm/components/YesNoRatingDisplay';
@@ -230,14 +231,6 @@ const HR_ADJUSTMENT_REJECTION_REASONS = [
 
 const HR_ADJUSTMENT_REJECTION_OTHER = 'Other';
 
-const UNLOCK_REASON_OPTIONS: { value: SelfAssessmentUnlockReasonCode; label: string }[] = [
-  { value: 'TYPO_COMMENT', label: 'Typo or comment correction' },
-  { value: 'WRONG_RATING', label: 'Wrong rating selected' },
-  { value: 'INCOMPLETE_ANSWER', label: 'Incomplete answer' },
-  { value: 'WRONG_ANSWER', label: 'Wrong answer selected' },
-  { value: 'OTHER', label: 'Other' },
-];
-
 function ScoreBar({ value, max = 100, color = '#2463eb', label }: { value: number; max?: number; color?: string; label?: string }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
   return (
@@ -347,9 +340,8 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
-  const [unlockReasonCode, setUnlockReasonCode] = useState<SelfAssessmentUnlockReasonCode | ''>('');
+  const [unlockReasonCode, setUnlockReasonCode] = useState<SelfAssessmentUnlockHrApproveReasonCode | ''>('');
   const [unlockReasonText, setUnlockReasonText] = useState('');
-  const [unlockDeadline, setUnlockDeadline] = useState('');
 
   const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError, refetch: refetchManagerForms } = useGetReviewFormsQuery(undefined, {
     skip: isHr || isEmployeeDetail,
@@ -732,24 +724,15 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     setShowUnlockModal(false);
     setUnlockReasonCode('');
     setUnlockReasonText('');
-    setUnlockDeadline('');
   };
 
   const handleHrUnlockRequest = async () => {
     if (!pendingUnlockRequest || !unlockReasonCode) {
-      toast.error('Select an unlock reason');
+      toast.error('Select an HR reason');
       return;
     }
     if (unlockReasonCode === 'OTHER' && !unlockReasonText.trim()) {
-      toast.error('Enter unlock reason details');
-      return;
-    }
-    if (!unlockDeadline) {
-      toast.error('Set a resubmission deadline');
-      return;
-    }
-    if (pendingUnlockRequest.managerReviewDeadlineDate && unlockDeadline >= pendingUnlockRequest.managerReviewDeadlineDate) {
-      toast.error('Deadline must be before manager review deadline');
+      toast.error('Enter HR reason details');
       return;
     }
 
@@ -759,7 +742,6 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
         request: {
           reasonCode: unlockReasonCode,
           reasonText: unlockReasonCode === 'OTHER' ? unlockReasonText.trim() : null,
-          unlockDeadline,
         },
       }).unwrap();
       toast.success('Form unlocked');
@@ -2287,23 +2269,13 @@ Review Submissions
               </div>
             </div>
             <div className="space-y-4 p-6">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Resubmission Deadline
-                </label>
-                <input
-                  type="date"
-                  value={unlockDeadline}
-                  max={pendingUnlockRequest?.managerReviewDeadlineDate ?? undefined}
-                  onChange={(e) => setUnlockDeadline(e.target.value)}
-                  className={filterControlClass}
-                />
-                {pendingUnlockRequest?.managerReviewDeadlineDate && (
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    Must be before {formatDateDayMonthYear(pendingUnlockRequest.managerReviewDeadlineDate)}.
-                  </p>
-                )}
-              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Unlock this self-assessment so the employee can edit and resubmit.
+                The resubmission deadline will be set to the manager review deadline
+                {pendingUnlockRequest?.managerReviewDeadlineDate
+                  ? ` (${formatDateDayMonthYear(pendingUnlockRequest.managerReviewDeadlineDate)})`
+                  : ''}.
+              </p>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
                   HR Reason
@@ -2311,14 +2283,14 @@ Review Submissions
                 <select
                   value={unlockReasonCode}
                   onChange={(e) => {
-                    const value = e.target.value as SelfAssessmentUnlockReasonCode | '';
+                    const value = e.target.value as SelfAssessmentUnlockHrApproveReasonCode | '';
                     setUnlockReasonCode(value);
                     if (value !== 'OTHER') setUnlockReasonText('');
                   }}
                   className={filterControlClass}
                 >
                   <option value="">Select a reason...</option>
-                  {UNLOCK_REASON_OPTIONS.map((reason) => (
+                  {SELF_ASSESSMENT_UNLOCK_HR_APPROVE_REASON_OPTIONS.map((reason) => (
                     <option key={reason.value} value={reason.value}>
                       {reason.label}
                     </option>
@@ -2353,7 +2325,6 @@ Review Submissions
                   onClick={() => void handleHrUnlockRequest()}
                   disabled={
                     isUnlocking
-                    || !unlockDeadline
                     || !unlockReasonCode
                     || (unlockReasonCode === 'OTHER' && !unlockReasonText.trim())
                   }

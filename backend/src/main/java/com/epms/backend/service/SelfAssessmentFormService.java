@@ -1948,9 +1948,6 @@ Instant now = Instant.now();
         if (managerDeadline == null) {
             throw new RuntimeException("Manager review deadline is required before unlocking");
         }
-        if (request.unlockDeadline() == null || !request.unlockDeadline().isBefore(managerDeadline)) {
-            throw new RuntimeException("Unlock deadline must be before the manager review deadline");
-        }
 
         User hrUser = findHrUser(hrUserId);
         String beforeSnapshot = snapshotAnswers(form);
@@ -1958,11 +1955,11 @@ Instant now = Instant.now();
         unlockRequest.setResolvedBy(hrUser);
         unlockRequest.setHrReasonCode(request.reasonCode().name());
         unlockRequest.setHrReasonText(normalizeReasonText(request.reasonText()));
-        unlockRequest.setUnlockDeadline(request.unlockDeadline());
+        unlockRequest.setUnlockDeadline(managerDeadline);
         unlockRequest.setResolvedAt(Instant.now());
 
         form.setStatus(SelfAssessmentFormStatus.REOPENED);
-        form.setDeadlineDate(request.unlockDeadline());
+        form.setDeadlineDate(managerDeadline);
         form.setSubmittedDate(null);
         form.setAssessmentDate(null);
         form.setEmployeeSignatureId(null);
@@ -2799,7 +2796,8 @@ Instant now = Instant.now();
                 "Self-Assessment Unlock Requested",
                 (employee != null ? employee.getEmployeeName() : "An employee")
                         + " requested HR unlock for "
-                        + resolveFormDisplayTitle(form) + ".",
+                        + resolveFormDisplayTitle(form) + ". Reason: "
+                        + formatUnlockRequestReason(request),
                 "SELF_ASSESSMENT_FORM",
                 form.getId()));
     }
@@ -3441,6 +3439,24 @@ Instant now = Instant.now();
 
     private String normalizeReasonText(String text) {
         return text == null || text.trim().isBlank() ? null : text.trim();
+    }
+
+    private String formatUnlockRequestReason(SelfAssessmentUnlockRequest request) {
+        if (request == null || request.getReasonCode() == null) {
+            return "-";
+        }
+        String label = switch (request.getReasonCode()) {
+            case TYPO_COMMENT -> "Typo or comment correction";
+            case WRONG_RATING -> "Wrong rating selected";
+            case INCOMPLETE_ANSWER -> "Incomplete answer";
+            case WRONG_ANSWER -> "Wrong answer selected";
+            case OTHER -> "Other";
+        };
+        String text = request.getReasonText();
+        if (text != null && !text.isBlank()) {
+            return label + " — " + text.trim();
+        }
+        return label;
     }
 
     private String snapshotAnswers(SelfAssessmentForm form) {

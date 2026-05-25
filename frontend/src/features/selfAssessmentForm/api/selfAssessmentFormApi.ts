@@ -492,6 +492,14 @@ export type SelfAssessmentUnlockReasonCode =
   | 'WRONG_ANSWER'
   | 'OTHER'
 
+export type SelfAssessmentUnlockHrApproveReasonCode =
+  | 'SUBSTANTIVE_ERROR_CONFIRMED'
+  | 'VALID_JUSTIFICATION'
+  | 'WITHIN_ALLOWED_WINDOW'
+  | 'SUPPORTING_EVIDENCE_REVIEWED'
+  | 'REQUEST_ACCEPTED_AFTER_REVIEW'
+  | 'OTHER'
+
 export type SelfAssessmentUnlockHrRejectReasonCode =
   | 'INSUFFICIENT_JUSTIFICATION'
   | 'NO_SUBSTANTIVE_ERROR'
@@ -505,6 +513,18 @@ export const SELF_ASSESSMENT_UNLOCK_REASON_OPTIONS: { value: SelfAssessmentUnloc
   { value: 'WRONG_RATING', label: 'Wrong rating selected' },
   { value: 'INCOMPLETE_ANSWER', label: 'Incomplete answer' },
   { value: 'WRONG_ANSWER', label: 'Wrong answer selected' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+export const SELF_ASSESSMENT_UNLOCK_HR_APPROVE_REASON_OPTIONS: {
+  value: SelfAssessmentUnlockHrApproveReasonCode
+  label: string
+}[] = [
+  { value: 'SUBSTANTIVE_ERROR_CONFIRMED', label: 'Substantive error confirmed' },
+  { value: 'VALID_JUSTIFICATION', label: 'Valid justification for unlock' },
+  { value: 'WITHIN_ALLOWED_WINDOW', label: 'Within allowed edit window' },
+  { value: 'SUPPORTING_EVIDENCE_REVIEWED', label: 'Supporting evidence reviewed' },
+  { value: 'REQUEST_ACCEPTED_AFTER_REVIEW', label: 'Request accepted after review' },
   { value: 'OTHER', label: 'Other' },
 ]
 
@@ -532,8 +552,9 @@ export interface SelfAssessmentUnlockRejectRequest {
   reasonText?: string | null
 }
 
-export interface SelfAssessmentUnlockRequestUnlockRequest extends SelfAssessmentUnlockRequestActionRequest {
-  unlockDeadline: string
+export interface SelfAssessmentUnlockRequestUnlockRequest {
+  reasonCode: SelfAssessmentUnlockHrApproveReasonCode
+  reasonText?: string | null
 }
 
 export interface SelfAssessmentUnlockRequestDto {
@@ -1249,7 +1270,10 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => getArray(getResponseData(response)).map(normalizeUnlockRequest),
     }),
 
-    unlockSelfAssessmentRequest: builder.mutation<SelfAssessmentUnlockRequestDto, { requestId: number; request: SelfAssessmentUnlockRequestUnlockRequest }>({
+    unlockSelfAssessmentRequest: builder.mutation<
+      SelfAssessmentUnlockRequestDto,
+      { requestId: number; request: SelfAssessmentUnlockRequestUnlockRequest }
+    >({
       query: ({ requestId, request }) => ({
         url: `/self-assessment-forms/hr/unlock-requests/${requestId}/unlock`,
         method: 'POST',
