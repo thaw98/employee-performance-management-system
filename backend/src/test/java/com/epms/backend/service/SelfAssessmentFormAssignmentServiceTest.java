@@ -42,6 +42,7 @@ import com.epms.backend.repository.SelfAssessmentFormAdjustmentRepository;
 import com.epms.backend.repository.SelfAssessmentFormRepository;
 import com.epms.backend.repository.SelfAssessmentSettingsRepository;
 import com.epms.backend.repository.SelfAssessmentFormTemplateRepository;
+import com.epms.backend.repository.SelfAssessmentUnlockRequestRepository;
 import com.epms.backend.repository.SignatureRepository;
 import com.epms.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -102,6 +103,8 @@ class SelfAssessmentFormAssignmentServiceTest {
     private SelfAssessmentSettingsRepository settingsRepository;
     @Mock
     private ReportingManagerResolver reportingManagerResolver;
+    @Mock
+    private SelfAssessmentUnlockRequestRepository unlockRequestRepository;
 
     private SelfAssessmentFormService service;
 
@@ -123,7 +126,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 userRepository,
                 notificationRepository,
                 settingsRepository,
-                reportingManagerResolver);
+                reportingManagerResolver,
+                unlockRequestRepository);
     }
 
     @Test

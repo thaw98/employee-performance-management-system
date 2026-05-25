@@ -75,6 +75,7 @@ import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAss
 import { SelfAssessmentAssignedEmployeesPage } from './pages/self-assessment-form/SelfAssessmentAssignedEmployeesPage';
 import { SelfAssessmentScoreRecordsPage } from './pages/self-assessment-form/SelfAssessmentScoreRecordsPage';
 import { SelfAssessmentAuditLogsPage } from './pages/self-assessment-form/SelfAssessmentAuditLogsPage';
+import { SelfAssessmentUnlockRequestsPage } from './pages/self-assessment-form/SelfAssessmentUnlockRequestsPage';
 
 // Meetings
 import { MeetingsPage } from './pages/manager/MeetingsPage';
@@ -208,6 +209,7 @@ function App() {
             />
             <Route path="self-assessment/question-bank" element={<QuestionBankPage />} />
             <Route path="self-assessment/review-queue" element={<SelfAssessmentFormQueuePage />} />
+            <Route path="self-assessment/unlock-requests" element={<SelfAssessmentUnlockRequestsPage />} />
             <Route path="self-assessment/reviews" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage />} />
             <Route path="self-assessment/settings" element={<SelfAssessmentSettingsPage />} />
