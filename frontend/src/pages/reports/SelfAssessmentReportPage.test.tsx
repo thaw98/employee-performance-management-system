@@ -7,6 +7,7 @@ import SelfAssessmentReportPage from './SelfAssessmentReportPage'
 const reviewCyclesHookMock = vi.hoisted(() => vi.fn())
 const reportHookMock = vi.hoisted(() => vi.fn())
 const exportPdfMock = vi.hoisted(() => vi.fn())
+const exportExcelMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../../features/reviewCycle/api/reviewCycleApi', () => ({
   useGetReviewCyclesQuery: (...args: unknown[]) => reviewCyclesHookMock(...args),
@@ -18,6 +19,10 @@ vi.mock('../../features/selfAssessmentForm/api/selfAssessmentReportApi', () => (
 
 vi.mock('../../features/selfAssessmentForm/exportSelfAssessmentReportPdf', () => ({
   exportSelfAssessmentReportPdf: (...args: unknown[]) => exportPdfMock(...args),
+}))
+
+vi.mock('../../features/selfAssessmentForm/exportSelfAssessmentReportExcel', () => ({
+  exportSelfAssessmentReportExcel: (...args: unknown[]) => exportExcelMock(...args),
 }))
 
 vi.mock('react-hot-toast', () => ({
@@ -80,6 +85,7 @@ describe('SelfAssessmentReportPage', () => {
     expect(screen.getByRole('button', { name: 'Employee Directory' })).toBeTruthy()
     expect(screen.getByTestId('radar-chart')).toBeTruthy()
     expect(screen.getByRole('button', { name: /export pdf/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /export excel/i })).toBeEnabled()
   })
 
   it('renders manager position comparison, employee directory, and delta', async () => {
@@ -170,12 +176,15 @@ describe('SelfAssessmentReportPage', () => {
     const { rerender } = render(<SelfAssessmentReportPage mode="hr" />)
 
     expect(screen.getByRole('button', { name: /export pdf/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /export excel/i })).toBeDisabled()
 
     reviewCyclesHookMock.mockReturnValue({ data: cycles })
     reportHookMock.mockReturnValue({ data: baseReport, isFetching: false, isError: false })
     rerender(<SelfAssessmentReportPage mode="hr" />)
     await userEvent.click(screen.getByRole('button', { name: /export pdf/i }))
+    await userEvent.click(screen.getByRole('button', { name: /export excel/i }))
 
     expect(exportPdfMock).toHaveBeenCalledWith(baseReport)
+    expect(exportExcelMock).toHaveBeenCalledWith(baseReport)
   })
 })

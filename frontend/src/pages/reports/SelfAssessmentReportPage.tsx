@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type React from 'react'
-import { BarChart3, Building2, Download, FileText, TrendingDown, TrendingUp, Users } from 'lucide-react'
+import { BarChart3, Building2, Download, FileSpreadsheet, FileText, TrendingDown, TrendingUp, Users } from 'lucide-react'
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { toast } from 'react-hot-toast'
 import { useGetReviewCyclesQuery } from '../../features/reviewCycle/api/reviewCycleApi'
 import { useGetSelfAssessmentReportQuery, type EmployeeDirectoryRow, type GroupSummary, type SelfAssessmentReportDto } from '../../features/selfAssessmentForm/api/selfAssessmentReportApi'
+import { exportSelfAssessmentReportExcel } from '../../features/selfAssessmentForm/exportSelfAssessmentReportExcel'
 import { exportSelfAssessmentReportPdf } from '../../features/selfAssessmentForm/exportSelfAssessmentReportPdf'
 
 type Props = {
@@ -241,6 +242,12 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
     toast.success('PDF exported')
   }
 
+  const handleExportExcel = () => {
+    if (!report) return
+    exportSelfAssessmentReportExcel(report)
+    toast.success('Excel exported')
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -269,6 +276,15 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
           >
             <Download size={17} />
             Export PDF
+          </button>
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={!report}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 text-sm font-black text-white shadow-sm shadow-emerald-100 transition hover:from-emerald-700 hover:to-teal-700 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
+          >
+            <FileSpreadsheet size={17} />
+            Export Excel
           </button>
         </div>
       </div>
