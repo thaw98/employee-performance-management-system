@@ -5,7 +5,7 @@ import { logout } from '../../features/auth/authSlice'
 import { useGetProfileQuery } from '../../features/user/userApi'
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
 import { getRoleGroup } from '../../utils/dashboardRedirect'
-import { ChevronDown, User, Settings, LogOut, PenLine, Calendar } from 'lucide-react'
+import { ChevronDown, User, Settings, LogOut, PenLine, Calendar, HelpCircle } from 'lucide-react'
 
 export function ProfileDropdown() {
   const dispatch = useAppDispatch()
@@ -42,7 +42,8 @@ export function ProfileDropdown() {
   const signatureSettingsPath = `${rolePrefix}/settings/signature`
   const systemSettingsPath = `${rolePrefix}/settings/system`
   const timeSettingsPath = `${rolePrefix}/settings/system/time`
-  const isHR = profileResponse?.data?.role === 'HR'
+  const faqPath = `${rolePrefix}/faq`
+  const isHR = roleGroup === 'HR' || profileResponse?.data?.role === 'HR'
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -113,6 +114,17 @@ export function ProfileDropdown() {
                 <Settings size={18} />
               </div>
               System Settings
+            </Link>
+
+            <Link
+              to={faqPath}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-400 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all group"
+              onClick={() => setIsOpen(false)}
+            >
+              <div className="w-8 h-8 rounded-lg bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 flex items-center justify-center group-hover:bg-cyan-600 group-hover:text-white transition-colors">
+                <HelpCircle size={18} />
+              </div>
+              FAQ
             </Link>
 
             {isHR && (
