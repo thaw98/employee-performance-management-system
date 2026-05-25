@@ -81,9 +81,6 @@ import { AssignSelfAssessmentFormsPage } from './pages/self-assessment-form/Assi
 import { SelfAssessmentSettingsPage } from './pages/self-assessment-form/SelfAssessmentSettingsPage';
 import { SelfAssessmentAssignedEmployeesPage } from './pages/self-assessment-form/SelfAssessmentAssignedEmployeesPage';
 import { SelfAssessmentScoreRecordsPage } from './pages/self-assessment-form/SelfAssessmentScoreRecordsPage';
-
-
-import { SelfAssessmentAuditLogsPage } from './pages/self-assessment-form/SelfAssessmentAuditLogsPage';
 import { SelfAssessmentUnlockRequestsPage } from './pages/self-assessment-form/SelfAssessmentUnlockRequestsPage';
 
 // Meetings
@@ -318,19 +315,19 @@ function App() {
             <Route path="reports/feedback" element={<FeedbackReportPage mode="employee" />} />
             <Route path="*" element={<Navigate to="/employee/dashboard" replace />} />
           </Route>
+        </Route>
 
-          {/* Audit Routes */}
-          <Route element={<ProtectedRoute allowedRoleGroups={['AUDIT']} />}>
-            <Route path="/audit" element={<AuditLayout />}>
-              <Route index element={<Navigate to="/audit/dashboard" replace />} />
-              <Route path="dashboard" element={<AuditDashboard />} />
-              <Route path="logs" element={<AuditLogsPage />} />
-              <Route path="activity" element={<AuditActivityPage />} />
-              <Route path="reports" element={<div className="p-8 text-center">Compliance Reports - Coming Soon</div>} />
-              <Route path="analytics" element={<div className="p-8 text-center">Security Analytics - Coming Soon</div>} />
-              <Route path="threats" element={<div className="p-8 text-center">Threat Detection - Coming Soon</div>} />
-              <Route path="*" element={<Navigate to="/audit/dashboard" replace />} />
-            </Route>
+        {/* Audit Routes */}
+        <Route element={<ProtectedRoute allowedRoleGroups={['AUDIT']} />}>
+          <Route path="/audit" element={<AuditLayout />}>
+            <Route index element={<Navigate to="/audit/dashboard" replace />} />
+            <Route path="dashboard" element={<AuditDashboard />} />
+            <Route path="logs" element={<AuditLogsPage />} />
+            <Route path="activity" element={<AuditActivityPage />} />
+            <Route path="reports" element={<div className="p-8 text-center">Compliance Reports - Coming Soon</div>} />
+            <Route path="analytics" element={<div className="p-8 text-center">Security Analytics - Coming Soon</div>} />
+            <Route path="threats" element={<div className="p-8 text-center">Threat Detection - Coming Soon</div>} />
+            <Route path="*" element={<Navigate to="/audit/dashboard" replace />} />
           </Route>
         </Route>
 

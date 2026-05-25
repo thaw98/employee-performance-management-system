@@ -11,11 +11,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AuditLogControllerAccessTest {
 
     @Test
-    void auditLogControllerIsRestrictedToHrRoleIdOne() {
+    void auditLogControllerIsRestrictedToHrAndAuditRoles() {
         PreAuthorize preAuthorize = AuditLogController.class.getAnnotation(PreAuthorize.class);
 
         assertThat(preAuthorize).isNotNull();
-        assertThat(preAuthorize.value()).isEqualTo("principal.roleId == 1");
+        assertThat(preAuthorize.value()).isEqualTo("principal.roleId == 1 or principal.roleId == 5");
     }
 
     @Test
