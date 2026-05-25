@@ -67,7 +67,7 @@ interface FeedbackFormData {
 function formatEvaluateeMeta(staffNo: string, levelCode?: string | null) {
     const parts: string[] = [];
     if (levelCode) parts.push(levelCode);
-    if (staffNo) parts.push(`#${staffNo}`);
+    if (staffNo) parts.push(`Staff ID: ${staffNo}`);
     return parts.length > 0 ? parts.join(' · ') : '—';
 }
 
@@ -408,6 +408,7 @@ export function GiveFeedbackPage() {
         return [
             draft.evaluateeName,
             draft.evaluateeStaffNo,
+            draft.evaluateeLevelCode,
             draft.evaluateePosition,
             draft.evaluateeDepartment,
             draft.role
@@ -900,7 +901,8 @@ export function GiveFeedbackPage() {
                                                         </span>
                                                     </div>
                                                     <p className="text-[11px] font-bold text-slate-400 truncate">
-                                                        {draft.evaluateeStaffNo || 'No staff no'} • {draft.evaluateePosition || 'N/A'}
+                                                        {formatEvaluateeMeta(draft.evaluateeStaffNo || '', draft.evaluateeLevelCode)}
+                                                        {' • '}{draft.evaluateePosition || 'N/A'}
                                                     </p>
                                                     {draft.updatedAt && (
                                                         <p className="text-[10px] font-bold text-slate-400 mt-1 flex items-center gap-1">
