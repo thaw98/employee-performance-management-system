@@ -12,6 +12,7 @@ import {
     History,
     Award,
     RefreshCcw,
+    FileText,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -50,6 +51,19 @@ const AuditLayout: React.FC = () => {
             path: '/audit/appraisals',
             icon: <Award size={18} />,
             subItems: [{ label: 'History', path: '/audit/appraisals/history', icon: <History size={16} /> }],
+        },
+        {
+            label: 'PIP',
+            path: '/audit/pip-monitoring',
+            icon: <FileText size={18} />,
+            isActive: (pathname) =>
+                pathname === '/audit/pip-monitoring'
+                || pathname === '/audit/pip-notes'
+                || pathname.startsWith('/audit/pip-monitoring/'),
+            subItems: [
+                { label: 'PIP Monitoring', path: '/audit/pip-monitoring', icon: <ListChecks size={16} /> },
+                { label: 'PIP Notes', path: '/audit/pip-notes', icon: <FileText size={16} /> },
+            ],
         },
         {
             label: '360 Feedback',

@@ -338,6 +338,9 @@ function App() {
             <Route path="department-kpi-detail" element={<DepartmentKpiDetailPage />} />
             <Route path="position-kpi-detail" element={<PositionKpiDetailPage />} />
             <Route path="appraisals/history" element={<AppraisalHistoryPage mode="hr" readOnly />} />
+            <Route path="pip-monitoring" element={<PipMonitoringPage />} />
+            <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
+            <Route path="pip-notes" element={<PipNotesReviewPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
