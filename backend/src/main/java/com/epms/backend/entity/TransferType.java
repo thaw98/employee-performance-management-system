@@ -4,5 +4,6 @@ public enum TransferType {
     INITIAL,
     TEMPORARY,
     PERMANENT_TRANSFER,
-    RETURN
+    RETURN,
+    PROMOTION
 }

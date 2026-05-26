@@ -50,4 +50,6 @@ public final class AuditActionType {
 	public static final String KPI_DRAFT_SAVED = "KPI_DRAFT_SAVED";
 	public static final String KPI_SUBMITTED = "KPI_SUBMITTED";
 	public static final String KPI_MONTHLY_RESET = "KPI_MONTHLY_RESET";
+	
+	public static final String EMPLOYEE_PROMOTION = "EMPLOYEE_PROMOTION";
 }

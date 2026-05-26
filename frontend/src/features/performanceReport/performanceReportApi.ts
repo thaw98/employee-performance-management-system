@@ -36,10 +36,27 @@ export const performanceReportApi = baseApi.injectEndpoints({
       providesTags: (_result, _error, id) => [{ type: 'PerformanceReport', id }],
       transformResponse: (response: any) => response.data,
     }),
+    getAvailablePositions: builder.query<any[], number>({
+      query: (employeeId) => `/promotions/employee/${employeeId}/available-positions`,
+      transformResponse: (response: any) => response.data || [],
+    }),
+    executePromotion: builder.mutation<void, { employeeId: number; newPositionId: number; effectiveDate: string; remarks?: string }>({
+      query: ({ employeeId, ...body }) => ({
+        url: `/promotions/employee/${employeeId}/execute`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: (_result, _error, { employeeId }) => [
+        'PerformanceReport',
+        { type: 'PerformanceReport', id: employeeId },
+      ],
+    }),
   }),
 });
 
 export const {
   useGetPerformanceSummariesQuery,
   useGetEmployeePerformanceSummaryQuery,
+  useGetAvailablePositionsQuery,
+  useExecutePromotionMutation,
 } = performanceReportApi;
