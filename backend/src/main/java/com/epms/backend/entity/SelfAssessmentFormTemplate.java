@@ -1,6 +1,7 @@
 package com.epms.backend.entity;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,6 +33,12 @@ public class SelfAssessmentFormTemplate {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "review_cycle_id")
     private ReviewCycle reviewCycle;
+
+    @Column(name = "manual_start_date")
+    private LocalDate manualStartDate;
+
+    @Column(name = "manual_end_date")
+    private LocalDate manualEndDate;
 
     @Column(name = "title", length = 255)
     private String title;

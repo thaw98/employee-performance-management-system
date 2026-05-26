@@ -14,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/audit-logs")
 @RequiredArgsConstructor
-@PreAuthorize("principal.roleId == 1")
+@PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
 public class AuditLogController {
 
     private final AuditLogRepository auditLogRepository;

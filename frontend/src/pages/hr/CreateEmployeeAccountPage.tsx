@@ -366,7 +366,10 @@ export function CreateEmployeeAccountPage() {
         'emergencyPhone',
         'emergencyRelation',
       ])
-      if (!ok) return
+      if (!ok) {
+        toast.error('Please fix the highlighted fields before continuing.')
+        return
+      }
       setValue('fatherName', toTitleCasePersonName(getValues('fatherName') ?? ''), { shouldValidate: false })
       setStep(3)
       setAnimKey((k) => k + 1)
@@ -660,9 +663,9 @@ export function CreateEmployeeAccountPage() {
         </div>
 
         {/* ── Form Card ── */}
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           {/* Step indicator bar */}
-          <div className="h-1 bg-slate-100">
+          <div className="h-1 overflow-hidden rounded-t-2xl bg-slate-100">
             <div
               className={`h-1 rounded-r-full ${createAccountGradient} transition-all duration-500 ease-out`}
               style={{ width: `${(step / STEPS.length) * 100}%` }}

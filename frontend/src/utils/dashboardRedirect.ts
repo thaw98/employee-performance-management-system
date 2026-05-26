@@ -17,6 +17,7 @@ export interface User {
  * roleId: 2 = Department Head → Manager Dashboard
  * roleId: 3 = Team Head → Manager Dashboard
  * roleId: 4 = Employee → Employee Dashboard
+ * roleId: 5 = AUDIT → Auditor Dashboard
  */
 export const getDashboardPath = (user: User): string => {
   const roleId = user.roleId;
@@ -31,6 +32,11 @@ export const getDashboardPath = (user: User): string => {
     return '/manager/dashboard';
   }
 
+  // AUDIT role
+  if (roleId === 5) {
+    return '/audit/dashboard';
+  }
+
   // Employee (3, 4) and others
   return '/employee/dashboard';
 };
@@ -38,8 +44,9 @@ export const getDashboardPath = (user: User): string => {
 /**
  * Gets the role group for route protection
  */
-export const getRoleGroup = (user: User): 'HR' | 'MANAGER' | 'EMPLOYEE' => {
+export const getRoleGroup = (user: User): 'HR' | 'MANAGER' | 'EMPLOYEE' | 'AUDIT' => {
   if (user.roleId === 1) return 'HR';
   if (user.roleId === 2) return 'MANAGER';
+  if (user.roleId === 5) return 'AUDIT';
   return 'EMPLOYEE';
 };

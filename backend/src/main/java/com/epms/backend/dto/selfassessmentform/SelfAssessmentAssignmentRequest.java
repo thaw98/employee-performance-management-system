@@ -13,6 +13,10 @@ public record SelfAssessmentAssignmentRequest(
         List<Long> employeeIds,
         @NotNull LocalDate startDate,
         @NotNull LocalDate deadlineDate,
-        @NotNull LocalDate managerReviewDeadlineDate
+        @NotNull LocalDate managerReviewDeadlineDate,
+        String timelineMode,
+        Long reviewCycleId,
+        LocalDate manualStartDate,
+        LocalDate manualEndDate
 ) {
 }

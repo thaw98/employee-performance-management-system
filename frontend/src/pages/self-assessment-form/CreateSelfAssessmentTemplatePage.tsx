@@ -379,6 +379,9 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   const [questionBankSearch, setQuestionBankSearch] = useState('');
   const [positionAudienceSearch, setPositionAudienceSearch] = useState('');
   const [selectedReviewCycleId, setSelectedReviewCycleId] = useState<number | null>(null);
+  const [timelineMode, setTimelineMode] = useState<'REVIEW_CYCLE' | 'MANUAL'>('REVIEW_CYCLE');
+  const [manualStartDate, setManualStartDate] = useState('');
+  const [manualEndDate, setManualEndDate] = useState('');
   const [copiedSourceTitle, setCopiedSourceTitle] = useState<string | null>(null);
   const [copiedDeletedQuestions, setCopiedDeletedQuestions] = useState<QuestionRequest[]>([]);
   const [copiedRatingSystem, setCopiedRatingSystem] = useState<SelfAssessmentRatingSystem | undefined>(undefined);
@@ -400,13 +403,16 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
   }, [reviewCycles]);
 
   useEffect(() => {
+    if (timelineMode === 'MANUAL') {
+      return;
+    }
     if (selectedReviewCycleId != null || selectableReviewCycles.length === 0) {
       return;
     }
     const activeFirst =
       selectableReviewCycles.find((c) => c.status?.toUpperCase() === 'ACTIVE') ?? selectableReviewCycles[0];
     setSelectedReviewCycleId(activeFirst.id);
-  }, [selectableReviewCycles, selectedReviewCycleId]);
+  }, [selectableReviewCycles, selectedReviewCycleId, timelineMode]);
   const selectedReviewCycle = useMemo(
     () => selectableReviewCycles.find((cycle) => cycle.id === selectedReviewCycleId) ?? null,
     [selectableReviewCycles, selectedReviewCycleId]
@@ -869,9 +875,12 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     return pairs[0] ?? null;
   }, [audienceType, activeEmployeePairs, hybridPairsDeduped, selectedDepartmentIds, selectedGlobalPositionIds]);
 
-  const previewReviewCycleDetail = selectedReviewCycle
-    ? `${formatCycleDate(selectedReviewCycle.startDate)} - ${formatCycleDate(selectedReviewCycle.endDate)}`
-    : null;
+  const previewReviewCycleDetail =
+    timelineMode === 'MANUAL' && manualStartDate && manualEndDate
+      ? `${formatCycleDate(manualStartDate)} - ${formatCycleDate(manualEndDate)}`
+      : selectedReviewCycle
+        ? `${formatCycleDate(selectedReviewCycle.startDate)} - ${formatCycleDate(selectedReviewCycle.endDate)}`
+        : null;
 
   const validateAudience = () => {
     if (audienceType === 'departments' && selectedDepartmentIds.length === 0) {
@@ -946,13 +955,23 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
       return;
     }
 
-    if (selectedReviewCycleId == null) {
+    if (timelineMode === 'REVIEW_CYCLE' && selectedReviewCycleId == null) {
       toast.error(
         selectableReviewCycles.length === 0
           ? 'No active or upcoming employee-submission review cycle is available'
           : 'Please select a review cycle'
       );
       return;
+    }
+    if (timelineMode === 'MANUAL') {
+      if (!manualStartDate || !manualEndDate) {
+        toast.error('Please select manual start and end dates');
+        return;
+      }
+      if (manualStartDate > manualEndDate) {
+        toast.error('Manual end date cannot be earlier than the start date');
+        return;
+      }
     }
 
     if (data.questions.length === 0 || data.questions.every(q => !q.questionText.trim())) {
@@ -978,22 +997,24 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
     );
 
     try {
-      const conflicts = await checkActiveTemplateConflicts({
-        reviewCycleId: selectedReviewCycleId,
-        targets: uniqueTargetPairs.map((pair) => ({
-          departmentId: pair.departmentId,
-          positionId: pair.positionId,
-        })),
-      }).unwrap();
+      if (timelineMode === 'REVIEW_CYCLE') {
+        const conflicts = await checkActiveTemplateConflicts({
+          reviewCycleId: selectedReviewCycleId as number,
+          targets: uniqueTargetPairs.map((pair) => ({
+            departmentId: pair.departmentId,
+            positionId: pair.positionId,
+          })),
+        }).unwrap();
 
-      if (conflicts.length > 0) {
-        const conflictLabels = conflicts
-          .slice(0, 5)
-          .map((conflict) => `${conflict.departmentName} / ${conflict.positionName}`)
-          .join(', ');
-        const remaining = conflicts.length > 5 ? `, and ${conflicts.length - 5} more` : '';
-        toast.error(`Active template already exists for: ${conflictLabels}${remaining}`);
-        return;
+        if (conflicts.length > 0) {
+          const conflictLabels = conflicts
+            .slice(0, 5)
+            .map((conflict) => `${conflict.departmentName} / ${conflict.positionName}`)
+            .join(', ');
+          const remaining = conflicts.length > 5 ? `, and ${conflicts.length - 5} more` : '';
+          toast.error(`Active template already exists for: ${conflictLabels}${remaining}`);
+          return;
+        }
       }
 
       let createdCount = 0;
@@ -1007,7 +1028,10 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             positionId: pair.positionId,
             questions,
             deletedQuestions: copiedDeletedQuestions,
-            reviewCycleId: selectedReviewCycleId,
+            reviewCycleId: timelineMode === 'MANUAL' ? null : selectedReviewCycleId,
+            timelineMode,
+            manualStartDate: timelineMode === 'MANUAL' ? manualStartDate : null,
+            manualEndDate: timelineMode === 'MANUAL' ? manualEndDate : null,
             ratingSystem: copiedRatingSystem,
             tenPointYesMinRating: copiedTenPointYesMinRating,
           }).unwrap();
@@ -1034,7 +1058,13 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           toast.error('Template created, but the duplicate draft could not be cleared');
         }
       }
-      navigate('/hr/self-assessment/templates');
+      if (timelineMode === 'MANUAL') {
+        navigate(
+          `/hr/self-assessment/assignments/assign?timelineMode=MANUAL&manualStartDate=${manualStartDate}&manualEndDate=${manualEndDate}`
+        );
+      } else {
+        navigate('/hr/self-assessment/templates');
+      }
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, 'Failed to create template'));
     }
@@ -1089,16 +1119,16 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             </div>
 
             <div className="space-y-5">
-              {/* Review Cycle */}
+              {/* Timeline */}
               <div>
                 <label
                   htmlFor="create-template-review-cycle"
                   className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300"
                 >
-                  Review Cycle
+                  Timeline
                 </label>
                 <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-                  Templates are stored per cycle. Choose the active cycle or an upcoming one to prepare ahead.
+                  Templates are stored per review cycle, or as a manual date range when needed.
                 </p>
                 {reviewCyclesLoading ? (
                   <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -1107,15 +1137,24 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                   </div>
                 ) : selectableReviewCycles.length === 0 ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-                    No active or upcoming employee-submission cycles found. Generate or adjust cycles in <Link to="/hr/settings/system/time" className="font-semibold underline">Time Settings</Link>.
+	                    No active or upcoming employee-submission cycles found. Generate or adjust cycles in <Link to="/hr/settings/system/time" className="font-semibold underline">Time Settings</Link>, or{' '}
+	                    <button type="button" onClick={() => setTimelineMode('MANUAL')} className="font-semibold underline">
+	                      use Manual Entry
+	                    </button>.
                   </div>
                 ) : (
                   <select
                     id="create-template-review-cycle"
-                    value={selectedReviewCycleId ?? ''}
+	                    value={timelineMode === 'MANUAL' ? 'MANUAL' : selectedReviewCycleId ?? ''}
                     onChange={(event) => {
                       const value = event.target.value;
-                      setSelectedReviewCycleId(value ? Number(value) : null);
+	                      if (value === 'MANUAL') {
+	                        setTimelineMode('MANUAL');
+	                        setSelectedReviewCycleId(null);
+	                      } else {
+	                        setTimelineMode('REVIEW_CYCLE');
+	                        setSelectedReviewCycleId(value ? Number(value) : null);
+	                      }
                     }}
                     className="max-w-xl w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#2463eb] focus:outline-none focus:ring-1 focus:ring-[#2463eb] dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                   >
@@ -1129,7 +1168,35 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
                         </option>
                       );
                     })}
-                  </select>
+	                    <option value="MANUAL">Manual Entry (not recommended)</option>
+	                  </select>
+                )}
+                {timelineMode === 'MANUAL' && (
+                  <div className="mt-4 grid max-w-xl gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Start Date
+                      </span>
+                      <input
+                        type="date"
+                        value={manualStartDate}
+                        onChange={(event) => setManualStartDate(event.target.value)}
+                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#2463eb] focus:outline-none focus:ring-1 focus:ring-[#2463eb] dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        End Date
+                      </span>
+                      <input
+                        type="date"
+                        value={manualEndDate}
+                        min={manualStartDate || undefined}
+                        onChange={(event) => setManualEndDate(event.target.value)}
+                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-[#2463eb] focus:outline-none focus:ring-1 focus:ring-[#2463eb] dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                      />
+                    </label>
+                  </div>
                 )}
               </div>
 
@@ -1630,7 +1697,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
             </button>
             <button
               type="submit"
-              disabled={isCreating || selectableReviewCycles.length === 0 || selectedReviewCycleId == null}
+	              disabled={isCreating || (timelineMode === 'REVIEW_CYCLE' && (selectableReviewCycles.length === 0 || selectedReviewCycleId == null))}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2463eb]/25 transition-all hover:shadow-xl hover:shadow-[#2463eb]/30 hover:brightness-110 disabled:opacity-50 disabled:shadow-none dark:shadow-[#2463eb]/15"
             >
               {isCreating ? (
@@ -1650,7 +1717,7 @@ export const CreateSelfAssessmentTemplatePage: React.FC = () => {
           departmentLabel={previewPrimaryTarget?.departmentName ?? null}
           positionLabel={previewPrimaryTarget?.positionName ?? null}
           audienceLabels={previewAudienceLabels}
-          reviewCycleLabel={selectedReviewCycle?.name ?? null}
+          reviewCycleLabel={timelineMode === 'MANUAL' ? 'Manual Entry' : selectedReviewCycle?.name ?? null}
           reviewCycleDetail={previewReviewCycleDetail}
           ratingSystem={previewRatingSystem}
           tenPointYesMinRating={previewTenPointYesMinRating}

@@ -65,6 +65,7 @@ public class SelfAssessmentFormService {
     private final NotificationRepository notificationRepository;
     private final SelfAssessmentSettingsRepository settingsRepository;
     private final ReportingManagerResolver reportingManagerResolver;
+    private final SelfAssessmentUnlockRequestRepository unlockRequestRepository;
 
     public SelfAssessmentFormService(
             SelfAssessmentFormTemplateRepository templateRepository,
@@ -82,7 +83,8 @@ public class SelfAssessmentFormService {
             UserRepository userRepository,
             NotificationRepository notificationRepository,
             SelfAssessmentSettingsRepository settingsRepository,
-            ReportingManagerResolver reportingManagerResolver) {
+            ReportingManagerResolver reportingManagerResolver,
+            SelfAssessmentUnlockRequestRepository unlockRequestRepository) {
         this.templateRepository = templateRepository;
         this.copiedTemplateRepository = copiedTemplateRepository;
         this.formRepository = formRepository;
@@ -99,21 +101,36 @@ public class SelfAssessmentFormService {
         this.notificationRepository = notificationRepository;
         this.settingsRepository = settingsRepository;
         this.reportingManagerResolver = reportingManagerResolver;
+        this.unlockRequestRepository = unlockRequestRepository;
     }
 
     @Transactional
     public SelfAssessmentFormTemplateDto createTemplate(CreateTemplateRequest request, Long userId) {
-        ReviewCycle cycle = reviewCycleService.resolveCycleForSelfAssessmentTemplate(request.reviewCycleId());
+        boolean manualTimeline = isManualTimeline(request.timelineMode());
+        LocalDate manualStartDate = null;
+        LocalDate manualEndDate = null;
+        ReviewCycle cycle = null;
+        if (manualTimeline) {
+            validateManualTemplateDates(request.manualStartDate(), request.manualEndDate());
+            manualStartDate = request.manualStartDate();
+            manualEndDate = request.manualEndDate();
+        } else {
+            cycle = reviewCycleService.resolveCycleForSelfAssessmentTemplate(request.reviewCycleId());
+        }
         Department department = departmentRepository.findById(request.departmentId())
                 .orElseThrow(() -> new RuntimeException("Department not found"));
         Position position = positionRepository.findById(request.positionId())
                 .orElseThrow(() -> new RuntimeException("Position not found"));
 
-        Optional<SelfAssessmentFormTemplate> existing = templateRepository
-                .findActiveByDepartmentAndPositionAndReviewCycleId(
+        Optional<SelfAssessmentFormTemplate> existing = manualTimeline
+                ? templateRepository.findActiveManualByDepartmentAndPositionAndDateRange(
+                        request.departmentId(), request.positionId(), manualStartDate, manualEndDate)
+                : templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
                         request.departmentId(), request.positionId(), cycle.getId());
         if (existing.isPresent()) {
-            throw new RuntimeException("An active template already exists for this department, position, and review cycle");
+            throw new RuntimeException(manualTimeline
+                    ? "An active manual template already exists for this department, position, and date range"
+                    : "An active template already exists for this department, position, and review cycle");
         }
 
         SelfAssessmentFormTemplate template = new SelfAssessmentFormTemplate();
@@ -121,6 +138,8 @@ public class SelfAssessmentFormService {
         template.setDepartment(department);
         template.setPosition(position);
         template.setReviewCycle(cycle);
+        template.setManualStartDate(manualStartDate);
+        template.setManualEndDate(manualEndDate);
         template.setRatingSystem(resolveTemplateRatingSystem(request.ratingSystem()));
         template.setTenPointYesMinRating(resolveTemplateTenPointYesMinRating(request.tenPointYesMinRating()));
         template.setActive(true);
@@ -243,13 +262,23 @@ Instant now = Instant.now();
         assertTemplateEditable(template);
 
         Long rcId = template.getReviewCycle() != null ? template.getReviewCycle().getId() : null;
+        boolean manualTimeline = isManualTemplate(template);
         Optional<SelfAssessmentFormTemplate> existing = rcId != null
                 ? templateRepository.findActiveByDepartmentAndPositionAndReviewCycleIdExcluding(
                         request.departmentId(), request.positionId(), rcId, id)
-                : templateRepository.findActiveByDepartmentAndPositionWithNullReviewCycleExcluding(
-                        request.departmentId(), request.positionId(), id);
+                : manualTimeline
+                        ? templateRepository.findActiveManualByDepartmentAndPositionAndDateRangeExcluding(
+                                request.departmentId(),
+                                request.positionId(),
+                                template.getManualStartDate(),
+                                template.getManualEndDate(),
+                                id)
+                        : templateRepository.findActiveByDepartmentAndPositionWithNullReviewCycleExcluding(
+                                request.departmentId(), request.positionId(), id);
         if (existing.isPresent() && request.isActive()) {
-            throw new RuntimeException("An active template already exists for this department, position, and review cycle");
+            throw new RuntimeException(manualTimeline
+                    ? "An active manual template already exists for this department, position, and date range"
+                    : "An active template already exists for this department, position, and review cycle");
         }
 
         Department department = departmentRepository.findById(request.departmentId())
@@ -630,12 +659,17 @@ Instant now = Instant.now();
         AssignmentMode assignmentMode = parseAssignmentMode(request.assignmentMode());
         validateAssignmentSelections(assignmentMode, request.departmentIds(), request.positionIds(), request.employeeIds());
 
-        ReviewCycle activeCycle = requireActiveCycle();
-        validateAssignmentDeadlines(
-                request.startDate(),
-                request.deadlineDate(),
-                request.managerReviewDeadlineDate(),
-                activeCycle);
+        boolean manualTimeline = isManualTimeline(request.timelineMode());
+        ReviewCycle activeCycle = manualTimeline ? null : requireActiveCycle();
+        if (manualTimeline) {
+            validateManualAssignmentTimeline(request);
+        } else {
+            validateAssignmentDeadlines(
+                    request.startDate(),
+                    request.deadlineDate(),
+                    request.managerReviewDeadlineDate(),
+                    activeCycle);
+        }
 
         Set<Long> departmentIds = toIdSet(request.departmentIds());
         Set<Long> positionIds = toIdSet(request.positionIds());
@@ -654,11 +688,10 @@ Instant now = Instant.now();
             if (!matchesAssignmentMode(employee, assignmentMode, departmentIds, positionIds, employeeIdSet)) {
                 continue;
             }
-            if (formRepository.existsByEmployeeAndCycle(employee, activeCycle)) {
+            if (!manualTimeline && formRepository.existsByEmployeeAndCycle(employee, activeCycle)) {
                 skippedExisting++;
                 continue;
             }
-
             Long departmentId = getEmployeeDepartmentId(employee);
             Long positionId = getEmployeePositionId(employee);
             if (departmentId == null || positionId == null) {
@@ -666,18 +699,35 @@ Instant now = Instant.now();
                 continue;
             }
 
-            Optional<SelfAssessmentFormTemplate> templateOpt = templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
-                    departmentId,
-                    positionId,
-                    activeCycle.getId());
+            Optional<SelfAssessmentFormTemplate> templateOpt = manualTimeline
+                    ? templateRepository.findActiveManualByDepartmentAndPositionAndDateRange(
+                            departmentId,
+                            positionId,
+                            request.manualStartDate(),
+                            request.manualEndDate())
+                    : templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
+                            departmentId,
+                            positionId,
+                            activeCycle.getId());
             if (templateOpt.isEmpty()) {
                 skippedNoTemplate++;
+                continue;
+            }
+            SelfAssessmentFormTemplate template = templateOpt.get();
+
+            if (manualTimeline && formRepository.existsByEmployeeAndTemplateAndStartDateAndDeadlineDateAndManagerReviewDeadlineDate(
+                    employee,
+                    template,
+                    request.startDate(),
+                    request.deadlineDate(),
+                    request.managerReviewDeadlineDate())) {
+                skippedExisting++;
                 continue;
             }
 
             SelfAssessmentForm form = createAssignedDraftForm(
                     employee,
-                    templateOpt.get(),
+                    template,
                     activeCycle,
                     request.startDate(),
                     request.deadlineDate(),
@@ -732,37 +782,49 @@ Instant now = Instant.now();
                 skippedExisting,
                 skippedNoTemplate,
                 skippedIneligible,
-                toCycleInfo(activeCycle));
+                activeCycle != null ? toCycleInfo(activeCycle) : null);
     }
 
     @Transactional(readOnly = true)
     public List<SelfAssessmentAssignmentPreviewDto> previewSelfAssessmentAssignments(
             SelfAssessmentAssignmentPreviewRequest request) {
-        ReviewCycle activeCycle = requireActiveCycle();
-        validateAssignmentDeadlines(
-                request.deadlineDate(),
-                request.deadlineDate(),
-                request.managerReviewDeadlineDate(),
-                activeCycle);
+        boolean manualTimeline = isManualTimeline(request.timelineMode());
+        ReviewCycle activeCycle = manualTimeline ? null : requireActiveCycle();
+        if (manualTimeline) {
+            validateManualPreviewTimeline(request);
+        } else {
+            validateAssignmentDeadlines(
+                    request.deadlineDate(),
+                    request.deadlineDate(),
+                    request.managerReviewDeadlineDate(),
+                    activeCycle);
+        }
 
         return request.targets().stream()
-                .map(target -> previewSelfAssessmentAssignmentTarget(target, request, activeCycle))
+                .map(target -> previewSelfAssessmentAssignmentTarget(target, request, activeCycle, manualTimeline))
                 .collect(Collectors.toList());
     }
 
     private SelfAssessmentAssignmentPreviewDto previewSelfAssessmentAssignmentTarget(
             TemplateTargetPairRequest target,
             SelfAssessmentAssignmentPreviewRequest request,
-            ReviewCycle activeCycle) {
+            ReviewCycle activeCycle,
+            boolean manualTimeline) {
         Department department = departmentRepository.findById(target.departmentId())
                 .orElseThrow(() -> new RuntimeException("Department not found"));
         Position position = positionRepository.findById(target.positionId())
                 .orElseThrow(() -> new RuntimeException("Position not found"));
 
-        Optional<SelfAssessmentFormTemplate> templateOpt = templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
-                target.departmentId(),
-                target.positionId(),
-                activeCycle.getId());
+        Optional<SelfAssessmentFormTemplate> templateOpt = manualTimeline
+                ? templateRepository.findActiveManualByDepartmentAndPositionAndDateRange(
+                        target.departmentId(),
+                        target.positionId(),
+                        request.manualStartDate(),
+                        request.manualEndDate())
+                : templateRepository.findActiveByDepartmentAndPositionAndReviewCycleId(
+                        target.departmentId(),
+                        target.positionId(),
+                        activeCycle.getId());
 
         if (templateOpt.isEmpty()) {
             return new SelfAssessmentAssignmentPreviewDto(
@@ -779,11 +841,17 @@ Instant now = Instant.now();
         }
 
         SelfAssessmentFormTemplate template = templateOpt.get();
-        long assignedCount = formRepository.countByTemplateAndCycleAndDeadlineDateAndManagerReviewDeadlineDate(
-                template,
-                activeCycle,
-                request.deadlineDate(),
-                request.managerReviewDeadlineDate());
+        long assignedCount = manualTimeline
+                ? formRepository.countByTemplateAndCycleIsNullAndStartDateAndDeadlineDateAndManagerReviewDeadlineDate(
+                        template,
+                        request.manualStartDate(),
+                        request.deadlineDate(),
+                        request.managerReviewDeadlineDate())
+                : formRepository.countByTemplateAndCycleAndDeadlineDateAndManagerReviewDeadlineDate(
+                        template,
+                        activeCycle,
+                        request.deadlineDate(),
+                        request.managerReviewDeadlineDate());
         int questionCount = (int) template.getQuestions().stream()
                 .filter(question -> question.getDeletedAt() == null)
                 .count();
@@ -907,7 +975,9 @@ Instant now = Instant.now();
         if (formRepository.existsByEmployeeAndCycle(employee, form.getCycle())) {
             List<SelfAssessmentForm> existingForms = formRepository.findByEmployee(employee);
             boolean alreadySubmitted = existingForms.stream()
-                    .anyMatch(f -> f.getCycle().equals(form.getCycle()) && isPostSubmitStatus(f.getStatus()));
+                    .anyMatch(f -> !Objects.equals(f.getId(), form.getId())
+                            && f.getCycle().equals(form.getCycle())
+                            && isPostSubmitStatus(f.getStatus()));
             if (alreadySubmitted) {
                 throw new RuntimeException("You have already submitted your self-assessment for this cycle.");
             }
@@ -916,6 +986,7 @@ Instant now = Instant.now();
         updateAnswers(form, request.answers());
         form.setEmployeeRemarks(request.employeeRemarks());
         form.setOverallRemarks(request.overallRemarks());
+        boolean submittingReopenedForm = form.getStatus() == SelfAssessmentFormStatus.REOPENED;
 
         Signature defaultSig = signatureRepository.findByUserAndIsDefaultTrue(employee.getUserAccount())
                 .orElseThrow(() -> new RuntimeException("No default signature found. Please set up your signature before submitting."));
@@ -937,13 +1008,18 @@ Instant now = Instant.now();
 
         SelfAssessmentForm saved = formRepository.save(form);
 
+        boolean resubmittedAfterUnlock = submittingReopenedForm && hasResolvedUnlockRequest(form);
+
         auditService.record(
-                AuditActionType.SELF_ASSESSMENT_FORM_SUBMITTED,
+                resubmittedAfterUnlock
+                        ? AuditActionType.SELF_ASSESSMENT_FORM_RESUBMITTED_AFTER_UNLOCK
+                        : AuditActionType.SELF_ASSESSMENT_FORM_SUBMITTED,
                 AuditTargetType.SELF_ASSESSMENT_FORM,
                 saved.getId(),
                 employee.getUserAccount().getId(),
                 null,
-                "Submitted self-assessment form with score " + saved.getTotalScore(),
+                (resubmittedAfterUnlock ? "Resubmitted unlocked self-assessment form with score " : "Submitted self-assessment form with score ")
+                        + saved.getTotalScore(),
                 null);
 
         if (managerOwnedForm) {
@@ -1415,70 +1491,6 @@ Instant now = Instant.now();
     }
 
     @Transactional
-    public SelfAssessmentFormDto hrUnlockRetake(Long formId, Long hrUserId) {
-        SelfAssessmentForm form = formRepository.findById(formId)
-                .orElseThrow(() -> new RuntimeException("Form not found"));
-
-        ReviewCycle activeCycle = requireActiveCycle();
-        if (form.getCycle() == null || !form.getCycle().getId().equals(activeCycle.getId())) {
-            throw new RuntimeException("Only current active-cycle forms can have retakes unlocked");
-        }
-        if (!Boolean.TRUE.equals(form.getRetakeRequestUsed())) {
-            throw new RuntimeException("This form does not have a used retake request");
-        }
-
-        boolean managerOwnedForm = isManagerOwnedForm(form);
-        boolean eligibleRegularForm = !managerOwnedForm
-                && form.getStatus() == SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW;
-        boolean eligibleManagerSelfAssessment = managerOwnedForm
-                && form.getStatus() == SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL
-                && form.getRetakeSubmittedAt() != null;
-        if (!eligibleRegularForm && !eligibleManagerSelfAssessment) {
-            throw new RuntimeException("Form is not eligible for retake unlock");
-        }
-
-        List<SelfAssessmentFormAnswer> requestedAnswers = form.getAnswers().stream()
-                .filter(a -> Boolean.TRUE.equals(a.getRetakeRequested()))
-                .toList();
-        if (requestedAnswers.isEmpty()) {
-            throw new RuntimeException("No questions are marked for retake");
-        }
-
-        Instant now = Instant.now();
-        form.setRetakeSubmittedAt(null);
-        form.setManagerApprovedRetakeAt(null);
-        form.setFinalApprovedTotalScore(null);
-        form.setStatus(SelfAssessmentFormStatus.PENDING_EMPLOYEE_RETAKE);
-        form.setUpdatedDate(now);
-
-        for (SelfAssessmentFormAnswer answer : requestedAnswers) {
-            answer.setRetakeYesNoAnswer(null);
-            answer.setRetakeRating(null);
-            answer.setRetakeReason(null);
-            answer.setRetakeSubmittedAt(null);
-            answer.setRetakeApproved(null);
-            answer.setFinalApprovedYesNo(null);
-            answer.setFinalApprovedRating(null);
-        }
-
-        SelfAssessmentForm saved = formRepository.save(form);
-        auditService.record(
-                AuditActionType.SELF_ASSESSMENT_FORM_HR_UNLOCKED_RETAKE,
-                AuditTargetType.SELF_ASSESSMENT_FORM,
-                saved.getId(),
-                hrUserId,
-                null,
-                "HR unlocked submitted retake answers for editing and resubmission",
-                null);
-        if (managerOwnedForm) {
-            sendManagerSelfAssessmentRetakeNotification(saved);
-        } else {
-            sendEmployeeRetakeNotification(saved);
-        }
-        return toFormDto(saved);
-    }
-
-    @Transactional
     public SelfAssessmentFormDto managerApproveRetake(Long formId, Employee manager, ManagerApproveRetakeRequest request) {
         SelfAssessmentForm form = formRepository.findById(formId)
                 .orElseThrow(() -> new RuntimeException("Form not found"));
@@ -1870,6 +1882,144 @@ Instant now = Instant.now();
     }
 
     @Transactional
+    public SelfAssessmentUnlockRequestDto requestUnlock(Long formId, Employee employee, SelfAssessmentUnlockRequestActionRequest request) {
+        SelfAssessmentForm form = formRepository.findById(formId)
+                .orElseThrow(() -> new RuntimeException("Form not found"));
+        if (!isOwnForm(form, employee)) {
+            throw new RuntimeException("You can only request unlock for your own form");
+        }
+        if (form.getStatus() != SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW) {
+            throw new RuntimeException("Only forms pending manager review can be unlocked");
+        }
+        if (unlockRequestRepository.existsByFormAndStatus(form, SelfAssessmentUnlockRequestStatus.PENDING)) {
+            throw new RuntimeException("An unlock request is already pending for this form");
+        }
+        User requestedBy = employee.getUserAccount();
+        if (requestedBy == null) {
+            throw new RuntimeException("Employee user account not found");
+        }
+        SelfAssessmentUnlockRequest unlockRequest = new SelfAssessmentUnlockRequest();
+        unlockRequest.setForm(form);
+        unlockRequest.setEmployee(employee);
+        unlockRequest.setRequestedBy(requestedBy);
+        unlockRequest.setReasonCode(request.reasonCode());
+        unlockRequest.setReasonText(normalizeReasonText(request.reasonText()));
+        unlockRequest.setRequestedAt(Instant.now());
+        SelfAssessmentUnlockRequest saved = unlockRequestRepository.save(unlockRequest);
+
+        auditService.record(
+                AuditActionType.SELF_ASSESSMENT_FORM_UNLOCK_REQUESTED,
+                AuditTargetType.SELF_ASSESSMENT_FORM,
+                form.getId(),
+                requestedBy.getId(),
+                null,
+                "Employee requested HR unlock for submitted self-assessment form",
+                null,
+                snapshotAnswers(form),
+                snapshotAnswers(form));
+
+        sendHrUnlockRequestedNotification(saved);
+        return toUnlockRequestDto(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SelfAssessmentUnlockRequestDto> getHrUnlockRequests() {
+        return unlockRequestRepository.findAllByOrderByRequestedAtDesc()
+                .stream()
+                .map(this::toUnlockRequestDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public SelfAssessmentUnlockRequestDto unlockSelfAssessmentRequest(
+            Long requestId,
+            SelfAssessmentUnlockRequestUnlockRequest request,
+            Long hrUserId) {
+        SelfAssessmentUnlockRequest unlockRequest = unlockRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Unlock request not found"));
+        if (unlockRequest.getStatus() != SelfAssessmentUnlockRequestStatus.PENDING) {
+            throw new RuntimeException("Unlock request is already resolved");
+        }
+        SelfAssessmentForm form = unlockRequest.getForm();
+        if (form.getStatus() != SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW) {
+            throw new RuntimeException("Only forms pending manager review can be unlocked");
+        }
+        LocalDate managerDeadline = form.getManagerReviewDeadlineDate();
+        if (managerDeadline == null) {
+            throw new RuntimeException("Manager review deadline is required before unlocking");
+        }
+        if (request.unlockDeadline() == null || !request.unlockDeadline().isBefore(managerDeadline)) {
+            throw new RuntimeException("Unlock deadline must be before the manager review deadline");
+        }
+
+        User hrUser = findHrUser(hrUserId);
+        String beforeSnapshot = snapshotAnswers(form);
+        unlockRequest.setStatus(SelfAssessmentUnlockRequestStatus.UNLOCKED);
+        unlockRequest.setResolvedBy(hrUser);
+        unlockRequest.setHrReasonCode(request.reasonCode().name());
+        unlockRequest.setHrReasonText(normalizeReasonText(request.reasonText()));
+        unlockRequest.setUnlockDeadline(request.unlockDeadline());
+        unlockRequest.setResolvedAt(Instant.now());
+
+        form.setStatus(SelfAssessmentFormStatus.REOPENED);
+        form.setDeadlineDate(request.unlockDeadline());
+        form.setSubmittedDate(null);
+        form.setAssessmentDate(null);
+        form.setEmployeeSignatureId(null);
+        form.setEmployeeSignatureDate(null);
+        form.setUpdatedDate(Instant.now());
+        SelfAssessmentForm savedForm = formRepository.save(form);
+        SelfAssessmentUnlockRequest savedRequest = unlockRequestRepository.save(unlockRequest);
+
+        auditService.record(
+                AuditActionType.SELF_ASSESSMENT_FORM_UNLOCKED,
+                AuditTargetType.SELF_ASSESSMENT_FORM,
+                savedForm.getId(),
+                hrUserId,
+                null,
+                "HR unlocked self-assessment form for employee resubmission",
+                null,
+                beforeSnapshot,
+                snapshotAnswers(savedForm));
+
+        sendEmployeeUnlockResolvedNotification(savedRequest, true);
+        return toUnlockRequestDto(savedRequest);
+    }
+
+    @Transactional
+    public SelfAssessmentUnlockRequestDto rejectSelfAssessmentRequest(
+            Long requestId,
+            SelfAssessmentUnlockRejectRequest request,
+            Long hrUserId) {
+        SelfAssessmentUnlockRequest unlockRequest = unlockRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Unlock request not found"));
+        if (unlockRequest.getStatus() != SelfAssessmentUnlockRequestStatus.PENDING) {
+            throw new RuntimeException("Unlock request is already resolved");
+        }
+        User hrUser = findHrUser(hrUserId);
+        unlockRequest.setStatus(SelfAssessmentUnlockRequestStatus.REJECTED);
+        unlockRequest.setResolvedBy(hrUser);
+        unlockRequest.setHrReasonCode(request.reasonCode().name());
+        unlockRequest.setHrReasonText(normalizeReasonText(request.reasonText()));
+        unlockRequest.setResolvedAt(Instant.now());
+        SelfAssessmentUnlockRequest saved = unlockRequestRepository.save(unlockRequest);
+
+        auditService.record(
+                AuditActionType.SELF_ASSESSMENT_FORM_UNLOCK_REJECTED,
+                AuditTargetType.SELF_ASSESSMENT_FORM,
+                saved.getForm().getId(),
+                hrUserId,
+                null,
+                "HR rejected self-assessment unlock request",
+                null,
+                snapshotAnswers(saved.getForm()),
+                snapshotAnswers(saved.getForm()));
+
+        sendEmployeeUnlockResolvedNotification(saved, false);
+        return toUnlockRequestDto(saved);
+    }
+
+    @Transactional
     public void createDueTomorrowNotifications() {
         ReviewCycle activeCycle = getActiveCycle();
         if (activeCycle == null) return;
@@ -1919,7 +2069,7 @@ Instant now = Instant.now();
     private SelfAssessmentForm createAssignedDraftForm(
             Employee employee,
             SelfAssessmentFormTemplate template,
-            ReviewCycle activeCycle,
+            ReviewCycle cycle,
             LocalDate startDate,
             LocalDate deadlineDate,
             LocalDate managerReviewDeadlineDate,
@@ -1928,13 +2078,13 @@ Instant now = Instant.now();
         SelfAssessmentForm form = new SelfAssessmentForm();
         form.setEmployee(employee);
         form.setTemplate(template);
-        form.setCycle(activeCycle);
+        form.setCycle(cycle);
         form.setRatingSystem(SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()));
         form.setTenPointYesMinRating(resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()));
         form.setStartDate(startDate);
         form.setDeadlineDate(deadlineDate);
         form.setManagerReviewDeadlineDate(managerReviewDeadlineDate);
-        form.setFinalApprovalDeadlineDate(activeCycle.getEndDate());
+        form.setFinalApprovalDeadlineDate(cycle != null ? cycle.getEndDate() : managerReviewDeadlineDate);
         form.setAssignedAt(assignedAt);
         form.setAssignedBy(assignedBy);
         form.setStatus(SelfAssessmentFormStatus.DRAFT);
@@ -1971,6 +2121,67 @@ Instant now = Instant.now();
             case "SPECIFIC_EMPLOYEES", "EMPLOYEE_NAMES", "EMPLOYEES" -> AssignmentMode.SPECIFIC_EMPLOYEES;
             default -> throw new RuntimeException("Invalid assignment mode");
         };
+    }
+
+    private boolean isManualTimeline(String value) {
+        return value != null && "MANUAL".equalsIgnoreCase(value.trim());
+    }
+
+    private boolean isManualTemplate(SelfAssessmentFormTemplate template) {
+        return template.getReviewCycle() == null
+                && template.getManualStartDate() != null
+                && template.getManualEndDate() != null;
+    }
+
+    private void validateManualTemplateDates(LocalDate manualStartDate, LocalDate manualEndDate) {
+        if (manualStartDate == null || manualEndDate == null) {
+            throw new RuntimeException("Manual start date and end date are required");
+        }
+        if (manualStartDate.isAfter(manualEndDate)) {
+            throw new RuntimeException("Manual end date cannot be earlier than the start date");
+        }
+    }
+
+    private void validateManualAssignmentTimeline(SelfAssessmentAssignmentRequest request) {
+        validateManualTemplateDates(request.manualStartDate(), request.manualEndDate());
+        validateManualAssignmentDates(
+                request.startDate(),
+                request.deadlineDate(),
+                request.managerReviewDeadlineDate(),
+                request.manualStartDate(),
+                request.manualEndDate());
+    }
+
+    private void validateManualPreviewTimeline(SelfAssessmentAssignmentPreviewRequest request) {
+        validateManualTemplateDates(request.manualStartDate(), request.manualEndDate());
+        validateManualAssignmentDates(
+                request.manualStartDate(),
+                request.deadlineDate(),
+                request.managerReviewDeadlineDate(),
+                request.manualStartDate(),
+                request.manualEndDate());
+    }
+
+    private void validateManualAssignmentDates(
+            LocalDate startDate,
+            LocalDate deadlineDate,
+            LocalDate managerReviewDeadlineDate,
+            LocalDate manualStartDate,
+            LocalDate manualEndDate) {
+        if (startDate == null || deadlineDate == null || managerReviewDeadlineDate == null) {
+            throw new RuntimeException("Start date, employee deadline, and manager review deadlines are required");
+        }
+        if (startDate.isAfter(deadlineDate)) {
+            throw new RuntimeException("Employee deadline cannot be earlier than the start date.");
+        }
+        if (deadlineDate.isAfter(managerReviewDeadlineDate)) {
+            throw new RuntimeException("Manager review deadline cannot be earlier than the employee deadline.");
+        }
+        if (!startDate.equals(manualStartDate)
+                || !deadlineDate.equals(manualEndDate)
+                || !managerReviewDeadlineDate.equals(manualEndDate)) {
+            throw new RuntimeException("Manual assignment dates must match the selected manual template timeline");
+        }
     }
 
     private SelfAssessmentRatingSystem parseRatingSystem(String value) {
@@ -2576,7 +2787,34 @@ Instant now = Instant.now();
                         "Self-Assessment Submitted",
                         "Employee " + employee.getEmployeeName() + " submitted "
                                 + resolveFormDisplayTitle(form) + " for your review.",
-                        "SELF_ASSESSMENT_FORM"));
+                        "SELF_ASSESSMENT_FORM",
+                        form.getId()));
+    }
+
+    private void sendHrUnlockRequestedNotification(SelfAssessmentUnlockRequest request) {
+        SelfAssessmentForm form = request.getForm();
+        Employee employee = request.getEmployee();
+        userRepository.findByRole_IdAndActiveTrue(1L).forEach(hrUser -> notificationService.send(
+                hrUser,
+                "Self-Assessment Unlock Requested",
+                (employee != null ? employee.getEmployeeName() : "An employee")
+                        + " requested HR unlock for "
+                        + resolveFormDisplayTitle(form) + ".",
+                "SELF_ASSESSMENT_FORM",
+                form.getId()));
+    }
+
+    private void sendEmployeeUnlockResolvedNotification(SelfAssessmentUnlockRequest request, boolean unlocked) {
+        Employee employee = request.getEmployee();
+        resolveActiveEmployeeUser(employee).ifPresent(user -> notificationService.send(
+                user,
+                unlocked ? "Self-Assessment Unlocked" : "Self-Assessment Unlock Rejected",
+                unlocked
+                        ? "HR unlocked your self-assessment. Please resubmit by "
+                                + request.getUnlockDeadline().format(NOTIFICATION_DEADLINE_FORMAT) + "."
+                        : "HR rejected your self-assessment unlock request.",
+                "SELF_ASSESSMENT_FORM",
+                request.getForm().getId()));
     }
 
     private Optional<Employee> resolveManagerRecipient(Employee employee) {
@@ -2742,6 +2980,9 @@ Instant now = Instant.now();
                 template.getPosition().getName(),
                 template.getReviewCycle() != null ? template.getReviewCycle().getId() : null,
                 template.getReviewCycle() != null ? template.getReviewCycle().getName() : null,
+                isManualTemplate(template) ? "MANUAL" : "REVIEW_CYCLE",
+                template.getManualStartDate(),
+                template.getManualEndDate(),
                 template.isActive(),
                 SelfAssessmentRatingSystem.defaultIfNull(template.getRatingSystem()).name(),
                 resolveSavedTenPointYesMinRating(template.getTenPointYesMinRating()),
@@ -3146,8 +3387,101 @@ Instant now = Instant.now();
                 form.getHrReviewReason(),
                 form.getHrReviewReasonAt(),
                 hrName,
-                buildSubmissionAttempts(form)
+                buildSubmissionAttempts(form),
+                pendingUnlockRequestDto(form)
         );
+    }
+
+    private SelfAssessmentUnlockRequestDto pendingUnlockRequestDto(SelfAssessmentForm form) {
+        if (unlockRequestRepository == null) {
+            return null;
+        }
+        Optional<SelfAssessmentUnlockRequest> request = unlockRequestRepository
+                .findFirstByFormAndStatusOrderByRequestedAtDesc(form, SelfAssessmentUnlockRequestStatus.PENDING);
+        return request == null ? null : request.map(this::toUnlockRequestDto).orElse(null);
+    }
+
+    private boolean hasResolvedUnlockRequest(SelfAssessmentForm form) {
+        if (unlockRequestRepository == null) {
+            return false;
+        }
+        Optional<SelfAssessmentUnlockRequest> request = unlockRequestRepository
+                .findFirstByFormAndStatusOrderByRequestedAtDesc(form, SelfAssessmentUnlockRequestStatus.UNLOCKED);
+        return request != null && request.isPresent();
+    }
+
+    private SelfAssessmentUnlockRequestDto toUnlockRequestDto(SelfAssessmentUnlockRequest request) {
+        SelfAssessmentForm form = request.getForm();
+        Employee employee = request.getEmployee();
+        User requestedBy = request.getRequestedBy();
+        User resolvedBy = request.getResolvedBy();
+        return new SelfAssessmentUnlockRequestDto(
+                request.getId(),
+                form != null ? form.getId() : null,
+                employee != null ? employee.getId() : null,
+                employee != null ? employee.getEmployeeId() : null,
+                employee != null ? employee.getEmployeeName() : null,
+                requestedBy != null ? requestedBy.getId() : null,
+                displayNameFromUser(requestedBy),
+                resolvedBy != null ? resolvedBy.getId() : null,
+                displayNameFromUser(resolvedBy),
+                request.getStatus() != null ? request.getStatus().name() : null,
+                request.getReasonCode() != null ? request.getReasonCode().name() : null,
+                request.getReasonText(),
+                request.getHrReasonCode(),
+                request.getHrReasonText(),
+                request.getUnlockDeadline(),
+                request.getRequestedAt(),
+                request.getResolvedAt(),
+                form != null ? resolveFormDisplayTitle(form) : null,
+                form != null && form.getCycle() != null ? form.getCycle().getId() : null,
+                form != null && form.getCycle() != null ? form.getCycle().getName() : null,
+                form != null ? form.getManagerReviewDeadlineDate() : null);
+    }
+
+    private String normalizeReasonText(String text) {
+        return text == null || text.trim().isBlank() ? null : text.trim();
+    }
+
+    private String snapshotAnswers(SelfAssessmentForm form) {
+        StringBuilder json = new StringBuilder();
+        json.append("{\"formId\":").append(form.getId())
+                .append(",\"status\":\"").append(form.getStatus()).append("\"")
+                .append(",\"submittedDate\":").append(jsonString(form.getSubmittedDate()))
+                .append(",\"assessmentDate\":").append(jsonString(form.getAssessmentDate()))
+                .append(",\"deadlineDate\":").append(jsonString(form.getDeadlineDate()))
+                .append(",\"answers\":[");
+        List<SelfAssessmentFormAnswer> sortedAnswers = form.getAnswers().stream()
+                .sorted(Comparator.comparing(SelfAssessmentFormAnswer::getSortOrder))
+                .toList();
+        for (int i = 0; i < sortedAnswers.size(); i++) {
+            SelfAssessmentFormAnswer answer = sortedAnswers.get(i);
+            if (i > 0) {
+                json.append(',');
+            }
+            json.append("{\"answerId\":").append(answer.getId())
+                    .append(",\"questionText\":").append(jsonString(answer.getQuestionText()))
+                    .append(",\"sortOrder\":").append(answer.getSortOrder())
+                    .append(",\"yesNoAnswer\":").append(jsonString(answer.getYesNoAnswer()))
+                    .append(",\"rating\":").append(answer.getRating())
+                    .append(",\"remarks\":").append(jsonString(answer.getRemarks()))
+                    .append('}');
+        }
+        json.append("]}");
+        return json.toString();
+    }
+
+    private String jsonString(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        String escaped = String.valueOf(value)
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
+        return "\"" + escaped + "\"";
     }
 
     private Signature resolveSignature(Long signatureId) {

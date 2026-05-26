@@ -1,5 +1,5 @@
 // src/types/auth.ts
-export type RoleGroup = 'HR' | 'MANAGER' | 'EMPLOYEE';
+export type RoleGroup = 'HR' | 'MANAGER' | 'EMPLOYEE' | 'AUDIT';
 
 export interface User {
   id: number;

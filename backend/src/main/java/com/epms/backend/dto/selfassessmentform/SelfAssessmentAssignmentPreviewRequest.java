@@ -10,6 +10,10 @@ import java.util.List;
 public record SelfAssessmentAssignmentPreviewRequest(
         @NotEmpty List<@Valid TemplateTargetPairRequest> targets,
         @NotNull LocalDate deadlineDate,
-        @NotNull LocalDate managerReviewDeadlineDate
+        @NotNull LocalDate managerReviewDeadlineDate,
+        String timelineMode,
+        Long reviewCycleId,
+        LocalDate manualStartDate,
+        LocalDate manualEndDate
 ) {
 }

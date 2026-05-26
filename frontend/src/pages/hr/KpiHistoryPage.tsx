@@ -8,7 +8,7 @@ import {
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsQuery } from '../../features/position/api/positionApi';
-import { Search, History, Calendar, User, Briefcase, Building2, Target, CheckCircle2, AlertCircle, Eye, LayoutGrid } from 'lucide-react';
+import { Search, History, Calendar, User, Briefcase, Building2, Target, CheckCircle2, AlertCircle, Eye, LayoutGrid, Download } from 'lucide-react';
 import { format } from 'date-fns';
 
 export const KpiHistoryPage: React.FC = () => {

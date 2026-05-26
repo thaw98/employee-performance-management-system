@@ -262,7 +262,8 @@ export function FeedbackHistoryPage() {
                 />
             </div>
 
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
@@ -333,7 +334,7 @@ export function FeedbackHistoryPage() {
                                         </span>
                                     </td>
                                     <td className="p-6 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                        <div className="flex items-center justify-end gap-2">
                                             <button 
                                                 onClick={() => generatePDF(item.id)}
                                                 className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center shadow-sm"
@@ -354,6 +355,24 @@ export function FeedbackHistoryPage() {
                         )}
                     </tbody>
                 </table>
+                </div>
+
+                {!loading && totalItems > 0 && (
+                    <PaginationBar
+                        pageIndex={page}
+                        pageSize={pageSize}
+                        pageCount={Math.max(1, totalPages || Math.ceil(totalItems / pageSize))}
+                        totalItems={totalItems}
+                        itemLabel="records"
+                        rowsPerPageOptions={[5, 10, 20, 50]}
+                        onPageIndexChange={setPage}
+                        onPageSizeChange={(nextSize) => {
+                            setPageSize(nextSize);
+                            setPage(0);
+                        }}
+                        className="mt-0 rounded-none border-x-0 border-b-0 border-t border-slate-200/70 shadow-none"
+                    />
+                )}
             </div>
 
             {/* Detailed View Modal */}
@@ -442,22 +461,6 @@ export function FeedbackHistoryPage() {
                     </div>
                 </Dialog>
             </Transition>
-
-            {!loading && totalItems > 0 && (
-                <PaginationBar
-                    pageIndex={page}
-                    pageSize={pageSize}
-                    pageCount={Math.max(1, totalPages)}
-                    totalItems={totalItems}
-                    itemLabel="records"
-                    rowsPerPageOptions={[5, 10, 20, 50]}
-                    onPageIndexChange={setPage}
-                    onPageSizeChange={(nextSize) => {
-                        setPageSize(nextSize);
-                        setPage(0);
-                    }}
-                />
-            )}
         </div>
     );
 }

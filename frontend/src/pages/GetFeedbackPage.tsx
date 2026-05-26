@@ -256,7 +256,7 @@ export function GetFeedbackPage() {
                                         </span>
                                     </td>
                                     <td className="p-6 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all text-gray-500">
+                                        <div className="flex items-center justify-end gap-2">
                                             <button 
                                                 onClick={() => openDetails(item)}
                                                 className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-white hover:text-slate-900 transition-all flex items-center justify-center border border-transparent hover:border-slate-200"

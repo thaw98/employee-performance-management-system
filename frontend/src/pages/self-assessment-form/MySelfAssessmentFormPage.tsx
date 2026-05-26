@@ -25,6 +25,7 @@ import {
   ThumbsDown,
   Scale,
   RotateCcw,
+  KeyRound,
 } from 'lucide-react';
 import { RemarkCommentHeader } from '../../features/selfAssessmentForm/components/RemarkCommentHeader';
 import { YesNoRatingDisplay } from '../../features/selfAssessmentForm/components/YesNoRatingDisplay';
@@ -36,7 +37,9 @@ import {
   useEmployeeAcknowledgeMutation,
   useEmployeeDisputeMutation,
   useEmployeeRetakeSubmitMutation,
+  useRequestSelfAssessmentUnlockMutation,
   type SaveDraftRequest,
+  type SelfAssessmentUnlockReasonCode,
 } from '../../features/selfAssessmentForm/api/selfAssessmentFormApi';
 import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { isRatingValidForAnswer } from '../../features/selfAssessmentForm/ratingSystem';
@@ -231,6 +234,14 @@ function formatNameCode(name?: string | null, code?: string | null) {
 
 const DISPUTE_CATEGORY_OTHER = 'other';
 
+const UNLOCK_REASON_OPTIONS: { value: SelfAssessmentUnlockReasonCode; label: string }[] = [
+  { value: 'TYPO_COMMENT', label: 'Typo or comment correction' },
+  { value: 'WRONG_RATING', label: 'Wrong rating selected' },
+  { value: 'INCOMPLETE_ANSWER', label: 'Incomplete answer' },
+  { value: 'WRONG_ANSWER', label: 'Wrong answer selected' },
+  { value: 'OTHER', label: 'Other' },
+];
+
 const DISPUTE_CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: 'disagree_revised_scores', label: 'I disagree with the revised scores' },
   { value: 'inaccurate_manager_feedback', label: "The manager's feedback is inaccurate or incomplete" },
@@ -370,6 +381,9 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const [showRetakeSubmitConfirm, setShowRetakeSubmitConfirm] = useState(false);
   const [showAcknowledgeConfirm, setShowAcknowledgeConfirm] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockReasonCode, setUnlockReasonCode] = useState<SelfAssessmentUnlockReasonCode | ''>('');
+  const [unlockReasonText, setUnlockReasonText] = useState('');
   const [disputeCategory, setDisputeCategory] = useState('');
   const [disputeReason, setDisputeReason] = useState('');
   const [hasPadDrawing, setHasPadDrawing] = useState(false);
@@ -403,6 +417,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
   const [employeeAcknowledge, { isLoading: isAcknowledging }] = useEmployeeAcknowledgeMutation();
   const [employeeDispute, { isLoading: isDisputing }] = useEmployeeDisputeMutation();
   const [employeeRetakeSubmit, { isLoading: isSubmittingRetake }] = useEmployeeRetakeSubmitMutation();
+  const [requestUnlock, { isLoading: isRequestingUnlock }] = useRequestSelfAssessmentUnlockMutation();
 
   const form = useForm<AnswerFormData>({
     defaultValues: {
@@ -425,6 +440,8 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 
   const isRetakeMode = formData?.status === 'PENDING_EMPLOYEE_RETAKE';
   const isReadOnly = formData?.status !== 'DRAFT' && formData?.status !== 'REOPENED' && !isRetakeMode;
+  const pendingUnlockRequest = formData?.pendingUnlockRequest ?? null;
+  const canAskHrToUnlock = formData?.status === 'PENDING_MANAGER_REVIEW';
   const deadlineBlocksDraftWork = Boolean(
     formStatus?.deadlinePassed
       && (formStatus?.status === 'DRAFT' || formStatus?.status === 'NOT_SUBMITTED'),
@@ -633,7 +650,31 @@ export const MySelfAssessmentFormPage: React.FC = () => {
 	    } catch (error: any) {
 	      toast.error(error?.data?.message || 'Failed to submit retake');
 	    }
-	  };
+		  };
+
+  const onRequestUnlock = async () => {
+    if (!formData?.id || !unlockReasonCode) return;
+    if (unlockReasonCode === 'OTHER' && !unlockReasonText.trim()) {
+      toast.error('Please explain the unlock reason');
+      return;
+    }
+    try {
+      await requestUnlock({
+        formId: formData.id,
+        request: {
+          reasonCode: unlockReasonCode,
+          reasonText: unlockReasonCode === 'OTHER' ? unlockReasonText.trim() : null,
+        },
+      }).unwrap();
+      toast.success('Unlock request sent to HR');
+      setShowUnlockModal(false);
+      setUnlockReasonCode('');
+      setUnlockReasonText('');
+      refetch();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to request unlock');
+    }
+  };
 
   const onAcknowledge = async () => {
     if (!formData?.id) return;
@@ -835,6 +876,35 @@ export const MySelfAssessmentFormPage: React.FC = () => {
       )}
 
       {/* ───── Pending Employee Review Panel ───── */}
+      {canAskHrToUnlock && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-indigo-200 bg-indigo-50/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-indigo-800/60 dark:bg-indigo-900/20">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+              <KeyRound size={16} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-indigo-950 dark:text-indigo-100">
+                {pendingUnlockRequest ? 'Unlock request pending' : 'Need to edit after submission?'}
+              </p>
+              <p className="mt-0.5 text-xs text-indigo-800 dark:text-indigo-300/90">
+                {pendingUnlockRequest
+                  ? 'HR has your request and will unlock or reject it.'
+                  : 'Ask HR to reopen this form before your manager review starts.'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={Boolean(pendingUnlockRequest)}
+            onClick={() => setShowUnlockModal(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <KeyRound size={15} />
+            Ask HR to Unlock
+          </button>
+        </div>
+      )}
+
       {false && formData?.status === 'PENDING_EMPLOYEE_REVIEW' && (
         <div className="overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/40 shadow-sm dark:border-amber-800/60 dark:from-amber-900/20 dark:to-orange-900/10">
           <div className="flex items-center gap-3 border-b border-amber-200/70 bg-amber-100/60 px-5 py-3.5 dark:border-amber-800/50 dark:bg-amber-900/30">
@@ -1259,6 +1329,85 @@ export const MySelfAssessmentFormPage: React.FC = () => {
           </div>
         )}
       </form>
+
+      {showUnlockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300">
+                  <KeyRound size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
+                    Ask HR to Unlock
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">HR will review this request</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowUnlockModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Reason <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={unlockReasonCode}
+                  onChange={(e) => {
+                    const value = e.target.value as SelfAssessmentUnlockReasonCode | '';
+                    setUnlockReasonCode(value);
+                    if (value !== 'OTHER') setUnlockReasonText('');
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-100/60 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white"
+                >
+                  <option value="">Select a reason...</option>
+                  {UNLOCK_REASON_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {unlockReasonCode === 'OTHER' && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Details <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    value={unlockReasonText}
+                    onChange={(e) => setUnlockReasonText(e.target.value)}
+                    rows={4}
+                    placeholder="Explain what needs to be corrected..."
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-100/60 dark:border-slate-600 dark:bg-slate-900/40 dark:text-white dark:placeholder-slate-500"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4 dark:border-slate-700 dark:bg-slate-900/40">
+              <button
+                onClick={() => setShowUnlockModal(false)}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onRequestUnlock}
+                disabled={isRequestingUnlock || !unlockReasonCode || (unlockReasonCode === 'OTHER' && !unlockReasonText.trim())}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-indigo-700 disabled:opacity-50"
+              >
+                <KeyRound size={15} />
+                {isRequestingUnlock ? 'Sending...' : 'Send Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ───── Dispute Modal ───── */}
       {showDisputeModal && (

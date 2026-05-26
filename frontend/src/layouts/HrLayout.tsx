@@ -101,6 +101,7 @@ const HrLayout: React.FC = () => {
       subItems: [
         { label: 'Management', path: '/hr/appraisals', icon: <LayoutDashboard size={16} /> },
         { label: 'Review Submissions', path: '/hr/appraisals/submissions', icon: <Inbox size={16} /> },
+        { label: 'History', path: '/hr/appraisals/history', icon: <History size={16} /> },
       ],
     },
     {
@@ -134,6 +135,7 @@ const HrLayout: React.FC = () => {
         { label: 'Assignments', path: '/hr/self-assessment/assignments', icon: <ClipboardList size={16} /> },
         { label: 'Assigned Forms', path: '/hr/self-assessment/forms', icon: <Inbox size={16} /> },
         { label: 'Review Submissions', path: '/hr/self-assessment/review-queue', icon: <ListChecks size={16} /> },
+        { label: 'Unlock Requests', path: '/hr/self-assessment/unlock-requests', icon: <RefreshCcw size={16} /> },
         { label: 'History', path: '/hr/self-assessment/history', icon: <History size={16} /> },
         { label: 'Audit Logs', path: '/hr/self-assessment/audit-logs', icon: <ClipboardList size={16} /> },
       ],

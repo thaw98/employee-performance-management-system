@@ -74,7 +74,15 @@ const ManagerLayout: React.FC = () => {
       onMouseEnter: () => prefetchPips(),
       onFocus: () => prefetchPips(),
     },
-    { label: 'Appraisals', path: '/manager/appraisals', icon: <Award size={18} /> },
+    {
+      label: 'Appraisals',
+      path: '/manager/appraisals',
+      icon: <Award size={18} />,
+      subItems: [
+        { label: 'Team Appraisals', path: '/manager/appraisals', icon: <ClipboardList size={16} /> },
+        { label: 'History', path: '/manager/appraisals/history', icon: <History size={16} /> },
+      ],
+    },
     {
       label: 'Self-Assessment',
       path: authUser?.roleId === 2
