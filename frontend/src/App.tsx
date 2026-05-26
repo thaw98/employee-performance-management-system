@@ -332,6 +332,13 @@ function App() {
             <Route path="departments/:departmentId/employees" element={<DepartmentEmployeeListPage />} />
             <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
             <Route path="level-codes" element={<LevelCodeListPage />} />
+            <Route path="kpi-assigned" element={<KpiAssignedPage />} />
+            <Route path="kpi-history" element={<KpiHistoryPage />} />
+            <Route path="kpi-detail" element={<KpiDetailPage />} />
+            <Route path="department-kpi-detail" element={<DepartmentKpiDetailPage />} />
+            <Route path="position-kpi-detail" element={<PositionKpiDetailPage />} />
+            <Route path="appraisals/history" element={<AppraisalHistoryPage mode="hr" readOnly />} />
+            <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
             <Route path="security-analytics" element={<SecurityAnalytics />} />

@@ -7,6 +7,11 @@ import {
     Users,
     Building2,
     Layers,
+    Target,
+    ListChecks,
+    History,
+    Award,
+    RefreshCcw,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -25,6 +30,33 @@ const AuditLayout: React.FC = () => {
         { label: 'Employee List', path: '/audit/employees', icon: <Users size={18} /> },
         { label: 'Department', path: '/audit/departments', icon: <Building2 size={18} /> },
         { label: 'Level Codes', path: '/audit/level-codes', icon: <Layers size={18} /> },
+        {
+            label: 'KPI',
+            path: '/audit/kpi-assigned',
+            icon: <Target size={18} />,
+            isActive: (pathname) =>
+                pathname === '/audit/kpi-assigned'
+                || pathname === '/audit/kpi-history'
+                || pathname.startsWith('/audit/kpi-detail')
+                || pathname.startsWith('/audit/department-kpi-detail')
+                || pathname.startsWith('/audit/position-kpi-detail'),
+            subItems: [
+                { label: 'Assigned List', path: '/audit/kpi-assigned', icon: <ListChecks size={16} /> },
+                { label: 'History', path: '/audit/kpi-history', icon: <History size={16} /> },
+            ],
+        },
+        {
+            label: 'Appraisals',
+            path: '/audit/appraisals',
+            icon: <Award size={18} />,
+            subItems: [{ label: 'History', path: '/audit/appraisals/history', icon: <History size={16} /> }],
+        },
+        {
+            label: '360 Feedback',
+            path: '/audit/360-feedback/history',
+            icon: <RefreshCcw size={18} />,
+            subItems: [{ label: 'Feedback History', path: '/audit/360-feedback/history', icon: <History size={16} /> }],
+        },
         { label: 'Activity Monitor', path: '/audit/activity-monitor', icon: <Activity size={18} /> },
         { label: 'Security Analytics', path: '/audit/security-analytics', icon: <TrendingUp size={18} /> },
     ];

@@ -12,10 +12,12 @@ import {
 import { useGetEmployeeByIdQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { toast } from 'react-hot-toast';
 import { withGenderTitle } from '../../utils/personName';
+import { useKpiViewContext } from '../../hooks/useKpiViewContext';
 
 export const KpiDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { isViewOnly } = useKpiViewContext();
   const employeeId = searchParams.get('employeeId');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -93,13 +95,15 @@ export const KpiDetailPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsEditModalOpen(true)}
-            disabled={!kpis || kpis.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-200 uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <FileEdit size={16} /> Update Actuals
-          </button>
+          {!isViewOnly && (
+            <button
+              onClick={() => setIsEditModalOpen(true)}
+              disabled={!kpis || kpis.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-200 uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FileEdit size={16} /> Update Actuals
+            </button>
+          )}
 
           <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
             <Calendar size={18} className="text-slate-400" />
@@ -274,7 +278,7 @@ export const KpiDetailPage: React.FC = () => {
           </div>
         </div>
       )}
-      {isEditModalOpen && employee && kpis && (
+      {!isViewOnly && isEditModalOpen && employee && kpis && (
         <KpiEditModal 
           employee={employee} 
           kpis={kpis} 
