@@ -62,7 +62,36 @@ export const auditApi = baseApi.injectEndpoints({
       transformResponse: (response: { success: boolean; data: AuditSummary }) => response.data,
       providesTags: ['AuditLog'],
     }),
+    getActivityEvents: builder.query<AuditLog[], void>({
+      query: () => '/audit/activity/events',
+      transformResponse: (response: { success: boolean; data: AuditLog[] }) => response.data,
+      providesTags: ['AuditLog'],
+    }),
+    getActivitySessions: builder.query<any[], void>({
+      query: () => '/audit/activity/sessions',
+      transformResponse: (response: { success: boolean; data: any[] }) => response.data,
+    }),
+    getActivityHealth: builder.query<any, void>({
+      query: () => '/audit/activity/health',
+      transformResponse: (response: { success: boolean; data: any }) => response.data,
+    }),
+    getActivitySecurityAlerts: builder.query<any[], void>({
+      query: () => '/audit/activity/security-alerts',
+      transformResponse: (response: { success: boolean; data: any[] }) => response.data,
+    }),
+    getActivityResources: builder.query<any[], void>({
+      query: () => '/audit/activity/resources',
+      transformResponse: (response: { success: boolean; data: any[] }) => response.data,
+    }),
   }),
 });
 
-export const { useGetAuditLogsQuery, useGetAuditSummaryQuery } = auditApi;
+export const {
+  useGetAuditLogsQuery,
+  useGetAuditSummaryQuery,
+  useGetActivityEventsQuery,
+  useGetActivitySessionsQuery,
+  useGetActivityHealthQuery,
+  useGetActivitySecurityAlertsQuery,
+  useGetActivityResourcesQuery
+} = auditApi;

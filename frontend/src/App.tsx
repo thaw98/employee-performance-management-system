@@ -21,6 +21,7 @@ import AuditLayout from './layouts/AuditLayout';
 import { AuditDashboard } from './pages/audit/AuditDashboard';
 import { AuditLogsPage } from './pages/audit/AuditLogsPage';
 import { AuditActivityPage } from './pages/audit/AuditActivityPage';
+import { SecurityAnalytics } from './pages/audit/SecurityAnalytics';
 
 // Dashboard Pages - Using the correct file names from your project
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
@@ -323,10 +324,8 @@ function App() {
             <Route index element={<Navigate to="/audit/dashboard" replace />} />
             <Route path="dashboard" element={<AuditDashboard />} />
             <Route path="logs" element={<AuditLogsPage />} />
-            <Route path="activity" element={<AuditActivityPage />} />
-            <Route path="reports" element={<div className="p-8 text-center">Compliance Reports - Coming Soon</div>} />
-            <Route path="analytics" element={<div className="p-8 text-center">Security Analytics - Coming Soon</div>} />
-            <Route path="threats" element={<div className="p-8 text-center">Threat Detection - Coming Soon</div>} />
+            <Route path="activity-monitor" element={<AuditActivityPage />} />
+            <Route path="security-analytics" element={<SecurityAnalytics />} />
             <Route path="*" element={<Navigate to="/audit/dashboard" replace />} />
           </Route>
         </Route>
