@@ -207,10 +207,11 @@ export default function PipDetailPage() {
   const isAverageProgressComplete = Number(pip.overallProgressPercentage) >= 100
   const canManualClose = isDirectManager && pip.status === 'ACTIVE'
   const canMarkCompleted = isDirectManager && pip.status === 'CLOSED' && isAverageProgressComplete
+  const isApprovedReopenedPip = pip.reopenDecision === 'APPROVED'
   const canEmployeeSign = isEmployee
     && pip.status === 'AUTO_CLOSED'
     && !pip.finalOutcome
-    && !pip.reopenReason
+    && (!pip.reopenReason || isApprovedReopenedPip)
     && !pip.employeeSignatureDate
   const canEmployeeRequestReopen = isEmployee
     && pip.status === 'AUTO_CLOSED'
