@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams } from 'react-router-dom'
+import { useAppSelector } from '../../../app/hooks'
 import {
   flexRender,
   getCoreRowModel,
@@ -48,6 +49,10 @@ import {
 const isActive = (status: unknown) => String(status ?? '').trim().toLowerCase() === 'active'
 
 export default function DepartmentDetailPage() {
+  const user = useAppSelector((s) => s.auth.user)
+  const isAudit = user?.roleId === 5
+  const departmentsBasePath = isAudit ? '/audit/departments' : '/hr/departments'
+
   const { departmentId: departmentIdParam } = useParams()
   const departmentId = Number(departmentIdParam)
   const isValidDepartmentId = Number.isFinite(departmentId) && departmentId > 0
@@ -90,59 +95,66 @@ export default function DepartmentDetailPage() {
   }
 
   const columns = useMemo<ColumnDef<DepartmentPositionMappingDto>[]>(
-    () => [
-      {
-        id: 'rowNumber',
-        enableSorting: false,
-        header: '#',
-        cell: (info) => (
-          <span className="text-slate-400 font-medium text-xs tabular-nums">
-            {info.row.index + 1}
-          </span>
-        ),
-      },
-      {
-        accessorKey: 'positionCode',
-        header: 'Position Code',
-        cell: (info) => (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-[#eff6ff] border border-[#dbeafe] font-mono font-semibold text-[#1d4ed8] text-xs tracking-wide">
-            {String(info.getValue() ?? '').trim() || '-'}
-          </span>
-        ),
-      },
-      {
-        accessorKey: 'positionName',
-        header: 'Position Name',
-        cell: (info) => (
-          <div className="flex items-center gap-2.5">
-            <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${departmentsGradientBr} flex items-center justify-center shadow-sm`}>
-              <BriefcaseBusiness size={14} className="text-white" />
+    () => {
+      const cols: ColumnDef<DepartmentPositionMappingDto>[] = [
+        {
+          id: 'rowNumber',
+          enableSorting: false,
+          header: '#',
+          cell: (info) => (
+            <span className="text-slate-400 font-medium text-xs tabular-nums">
+              {info.row.index + 1}
+            </span>
+          ),
+        },
+        {
+          accessorKey: 'positionCode',
+          header: 'Position Code',
+          cell: (info) => (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-[#eff6ff] border border-[#dbeafe] font-mono font-semibold text-[#1d4ed8] text-xs tracking-wide">
+              {String(info.getValue() ?? '').trim() || '-'}
+            </span>
+          ),
+        },
+        {
+          accessorKey: 'positionName',
+          header: 'Position Name',
+          cell: (info) => (
+            <div className="flex items-center gap-2.5">
+              <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${departmentsGradientBr} flex items-center justify-center shadow-sm`}>
+                <BriefcaseBusiness size={14} className="text-white" />
+              </div>
+              <span className="font-semibold text-slate-800 text-sm">{info.getValue() as string}</span>
             </div>
-            <span className="font-semibold text-slate-800 text-sm">{info.getValue() as string}</span>
-          </div>
-        ),
-      },
-      {
-        id: 'actions',
-        enableSorting: false,
-        header: 'Actions',
-        cell: (info) => (
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedMapping(info.row.original)
-              setIsRemoveOpen(true)
-            }}
-            className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-100 hover:border-rose-600 transition-all duration-200"
-            title="Remove Position"
-          >
-            <Trash2 size={13} />
-            Remove
-          </button>
-        ),
-      },
-    ],
-    []
+          ),
+        },
+      ]
+
+      if (!isAudit) {
+        cols.push({
+          id: 'actions',
+          enableSorting: false,
+          header: 'Actions',
+          cell: (info) => (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMapping(info.row.original)
+                setIsRemoveOpen(true)
+              }}
+              className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-100 hover:border-rose-600 transition-all duration-200"
+              title="Remove Position"
+            >
+              <Trash2 size={13} />
+              Remove
+            </button>
+          ),
+        })
+      }
+
+      return cols
+    },
+    [isAudit]
   )
 
   const table = useReactTable({
@@ -158,7 +170,7 @@ export default function DepartmentDetailPage() {
   })
 
   if (!isValidDepartmentId) {
-    return <Navigate to="/hr/departments" replace />
+    return <Navigate to={departmentsBasePath} replace />
   }
 
   const getSortIcon = (isSorted: false | 'asc' | 'desc') => {
@@ -253,18 +265,32 @@ export default function DepartmentDetailPage() {
                 <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-1.5">
                   {isDepartmentLoading ? 'Loading...' : department?.departmentName}
                 </h1>
-                <p className="text-[#dbeafe] text-base">Manage positions and organizational structure</p>
+                <p className="text-[#dbeafe] text-base">
+                  {isAudit
+                    ? 'View positions in this department (read-only).'
+                    : 'Manage positions and organizational structure'}
+                </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setIsAddOpen(true)}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#2463eb] rounded-xl font-bold text-sm shadow-2xl hover:bg-[#eff6ff] active:scale-95 transition-all"
-              >
-                <Plus size={18} />
-                Add Position
-              </button>
+              {isAudit ? (
+                <Link
+                  to={departmentsBasePath}
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-white/15 text-white border border-white/25 rounded-xl font-bold text-sm hover:bg-white/25 transition-all"
+                >
+                  <ChevronLeft size={18} />
+                  Back to Departments
+                </Link>
+              ) : (
+                <button
+                  onClick={() => setIsAddOpen(true)}
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#2463eb] rounded-xl font-bold text-sm shadow-2xl hover:bg-[#eff6ff] active:scale-95 transition-all"
+                >
+                  <Plus size={18} />
+                  Add Position
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -466,25 +492,29 @@ export default function DepartmentDetailPage() {
         </div>
       </div>
 
-      <AddPositionToDepartmentDrawer
-        isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
-        departmentId={departmentId}
-        existingPositionIds={existingPositionIds}
-        onSuccess={() => {
-          void refetchPositions()
-        }}
-      />
-      <ConfirmActionModal
-        isOpen={isRemoveOpen}
-        onClose={() => setIsRemoveOpen(false)}
-        onConfirm={handleRemove}
-        title="Remove Position"
-        message={`Remove "${selectedMapping?.positionName}" from this department? This action cannot be undone.`}
-        confirmText="Remove"
-        variant="danger"
-        isLoading={isRemoving}
-      />
+      {!isAudit && (
+        <>
+          <AddPositionToDepartmentDrawer
+            isOpen={isAddOpen}
+            onClose={() => setIsAddOpen(false)}
+            departmentId={departmentId}
+            existingPositionIds={existingPositionIds}
+            onSuccess={() => {
+              void refetchPositions()
+            }}
+          />
+          <ConfirmActionModal
+            isOpen={isRemoveOpen}
+            onClose={() => setIsRemoveOpen(false)}
+            onConfirm={handleRemove}
+            title="Remove Position"
+            message={`Remove "${selectedMapping?.positionName}" from this department? This action cannot be undone.`}
+            confirmText="Remove"
+            variant="danger"
+            isLoading={isRemoving}
+          />
+        </>
+      )}
     </div>
   )
 }

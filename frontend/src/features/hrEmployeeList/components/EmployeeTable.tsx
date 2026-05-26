@@ -25,6 +25,7 @@ interface EmployeeTableProps {
   sorting: SortingState
   setSorting: OnChangeFn<SortingState>
   isHR?: boolean
+  showEmailColumn?: boolean
 }
 
 function EmployeeTable({
@@ -39,7 +40,9 @@ function EmployeeTable({
   sorting,
   setSorting,
   isHR = true,
+  showEmailColumn,
 }: EmployeeTableProps) {
+  const displayEmailColumn = showEmailColumn ?? isHR
   const columns = useMemo<ColumnDef<EmployeeListItem>[]>(
     () => {
       const baseColumns: ColumnDef<EmployeeListItem>[] = [
@@ -106,7 +109,7 @@ function EmployeeTable({
       },
       ]
 
-      if (isHR) {
+      if (displayEmailColumn) {
         baseColumns.push({
           accessorKey: 'email',
           header: 'Email',
@@ -198,7 +201,7 @@ function EmployeeTable({
 
       return baseColumns
     },
-    [isHR, onView, onEdit, onTransfer, onReturn, onResendPassword, onChangeStatus]
+    [displayEmailColumn, isHR, onView, onEdit, onTransfer, onReturn, onResendPassword, onChangeStatus]
   )
 
   const table = useReactTable({

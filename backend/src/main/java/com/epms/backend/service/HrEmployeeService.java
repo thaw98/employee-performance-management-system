@@ -87,6 +87,7 @@ public class HrEmployeeService {
     private static final int TEMP_PASSWORD_LENGTH = 8;
     private static final long ROLE_HR = 1L;
     private static final long ROLE_DEPARTMENT_MANAGER = 2L;
+    private static final long ROLE_AUDIT = 5L;
 
     @Transactional(readOnly = true)
     public EmployeeListResponseDto getEmployeesForCurrentUser(int page, int size, String search, Long departmentId, Long positionId, String employmentStatus, String sortBy, String sortDir, UserPrincipal principal) {
@@ -839,7 +840,9 @@ public class HrEmployeeService {
 
     private void validateCanAccessEmployeeList(UserPrincipal principal) {
         if (principal == null || principal.getRoleId() == null
-                || (principal.getRoleId() != ROLE_HR && principal.getRoleId() != ROLE_DEPARTMENT_MANAGER)) {
+                || (principal.getRoleId() != ROLE_HR
+                        && principal.getRoleId() != ROLE_DEPARTMENT_MANAGER
+                        && principal.getRoleId() != ROLE_AUDIT)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not allowed to access employee records");
         }
     }

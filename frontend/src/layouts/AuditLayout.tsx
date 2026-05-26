@@ -2,11 +2,10 @@
 import React from 'react';
 import {
     LayoutDashboard,
-    List,
     Activity,
-    FileText,
     TrendingUp,
-    AlertTriangle,
+    Users,
+    Building2,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -22,6 +21,8 @@ const AuditLayout: React.FC = () => {
 
     const menuItems: DashMenuItem[] = [
         { label: 'Dashboard', path: '/audit/dashboard', icon: <LayoutDashboard size={18} /> },
+        { label: 'Employee List', path: '/audit/employees', icon: <Users size={18} /> },
+        { label: 'Department', path: '/audit/departments', icon: <Building2 size={18} /> },
         { label: 'Activity Monitor', path: '/audit/activity-monitor', icon: <Activity size={18} /> },
         { label: 'Security Analytics', path: '/audit/security-analytics', icon: <TrendingUp size={18} /> },
     ];
