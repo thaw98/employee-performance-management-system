@@ -21,8 +21,8 @@ import {
 } from '../../../features/pip/pipApi'
 import {
   downloadIndividualPipReport,
-  downloadPipProgressReport,
-  downloadPipSummaryReport,
+  downloadPipProgressReportExport,
+  downloadPipSummaryReportExport,
   type PipReportFormat,
 } from '../../../features/pip/pipReportApi'
 import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
@@ -146,14 +146,26 @@ export default function PipReportPage() {
   })
 
   const positionOptions = useMemo(() => {
-    return (positionsResponse?.data ?? [])
+    const departmentPositions = (positionsResponse?.data ?? [])
       .filter((position) => typeof position.positionId === 'number')
       .map((position) => ({
         id: position.positionId,
         name: position.positionName || 'Unnamed Position',
       }))
+
+    if (departmentPositions.length > 0) {
+      return departmentPositions.sort((a, b) => a.name.localeCompare(b.name))
+    }
+
+    return pips
+      .map((pip) => ({
+        id: pip.employee.employee?.positionId ?? undefined,
+        name: pip.employee.employee?.positionName || pip.employee.employee?.position?.positionName || 'Unnamed Position',
+      }))
+      .filter((position): position is { id: number; name: string } => typeof position.id === 'number')
+      .filter((position, index, all) => all.findIndex((item) => item.id === position.id) === index)
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [positionsResponse])
+  }, [pips, positionsResponse])
 
   const employeeOptions = useMemo(() => {
     return pips
@@ -188,11 +200,12 @@ export default function PipReportPage() {
   const handleDownloadSummaryReport = async (format: PipReportFormat) => {
     try {
       setReportDownload(`summary-${format}`)
-      await downloadPipSummaryReport(
+      await downloadPipSummaryReportExport(
         {
           ...reportFilters,
         },
         format,
+        `pip-summary-report-manager-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`
       )
     } catch (error: any) {
       console.error('Failed to download summary report:', error)
@@ -205,9 +218,10 @@ export default function PipReportPage() {
   const handleDownloadProgressReport = async (format: PipReportFormat) => {
     try {
       setReportDownload(`progress-${format}`)
-      await downloadPipProgressReport(
+      await downloadPipProgressReportExport(
         reportFilters,
-        format
+        format,
+        `pip-progress-report-manager-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`
       )
     } catch (error: any) {
       console.error('Failed to download progress report:', error)

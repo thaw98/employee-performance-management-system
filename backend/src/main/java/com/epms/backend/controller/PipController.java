@@ -182,6 +182,16 @@ public class PipController {
         return ResponseEntity.ok(ApiResponse.ok("PIP closed successfully", pip));
     }
 
+    @PutMapping("/{id}/manual-close")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<Pip>> manualClosePip(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        Pip pip = pipService.manualClosePip(id, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP manually closed successfully", pip));
+    }
+
     @PatchMapping("/{id}/completed")
     @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
     public ResponseEntity<ApiResponse<Pip>> markPipCompleted(

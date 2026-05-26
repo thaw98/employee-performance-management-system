@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { PipCommunicationNote } from '../pipApi'
+import { useMemo, useState } from 'react'
+import type { FollowUpMeeting, PipCommunicationNote } from '../pipApi'
 import {
   useAddPipNoteMutation,
   useDeletePipNoteMutation,
@@ -16,12 +16,13 @@ type PipCommunicationNotesProps = {
   canAdd: boolean
   currentUserId?: number
   isHr?: boolean
+  followUpMeetings?: FollowUpMeeting[]
   onError?: (message: string) => void
 }
 
 const NOTE_SECTIONS: Array<{ type: PipNoteType; label: string; emptyLabel: string }> = [
   { type: 'COMMUNICATION', label: 'Communication', emptyLabel: 'No communication notes yet.' },
-  { type: 'FOLLOWUP', label: 'Followup', emptyLabel: 'No followup notes yet.' },
+  { type: 'FOLLOWUP', label: 'Follow-up', emptyLabel: 'No follow-up notes yet.' },
 ]
 
 const INITIAL_SIZE = 4
@@ -41,6 +42,7 @@ export function PipCommunicationNotes({
   canAdd,
   currentUserId,
   isHr = false,
+  followUpMeetings = [],
   onError,
 }: PipCommunicationNotesProps) {
   const [visibleSizes, setVisibleSizes] = useState<Record<PipNoteType, number>>({
@@ -77,8 +79,23 @@ export function PipCommunicationNotes({
   const [addPipNote, { isLoading: isAdding }] = useAddPipNoteMutation()
   const [deletePipNote, { isLoading: isDeleting }] = useDeletePipNoteMutation()
   const [updatePipNote, { isLoading: isUpdating }] = useUpdatePipNoteMutation()
+  const isFollowUpWindowOpen = useMemo(() => {
+    const now = Date.now()
+    return followUpMeetings.some((meeting) => {
+      const startValue = meeting.startMeetingTime || meeting.meetingTime
+      const endValue = meeting.endMeetingTime
+      if (!startValue || !endValue) return false
+      const start = new Date(startValue).getTime()
+      const end = new Date(endValue).getTime()
+      return Number.isFinite(start) && Number.isFinite(end) && now >= start && now <= end
+    })
+  }, [followUpMeetings])
 
   const openAddModal = (noteType: PipNoteType) => {
+    if (noteType === 'FOLLOWUP' && !isFollowUpWindowOpen) {
+      onError?.('Follow-up notes can only be added during a scheduled follow-up meeting time.')
+      return
+    }
     setSelectedNoteType(noteType)
     setShowModal(true)
   }
@@ -87,6 +104,10 @@ export function PipCommunicationNotes({
     const trimmedContent = content.trim()
     if (!trimmedContent) {
       onError?.('Note content is required.')
+      return
+    }
+    if (selectedNoteType === 'FOLLOWUP' && !isFollowUpWindowOpen) {
+      onError?.('Follow-up notes can only be added during a scheduled follow-up meeting time.')
       return
     }
 
@@ -127,6 +148,10 @@ export function PipCommunicationNotes({
       onError?.('Note content is required.')
       return
     }
+    if (note.noteType === 'FOLLOWUP' && !isFollowUpWindowOpen) {
+      onError?.('Follow-up notes can only be edited during a scheduled follow-up meeting time.')
+      return
+    }
 
     try {
       await updatePipNote({ noteId: note.id, pipId, content: trimmedContent }).unwrap()
@@ -141,17 +166,31 @@ export function PipCommunicationNotes({
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-900">PIP Notes</h2>
-          <p className="mt-1 text-xs font-medium text-slate-400">{pipStatus.replace(/_/g, ' ')}</p>
+          <p className="mt-1 text-xs font-medium text-slate-400">
+            {pipStatus.replace(/_/g, ' ')}
+            {!isFollowUpWindowOpen && ' - follow-up notes open only during scheduled meeting time'}
+          </p>
         </div>
         {canAdd && (
-          <button
-            type="button"
-            onClick={() => openAddModal('COMMUNICATION')}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
-          >
-            <i className="bi bi-plus-lg" />
-            Add Note
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => openAddModal('COMMUNICATION')}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2463eb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]"
+            >
+              <i className="bi bi-plus-lg" />
+              Add Note
+            </button>
+            <button
+              type="button"
+              onClick={() => openAddModal('FOLLOWUP')}
+              disabled={!isFollowUpWindowOpen}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              <i className="bi bi-clock-history" />
+              Add Follow-up Note
+            </button>
+          </div>
         )}
       </div>
 
@@ -291,8 +330,9 @@ export function PipCommunicationNotes({
                 <button
                   key={section.type}
                   type="button"
+                  disabled={section.type === 'FOLLOWUP' && !isFollowUpWindowOpen}
                   onClick={() => setSelectedNoteType(section.type)}
-                  className={`rounded-md px-3 py-1.5 text-xs font-semibold ${selectedNoteType === section.type ? 'bg-white text-[#1d4ed8] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:text-slate-300 ${selectedNoteType === section.type ? 'bg-white text-[#1d4ed8] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   {section.label}
                 </button>

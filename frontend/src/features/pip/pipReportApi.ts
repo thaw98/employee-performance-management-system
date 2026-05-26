@@ -61,11 +61,11 @@ async function downloadPipReport(url: string, params: Record<string, string | nu
   }
 }
 
-export function downloadIndividualPipReport(pipId: number, format: PipReportFormat) {
+export function downloadIndividualPipReport(pipId: number, format: PipReportFormat, fallbackName?: string) {
   return downloadPipReport(
     `/reports/pips/${pipId}`,
     { format },
-    `pip-${pipId}-report.${getReportExtension(format)}`,
+    fallbackName ?? `pip-${pipId}-report.${getReportExtension(format)}`,
   )
 }
 

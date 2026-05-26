@@ -280,21 +280,22 @@ public class PipReportService {
             CellStyle headerStyle,
             CellStyle textStyle) {
         Sheet sheet = workbook.createSheet("Follow-up Meetings");
-        int rowIndex = writeTitle(sheet, 0, "Follow-up Meetings", 5, titleStyle) + 1;
-        rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Meeting ID", "Scheduled Date", "Meeting Time",
-                "Status", "Notes");
+        int rowIndex = writeTitle(sheet, 0, "Follow-up Meetings", 7, titleStyle) + 1;
+        rowIndex = writeHeader(sheet, rowIndex, headerStyle, "Meeting ID", "Scheduled Date", "Start Meeting Time",
+                "End Meeting Time", "Total Hours", "Status", "Notes");
         List<PipIndividualReportDto.MeetingRow> meetings = safeList(report.getMeetings());
         if (meetings.isEmpty()) {
-            writeEmptyRow(sheet, rowIndex++, textStyle, 5, "No follow-up meetings recorded.");
+            writeEmptyRow(sheet, rowIndex++, textStyle, 7, "No follow-up meetings recorded.");
         }
         for (PipIndividualReportDto.MeetingRow meeting : meetings) {
             writeRow(sheet, rowIndex++, textStyle,
                     meeting.getMeetingId(), formatExcelDate(meeting.getScheduledDate()),
                     formatExcelDateTime(meeting.getMeetingTime()),
-                    meeting.getStatus(), meeting.getNotes());
+                    formatExcelDateTime(meeting.getEndMeetingTime()),
+                    meeting.getTotalHours(), meeting.getStatus(), meeting.getNotes());
         }
         sheet.createFreezePane(0, 2);
-        autosize(sheet, 5);
+        autosize(sheet, 7);
     }
 
     private void writeProgressUpdatesSheet(
@@ -755,6 +756,8 @@ public class PipReportService {
                 meeting.getId(),
                 meeting.getScheduledDate(),
                 meeting.getMeetingTime(),
+                meeting.getEndMeetingTime(),
+                meeting.getTotalHours(),
                 defaultText(meeting.getStatus()),
                 defaultText(meeting.getNotes()));
     }
@@ -787,7 +790,9 @@ public class PipReportService {
             return "No follow-up meetings recorded.";
         }
         return meetings.stream()
-                .map(row -> "- " + formatExcelDateTime(row.getMeetingTime()) + " | " + row.getStatus() + " | "
+                .map(row -> "- " + formatExcelDateTime(row.getMeetingTime()) + " to "
+                        + formatExcelDateTime(row.getEndMeetingTime()) + " | Total Hours: "
+                        + nullSafe(row.getTotalHours()) + " | " + row.getStatus() + " | "
                         + row.getNotes())
                 .collect(Collectors.joining("\n"));
     }
@@ -953,6 +958,10 @@ public class PipReportService {
     }
 
     private String nullSafe(Integer value) {
+        return value == null ? "0" : value.toString();
+    }
+
+    private String nullSafe(Double value) {
         return value == null ? "0" : value.toString();
     }
 

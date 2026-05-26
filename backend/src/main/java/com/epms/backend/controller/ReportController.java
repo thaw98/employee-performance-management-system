@@ -35,7 +35,7 @@ public class ReportController {
             @RequestParam(defaultValue = "pdf") String format) {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         byte[] bytes = pipReportService.generateIndividualPipReport(pipId, format, user);
-        return reportResponse(bytes, "pip_" + pipId + "_report", format);
+        return reportResponse(bytes, "pip_" + roleFilenamePart(user) + "_pip_" + pipId + "_report", format);
     }
 
     @GetMapping("/summary")
@@ -54,7 +54,7 @@ public class ReportController {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         byte[] bytes = pipReportService.generateSummaryReport(status, departmentId, positionId, employeeName,
                 employeeId, pipId, startDate, endDate, format, user);
-        return reportResponse(bytes, "pip_summary_report", format);
+        return reportResponse(bytes, "pip_summary_report_" + roleFilenamePart(user), format);
     }
 
     @GetMapping("/progress")
@@ -73,7 +73,7 @@ public class ReportController {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         byte[] bytes = pipReportService.generateProgressReport(status, departmentId, positionId, employeeName,
                 employeeId, pipId, startDate, endDate, format, user);
-        return reportResponse(bytes, "pip_progress_report", format);
+        return reportResponse(bytes, "pip_progress_report_" + roleFilenamePart(user), format);
     }
 
     @GetMapping("/summary/data")
@@ -133,5 +133,23 @@ public class ReportController {
                 .filename(basename + "_" + LocalDate.now() + "." + extension)
                 .build());
         return ResponseEntity.ok().headers(headers).body(bytes);
+    }
+
+    private String roleFilenamePart(User user) {
+        if (user == null || user.getRole() == null || user.getRole().getName() == null) {
+            return "user";
+        }
+        String role = user.getRole().getName().trim().toUpperCase().replace(" ", "_");
+        if ("HR".equals(role) || "ADMIN".equals(role) || "SUPER_ADMIN".equals(role)) {
+            return "hr";
+        }
+        if ("MANAGER".equals(role) || "DEPARTMENT_HEAD".equals(role) || "TEAM_HEAD".equals(role)
+                || role.contains("MANAGER")) {
+            return "manager";
+        }
+        if ("EMPLOYEE".equals(role)) {
+            return "employee";
+        }
+        return role.toLowerCase().replaceAll("[^a-z0-9]+", "_");
     }
 }

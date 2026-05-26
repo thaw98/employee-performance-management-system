@@ -222,7 +222,7 @@ export default function PipReportPage() {
       await downloadPipSummaryReportExport(
         reportFilters,
         format,
-        `pip-summary-report-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`
+        `pip-summary-report-hr-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`
       )
     } catch (error: any) {
       console.error('Failed to download summary report:', error)
@@ -238,7 +238,7 @@ export default function PipReportPage() {
       await downloadPipProgressReportExport(
         reportFilters,
         format,
-        `pip-progress-report-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`
+        `pip-progress-report-hr-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`
       )
     } catch (error: any) {
       console.error('Failed to download progress report:', error)
