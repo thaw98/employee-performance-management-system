@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, Download, FolderOpen } from 'lucide-react';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
+import { EmployeeAutocomplete } from '../../components/common/EmployeeAutocomplete';
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
@@ -444,18 +445,13 @@ export const KpiManagementPage: React.FC = () => {
           {mode === 'individual' ? (
             <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee</span>
-              <select
-                className="bg-transparent border-none text-sm font-bold text-slate-900 focus:ring-0 outline-none min-w-[200px]"
-                value={selectedEmployeeId || ''}
-                onChange={(e) => setSelectedEmployeeId(Number(e.target.value))}
-              >
-                <option value="">Select Employee</option>
-                {employees.map(emp => (
-                  <option key={emp.employeeId} value={emp.employeeId}>
-                    {emp.employeeName} ({emp.staffNo})
-                  </option>
-                ))}
-              </select>
+              <EmployeeAutocomplete
+                employees={employees}
+                value={selectedEmployeeId}
+                onChange={setSelectedEmployeeId}
+                placeholder="Search employee…"
+                variant="inline"
+              />
             </div>
           ) : (
             <>
