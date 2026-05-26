@@ -293,11 +293,11 @@ public class PerformanceReportService {
 
     private String determinePromotionEligibility(Double rating, boolean hasActivePip) {
         if (rating == null) return "No Data";
-        if (hasActivePip) return "Not Eligible";
-        if (rating >= 4.5) return "Strongly Recommended";
+        if (hasActivePip) return "Not eligible";
+        if (rating >= 4.5) return "Strongly recommended";
         if (rating >= 3.5) return "Eligible";
         if (rating >= 2.5) return "Possible";
-        return "Not Eligible";
+        return "Not eligible";
     }
 
     // ── Helpers ───────────────────────────────────────────────────────
