@@ -331,6 +331,7 @@ function App() {
             <Route path="departments" element={<DepartmentListPage />} />
             <Route path="departments/:departmentId/employees" element={<DepartmentEmployeeListPage />} />
             <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
+            <Route path="level-codes" element={<LevelCodeListPage />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
             <Route path="security-analytics" element={<SecurityAnalytics />} />

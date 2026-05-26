@@ -6,6 +6,7 @@ import {
     TrendingUp,
     Users,
     Building2,
+    Layers,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -23,6 +24,7 @@ const AuditLayout: React.FC = () => {
         { label: 'Dashboard', path: '/audit/dashboard', icon: <LayoutDashboard size={18} /> },
         { label: 'Employee List', path: '/audit/employees', icon: <Users size={18} /> },
         { label: 'Department', path: '/audit/departments', icon: <Building2 size={18} /> },
+        { label: 'Level Codes', path: '/audit/level-codes', icon: <Layers size={18} /> },
         { label: 'Activity Monitor', path: '/audit/activity-monitor', icon: <Activity size={18} /> },
         { label: 'Security Analytics', path: '/audit/security-analytics', icon: <TrendingUp size={18} /> },
     ];
