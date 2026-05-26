@@ -190,10 +190,10 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
       'Total Hours',
       'Completed Hours',
       'Progress %',
+      'Follow-Up Meetings',
       'Expected Improvements',
       'Reason for Plan',
       'Objectives',
-      'Follow-Up Meetings',
       'Employee Signed At',
       'Manager Signed At',
       'Reopen Reason',
@@ -223,10 +223,10 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
       pip.totalHours,
       pip.completedHours,
       pip.overallProgressPercentage,
+      getPipMeetingSummary(pip),
       pip.expectedImprovements || '',
       pip.reasonForPlan || '',
       getPipObjectiveSummary(pip),
-      getPipMeetingSummary(pip),
       formatDateTimeValue(pip.employeeSignatureDate ?? pip.employeeSignedAt),
       formatDateTimeValue(pip.managerSignatureDate ?? pip.managerSignedAt),
       pip.reopenReason || '',
@@ -267,6 +267,33 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
     ]),
   ],
 })
+
+const buildPipSummaryPdfRows = (pips: Pip[]) => [
+  [
+    'PIP',
+    'Employee',
+    'Department',
+    'Position',
+    'Manager',
+    'Duration',
+    'Hours',
+    'Progress',
+    'Follow-Up',
+    'Outcome',
+  ],
+  ...pips.map((pip) => [
+    `#${pip.id}`,
+    getPipEmployeeName(pip),
+    getPipDepartmentName(pip),
+    getPipPositionName(pip),
+    getPipManagerName(pip),
+    `${formatDateValue(pip.startDate)} - ${formatDateValue(pip.endDate)}`,
+    `${pip.completedHours ?? 0}/${pip.totalHours ?? 0}`,
+    `${pip.overallProgressPercentage ?? 0}%`,
+    getPipMeetingSummary(pip) || 'No follow-up meetings',
+    pip.finalOutcome || '-',
+  ]),
+]
 
 export default function PipMonitoringPage() {
   const { user } = useSelector((state: RootState) => state.auth)
@@ -491,9 +518,8 @@ export default function PipMonitoringPage() {
     if (exportTargetPips.length === 0) return
     try {
       setExportError(null)
-      const bundles = exportTargetPips.map((pip) => ({ pip, trainingHistory: [] }))
-      const rows = buildPipExportRows(bundles)
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' })
+      const summaryRows = buildPipSummaryPdfRows(exportTargetPips)
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(18)
       doc.text('PIP Monitoring Report', 36, 36)
@@ -508,53 +534,38 @@ export default function PipMonitoringPage() {
       doc.text(`Generated: ${formatDateTimeValue(new Date().toISOString())}`, 520, 70)
 
       autoTable(doc, {
-        head: [rows.details[0].map((heading) => String(heading))],
-        body: rows.details.slice(1).map((row) => row.map((cell) => String(cell || '-'))),
+        head: [summaryRows[0].map((heading) => String(heading))],
+        body: summaryRows.slice(1).map((row) => row.map((cell) => String(cell || '-'))),
         startY: 104,
         theme: 'grid',
         styles: {
-          fontSize: 6,
-          cellPadding: 3,
-          overflow: 'linebreak',
-          valign: 'top',
-        },
-        headStyles: {
-          fillColor: [15, 23, 42],
-          textColor: 255,
-          fontStyle: 'bold',
-        },
-        horizontalPageBreak: true,
-        horizontalPageBreakRepeat: 0,
-        margin: { top: 36, right: 24, bottom: 36, left: 24 },
-      })
-      doc.addPage('a3', 'landscape')
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(16)
-      doc.text('Follow-Up Meetings', 36, 36)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.text(`Source: ${selectedPip ? `PIP #${selectedPip.id}` : 'All matching PIPs'}`, 36, 54)
-      autoTable(doc, {
-        head: [rows.meetings[0].map((heading) => String(heading))],
-        body: rows.meetings.slice(1).map((row) => row.map((cell) => String(cell || '-'))),
-        startY: 72,
-        theme: 'grid',
-        styles: {
-          fontSize: 8,
+          fontSize: 7,
           cellPadding: 4,
           overflow: 'linebreak',
           valign: 'top',
         },
         columnStyles: {
-          5: { cellWidth: 520 },
+          8: { cellWidth: 180 },
         },
         headStyles: {
           fillColor: [15, 23, 42],
           textColor: 255,
           fontStyle: 'bold',
         },
-        margin: { top: 36, right: 36, bottom: 36, left: 36 },
+        margin: { top: 36, right: 24, bottom: 36, left: 24 },
       })
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      doc.text(`Total PIPs: ${exportTargetPips.length}`, 36, doc.internal.pageSize.getHeight() - 32)
+      const pageCount = doc.getNumberOfPages()
+      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+        doc.setPage(pageNumber)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.text(`Page ${pageNumber} of ${pageCount}`, doc.internal.pageSize.getWidth() - 36, doc.internal.pageSize.getHeight() - 18, {
+          align: 'right',
+        })
+      }
       doc.save(`${monitoringExportName}.pdf`)
     } catch (error) {
       console.error('[PIP Monitoring] Print failed:', error)
