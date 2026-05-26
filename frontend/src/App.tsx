@@ -63,6 +63,7 @@ import { KpiHistoryPage } from './pages/hr/KpiHistoryPage';
 import KpiReportsPage from './pages/hr/KpiReportsPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
 import DepartmentDetailPage from './pages/hr/departments/DepartmentDetailPage';
+import DepartmentEmployeeListPage from './pages/hr/departments/DepartmentEmployeeListPage';
 import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
 import PositionListPage from './features/position/pages/PositionListPage';
 import LevelCodeListPage from './features/levelCode/pages/LevelCodeListPage';
@@ -173,6 +174,7 @@ function App() {
             <Route path="employees" element={<EmployeeListPage />} />
             <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
             <Route path="departments" element={<DepartmentListPage />} />
+            <Route path="departments/:departmentId/employees" element={<DepartmentEmployeeListPage />} />
             <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
             <Route path="positions" element={<PositionListPage />} />
             <Route path="level-codes" element={<LevelCodeListPage />} />
@@ -325,6 +327,7 @@ function App() {
             <Route path="dashboard" element={<AuditDashboard />} />
             <Route path="employees" element={<EmployeeListPage />} />
             <Route path="departments" element={<DepartmentListPage />} />
+            <Route path="departments/:departmentId/employees" element={<DepartmentEmployeeListPage />} />
             <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />

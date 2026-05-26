@@ -19,7 +19,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Building2, CheckCircle2, XCircle, LayoutGrid, AlertTriangle, BriefcaseBusiness,
-  Loader2, User,
+  Loader2, User, Users,
 } from 'lucide-react'
 
 import {
@@ -327,6 +327,14 @@ export default function DepartmentListPage() {
                   <BriefcaseBusiness size={13} />
                   Positions
                 </Link>
+                <Link
+                  to={`${departmentsBasePath}/${row.departmentId}/employees`}
+                  className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-100 hover:border-emerald-600 transition-all duration-200"
+                  title="View Employee List"
+                >
+                  <Users size={13} />
+                  Employee List
+                </Link>
               </div>
             )
           },
@@ -339,14 +347,24 @@ export default function DepartmentListPage() {
           cell: (info) => {
             const row = info.row.original
             return (
-              <Link
-                to={`${departmentsBasePath}/${row.departmentId}`}
-                className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
-                title="View Positions"
-              >
-                <BriefcaseBusiness size={13} />
-                Positions
-              </Link>
+              <div className="flex items-center gap-1.5">
+                <Link
+                  to={`${departmentsBasePath}/${row.departmentId}`}
+                  className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
+                  title="View Positions"
+                >
+                  <BriefcaseBusiness size={13} />
+                  Positions
+                </Link>
+                <Link
+                  to={`${departmentsBasePath}/${row.departmentId}/employees`}
+                  className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-100 hover:border-emerald-600 transition-all duration-200"
+                  title="View Employee List"
+                >
+                  <Users size={13} />
+                  Employee List
+                </Link>
+              </div>
             )
           },
         })
