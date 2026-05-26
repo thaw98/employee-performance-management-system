@@ -400,6 +400,21 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @PostMapping("/{id}/manager-force-change-retake")
+    @PreAuthorize("principal.roleId == 2 or principal.roleId == 4")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> managerForceChangeRetake(
+            @PathVariable Long id,
+            @Valid @RequestBody ManagerForceChangeRetakeRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            Employee manager = getEmployeeFromPrincipal(principal);
+            SelfAssessmentFormDto form = selfAssessmentFormService.managerForceChangeRetake(id, manager, request);
+            return ResponseEntity.ok(ApiResponse.ok("Manager override submitted", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/hr-approve-manager-review")
     @PreAuthorize("principal.roleId == 1")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrApproveManagerReview(

@@ -22,7 +22,7 @@ describe('notification navigation', () => {
   it('routes HR self-assessment unlock requests to the unlock requests page', () => {
     expect(getNotificationDestinationPath({
       title: 'Self-Assessment Unlock Requested',
-      message: 'U Kaung Sithu requested HR unlock for Q1 2026 Self-Assessment Form.',
+      message: 'U Kaung Sithu requested HR unlock for Q1 2026 Self-Assessment Form. Reason: Wrong rating selected.',
       source: 'SELF_ASSESSMENT_FORM',
       targetId: 4,
     }, '/hr/dashboard')).toBe('/hr/self-assessment/unlock-requests');

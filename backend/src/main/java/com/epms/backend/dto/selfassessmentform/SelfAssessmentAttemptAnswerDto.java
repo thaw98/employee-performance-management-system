@@ -7,5 +7,6 @@ public record SelfAssessmentAttemptAnswerDto(
         String yesNoAnswer,
         Integer rating,
         String remarks,
-        String retakeReason
+        String retakeReason,
+        String managerForceChangeReason
 ) {}

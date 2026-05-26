@@ -142,6 +142,9 @@ public class SelfAssessmentForm {
     @Column(name = "manager_approved_retake_at")
     private Instant managerApprovedRetakeAt;
 
+    @Column(name = "manager_force_change_approved_at")
+    private Instant managerForceChangeApprovedAt;
+
     @Column(name = "hr_review_required")
     private Boolean hrReviewRequired;
 

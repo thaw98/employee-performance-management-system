@@ -9,8 +9,12 @@ import {
   isLanguageApplied,
   setGoogleTranslateWidgetVisible,
 } from '../utils/googleTranslatePreference'
-
-type ThemePreference = 'light' | 'dark' | 'wallpaper'
+import {
+  applyThemePreference,
+  isThemePreference,
+  normalizeThemePreference,
+  type ThemePreference,
+} from '../utils/themePreference'
 
 const themeOptions: Array<{
   id: ThemePreference
@@ -22,9 +26,6 @@ const themeOptions: Array<{
   { id: 'dark', name: 'Dark Mode', icon: <Moon size={18} />, color: 'bg-slate-900 border-slate-800 text-white' },
   { id: 'wallpaper', name: 'Custom Wallpaper', icon: <ImageIcon size={18} />, color: 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700' }
 ]
-
-const isThemePreference = (theme: unknown): theme is ThemePreference =>
-  theme === 'light' || theme === 'dark' || theme === 'wallpaper'
 
 const getErrorMessage = (err: unknown, fallback: string) => {
   if (typeof err === 'object' && err !== null && 'response' in err) {
@@ -59,7 +60,7 @@ export function SystemSettingsPage() {
 
   useEffect(() => {
     if (isThemePreference(profileResponse?.data?.theme)) {
-      setTheme(profileResponse.data.theme)
+      setTheme(normalizeThemePreference(profileResponse.data.theme))
     }
     if (profileResponse?.data?.language && !profileLanguageSyncedRef.current) {
       const profileLanguage = profileResponse.data.language.toLowerCase().includes('myanmar') || profileResponse.data.language.toLowerCase().includes('burmese')
@@ -84,9 +85,9 @@ export function SystemSettingsPage() {
   const handleThemeChange = (newTheme: ThemePreference) => {
     setTheme(newTheme)
     if (newTheme === 'wallpaper') {
-        if (!profileResponse?.data?.wallpaperUrl && pendingWallpaper === null) {
-           fileInputRef.current?.click()
-        }
+      if (!profileResponse?.data?.wallpaperUrl && pendingWallpaper === null) {
+        fileInputRef.current?.click()
+      }
     }
   }
 
@@ -109,14 +110,18 @@ export function SystemSettingsPage() {
           if (theme === 'wallpaper') {
              await updateProfile({ theme: 'light', language, timezone, timeFormat }).unwrap()
              setTheme('light')
+             applyThemePreference('light')
           } else {
-             await updateProfile({ theme, language, timezone, timeFormat }).unwrap()
+             const profileResult = await updateProfile({ theme, language, timezone, timeFormat }).unwrap()
+             applyThemePreference(theme, { wallpaperUrl: profileResult.data?.wallpaperUrl })
           }
       } else if (pendingWallpaper instanceof File && theme === 'wallpaper') {
-        await updateWallpaper(pendingWallpaper).unwrap()
-        await updateProfile({ language, timezone, timeFormat }).unwrap()
+        const wallpaperResult = await updateWallpaper(pendingWallpaper).unwrap()
+        await updateProfile({ theme: 'wallpaper', language, timezone, timeFormat }).unwrap()
+        applyThemePreference('wallpaper', { wallpaperUrl: wallpaperResult.data?.wallpaperUrl })
       } else {
-        await updateProfile({ theme, language, timezone, timeFormat }).unwrap()
+        const profileResult = await updateProfile({ theme, language, timezone, timeFormat }).unwrap()
+        applyThemePreference(theme, { wallpaperUrl: profileResult.data?.wallpaperUrl })
       }
 
       setPendingWallpaper(null)
@@ -145,6 +150,8 @@ export function SystemSettingsPage() {
         timeFormat: '12h' 
       }).unwrap()
 
+      setTheme('light')
+      applyThemePreference('light')
       setShowResetModal(false)
       initialLanguageRef.current = 'English'
       setLanguage('English')
@@ -227,6 +234,9 @@ export function SystemSettingsPage() {
                     </button>
                   ))}
                 </div>
+                <p className="mt-4 text-[11px] font-semibold text-slate-400 dark:text-slate-500 leading-relaxed">
+                  Applies across the application after you click Save Settings.
+                </p>
               </div>
             </div>
           </div>

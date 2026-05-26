@@ -1547,6 +1547,113 @@ Instant now = Instant.now();
     }
 
     @Transactional
+    public SelfAssessmentFormDto managerForceChangeRetake(Long formId, Employee manager, ManagerForceChangeRetakeRequest request) {
+        SelfAssessmentForm form = formRepository.findById(formId)
+                .orElseThrow(() -> new RuntimeException("Form not found"));
+
+        if (!canManagerReview(form, manager)) {
+            throw new RuntimeException("You are not authorized to perform a manager override for this retake");
+        }
+        if (form.getStatus() != SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW) {
+            throw new RuntimeException("Form is not pending retake manager review");
+        }
+
+        List<SelfAssessmentFormAnswer> flaggedAnswers = form.getAnswers().stream()
+                .filter(answer -> Boolean.TRUE.equals(answer.getRetakeRequested()))
+                .toList();
+        if (flaggedAnswers.isEmpty()) {
+            throw new RuntimeException("No questions are marked for retake");
+        }
+        if (request == null || request.answers() == null) {
+            throw new RuntimeException("Submit a final value for every warned question");
+        }
+
+        Map<Long, ManagerForceChangeRetakeAnswerRequest> requestedById = new HashMap<>();
+        for (ManagerForceChangeRetakeAnswerRequest answerRequest : request.answers()) {
+            if (answerRequest.answerId() == null) {
+                throw new RuntimeException("Answer id is required");
+            }
+            if (requestedById.put(answerRequest.answerId(), answerRequest) != null) {
+                throw new RuntimeException("Duplicate retake question selected");
+            }
+        }
+        Set<Long> flaggedIds = flaggedAnswers.stream()
+                .map(SelfAssessmentFormAnswer::getId)
+                .collect(Collectors.toSet());
+        if (!flaggedIds.equals(requestedById.keySet())) {
+            throw new RuntimeException("Submit final values for retake-requested questions only");
+        }
+
+        SelfAssessmentRatingSystem ratingSystem = SelfAssessmentRatingSystem.defaultIfNull(form.getRatingSystem());
+        int tenPointYesMinRating = resolveSavedTenPointYesMinRating(form.getTenPointYesMinRating());
+        Instant now = Instant.now();
+        String beforeSnapshot = snapshotAnswers(form);
+
+        for (SelfAssessmentFormAnswer answer : flaggedAnswers) {
+            ManagerForceChangeRetakeAnswerRequest finalValue = requestedById.get(answer.getId());
+            if (finalValue == null) {
+                throw new RuntimeException("Submit a final value for every warned question");
+            }
+            if (answer.getRetakeYesNoAnswer() == null || answer.getRetakeRating() == null) {
+                throw new RuntimeException("All requested retake questions must be submitted before manager override");
+            }
+            if (!ratingSystem.isValidYesNo(finalValue.finalYesNoAnswer())
+                    || finalValue.finalYesNoAnswer() == null
+                    || finalValue.finalRating() == null
+                    || !ratingSystem.isValidRating(finalValue.finalYesNoAnswer(), finalValue.finalRating(), tenPointYesMinRating)) {
+                throw new RuntimeException("Invalid final answer or rating");
+            }
+            boolean changed = !Objects.equals(answer.getRetakeYesNoAnswer(), finalValue.finalYesNoAnswer())
+                    || !Objects.equals(answer.getRetakeRating(), finalValue.finalRating());
+            String reason = finalValue.reason() != null ? finalValue.reason().trim() : "";
+            if (changed && reason.isBlank()) {
+                throw new RuntimeException("A reason is required for every changed warned question");
+            }
+
+            answer.setFinalApprovedYesNo(finalValue.finalYesNoAnswer());
+            answer.setFinalApprovedRating(finalValue.finalRating());
+            answer.setRetakeApproved(!changed);
+            answer.setManagerForceChanged(changed);
+            answer.setManagerForceChangeReason(changed ? reason : null);
+            answer.setManagerForceChangedAt(changed ? now : null);
+        }
+
+        for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
+            if (!flaggedIds.contains(answer.getId())) {
+                answer.setFinalApprovedYesNo(answer.getYesNoAnswer());
+                answer.setFinalApprovedRating(answer.getRating());
+                answer.setManagerForceChanged(false);
+                answer.setManagerForceChangeReason(null);
+                answer.setManagerForceChangedAt(null);
+            }
+        }
+
+        form.setManager(manager);
+        if (request.comments() != null) {
+            form.setManagerComments(request.comments());
+        }
+        calculateFinalApprovedScore(form);
+        form.setManagerRevisedTotalScore(form.getFinalApprovedTotalScore());
+        form.setManagerForceChangeApprovedAt(now);
+        form.setStatus(SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL);
+        form.setUpdatedDate(now);
+
+        SelfAssessmentForm saved = formRepository.save(form);
+        auditService.record(
+	                AuditActionType.SELF_ASSESSMENT_FORM_MANAGER_FORCE_CHANGED_RETAKE,
+	                AuditTargetType.SELF_ASSESSMENT_FORM,
+	                saved.getId(),
+	                manager.getUserAccount().getId(),
+	                null,
+	                "Manager override retake final values. Score: " + saved.getFinalApprovedTotalScore(),
+	                null,
+	                beforeSnapshot,
+	                snapshotAnswers(saved));
+        sendHrFinalApprovalNotification(saved, false);
+        return toFormDto(saved);
+    }
+
+    @Transactional
     public SelfAssessmentFormDto employeeAcknowledge(Long formId, Employee employee) {
         SelfAssessmentForm form = formRepository.findById(formId)
                 .orElseThrow(() -> new RuntimeException("Form not found"));
@@ -1948,9 +2055,6 @@ Instant now = Instant.now();
         if (managerDeadline == null) {
             throw new RuntimeException("Manager review deadline is required before unlocking");
         }
-        if (request.unlockDeadline() == null || !request.unlockDeadline().isBefore(managerDeadline)) {
-            throw new RuntimeException("Unlock deadline must be before the manager review deadline");
-        }
 
         User hrUser = findHrUser(hrUserId);
         String beforeSnapshot = snapshotAnswers(form);
@@ -1958,11 +2062,11 @@ Instant now = Instant.now();
         unlockRequest.setResolvedBy(hrUser);
         unlockRequest.setHrReasonCode(request.reasonCode().name());
         unlockRequest.setHrReasonText(normalizeReasonText(request.reasonText()));
-        unlockRequest.setUnlockDeadline(request.unlockDeadline());
+        unlockRequest.setUnlockDeadline(managerDeadline);
         unlockRequest.setResolvedAt(Instant.now());
 
         form.setStatus(SelfAssessmentFormStatus.REOPENED);
-        form.setDeadlineDate(request.unlockDeadline());
+        form.setDeadlineDate(managerDeadline);
         form.setSubmittedDate(null);
         form.setAssessmentDate(null);
         form.setEmployeeSignatureId(null);
@@ -2799,7 +2903,8 @@ Instant now = Instant.now();
                 "Self-Assessment Unlock Requested",
                 (employee != null ? employee.getEmployeeName() : "An employee")
                         + " requested HR unlock for "
-                        + resolveFormDisplayTitle(form) + ".",
+                        + resolveFormDisplayTitle(form) + ". Reason: "
+                        + formatUnlockRequestReason(request),
                 "SELF_ASSESSMENT_FORM",
                 form.getId()));
     }
@@ -2812,7 +2917,8 @@ Instant now = Instant.now();
                 unlocked
                         ? "HR unlocked your self-assessment. Please resubmit by "
                                 + request.getUnlockDeadline().format(NOTIFICATION_DEADLINE_FORMAT) + "."
-                        : "HR rejected your self-assessment unlock request.",
+                        : "HR rejected your self-assessment unlock request. Reason: "
+                                + formatHrUnlockRejectReason(request) + ".",
                 "SELF_ASSESSMENT_FORM",
                 request.getForm().getId()));
     }
@@ -3195,6 +3301,7 @@ Instant now = Instant.now();
                             a.getYesNoAnswer(),
                             a.getRating(),
                             a.getRemarks(),
+                            null,
                             null
                     ))
                     .toList();
@@ -3227,7 +3334,8 @@ Instant now = Instant.now();
                                     a.getRetakeYesNoAnswer(),
                                     a.getRetakeRating(),
                                     a.getRemarks(),
-                                    a.getRetakeReason()
+                                    a.getRetakeReason(),
+                                    null
                             );
                         }
                         return new SelfAssessmentAttemptAnswerDto(
@@ -3237,6 +3345,7 @@ Instant now = Instant.now();
                                 a.getYesNoAnswer(),
                                 a.getRating(),
                                 a.getRemarks(),
+                                null,
                                 null
                         );
                     })
@@ -3253,6 +3362,34 @@ Instant now = Instant.now();
                     retakeSubmittedAt,
                     aggregateRetakeReason.isBlank() ? null : aggregateRetakeReason,
                     retakeAnswers
+            ));
+        }
+
+        if (form.getManagerForceChangeApprovedAt() != null) {
+            List<SelfAssessmentAttemptAnswerDto> forceChangedAnswers = sortedAnswers.stream()
+                    .map(a -> new SelfAssessmentAttemptAnswerDto(
+                            a.getId(),
+                            a.getQuestionText(),
+                            a.getSortOrder(),
+                            a.getFinalApprovedYesNo(),
+                            a.getFinalApprovedRating(),
+                            a.getRemarks(),
+                            null,
+                            a.getManagerForceChangeReason()
+                    ))
+                    .toList();
+
+            String aggregateManagerReasons = sortedAnswers.stream()
+                    .map(SelfAssessmentFormAnswer::getManagerForceChangeReason)
+                    .filter(reason -> reason != null && !reason.isBlank())
+                    .distinct()
+                    .collect(Collectors.joining("; "));
+
+            attempts.add(new SelfAssessmentSubmissionAttemptDto(
+                    attempts.size() + 1,
+                    form.getManagerForceChangeApprovedAt(),
+                    aggregateManagerReasons.isBlank() ? null : aggregateManagerReasons,
+                    forceChangedAnswers
             ));
         }
 
@@ -3288,15 +3425,18 @@ Instant now = Instant.now();
                         a.getManagerProposedComment(),
                         a.getHrAdjustmentApproved(),
                         a.getFinalApprovedYesNo(),
-                        a.getFinalApprovedRating(),
-                        Boolean.TRUE.equals(a.getRetakeRequested()),
-                        a.getRetakeRequestComment(),
-                        a.getRetakeYesNoAnswer(),
-                        a.getRetakeRating(),
-                        a.getRetakeReason(),
-                        a.getRetakeSubmittedAt(),
-                        a.getRetakeApproved()
-                ))
+	                        a.getFinalApprovedRating(),
+	                        Boolean.TRUE.equals(a.getRetakeRequested()),
+	                        a.getRetakeRequestComment(),
+	                        a.getRetakeYesNoAnswer(),
+	                        a.getRetakeRating(),
+	                        a.getRetakeReason(),
+	                        a.getRetakeSubmittedAt(),
+	                        a.getRetakeApproved(),
+	                        Boolean.TRUE.equals(a.getManagerForceChanged()),
+	                        a.getManagerForceChangeReason(),
+	                        a.getManagerForceChangedAt()
+	                ))
                 .collect(Collectors.toList());
 
         List<AdjustmentDto> adjustments = adjustmentRepository.findByForm(form).stream()
@@ -3378,12 +3518,13 @@ Instant now = Instant.now();
                 form.getFinalApprovedTotalScore(),
                 form.getEmployeeAcknowledgedAt(),
                 form.getEmployeeDisputedAt(),
-                form.getEmployeeDisputeReason(),
-                form.getRetakeRequestedAt(),
-                form.getRetakeSubmittedAt(),
-                Boolean.TRUE.equals(form.getRetakeRequestUsed()),
-                form.getManagerApprovedRetakeAt(),
-                form.getHrReviewRequired(),
+	                form.getEmployeeDisputeReason(),
+	                form.getRetakeRequestedAt(),
+	                form.getRetakeSubmittedAt(),
+	                Boolean.TRUE.equals(form.getRetakeRequestUsed()),
+	                form.getManagerApprovedRetakeAt(),
+	                form.getManagerForceChangeApprovedAt(),
+	                form.getHrReviewRequired(),
                 form.getHrReviewReason(),
                 form.getHrReviewReasonAt(),
                 hrName,
@@ -3443,6 +3584,49 @@ Instant now = Instant.now();
         return text == null || text.trim().isBlank() ? null : text.trim();
     }
 
+    private String formatUnlockRequestReason(SelfAssessmentUnlockRequest request) {
+        if (request == null || request.getReasonCode() == null) {
+            return "-";
+        }
+        String label = switch (request.getReasonCode()) {
+            case TYPO_COMMENT -> "Typo or comment correction";
+            case WRONG_RATING -> "Wrong rating selected";
+            case INCOMPLETE_ANSWER -> "Incomplete answer";
+            case WRONG_ANSWER -> "Wrong answer selected";
+            case OTHER -> "Other";
+        };
+        String text = request.getReasonText();
+        if (text != null && !text.isBlank()) {
+            return label + " — " + text.trim();
+        }
+        return label;
+    }
+
+    private String formatHrUnlockRejectReason(SelfAssessmentUnlockRequest request) {
+        if (request == null || request.getHrReasonCode() == null || request.getHrReasonCode().isBlank()) {
+            return "-";
+        }
+        try {
+            SelfAssessmentUnlockHrRejectReasonCode code =
+                    SelfAssessmentUnlockHrRejectReasonCode.valueOf(request.getHrReasonCode());
+            String label = switch (code) {
+                case INSUFFICIENT_JUSTIFICATION -> "Insufficient justification for unlock";
+                case NO_SUBSTANTIVE_ERROR -> "No substantive error in submission";
+                case PAST_ALLOWED_WINDOW -> "Past allowed edit window";
+                case MANAGER_REVIEW_IN_PROGRESS -> "Manager review already in progress";
+                case DUPLICATE_REQUEST -> "Duplicate or unnecessary request";
+                case OTHER -> "Other";
+            };
+            String text = request.getHrReasonText();
+            if (text != null && !text.isBlank()) {
+                return label + " — " + text.trim();
+            }
+            return label;
+        } catch (IllegalArgumentException ex) {
+            return request.getHrReasonCode();
+        }
+    }
+
     private String snapshotAnswers(SelfAssessmentForm form) {
         StringBuilder json = new StringBuilder();
         json.append("{\"formId\":").append(form.getId())
@@ -3465,6 +3649,13 @@ Instant now = Instant.now();
                     .append(",\"yesNoAnswer\":").append(jsonString(answer.getYesNoAnswer()))
                     .append(",\"rating\":").append(answer.getRating())
                     .append(",\"remarks\":").append(jsonString(answer.getRemarks()))
+                    .append(",\"retakeRequested\":").append(Boolean.TRUE.equals(answer.getRetakeRequested()))
+                    .append(",\"retakeYesNoAnswer\":").append(jsonString(answer.getRetakeYesNoAnswer()))
+                    .append(",\"retakeRating\":").append(answer.getRetakeRating())
+                    .append(",\"finalApprovedYesNo\":").append(jsonString(answer.getFinalApprovedYesNo()))
+                    .append(",\"finalApprovedRating\":").append(answer.getFinalApprovedRating())
+                    .append(",\"managerForceChanged\":").append(Boolean.TRUE.equals(answer.getManagerForceChanged()))
+                    .append(",\"managerForceChangeReason\":").append(jsonString(answer.getManagerForceChangeReason()))
                     .append('}');
         }
         json.append("]}");

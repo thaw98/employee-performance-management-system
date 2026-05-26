@@ -14,6 +14,7 @@ import {
   saveLanguagePreference,
   setGoogleTranslateWidgetVisible,
 } from '../../utils/googleTranslatePreference'
+import { applyThemePreference, normalizeThemePreference } from '../../utils/themePreference'
 
 export function ThemeBootstrap() {
   const location = useLocation()
@@ -22,7 +23,7 @@ export function ThemeBootstrap() {
     skip: !isLoggedin
   })
   
-  const theme = profileResponse?.data?.theme || 'light'
+  const theme = normalizeThemePreference(profileResponse?.data?.theme)
   const wallpaperUrl = profileResponse?.data?.wallpaperUrl
   const language = profileResponse?.data?.language || getSavedLanguagePreference()
 
@@ -104,26 +105,7 @@ export function ThemeBootstrap() {
   }, [language])
 
   useEffect(() => {
-    const applyTheme = () => {
-      document.documentElement.classList.remove('dark')
-      document.body.classList.remove('dark')
-      document.body.style.backgroundImage = ''
-      document.body.style.backgroundSize = ''
-      document.body.style.backgroundPosition = ''
-      document.body.style.backgroundAttachment = ''
-
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark')
-        document.body.classList.add('dark')
-      } else if (theme === 'wallpaper' && wallpaperUrl) {
-        document.body.style.backgroundImage = `linear-gradient(rgba(248, 250, 252, 0.40), rgba(248, 250, 252, 0.40)), url("${wallpaperUrl}")`
-        document.body.style.backgroundSize = 'cover'
-        document.body.style.backgroundPosition = 'center'
-        document.body.style.backgroundAttachment = 'fixed'
-      }
-    }
-
-    applyTheme()
+    applyThemePreference(theme, { wallpaperUrl })
   }, [theme, wallpaperUrl])
 
   return null

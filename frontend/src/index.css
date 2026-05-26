@@ -12,6 +12,16 @@
     @apply bg-slate-950;
     color: theme('colors.slate.50');
   }
+
+  html.theme-wallpaper,
+  html.theme-wallpaper body,
+  html.theme-wallpaper #root {
+    min-height: 100%;
+  }
+
+  html.theme-wallpaper body {
+    background-color: transparent;
+  }
 }
 
 @layer components {

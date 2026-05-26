@@ -32,7 +32,7 @@ export function DashTopBar({ onToggleSidebar, searchPlaceholder = 'Organizationa
   const pageTitle = getDashPageTitle(location.pathname)
 
   return (
-    <header className="top-bar sticky top-0 z-20 bg-white border-b border-[#e2e8f0] print:hidden">
+    <header className="top-bar sticky top-0 z-20 bg-white dark:bg-slate-900 border-b border-[#e2e8f0] dark:border-slate-700 print:hidden">
       <div className="top-bar-left">
         <button
           type="button"
