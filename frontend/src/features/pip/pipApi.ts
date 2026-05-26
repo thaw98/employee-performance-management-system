@@ -588,6 +588,14 @@ export const pipApi = baseApi.injectEndpoints({
       invalidatesTags: () => ['PIP'],
       transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
     }),
+    manualClosePip: builder.mutation<Pip, number>({
+      query: (pipId) => ({
+        url: `/pips/${pipId}/manual-close`,
+        method: 'PUT',
+      }),
+      invalidatesTags: (_result, _error, pipId) => ['PIP', { type: 'PIP', id: pipId }],
+      transformResponse: (response: unknown) => normalizePip(getResponseData(response)),
+    }),
     employeeSign: builder.mutation<Pip, { pipId: number } & EmployeeSignRequest>({
       query: ({ pipId, ...body }) => ({
         url: `/pips/${pipId}/employee-sign`,
@@ -686,6 +694,7 @@ export const {
   useUpdateProgressMutation,
   useScheduleMeetingMutation,
   useClosePipMutation,
+  useManualClosePipMutation,
   useEmployeeSignMutation,
   useManagerSignMutation,
   useMarkPipCompletedMutation,

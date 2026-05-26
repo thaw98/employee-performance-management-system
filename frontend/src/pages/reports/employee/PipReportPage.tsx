@@ -1,9 +1,18 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useGetPipsQuery } from '../../../features/pip/pipApi'
 import { downloadIndividualPipReport } from '../../../features/pip/pipReportApi'
 import type { RootState } from '../../../app/store'
-import { Download, FileText, Zap } from 'lucide-react'
+import { Download, FileText, Filter, Zap } from 'lucide-react'
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Statuses' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'CLOSED', label: 'Closed' },
+  { value: 'AUTO_CLOSED', label: 'Auto Closed' },
+  { value: 'REOPEN_REQUESTED', label: 'Reopen Requested' },
+]
 
 const formatDateValue = (value?: string) => {
   if (!value) return '-'
@@ -40,34 +49,83 @@ const getProgressColorClass = (progress: number) => (
   progress >= 70 ? 'bg-green-500' : progress >= 30 ? 'bg-blue-500' : 'bg-orange-500'
 )
 
+const overlapsDateRange = (start?: string, end?: string, startDate?: string, endDate?: string) => {
+  const pipStart = start ? new Date(`${start}T00:00:00`).getTime() : Number.NEGATIVE_INFINITY
+  const pipEnd = end ? new Date(`${end}T00:00:00`).getTime() : Number.POSITIVE_INFINITY
+  const filterStart = startDate ? new Date(`${startDate}T00:00:00`).getTime() : Number.NEGATIVE_INFINITY
+  const filterEnd = endDate ? new Date(`${endDate}T00:00:00`).getTime() : Number.POSITIVE_INFINITY
+  return pipStart <= filterEnd && pipEnd >= filterStart
+}
+
+const getReportErrorMessage = (error: unknown) => {
+  if (typeof error !== 'object' || error === null) return 'Failed to download report'
+  const candidate = error as { response?: { data?: { message?: unknown } } }
+  return typeof candidate.response?.data?.message === 'string'
+    ? candidate.response.data.message
+    : 'Failed to download report'
+}
+
 export default function PipReportPage() {
   const { user } = useSelector((state: RootState) => state.auth)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [pipId, setPipId] = useState<number | undefined>(undefined)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   const { data: pips = [], isLoading } = useGetPipsQuery()
 
   const myPips = useMemo(() => {
     if (!user?.id) return []
-    return pips.filter((pip) => pip.employee?.id === user.id)
+    return pips.filter((pip) => (
+      pip.employee?.id === user.id ||
+      pip.employee?.employee?.id === user.id ||
+      pip.employee?.employeeId === user.employeeId
+    ))
   }, [pips, user])
+
+  const pipOptions = useMemo(() => (
+    myPips
+      .map((pip) => ({
+        id: pip.id,
+        label: `PIP #${pip.id} - ${formatDateValue(pip.startDate)} to ${formatDateValue(pip.endDate)}`,
+      }))
+      .sort((a, b) => b.id - a.id)
+  ), [myPips])
+
+  const filteredPips = useMemo(() => (
+    myPips.filter((pip) => {
+      const matchesStatus = !statusFilter || pip.status === statusFilter
+      const matchesPip = pipId == null || pip.id === pipId
+      const matchesDate = overlapsDateRange(pip.startDate, pip.endDate, startDate, endDate)
+      return matchesStatus && matchesPip && matchesDate
+    })
+  ), [myPips, statusFilter, pipId, startDate, endDate])
 
   const handleDownloadReport = (pipId: number, format: 'pdf' | 'excel') => {
     downloadIndividualPipReport(
       pipId,
       format,
       `pip-employee-pip-${pipId}-report-${new Date().toISOString().slice(0, 10)}.${format === 'excel' ? 'xlsx' : 'pdf'}`,
-    ).catch((error: any) => {
+    ).catch((error) => {
       console.error('Failed to download report:', error)
-      alert(error?.response?.data?.message || 'Failed to download report')
+      alert(getReportErrorMessage(error))
     })
   }
 
   const stats = useMemo(() => {
-    const total = myPips.length
-    const active = myPips.filter((p) => p.status === 'ACTIVE').length
-    const completed = myPips.filter((p) => p.status === 'COMPLETED').length
-    const closed = myPips.filter((p) => p.status === 'CLOSED' || p.status === 'AUTO_CLOSED').length
+    const total = filteredPips.length
+    const active = filteredPips.filter((p) => p.status === 'ACTIVE').length
+    const completed = filteredPips.filter((p) => p.status === 'COMPLETED').length
+    const closed = filteredPips.filter((p) => p.status === 'CLOSED' || p.status === 'AUTO_CLOSED').length
     return { total, active, completed, closed }
-  }, [myPips])
+  }, [filteredPips])
+
+  const clearFilters = () => {
+    setStatusFilter('')
+    setPipId(undefined)
+    setStartDate('')
+    setEndDate('')
+  }
 
   return (
     <div className="space-y-6">
@@ -92,6 +150,66 @@ export default function PipReportPage() {
         </div>
       ) : (
         <>
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Filter size={18} className="text-slate-500" />
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Filters</span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">PIP</label>
+                <select
+                  value={pipId ?? ''}
+                  onChange={(e) => setPipId(e.target.value ? Number(e.target.value) : undefined)}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                >
+                  <option value="">All PIPs</option>
+                  {pipOptions.map((pip) => (
+                    <option key={pip.id} value={pip.id}>{pip.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Start Date From</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">End Date To</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={clearFilters}
+                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-4 gap-4">
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
               <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stats.total}</div>
@@ -130,7 +248,7 @@ export default function PipReportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {myPips.map((pip) => (
+                    {filteredPips.map((pip) => (
                       <tr key={pip.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                         <td className="py-3 px-4 text-slate-900 dark:text-slate-100">#{pip.id}</td>
                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400">Staff ID: {getPipStaffId(pip)}</td>
@@ -180,6 +298,9 @@ export default function PipReportPage() {
                     ))}
                   </tbody>
                 </table>
+                {filteredPips.length === 0 && (
+                  <div className="py-8 text-center text-sm text-slate-500">No PIP records match the selected filters.</div>
+                )}
               </div>
             </div>
           </div>

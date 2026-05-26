@@ -2,10 +2,13 @@ package com.epms.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +25,8 @@ import com.epms.backend.dto.pip.PipCreateRequest;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeKpi;
+import com.epms.backend.entity.Pip;
+import com.epms.backend.entity.Signature;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
 import com.epms.backend.repository.EmployeeRepository;
@@ -148,6 +153,57 @@ class PipServiceProbationRuleTest {
 
         assertEquals(1, result.size());
         assertEquals(1L, result.get(0).getEmployeeId());
+    }
+
+    @Test
+    void manualClose_movesActivePipToAutoClosedAndAllowsEmployeeSignature() {
+        Employee managerEmployee = new Employee();
+        managerEmployee.setId(10L);
+        managerEmployee.setEmployeeName("Manager");
+
+        User managerUser = new User();
+        managerUser.setId(100L);
+        managerUser.setEmployee(managerEmployee);
+        managerEmployee.setUserAccount(managerUser);
+
+        Employee employee = new Employee();
+        employee.setId(20L);
+        employee.setEmployeeName("Employee");
+
+        User employeeUser = new User();
+        employeeUser.setId(200L);
+        employeeUser.setEmployee(employee);
+        employee.setUserAccount(employeeUser);
+
+        Pip pip = new Pip();
+        pip.setId(1L);
+        pip.setEmployee(employee);
+        pip.setManager(managerEmployee);
+        pip.setStatus("ACTIVE");
+        pip.setStartDate(LocalDate.now().minusDays(10));
+        pip.setEndDate(LocalDate.now().plusDays(5));
+        pip.setCreatedDate(Instant.now());
+
+        Signature signature = new Signature();
+        signature.setUser(employeeUser);
+        signature.setSignatureData("data:image/png;base64,abc");
+        signature.setDefault(true);
+
+        when(pipRepository.findById(1L)).thenReturn(Optional.of(pip));
+        when(pipRepository.save(any(Pip.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.findByRole_NameIgnoreCase("HR")).thenReturn(List.of());
+        when(signatureRepository.findByUserAndIsDefaultTrue(employeeUser)).thenReturn(Optional.of(signature));
+
+        Pip manuallyClosed = pipService.manualClosePip(1L, managerUser);
+
+        assertEquals("AUTO_CLOSED", manuallyClosed.getStatus());
+        assertEquals(LocalDate.now(), manuallyClosed.getActualEndDate());
+        assertEquals(LocalDate.now(), manuallyClosed.getAutoCloseDate());
+
+        Pip signed = pipService.employeeSign(1L, null, employeeUser);
+
+        assertNotNull(signed.getEmployeeSignatureDate());
+        assertEquals("data:image/png;base64,abc", signed.getEmployeeSignature());
     }
 
     @Test

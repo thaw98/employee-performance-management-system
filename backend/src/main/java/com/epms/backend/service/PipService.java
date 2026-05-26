@@ -533,6 +533,19 @@ public class PipService {
     }
 
     @Transactional
+    public Pip manualClosePip(Long pipId, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!isDirectManager(pip, actor)) {
+            throw new RuntimeException("Only the assigned manager can manually close this PIP");
+        }
+        if (!STATUS_ACTIVE.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Only active PIPs can be manually closed");
+        }
+        autoClosePip(pip, LocalDate.now(), "PIP manually closed");
+        return pip;
+    }
+
+    @Transactional
     public Pip closePip(Long pipId, PipCloseRequest request, User actor) {
         Pip pip = getPipById(pipId, actor);
         if (!isDirectManager(pip, actor)) {
@@ -884,6 +897,10 @@ public class PipService {
     }
 
     private void autoClosePip(Pip pip, LocalDate closeDate) {
+        autoClosePip(pip, closeDate, "PIP auto-close");
+    }
+
+    private void autoClosePip(Pip pip, LocalDate closeDate, String notificationMessage) {
         if (pip.getOriginalEndDate() == null) {
             pip.setOriginalEndDate(pip.getEndDate());
         }
@@ -896,7 +913,7 @@ public class PipService {
         }
         pip.setUpdatedDate(Instant.now());
         Pip savedPip = pipRepository.save(pip);
-        notifyPipRelatedUsers(savedPip, pip.getManager() == null ? null : pip.getManager().getUserAccount(), "PIP auto-close");
+        notifyPipRelatedUsers(savedPip, pip.getManager() == null ? null : pip.getManager().getUserAccount(), notificationMessage);
     }
 
     private void authorizePipAccess(Pip pip, User actor) {

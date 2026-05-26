@@ -5,6 +5,7 @@ import {
   useUpdateProgressMutation,
   useScheduleMeetingMutation,
   useClosePipMutation,
+  useManualClosePipMutation,
   useEmployeeSignMutation,
   useManagerSignMutation,
   useMarkPipCompletedMutation,
@@ -27,6 +28,14 @@ const isImageSignature = (signature?: string) => {
   return value.startsWith('data:image/') || value.startsWith('/') || value.startsWith('http://') || value.startsWith('https://')
 }
 
+const getActionErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error !== 'object' || error === null) return fallback
+  const candidate = error as { data?: { message?: unknown }; error?: unknown }
+  if (typeof candidate.data?.message === 'string' && candidate.data.message.trim()) return candidate.data.message
+  if (typeof candidate.error === 'string' && candidate.error.trim()) return candidate.error
+  return fallback
+}
+
 export default function PipDetailPage() {
   const { id } = useParams<{ id: string }>()
   const pipId = parseInt(id!)
@@ -39,6 +48,7 @@ export default function PipDetailPage() {
   const [updateProgress] = useUpdateProgressMutation()
   const [scheduleMeeting] = useScheduleMeetingMutation()
   const [closePip] = useClosePipMutation()
+  const [manualClosePip, { isLoading: isManualClosing }] = useManualClosePipMutation()
   const [employeeSign, { isLoading: isSigningEmployee }] = useEmployeeSignMutation()
   const [managerSign, { isLoading: isSigningManager }] = useManagerSignMutation()
   const [markPipCompleted, { isLoading: isMarkingCompleted }] = useMarkPipCompletedMutation()
@@ -195,6 +205,7 @@ export default function PipDetailPage() {
   if (isLoading || !pip) return <div className="p-8">Loading PIP details...</div>
 
   const isAverageProgressComplete = Number(pip.overallProgressPercentage) >= 100
+  const canManualClose = isDirectManager && pip.status === 'ACTIVE'
   const canMarkCompleted = isDirectManager && pip.status === 'CLOSED' && isAverageProgressComplete
   const canEmployeeSign = isEmployee
     && pip.status === 'AUTO_CLOSED'
@@ -252,9 +263,9 @@ export default function PipDetailPage() {
         }).unwrap()
         setShowUpdateModal({ open: false, objectiveId: null })
         setUpdateValue({ percentage: 0, completedHours: 0, feedback: '' })
-      } catch (error: any) {
+      } catch (error) {
         console.error('[PIP Detail] Update progress failed:', error)
-        setActionError(error?.data?.message || error?.error || 'Failed to update progress.')
+        setActionError(getActionErrorMessage(error, 'Failed to update progress.'))
       }
     }
   }
@@ -275,9 +286,9 @@ export default function PipDetailPage() {
       setShowMeetingModal(false)
       setStartMeetingTime('')
       setEndMeetingTime('')
-    } catch (error: any) {
+    } catch (error) {
       console.error('[PIP Detail] Schedule meeting failed:', error)
-      setActionError(error?.data?.message || error?.error || 'Failed to schedule meeting.')
+      setActionError(getActionErrorMessage(error, 'Failed to schedule meeting.'))
     }
   }
 
@@ -300,9 +311,19 @@ export default function PipDetailPage() {
       }).unwrap()
       setShowCloseModal(false)
       setCloseData({ finalOutcome: '', closingRemarks: '' })
-    } catch (error: any) {
+    } catch (error) {
       console.error('[PIP Detail] Close PIP failed:', error)
-      setActionError(error?.data?.message || error?.error || 'Failed to close PIP.')
+      setActionError(getActionErrorMessage(error, 'Failed to close PIP.'))
+    }
+  }
+
+  const handleManualClosePip = async () => {
+    try {
+      setActionError(null)
+      await manualClosePip(pipId).unwrap()
+    } catch (error) {
+      console.error('[PIP Detail] Manual close failed:', error)
+      setActionError(getActionErrorMessage(error, 'Failed to manually close PIP.'))
     }
   }
 
@@ -316,9 +337,9 @@ export default function PipDetailPage() {
       setActionError(null)
       await employeeSign({ pipId }).unwrap()
       setShowEmployeeSignModal(false)
-    } catch (error: any) {
+    } catch (error) {
       console.error('[PIP Detail] Employee signature failed:', error)
-      setActionError(error?.data?.message || error?.error || 'Failed to sign PIP.')
+      setActionError(getActionErrorMessage(error, 'Failed to sign PIP.'))
     }
   }
 
@@ -332,9 +353,9 @@ export default function PipDetailPage() {
       setActionError(null)
       await managerSign({ pipId }).unwrap()
       setShowManagerSignModal(false)
-    } catch (error: any) {
+    } catch (error) {
       console.error('[PIP Detail] Manager signature failed:', error)
-      setActionError(error?.data?.message || error?.error || 'Failed to sign PIP.')
+      setActionError(getActionErrorMessage(error, 'Failed to sign PIP.'))
     }
   }
 
@@ -342,9 +363,9 @@ export default function PipDetailPage() {
     try {
       setActionError(null)
       await markPipCompleted(pipId).unwrap()
-    } catch (error: any) {
+    } catch (error) {
       console.error('[PIP Detail] Mark PIP completed failed:', error)
-      setActionError(error?.data?.message || error?.error || 'Failed to mark PIP completed.')
+      setActionError(getActionErrorMessage(error, 'Failed to mark PIP completed.'))
     }
   }
 
@@ -360,9 +381,9 @@ export default function PipDetailPage() {
       setShowReopenModal(false)
       setReopenReasonType('Incomplete Goals')
       setCustomReason('')
-    } catch (error: any) {
+    } catch (error) {
       console.error('[PIP Detail] Reopen PIP failed:', error)
-      setActionError(error?.data?.message || error?.error || 'Failed to reopen PIP.')
+      setActionError(getActionErrorMessage(error, 'Failed to reopen PIP.'))
     }
   }
 
@@ -376,9 +397,9 @@ export default function PipDetailPage() {
       await reviewPip({ pipId, action: 'CONFIRMED', extendedEndDate }).unwrap()
       setShowApproveReopenModal(false)
       setExtendedEndDate('')
-    } catch (error: any) {
+    } catch (error) {
       console.error('[PIP Detail] Approve reopen failed:', error)
-      setActionError(error?.data?.message || error?.error || 'Failed to approve reopen request.')
+      setActionError(getActionErrorMessage(error, 'Failed to approve reopen request.'))
     }
   }
 
@@ -395,9 +416,9 @@ export default function PipDetailPage() {
       setShowReviewDenyModal(false)
       setReviewReasonType('Policy Not Met')
       setReviewCustomReason('')
-    } catch (error: any) {
+    } catch (error) {
       console.error('[PIP Detail] Deny review failed:', error)
-      setActionError(error?.data?.message || error?.error || 'Failed to deny request.')
+      setActionError(getActionErrorMessage(error, 'Failed to deny request.'))
     }
   }
 
@@ -435,6 +456,15 @@ export default function PipDetailPage() {
                 <i className="bi bi-calendar-event" /> Schedule Meeting
               </button>
             </>
+          )}
+          {canManualClose && (
+            <button
+              onClick={handleManualClosePip}
+              disabled={isManualClosing}
+              className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-300"
+            >
+              <i className="bi bi-lock" /> {isManualClosing ? 'Closing...' : 'Manual Close'}
+            </button>
           )}
           {canManagerMarkResult && (
             <button

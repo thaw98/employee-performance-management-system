@@ -146,14 +146,26 @@ export default function PipReportPage() {
   })
 
   const positionOptions = useMemo(() => {
-    return (positionsResponse?.data ?? [])
+    const departmentPositions = (positionsResponse?.data ?? [])
       .filter((position) => typeof position.positionId === 'number')
       .map((position) => ({
         id: position.positionId,
         name: position.positionName || 'Unnamed Position',
       }))
+
+    if (departmentPositions.length > 0) {
+      return departmentPositions.sort((a, b) => a.name.localeCompare(b.name))
+    }
+
+    return pips
+      .map((pip) => ({
+        id: pip.employee.employee?.positionId ?? undefined,
+        name: pip.employee.employee?.positionName || pip.employee.employee?.position?.positionName || 'Unnamed Position',
+      }))
+      .filter((position): position is { id: number; name: string } => typeof position.id === 'number')
+      .filter((position, index, all) => all.findIndex((item) => item.id === position.id) === index)
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [positionsResponse])
+  }, [pips, positionsResponse])
 
   const employeeOptions = useMemo(() => {
     return pips
