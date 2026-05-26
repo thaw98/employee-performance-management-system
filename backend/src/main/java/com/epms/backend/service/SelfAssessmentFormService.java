@@ -2917,7 +2917,8 @@ Instant now = Instant.now();
                 unlocked
                         ? "HR unlocked your self-assessment. Please resubmit by "
                                 + request.getUnlockDeadline().format(NOTIFICATION_DEADLINE_FORMAT) + "."
-                        : "HR rejected your self-assessment unlock request.",
+                        : "HR rejected your self-assessment unlock request. Reason: "
+                                + formatHrUnlockRejectReason(request) + ".",
                 "SELF_ASSESSMENT_FORM",
                 request.getForm().getId()));
     }
@@ -3599,6 +3600,31 @@ Instant now = Instant.now();
             return label + " — " + text.trim();
         }
         return label;
+    }
+
+    private String formatHrUnlockRejectReason(SelfAssessmentUnlockRequest request) {
+        if (request == null || request.getHrReasonCode() == null || request.getHrReasonCode().isBlank()) {
+            return "-";
+        }
+        try {
+            SelfAssessmentUnlockHrRejectReasonCode code =
+                    SelfAssessmentUnlockHrRejectReasonCode.valueOf(request.getHrReasonCode());
+            String label = switch (code) {
+                case INSUFFICIENT_JUSTIFICATION -> "Insufficient justification for unlock";
+                case NO_SUBSTANTIVE_ERROR -> "No substantive error in submission";
+                case PAST_ALLOWED_WINDOW -> "Past allowed edit window";
+                case MANAGER_REVIEW_IN_PROGRESS -> "Manager review already in progress";
+                case DUPLICATE_REQUEST -> "Duplicate or unnecessary request";
+                case OTHER -> "Other";
+            };
+            String text = request.getHrReasonText();
+            if (text != null && !text.isBlank()) {
+                return label + " — " + text.trim();
+            }
+            return label;
+        } catch (IllegalArgumentException ex) {
+            return request.getHrReasonCode();
+        }
     }
 
     private String snapshotAnswers(SelfAssessmentForm form) {

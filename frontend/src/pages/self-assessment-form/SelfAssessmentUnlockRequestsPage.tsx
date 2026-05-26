@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, KeyRound, MessageSquare, Search, XCircle } from 'lucide-react';
+import { CheckCircle2, MessageSquare, Search, Unlock, XCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
   useGetSelfAssessmentUnlockRequestsQuery,
@@ -203,7 +203,7 @@ export const SelfAssessmentUnlockRequestsPage: React.FC = () => {
                             onClick={() => { setSelected(item); setMode('unlock'); }}
                             className="inline-flex items-center justify-center rounded-lg p-2 text-indigo-600 transition-colors hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
                           >
-                            <KeyRound size={18} />
+                            <Unlock size={18} />
                           </button>
                           <button
                             type="button"
