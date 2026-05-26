@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useAppSelector } from '../../../app/hooks'
 import {
   flexRender,
   getCoreRowModel,
@@ -104,6 +105,10 @@ const getDepartmentCodeForDisplay = (row: DepartmentDto): string => {
 }
 
 export default function DepartmentListPage() {
+  const user = useAppSelector((s) => s.auth.user)
+  const isAudit = user?.roleId === 5
+  const departmentsBasePath = isAudit ? '/audit/departments' : '/hr/departments'
+
   const [searchParams, setSearchParams] = useSearchParams()
   const [deleteDepartment, { isLoading: isDeleting }] = useDeleteDepartmentMutation()
   const [departments, setDepartments] = useState<DepartmentDto[]>([])
@@ -206,7 +211,8 @@ export default function DepartmentListPage() {
   }, [syncPaginationToUrl])
 
   const columns = useMemo<ColumnDef<DepartmentDto>[]>(
-    () => [
+    () => {
+      const cols: ColumnDef<DepartmentDto>[] = [
       {
         id: 'rowNumber',
         enableSorting: false,
@@ -238,7 +244,7 @@ export default function DepartmentListPage() {
               <Building2 size={14} className="text-white" />
             </div>
             <Link
-              to={`/hr/departments/${info.row.original.departmentId}`}
+              to={`${departmentsBasePath}/${info.row.original.departmentId}`}
               className="font-semibold text-slate-800 text-sm hover:underline hover:text-[#1d4ed8] transition-colors"
             >
               {info.getValue() as string}
@@ -280,50 +286,75 @@ export default function DepartmentListPage() {
           )
         },
       },
-      {
-        id: 'actions',
-        enableSorting: false,
-        header: 'Actions',
-        cell: (info) => {
-          const row = info.row.original
-          return (
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => {
-                  setSelectedDept(row)
-                  setIsEditOpen(true)
-                }}
-                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
-                title="Edit Department"
-              >
-                <Edit2 size={13} />
-                Edit
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedDept(row)
-                  setIsDeleteOpen(true)
-                }}
-                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-100 hover:border-rose-600 transition-all duration-200"
-                title="Delete Department"
-              >
-                <Trash2 size={13} />
-                Delete
-              </button>
+      ]
+
+      if (!isAudit) {
+        cols.push({
+          id: 'actions',
+          enableSorting: false,
+          header: 'Actions',
+          cell: (info) => {
+            const row = info.row.original
+            return (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    setSelectedDept(row)
+                    setIsEditOpen(true)
+                  }}
+                  className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
+                  title="Edit Department"
+                >
+                  <Edit2 size={13} />
+                  Edit
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedDept(row)
+                    setIsDeleteOpen(true)
+                  }}
+                  className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-100 hover:border-rose-600 transition-all duration-200"
+                  title="Delete Department"
+                >
+                  <Trash2 size={13} />
+                  Delete
+                </button>
+                <Link
+                  to={`${departmentsBasePath}/${row.departmentId}`}
+                  className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
+                  title="View Positions"
+                >
+                  <BriefcaseBusiness size={13} />
+                  Positions
+                </Link>
+              </div>
+            )
+          },
+        })
+      } else {
+        cols.push({
+          id: 'actions',
+          enableSorting: false,
+          header: 'View',
+          cell: (info) => {
+            const row = info.row.original
+            return (
               <Link
-                to={`/hr/departments/${row.departmentId}`}
-                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
+                to={`${departmentsBasePath}/${row.departmentId}`}
+                className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
                 title="View Positions"
               >
                 <BriefcaseBusiness size={13} />
                 Positions
               </Link>
-            </div>
-          )
-        },
-      },
-    ],
-    []
+            )
+          },
+        })
+      }
+
+      return cols
+    },
+    [departmentsBasePath, isAudit]
   )
 
   const table = useReactTable({
@@ -395,17 +426,25 @@ export default function DepartmentListPage() {
               <Building2 size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-extrabold text-white tracking-tight">Department Management</h1>
-              <p className="text-[#dbeafe] text-sm mt-0.5">Manage and organize your company departments</p>
+              <h1 className="text-2xl font-extrabold text-white tracking-tight">
+                {isAudit ? 'Departments' : 'Department Management'}
+              </h1>
+              <p className="text-[#dbeafe] text-sm mt-0.5">
+                {isAudit
+                  ? 'View company departments and positions (read-only).'
+                  : 'Manage and organize your company departments'}
+              </p>
             </div>
           </div>
-          <button
-            onClick={() => setIsAddOpen(true)}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-[#2463eb] rounded-xl font-bold text-sm shadow-xl hover:bg-[#eff6ff] active:scale-95 transition-all w-full sm:w-auto"
-          >
-            <Plus size={18} />
-            Add New Department
-          </button>
+          {!isAudit && (
+            <button
+              onClick={() => setIsAddOpen(true)}
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-[#2463eb] rounded-xl font-bold text-sm shadow-xl hover:bg-[#eff6ff] active:scale-95 transition-all w-full sm:w-auto"
+            >
+              <Plus size={18} />
+              Add New Department
+            </button>
+          )}
         </div>
       </div>
 
@@ -657,28 +696,31 @@ export default function DepartmentListPage() {
         </div>
       </div>
 
-      {/* Modals */}
-      <AddDepartmentModal
-        isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
-        onSuccess={loadDepartments}
-      />
-      <EditDepartmentModal
-        isOpen={isEditOpen}
-        onClose={() => setIsEditOpen(false)}
-        department={selectedDept}
-        onSuccess={loadDepartments}
-      />
-      <ConfirmActionModal
-        isOpen={isDeleteOpen}
-        onClose={() => setIsDeleteOpen(false)}
-        onConfirm={handleDelete}
-        title="Delete Department"
-        message={`Are you sure you want to delete "${selectedDept?.departmentName}"? This action cannot be undone.`}
-        confirmText="Delete"
-        variant="danger"
-        isLoading={isDeleting}
-      />
+      {!isAudit && (
+        <>
+          <AddDepartmentModal
+            isOpen={isAddOpen}
+            onClose={() => setIsAddOpen(false)}
+            onSuccess={loadDepartments}
+          />
+          <EditDepartmentModal
+            isOpen={isEditOpen}
+            onClose={() => setIsEditOpen(false)}
+            department={selectedDept}
+            onSuccess={loadDepartments}
+          />
+          <ConfirmActionModal
+            isOpen={isDeleteOpen}
+            onClose={() => setIsDeleteOpen(false)}
+            onConfirm={handleDelete}
+            title="Delete Department"
+            message={`Are you sure you want to delete "${selectedDept?.departmentName}"? This action cannot be undone.`}
+            confirmText="Delete"
+            variant="danger"
+            isLoading={isDeleting}
+          />
+        </>
+      )}
     </div>
   )
 }

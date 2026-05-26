@@ -48,7 +48,7 @@ public class DepartmentRestController {
 	}
 
 	@GetMapping
-	@PreAuthorize("hasRole('HR')")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<List<DepartmentDto>>> getAll() {
 		return ResponseEntity.ok(ApiResponse.ok("Departments fetched successfully.", departmentService.getAllDepartments()));
 	}
@@ -73,7 +73,7 @@ public class DepartmentRestController {
 	}
 
 	@GetMapping("/{id}")
-	@PreAuthorize("hasRole('HR')")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<DepartmentDto>> getById(@PathVariable Long id) {
 		return ResponseEntity.ok(ApiResponse.ok("Department fetched successfully.", departmentService.getDepartmentById(id)));
 	}

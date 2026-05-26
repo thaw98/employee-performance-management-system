@@ -36,7 +36,10 @@ export default function EmployeeListPage() {
   const user = useAppSelector((s) => s.auth.user)
   const token = useAppSelector((s) => s.auth.token)
   const isHR = user?.roleId === 1
+  const isAudit = user?.roleId === 5
   const isDepartmentManager = user?.roleId === 2
+  const canFilterAllDepartments = isHR || isAudit
+  const canExportEmployees = isHR || isAudit
 
   // State for filters and pagination
   const [page, setPage] = useState(0)
@@ -96,12 +99,12 @@ export default function EmployeeListPage() {
     page,
     size,
     search,
-    departmentId: isHR ? departmentId : undefined,
-    positionId: isHR ? positionId : undefined,
+    departmentId: canFilterAllDepartments ? departmentId : undefined,
+    positionId: canFilterAllDepartments ? positionId : undefined,
     employmentStatus,
     sortBy: sorting[0]?.id || 'staffNo',
     sortDir: sorting[0]?.desc ? 'desc' : 'asc'
-  }), [page, size, search, isHR, departmentId, positionId, employmentStatus, sorting])
+  }), [page, size, search, canFilterAllDepartments, departmentId, positionId, employmentStatus, sorting])
 
   const { data: empData, isLoading, isFetching, error: employeeListError, refetch } = useGetEmployeesQuery(employeeQueryParams)
 
@@ -352,41 +355,51 @@ export default function EmployeeListPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Employee List</h1>
-          <p className="text-gray-500 mt-1">Manage employee information and access.</p>
+          <p className="text-gray-500 mt-1">
+            {isAudit
+              ? 'View employee records across all departments (read-only).'
+              : 'Manage employee information and access.'}
+          </p>
         </div>
-        {isHR && (
+        {(isHR || canExportEmployees) && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleDownloadTemplate}
-              disabled={templateDownloading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#bfdbfe] bg-white text-[#1d4ed8] text-sm font-semibold hover:bg-[#eff6ff] disabled:opacity-60 transition shadow-sm"
-            >
-              {templateDownloading ? (
-                <span className="inline-block w-3.5 h-3.5 border-2 border-[#60a5fa] border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <i className="bi bi-download"></i>
-              )}
-              Download Template
-            </button>
-            <button
-              onClick={handleExportEmployees}
-              disabled={isExporting}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-700 text-sm font-semibold hover:bg-emerald-50 disabled:opacity-60 transition shadow-sm"
-            >
-              {isExporting ? (
-                <span className="inline-block w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <i className="bi bi-file-earmark-excel"></i>
-              )}
-              {isExporting ? 'Exporting...' : 'Export Employees'}
-            </button>
-            <button
-              onClick={() => setImportModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white text-sm font-semibold hover:from-[#1d4ed8] hover:to-[#1e40af] transition shadow-sm shadow-[#dbeafe]"
-            >
-              <i className="bi bi-file-earmark-arrow-up"></i>
-              Import Employees
-            </button>
+            {isHR && (
+              <>
+                <button
+                  onClick={handleDownloadTemplate}
+                  disabled={templateDownloading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#bfdbfe] bg-white text-[#1d4ed8] text-sm font-semibold hover:bg-[#eff6ff] disabled:opacity-60 transition shadow-sm"
+                >
+                  {templateDownloading ? (
+                    <span className="inline-block w-3.5 h-3.5 border-2 border-[#60a5fa] border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <i className="bi bi-download"></i>
+                  )}
+                  Download Template
+                </button>
+                <button
+                  onClick={() => setImportModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white text-sm font-semibold hover:from-[#1d4ed8] hover:to-[#1e40af] transition shadow-sm shadow-[#dbeafe]"
+                >
+                  <i className="bi bi-file-earmark-arrow-up"></i>
+                  Import Employees
+                </button>
+              </>
+            )}
+            {canExportEmployees && (
+              <button
+                onClick={handleExportEmployees}
+                disabled={isExporting}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-200 bg-white text-emerald-700 text-sm font-semibold hover:bg-emerald-50 disabled:opacity-60 transition shadow-sm"
+              >
+                {isExporting ? (
+                  <span className="inline-block w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <i className="bi bi-file-earmark-excel"></i>
+                )}
+                {isExporting ? 'Exporting...' : 'Export Employees'}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -403,7 +416,7 @@ export default function EmployeeListPage() {
         departments={departments}
         positions={positions}
         onReset={handleReset}
-        showDepartmentPositionFilters={isHR}
+        showDepartmentPositionFilters={canFilterAllDepartments}
       />
 
       <EmployeeTable
@@ -418,6 +431,7 @@ export default function EmployeeListPage() {
         sorting={sorting}
         setSorting={setSorting}
         isHR={isHR}
+        showEmailColumn={canFilterAllDepartments}
       />
 
       {/* Pagination */}

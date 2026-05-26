@@ -37,7 +37,7 @@ public class EmployeeController {
 	private final EmployeeExportService employeeExportService;
 
 	@GetMapping("/export")
-	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<byte[]> exportEmployees() {
 		byte[] bytes = employeeExportService.exportEmployees();
 		String filename = "employees_export_" + LocalDate.now() + ".xlsx";

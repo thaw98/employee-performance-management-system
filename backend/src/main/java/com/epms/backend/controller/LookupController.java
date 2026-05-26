@@ -60,7 +60,7 @@ public class LookupController {
 	}
 
 	@GetMapping("/departments/active")
-	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<List<DepartmentOptionDto>>> getActiveDepartments() {
 		List<DepartmentOptionDto> departments = departmentRepository.findAll().stream()
 				.filter(d -> d.getStatus() == null || "active".equalsIgnoreCase(d.getStatus().trim()))
@@ -70,7 +70,7 @@ public class LookupController {
 	}
 
 	@GetMapping("/departments/{departmentId}/positions")
-	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<List<DepartmentPositionMappingOptionDto>>> getPositionsByDepartment(
 			@PathVariable Long departmentId) {
 		List<DepartmentPosition> activeMappings = departmentPositionRepository
