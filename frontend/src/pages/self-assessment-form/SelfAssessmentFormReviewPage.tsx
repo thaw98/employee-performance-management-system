@@ -244,6 +244,16 @@ const HR_ADJUSTMENT_REJECTION_REASONS = [
 
 const HR_ADJUSTMENT_REJECTION_OTHER = 'Other';
 
+const HR_RETURN_BACK_REASONS = [
+  'Incomplete or missing manager ratings',
+  'Manager comments insufficient or unclear',
+  'Ratings inconsistent with employee self-assessment',
+  'Evidence does not support proposed adjustments',
+  'Requires revision before HR approval',
+] as const;
+
+const HR_RETURN_BACK_OTHER = 'Others';
+
 function ScoreBar({ value, max = 100, color = '#2463eb', label }: { value: number; max?: number; color?: string; label?: string }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
   return (
@@ -347,8 +357,8 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [showAdjustments, setShowAdjustments] = useState(false);
   const [managerComments, setManagerComments] = useState('');
   const [retakeComments, setRetakeComments] = useState<Record<number, string>>({});
-  const [hrReturnReason, setHrReturnReason] = useState('');
-  const [hrReturnComments, setHrReturnComments] = useState('');
+  const [hrReturnReasonType, setHrReturnReasonType] = useState<string>(HR_RETURN_BACK_REASONS[0]);
+  const [hrReturnCustomReason, setHrReturnCustomReason] = useState('');
   const [rejectReasonType, setRejectReasonType] = useState<string>(HR_ADJUSTMENT_REJECTION_REASONS[0]);
   const [rejectReason, setRejectReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -734,19 +744,23 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     });
   };
 
+  const resolvedHrReturnReason =
+    hrReturnReasonType === HR_RETURN_BACK_OTHER ? hrReturnCustomReason.trim() : hrReturnReasonType;
+
   const handleHrReturnDisputedReview = async () => {
-    if (!selectedFormId || !hrReturnReason.trim()) {
-      toast.error('Enter an HR reason before sending back to the manager.');
+    if (!selectedFormId || !resolvedHrReturnReason) {
+      toast.error('Select a return reason before sending back to the manager.');
       return;
     }
 
     try {
       await hrReturnDisputedReview({
         formId: selectedFormId,
-        request: { reason: hrReturnReason.trim() },
+        request: { reason: resolvedHrReturnReason },
       }).unwrap();
       toast.success('Review returned to manager for revision');
-      setHrReturnReason('');
+      setHrReturnReasonType(HR_RETURN_BACK_REASONS[0]);
+      setHrReturnCustomReason('');
       refetchForm();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to return review to manager');
@@ -754,14 +768,18 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   };
 
   const resetHrReturnModal = () => {
-    setHrReturnReason('');
-    setHrReturnComments('');
+    setHrReturnReasonType(HR_RETURN_BACK_REASONS[0]);
+    setHrReturnCustomReason('');
     setShowHrReturnModal(false);
   };
 
   const handleHrReturnBack = async () => {
-    if (!selectedFormId || !hrReturnReason.trim()) {
-      toast.error('Enter a return reason before sending back to the manager.');
+    if (!selectedFormId || !resolvedHrReturnReason) {
+      toast.error(
+        hrReturnReasonType === HR_RETURN_BACK_OTHER
+          ? 'Enter a custom return reason before sending back to the manager.'
+          : 'Select a return reason before sending back to the manager.',
+      );
       return;
     }
 
@@ -769,8 +787,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
       await hrReturnBack({
         formId: selectedFormId,
         request: {
-          returnReason: hrReturnReason.trim(),
-          comments: hrReturnComments.trim() || null,
+          returnReason: resolvedHrReturnReason,
         },
       }).unwrap();
       toast.success('Form returned to manager');
@@ -1993,18 +2010,42 @@ Review Submissions
                             <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-rose-600 dark:text-rose-300">
                               HR Reason for Manager Revision <span className="text-red-500">*</span>
                             </label>
-                            <textarea
-                              value={hrReturnReason}
-                              onChange={(e) => setHrReturnReason(e.target.value)}
-                              rows={3}
-                              className={`${filterControlClass} resize-none`}
-                              placeholder="Explain what the manager must revise..."
-                            />
+                            <select
+                              value={hrReturnReasonType}
+                              onChange={(e) => {
+                                setHrReturnReasonType(e.target.value);
+                                if (e.target.value !== HR_RETURN_BACK_OTHER) {
+                                  setHrReturnCustomReason('');
+                                }
+                              }}
+                              className={filterControlClass}
+                            >
+                              {HR_RETURN_BACK_REASONS.map((reason) => (
+                                <option key={reason} value={reason}>
+                                  {reason}
+                                </option>
+                              ))}
+                              <option value={HR_RETURN_BACK_OTHER}>{HR_RETURN_BACK_OTHER}</option>
+                            </select>
                           </div>
+                          {hrReturnReasonType === HR_RETURN_BACK_OTHER && (
+                            <div>
+                              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-rose-600 dark:text-rose-300">
+                                Custom Reason <span className="text-red-500">*</span>
+                              </label>
+                              <textarea
+                                value={hrReturnCustomReason}
+                                onChange={(e) => setHrReturnCustomReason(e.target.value)}
+                                rows={3}
+                                className={`${filterControlClass} resize-none`}
+                                placeholder="Explain what the manager must revise..."
+                              />
+                            </div>
+                          )}
                           <div className="flex flex-wrap gap-3">
                             <button
                               onClick={handleHrReturnDisputedReview}
-                              disabled={isHrReturningDispute || !hrReturnReason.trim()}
+                              disabled={isHrReturningDispute || !resolvedHrReturnReason}
                               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                             >
                               {isHrReturningDispute ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
@@ -2606,26 +2647,38 @@ Review Submissions
                 <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
                   Return Reason <span className="text-red-500">*</span>
                 </label>
-                <textarea
-                  value={hrReturnReason}
-                  onChange={(e) => setHrReturnReason(e.target.value)}
-                  rows={4}
-                  className={`${filterControlClass} resize-none`}
-                  placeholder="Explain what the manager must revise..."
-                />
+                <select
+                  value={hrReturnReasonType}
+                  onChange={(e) => {
+                    setHrReturnReasonType(e.target.value);
+                    if (e.target.value !== HR_RETURN_BACK_OTHER) {
+                      setHrReturnCustomReason('');
+                    }
+                  }}
+                  className={filterControlClass}
+                >
+                  {HR_RETURN_BACK_REASONS.map((reason) => (
+                    <option key={reason} value={reason}>
+                      {reason}
+                    </option>
+                  ))}
+                  <option value={HR_RETURN_BACK_OTHER}>{HR_RETURN_BACK_OTHER}</option>
+                </select>
               </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Comments
-                </label>
-                <textarea
-                  value={hrReturnComments}
-                  onChange={(e) => setHrReturnComments(e.target.value)}
-                  rows={3}
-                  className={`${filterControlClass} resize-none`}
-                  placeholder="Add optional context for the manager..."
-                />
-              </div>
+              {hrReturnReasonType === HR_RETURN_BACK_OTHER && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Custom Reason <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={hrReturnCustomReason}
+                    onChange={(e) => setHrReturnCustomReason(e.target.value)}
+                    rows={4}
+                    className={`${filterControlClass} resize-none`}
+                    placeholder="Explain what the manager must revise..."
+                  />
+                </div>
+              )}
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
@@ -2638,7 +2691,7 @@ Review Submissions
                 <button
                   type="button"
                   onClick={() => void handleHrReturnBack()}
-                  disabled={isHrReturningBack || !hrReturnReason.trim()}
+                  disabled={isHrReturningBack || !resolvedHrReturnReason}
                   className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isHrReturningBack ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}

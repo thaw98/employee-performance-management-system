@@ -2067,6 +2067,7 @@ Instant now = Instant.now();
     public List<SelfAssessmentUnlockRequestDto> getHrUnlockRequests() {
         return unlockRequestRepository.findAllByOrderByRequestedAtDesc()
                 .stream()
+                .filter(this::isHrUnlockRequestVisible)
                 .map(this::toUnlockRequestDto)
                 .collect(Collectors.toList());
     }
@@ -3577,12 +3578,23 @@ Instant now = Instant.now();
     }
 
     private SelfAssessmentUnlockRequestDto pendingUnlockRequestDto(SelfAssessmentForm form) {
-        if (unlockRequestRepository == null) {
+        if (unlockRequestRepository == null || !isUnlockRequestStillActionable(form)) {
             return null;
         }
         Optional<SelfAssessmentUnlockRequest> request = unlockRequestRepository
                 .findFirstByFormAndStatusOrderByRequestedAtDesc(form, SelfAssessmentUnlockRequestStatus.PENDING);
         return request == null ? null : request.map(this::toUnlockRequestDto).orElse(null);
+    }
+
+    private boolean isUnlockRequestStillActionable(SelfAssessmentForm form) {
+        return form != null && form.getStatus() == SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW;
+    }
+
+    private boolean isHrUnlockRequestVisible(SelfAssessmentUnlockRequest request) {
+        if (request.getStatus() != SelfAssessmentUnlockRequestStatus.PENDING) {
+            return true;
+        }
+        return isUnlockRequestStillActionable(request.getForm());
     }
 
     private boolean hasResolvedUnlockRequest(SelfAssessmentForm form) {
