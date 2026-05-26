@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -69,6 +70,30 @@ public class FollowUpMeeting {
         return LocalDateTime.of(meeting.getMeetingDate(), meeting.getMeetingTime());
     }
 
+    public LocalDateTime getStartMeetingTime() {
+        return getMeetingTime();
+    }
+
+    public LocalDateTime getEndMeetingTime() {
+        LocalDateTime start = getMeetingTime();
+        if (start == null || meeting == null || meeting.getDurationMinutes() == null) {
+            return null;
+        }
+        return start.plusMinutes(meeting.getDurationMinutes());
+    }
+
+    public Integer getDurationMinutes() {
+        return meeting == null ? null : meeting.getDurationMinutes();
+    }
+
+    public Double getTotalHours() {
+        Integer durationMinutes = getDurationMinutes();
+        if (durationMinutes == null) {
+            return null;
+        }
+        return Math.round((durationMinutes / 60.0) * 100.0) / 100.0;
+    }
+
     public void setMeetingTime(LocalDateTime meetingTime) {
         if (meetingTime == null) {
             this.scheduledDate = null;
@@ -83,5 +108,18 @@ public class FollowUpMeeting {
         this.meeting.setDurationMinutes(this.meeting.getDurationMinutes() == null ? 30 : this.meeting.getDurationMinutes());
         this.meeting.setStatus(this.meeting.getStatus() == null ? "Scheduled" : this.meeting.getStatus());
         this.scheduledDate = meetingTime.toLocalDate();
+    }
+
+    public void setMeetingWindow(LocalDateTime startMeetingTime, LocalDateTime endMeetingTime) {
+        if (startMeetingTime == null) {
+            setMeetingTime(null);
+            return;
+        }
+        setMeetingTime(startMeetingTime);
+        if (endMeetingTime == null) {
+            return;
+        }
+        long durationMinutes = ChronoUnit.MINUTES.between(startMeetingTime, endMeetingTime);
+        this.meeting.setDurationMinutes((int) durationMinutes);
     }
 }

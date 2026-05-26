@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -312,11 +313,15 @@ public class PipService {
         if (request == null || request.getContent() == null || request.getContent().trim().isEmpty()) {
             throw new RuntimeException("Note content is required");
         }
+        PipNoteType parsedNoteType = parseNoteType(request.getNoteType(), PipNoteType.COMMUNICATION);
+        if (parsedNoteType == PipNoteType.FOLLOWUP && !isInsideFollowUpMeetingWindow(pip)) {
+            throw new RuntimeException("Follow-up notes can only be added during a scheduled follow-up meeting time.");
+        }
 
         PipCommunicationNote note = new PipCommunicationNote();
         note.setPip(pip);
         note.setContent(request.getContent().trim());
-        note.setNoteType(parseNoteType(request.getNoteType(), PipNoteType.COMMUNICATION));
+        note.setNoteType(parsedNoteType);
         note.setAuthor(actor);
         note.setCreatedDate(Instant.now());
         note.setUpdatedDate(Instant.now());
@@ -334,6 +339,9 @@ public class PipService {
         }
         if (request == null || request.getContent() == null || request.getContent().trim().isEmpty()) {
             throw new RuntimeException("Note content is required");
+        }
+        if (note.getNoteType() == PipNoteType.FOLLOWUP && !isInsideFollowUpMeetingWindow(note.getPip())) {
+            throw new RuntimeException("Follow-up notes can only be edited during a scheduled follow-up meeting time.");
         }
 
         note.setContent(request.getContent().trim());
@@ -475,10 +483,26 @@ public class PipService {
                 && !"REOPENED".equals(normalizeStatus(pip.getStatus()))) {
             throw new RuntimeException("Meetings can only be scheduled for active PIPs");
         }
+        LocalDateTime startMeetingTime = request.getStartMeetingTime() != null
+                ? request.getStartMeetingTime()
+                : request.getMeetingTime();
+        LocalDateTime endMeetingTime = request.getEndMeetingTime();
+        if (startMeetingTime == null || endMeetingTime == null) {
+            throw new RuntimeException("Start meeting time and end meeting time are required");
+        }
+        if (!endMeetingTime.isAfter(startMeetingTime)) {
+            throw new RuntimeException("End meeting time must be after start meeting time");
+        }
+        if (startMeetingTime.toLocalDate().isBefore(pip.getStartDate())
+                || startMeetingTime.toLocalDate().isAfter(pip.getEndDate())
+                || endMeetingTime.toLocalDate().isBefore(pip.getStartDate())
+                || endMeetingTime.toLocalDate().isAfter(pip.getEndDate())) {
+            throw new RuntimeException("Meeting time must be within the PIP date range");
+        }
 
         FollowUpMeeting meeting = new FollowUpMeeting();
         meeting.setPip(pip);
-        meeting.setMeetingTime(request.getMeetingTime());
+        meeting.setMeetingWindow(startMeetingTime, endMeetingTime);
         meeting.setStatus(STATUS_SCHEDULED);
         meeting.setReminderSent(false);
         meeting.getMeeting().setManager(pip.getManager());
@@ -494,6 +518,31 @@ public class PipService {
         notifyPipRelatedUsers(pip, actor, "Follow-up meeting scheduled");
 
         return savedMeeting;
+    }
+
+    private boolean isInsideFollowUpMeetingWindow(Pip pip) {
+        if (pip == null || pip.getFollowUpMeetings() == null) {
+            return false;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        return pip.getFollowUpMeetings().stream().anyMatch(meeting -> {
+            LocalDateTime start = meeting.getStartMeetingTime();
+            LocalDateTime end = meeting.getEndMeetingTime();
+            return start != null && end != null && !now.isBefore(start) && !now.isAfter(end);
+        });
+    }
+
+    @Transactional
+    public Pip manualClosePip(Long pipId, User actor) {
+        Pip pip = getPipById(pipId, actor);
+        if (!isDirectManager(pip, actor)) {
+            throw new RuntimeException("Only the assigned manager can manually close this PIP");
+        }
+        if (!STATUS_ACTIVE.equals(normalizeStatus(pip.getStatus()))) {
+            throw new RuntimeException("Only active PIPs can be manually closed");
+        }
+        autoClosePip(pip, LocalDate.now(), "PIP manually closed");
+        return pip;
     }
 
     @Transactional
@@ -848,6 +897,10 @@ public class PipService {
     }
 
     private void autoClosePip(Pip pip, LocalDate closeDate) {
+        autoClosePip(pip, closeDate, "PIP auto-close");
+    }
+
+    private void autoClosePip(Pip pip, LocalDate closeDate, String notificationMessage) {
         if (pip.getOriginalEndDate() == null) {
             pip.setOriginalEndDate(pip.getEndDate());
         }
@@ -860,7 +913,7 @@ public class PipService {
         }
         pip.setUpdatedDate(Instant.now());
         Pip savedPip = pipRepository.save(pip);
-        notifyPipRelatedUsers(savedPip, pip.getManager() == null ? null : pip.getManager().getUserAccount(), "PIP auto-close");
+        notifyPipRelatedUsers(savedPip, pip.getManager() == null ? null : pip.getManager().getUserAccount(), notificationMessage);
     }
 
     private void authorizePipAccess(Pip pip, User actor) {

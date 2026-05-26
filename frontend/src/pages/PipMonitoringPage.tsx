@@ -10,40 +10,20 @@ import { useEffect, useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
 import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
 import PipUnifiedLog from '../features/pip/components/PipUnifiedLog'
-import {
-  Search,
-  Download,
-  FileText,
-  Plus,
-  X,
-  Filter,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  BarChart3,
-  Users,
-  ArrowRight,
-  History,
-  RotateCcw,
-  FileSpreadsheet,
-} from 'lucide-react'
 
-const STATUS_CFG: Record<string, { bg: string; text: string; dot: string; icon?: typeof CheckCircle2 }> = {
-  ACTIVE: { bg: 'bg-blue-50 ring-1 ring-blue-200/60', text: 'text-blue-700', dot: 'bg-blue-500' },
-  AUTO_CLOSED: { bg: 'bg-amber-50 ring-1 ring-amber-200/60', text: 'text-amber-700', dot: 'bg-amber-500', icon: AlertTriangle },
-  REOPEN_REQUESTED: { bg: 'bg-orange-50 ring-1 ring-orange-200/60', text: 'text-orange-700', dot: 'bg-orange-500', icon: RotateCcw },
-  COMPLETED: { bg: 'bg-emerald-50 ring-1 ring-emerald-200/60', text: 'text-emerald-700', dot: 'bg-emerald-500', icon: CheckCircle2 },
-  CLOSED: { bg: 'bg-slate-50 ring-1 ring-slate-200/60', text: 'text-slate-600', dot: 'bg-slate-400' },
-  DENIED: { bg: 'bg-red-50 ring-1 ring-red-200/60', text: 'text-red-700', dot: 'bg-red-500', icon: XCircle },
+const STATUS_COLORS: Record<string, string> = {
+  ACTIVE: 'bg-blue-100 text-blue-700',
+  AUTO_CLOSED: 'bg-amber-100 text-amber-700',
+  REOPEN_REQUESTED: 'bg-orange-100 text-orange-700',
+  COMPLETED: 'bg-emerald-100 text-emerald-700',
+  CLOSED: 'bg-slate-100 text-slate-700',
+  DENIED: 'bg-red-100 text-red-700',
 }
 
 const getStatusDisplayLabel = (status: string, finalOutcome?: string) => {
-  if (status === 'CLOSED' && finalOutcome === 'SUCCESSFUL') return 'Successful'
-  if (status === 'CLOSED' && finalOutcome === 'FAILED') return 'Failed'
-  if (status === 'AUTO_CLOSED') return 'Auto Closed'
+  if (status === 'CLOSED' && finalOutcome === 'SUCCESSFUL') return 'Close - Successful'
+  if (status === 'CLOSED' && finalOutcome === 'FAILED') return 'Close - Fail'
+  if (status === 'AUTO_CLOSED') return 'auto-close'
   return status.replace(/_/g, ' ')
 }
 
@@ -156,7 +136,12 @@ const getPipObjectiveSummary = (pip: Pip) => pip.objectives
   .map((objective) => `${objective.description} (${objective.progressPercentage}%)`)
   .join('; ')
 const getPipMeetingSummary = (pip: Pip) => (pip.followUpMeetings ?? [])
-  .map((meeting) => `${formatDateTimeValue(meeting.meetingTime)} - ${meeting.status}`)
+  .map((meeting) => [
+    `${formatDateTimeValue(meeting.startMeetingTime || meeting.meetingTime)} to ${formatDateTimeValue(meeting.endMeetingTime)}`,
+    `Total Hours: ${meeting.totalHours ?? '-'}`,
+    meeting.status || '-',
+    (meeting as { notes?: string }).notes || '',
+  ].join(' | '))
   .join('; ')
 
 const getUniquePips = (pips?: Pip[]) => {
@@ -178,12 +163,11 @@ const getDateRangeLabel = (startDate: string, endDate: string) => {
   return 'All dates'
 }
 
-const INPUT_CLASS =
-  'h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 placeholder-slate-400 transition-all hover:border-slate-300 focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/10 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500'
-const SELECT_CLASS =
-  `${INPUT_CLASS} appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_10px_center] bg-no-repeat pr-8`
-const LABEL_CLASS =
-  'mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500'
+const FILTER_LABEL_CLASS =
+  'mb-2 block min-h-[2rem] text-xs font-bold uppercase leading-tight tracking-wider text-slate-500'
+const FILTER_CONTROL_CLASS =
+  'h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
+const FILTER_SELECT_CLASS = `${FILTER_CONTROL_CLASS} disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-700`
 
 const buildPipExportRows = (bundles: PipExportBundle[]) => ({
   details: [
@@ -271,60 +255,18 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
       training.feedbackNotes || '',
     ])),
   ],
+  meetings: [
+    ['PIP Reference', 'Employee', 'Department', 'Position', 'Manager', 'Follow-Up Meetings'],
+    ...bundles.map(({ pip }) => [
+      `PIP #${pip.id}`,
+      getPipEmployeeName(pip),
+      getPipDepartmentName(pip),
+      getPipPositionName(pip),
+      getPipManagerName(pip),
+      getPipMeetingSummary(pip) || 'No follow-up meetings',
+    ]),
+  ],
 })
-
-function StatCard({ label, value, icon: Icon, color, bgColor, subtitle }: {
-  label: string
-  value: number | string
-  icon: typeof Users
-  color: string
-  bgColor: string
-  subtitle?: string
-}) {
-  return (
-    <div className="relative overflow-hidden rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:border-slate-300/60">
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-          <p className={`mt-2 text-2xl font-bold ${color}`}>{value}</p>
-          {subtitle && <p className="mt-0.5 text-xs text-slate-400 truncate">{subtitle}</p>}
-        </div>
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${bgColor}`}>
-          <Icon className={`h-5 w-5 ${color}`} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
-  const initials = name.split(' ').map(w => w.charAt(0)).join('').toUpperCase().slice(0, 2)
-  const sizeClasses = size === 'sm' ? 'h-8 w-8 text-[11px]' : 'h-9 w-9 text-xs'
-  return (
-    <div className={`${sizeClasses} flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] font-bold text-white shadow-sm`}>
-      {initials || '?'}
-    </div>
-  )
-}
-
-function ProgressBadge({ percentage, size = 'md' }: { percentage: number; size?: 'sm' | 'md' }) {
-  const color = percentage >= 70 ? 'from-emerald-500 to-emerald-600' : percentage >= 30 ? 'from-blue-500 to-blue-600' : 'from-orange-400 to-orange-500'
-  const barHeight = size === 'sm' ? 'h-1.5' : 'h-2'
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className={`w-full max-w-[120px] overflow-hidden rounded-full bg-slate-100 ${barHeight}`}>
-        <div
-          className={`${barHeight} rounded-full bg-gradient-to-r ${color} transition-all duration-700 ease-out`}
-          style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
-        />
-      </div>
-      <span className={`font-semibold ${size === 'sm' ? 'text-[10px]' : 'text-xs'} text-slate-500`}>
-        {percentage}%
-      </span>
-    </div>
-  )
-}
 
 export default function PipMonitoringPage() {
   const { user } = useSelector((state: RootState) => state.auth)
@@ -344,7 +286,6 @@ export default function PipMonitoringPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [logViewerPipId, setLogViewerPipId] = useState<number | null>(null)
-  const [filtersExpanded, setFiltersExpanded] = useState(true)
   const departmentFilter = isHr ? filterDept : undefined
 
   const { data: pips, isLoading, isError, error } = useGetPipsQuery({
@@ -484,16 +425,6 @@ export default function PipMonitoringPage() {
     })
   }, [uniquePips, selectedEmployeeId, selectedPipId])
 
-  const stats = useMemo(() => {
-    const all = filteredPips
-    const active = all.filter(p => p.status === 'ACTIVE').length
-    const completed = all.filter(p => p.status === 'COMPLETED' || (p.status === 'CLOSED' && p.finalOutcome === 'SUCCESSFUL')).length
-    const inProgress = all.filter(p => ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED'].includes(p.status)).length
-    const total = all.length
-    const uniqueEmployees = new Set(all.map(p => getPipEmployeeRecordId(p)).filter(Boolean)).size
-    return { active, completed, inProgress, total, uniqueEmployees }
-  }, [filteredPips])
-
   useEffect(() => {
     setCurrentPage(1)
   }, [filterDept, filterPos, filterStatus, searchName, selectedEmployeeId, selectedPipId, startDate, endDate, rowsPerPage])
@@ -508,6 +439,7 @@ export default function PipMonitoringPage() {
   const paginatedPips = tablePips.slice((safeCurrentPage - 1) * rowsPerPage, safeCurrentPage * rowsPerPage)
   const selectedPip = selectedPipId == null ? undefined : filteredPips.find((pip) => pip.id === selectedPipId)
   const exportTargetPips = useMemo(() => selectedPip ? [selectedPip] : filteredPips, [filteredPips, selectedPip])
+  const monitoringExportName = `pip-monitoring-${isHr ? 'hr' : 'manager'}-${selectedPip ? `pip-${selectedPip.id}` : 'all'}-${new Date().toISOString().slice(0, 10)}`
   const exportEmployeeCount = useMemo(() => new Set(
     exportTargetPips
       .map((pip) => getPipEmployeeRecordId(pip) ?? getPipStaffNo(pip))
@@ -548,7 +480,7 @@ export default function PipMonitoringPage() {
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(exportSummaryRows()), 'Report Criteria')
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows.details), 'PIP Details')
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows.training), 'Training History')
-      XLSX.writeFile(workbook, `pip-export-${selectedPip ? `pip-${selectedPip.id}` : 'all'}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+      XLSX.writeFile(workbook, `${monitoringExportName}.xlsx`)
     } catch (error) {
       console.error('[PIP Monitoring] Export failed:', error)
       setExportError('Failed to export PIP data.')
@@ -595,98 +527,92 @@ export default function PipMonitoringPage() {
         horizontalPageBreakRepeat: 0,
         margin: { top: 36, right: 24, bottom: 36, left: 24 },
       })
-      doc.save(`pip-monitoring-${selectedPip ? `pip-${selectedPip.id}` : 'report'}-${new Date().toISOString().slice(0, 10)}.pdf`)
+      doc.addPage('a3', 'landscape')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(16)
+      doc.text('Follow-Up Meetings', 36, 36)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.text(`Source: ${selectedPip ? `PIP #${selectedPip.id}` : 'All matching PIPs'}`, 36, 54)
+      autoTable(doc, {
+        head: [rows.meetings[0].map((heading) => String(heading))],
+        body: rows.meetings.slice(1).map((row) => row.map((cell) => String(cell || '-'))),
+        startY: 72,
+        theme: 'grid',
+        styles: {
+          fontSize: 8,
+          cellPadding: 4,
+          overflow: 'linebreak',
+          valign: 'top',
+        },
+        columnStyles: {
+          5: { cellWidth: 520 },
+        },
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+        margin: { top: 36, right: 36, bottom: 36, left: 36 },
+      })
+      doc.save(`${monitoringExportName}.pdf`)
     } catch (error) {
       console.error('[PIP Monitoring] Print failed:', error)
       setExportError('Failed to create PIP PDF.')
     }
   }
 
-  const clearAllFilters = () => {
-    setFilterDept(undefined)
-    setFilterPos(undefined)
-    setFilterStatus('')
-    setSearchName('')
-    setSelectedEmployeeId(undefined)
-    setStartDate('')
-    setEndDate('')
-    setSelectedPipId(undefined)
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative h-12 w-12">
-            <div className="absolute inset-0 rounded-full border-4 border-slate-200" />
-            <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-[#2463eb]" />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-semibold text-slate-700">Loading PIP Records</p>
-            <p className="mt-1 text-xs text-slate-400">Fetching performance improvement plans...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  if (isLoading) return <div className="p-8 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><span className="ml-3">Loading PIPs...</span></div>
 
   if (isError) {
     const apiError = error as ApiError | undefined
     const errorMessage = apiError?.data?.message || apiError?.error || 'Failed to load PIP records.'
     return (
       <div className="p-8">
-        <div className="mx-auto max-w-lg rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
-            <AlertTriangle className="h-7 w-7 text-red-500" />
-          </div>
-          <h2 className="mt-4 text-lg font-bold text-red-800">Unable to Load PIP Monitoring</h2>
-          <p className="mt-2 text-sm text-red-600">{errorMessage}</p>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
+          <h2 className="text-lg font-bold">Unable to load PIP Monitoring</h2>
+          <p className="mt-2 text-sm">{errorMessage}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6 p-4 sm:p-6 lg:p-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="p-4 sm:p-8 max-w-[1600px] mx-auto">
+      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            PIP Monitoring
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Track and manage performance improvement plans across your organization
-          </p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">PIP Monitoring</h1>
+          <p className="text-slate-500 mt-1">Manage and track performance improvement plans across your scope.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
           {(isHr || isManager) && (
             <>
               <button
                 type="button"
                 onClick={handleExportPips}
                 disabled={exportTargetPips.length === 0}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:flex-none"
               >
-                <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                <span className="hidden sm:inline">Export</span>
+                <i className="bi bi-download" />
+                Export Excel
               </button>
               <button
                 type="button"
                 onClick={handlePrintPips}
                 disabled={exportTargetPips.length === 0}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 sm:flex-none"
               >
-                <FileText className="h-4 w-4 text-red-500" />
-                <span className="hidden sm:inline">PDF</span>
+                <i className="bi bi-printer" />
+                Export PDF
               </button>
             </>
           )}
           {canCreate && (
             <Link
               to="create"
-              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-200/50 transition-all hover:shadow-md hover:shadow-blue-200/50 active:scale-[0.98]"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-blue-200 transition-all hover:bg-blue-700 hover:scale-105 active:scale-95 sm:flex-none"
             >
-              <Plus className="h-4 w-4" />
+              <i className="bi bi-plus-lg" />
               Create PIP
             </Link>
           )}
@@ -694,389 +620,287 @@ export default function PipMonitoringPage() {
       </div>
 
       {exportError && (
-        <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-5 py-3.5 text-sm font-medium text-red-700">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           {exportError}
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
-        <StatCard
-          label="Total PIPs"
-          value={stats.total}
-          icon={BarChart3}
-          color="text-[#2463eb]"
-          bgColor="bg-[#eff6ff]"
-        />
-        <StatCard
-          label="Active"
-          value={stats.active}
-          icon={Clock}
-          color="text-blue-600"
-          bgColor="bg-blue-50"
-        />
-        <StatCard
-          label="In Progress"
-          value={stats.inProgress}
-          icon={Users}
-          color="text-amber-600"
-          bgColor="bg-amber-50"
-        />
-        <StatCard
-          label="Completed"
-          value={stats.completed}
-          icon={CheckCircle2}
-          color="text-emerald-600"
-          bgColor="bg-emerald-50"
-        />
-        <StatCard
-          label="Employees"
-          value={stats.uniqueEmployees}
-          icon={Users}
-          color="text-violet-600"
-          bgColor="bg-violet-50"
-          subtitle="Unique employees"
-        />
-      </div>
-
-      {/* Filters Panel */}
-      <div className="rounded-xl border border-slate-200/80 bg-white shadow-sm">
-        <button
-          type="button"
-          onClick={() => setFiltersExpanded(!filtersExpanded)}
-          className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/50"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
-              <Filter className="h-4 w-4 text-slate-500" />
-            </div>
-            <div>
-              <span className="text-sm font-semibold text-slate-700">Filters</span>
-              {hasActiveFilters && (
-                <span className="ml-2 inline-flex items-center rounded-full bg-[#2463eb]/10 px-2 py-0.5 text-[10px] font-bold text-[#2463eb]">
-                  Active
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {hasActiveFilters && (
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); clearAllFilters() }}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); clearAllFilters() } }}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-[#2463eb] transition-colors hover:bg-[#2463eb]/5"
+      {/* Advanced Filters */}
+      <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {/* Department Filter - Only for HR or if Manager has multiple (unlikely based on current backend) */}
+          {(isHr || isManager) && (
+            <div className="min-w-0">
+              <label className={FILTER_LABEL_CLASS}>Department</label>
+              <select
+                value={filterDept || ''}
+                onChange={(e) => {
+                  setFilterDept(e.target.value ? Number(e.target.value) : undefined)
+                  setFilterPos(undefined) // Reset position when department changes
+                }}
+                disabled={!isHr}
+                className={FILTER_SELECT_CLASS}
               >
-                <X className="h-3 w-3" />
-                Clear all
-              </span>
-            )}
-            {filtersExpanded
-              ? <ChevronUp className="h-4 w-4 text-slate-400" />
-              : <ChevronDown className="h-4 w-4 text-slate-400" />
-            }
-          </div>
-        </button>
-
-        {filtersExpanded && (
-          <div className="animate-fade-in border-t border-slate-100 px-5 pb-5 pt-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {(isHr || isManager) && (
-                <div className="min-w-0">
-                  <label className={LABEL_CLASS}>Department</label>
-                  <select
-                    value={filterDept || ''}
-                    onChange={(e) => {
-                      setFilterDept(e.target.value ? Number(e.target.value) : undefined)
-                      setFilterPos(undefined)
-                    }}
-                    disabled={!isHr}
-                    className={SELECT_CLASS}
-                  >
-                    {isHr ? <option value="">All Departments</option> : <option value="">{managerDepartmentName}</option>}
-                    {isHr && departments.map((d) => (
-                      <option key={d.departmentId} value={d.departmentId}>
-                        {d.departmentName || 'Unnamed Department'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {(isHr || isManager) && (
-                <div className="min-w-0">
-                  <label className={LABEL_CLASS}>Position</label>
-                  <select
-                    value={filterPos || ''}
-                    onChange={(e) => setFilterPos(e.target.value ? Number(e.target.value) : undefined)}
-                    className={SELECT_CLASS}
-                  >
-                    <option value="">All Positions</option>
-                    {positions.map((p) => (
-                      <option key={p.positionId} value={p.positionId}>
-                        {p.positionName || 'Unnamed Position'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="min-w-0">
-                <label className={LABEL_CLASS}>Status</label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className={SELECT_CLASS}
-                >
-                  <option value="">All Statuses</option>
-                  {Object.keys(STATUS_CFG).map((s) => (
-                    <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-                  ))}
-                </select>
-              </div>
-
-              {(isHr || isManager) && (
-                <div className="min-w-0">
-                  <label className={LABEL_CLASS}>Search Employee</label>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Type to search..."
-                      value={searchName}
-                      onChange={(e) => setSearchName(e.target.value)}
-                      className={`${INPUT_CLASS} pl-9`}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {(isHr || isManager) && (
-                <div className="min-w-0">
-                  <label className={LABEL_CLASS}>Employee</label>
-                  <select
-                    value={selectedEmployeeId || ''}
-                    onChange={(e) => setSelectedEmployeeId(e.target.value ? Number(e.target.value) : undefined)}
-                    className={SELECT_CLASS}
-                  >
-                    <option value="">All Employees</option>
-                    {employeeFilterOptions.map((employee) => (
-                      <option key={employee.id} value={employee.id}>
-                        {employee.name} - {employee.staffNo}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="min-w-0">
-                <label className={LABEL_CLASS}>Start Date</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className={INPUT_CLASS}
-                />
-              </div>
-
-              <div className="min-w-0">
-                <label className={LABEL_CLASS}>End Date</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className={INPUT_CLASS}
-                />
-              </div>
-
-              {(isHr || isManager) && (
-                <div className="min-w-0">
-                  <label className={LABEL_CLASS}>PIP Reference</label>
-                  <select
-                    value={selectedPipId || ''}
-                    onChange={(e) => {
-                      const nextPipId = Number.parseInt(e.target.value, 10)
-                      setSelectedPipId(Number.isFinite(nextPipId) ? nextPipId : undefined)
-                    }}
-                    className={SELECT_CLASS}
-                  >
-                    <option value="">All PIPs</option>
-                    {uniquePips.map((pip) => (
-                      <option key={pip.id} value={pip.id}>
-                        PIP #{pip.id} - {getPipEmployeeName(pip)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+                {isHr ? <option value="">All Departments</option> : <option value="">{managerDepartmentName}</option>}
+                {isHr && departments.map((d) => (
+                  <option key={d.departmentId} value={d.departmentId}>
+                    {d.departmentName || 'Unnamed Department'}
+                  </option>
+                ))}
+              </select>
             </div>
+          )}
+
+          {/* Position Filter */}
+          {(isHr || isManager) && (
+            <div className="min-w-0">
+              <label className={FILTER_LABEL_CLASS}>Position</label>
+              <select
+                value={filterPos || ''}
+                onChange={(e) => setFilterPos(e.target.value ? Number(e.target.value) : undefined)}
+                className={FILTER_SELECT_CLASS}
+              >
+                <option value="">All Positions</option>
+                {positions.map((p) => (
+                  <option key={p.positionId} value={p.positionId}>
+                    {p.positionName || 'Unnamed Position'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Status Filter */}
+          <div className="min-w-0">
+            <label className={FILTER_LABEL_CLASS}>Status</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className={FILTER_SELECT_CLASS}
+            >
+              <option value="">All Statuses</option>
+              {Object.keys(STATUS_COLORS).map((s) => (
+                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
           </div>
-        )}
-      </div>
 
-      {/* Data Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-[980px] w-full text-left">
-            <thead>
-              <tr className="border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-slate-50/40">
-                <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Employee</th>
-                <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Position</th>
-                {isHr && <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Department</th>}
-                <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">KPI Score</th>
-                <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center">Status</th>
-                <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Period</th>
-                <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">Progress</th>
-                <th className="px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100/80">
-              {paginatedPips.map((pip) => {
-                const emp: EmployeeDisplay | undefined = pip.employee.employee
-                const empName = emp?.employeeName || 'N/A'
-                const cfg = STATUS_CFG[pip.status] || STATUS_CFG.CLOSED
-                const closedSuccessful = pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL'
-                const closedFailed = pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED'
-                const displayCfg = closedSuccessful
-                  ? { bg: 'bg-emerald-50 ring-1 ring-emerald-200/60', text: 'text-emerald-700', dot: 'bg-emerald-500' }
-                  : closedFailed
-                    ? { bg: 'bg-red-50 ring-1 ring-red-200/60', text: 'text-red-700', dot: 'bg-red-500' }
-                    : cfg
+          {/* Employee Name Search */}
+          {(isHr || isManager) && (
+            <div className="min-w-0">
+              <label className={FILTER_LABEL_CLASS}>Employee Name</label>
+              <div className="relative">
+                <i className="bi bi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                  className={`${FILTER_CONTROL_CLASS} pl-9 pr-4`}
+                />
+              </div>
+            </div>
+          )}
 
-                return (
-                  <tr key={pip.id} className="group transition-colors hover:bg-slate-50/60">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={empName} />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-800 group-hover:text-[#2463eb] transition-colors">
-                            {empName}
-                          </p>
-                          <p className="text-[11px] text-slate-400 font-medium">
-                            ID: {getPipStaffNo(pip)}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="text-sm text-slate-600">{getPositionName(emp)}</span>
-                    </td>
-                    {isHr && (
-                      <td className="px-5 py-4">
-                        <span className="inline-flex items-center gap-1.5 text-sm text-slate-600">
-                          {getDepartmentName(emp)}
-                        </span>
-                      </td>
-                    )}
-                    <td className="px-5 py-4">
-                      <span className={`text-sm font-bold ${
-                        pip.kpiScore == null ? 'text-slate-400' :
-                        pip.kpiScore >= 70 ? 'text-emerald-600' :
-                        pip.kpiScore >= 40 ? 'text-amber-600' :
-                        'text-red-600'
-                      }`}>
-                        {formatKpiScore(pip.kpiScore)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-center">
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${displayCfg.bg} ${displayCfg.text}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${displayCfg.dot}`} />
-                        {getStatusDisplayLabel(pip.status, pip.finalOutcome)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-xs font-medium text-slate-600">
-                          {formatDateValue(pip.startDate)}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          to {formatDateValue(pip.endDate)}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <ProgressBadge percentage={pip.overallProgressPercentage} />
-                        {pip.updatedAt && (
-                          <span className="text-[10px] text-slate-400 whitespace-nowrap hidden xl:block">
-                            {new Date(pip.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => setLogViewerPipId(pip.id)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-100 hover:text-[#2463eb]"
-                          title="View Activity Log"
-                        >
-                          <History className="h-4 w-4" />
-                        </button>
-                        <Link
-                          to={`${location.pathname}/${pip.id}`}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-[#2463eb] transition-all hover:bg-[#2463eb]/5"
-                        >
-                          View
-                          <ArrowRight className="h-3 w-3" />
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-              {tablePips.length === 0 && (
-                <tr>
-                  <td colSpan={isHr ? 8 : 7} className="px-5 py-20">
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
-                        <BarChart3 className="h-8 w-8 text-slate-300" />
-                      </div>
-                      <p className="mt-4 text-sm font-semibold text-slate-500">No PIP records found</p>
-                      <p className="mt-1 text-xs text-slate-400">
-                        {hasActiveFilters
-                          ? 'Try adjusting your filters or search terms'
-                          : 'No performance improvement plans have been created yet'
-                        }
-                      </p>
-                      {hasActiveFilters && (
-                        <button
-                          onClick={clearAllFilters}
-                          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          Clear Filters
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          {(isHr || isManager) && (
+            <div className="min-w-0">
+              <label className={FILTER_LABEL_CLASS}>Employee</label>
+              <select
+                value={selectedEmployeeId || ''}
+                onChange={(e) => setSelectedEmployeeId(e.target.value ? Number(e.target.value) : undefined)}
+                className={FILTER_SELECT_CLASS}
+              >
+                <option value="">All Employees</option>
+                {employeeFilterOptions.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name} - {employee.staffNo} - {employee.department || 'No Department'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Start Date */}
+          <div className="min-w-0">
+            <label className={FILTER_LABEL_CLASS}>Start Date</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className={FILTER_CONTROL_CLASS}
+            />
+          </div>
+
+          {/* End Date */}
+          <div className="min-w-0">
+            <label className={FILTER_LABEL_CLASS}>End Date</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className={FILTER_CONTROL_CLASS}
+            />
+          </div>
+
+          {(isHr || isManager) && (
+            <div className="min-w-0">
+              <label className={FILTER_LABEL_CLASS}>PIP</label>
+              <select
+                value={selectedPipId || ''}
+                onChange={(e) => {
+                  const nextPipId = Number.parseInt(e.target.value, 10)
+                  setSelectedPipId(Number.isFinite(nextPipId) ? nextPipId : undefined)
+                }}
+                className={FILTER_SELECT_CLASS}
+              >
+                <option value="">All PIPs</option>
+                {uniquePips.map((pip) => (
+                  <option key={pip.id} value={pip.id}>
+                    PIP #{pip.id} - {getPipEmployeeName(pip)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={() => {
+              setFilterDept(undefined)
+              setFilterPos(undefined)
+              setFilterStatus('')
+              setSearchName('')
+              setSelectedEmployeeId(undefined)
+              setStartDate('')
+              setEndDate('')
+              setSelectedPipId(undefined)
+            }}
+            className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            Clear Filters
+          </button>
         </div>
       </div>
 
-      {/* Related PIP Detail Overview */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
+        <div className="overflow-x-auto">
+        <table className="min-w-[980px] w-full text-left">
+          <thead className="border-b border-slate-200 bg-slate-50/50">
+            <tr>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Employee</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Position</th>
+              {isHr && <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Department</th>}
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">KPI Score</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Status</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Start Date</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">End Date</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Overall Progress</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {paginatedPips.map((pip) => {
+              const emp: EmployeeDisplay | undefined = pip.employee.employee
+              return (
+                <tr key={pip.id} className="group hover:bg-slate-50 transition-all duration-200">
+                  <td className="px-6 py-5">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{emp?.employeeName || 'N/A'}</span>
+                      <span className="text-xs text-slate-400">Staff ID: {getPipStaffNo(pip)}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5">
+                    <span className="text-sm text-slate-600 font-medium">{getPositionName(emp)}</span>
+                  </td>
+                  {isHr && (
+                    <td className="px-6 py-5 text-sm text-slate-600">
+                      {getDepartmentName(emp)}
+                    </td>
+                  )}
+                  <td className="px-6 py-5 text-sm font-bold text-slate-700">
+                    {formatKpiScore(pip.kpiScore)}
+                  </td>
+                  <td className="px-6 py-5 text-center">
+                    <span className={`inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${pip.status === 'CLOSED' && pip.finalOutcome === 'SUCCESSFUL' ? 'bg-green-100 text-green-700' :
+                      pip.status === 'CLOSED' && pip.finalOutcome === 'FAILED' ? 'bg-red-100 text-red-700' :
+                        (STATUS_COLORS[pip.status] || 'bg-slate-100 text-slate-700')
+                      }`}>
+                      {getStatusDisplayLabel(pip.status, pip.finalOutcome)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-5 text-sm text-slate-600 font-medium">
+                    {formatDateValue(pip.startDate)}
+                  </td>
+                  <td className="px-6 py-5 text-sm text-slate-600 font-medium">
+                    {formatDateValue(pip.endDate)}
+                  </td>
+                  <td className="px-6 py-5">
+                    <div className="flex flex-col gap-1.5">
+                      <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100 shadow-inner">
+                        <div
+                          className={`h-full transition-all duration-500 ${pip.overallProgressPercentage >= 70 ? 'bg-green-500' : pip.overallProgressPercentage >= 30 ? 'bg-blue-500' : 'bg-orange-500'}`}
+                          style={{ width: `${pip.overallProgressPercentage}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-tight">
+                        {pip.overallProgressPercentage}% COMPLETED
+                        {pip.updatedAt && (
+                          <span className="ml-2 border-l border-slate-200 pl-2">
+                            Updated {new Date(pip.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-5 text-right">
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => setLogViewerPipId(pip.id)}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition-all"
+                        title="View Activity Log"
+                      >
+                        <i className="bi bi-clock-history text-lg" />
+                      </button>
+                      <Link
+                        to={`${location.pathname}/${pip.id}`}
+                        className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                      >
+                        View Details
+                        <i className="bi bi-chevron-right text-[10px]" />
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+            {tablePips.length === 0 && (
+              <tr>
+                <td colSpan={isHr ? 9 : 8} className="px-6 py-20 text-center">
+                  <div className="flex flex-col items-center justify-center text-slate-400">
+                    <i className="bi bi-clipboard-x text-5xl mb-4 opacity-20" />
+                    <p className="text-lg font-medium">No PIP records found matching your criteria.</p>
+                    <p className="text-sm">Try adjusting your filters or search terms.</p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        </div>
+      </div>
+
       {(isHr || isManager) && hasActiveFilters && exportTargetPips.length > 0 && (
-        <section className="rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-slate-400" />
-              <h2 className="text-sm font-bold text-slate-800">Related PIP Detail Overview</h2>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                {exportTargetPips.length} records
-              </span>
-            </div>
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
+          <div className="border-b border-slate-100 px-6 py-4">
+            <h2 className="text-lg font-black text-slate-900">Related PIP Detail Overview</h2>
           </div>
-          <div className="max-h-[480px] overflow-auto">
+          <div className="max-h-[520px] overflow-auto">
             <table className="min-w-[2600px] text-left text-xs">
-              <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm">
+              <thead className="sticky top-0 z-10 bg-slate-50">
                 <tr>
                   {onePagePipDetailRows[0].map((heading) => (
-                    <th key={String(heading)} className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <th key={String(heading)} className="whitespace-nowrap border-b border-slate-200 px-4 py-3 font-black uppercase tracking-wider text-slate-500">
                       {String(heading)}
                     </th>
                   ))}
@@ -1084,7 +908,7 @@ export default function PipMonitoringPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {onePagePipDetailRows.slice(1).map((row, rowIndex) => (
-                  <tr key={`${row[0]}-${rowIndex}`} className="align-top transition-colors hover:bg-slate-50/50">
+                  <tr key={`${row[0]}-${rowIndex}`} className="align-top hover:bg-slate-50">
                     {row.map((cell, cellIndex) => (
                       <td key={`${row[0]}-${cellIndex}`} className="max-w-[260px] whitespace-pre-wrap px-4 py-3 text-slate-600">
                         {String(cell || '-')}
@@ -1097,108 +921,72 @@ export default function PipMonitoringPage() {
           </div>
         </section>
       )}
-
-      {/* Pagination */}
       {tablePips.length > 0 && (
-        <div className="flex flex-col gap-4 rounded-xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-md shadow-slate-100 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
             <span>
-              Showing <span className="font-semibold text-slate-700">{startIndex} - {endIndex}</span> of{' '}
-              <span className="font-semibold text-slate-700">{tablePips.length}</span> records
+              Showing <span className="font-bold text-slate-700">{startIndex} - {endIndex}</span> of{' '}
+              <span className="font-bold text-slate-700">{tablePips.length}</span> employees
             </span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-400">Rows:</span>
+            <label className="flex items-center gap-2">
+              <span className="text-slate-400">Rows:</span>
               <select
                 value={rowsPerPage}
                 onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-all hover:border-slate-300 focus:border-[#2463eb] focus:outline-none focus:ring-2 focus:ring-[#2463eb]/10"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 {[5, 10, 20, 50].map((rows) => (
                   <option key={rows} value={rows}>{rows}</option>
                 ))}
               </select>
-            </div>
+            </label>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
               disabled={safeCurrentPage === 1}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-slate-400"
             >
-              <ChevronUp className="h-3 w-3 rotate-[-90deg]" />
+              <i className="bi bi-chevron-left text-xs" />
               Prev
             </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum: number
-                if (totalPages <= 5) {
-                  pageNum = i + 1
-                } else if (safeCurrentPage <= 3) {
-                  pageNum = i + 1
-                } else if (safeCurrentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i
-                } else {
-                  pageNum = safeCurrentPage - 2 + i
-                }
-                const isActive = pageNum === safeCurrentPage
-                return (
-                  <button
-                    key={pageNum}
-                    type="button"
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`h-9 min-w-[36px] rounded-lg border text-xs font-semibold transition-all ${
-                      isActive
-                        ? 'border-[#2463eb] bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white shadow-sm shadow-blue-200/50'
-                        : 'border-slate-200 bg-white text-slate-500 hover:border-[#2463eb]/30 hover:bg-[#2463eb]/5 hover:text-[#2463eb]'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                )
-              })}
-            </div>
+            <span className="flex h-11 min-w-11 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm shadow-blue-200">
+              {safeCurrentPage}
+            </span>
             <button
               type="button"
               onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
               disabled={safeCurrentPage === totalPages}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-slate-400"
             >
               Next
-              <ChevronUp className="h-3 w-3 rotate-90" />
+              <i className="bi bi-chevron-right text-xs" />
             </button>
           </div>
         </div>
       )}
 
-      {/* Activity Log Modal */}
       {logViewerPipId && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
           <div
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fade-in"
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             onClick={() => setLogViewerPipId(null)}
           />
-          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl animate-scale-in">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-6 py-4 backdrop-blur-md">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#eff6ff]">
-                  <History className="h-4 w-4 text-[#2463eb]" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">PIP Activity History</h3>
-                  <p className="text-[11px] font-medium text-slate-400">
-                    Viewing audit log for PIP #{logViewerPipId}
-                  </p>
-                </div>
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[2rem] bg-slate-50 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/80 px-8 py-5 backdrop-blur-md">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">PIP Activity History</h3>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Viewing Audit Log for PIP #{logViewerPipId}</p>
               </div>
               <button
                 onClick={() => setLogViewerPipId(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-700"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-900"
               >
-                <X className="h-4 w-4" />
+                <i className="bi bi-x-lg" />
               </button>
             </div>
-            <div className="max-h-[calc(90vh-64px)] overflow-y-auto p-6">
+            <div className="p-8">
               <PipUnifiedLog pipId={logViewerPipId} />
             </div>
           </div>
