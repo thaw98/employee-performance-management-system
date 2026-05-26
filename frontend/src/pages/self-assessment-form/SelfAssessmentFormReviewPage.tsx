@@ -52,6 +52,7 @@ import {
   useHrRejectManagerReviewMutation,
   useHrApproveFormMutation,
   useHrReopenFormMutation,
+  useHrReturnBackMutation,
   useUnlockSelfAssessmentRequestMutation,
   SELF_ASSESSMENT_UNLOCK_HR_APPROVE_REASON_OPTIONS,
   type SelfAssessmentUnlockHrApproveReasonCode,
@@ -180,6 +181,16 @@ function getStatusConfig(status: string) {
       cardAccent: 'border-l-orange-500',
     };
   }
+  if (s === 'RETURNED_BY_HR') {
+    return {
+      label: 'Returned by HR',
+      bg: 'bg-rose-50 dark:bg-rose-900/30',
+      text: 'text-rose-700 dark:text-rose-400',
+      dot: 'bg-rose-500',
+      icon: RotateCcw,
+      cardAccent: 'border-l-rose-500',
+    };
+  }
   if (s === 'REOPENED') {
     return {
       label: 'Reopened',
@@ -232,6 +243,16 @@ const HR_ADJUSTMENT_REJECTION_REASONS = [
 ] as const;
 
 const HR_ADJUSTMENT_REJECTION_OTHER = 'Other';
+
+const HR_RETURN_BACK_REASONS = [
+  'Incomplete or missing manager ratings',
+  'Manager comments insufficient or unclear',
+  'Ratings inconsistent with employee self-assessment',
+  'Evidence does not support proposed adjustments',
+  'Requires revision before HR approval',
+] as const;
+
+const HR_RETURN_BACK_OTHER = 'Others';
 
 function ScoreBar({ value, max = 100, color = '#2463eb', label }: { value: number; max?: number; color?: string; label?: string }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
@@ -336,7 +357,8 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [showAdjustments, setShowAdjustments] = useState(false);
   const [managerComments, setManagerComments] = useState('');
   const [retakeComments, setRetakeComments] = useState<Record<number, string>>({});
-  const [hrReturnReason, setHrReturnReason] = useState('');
+  const [hrReturnReasonType, setHrReturnReasonType] = useState<string>(HR_RETURN_BACK_REASONS[0]);
+  const [hrReturnCustomReason, setHrReturnCustomReason] = useState('');
   const [rejectReasonType, setRejectReasonType] = useState<string>(HR_ADJUSTMENT_REJECTION_REASONS[0]);
   const [rejectReason, setRejectReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -399,6 +421,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [managerApproveRetake, { isLoading: isApprovingRetake }] = useManagerApproveRetakeMutation();
   const [managerForceChangeRetake, { isLoading: isForceChangingRetake }] = useManagerForceChangeRetakeMutation();
   const [hrReturnDisputedReview, { isLoading: isHrReturningDispute }] = useHrReturnDisputedReviewMutation();
+  const [hrReturnBack, { isLoading: isHrReturningBack }] = useHrReturnBackMutation();
   const [hrApproveManagerReview, { isLoading: isHrApproving }] = useHrApproveManagerReviewMutation();
   const [hrRejectManagerReview, { isLoading: isHrRejecting }] = useHrRejectManagerReviewMutation();
   const [hrApproveForm, { isLoading: isApproving }] = useHrApproveFormMutation();
@@ -407,6 +430,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [showHrReturnModal, setShowHrReturnModal] = useState(false);
   const [showManagerApproveModal, setShowManagerApproveModal] = useState(false);
   const [showManagerApproveRetakeModal, setShowManagerApproveRetakeModal] = useState(false);
   const [showManagerRetakeModal, setShowManagerRetakeModal] = useState(false);
@@ -428,6 +452,13 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     && isManagerSelfAssessment
     && selectedForm?.status === 'PENDING_FINAL_APPROVAL'
     && Boolean(selectedForm.retakeSubmittedAt);
+  const canHrReturnBack = isHr
+    && !isEmployeeDetail
+    && (selectedForm?.status === 'PENDING_FINAL_APPROVAL'
+      || selectedForm?.status === 'PENDING_HR_CALIBRATION_REVIEW');
+  const isManagerReviewActionable = selectedForm?.status === 'SUBMITTED'
+    || selectedForm?.status === 'PENDING_MANAGER_REVIEW'
+    || selectedForm?.status === 'RETURNED_BY_HR';
 
   const forms = isEmployeeDetail ? [] : isHr ? (selectedFormId ? allForms : hrForms) : managerForms;
   const isLoading = selectedFormLoading || (isEmployeeDetail ? false : isHr ? (selectedFormId ? allFormsLoading : hrFormsLoading) : managerFormsLoading);
@@ -713,22 +744,59 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     });
   };
 
+  const resolvedHrReturnReason =
+    hrReturnReasonType === HR_RETURN_BACK_OTHER ? hrReturnCustomReason.trim() : hrReturnReasonType;
+
   const handleHrReturnDisputedReview = async () => {
-    if (!selectedFormId || !hrReturnReason.trim()) {
-      toast.error('Enter an HR reason before sending back to the manager.');
+    if (!selectedFormId || !resolvedHrReturnReason) {
+      toast.error('Select a return reason before sending back to the manager.');
       return;
     }
 
     try {
       await hrReturnDisputedReview({
         formId: selectedFormId,
-        request: { reason: hrReturnReason.trim() },
+        request: { reason: resolvedHrReturnReason },
       }).unwrap();
       toast.success('Review returned to manager for revision');
-      setHrReturnReason('');
+      setHrReturnReasonType(HR_RETURN_BACK_REASONS[0]);
+      setHrReturnCustomReason('');
       refetchForm();
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to return review to manager');
+    }
+  };
+
+  const resetHrReturnModal = () => {
+    setHrReturnReasonType(HR_RETURN_BACK_REASONS[0]);
+    setHrReturnCustomReason('');
+    setShowHrReturnModal(false);
+  };
+
+  const handleHrReturnBack = async () => {
+    if (!selectedFormId || !resolvedHrReturnReason) {
+      toast.error(
+        hrReturnReasonType === HR_RETURN_BACK_OTHER
+          ? 'Enter a custom return reason before sending back to the manager.'
+          : 'Select a return reason before sending back to the manager.',
+      );
+      return;
+    }
+
+    try {
+      await hrReturnBack({
+        formId: selectedFormId,
+        request: {
+          returnReason: resolvedHrReturnReason,
+        },
+      }).unwrap();
+      toast.success('Form returned to manager');
+      resetHrReturnModal();
+      refetchForm();
+      void refetchHrForms();
+      void refetchAllForms();
+    } catch (error: any) {
+      toast.error(error?.data?.message || 'Failed to return form to manager');
     }
   };
 
@@ -888,14 +956,14 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     if (selectedForm.createdDate) {
       steps[0].date = formatDateTimeWithSeconds(selectedForm.createdDate);
     }
-    const hasSubmitted = ['SUBMITTED', 'EMPLOYEE_SUBMITTED', 'PENDING_MANAGER_REVIEW', 'MANAGER_REVIEWED', 'PENDING_EMPLOYEE_REVIEW', 'PENDING_FINAL_APPROVAL', 'PENDING_HR_CALIBRATION_REVIEW', 'APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
+    const hasSubmitted = ['SUBMITTED', 'EMPLOYEE_SUBMITTED', 'PENDING_MANAGER_REVIEW', 'MANAGER_REVIEWED', 'PENDING_EMPLOYEE_REVIEW', 'PENDING_FINAL_APPROVAL', 'PENDING_HR_CALIBRATION_REVIEW', 'RETURNED_BY_HR', 'APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
     steps.push({
       label: 'Employee Submitted',
       done: hasSubmitted,
       active: s === 'SUBMITTED' || s === 'EMPLOYEE_SUBMITTED',
       date: selectedForm.submittedDate ? formatDateTimeWithSeconds(selectedForm.submittedDate) : undefined,
     });
-    const hasMgrReview = ['MANAGER_REVIEWED', 'PENDING_EMPLOYEE_REVIEW', 'PENDING_FINAL_APPROVAL', 'PENDING_HR_CALIBRATION_REVIEW', 'APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
+    const hasMgrReview = ['MANAGER_REVIEWED', 'PENDING_EMPLOYEE_REVIEW', 'PENDING_FINAL_APPROVAL', 'PENDING_HR_CALIBRATION_REVIEW', 'RETURNED_BY_HR', 'APPROVED', 'COMPLETED', 'FINALIZED_LOCKED'].includes(s);
     steps.push({
       label: 'Manager Review',
       done: hasMgrReview,
@@ -1302,23 +1370,30 @@ Review Submissions
                 </div>
               </div>
 
-              {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason || (!isHr && !isEmployeeDetail && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW')) && (
+              {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason || selectedForm.hrReturnComments || (!isHr && !isEmployeeDetail && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW')) && (
                 <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '140ms' }}>
                   <div className="flex items-center gap-2 mb-4">
                     <MessageSquare size={15} className="text-[#2463eb] dark:text-[#60a5fa]" />
                     <h3 className="text-base font-bold text-slate-900 dark:text-white">Remarks & Comments</h3>
                   </div>
                   <div className="space-y-3">
-                    {selectedForm.hrReviewReason && (
+                    {(selectedForm.hrReviewReason || selectedForm.hrReturnComments) && (
                       <div className="rounded-xl border border-orange-200/70 bg-orange-50/40 p-4 dark:border-orange-700/50 dark:bg-orange-900/15">
                         <RemarkCommentHeader
-                          title="HR Remarks"
+                          title={selectedForm.status === 'RETURNED_BY_HR' ? 'HR Return Reason' : 'HR Remarks'}
                           dateTime={selectedForm.hrReviewReasonAt}
                           titleClassName="text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400"
                           dateClassName="text-xs font-semibold tabular-nums text-orange-700 dark:text-orange-300"
                           leading={<ShieldCheck size={13} className="text-orange-500 dark:text-orange-400" />}
                         />
-                        <p className="text-sm text-orange-700 dark:text-orange-200 leading-relaxed">{selectedForm.hrReviewReason}</p>
+                        {selectedForm.hrReviewReason && (
+                          <p className="text-sm text-orange-700 dark:text-orange-200 leading-relaxed">{selectedForm.hrReviewReason}</p>
+                        )}
+                        {selectedForm.hrReturnComments && (
+                          <p className="mt-2 text-sm text-orange-700 dark:text-orange-200 leading-relaxed">
+                            <span className="font-bold">Comments:</span> {selectedForm.hrReturnComments}
+                          </p>
+                        )}
                       </div>
                     )}
                     {selectedForm.employeeRemarks && (
@@ -1634,7 +1709,7 @@ Review Submissions
                 </div>
               </div>
 
-              {!isHr && !isEmployeeDetail && (selectedForm.status === 'SUBMITTED' || selectedForm.status === 'PENDING_MANAGER_REVIEW') && (
+              {!isHr && !isEmployeeDetail && isManagerReviewActionable && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-md shadow-amber-500/20">
@@ -1823,7 +1898,7 @@ Review Submissions
                 </div>
 	              )}
 
-	              {isHr && !isEmployeeDetail && selectedForm.status === 'PENDING_FINAL_APPROVAL' && (
+	              {isHr && !isEmployeeDetail && (selectedForm.status === 'PENDING_FINAL_APPROVAL' || selectedForm.status === 'PENDING_HR_CALIBRATION_REVIEW') && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-md shadow-[#2463eb]/20">
@@ -1831,7 +1906,7 @@ Review Submissions
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">HR Actions</h3>
-	                      <p className="text-xs text-slate-400 dark:text-slate-500">Give final approval for manager-approved self-assessments</p>
+	                      <p className="text-xs text-slate-400 dark:text-slate-500">Finalize manager-approved self-assessments or return them for revision</p>
                     </div>
                   </div>
 
@@ -1935,18 +2010,42 @@ Review Submissions
                             <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-rose-600 dark:text-rose-300">
                               HR Reason for Manager Revision <span className="text-red-500">*</span>
                             </label>
-                            <textarea
-                              value={hrReturnReason}
-                              onChange={(e) => setHrReturnReason(e.target.value)}
-                              rows={3}
-                              className={`${filterControlClass} resize-none`}
-                              placeholder="Explain what the manager must revise..."
-                            />
+                            <select
+                              value={hrReturnReasonType}
+                              onChange={(e) => {
+                                setHrReturnReasonType(e.target.value);
+                                if (e.target.value !== HR_RETURN_BACK_OTHER) {
+                                  setHrReturnCustomReason('');
+                                }
+                              }}
+                              className={filterControlClass}
+                            >
+                              {HR_RETURN_BACK_REASONS.map((reason) => (
+                                <option key={reason} value={reason}>
+                                  {reason}
+                                </option>
+                              ))}
+                              <option value={HR_RETURN_BACK_OTHER}>{HR_RETURN_BACK_OTHER}</option>
+                            </select>
                           </div>
+                          {hrReturnReasonType === HR_RETURN_BACK_OTHER && (
+                            <div>
+                              <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-rose-600 dark:text-rose-300">
+                                Custom Reason <span className="text-red-500">*</span>
+                              </label>
+                              <textarea
+                                value={hrReturnCustomReason}
+                                onChange={(e) => setHrReturnCustomReason(e.target.value)}
+                                rows={3}
+                                className={`${filterControlClass} resize-none`}
+                                placeholder="Explain what the manager must revise..."
+                              />
+                            </div>
+                          )}
                           <div className="flex flex-wrap gap-3">
                             <button
                               onClick={handleHrReturnDisputedReview}
-                              disabled={isHrReturningDispute || !hrReturnReason.trim()}
+                              disabled={isHrReturningDispute || !resolvedHrReturnReason}
                               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                             >
                               {isHrReturningDispute ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
@@ -2049,16 +2148,25 @@ Review Submissions
                           </button>
                         )}
                         <button
+                          type="button"
+                          onClick={() => setShowHrReturnModal(true)}
+                          disabled={!canHrReturnBack || isHrReturningBack}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                          {isHrReturningBack ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                          Return Back
+                        </button>
+                        <button
                           onClick={() => {
                             setApprovalMode('final');
                             setShowApprovalModal(true);
                           }}
-                          disabled={isDefaultSigLoading || !hasDefaultSignature || showAdjustments}
+                          disabled={selectedForm.status !== 'PENDING_FINAL_APPROVAL' || isDefaultSigLoading || !hasDefaultSignature || showAdjustments}
                           title={showAdjustments ? 'Turn off Request Retake to approve' : 'Approve and finalize'}
                           className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] shadow-lg shadow-[#2463eb]/25 hover:shadow-xl hover:shadow-[#2463eb]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                           <CheckCircle2 size={16} />
-                          Approve and Finalize
+                          Finalize and Lock
                         </button>
                         {canHrRequestManagerRetake && (
                           <button
@@ -2511,6 +2619,85 @@ Review Submissions
                 )}
                 {approvalMode === 'adjustment' ? 'Approve Adjustments' : 'Confirm Approval'}
               </button>
+            </div>
+          </div>
+        </div>
+      , portalRoot)}
+
+      {isHr && !isEmployeeDetail && showHrReturnModal && portalRoot && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !isHrReturningBack && resetHrReturnModal()}
+          />
+          <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+                  <RotateCcw size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Return Back</h3>
+                  <p className="text-sm text-amber-50">Send this self-assessment back to the manager</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4 p-6">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Return Reason <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={hrReturnReasonType}
+                  onChange={(e) => {
+                    setHrReturnReasonType(e.target.value);
+                    if (e.target.value !== HR_RETURN_BACK_OTHER) {
+                      setHrReturnCustomReason('');
+                    }
+                  }}
+                  className={filterControlClass}
+                >
+                  {HR_RETURN_BACK_REASONS.map((reason) => (
+                    <option key={reason} value={reason}>
+                      {reason}
+                    </option>
+                  ))}
+                  <option value={HR_RETURN_BACK_OTHER}>{HR_RETURN_BACK_OTHER}</option>
+                </select>
+              </div>
+              {hrReturnReasonType === HR_RETURN_BACK_OTHER && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Custom Reason <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={hrReturnCustomReason}
+                    onChange={(e) => setHrReturnCustomReason(e.target.value)}
+                    rows={4}
+                    className={`${filterControlClass} resize-none`}
+                    placeholder="Explain what the manager must revise..."
+                  />
+                </div>
+              )}
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={resetHrReturnModal}
+                  disabled={isHrReturningBack}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleHrReturnBack()}
+                  disabled={isHrReturningBack || !resolvedHrReturnReason}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isHrReturningBack ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                  Return Back
+                </button>
+              </div>
             </div>
           </div>
         </div>

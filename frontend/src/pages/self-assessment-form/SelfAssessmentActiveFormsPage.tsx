@@ -149,6 +149,16 @@ function getStatusConfig(status: string) {
       cardAccent: 'border-l-orange-500',
     };
   }
+  if (s === 'RETURNED_BY_HR') {
+    return {
+      label: 'Returned by HR',
+      bg: 'bg-rose-100 dark:bg-rose-900/30',
+      text: 'text-rose-700 dark:text-rose-400',
+      dot: 'bg-rose-500',
+      icon: RotateCcw,
+      cardAccent: 'border-l-rose-500',
+    };
+  }
   if (s === 'HR_APPROVED' || s === 'APPROVED' || s === 'COMPLETED') {
     return {
       label: 'Approved',

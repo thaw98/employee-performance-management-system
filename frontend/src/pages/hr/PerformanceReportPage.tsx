@@ -12,12 +12,14 @@ import {
   Star,
   Filter,
   ArrowUpDown,
+  FileDown,
 } from 'lucide-react';
 import {
   useGetPerformanceSummariesQuery,
   type PerformanceReportSummary,
 } from '../../features/performanceReport/performanceReportApi';
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl';
+import { exportPerformanceReportListPdf } from '../../utils/exportPerformanceReportListPdf';
 
 /* ── Helpers ─────────────────────────────────────────── */
 
@@ -40,14 +42,15 @@ const scoreBg = (score: number | null) => {
 };
 
 const eligibilityBadge = (eligibility: string) => {
-  switch (eligibility) {
-    case 'Strongly Recommended':
+  const norm = eligibility?.trim().toLowerCase();
+  switch (norm) {
+    case 'strongly recommended':
       return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300';
-    case 'Eligible':
+    case 'eligible':
       return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
-    case 'Possible':
+    case 'possible':
       return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
-    case 'Not Eligible':
+    case 'not eligible':
       return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
     default:
       return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
@@ -69,14 +72,35 @@ export const PerformanceReportPage: React.FC = () => {
   const { data: summaries = [], isLoading, error } = useGetPerformanceSummariesQuery();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
+  const [filterEligibility, setFilterEligibility] = useState('');
   const [sortField, setSortField] = useState<'overallRating' | 'employeeName'>('overallRating');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // unique departments
   const departments = useMemo(
     () => [...new Set(summaries.map((s) => s.departmentName).filter(Boolean))] as string[],
     [summaries]
   );
+
+  // Reset to first page when search or filters change
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleDepartmentChange = (value: string) => {
+    setFilterDepartment(value);
+    setCurrentPage(1);
+  };
+
+  const handleEligibilityChange = (value: string) => {
+    setFilterEligibility(value);
+    setCurrentPage(1);
+  };
 
   // filtered + sorted
   const filtered = useMemo(() => {
@@ -94,6 +118,11 @@ export const PerformanceReportPage: React.FC = () => {
     if (filterDepartment) {
       result = result.filter((s) => s.departmentName === filterDepartment);
     }
+    if (filterEligibility) {
+      result = result.filter(
+        (s) => s.promotionEligibility?.trim().toLowerCase() === filterEligibility.toLowerCase()
+      );
+    }
     result = [...result].sort((a, b) => {
       let aVal: any, bVal: any;
       if (sortField === 'overallRating') {
@@ -108,9 +137,18 @@ export const PerformanceReportPage: React.FC = () => {
       return 0;
     });
     return result;
-  }, [summaries, searchTerm, filterDepartment, sortField, sortDir]);
+  }, [summaries, searchTerm, filterDepartment, filterEligibility, sortField, sortDir]);
+
+  // Paginated records
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filtered.slice(startIndex, startIndex + pageSize);
+  }, [filtered, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
 
   const toggleSort = (field: 'overallRating' | 'employeeName') => {
+    setCurrentPage(1);
     if (sortField === field) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -150,13 +188,24 @@ export const PerformanceReportPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-          Performance Report Summary
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Consolidated performance overview for all employees with promotion eligibility
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            Performance Report Summary
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Consolidated performance overview for all employees with promotion eligibility
+          </p>
+        </div>
+
+        <button
+          onClick={() => exportPerformanceReportListPdf(filtered)}
+          disabled={filtered.length === 0}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+        >
+          <FileDown size={18} />
+          Export PDF
+        </button>
       </div>
 
       {/* Stats Cards */}
@@ -216,7 +265,7 @@ export const PerformanceReportPage: React.FC = () => {
               type="text"
               placeholder="Search by name, staff no, department..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
             />
           </div>
@@ -224,7 +273,7 @@ export const PerformanceReportPage: React.FC = () => {
             <Filter size={16} className="text-slate-400" />
             <select
               value={filterDepartment}
-              onChange={(e) => setFilterDepartment(e.target.value)}
+              onChange={(e) => handleDepartmentChange(e.target.value)}
               className="px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
             >
               <option value="">All Departments</option>
@@ -233,6 +282,20 @@ export const PerformanceReportPage: React.FC = () => {
                   {d}
                 </option>
               ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter size={16} className="text-slate-400" />
+            <select
+              value={filterEligibility}
+              onChange={(e) => handleEligibilityChange(e.target.value)}
+              className="px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+            >
+              <option value="">All Eligibility</option>
+              <option value="Strongly recommended">Strongly Recommended</option>
+              <option value="Eligible">Eligible</option>
+              <option value="Possible">Possible</option>
+              <option value="Not eligible">Not Eligible</option>
             </select>
           </div>
         </div>
@@ -292,14 +355,14 @@ export const PerformanceReportPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filtered.length === 0 && (
+              {paginatedData.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
                     No employees found.
                   </td>
                 </tr>
               )}
-              {filtered.map((emp) => (
+              {paginatedData.map((emp) => (
                 <tr
                   key={emp.employeeId}
                   className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
@@ -402,6 +465,70 @@ export const PerformanceReportPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Toolbar */}
+        {filtered.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 text-xs text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-4">
+              <span>
+                Showing <strong>{Math.min(filtered.length, (currentPage - 1) * pageSize + 1)}</strong> to{' '}
+                <strong>{Math.min(filtered.length, currentPage * pageSize)}</strong> of{' '}
+                <strong>{filtered.length}</strong> employees
+              </span>
+              <div className="flex items-center gap-1">
+                <span>Page Size:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 text-xs text-slate-600 dark:text-slate-300 focus:outline-none"
+                >
+                  {[5, 10, 20, 50].map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(1)}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80 font-bold transition-all disabled:opacity-50 disabled:pointer-events-none"
+              >
+                First
+              </button>
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((c) => Math.max(1, c - 1))}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80 font-bold transition-all disabled:opacity-50 disabled:pointer-events-none"
+              >
+                Previous
+              </button>
+              <span className="px-3 font-semibold">
+                Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong>
+              </span>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((c) => Math.min(totalPages, c + 1))}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80 font-bold transition-all disabled:opacity-50 disabled:pointer-events-none"
+              >
+                Next
+              </button>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(totalPages)}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80 font-bold transition-all disabled:opacity-50 disabled:pointer-events-none"
+              >
+                Last
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

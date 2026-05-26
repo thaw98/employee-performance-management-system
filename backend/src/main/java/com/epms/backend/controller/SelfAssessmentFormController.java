@@ -457,6 +457,20 @@ public class SelfAssessmentFormController {
         }
     }
 
+    @PostMapping("/{id}/hr-return-back")
+    @PreAuthorize("principal.roleId == 1")
+    public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrReturnBack(
+            @PathVariable Long id,
+            @Valid @RequestBody HrReturnBackRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SelfAssessmentFormDto form = selfAssessmentFormService.hrReturnBack(id, request, principal.getId());
+            return ResponseEntity.ok(ApiResponse.ok("Form returned to manager", form));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
     @PostMapping("/{id}/hr-approve")
     @PreAuthorize("principal.roleId == 1")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> hrApproveForm(

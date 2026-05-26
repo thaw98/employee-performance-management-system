@@ -277,11 +277,11 @@ export const PerformanceReportDetailPage: React.FC = () => {
               <span className="text-slate-300 dark:text-slate-600">|</span>
               <span
                 className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                  report.promotionEligibility === 'Strongly Recommended'
+                  report.promotionEligibility?.trim().toLowerCase() === 'strongly recommended'
                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
-                    : report.promotionEligibility === 'Eligible'
+                    : report.promotionEligibility?.trim().toLowerCase() === 'eligible'
                     ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                    : report.promotionEligibility === 'Possible'
+                    : report.promotionEligibility?.trim().toLowerCase() === 'possible'
                     ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
                     : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                 }`}

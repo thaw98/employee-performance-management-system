@@ -74,6 +74,7 @@ const SELF_ASSESSMENT_STATUS_LABELS: Record<string, string> = {
   PENDING_RETAKE_MANAGER_REVIEW: 'Pending Retake Manager Review',
   PENDING_FINAL_APPROVAL: 'Pending Final Approval',
   PENDING_HR_CALIBRATION_REVIEW: 'Pending HR Calibration',
+  RETURNED_BY_HR: 'Returned by HR',
   MANAGER_REVIEWED: 'Manager Reviewed',
   APPROVED: 'Approved',
   FINALIZED_LOCKED: 'Finalized Locked',
@@ -144,6 +145,12 @@ function StatusBadge({ status }: { status: string | undefined | null }) {
       text: 'text-orange-800 dark:text-orange-300',
       dot: 'bg-orange-500',
       icon: <AlertTriangle size={13} />,
+    },
+    RETURNED_BY_HR: {
+      bg: 'bg-rose-50 ring-rose-200 dark:bg-rose-900/20 dark:ring-rose-800/60',
+      text: 'text-rose-800 dark:text-rose-300',
+      dot: 'bg-rose-500',
+      icon: <RotateCcw size={13} />,
     },
     FINALIZED_LOCKED: {
       bg: 'bg-emerald-50 ring-emerald-200 dark:bg-emerald-900/20 dark:ring-emerald-800/60',
