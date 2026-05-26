@@ -22,11 +22,8 @@ const AuditLayout: React.FC = () => {
 
     const menuItems: DashMenuItem[] = [
         { label: 'Dashboard', path: '/audit/dashboard', icon: <LayoutDashboard size={18} /> },
-        { label: 'Audit Logs', path: '/audit/logs', icon: <List size={18} /> },
-        { label: 'Activity Monitor', path: '/audit/activity', icon: <Activity size={18} /> },
-        { label: 'Compliance Reports', path: '/audit/reports', icon: <FileText size={18} /> },
-        { label: 'Security Analytics', path: '/audit/analytics', icon: <TrendingUp size={18} /> },
-        { label: 'Threat Detection', path: '/audit/threats', icon: <AlertTriangle size={18} /> },
+        { label: 'Activity Monitor', path: '/audit/activity-monitor', icon: <Activity size={18} /> },
+        { label: 'Security Analytics', path: '/audit/security-analytics', icon: <TrendingUp size={18} /> },
     ];
 
     return (

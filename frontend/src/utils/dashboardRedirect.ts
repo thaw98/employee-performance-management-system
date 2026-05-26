@@ -27,8 +27,8 @@ export const getDashboardPath = (user: User): string => {
     return '/hr/dashboard';
   }
 
-  // Manager role
-  if (roleId === 2) {
+  // Manager role (roleId = 2 or 3)
+  if (roleId === 2 || roleId === 3) {
     return '/manager/dashboard';
   }
 
@@ -37,7 +37,7 @@ export const getDashboardPath = (user: User): string => {
     return '/audit/dashboard';
   }
 
-  // Employee (3, 4) and others
+  // Employee (4) and others
   return '/employee/dashboard';
 };
 
@@ -46,7 +46,7 @@ export const getDashboardPath = (user: User): string => {
  */
 export const getRoleGroup = (user: User): 'HR' | 'MANAGER' | 'EMPLOYEE' | 'AUDIT' => {
   if (user.roleId === 1) return 'HR';
-  if (user.roleId === 2) return 'MANAGER';
+  if (user.roleId === 2 || user.roleId === 3) return 'MANAGER';
   if (user.roleId === 5) return 'AUDIT';
   return 'EMPLOYEE';
 };

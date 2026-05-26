@@ -81,10 +81,10 @@ export function LoginForm() {
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* Email Field */}
         <div>
-          <label className="mb-1.5 block text-sm font-bold text-slate-700">
+          <label className="mb-2 block text-sm font-bold text-slate-700">
             Work Email <span className="text-red-500">*</span>
           </label>
           <div className="relative">
@@ -92,21 +92,20 @@ export function LoginForm() {
             <input
               type="email"
               placeholder="you@company.com"
-              className={`w-full rounded-xl border bg-white py-3.5 pl-12 pr-4 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${errors.email
-                ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'
-                }`}
+              className={`w-full h-[64px] rounded-[14px] border bg-[#EAF1FB] border-[#D8E2F0] pl-12 pr-4 text-slate-800 placeholder:text-slate-400/80 focus:outline-none focus:ring-2 focus:ring-blue-100/50 focus:border-[#2563FF] transition-all ${
+                errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : ''
+              }`}
               {...register('email')}
             />
           </div>
           {errors.email && (
-            <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+            <p className="mt-1.5 text-xs text-red-500 font-medium">{errors.email.message}</p>
           )}
         </div>
 
         {/* Password Field */}
         <div>
-          <label className="mb-1.5 block text-sm font-bold text-slate-700">
+          <label className="mb-2 block text-sm font-bold text-slate-700">
             Password <span className="text-red-500">*</span>
           </label>
           <div className="relative">
@@ -114,10 +113,9 @@ export function LoginForm() {
             <input
               type={showPassword ? 'text' : 'password'}
               placeholder="Enter your password"
-              className={`w-full rounded-xl border bg-white py-3.5 pl-12 pr-12 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 ${errors.password
-                ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                : 'border-slate-200 focus:border-blue-500 focus:ring-blue-100'
-                }`}
+              className={`w-full h-[64px] rounded-[14px] border bg-[#EAF1FB] border-[#D8E2F0] pl-12 pr-12 text-slate-800 placeholder:text-slate-400/80 focus:outline-none focus:ring-2 focus:ring-blue-100/50 focus:border-[#2563FF] transition-all ${
+                errors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : ''
+              }`}
               {...register('password')}
             />
             <button
@@ -129,26 +127,26 @@ export function LoginForm() {
             </button>
           </div>
           {errors.password && (
-            <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
+            <p className="mt-1.5 text-xs text-red-500 font-medium">{errors.password.message}</p>
           )}
         </div>
       </div>
 
-      {/* Remember Me */}
+      {/* Remember Me & Forgot Password */}
       <div className="flex items-center justify-between">
-        <label className="flex cursor-pointer items-center gap-2">
+        <label className="flex cursor-pointer items-center gap-2 select-none">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-0"
+            className="h-4.5 w-4.5 rounded border-slate-300 text-[#2563FF] focus:ring-0 focus:ring-offset-0 cursor-pointer"
             {...register('rememberMe')}
           />
-          <span className="text-sm font-medium text-slate-600">Remember me</span>
+          <span className="text-sm font-semibold text-slate-600">Remember me</span>
         </label>
         <Link
           to="/forgot-password"
-          className="text-sm font-semibold text-blue-600 transition-colors hover:text-blue-700"
+          className="text-sm font-bold text-[#2563FF] transition-colors hover:text-[#1E63FF] hover:underline"
         >
-          Forgot Password?
+          Forgot password?
         </Link>
       </div>
 
@@ -156,7 +154,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isLoading}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 font-bold text-white transition-all hover:bg-blue-700 disabled:opacity-50"
+        className="flex w-full h-[64px] items-center justify-center gap-2 rounded-[14px] bg-[#2563FF] font-bold text-white transition-all hover:bg-[#1E63FF] hover:shadow-lg disabled:opacity-50 active:scale-[0.99]"
       >
         {isLoading ? (
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
