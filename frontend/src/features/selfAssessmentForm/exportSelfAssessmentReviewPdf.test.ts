@@ -76,6 +76,7 @@ const baseForm = (): SelfAssessmentFormDto => ({
 	  managerForceChangeApprovedAt: null,
   hrReviewRequired: false,
   hrReviewReason: null,
+  hrReturnComments: null,
   hrReviewReasonAt: null,
   hrName: null,
   submissionAttempts: [

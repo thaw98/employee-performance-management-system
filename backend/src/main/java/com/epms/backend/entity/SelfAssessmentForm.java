@@ -151,6 +151,9 @@ public class SelfAssessmentForm {
     @Column(name = "hr_review_reason", columnDefinition = "TEXT")
     private String hrReviewReason;
 
+    @Column(name = "hr_return_comments", columnDefinition = "TEXT")
+    private String hrReturnComments;
+
     @Column(name = "hr_review_reason_at")
     private Instant hrReviewReasonAt;
 
