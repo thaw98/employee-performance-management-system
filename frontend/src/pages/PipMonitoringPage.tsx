@@ -275,7 +275,6 @@ const buildPipSummaryPdfRows = (pips: Pip[]) => [
     'Department',
     'Position',
     'Manager',
-    'Status',
     'Duration',
     'Hours',
     'Progress',
@@ -288,7 +287,6 @@ const buildPipSummaryPdfRows = (pips: Pip[]) => [
     getPipDepartmentName(pip),
     getPipPositionName(pip),
     getPipManagerName(pip),
-    getStatusDisplayLabel(pip.status, pip.finalOutcome),
     `${formatDateValue(pip.startDate)} - ${formatDateValue(pip.endDate)}`,
     `${pip.completedHours ?? 0}/${pip.totalHours ?? 0}`,
     `${pip.overallProgressPercentage ?? 0}%`,
@@ -547,7 +545,7 @@ export default function PipMonitoringPage() {
           valign: 'top',
         },
         columnStyles: {
-          9: { cellWidth: 160 },
+          8: { cellWidth: 180 },
         },
         headStyles: {
           fillColor: [15, 23, 42],
