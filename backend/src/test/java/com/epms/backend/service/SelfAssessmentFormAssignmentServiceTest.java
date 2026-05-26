@@ -8,6 +8,7 @@ import com.epms.backend.dto.selfassessmentform.ManagerAdjustmentRequest;
 import com.epms.backend.dto.selfassessmentform.ManagerRetakeRequest;
 import com.epms.backend.dto.selfassessmentform.ManagerReviewRequest;
 import com.epms.backend.dto.selfassessmentform.RetakeQuestionRequest;
+import com.epms.backend.dto.selfassessmentform.HrApproveFormRequest;
 import com.epms.backend.dto.selfassessmentform.HrReturnBackRequest;
 import com.epms.backend.dto.selfassessmentform.HrReturnDisputedReviewRequest;
 import com.epms.backend.dto.selfassessmentform.QuestionRequest;
@@ -316,7 +317,7 @@ class SelfAssessmentFormAssignmentServiceTest {
         when(formRepository.findById(200L)).thenReturn(Optional.of(form));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> service.hrApproveForm(200L, new com.epms.backend.dto.selfassessmentform.HrApproveFormRequest(null), 99L));
+                () -> service.hrApproveForm(200L, new HrApproveFormRequest(null), 99L));
 
         assertEquals("Form is not eligible for final approval", ex.getMessage());
         verify(signatureRepository, never()).findByUserAndIsDefaultTrue(any());
@@ -619,7 +620,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 eq(manager.getUserAccount()),
                 eq("Self-Assessment Submitted"),
                 eq("Employee Jane Doe submitted Template for your review."),
-                eq("SELF_ASSESSMENT_FORM"));
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(form.getId()));
         verify(employeeRepository, never()).findById(any());
     }
 
@@ -639,7 +641,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 eq(departmentManager.getUserAccount()),
                 eq("Self-Assessment Submitted"),
                 eq("Employee Employee 1 submitted Template for your review."),
-                eq("SELF_ASSESSMENT_FORM"));
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(form.getId()));
     }
 
     @Test
@@ -654,7 +657,7 @@ class SelfAssessmentFormAssignmentServiceTest {
 
         service.submitForm(employee, submitRequest());
 
-        verify(notificationService, never()).send(any(), eq("Self-Assessment Submitted"), any(), eq("SELF_ASSESSMENT_FORM"));
+        verify(notificationService, never()).send(any(), eq("Self-Assessment Submitted"), any(), eq("SELF_ASSESSMENT_FORM"), any());
     }
 
     @Test
@@ -955,7 +958,8 @@ class SelfAssessmentFormAssignmentServiceTest {
                 eq(manager.getUserAccount()),
                 eq("Self-Assessment Submitted"),
                 eq("Employee Employee 1 submitted Template for your review."),
-                eq("SELF_ASSESSMENT_FORM"));
+                eq("SELF_ASSESSMENT_FORM"),
+                eq(form.getId()));
     }
 
     @Test
@@ -1161,7 +1165,7 @@ class SelfAssessmentFormAssignmentServiceTest {
         form.setCycle(cycle);
         form.setRatingSystem(SelfAssessmentRatingSystem.FIVE_POINT);
         form.setStatus(status);
-        form.setDeadlineDate(LocalDate.of(2026, 5, 20));
+        form.setDeadlineDate(LocalDate.now().plusDays(30));
         form.setCreatedDate(java.time.Instant.parse("2026-05-01T00:00:00Z"));
 
         SelfAssessmentFormAnswer answer = new SelfAssessmentFormAnswer();
