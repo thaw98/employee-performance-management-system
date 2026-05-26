@@ -136,7 +136,12 @@ const getPipObjectiveSummary = (pip: Pip) => pip.objectives
   .map((objective) => `${objective.description} (${objective.progressPercentage}%)`)
   .join('; ')
 const getPipMeetingSummary = (pip: Pip) => (pip.followUpMeetings ?? [])
-  .map((meeting) => `${formatDateTimeValue(meeting.meetingTime)} - ${meeting.status}`)
+  .map((meeting) => [
+    `${formatDateTimeValue(meeting.startMeetingTime || meeting.meetingTime)} to ${formatDateTimeValue(meeting.endMeetingTime)}`,
+    `Total Hours: ${meeting.totalHours ?? '-'}`,
+    meeting.status || '-',
+    (meeting as { notes?: string }).notes || '',
+  ].join(' | '))
   .join('; ')
 
 const getUniquePips = (pips?: Pip[]) => {
@@ -249,6 +254,17 @@ const buildPipExportRows = (bundles: PipExportBundle[]) => ({
       training.percentageCompletion ?? '',
       training.feedbackNotes || '',
     ])),
+  ],
+  meetings: [
+    ['PIP Reference', 'Employee', 'Department', 'Position', 'Manager', 'Follow-Up Meetings'],
+    ...bundles.map(({ pip }) => [
+      `PIP #${pip.id}`,
+      getPipEmployeeName(pip),
+      getPipDepartmentName(pip),
+      getPipPositionName(pip),
+      getPipManagerName(pip),
+      getPipMeetingSummary(pip) || 'No follow-up meetings',
+    ]),
   ],
 })
 
@@ -423,6 +439,7 @@ export default function PipMonitoringPage() {
   const paginatedPips = tablePips.slice((safeCurrentPage - 1) * rowsPerPage, safeCurrentPage * rowsPerPage)
   const selectedPip = selectedPipId == null ? undefined : filteredPips.find((pip) => pip.id === selectedPipId)
   const exportTargetPips = useMemo(() => selectedPip ? [selectedPip] : filteredPips, [filteredPips, selectedPip])
+  const monitoringExportName = `pip-monitoring-${isHr ? 'hr' : 'manager'}-${selectedPip ? `pip-${selectedPip.id}` : 'all'}-${new Date().toISOString().slice(0, 10)}`
   const exportEmployeeCount = useMemo(() => new Set(
     exportTargetPips
       .map((pip) => getPipEmployeeRecordId(pip) ?? getPipStaffNo(pip))
@@ -463,7 +480,7 @@ export default function PipMonitoringPage() {
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(exportSummaryRows()), 'Report Criteria')
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows.details), 'PIP Details')
       XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows.training), 'Training History')
-      XLSX.writeFile(workbook, `pip-export-${selectedPip ? `pip-${selectedPip.id}` : 'all'}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+      XLSX.writeFile(workbook, `${monitoringExportName}.xlsx`)
     } catch (error) {
       console.error('[PIP Monitoring] Export failed:', error)
       setExportError('Failed to export PIP data.')
@@ -510,7 +527,35 @@ export default function PipMonitoringPage() {
         horizontalPageBreakRepeat: 0,
         margin: { top: 36, right: 24, bottom: 36, left: 24 },
       })
-      doc.save(`pip-monitoring-${selectedPip ? `pip-${selectedPip.id}` : 'report'}-${new Date().toISOString().slice(0, 10)}.pdf`)
+      doc.addPage('a3', 'landscape')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(16)
+      doc.text('Follow-Up Meetings', 36, 36)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.text(`Source: ${selectedPip ? `PIP #${selectedPip.id}` : 'All matching PIPs'}`, 36, 54)
+      autoTable(doc, {
+        head: [rows.meetings[0].map((heading) => String(heading))],
+        body: rows.meetings.slice(1).map((row) => row.map((cell) => String(cell || '-'))),
+        startY: 72,
+        theme: 'grid',
+        styles: {
+          fontSize: 8,
+          cellPadding: 4,
+          overflow: 'linebreak',
+          valign: 'top',
+        },
+        columnStyles: {
+          5: { cellWidth: 520 },
+        },
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+        margin: { top: 36, right: 36, bottom: 36, left: 36 },
+      })
+      doc.save(`${monitoringExportName}.pdf`)
     } catch (error) {
       console.error('[PIP Monitoring] Print failed:', error)
       setExportError('Failed to create PIP PDF.')
@@ -549,7 +594,7 @@ export default function PipMonitoringPage() {
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:flex-none"
               >
                 <i className="bi bi-download" />
-                Export
+                Export Excel
               </button>
               <button
                 type="button"
@@ -558,7 +603,7 @@ export default function PipMonitoringPage() {
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 sm:flex-none"
               >
                 <i className="bi bi-printer" />
-                PDF
+                Export PDF
               </button>
             </>
           )}

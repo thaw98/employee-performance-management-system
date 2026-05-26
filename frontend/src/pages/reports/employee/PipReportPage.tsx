@@ -51,7 +51,11 @@ export default function PipReportPage() {
   }, [pips, user])
 
   const handleDownloadReport = (pipId: number, format: 'pdf' | 'excel') => {
-    downloadIndividualPipReport(pipId, format).catch((error: any) => {
+    downloadIndividualPipReport(
+      pipId,
+      format,
+      `pip-employee-pip-${pipId}-report-${new Date().toISOString().slice(0, 10)}.${format === 'excel' ? 'xlsx' : 'pdf'}`,
+    ).catch((error: any) => {
       console.error('Failed to download report:', error)
       alert(error?.response?.data?.message || 'Failed to download report')
     })

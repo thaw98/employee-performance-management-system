@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import * as XLSX from 'xlsx'
 import { Link } from 'react-router-dom'
 import { useGetAllPipNotesQuery, useGetPipsQuery } from '../../features/pip/pipApi'
 import { useGetDepartmentsQuery } from '../../features/hrCreateEmployee/hrEmployeeAccountApi'
@@ -39,11 +40,6 @@ const getStatusClass = (status?: string) => {
     default:
       return 'bg-slate-100 text-slate-600'
   }
-}
-
-const csvEscape = (value: unknown) => {
-  const text = String(value ?? '')
-  return `"${text.replace(/"/g, '""')}"`
 }
 
 export default function PipNotesReviewPage() {
@@ -130,16 +126,9 @@ export default function PipNotesReviewPage() {
         getAuthorName(note),
       ]),
     ]
-    const csv = rows.map((row) => row.map(csvEscape).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'pip-note-history.csv'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'PIP Note History')
+    XLSX.writeFile(workbook, `pip-note-history-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
   return (
@@ -156,7 +145,7 @@ export default function PipNotesReviewPage() {
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#115e59] px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-[#0f4f4b] disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           <i className="bi bi-download" />
-          Export CSV
+          Export Excel
         </button>
       </div>
 

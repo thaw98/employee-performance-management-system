@@ -64,6 +64,8 @@ public class PipIndividualReportDto {
         private Long meetingId;
         private LocalDate scheduledDate;
         private LocalDateTime meetingTime;
+        private LocalDateTime endMeetingTime;
+        private Double totalHours;
         private String status;
         private String notes;
     }

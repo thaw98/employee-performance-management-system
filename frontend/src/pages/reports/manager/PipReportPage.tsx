@@ -21,8 +21,8 @@ import {
 } from '../../../features/pip/pipApi'
 import {
   downloadIndividualPipReport,
-  downloadPipProgressReport,
-  downloadPipSummaryReport,
+  downloadPipProgressReportExport,
+  downloadPipSummaryReportExport,
   type PipReportFormat,
 } from '../../../features/pip/pipReportApi'
 import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../../../features/hrCreateEmployee/hrEmployeeAccountApi'
@@ -188,11 +188,12 @@ export default function PipReportPage() {
   const handleDownloadSummaryReport = async (format: PipReportFormat) => {
     try {
       setReportDownload(`summary-${format}`)
-      await downloadPipSummaryReport(
+      await downloadPipSummaryReportExport(
         {
           ...reportFilters,
         },
         format,
+        `pip-summary-report-manager-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`
       )
     } catch (error: any) {
       console.error('Failed to download summary report:', error)
@@ -205,9 +206,10 @@ export default function PipReportPage() {
   const handleDownloadProgressReport = async (format: PipReportFormat) => {
     try {
       setReportDownload(`progress-${format}`)
-      await downloadPipProgressReport(
+      await downloadPipProgressReportExport(
         reportFilters,
-        format
+        format,
+        `pip-progress-report-manager-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`
       )
     } catch (error: any) {
       console.error('Failed to download progress report:', error)

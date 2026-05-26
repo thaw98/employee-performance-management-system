@@ -10,6 +10,10 @@ export interface PipObjective {
 export interface FollowUpMeeting {
   id: number
   meetingTime: string
+  startMeetingTime?: string
+  endMeetingTime?: string
+  durationMinutes?: number
+  totalHours?: number
   status: string
   reminderSent: boolean
 }
@@ -201,6 +205,8 @@ export interface PipIndividualReportMeeting {
   meetingId: number
   scheduledDate: string
   meetingTime: string
+  endMeetingTime?: string
+  totalHours?: number
   status: string
   notes: string
 }
@@ -297,6 +303,10 @@ const normalizeMeeting = (meeting: unknown): FollowUpMeeting => {
   return {
     id: getNumber(source.id),
     meetingTime: getString(source.meetingTime),
+    startMeetingTime: getOptionalString(source.startMeetingTime ?? source.meetingTime),
+    endMeetingTime: getOptionalString(source.endMeetingTime),
+    durationMinutes: source.durationMinutes == null ? undefined : getNumber(source.durationMinutes),
+    totalHours: source.totalHours == null ? undefined : getNumber(source.totalHours),
     status: getString(source.status),
     reminderSent: Boolean(source.reminderSent),
   }
@@ -561,7 +571,7 @@ export const pipApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: () => ['PIP'],
     }),
-    scheduleMeeting: builder.mutation<FollowUpMeeting, { pipId: number; meetingTime: string }>({
+    scheduleMeeting: builder.mutation<FollowUpMeeting, { pipId: number; meetingTime?: string; startMeetingTime: string; endMeetingTime: string }>({
       query: ({ pipId, ...body }) => ({
         url: `/pips/${pipId}/meetings`,
         method: 'POST',

@@ -60,10 +60,8 @@ export default function PipDetailPage() {
   const [trainingHistoryFilter, setTrainingHistoryFilter] = useState<'IN_PROGRESS' | 'COMPLETED' | 'NOT_STARTED' | 'ALL'>('IN_PROGRESS')
 
   const [showMeetingModal, setShowMeetingModal] = useState(false)
-  const [meetingDate, setMeetingDate] = useState('')
-  const [meetingHour, setMeetingHour] = useState('12')
-  const [meetingMinute, setMeetingMinute] = useState('00')
-  const [meetingPeriod, setMeetingPeriod] = useState('AM')
+  const [startMeetingTime, setStartMeetingTime] = useState('')
+  const [endMeetingTime, setEndMeetingTime] = useState('')
 
   const [showCloseModal, setShowCloseModal] = useState(false)
   const [closeData, setCloseData] = useState({ finalOutcome: '', closingRemarks: '' })
@@ -174,6 +172,14 @@ export default function PipDetailPage() {
   const minMeetingDate = pip?.startDate ? getLocalDateString(pip.startDate) : getLocalDateString(new Date());
   const applicableEndDate = pip?.extendedEndDate ? pip.extendedEndDate : (pip?.originalEndDate || pip?.endDate);
   const maxMeetingDate = applicableEndDate ? getLocalDateString(applicableEndDate) : undefined;
+  const minMeetingDateTime = minMeetingDate ? `${minMeetingDate}T00:00` : undefined
+  const maxMeetingDateTime = maxMeetingDate ? `${maxMeetingDate}T23:59` : undefined
+  const scheduledMeetingHours = (() => {
+    if (!startMeetingTime || !endMeetingTime) return null
+    const minutes = (new Date(endMeetingTime).getTime() - new Date(startMeetingTime).getTime()) / 60000
+    if (!Number.isFinite(minutes) || minutes <= 0) return null
+    return Math.round((minutes / 60) * 100) / 100
+  })()
 
   const isDirectManager = Boolean(
     isManager &&
@@ -254,24 +260,21 @@ export default function PipDetailPage() {
   }
 
   const handleScheduleMeeting = async () => {
-    if (!meetingDate) {
-      setActionError('Meeting date is required.')
+    if (!startMeetingTime || !endMeetingTime) {
+      setActionError('Start meeting time and end meeting time are required.')
+      return
+    }
+    if (new Date(endMeetingTime).getTime() <= new Date(startMeetingTime).getTime()) {
+      setActionError('End meeting time must be after start meeting time.')
       return
     }
 
-    // Convert AM/PM to 24-hour format for the backend
-    let hour = parseInt(meetingHour)
-    if (meetingPeriod === 'PM' && hour < 12) hour += 12
-    if (meetingPeriod === 'AM' && hour === 12) hour = 0
-
-    const timeStr = `${hour.toString().padStart(2, '0')}:${meetingMinute}:00`
-    const isoTime = `${meetingDate}T${timeStr}`
-
     try {
       setActionError(null)
-      await scheduleMeeting({ pipId, meetingTime: isoTime }).unwrap()
+      await scheduleMeeting({ pipId, startMeetingTime, endMeetingTime }).unwrap()
       setShowMeetingModal(false)
-      setMeetingDate('')
+      setStartMeetingTime('')
+      setEndMeetingTime('')
     } catch (error: any) {
       console.error('[PIP Detail] Schedule meeting failed:', error)
       setActionError(error?.data?.message || error?.error || 'Failed to schedule meeting.')
@@ -567,8 +570,13 @@ export default function PipDetailPage() {
                         <i className="bi bi-calendar-check" />
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-800">{formatDateTime(m.meetingTime)}</p>
-                        <p className="text-xs text-slate-500">{m.status}</p>
+                        <p className="font-semibold text-slate-800">
+                          {formatDateTime(m.startMeetingTime || m.meetingTime)} - {m.endMeetingTime ? formatDateTime(m.endMeetingTime) : 'No end time'}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {m.status}
+                          {m.totalHours != null && ` | Total: ${m.totalHours} hours`}
+                        </p>
                       </div>
                     </div>
                     {m.reminderSent && <span className="text-xs text-green-600 font-medium"><i className="bi bi-bell-fill" /> Reminder sent</span>}
@@ -587,6 +595,7 @@ export default function PipDetailPage() {
             canAdd={canAddCommunicationNote}
             currentUserId={user?.id}
             isHr={isAdmin}
+            followUpMeetings={pip.followUpMeetings}
             onError={setActionError}
           />
 
@@ -867,52 +876,33 @@ export default function PipDetailPage() {
             <h3 className="mb-4 text-lg font-bold">Schedule Follow-Up Meeting</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Date</label>
+                <label className="block text-sm font-medium text-slate-700">Start Meeting Time</label>
                 <input
-                  type="date"
+                  type="datetime-local"
                   required
-                  min={minMeetingDate}
-                  max={maxMeetingDate}
+                  min={minMeetingDateTime}
+                  max={maxMeetingDateTime}
                   className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
-                  value={meetingDate}
-                  onChange={(e) => setMeetingDate(e.target.value)}
+                  value={startMeetingTime}
+                  onChange={(e) => setStartMeetingTime(e.target.value)}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Hour</label>
-                  <select
-                    value={meetingHour}
-                    onChange={e => setMeetingHour(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-[#2463eb] outline-none"
-                  >
-                    {Array.from({ length: 12 }, (_, i) => (i + 1).toString()).map(h => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Minute</label>
-                  <select
-                    value={meetingMinute}
-                    onChange={e => setMeetingMinute(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-[#2463eb] outline-none"
-                  >
-                    {['00', '15', '30', '45'].map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">AM/PM</label>
-                  <select
-                    value={meetingPeriod}
-                    onChange={e => setMeetingPeriod(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-2 py-2 focus:border-[#2463eb] outline-none"
-                  >
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                  </select>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">End Meeting Time</label>
+                <input
+                  type="datetime-local"
+                  required
+                  min={startMeetingTime || minMeetingDateTime}
+                  max={maxMeetingDateTime}
+                  className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 focus:border-[#2463eb] focus:outline-none"
+                  value={endMeetingTime}
+                  onChange={(e) => setEndMeetingTime(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Total Hours</label>
+                <div className="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">
+                  {scheduledMeetingHours == null ? '-' : `${scheduledMeetingHours} hours`}
                 </div>
               </div>
             </div>
