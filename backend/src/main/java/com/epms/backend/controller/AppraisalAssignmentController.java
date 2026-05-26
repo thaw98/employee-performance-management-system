@@ -17,7 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/appraisal-assignments")
 @RequiredArgsConstructor
-@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'EMPLOYEE')")
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'EMPLOYEE', 'AUDIT') or principal.roleId == 5")
 public class AppraisalAssignmentController {
 
     private final AppraisalAssignmentService appraisalAssignmentService;
