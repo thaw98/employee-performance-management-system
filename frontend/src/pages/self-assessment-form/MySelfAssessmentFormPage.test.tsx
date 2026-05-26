@@ -83,6 +83,7 @@ const mocks = vi.hoisted(() => {
     employeeDisputeReason: null,
     hrReviewRequired: null,
     hrReviewReason: null,
+    hrReturnComments: null,
     hrReviewReasonAt: null,
   }
 

@@ -66,6 +66,7 @@ public record SelfAssessmentFormDto(
         Instant managerForceChangeApprovedAt,
         Boolean hrReviewRequired,
         String hrReviewReason,
+        String hrReturnComments,
         Instant hrReviewReasonAt,
         String hrName,
         List<SelfAssessmentSubmissionAttemptDto> submissionAttempts,

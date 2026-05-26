@@ -44,6 +44,7 @@ public class SelfAssessmentFormService {
             SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW,
             SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL,
             SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW,
+            SelfAssessmentFormStatus.RETURNED_BY_HR,
             SelfAssessmentFormStatus.MANAGER_REVIEWED);
 
     private static final DateTimeFormatter NOTIFICATION_DEADLINE_FORMAT =
@@ -1148,7 +1149,8 @@ Instant now = Instant.now();
         }
 
         if (form.getStatus() != SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW
-                && form.getStatus() != SelfAssessmentFormStatus.SUBMITTED) {
+                && form.getStatus() != SelfAssessmentFormStatus.SUBMITTED
+                && form.getStatus() != SelfAssessmentFormStatus.RETURNED_BY_HR) {
             throw new RuntimeException("Form is not pending manager review");
         }
         requireManagerReviewComments(request.comments());
@@ -1165,6 +1167,7 @@ Instant now = Instant.now();
         form.setEmployeeDisputeReason(null);
         form.setHrReviewRequired(null);
         form.setHrReviewReason(null);
+        form.setHrReturnComments(null);
         form.setHrReviewReasonAt(null);
         form.setRequiresHrReview(null);
         form.setUpdatedDate(Instant.now());
@@ -1267,7 +1270,8 @@ Instant now = Instant.now();
             throw new RuntimeException("You are not authorized to request a retake for this form");
         }
         if (form.getStatus() != SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW
-                && form.getStatus() != SelfAssessmentFormStatus.SUBMITTED) {
+                && form.getStatus() != SelfAssessmentFormStatus.SUBMITTED
+                && form.getStatus() != SelfAssessmentFormStatus.RETURNED_BY_HR) {
             throw new RuntimeException("Form is not pending manager review");
         }
         if (Boolean.TRUE.equals(form.getRetakeRequestUsed())) {
@@ -1826,18 +1830,40 @@ Instant now = Instant.now();
 
     @Transactional
     public SelfAssessmentFormDto hrReturnDisputedReview(Long formId, HrReturnDisputedReviewRequest request, Long hrUserId) {
-        SelfAssessmentForm form = formRepository.findById(formId)
-                .orElseThrow(() -> new RuntimeException("Form not found"));
-
-        if (form.getStatus() != SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW) {
-            throw new RuntimeException("Form is not pending HR dispute review");
-        }
-
         if (request.reason() == null || request.reason().trim().isBlank()) {
             throw new RuntimeException("HR return reason is required");
         }
+        return returnFormToManager(formId, request.reason(), null, hrUserId, true);
+    }
 
-        String reason = request.reason().trim();
+    @Transactional
+    public SelfAssessmentFormDto hrReturnBack(Long formId, HrReturnBackRequest request, Long hrUserId) {
+        if (request.returnReason() == null || request.returnReason().trim().isBlank()) {
+            throw new RuntimeException("HR return reason is required");
+        }
+        return returnFormToManager(formId, request.returnReason(), request.comments(), hrUserId, false);
+    }
+
+    private SelfAssessmentFormDto returnFormToManager(
+            Long formId,
+            String rawReason,
+            String rawComments,
+            Long hrUserId,
+            boolean disputedOnly) {
+        SelfAssessmentForm form = formRepository.findById(formId)
+                .orElseThrow(() -> new RuntimeException("Form not found"));
+
+        if (disputedOnly) {
+            if (form.getStatus() != SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW) {
+                throw new RuntimeException("Form is not pending HR dispute review");
+            }
+        } else if (form.getStatus() != SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL
+                && form.getStatus() != SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW) {
+            throw new RuntimeException("Form is not eligible to be returned to manager");
+        }
+
+        String reason = rawReason.trim();
+        String comments = rawComments == null || rawComments.trim().isBlank() ? null : rawComments.trim();
         for (SelfAssessmentFormAnswer answer : form.getAnswers()) {
             answer.setManagerProposedYesNo(null);
             answer.setManagerProposedRating(null);
@@ -1845,6 +1871,10 @@ Instant now = Instant.now();
             answer.setHrAdjustmentApproved(null);
             answer.setFinalApprovedYesNo(null);
             answer.setFinalApprovedRating(null);
+            answer.setRetakeApproved(null);
+            answer.setManagerForceChanged(false);
+            answer.setManagerForceChangeReason(null);
+            answer.setManagerForceChangedAt(null);
         }
 
         form.setManagerSignatureId(null);
@@ -1853,10 +1883,13 @@ Instant now = Instant.now();
         form.setManagerRevisedTotalScore(null);
         form.setFinalApprovedTotalScore(null);
         form.setEmployeeAcknowledgedAt(null);
+        form.setManagerApprovedRetakeAt(null);
+        form.setManagerForceChangeApprovedAt(null);
         form.setHrReviewRequired(true);
         form.setHrReviewReason(reason);
+        form.setHrReturnComments(comments);
         form.setHrReviewReasonAt(Instant.now());
-        form.setStatus(SelfAssessmentFormStatus.PENDING_MANAGER_REVIEW);
+        form.setStatus(SelfAssessmentFormStatus.RETURNED_BY_HR);
         form.setUpdatedDate(Instant.now());
 
         SelfAssessmentForm saved = formRepository.save(form);
@@ -1867,10 +1900,11 @@ Instant now = Instant.now();
                 saved.getId(),
                 hrUserId,
                 null,
-                "HR returned disputed manager review to manager. Reason: " + reason,
+                "HR returned self-assessment to manager. Reason: " + reason
+                        + (comments != null ? ". Comments: " + comments : ""),
                 null);
 
-        sendManagerDisputeReturnNotification(saved, reason);
+        sendManagerDisputeReturnNotification(saved, reason, comments);
 
         return toFormDto(saved);
     }
@@ -2699,6 +2733,7 @@ Instant now = Instant.now();
                 || status == SelfAssessmentFormStatus.PENDING_RETAKE_MANAGER_REVIEW
                 || status == SelfAssessmentFormStatus.PENDING_FINAL_APPROVAL
                 || status == SelfAssessmentFormStatus.PENDING_HR_CALIBRATION_REVIEW
+                || status == SelfAssessmentFormStatus.RETURNED_BY_HR
                 || status == SelfAssessmentFormStatus.FINALIZED_LOCKED;
     }
 
@@ -2868,6 +2903,10 @@ Instant now = Instant.now();
     }
 
     private void sendManagerDisputeReturnNotification(SelfAssessmentForm form, String hrReason) {
+        sendManagerDisputeReturnNotification(form, hrReason, null);
+    }
+
+    private void sendManagerDisputeReturnNotification(SelfAssessmentForm form, String hrReason, String hrComments) {
         Employee employee = form.getEmployee();
         resolveManagerRecipient(employee)
                 .ifPresent(manager -> notificationService.send(
@@ -2879,7 +2918,10 @@ Instant now = Instant.now();
                                 + ". Employee dispute reason: "
                                 + nullToDash(form.getEmployeeDisputeReason())
                                 + ". HR return reason: "
-                                + hrReason,
+                                + hrReason
+                                + (hrComments != null && !hrComments.isBlank()
+                                        ? ". HR comments: " + hrComments
+                                        : ""),
                         "SELF_ASSESSMENT_FORM",
                         form.getId()));
     }
@@ -3524,8 +3566,9 @@ Instant now = Instant.now();
 	                Boolean.TRUE.equals(form.getRetakeRequestUsed()),
 	                form.getManagerApprovedRetakeAt(),
 	                form.getManagerForceChangeApprovedAt(),
-	                form.getHrReviewRequired(),
+                form.getHrReviewRequired(),
                 form.getHrReviewReason(),
+                form.getHrReturnComments(),
                 form.getHrReviewReasonAt(),
                 hrName,
                 buildSubmissionAttempts(form),

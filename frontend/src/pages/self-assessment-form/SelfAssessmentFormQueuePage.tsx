@@ -25,7 +25,7 @@ import {
 import { PaginationBar } from '../../components/common/PaginationBar';
 import { kpisGradientBr } from '../../features/kpi/kpisTheme';
 
-type StatusKey = 'SUBMITTED' | 'MANAGER_REVIEWED' | 'APPROVED' | 'REJECTED' | 'OTHER';
+type StatusKey = 'SUBMITTED' | 'MANAGER_REVIEWED' | 'RETURNED_BY_HR' | 'APPROVED' | 'REJECTED' | 'OTHER';
 type SortField = 'name' | 'department' | 'position' | 'status' | 'score';
 type SortDir = 'asc' | 'desc';
 
@@ -34,6 +34,7 @@ function humanizeStatusLabel(status: string): string {
   const raw = (status ?? '').trim();
   if (!raw) return 'Unknown';
   if (raw === 'PENDING_HR_CALIBRATION_REVIEW') return 'Pending HR Calibration';
+  if (raw === 'RETURNED_BY_HR') return 'Returned by HR';
   return raw
     .split('_')
     .filter(Boolean)
@@ -65,6 +66,18 @@ function getStatusConfig(status: string) {
       icon: AlertCircle,
       accent: 'border-l-amber-500',
       ring: 'ring-amber-500/20',
+    };
+  }
+  if (s === 'RETURNED_BY_HR') {
+    return {
+      key: 'RETURNED_BY_HR' as StatusKey,
+      label: 'Returned by HR',
+      bg: 'bg-rose-50 dark:bg-rose-900/30',
+      text: 'text-rose-700 dark:text-rose-400',
+      dot: 'bg-rose-500',
+      icon: AlertCircle,
+      accent: 'border-l-rose-500',
+      ring: 'ring-rose-500/20',
     };
   }
   if (s === 'APPROVED' || s === 'COMPLETED') {
@@ -107,6 +120,7 @@ const STATUS_TABS: { key: StatusKey | 'ALL'; label: string; icon: React.ElementT
   { key: 'ALL', label: 'All', icon: LayoutList },
   { key: 'SUBMITTED', label: 'Submitted', icon: Clock },
   { key: 'MANAGER_REVIEWED', label: 'Reviewed', icon: AlertCircle },
+  { key: 'RETURNED_BY_HR', label: 'Returned', icon: AlertCircle },
   { key: 'APPROVED', label: 'Approved', icon: CheckCircle2 },
   { key: 'REJECTED', label: 'Rejected', icon: AlertCircle },
 ];
@@ -181,6 +195,10 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
   );
   const reviewedCount = useMemo(
     () => (forms ?? []).filter((f: any) => (f.status ?? '').toUpperCase() === 'MANAGER_REVIEWED').length,
+    [forms],
+  );
+  const returnedCount = useMemo(
+    () => (forms ?? []).filter((f: any) => (f.status ?? '').toUpperCase() === 'RETURNED_BY_HR').length,
     [forms],
   );
   const approvedCount = useMemo(
@@ -480,6 +498,8 @@ export const SelfAssessmentFormQueuePage: React.FC = () => {
                     ? submittedCount
                     : tab.key === 'MANAGER_REVIEWED'
                       ? reviewedCount
+                      : tab.key === 'RETURNED_BY_HR'
+                        ? returnedCount
                       : tab.key === 'APPROVED'
                         ? approvedCount
                         : rejectedCount;

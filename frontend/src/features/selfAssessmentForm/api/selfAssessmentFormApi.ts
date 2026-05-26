@@ -263,6 +263,7 @@ export interface SelfAssessmentFormDto {
   managerForceChangeApprovedAt: string | null
   hrReviewRequired: boolean | null
   hrReviewReason: string | null
+  hrReturnComments: string | null
   hrReviewReasonAt: string | null
   hrName: string | null
   submissionAttempts: SelfAssessmentSubmissionAttemptDto[]
@@ -492,6 +493,11 @@ export interface HrRejectManagerReviewRequest {
 
 export interface HrReturnDisputedReviewRequest {
   reason: string
+}
+
+export interface HrReturnBackRequest {
+  returnReason: string
+  comments?: string | null
 }
 
 export interface HrApproveFormRequest {
@@ -840,6 +846,7 @@ const normalizeForm = (form: unknown): SelfAssessmentFormDto => {
     managerForceChangeApprovedAt: getOptionalString(source.managerForceChangeApprovedAt) ?? null,
     hrReviewRequired: source.hrReviewRequired != null ? getBoolean(source.hrReviewRequired) : null,
     hrReviewReason: getOptionalString(source.hrReviewReason) ?? null,
+    hrReturnComments: getOptionalString(source.hrReturnComments) ?? null,
     hrReviewReasonAt: getOptionalString(source.hrReviewReasonAt) ?? null,
     hrName: getOptionalString(source.hrName) ?? null,
     submissionAttempts: getArray(source.submissionAttempts).map(a => normalizeSubmissionAttempt(isRecord(a) ? a : {})),
@@ -1247,6 +1254,16 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
     }),
 
+    hrReturnBack: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrReturnBackRequest }>({
+      query: ({ formId, request }) => ({
+        url: `/self-assessment-forms/${formId}/hr-return-back`,
+        method: 'POST',
+        body: request,
+      }),
+      invalidatesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeForm(getResponseData(response)),
+    }),
+
     hrApproveForm: builder.mutation<SelfAssessmentFormDto, { formId: number; request: HrApproveFormRequest }>({
       query: ({ formId, request }) => ({
         url: `/self-assessment-forms/${formId}/hr-approve`,
@@ -1513,6 +1530,7 @@ export const {
   useHrApproveManagerReviewMutation,
   useHrRejectManagerReviewMutation,
   useHrReturnDisputedReviewMutation,
+  useHrReturnBackMutation,
   useHrApproveFormMutation,
   useHrReopenFormMutation,
   useGetAllTemplatesQuery,

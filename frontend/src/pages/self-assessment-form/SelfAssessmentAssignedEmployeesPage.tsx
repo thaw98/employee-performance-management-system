@@ -25,6 +25,9 @@ function formatAssignedDate(iso?: string | null) {
 }
 
 function formatStatus(status: string) {
+  if (status.toUpperCase() === 'RETURNED_BY_HR') {
+    return 'Returned by HR';
+  }
   return status
     .split('_')
     .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
@@ -74,6 +77,12 @@ function formStatusBadgeClasses(status: string): { pill: string; dot: string } {
     return {
       pill: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
       dot: 'bg-violet-500',
+    };
+  }
+  if (s === 'RETURNED_BY_HR') {
+    return {
+      pill: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+      dot: 'bg-rose-500',
     };
   }
   if (
