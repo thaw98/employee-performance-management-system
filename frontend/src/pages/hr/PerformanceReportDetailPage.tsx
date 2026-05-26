@@ -16,7 +16,9 @@ import {
 import {
   useGetEmployeePerformanceSummaryQuery,
 } from '../../features/performanceReport/performanceReportApi';
+import { useState } from 'react';
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl';
+import { PromotionModal } from './PromotionModal';
 
 /* ── Helpers ─────────────────────────────────────────── */
 
@@ -102,6 +104,8 @@ export const PerformanceReportDetailPage: React.FC = () => {
   const { data: report, isLoading, error } = useGetEmployeePerformanceSummaryQuery(empId, {
     skip: !empId,
   });
+
+  const [isPromotionModalOpen, setIsPromotionModalOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -291,10 +295,7 @@ export const PerformanceReportDetailPage: React.FC = () => {
           {report.promotionEligible && (
             <button
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all active:scale-[0.98]"
-              onClick={() => {
-                // TODO: Implement promotion flow
-                alert(`Promotion flow for ${report.employeeName} — coming soon!`);
-              }}
+              onClick={() => setIsPromotionModalOpen(true)}
             >
               <Rocket size={18} />
               Promote Employee
@@ -336,6 +337,16 @@ export const PerformanceReportDetailPage: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Promotion Modal */}
+      <PromotionModal
+        isOpen={isPromotionModalOpen}
+        onClose={() => setIsPromotionModalOpen(false)}
+        employeeId={report.employeeId}
+        employeeName={report.employeeName}
+        currentPosition={report.positionName}
+        departmentName={report.departmentName}
+      />
     </div>
   );
 };
