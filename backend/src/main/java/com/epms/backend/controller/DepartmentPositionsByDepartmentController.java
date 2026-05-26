@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.epms.backend.common.ApiResponse;
 import com.epms.backend.dto.mapping.DepartmentPositionMappingDto;
+import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.DepartmentPositionMappingService;
 
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class DepartmentPositionsByDepartmentController {
 	private final DepartmentPositionMappingService mappingService;
+
+	@GetMapping("/my-managed/positions")
+	@PreAuthorize("principal.roleId == 2")
+	public ResponseEntity<ApiResponse<List<DepartmentPositionMappingDto>>> getMyManagedPositions(
+			@AuthenticationPrincipal UserPrincipal principal) {
+		return ResponseEntity.ok(ApiResponse.ok("Managed department positions fetched successfully.",
+				mappingService.getMappingsForManagedDepartment(principal)));
+	}
 
 	@GetMapping("/{departmentId}/positions")
 	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'AUDIT') or principal.roleId == 5")

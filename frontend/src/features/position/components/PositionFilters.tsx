@@ -11,6 +11,8 @@ interface PositionFiltersProps {
   selectedLevelCodeId: number | null
   onLevelCodeChange: (levelCodeId: number | null) => void
   levelCodes: LevelCodeOption[]
+  selectedStatus?: string | null
+  onStatusChange?: (status: string | null) => void
 }
 
 function PositionFilters({
@@ -22,6 +24,8 @@ function PositionFilters({
   selectedLevelCodeId,
   onLevelCodeChange,
   levelCodes,
+  selectedStatus,
+  onStatusChange,
 }: PositionFiltersProps) {
   return (
     <div className="flex flex-col lg:flex-row gap-4">
@@ -57,6 +61,22 @@ function PositionFilters({
             <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none group-focus-within:text-[#2463eb] transition-colors" />
           </div>
         </div>
+        {onStatusChange && (
+          <div className="w-52">
+            <div className="relative group">
+              <select
+                value={selectedStatus ?? ''}
+                onChange={(e) => onStatusChange(e.target.value || null)}
+                className="w-full pl-4 pr-10 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#dbeafe] focus:border-[#2463eb] focus:outline-none transition-all appearance-none bg-white text-sm text-slate-700 cursor-pointer hover:border-slate-300 group-focus-within:shadow-lg group-focus-within:shadow-[#dbeafe]"
+              >
+                <option value="">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none group-focus-within:text-[#2463eb] transition-colors" />
+            </div>
+          </div>
+        )}
         <div className="w-72">
           <div className="relative group">
             <Shield className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#2463eb] transition-colors" />

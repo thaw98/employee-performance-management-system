@@ -27,6 +27,7 @@ import { SecurityAnalytics } from './pages/audit/SecurityAnalytics';
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { ManagerKpisPage } from './pages/manager/ManagerKpisPage';
+import ManagerPositionsPage from './pages/manager/ManagerPositionsPage';
 import { ManagerAppraisalsPage } from './pages/manager/ManagerAppraisalsPage';
 import { ManagerEvaluationPage } from './pages/manager/ManagerEvaluationPage';
 import { MyKpisPage } from './pages/employee/MyKpisPage';
@@ -248,6 +249,7 @@ function App() {
           <Route path="/manager" element={<ManagerLayout />}>
             <Route path="dashboard" element={<ManagerDashboardPage />} />
             <Route path="employees" element={<EmployeeListPage />} />
+            <Route path="positions" element={<ManagerPositionsPage />} />
             <Route path="kpis" element={<ManagerKpisPage />} />
             <Route path="kpi-history" element={<KpiHistoryPage />} />
             <Route path="my-kpis" element={<MyKpisPage />} />

@@ -6,6 +6,7 @@ import com.epms.backend.dto.mapping.CreateDepartmentPositionMappingRequest;
 import com.epms.backend.dto.mapping.DepartmentPositionMappingDto;
 import com.epms.backend.dto.mapping.DepartmentPositionMappingListResponse;
 import com.epms.backend.dto.mapping.UpdateDepartmentPositionMappingRequest;
+import com.epms.backend.security.UserPrincipal;
 
 public interface DepartmentPositionMappingService {
 
@@ -15,6 +16,8 @@ public interface DepartmentPositionMappingService {
 	DepartmentPositionMappingDto getMappingById(Long id);
 
 	List<DepartmentPositionMappingDto> getMappingsByDepartment(Long departmentId);
+
+	List<DepartmentPositionMappingDto> getMappingsForManagedDepartment(UserPrincipal principal);
 
 	DepartmentPositionMappingDto createMapping(CreateDepartmentPositionMappingRequest request);
 

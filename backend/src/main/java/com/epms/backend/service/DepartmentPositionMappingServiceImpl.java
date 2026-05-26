@@ -90,6 +90,20 @@ public class DepartmentPositionMappingServiceImpl implements DepartmentPositionM
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public List<DepartmentPositionMappingDto> getMappingsForManagedDepartment(UserPrincipal principal) {
+		if (principal == null || principal.getEmployeeDbId() == null) {
+			return List.of();
+		}
+
+		return departmentRepository.findFirstByManagerId(principal.getEmployeeDbId())
+				.map(department -> mappingRepository.findAllByDepartment_IdOrderByIdAsc(department.getId()).stream()
+						.map(this::mapToDto)
+						.toList())
+				.orElseGet(List::of);
+	}
+
+	@Override
 	@Transactional
 	public DepartmentPositionMappingDto createMapping(CreateDepartmentPositionMappingRequest request) {
 		Department department = departmentRepository.findById(request.getDepartmentId())

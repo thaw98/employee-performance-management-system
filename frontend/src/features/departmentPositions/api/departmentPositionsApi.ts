@@ -8,6 +8,10 @@ export interface DepartmentPositionMappingDto {
   positionId: number
   positionCode: string
   positionName: string
+  levelCodeId: number | null
+  levelCodeName: string | null
+  roleId: number | null
+  roleName: string | null
   status: string
   createdOn: string
   updatedOn: string
@@ -45,6 +49,11 @@ export const departmentPositionsApi = baseApi.injectEndpoints({
       transformResponse: (response: DepartmentPositionsByDepartmentResponse) => normalizeDepartmentPositions(response),
       providesTags: (_result, _error, id) => [{ type: 'DepartmentPositions', id }],
     }),
+    getMyManagedDepartmentPositions: builder.query<DepartmentPositionMappingDto[], void>({
+      query: () => '/departments/my-managed/positions',
+      transformResponse: (response: DepartmentPositionsByDepartmentResponse) => normalizeDepartmentPositions(response),
+      providesTags: [{ type: 'DepartmentPositions', id: 'MY_MANAGED' }],
+    }),
     addPositionToDepartment: builder.mutation<DepartmentPositionMappingDto, CreateDepartmentPositionRequest>({
       query: (body) => ({
         url: '/department-positions',
@@ -74,6 +83,7 @@ export const departmentPositionsApi = baseApi.injectEndpoints({
 
 export const {
   useGetDepartmentPositionMappingsByDepartmentQuery,
+  useGetMyManagedDepartmentPositionsQuery,
   useAddPositionToDepartmentMutation,
   useToggleDepartmentPositionStatusMutation,
   useRemoveDepartmentPositionMutation,
