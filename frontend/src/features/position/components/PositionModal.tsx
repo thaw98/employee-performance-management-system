@@ -73,7 +73,7 @@ function PositionModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm transition-opacity" />
+          <div className="fixed inset-0 bg-gray-900/55 backdrop-blur-[1px] transition-opacity" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">

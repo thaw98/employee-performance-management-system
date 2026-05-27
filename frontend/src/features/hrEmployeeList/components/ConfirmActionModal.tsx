@@ -28,6 +28,7 @@ interface ConfirmActionModalProps {
     description?: string
     warningItems?: string[]
     employeeName?: string
+    backdropClassName?: string
 }
 
 const variantConfig: Record<ActionVariant, {
@@ -165,6 +166,7 @@ function ConfirmActionModal({
     description,
     warningItems,
     employeeName,
+    backdropClassName = 'bg-slate-900/50 backdrop-blur-[3px]',
 }: ConfirmActionModalProps) {
     const cfg = variantConfig[variant]
     const displayIcon = icon ?? defaultIcons[variant] ?? <ShieldCheck size={22} />
@@ -181,7 +183,7 @@ function ConfirmActionModal({
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-[3px] transition-opacity" />
+                    <div className={`fixed inset-0 ${backdropClassName} transition-opacity`} />
                 </Transition.Child>
 
                 <div className="fixed inset-0 z-10 overflow-y-auto">
