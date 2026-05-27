@@ -48,7 +48,13 @@ export function ProfileDropdown({ variant = 'default' }: ProfileDropdownProps) {
 
   const roleGroup = tokenUser ? getRoleGroup(tokenUser) : null
   const rolePrefix =
-    roleGroup === 'HR' ? '/hr' : roleGroup === 'MANAGER' ? '/manager' : '/employee'
+    roleGroup === 'HR'
+      ? '/hr'
+      : roleGroup === 'MANAGER'
+      ? '/manager'
+      : roleGroup === 'AUDIT'
+      ? '/audit'
+      : '/employee'
   const profilePath = `${rolePrefix}/profile`
   const signatureSettingsPath = `${rolePrefix}/settings/signature`
   const systemSettingsPath = `${rolePrefix}/settings/system`

@@ -945,6 +945,10 @@ html.theme-wallpaper .dash-shell .top-bar {
   color: #2463eb;
 }
 
+.dash-shell .dash-sidebar-section + .dash-sidebar-section {
+  margin-top: 24px;
+}
+
 .dash-shell .dash-sidebar-section-label {
   font-size: 11px;
   font-weight: 600;
@@ -953,6 +957,30 @@ html.theme-wallpaper .dash-shell .top-bar {
   letter-spacing: 0.05em;
   padding: 0 8px;
   margin-bottom: 8px;
+}
+
+.dash-shell .nav-link-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: #2463eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.dash-shell .nav-parent .nav-link-badge + .nav-chevron {
+  margin-left: 8px;
+}
+
+.dash-shell.sidebar-collapsed #dash-sidebar .dash-sidebar-section-label,
+.dash-shell.sidebar-collapsed #dash-sidebar .nav-link-badge {
+  display: none;
 }
 
 .dash-shell .dash-sidebar-user {
