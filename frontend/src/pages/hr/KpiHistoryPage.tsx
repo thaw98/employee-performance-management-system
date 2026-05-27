@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   useGetEmployeeKpiHistoryQuery, 
   useGetPositionKpiHistoryQuery, 
@@ -7,10 +7,13 @@ import {
 } from '../../features/kpi/kpiApi';
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
-import { useGetPositionsQuery } from '../../features/position/api/positionApi';
+import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
 import { Search, History, Calendar, User, Briefcase, Building2, Target, CheckCircle2, AlertCircle, Eye, LayoutGrid, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { useKpiViewContext } from '../../hooks/useKpiViewContext';
+import { EmployeeAutocomplete } from '../../components/common/EmployeeAutocomplete';
+import { DepartmentAutocomplete } from '../../components/common/DepartmentAutocomplete';
+import { PositionAutocomplete } from '../../components/common/PositionAutocomplete';
 
 export const KpiHistoryPage: React.FC = () => {
   const { isViewOnly } = useKpiViewContext();
@@ -21,19 +24,20 @@ export const KpiHistoryPage: React.FC = () => {
   const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
   const [selectedPosId, setSelectedPosId] = useState<number | null>(null);
   const [periodFilter, setPeriodFilter] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
   
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, selectedEmployeeId, selectedDeptId, selectedPosId, periodFilter, searchTerm]);
+  }, [activeTab, selectedEmployeeId, selectedDeptId, selectedPosId, periodFilter]);
 
   // Fetch reference data
   const { data: employeesData } = useGetEmployeesQuery({ size: 1000 });
   const { data: departmentsData } = useGetDepartmentsQuery();
-  const { data: positionsData } = useGetPositionsQuery({});
+  const { data: positionsData } = useGetPositionsByDepartmentQuery(selectedDeptId!, {
+    skip: activeTab !== 'position' || !selectedDeptId,
+  });
 
   // Fetch Global Summary Data
   const { data: globalSummary, isLoading: loadingGlobal } = useGetKpiHistorySummaryQuery({});
@@ -58,15 +62,7 @@ export const KpiHistoryPage: React.FC = () => {
     (a.employeeName || '').localeCompare(b.employeeName || '')
   );
   const departments = departmentsData?.data || [];
-  const positions = positionsData?.data?.content || [];
-
-  const filteredEmployees = useMemo(() => {
-    if (!searchTerm) return employees;
-    return employees.filter(emp => 
-      emp.employeeName.toLowerCase().startsWith(searchTerm.toLowerCase().charAt(0)) ||
-      emp.staffNo.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [employees, searchTerm]);
+  const positions = positionsData?.data || [];
 
   const handleViewDetail = (employeeId: number, period: string) => {
     setSelectedEmployeeId(employeeId);
@@ -372,63 +368,42 @@ export const KpiHistoryPage: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {activeTab === 'employee' && (
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Select Employee</label>
-                <div className="flex flex-col gap-2">
-                  <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input 
-                      placeholder="Quick search..." 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none font-bold text-slate-800"
-                    />
-                  </div>
-                  <select 
-                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe]"
-                    onChange={(val) => setSelectedEmployeeId(Number(val.target.value))}
-                    value={selectedEmployeeId || ''}
-                  >
-                    <option value="">Choose Employee</option>
-                    {filteredEmployees.map(emp => (
-                      <option key={emp.employeeId} value={emp.employeeId}>
-                        {emp.employeeName} ({emp.staffNo})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <EmployeeAutocomplete
+                  employees={employees}
+                  value={selectedEmployeeId}
+                  onChange={setSelectedEmployeeId}
+                  placeholder="Search employee…"
+                />
               </div>
             )}
 
             {(activeTab === 'department' || activeTab === 'position') && (
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Department</label>
-                <select 
-                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe]"
-                  onChange={(e) => setSelectedDeptId(Number(e.target.value))}
-                  value={selectedDeptId || ''}
-                >
-                  <option value="">All Departments</option>
-                  {departments.map(dept => (
-                    <option key={dept.departmentId} value={dept.departmentId}>{dept.departmentName}</option>
-                  ))}
-                </select>
+                <DepartmentAutocomplete
+                  departments={departments}
+                  value={selectedDeptId}
+                  onChange={(id) => {
+                    setSelectedDeptId(id);
+                    setSelectedPosId(null);
+                  }}
+                  placeholder="Search department…"
+                />
               </div>
             )}
 
             {activeTab === 'position' && (
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Position</label>
-                <select 
-                  className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe]"
-                  onChange={(e) => setSelectedPosId(Number(e.target.value))}
-                  value={selectedPosId || ''}
-                >
-                  <option value="">Select Position</option>
-                  {positions.map(pos => (
-                    <option key={pos.positionId} value={pos.positionId}>{pos.positionName}</option>
-                  ))}
-                </select>
+                <PositionAutocomplete
+                  positions={positions}
+                  value={selectedPosId}
+                  onChange={setSelectedPosId}
+                  disabled={!selectedDeptId}
+                  placeholder={selectedDeptId ? 'Search position…' : 'Select department first'}
+                />
               </div>
             )}
 
