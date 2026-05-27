@@ -21,7 +21,7 @@ const EMPLOYEE_NAME_MAX_LENGTH = 50
 const RACE_MAX_LENGTH = 50
 
 /** Optional + plus up to 15 digits; matches createEmployeeAccountSchema phone regex. */
-const PHONE_INPUT_MAX_LENGTH = 20
+const PHONE_INPUT_MAX_LENGTH = 15
 
 type Dup = 'idle' | 'checking' | 'exists' | 'available'
 

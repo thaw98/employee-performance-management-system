@@ -32,7 +32,7 @@ const inputNormal = `${createAccountInputBase} border-slate-200`
 const inputError = `${createAccountInputBase} border-red-300 bg-red-50/30`
 
 /** Matches Step 1 Phone Number and phone validation (+ optional + 8–15 digits). */
-const PHONE_INPUT_MAX_LENGTH = 20
+const PHONE_INPUT_MAX_LENGTH = 15
 const NAME_MAX_LENGTH = 50
 const RELATION_MAX_LENGTH = 20
 
