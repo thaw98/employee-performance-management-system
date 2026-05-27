@@ -366,6 +366,9 @@ public class PipService {
         if (!isHr(actor) && !isAudit(actor)) {
             throw new RuntimeException("Only HR or Audit can review all PIP notes");
         }
+        if (dateFrom != null && dateTo != null && dateFrom.isAfter(dateTo)) {
+            throw new IllegalArgumentException("Date From must be on or before Date To");
+        }
         PipNoteType parsedNoteType = parseNoteType(noteType, null);
 
         Specification<PipCommunicationNote> spec = (root, query, cb) -> {
