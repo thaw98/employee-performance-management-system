@@ -27,7 +27,7 @@ import type { RootState } from '../app/store';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { pipApi } from '../features/pip/pipApi';
 import { DashLayoutShell } from '../components/layout/DashLayoutShell';
-import type { DashMenuItem, DashMenuSection } from '../components/layout/DashMenuNav';
+import type { DashMenuSection } from '../components/layout/DashMenuNav';
 
 const ManagerLayout: React.FC = () => {
   const { user: authUser } = useSelector((state: RootState) => state.auth);

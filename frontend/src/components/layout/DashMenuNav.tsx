@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 export interface DashSubMenuItem {
@@ -57,10 +57,6 @@ export function DashMenuNav({ sections, isCollapsed }: DashMenuNavProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
-
-  useEffect(() => {
-    setExpandedMenus({})
-  }, [location.pathname, location.search])
 
   const expandSection = (label: string) => {
     const next: Record<string, boolean> = {}

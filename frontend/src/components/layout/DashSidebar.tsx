@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
-import { DashMenuNav, type DashMenuItem, type DashMenuSection } from './DashMenuNav'
+import { DashMenuNav, type DashMenuSection } from './DashMenuNav'
 
 interface DashSidebarUser {
   name?: string | null
@@ -29,7 +29,6 @@ export function DashSidebar({
   isMobileOpen,
 }: DashSidebarProps) {
   const avatarSrc = resolveProfilePictureSrc(user?.profilePictureUrl)
-  const initial = user?.name?.charAt(0).toUpperCase() || 'U'
   const displayRole = (user?.role || 'Role').toUpperCase()
 
   const navSection: ReactNode = (
