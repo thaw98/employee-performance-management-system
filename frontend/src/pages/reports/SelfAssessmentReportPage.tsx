@@ -37,7 +37,19 @@ function deltaLabel(value: number | null) {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
 }
 
-function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+type MetricTone = 'blue' | 'violet' | 'green' | 'amber' | 'rose' | 'indigo' | 'cyan'
+
+const METRIC_TONE_CLASSNAMES: Record<MetricTone, string> = {
+  blue: 'bg-[#eff6ff] text-[#2463eb] dark:bg-[#1e3a8a]/30 dark:text-[#93c5fd]',
+  violet: 'bg-[#f5f3ff] text-[#7c3aed] dark:bg-[#4c1d95]/35 dark:text-[#c4b5fd]',
+  green: 'bg-[#ecfdf5] text-[#059669] dark:bg-[#064e3b]/35 dark:text-[#6ee7b7]',
+  amber: 'bg-[#fffbeb] text-[#d97706] dark:bg-[#78350f]/35 dark:text-[#fcd34d]',
+  rose: 'bg-[#fff1f2] text-[#e11d48] dark:bg-[#881337]/35 dark:text-[#fda4af]',
+  indigo: 'bg-[#eef2ff] text-[#4f46e5] dark:bg-[#312e81]/35 dark:text-[#a5b4fc]',
+  cyan: 'bg-[#ecfeff] text-[#0891b2] dark:bg-[#164e63]/35 dark:text-[#67e8f9]',
+}
+
+function MetricCard({ icon, label, value, tone = 'blue' }: { icon: React.ReactNode; label: string; value: string; tone?: MetricTone }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center justify-between gap-3">
@@ -45,7 +57,7 @@ function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: stri
           <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</p>
           <p className="mt-2 text-2xl font-black text-slate-900 dark:text-slate-100">{value}</p>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eff6ff] text-[#2463eb] dark:bg-[#1e3a8a]/30 dark:text-[#93c5fd]">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${METRIC_TONE_CLASSNAMES[tone]}`}>
           {icon}
         </div>
       </div>
@@ -292,17 +304,17 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
       {isError && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">Failed to load report.</div>}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard icon={<FileText size={20} />} label="Records" value={String(report?.overallTotals.recordCount ?? 0)} />
-        <MetricCard icon={<BarChart3 size={20} />} label="Average" value={formatScore(report?.overallTotals.averageScore)} />
-        <MetricCard icon={<TrendingUp size={20} />} label="Highest" value={formatScore(report?.overallTotals.highestScore)} />
-        <MetricCard icon={<TrendingDown size={20} />} label="Lowest" value={formatScore(report?.overallTotals.lowestScore)} />
-        <MetricCard icon={<Users size={20} />} label="Missed" value={String(report?.overallTotals.missedCount ?? 0)} />
+        <MetricCard icon={<FileText size={20} />} label="Records" value={String(report?.overallTotals.recordCount ?? 0)} tone="blue" />
+        <MetricCard icon={<BarChart3 size={20} />} label="Average" value={formatScore(report?.overallTotals.averageScore)} tone="violet" />
+        <MetricCard icon={<TrendingUp size={20} />} label="Highest" value={formatScore(report?.overallTotals.highestScore)} tone="green" />
+        <MetricCard icon={<TrendingDown size={20} />} label="Lowest" value={formatScore(report?.overallTotals.lowestScore)} tone="amber" />
+        <MetricCard icon={<Users size={20} />} label="Missed" value={String(report?.overallTotals.missedCount ?? 0)} tone="rose" />
       </div>
 
       {mode !== 'manager' && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <MetricCard icon={<Building2 size={20} />} label="Highest Department" value={report?.highestDepartment?.groupName ?? '-'} />
-          <MetricCard icon={<Building2 size={20} />} label="Lowest Department" value={report?.lowestDepartment?.groupName ?? '-'} />
+          <MetricCard icon={<Building2 size={20} />} label="Highest Department" value={report?.highestDepartment?.groupName ?? '-'} tone="indigo" />
+          <MetricCard icon={<Building2 size={20} />} label="Lowest Department" value={report?.lowestDepartment?.groupName ?? '-'} tone="cyan" />
         </div>
       )}
 

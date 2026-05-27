@@ -24,12 +24,13 @@ import {
   appraisalReportAccentText,
   appraisalReportBtnPrimary,
   appraisalReportFocusRing,
-  appraisalReportGradientIcon,
   appraisalReportIconHover,
   appraisalReportPaginationActive,
   appraisalReportPaginationNav,
-  appraisalReportStatIcon,
-  appraisalReportStatIconMuted,
+  appraisalReportStatIconAverage,
+  appraisalReportStatIconCompleted,
+  appraisalReportStatIconPending,
+  appraisalReportStatIconTotal,
 } from '../reports/appraisalReportsTheme';
 
 interface Question {
@@ -468,7 +469,7 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
       {/* Stats row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className={`w-12 h-12 ${appraisalReportStatIcon} rounded-2xl flex items-center justify-center shadow-sm`}>
+          <div className={`w-12 h-12 ${appraisalReportStatIconTotal} rounded-2xl flex items-center justify-center shadow-sm`}>
             <Users size={24} />
           </div>
           <div>
@@ -477,7 +478,7 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
           </div>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className={`w-12 h-12 ${appraisalReportGradientIcon} rounded-2xl flex items-center justify-center shadow-sm shadow-[#dbeafe]`}>
+          <div className={`w-12 h-12 ${appraisalReportStatIconCompleted} rounded-2xl flex items-center justify-center shadow-sm shadow-emerald-100`}>
             <Award size={24} />
           </div>
           <div>
@@ -486,7 +487,7 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
           </div>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className={`w-12 h-12 ${appraisalReportStatIconMuted} rounded-2xl flex items-center justify-center shadow-sm`}>
+          <div className={`w-12 h-12 ${appraisalReportStatIconAverage} rounded-2xl flex items-center justify-center shadow-sm`}>
             <TrendingUp size={24} />
           </div>
           <div>
@@ -495,7 +496,7 @@ export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'm
           </div>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className={`w-12 h-12 ${appraisalReportStatIcon} rounded-2xl flex items-center justify-center shadow-sm`}>
+          <div className={`w-12 h-12 ${appraisalReportStatIconPending} rounded-2xl flex items-center justify-center shadow-sm`}>
             <Loader2 size={24} />
           </div>
           <div>

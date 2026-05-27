@@ -136,12 +136,12 @@ export function MyKpisPage() {
                 <tr key={kpi.id} className="hover:bg-[#eff6ff]/30 transition-colors group">
                   <td className="py-6 px-8">
                     <div>
-                      <h4 className="text-sm font-black text-slate-900 tracking-tight group-hover:text-[#2463eb] transition-colors uppercase">{kpi.name}</h4>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5 tracking-wider">{kpi.category}</p>
+                      <h4 className="text-base font-black text-slate-900 tracking-tight group-hover:text-[#2463eb] transition-colors uppercase">{kpi.name}</h4>
+                      <p className="text-xs font-bold text-slate-500 uppercase mt-0.5 tracking-wider">{kpi.category}</p>
                     </div>
                   </td>
                   <td className="py-6 px-4 text-center">
-                    <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-600">
+                    <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-black text-slate-700">
                       {kpi.weight}%
                     </span>
                   </td>
@@ -175,7 +175,7 @@ export function MyKpisPage() {
               ))}
               {kpis && kpis.length > 0 && (
                 <tr className="bg-[#eff6ff]/40 font-black">
-                  <td className="py-6 px-8 text-slate-900 uppercase tracking-widest text-[10px]">Total Aggregate</td>
+                  <td className="py-6 px-8 text-sm font-black text-slate-900 uppercase tracking-widest">Total Aggregate</td>
                   <td className="py-6 px-4 text-center">
                     <span
                       className={`px-2.5 py-1 rounded-lg text-[10px] ${
@@ -193,7 +193,7 @@ export function MyKpisPage() {
                       <span className="text-lg text-[#2463eb] tracking-tight">
                         {kpis.reduce((acc, curr) => acc + (curr.weightedScore || 0), 0).toFixed(1)}
                       </span>
-                      <span className="text-[8px] text-slate-400 uppercase tracking-tighter">Total Score</span>
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-wider mt-0.5">Total Score</span>
                     </div>
                   </td>
                 </tr>

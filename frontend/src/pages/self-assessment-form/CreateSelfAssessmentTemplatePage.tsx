@@ -131,7 +131,7 @@ const SortableQuestionRow: React.FC<SortableQuestionRowProps> = ({
         type="button"
         onClick={() => void onSaveToBank(index)}
         disabled={isSavingToBank}
-        className="shrink-0 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-emerald-50 hover:text-emerald-600 group-hover:opacity-100 disabled:opacity-30 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
+        className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-all hover:bg-emerald-50 hover:text-emerald-600 disabled:opacity-30 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400"
         title="Save to Question Bank"
       >
         <BookMarked size={15} />
@@ -141,7 +141,7 @@ const SortableQuestionRow: React.FC<SortableQuestionRowProps> = ({
         <button
           type="button"
           onClick={() => onRemove(index)}
-          className="shrink-0 rounded-lg p-1.5 text-slate-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+          className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/30 dark:hover:text-red-400"
           aria-label="Remove question"
         >
           <Trash2 size={15} />

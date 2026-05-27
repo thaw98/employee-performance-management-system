@@ -474,6 +474,7 @@ function PositionListPage() {
           confirmText="Remove"
           variant="danger"
           isLoading={isDeleting}
+          backdropClassName="bg-slate-900/40 backdrop-blur-[1px]"
         />
 
         <AssignedDepartmentsDrawer

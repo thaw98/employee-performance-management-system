@@ -109,7 +109,7 @@ export default function AddPositionToDepartmentDrawer({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" />
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-[1px]" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-hidden">

@@ -18,6 +18,18 @@ export const appraisalReportStatIcon =
 export const appraisalReportStatIconMuted =
   'bg-[#dbeafe] text-[#1d4ed8]'
 
+export const appraisalReportStatIconTotal =
+  'bg-[#eff6ff] text-[#2463eb]'
+
+export const appraisalReportStatIconCompleted =
+  'bg-gradient-to-br from-[#059669] to-[#047857] text-white'
+
+export const appraisalReportStatIconAverage =
+  'bg-[#f5f3ff] text-[#7c3aed]'
+
+export const appraisalReportStatIconPending =
+  'bg-[#fff7ed] text-[#ea580c]'
+
 export const appraisalReportFocusRing =
   'focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe]'
 

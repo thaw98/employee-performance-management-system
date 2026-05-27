@@ -243,7 +243,7 @@ export default function DepartmentDetailPage() {
         <div className="relative max-w-7xl mx-auto">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-start gap-5">
-              <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20 shadow-2xl flex-shrink-0">
+              <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-[1px] flex items-center justify-center border border-white/20 shadow-2xl flex-shrink-0">
                 <Building2 size={32} className="text-white" />
               </div>
               <div className="flex-1">

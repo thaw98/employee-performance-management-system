@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, Download, FolderOpen } from 'lucide-react';
+import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, Download, FolderOpen, ChevronDown } from 'lucide-react';
+import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { EmployeeAutocomplete } from '../../components/common/EmployeeAutocomplete';
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
@@ -54,6 +55,8 @@ export const KpiManagementPage: React.FC = () => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(initialEmpId ? Number(initialEmpId) : null);
   const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
   const [selectedPosId, setSelectedPosId] = useState<number | null>(null);
+  const [deptQuery, setDeptQuery] = useState('');
+  const [posQuery, setPosQuery] = useState('');
   const [periodMonth, setPeriodMonth] = useState(getCurrentMonthValue());
   const currentMonthValue = getCurrentMonthValue();
   const selectedPeriodLabel = formatMonthYear(periodMonth);
@@ -81,6 +84,24 @@ export const KpiManagementPage: React.FC = () => {
 
   const { data: positionsResponse } = useGetPositionsByDepartmentQuery(selectedDeptId!, { skip: !selectedDeptId });
   const positions = positionsResponse?.data || [];
+  const selectedDepartment = useMemo(
+    () => departments.find((dept: any) => dept.departmentId === selectedDeptId) ?? null,
+    [departments, selectedDeptId]
+  );
+  const selectedPosition = useMemo(
+    () => positions.find((pos: any) => pos.positionId === selectedPosId) ?? null,
+    [positions, selectedPosId]
+  );
+  const filteredDepartments = useMemo(() => {
+    const query = deptQuery.trim().toLowerCase();
+    if (!query) return departments;
+    return departments.filter((dept: any) => dept.departmentName.toLowerCase().includes(query));
+  }, [departments, deptQuery]);
+  const filteredPositions = useMemo(() => {
+    const query = posQuery.trim().toLowerCase();
+    if (!query) return positions;
+    return positions.filter((pos: any) => pos.positionName.toLowerCase().includes(query));
+  }, [positions, posQuery]);
 
   const { data: existingPosKpis, refetch: refetchPosKpis } = useGetPositionKpisQuery(
     { departmentId: selectedDeptId!, positionId: selectedPosId!, period: selectedPeriodLabel },
@@ -420,7 +441,7 @@ export const KpiManagementPage: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+      <div className="flex flex-col md:flex-col md:items-start justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
         <div className="flex-1">
           <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
             {mode === 'individual' ? 'Individual KPI Modeler' : mode === 'position' ? 'Same Position KPI Setup' : 'Department KPI Setup'}
@@ -457,38 +478,86 @@ export const KpiManagementPage: React.FC = () => {
             <>
               <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dept</span>
-                <select
-                  className="bg-transparent border-none text-sm font-bold text-slate-900 focus:ring-0 outline-none min-w-[150px]"
-                  value={selectedDeptId || ''}
-                  onChange={(e) => {
-                    setSelectedDeptId(Number(e.target.value));
-                    setSelectedPosId(null);
-                  }}
-                >
-                  <option value="">Select Department</option>
-                  {departments.map(dept => (
-                    <option key={dept.departmentId} value={dept.departmentId}>
-                      {dept.departmentName}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative min-w-[180px]">
+                  <Combobox
+                    value={selectedDepartment}
+                    onChange={(dept: any | null) => {
+                      setSelectedDeptId(dept ? dept.departmentId : null);
+                      setSelectedPosId(null);
+                    }}
+                    nullable
+                  >
+                    <ComboboxInput
+                      className="w-full min-w-[180px] border-0 bg-transparent py-0 pr-6 pl-0 text-sm font-bold text-slate-900 focus:ring-0 outline-none placeholder:font-medium placeholder:text-slate-400"
+                      displayValue={(dept: any | null) => dept?.departmentName ?? ''}
+                      onChange={(e) => setDeptQuery(e.target.value)}
+                      placeholder="Select Department"
+                      autoComplete="off"
+                    />
+                    <ComboboxButton className="absolute inset-y-0 right-0 flex items-center text-slate-400">
+                      <ChevronDown size={14} aria-hidden />
+                    </ComboboxButton>
+                    <ComboboxOptions
+                      anchor="bottom start"
+                      className="z-50 mt-1 max-h-60 w-(--anchor-width) min-w-[220px] overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg focus:outline-none"
+                    >
+                      {filteredDepartments.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-slate-500">No departments found</div>
+                      ) : (
+                        filteredDepartments.map((dept: any) => (
+                          <ComboboxOption
+                            key={dept.departmentId}
+                            value={dept}
+                            className="cursor-pointer px-3 py-2 text-sm text-slate-800 data-focus:bg-[#eff6ff] data-selected:font-semibold data-selected:text-[#1d4ed8]"
+                          >
+                            {dept.departmentName}
+                          </ComboboxOption>
+                        ))
+                      )}
+                    </ComboboxOptions>
+                  </Combobox>
+                </div>
               </div>
               {mode === 'position' && (
                 <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pos</span>
-                  <select
-                    className="bg-transparent border-none text-sm font-bold text-slate-900 focus:ring-0 outline-none min-w-[150px]"
-                    value={selectedPosId || ''}
-                    disabled={!selectedDeptId}
-                    onChange={(e) => setSelectedPosId(Number(e.target.value))}
-                  >
-                    <option value="">Select Position</option>
-                    {positions.map(pos => (
-                      <option key={pos.positionId} value={pos.positionId}>
-                        {pos.positionName}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative min-w-[180px]">
+                    <Combobox
+                      value={selectedPosition}
+                      onChange={(pos: any | null) => setSelectedPosId(pos ? pos.positionId : null)}
+                      disabled={!selectedDeptId}
+                      nullable
+                    >
+                      <ComboboxInput
+                        className="w-full min-w-[180px] border-0 bg-transparent py-0 pr-6 pl-0 text-sm font-bold text-slate-900 focus:ring-0 outline-none placeholder:font-medium placeholder:text-slate-400 disabled:text-slate-400"
+                        displayValue={(pos: any | null) => pos?.positionName ?? ''}
+                        onChange={(e) => setPosQuery(e.target.value)}
+                        placeholder="Select Position"
+                        autoComplete="off"
+                      />
+                      <ComboboxButton className="absolute inset-y-0 right-0 flex items-center text-slate-400">
+                        <ChevronDown size={14} aria-hidden />
+                      </ComboboxButton>
+                      <ComboboxOptions
+                        anchor="bottom start"
+                        className="z-50 mt-1 max-h-60 w-(--anchor-width) min-w-[220px] overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg focus:outline-none"
+                      >
+                        {filteredPositions.length === 0 ? (
+                          <div className="px-3 py-2 text-sm text-slate-500">No positions found</div>
+                        ) : (
+                          filteredPositions.map((pos: any) => (
+                            <ComboboxOption
+                              key={pos.positionId}
+                              value={pos}
+                              className="cursor-pointer px-3 py-2 text-sm text-slate-800 data-focus:bg-[#eff6ff] data-selected:font-semibold data-selected:text-[#1d4ed8]"
+                            >
+                              {pos.positionName}
+                            </ComboboxOption>
+                          ))
+                        )}
+                      </ComboboxOptions>
+                    </Combobox>
+                  </div>
                 </div>
               )}
             </>
