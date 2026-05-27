@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx'
 import { Link, useLocation } from 'react-router-dom'
 import { useGetAllPipNotesQuery, useGetPipsQuery } from '../../features/pip/pipApi'
 import { useGetDepartmentsQuery } from '../../features/hrCreateEmployee/hrEmployeeAccountApi'
+import { useGetManagersQuery } from '../../features/department/api/departmentApi'
 import { formatDateTime } from '../../utils/dateUtils'
 
 const STATUS_OPTIONS = ['ACTIVE', 'AUTO_CLOSED', 'REOPEN_REQUESTED', 'COMPLETED', 'CLOSED', 'DENIED']
@@ -54,6 +55,7 @@ export default function PipNotesReviewPage() {
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
+  const hasInvalidDateRange = Boolean(dateFrom && dateTo && dateFrom > dateTo)
 
   const { data: notesPage, isLoading, isError } = useGetAllPipNotesQuery({
     employeeName: employeeName || undefined,
@@ -65,22 +67,30 @@ export default function PipNotesReviewPage() {
     dateTo: dateTo || undefined,
     page,
     size,
-  })
+  }, { skip: hasInvalidDateRange })
   const { data: pips = [] } = useGetPipsQuery()
   const { data: departmentsResponse } = useGetDepartmentsQuery()
+  const { data: managersResponse } = useGetManagersQuery(departmentId, { skip: !departmentId })
+
+  const selectedDepartment = useMemo(() => {
+    if (!departmentId) {
+      return undefined
+    }
+    return departmentsResponse?.data?.find((department) => (department.departmentId ?? department.id) === departmentId)
+  }, [departmentId, departmentsResponse])
 
   const managerOptions = useMemo(() => {
-    const managers = new Map<number, string>()
-    pips.forEach((pip) => {
-      const manager = pip.manager.employee
-      if (manager?.id) {
-        managers.set(manager.id, manager.employeeName || `Manager ${manager.id}`)
-      }
-    })
-    return Array.from(managers.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [pips])
+    if (!departmentId || !selectedDepartment?.managerId) {
+      return []
+    }
+    const departmentHeadId = selectedDepartment.managerId
+    const managerFromDepartmentEndpoint = managersResponse?.data?.find((manager) => manager.employeeId === departmentHeadId)
+    const managerFromPip = pips.find((pip) => pip.manager.employee?.id === departmentHeadId)?.manager.employee
+    return [{
+      id: departmentHeadId,
+      name: managerFromDepartmentEndpoint?.fullName || managerFromPip?.employeeName || `Manager ${departmentHeadId}`,
+    }]
+  }, [departmentId, managersResponse, pips, selectedDepartment])
 
   const departmentOptions = useMemo(() => {
     const departments = new Map<number, string>()
@@ -97,6 +107,14 @@ export default function PipNotesReviewPage() {
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [departmentsResponse, pips])
+
+  const getDepartmentHeadId = (nextDepartmentId?: number) => {
+    if (!nextDepartmentId) {
+      return undefined
+    }
+    const department = departmentsResponse?.data?.find((item) => (item.departmentId ?? item.id) === nextDepartmentId)
+    return department?.managerId ?? undefined
+  }
 
   const notes = notesPage?.content ?? []
   const totalPages = Math.max(notesPage?.totalPages ?? 1, 1)
@@ -189,9 +207,16 @@ export default function PipNotesReviewPage() {
                 setManagerId(event.target.value ? Number(event.target.value) : undefined)
                 setPage(0)
               }}
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              disabled
+              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
             >
-              <option value="">All Managers</option>
+              <option value="">
+                {!departmentId
+                  ? 'Select department first'
+                  : managerOptions.length > 0
+                    ? 'Department head'
+                    : 'No department head assigned'}
+              </option>
               {managerOptions.map((manager) => (
                 <option key={manager.id} value={manager.id}>{manager.name}</option>
               ))}
@@ -202,7 +227,9 @@ export default function PipNotesReviewPage() {
             <select
               value={departmentId ?? ''}
               onChange={(event) => {
-                setDepartmentId(event.target.value ? Number(event.target.value) : undefined)
+                const nextDepartmentId = event.target.value ? Number(event.target.value) : undefined
+                setDepartmentId(nextDepartmentId)
+                setManagerId(getDepartmentHeadId(nextDepartmentId))
                 setPage(0)
               }}
               className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
@@ -254,7 +281,8 @@ export default function PipNotesReviewPage() {
                 setDateFrom(event.target.value)
                 setPage(0)
               }}
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              max={dateTo || undefined}
+              className={`rounded-lg border bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none ${hasInvalidDateRange ? 'border-red-300 text-red-700' : 'border-slate-300'}`}
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -266,11 +294,15 @@ export default function PipNotesReviewPage() {
                 setDateTo(event.target.value)
                 setPage(0)
               }}
-              className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              min={dateFrom || undefined}
+              className={`rounded-lg border bg-slate-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none ${hasInvalidDateRange ? 'border-red-300 text-red-700' : 'border-slate-300'}`}
             />
           </div>
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm font-semibold text-red-600">
+            {hasInvalidDateRange ? 'Date From must be on or before Date To.' : ''}
+          </div>
           <button
             type="button"
             onClick={clearFilters}
@@ -282,12 +314,13 @@ export default function PipNotesReviewPage() {
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
-        {isLoading && <p className="px-6 py-12 text-center text-slate-500">Loading note history...</p>}
-        {isError && <p className="px-6 py-12 text-center text-red-600">Unable to load PIP note history.</p>}
-        {!isLoading && !isError && notes.length === 0 && (
+        {hasInvalidDateRange && <p className="px-6 py-12 text-center text-red-600">Fix the date range to view PIP note history.</p>}
+        {!hasInvalidDateRange && isLoading && <p className="px-6 py-12 text-center text-slate-500">Loading note history...</p>}
+        {!hasInvalidDateRange && isError && <p className="px-6 py-12 text-center text-red-600">Unable to load PIP note history.</p>}
+        {!hasInvalidDateRange && !isLoading && !isError && notes.length === 0 && (
           <p className="px-6 py-16 text-center text-slate-500">No PIP note history found.</p>
         )}
-        {!isLoading && !isError && notes.length > 0 && (
+        {!hasInvalidDateRange && !isLoading && !isError && notes.length > 0 && (
           <div className="divide-y divide-slate-100">
             {notes.map((note) => (
               <article key={note.id} className="p-6 transition-colors hover:bg-slate-50/70">
