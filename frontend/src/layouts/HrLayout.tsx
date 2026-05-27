@@ -69,9 +69,14 @@ const HrLayout: React.FC = () => {
 
   const menuSections: DashMenuSection[] = [
     {
-      label: 'Main',
+      label: 'Overview',
       items: [
         { label: 'Dashboard', path: '/hr/dashboard', icon: <LayoutDashboard size={18} /> },
+      ],
+    },
+    {
+      label: 'Organization',
+      items: [
         {
           label: 'Employee',
           path: '/hr/employees',
@@ -84,6 +89,11 @@ const HrLayout: React.FC = () => {
         { label: 'Department', path: '/hr/departments', icon: <Building2 size={18} /> },
         { label: 'Positions', path: '/hr/positions', icon: <Briefcase size={18} /> },
         { label: 'Level Codes', path: '/hr/level-codes', icon: <Layers size={18} /> },
+      ],
+    },
+    {
+      label: 'Performance',
+      items: [
         {
           label: 'KPI',
           path: '/hr/kpi-management',
@@ -96,11 +106,6 @@ const HrLayout: React.FC = () => {
             { label: 'History', path: '/hr/kpi-history', icon: <History size={16} /> },
           ],
         },
-      ],
-    },
-    {
-      label: 'Management',
-      items: [
         {
           label: 'Appraisals',
           path: '/hr/appraisals',
@@ -146,6 +151,11 @@ const HrLayout: React.FC = () => {
             { label: 'History', path: '/hr/self-assessment/history', icon: <History size={16} /> },
           ],
         },
+      ],
+    },
+    {
+      label: 'Workspace',
+      items: [
         {
           label: 'Meetings',
           path: '/hr/meetings?section=schedule',
@@ -155,11 +165,6 @@ const HrLayout: React.FC = () => {
             { label: 'Meeting History', path: '/hr/meetings?section=history', icon: <History size={16} /> },
           ],
         },
-      ],
-    },
-    {
-      label: 'Analytics',
-      items: [
         {
           label: 'Reports',
           path: '/hr/reports',
