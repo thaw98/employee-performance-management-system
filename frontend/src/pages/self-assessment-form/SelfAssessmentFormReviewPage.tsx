@@ -324,26 +324,38 @@ function ManagerReviewDeadlineDisplay({ date }: { date: string | null }) {
   );
 }
 
-export const SelfAssessmentFormReviewPage: React.FC = () => {
+type SelfAssessmentFormReviewPageProps = {
+  readOnly?: boolean;
+};
+
+export const SelfAssessmentFormReviewPage: React.FC<SelfAssessmentFormReviewPageProps> = ({ readOnly = false }) => {
   const { user } = useSelector((state: RootState) => state.auth);
   const { formId: formIdParam } = useParams<{ formId?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const isHr = user?.roleId === 1;
-  const isEmployeeDetail = location.pathname.startsWith('/employee/self-assessment-forms') || user?.roleId === 3 || user?.roleId === 4;
-  const isManagerView = !isHr && !isEmployeeDetail;
-  const reviewQueuePath = isHr
+  const isAudit = user?.roleId === 5 || location.pathname.startsWith('/audit/self-assessment');
+  const isReadOnly = readOnly || isAudit;
+  const isEmployeeDetail = location.pathname.startsWith('/employee/self-assessment-forms') || user?.roleId === 3 || user?.roleId === 4 || isReadOnly;
+  const canHrAct = isHr && !isReadOnly;
+  const canManagerAct = !isHr && !isEmployeeDetail && !isReadOnly;
+  const isManagerView = canManagerAct;
+  const reviewQueuePath = isAudit
+    ? '/audit/self-assessment/history'
+    : isHr
     ? '/hr/self-assessment/review-queue'
     : isEmployeeDetail
       ? '/employee/self-assessment-forms/history'
       : '/manager/self-assessment-forms/review-queue';
-  const pageTitle = isEmployeeDetail ? 'Self Assessment Detail' : isHr ? 'HR Compliance Review' : 'Manager Review';
-  const pageDescription = isEmployeeDetail
+  const pageTitle = isReadOnly ? 'Self Assessment Detail' : isEmployeeDetail ? 'Self Assessment Detail' : isHr ? 'HR Compliance Review' : 'Manager Review';
+  const pageDescription = isReadOnly
+    ? 'View self-assessment details and review history.'
+    : isEmployeeDetail
     ? 'View your submitted self-assessment details and review history.'
     : isHr
       ? 'Review and approve self-assessment forms with final authority'
       : 'Review self-assessment forms submitted by your team members';
-  const backLabel = isEmployeeDetail ? 'Back to History' : 'Back to Review Queue';
+  const backLabel = isEmployeeDetail || isReadOnly ? 'Back to History' : 'Back to Review Queue';
 
   const parsedFormIdFromUrl = formIdParam ? Number(formIdParam) : null;
   const urlFormId = parsedFormIdFromUrl && Number.isFinite(parsedFormIdFromUrl) ? parsedFormIdFromUrl : null;
@@ -374,13 +386,13 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   }>>({});
 
   const { data: managerForms, isLoading: managerFormsLoading, error: managerFormsError, refetch: refetchManagerForms } = useGetReviewFormsQuery(undefined, {
-    skip: isHr || isEmployeeDetail,
+    skip: isHr || isEmployeeDetail || isReadOnly,
   });
   const { data: hrForms, isLoading: hrFormsLoading, refetch: refetchHrForms } = useGetHrReviewFormsQuery(undefined, {
-    skip: !isHr || Boolean(selectedFormId),
+    skip: !canHrAct || Boolean(selectedFormId),
   });
   const { data: allForms, isLoading: allFormsLoading, refetch: refetchAllForms } = useGetAllFormsForHrQuery(undefined, {
-    skip: !isHr || !selectedFormId,
+    skip: !canHrAct || !selectedFormId,
   });
   const { data: selectedForm, isLoading: selectedFormLoading, refetch: refetchForm } = useGetFormByIdQuery(selectedFormId!, {
     skip: !selectedFormId,
@@ -399,9 +411,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     }
 
     void refetchForm();
-    if (isHr) {
+    if (canHrAct) {
       void (selectedFormId ? refetchAllForms() : refetchHrForms());
-    } else if (!isEmployeeDetail) {
+    } else if (canManagerAct) {
       void refetchManagerForms();
     }
   }, [
@@ -411,7 +423,8 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     refetchManagerForms,
     refetchHrForms,
     refetchAllForms,
-    isHr,
+    canHrAct,
+    canManagerAct,
     isEmployeeDetail,
   ]);
 
@@ -436,7 +449,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const [showManagerRetakeModal, setShowManagerRetakeModal] = useState(false);
   const [approvalMode, setApprovalMode] = useState<'adjustment' | 'final'>('final');
   const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery(undefined, {
-    skip: isEmployeeDetail,
+    skip: isEmployeeDetail || isReadOnly,
   });
   const defaultSignature = defaultSigResponse?.data ?? null;
   const hasDefaultSignature = Boolean(defaultSignature);
@@ -444,15 +457,15 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
   const portalRoot = typeof document !== 'undefined' ? document.body : null;
   const isManagerSelfAssessment = selectedForm?.employee?.roleId === 2;
   const isRetakeRequesting = isRequestingRetake || isRequestingHrRetake;
-  const canHrRequestManagerRetake = isHr
+  const canHrRequestManagerRetake = canHrAct
     && isManagerSelfAssessment
     && selectedForm?.status === 'PENDING_FINAL_APPROVAL'
     && !selectedForm.retakeRequestUsed;
-  const canHrScheduleManagerMeeting = isHr
+  const canHrScheduleManagerMeeting = canHrAct
     && isManagerSelfAssessment
     && selectedForm?.status === 'PENDING_FINAL_APPROVAL'
     && Boolean(selectedForm.retakeSubmittedAt);
-  const canHrReturnBack = isHr
+  const canHrReturnBack = canHrAct
     && !isEmployeeDetail
     && (selectedForm?.status === 'PENDING_FINAL_APPROVAL'
       || selectedForm?.status === 'PENDING_HR_CALIBRATION_REVIEW');
@@ -460,9 +473,9 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     || selectedForm?.status === 'PENDING_MANAGER_REVIEW'
     || selectedForm?.status === 'RETURNED_BY_HR';
 
-  const forms = isEmployeeDetail ? [] : isHr ? (selectedFormId ? allForms : hrForms) : managerForms;
-  const isLoading = selectedFormLoading || (isEmployeeDetail ? false : isHr ? (selectedFormId ? allFormsLoading : hrFormsLoading) : managerFormsLoading);
-  const managerErrorMessage = !isHr && !isEmployeeDetail && managerFormsError && typeof managerFormsError === 'object' && 'data' in managerFormsError
+  const forms = isEmployeeDetail || isReadOnly ? [] : isHr ? (selectedFormId ? allForms : hrForms) : managerForms;
+  const isLoading = selectedFormLoading || (isEmployeeDetail || isReadOnly ? false : isHr ? (selectedFormId ? allFormsLoading : hrFormsLoading) : managerFormsLoading);
+  const managerErrorMessage = canManagerAct && managerFormsError && typeof managerFormsError === 'object' && 'data' in managerFormsError
     ? (managerFormsError as any)?.data?.message || 'Unable to load review forms for this manager account.'
     : null;
 
@@ -489,7 +502,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     return s === 'APPROVED' || s === 'COMPLETED' || s === 'FINALIZED_LOCKED';
   }, [selectedForm?.status]);
   const pendingUnlockRequest = selectedForm?.pendingUnlockRequest ?? null;
-  const canHrUnlockPendingRequest = isHr && !isEmployeeDetail && pendingUnlockRequest?.status === 'PENDING';
+  const canHrUnlockPendingRequest = canHrAct && !isEmployeeDetail && pendingUnlockRequest?.status === 'PENDING';
 
   const hasPendingManagerAdjustments = useMemo(
     () => selectedForm?.answers?.some(
@@ -609,7 +622,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
     }
 
     try {
-      if (isHr && isManagerSelfAssessment) {
+      if (canHrAct && isManagerSelfAssessment) {
         await hrRequestRetake({
           formId: selectedFormId,
           request: { comments: managerComments.trim(), retakeRequests },
@@ -620,7 +633,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
           request: { comments: managerComments.trim(), retakeRequests },
         }).unwrap();
       }
-      toast.success(isHr && isManagerSelfAssessment
+      toast.success(canHrAct && isManagerSelfAssessment
         ? 'Retake requested. The manager has been notified.'
         : 'Retake requested. The employee has been notified.');
       setShowManagerRetakeModal(false);
@@ -1012,7 +1025,7 @@ export const SelfAssessmentFormReviewPage: React.FC = () => {
       </button>
 
       <nav className="mb-5 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-        <Link to={isHr ? '/hr/dashboard' : isEmployeeDetail ? '/employee/dashboard' : '/manager/dashboard'} className="text-[#2463eb] dark:text-[#60a5fa] font-medium hover:underline">Home</Link>
+        <Link to={isAudit ? '/audit/dashboard' : isHr ? '/hr/dashboard' : isEmployeeDetail ? '/employee/dashboard' : '/manager/dashboard'} className="text-[#2463eb] dark:text-[#60a5fa] font-medium hover:underline">Home</Link>
         <ChevronRight size={10} className="opacity-50" />
         <span>Self Assessment</span>
         <ChevronRight size={10} className="opacity-50" />
@@ -1370,7 +1383,7 @@ Review Submissions
                 </div>
               </div>
 
-              {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason || selectedForm.hrReturnComments || (!isHr && !isEmployeeDetail && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW')) && (
+              {(selectedForm.employeeRemarks || selectedForm.overallRemarks || selectedForm.managerComments || selectedForm.employeeDisputedAt || selectedForm.hrReviewReason || selectedForm.hrReturnComments || (canManagerAct && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW')) && (
                 <div className="rounded-xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '140ms' }}>
                   <div className="flex items-center gap-2 mb-4">
                     <MessageSquare size={15} className="text-[#2463eb] dark:text-[#60a5fa]" />
@@ -1445,7 +1458,7 @@ Review Submissions
                         <p className="text-sm text-rose-700 dark:text-rose-200 leading-relaxed">{selectedForm.employeeDisputeReason}</p>
                       </div>
                     )}
-                    {!isHr && !isEmployeeDetail && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW' && (
+                    {canManagerAct && selectedForm.status === 'PENDING_RETAKE_MANAGER_REVIEW' && (
                       <div className="overflow-hidden rounded-xl border border-emerald-200/70 bg-emerald-50/30 dark:border-emerald-700/50 dark:bg-emerald-900/15">
                         <div className="flex items-center gap-3 border-b border-emerald-100 px-4 py-3 dark:border-emerald-800/50">
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 shadow-md shadow-emerald-500/20">
@@ -1709,7 +1722,7 @@ Review Submissions
                 </div>
               </div>
 
-              {!isHr && !isEmployeeDetail && isManagerReviewActionable && (
+              {canManagerAct && isManagerReviewActionable && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-md shadow-amber-500/20">
@@ -1898,7 +1911,7 @@ Review Submissions
                 </div>
 	              )}
 
-	              {isHr && !isEmployeeDetail && (selectedForm.status === 'PENDING_FINAL_APPROVAL' || selectedForm.status === 'PENDING_HR_CALIBRATION_REVIEW') && (
+	              {canHrAct && !isEmployeeDetail && (selectedForm.status === 'PENDING_FINAL_APPROVAL' || selectedForm.status === 'PENDING_HR_CALIBRATION_REVIEW') && (
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/60 dark:bg-slate-800/80 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
                   <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-4 dark:border-slate-700/60">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] shadow-md shadow-[#2463eb]/20">
@@ -2227,7 +2240,7 @@ Review Submissions
         </div>
       </div>
 
-      {((!isHr && !isEmployeeDetail) || (isHr && isManagerSelfAssessment)) && showManagerRetakeModal && portalRoot && createPortal(
+      {(canManagerAct || (canHrAct && isManagerSelfAssessment)) && showManagerRetakeModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -2296,7 +2309,7 @@ Review Submissions
         </div>
       , portalRoot)}
 
-      {!isHr && !isEmployeeDetail && showForceChangeModal && portalRoot && createPortal(
+      {canManagerAct && showForceChangeModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -2440,7 +2453,7 @@ Review Submissions
         </div>
       , portalRoot)}
 
-      {!isHr && !isEmployeeDetail && showManagerApproveRetakeModal && portalRoot && createPortal(
+      {canManagerAct && showManagerApproveRetakeModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -2505,7 +2518,7 @@ Review Submissions
         </div>
       , portalRoot)}
 
-      {!isHr && !isEmployeeDetail && showManagerApproveModal && portalRoot && createPortal(
+      {canManagerAct && showManagerApproveModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
@@ -2570,7 +2583,7 @@ Review Submissions
         </div>
       , portalRoot)}
 
-      {isHr && !isEmployeeDetail && showApprovalModal && portalRoot && createPortal(
+      {canHrAct && !isEmployeeDetail && showApprovalModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowApprovalModal(false)} />
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200/60 bg-white p-6 shadow-2xl dark:border-slate-700/60 dark:bg-slate-800 animate-fade-in-up">
@@ -2624,7 +2637,7 @@ Review Submissions
         </div>
       , portalRoot)}
 
-      {isHr && !isEmployeeDetail && showHrReturnModal && portalRoot && createPortal(
+      {canHrAct && !isEmployeeDetail && showHrReturnModal && portalRoot && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"

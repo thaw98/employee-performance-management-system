@@ -66,6 +66,14 @@ const AuditLayout: React.FC = () => {
             ],
         },
         {
+            label: 'Self-Assessment',
+            path: '/audit/self-assessment/history',
+            icon: <FileText size={18} />,
+            subItems: [
+                { label: 'History', path: '/audit/self-assessment/history', icon: <History size={16} /> },
+            ],
+        },
+        {
             label: '360 Feedback',
             path: '/audit/360-feedback/history',
             icon: <RefreshCcw size={18} />,

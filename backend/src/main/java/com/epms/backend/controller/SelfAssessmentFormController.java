@@ -115,10 +115,10 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/score-records")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4 or principal.roleId == 5")
     public ResponseEntity<ApiResponse<List<ScoreRecordDto>>> getScoreRecords(@AuthenticationPrincipal UserPrincipal principal) {
         try {
-            Employee employee = getEmployeeFromPrincipal(principal);
+            Employee employee = Long.valueOf(5L).equals(principal.getRoleId()) ? null : getEmployeeFromPrincipal(principal);
             List<ScoreRecordDto> records = selfAssessmentFormService.getScoreRecords(employee, principal.getRoleId());
             return ResponseEntity.ok(ApiResponse.ok("Score records retrieved", records));
         } catch (RuntimeException ex) {
@@ -205,10 +205,10 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4 or principal.roleId == 5")
     public ResponseEntity<ApiResponse<SelfAssessmentFormDto>> getFormById(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         try {
-            Employee employee = getEmployeeFromPrincipal(principal);
+            Employee employee = Long.valueOf(5L).equals(principal.getRoleId()) ? null : getEmployeeFromPrincipal(principal);
             SelfAssessmentFormDto form = selfAssessmentFormService.getFormByIdForRole(id, employee, principal.getRoleId());
             return ResponseEntity.ok(ApiResponse.ok("Form retrieved", form));
         } catch (RuntimeException ex) {
@@ -348,12 +348,12 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/score-records/export/pdf")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 3 or principal.roleId == 4 or principal.roleId == 5")
     public ResponseEntity<?> exportScoreRecordsPdf(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) Long cycleId) {
         try {
-            Employee employee = getEmployeeFromPrincipal(principal);
+            Employee employee = Long.valueOf(5L).equals(principal.getRoleId()) ? null : getEmployeeFromPrincipal(principal);
             byte[] bytes = selfAssessmentReportService.generateSummaryPdf(employee, principal.getRoleId(), cycleId);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);

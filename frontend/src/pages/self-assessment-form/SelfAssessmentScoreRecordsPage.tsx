@@ -124,9 +124,13 @@ export function SelfAssessmentScoreRecordsPage() {
   const navigate = useNavigate()
   const roleId = useSelector((state: RootState) => state.auth.user?.roleId)
   const isHr = roleId === 1
+  const isAudit = roleId === 5
+  const hasOrgWideHistory = isHr || isAudit
   const isEmployee = roleId === 3 || roleId === 4
   const basePath = isHr
     ? '/hr/self-assessment'
+    : isAudit
+      ? '/audit/self-assessment'
     : isEmployee
       ? '/employee/self-assessment-forms'
       : '/manager/self-assessment-forms'
@@ -177,7 +181,7 @@ export function SelfAssessmentScoreRecordsPage() {
       })
     }
 
-    if (isHr) {
+    if (hasOrgWideHistory) {
       cols.push({
         accessorKey: 'employee.departmentName',
         header: 'Department',
@@ -230,7 +234,7 @@ export function SelfAssessmentScoreRecordsPage() {
     )
 
     return cols
-  }, [isHr, isEmployee, navigate, basePath])
+  }, [hasOrgWideHistory, isEmployee, navigate, basePath])
 
   const filteredData = useMemo(() => {
     let data = historyRecords

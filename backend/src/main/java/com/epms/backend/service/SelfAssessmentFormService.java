@@ -1126,7 +1126,7 @@ Instant now = Instant.now();
         SelfAssessmentForm form = formRepository.findById(formId)
                 .orElseThrow(() -> new RuntimeException("Form not found"));
 
-        if (roleId != null && roleId == 1L) {
+        if (roleId != null && (roleId == 1L || roleId == 5L)) {
             return toFormDto(form);
         }
         if (roleId != null && roleId == 2L && canManagerAccessForm(form, employee)) {
@@ -3219,7 +3219,7 @@ Instant now = Instant.now();
 
     @Transactional
     public List<ScoreRecordDto> getScoreRecords(Employee employee, Long roleId) {
-        if (roleId != null && roleId == 1L) {
+        if (roleId != null && (roleId == 1L || roleId == 5L)) {
             return getHrScoreRecords();
         }
         if (roleId != null && roleId == 2L) {
