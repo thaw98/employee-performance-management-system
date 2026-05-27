@@ -1,7 +1,9 @@
-import { CalendarDays, IdCard, Mail, ShieldCheck, User, UsersRound, BriefcaseBusiness, LockKeyhole } from 'lucide-react'
+import React, { useRef } from 'react'
+import toast from 'react-hot-toast'
+import { CalendarDays, IdCard, Mail, ShieldCheck, User, UsersRound, BriefcaseBusiness, LockKeyhole, Camera, Loader2, Trash2 } from 'lucide-react'
 
 import { SetNewPasswordForm } from '../components/auth/SetNewPasswordForm'
-import { useGetProfileQuery } from '../features/user/userApi'
+import { useGetProfileQuery, useUpdateProfilePictureMutation, useDeleteProfilePictureMutation } from '../features/user/userApi'
 import { resolveProfilePictureSrc } from '../utils/mediaUrl'
 
 function displayValue(value: string | number | null | undefined) {
@@ -38,9 +40,42 @@ function formatDate(value: string | null | undefined) {
 
 export function UserProfilePage() {
   const { data: profileResponse, isLoading, isError } = useGetProfileQuery()
+  const [updateProfilePicture, { isLoading: isUpdating }] = useUpdateProfilePictureMutation()
+  const [deleteProfilePicture, { isLoading: isDeleting }] = useDeleteProfilePictureMutation()
   const user = profileResponse?.data ?? null
   const pictureSrc = resolveProfilePictureSrc(user?.profilePictureUrl)
   const displayName = user?.fullName || user?.name || 'User'
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const isProcessActive = isUpdating || isDeleting
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size exceeds 5MB')
+      return
+    }
+
+    try {
+      await updateProfilePicture(file).unwrap()
+      toast.success('Profile picture updated successfully!')
+    } catch (err: any) {
+      const errMsg = err?.data?.message || err?.message || 'Failed to update profile picture'
+      toast.error(errMsg)
+    }
+  }
+
+  const handleRemovePicture = async () => {
+    try {
+      await deleteProfilePicture().unwrap()
+      toast.success('Profile picture removed successfully!')
+    } catch (err: any) {
+      const errMsg = err?.data?.message || err?.message || 'Failed to remove profile picture'
+      toast.error(errMsg)
+    }
+  }
 
   const profileFields = [
     { label: 'Staff No', value: displayValue(user?.staffNo), icon: <IdCard size={18} /> },
@@ -91,11 +126,39 @@ export function UserProfilePage() {
       <div className="space-y-6">
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="flex flex-col gap-6 bg-slate-50 px-6 py-6 dark:bg-slate-800/40 sm:flex-row sm:items-center sm:px-8">
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-blue-100 text-4xl font-black text-blue-700 shadow-sm">
-              {pictureSrc ? (
-                <img src={pictureSrc} alt="Profile" className="h-full w-full object-cover" />
-              ) : (
-                displayName.charAt(0).toUpperCase()
+            <div className="relative group">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                disabled={isProcessActive}
+              />
+              <div
+                onClick={() => !isProcessActive && fileInputRef.current?.click()}
+                className={`flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-blue-100 text-4xl font-black text-blue-700 shadow-sm border-2 border-white transition-all transform group-hover:scale-105 ${
+                  isProcessActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              >
+                {pictureSrc ? (
+                  <img src={pictureSrc} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  displayName.charAt(0).toUpperCase()
+                )}
+              </div>
+              {!isProcessActive && (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute inset-0 rounded-2xl bg-slate-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer backdrop-blur-[2px]"
+                >
+                  <Camera className="text-white" size={24} />
+                </div>
+              )}
+              {isProcessActive && (
+                <div className="absolute inset-0 rounded-2xl bg-white/60 flex items-center justify-center backdrop-blur-sm">
+                  <Loader2 className="animate-spin text-blue-700" size={24} />
+                </div>
               )}
             </div>
             <div className="min-w-0 flex-1">
@@ -109,6 +172,25 @@ export function UserProfilePage() {
                 <Mail size={16} />
                 {displayValue(user?.email)}
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                 <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isProcessActive}
+                    className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-black shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-blue-200 dark:hover:border-blue-600 transition-all disabled:opacity-50"
+                 >
+                    Update Photo
+                 </button>
+                 <button 
+                    type="button"
+                    onClick={handleRemovePicture}
+                    disabled={isProcessActive || !pictureSrc}
+                    className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-red-100 dark:border-red-900/30 text-red-500 dark:text-red-400 rounded-xl text-xs font-black shadow-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                 >
+                    <Trash2 size={12} />
+                    Remove
+                 </button>
+              </div>
             </div>
           </div>
 
