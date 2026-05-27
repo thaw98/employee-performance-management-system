@@ -178,6 +178,8 @@ const getDateRangeLabel = (startDate: string, endDate: string) => {
   return 'All dates'
 }
 
+const isInvalidDateRange = (startDate: string, endDate: string) => Boolean(startDate && endDate && startDate > endDate)
+
 const FILTER_LABEL_CLASS =
   'mb-2 block min-h-[2rem] text-xs font-bold uppercase leading-tight tracking-wider text-slate-500'
 const FILTER_CONTROL_CLASS =
@@ -332,8 +334,9 @@ export default function PipMonitoringPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [logViewerPipId, setLogViewerPipId] = useState<number | null>(null)
   const departmentFilter = canViewAllPips ? filterDept : undefined
+  const invalidDateRange = isInvalidDateRange(startDate, endDate)
 
-  const { data: pips, isLoading, isError, error } = useGetPipsQuery({
+  const { data: pips, isLoading, isError, error } = useGetPipsQuery(invalidDateRange ? skipToken : {
     departmentId: departmentFilter,
     positionId: filterPos,
     pipId: selectedPipId,
@@ -519,6 +522,7 @@ export default function PipMonitoringPage() {
   ]
 
   const handleExportPips = async () => {
+    if (invalidDateRange) return
     if (exportTargetPips.length === 0) return
     try {
       setExportError(null)
@@ -536,6 +540,7 @@ export default function PipMonitoringPage() {
   }
 
   const handlePrintPips = async () => {
+    if (invalidDateRange) return
     if (exportTargetPips.length === 0) return
     try {
       setExportError(null)
@@ -795,6 +800,12 @@ export default function PipMonitoringPage() {
             </div>
           )}
         </div>
+
+        {invalidDateRange && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            Start date must be on or before end date.
+          </div>
+        )}
 
         <div className="mt-4 flex justify-end">
           <button
