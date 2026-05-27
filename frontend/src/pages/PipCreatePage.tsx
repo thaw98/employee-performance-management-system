@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Alert, Autocomplete, Box, Button, IconButton, Stack, TextField, Typography } from '@mui/material'
-import type { HTMLAttributes, Key } from 'react'
+import type { ClipboardEvent, HTMLAttributes, Key, KeyboardEvent } from 'react'
 import { Controller, useFieldArray, useForm, type Resolver } from 'react-hook-form'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -230,7 +230,7 @@ export default function PipCreatePage() {
                     label="Select Low Performer"
                     placeholder="Search by name, ID or department"
                     error={Boolean(errors.employeeId)}
-                    helperText={errors.employeeId?.message || "Only employees with KPI score < 69% are shown."}
+                    helperText={errors.employeeId?.message || "Only employees with KPI score 50% or below are shown."}
                   />
                 )}
                 renderOption={(props, option) => {
@@ -260,12 +260,12 @@ export default function PipCreatePage() {
                 inputMode: 'numeric',
                 pattern: '[0-9]*',
                 style: { textAlign: 'left' },
-                onKeyDown: (event) => {
+                onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
                   if (['e', 'E', '+', '-', '.'].includes(event.key)) {
                     event.preventDefault()
                   }
                 },
-                onPaste: (event) => {
+                onPaste: (event: ClipboardEvent<HTMLInputElement>) => {
                   const pastedText = event.clipboardData.getData('text')
                   if (!/^\d+$/.test(pastedText)) {
                     event.preventDefault()

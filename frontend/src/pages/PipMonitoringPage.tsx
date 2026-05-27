@@ -156,6 +156,21 @@ const getUniquePips = (pips?: Pip[]) => {
   )
 }
 
+const isPipForCurrentEmployee = (pip: Pip, currentUser?: { id?: number; employeeId?: string | null } | null) => {
+  if (!currentUser) return false
+
+  const authUserId = currentUser.id == null ? null : String(currentUser.id)
+  const authEmployeeId = currentUser.employeeId == null ? null : String(currentUser.employeeId)
+  const pipUserId = pip.employee.id == null ? null : String(pip.employee.id)
+  const pipEmployeeRecordId = pip.employee.employee?.id == null ? null : String(pip.employee.employee.id)
+  const pipStaffNo = pip.employee.employeeId == null ? null : String(pip.employee.employeeId)
+
+  return Boolean(
+    (authUserId && pipUserId === authUserId)
+    || (authEmployeeId && (pipEmployeeRecordId === authEmployeeId || pipStaffNo === authEmployeeId)),
+  )
+}
+
 const getDateRangeLabel = (startDate: string, endDate: string) => {
   if (startDate && endDate) return `${formatDateValue(startDate)} to ${formatDateValue(endDate)}`
   if (startDate) return `From ${formatDateValue(startDate)}`
@@ -300,6 +315,7 @@ export default function PipMonitoringPage() {
   const userRole = user?.role?.toUpperCase().replace(/\s+/g, '_') || ''
   const isHr = userRole === 'HR'
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
+  const isEmployee = !isHr && !isManager
 
   const [filterDept, setFilterDept] = useState<number | undefined>(undefined)
   const [filterPos, setFilterPos] = useState<number | undefined>(undefined)
@@ -433,10 +449,13 @@ export default function PipMonitoringPage() {
     || endDate
     || selectedPipId,
   )
-  const uniquePips = useMemo(() => getUniquePips(pips), [pips])
+  const scopedPips = useMemo(() => {
+    const unique = getUniquePips(pips)
+    return isEmployee ? unique.filter((pip) => isPipForCurrentEmployee(pip, user)) : unique
+  }, [isEmployee, pips, user])
 
   const filteredPips = useMemo(() => {
-    return uniquePips.filter((pip) => {
+    return scopedPips.filter((pip) => {
       if (selectedPipId != null && pip.id !== selectedPipId) return false
       if (selectedEmployeeId == null) return true
       return getPipEmployeeRecordId(pip) === selectedEmployeeId
@@ -450,7 +469,7 @@ export default function PipMonitoringPage() {
       const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime()
       return timeB - timeA
     })
-  }, [uniquePips, selectedEmployeeId, selectedPipId])
+  }, [scopedPips, selectedEmployeeId, selectedPipId])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -765,7 +784,7 @@ export default function PipMonitoringPage() {
                 className={FILTER_SELECT_CLASS}
               >
                 <option value="">All PIPs</option>
-                {uniquePips.map((pip) => (
+                {scopedPips.map((pip) => (
                   <option key={pip.id} value={pip.id}>
                     PIP #{pip.id} - {getPipEmployeeName(pip)}
                   </option>
