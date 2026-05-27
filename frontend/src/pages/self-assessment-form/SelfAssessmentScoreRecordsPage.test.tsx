@@ -155,6 +155,14 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     expect(screen.getByText('Department')).toBeTruthy()
   })
 
+  it('shows HR-style organization columns for Audit role', () => {
+    currentRoleId = 5
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    expect(screen.getByText('Department')).toBeTruthy()
+    expect(screen.getByText('Employee Name')).toBeTruthy()
+  })
+
   it('hides Department column for Manager role', () => {
     currentRoleId = 2
     render(<SelfAssessmentScoreRecordsPage />)
@@ -323,6 +331,17 @@ describe('SelfAssessmentScoreRecordsPage', () => {
     await user.click(viewButtons[0])
 
     expect(navigateMock).toHaveBeenCalledWith('/manager/self-assessment-forms/reviews/1')
+  })
+
+  it('navigates to audit read-only review page for Audit role', async () => {
+    currentRoleId = 5
+    const user = userEvent.setup()
+    render(<SelfAssessmentScoreRecordsPage />)
+
+    const viewButtons = screen.getAllByText('View')
+    await user.click(viewButtons[0])
+
+    expect(navigateMock).toHaveBeenCalledWith('/audit/self-assessment/reviews/1')
   })
 
   it('hides employee identity columns for Employee role', () => {

@@ -21,10 +21,12 @@ import {
 } from '../../features/kpi/kpiApi';
 import { useGetDepartmentByIdQuery } from '../../features/department/api/departmentApi';
 import { toast } from 'react-hot-toast';
+import { useKpiViewContext } from '../../hooks/useKpiViewContext';
 
 export const DepartmentKpiDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { isViewOnly } = useKpiViewContext();
   const departmentId = searchParams.get('departmentId');
   const [selectedPeriodMonth, setSelectedPeriodMonth] = useState<string>(getCurrentMonthValue());
   const selectedPeriodLabel = formatMonthYear(selectedPeriodMonth);
@@ -71,18 +73,22 @@ export const DepartmentKpiDetailPage: React.FC = () => {
               <span className="text-[10px] text-slate-500">{selectedPeriodLabel}</span>
             </div>
           </div>
-          <button
-            onClick={() => setIsEditModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-200 uppercase tracking-widest"
-          >
-            <Target size={16} /> Update Actuals
-          </button>
-          <button
-            onClick={() => navigate(`/hr/kpi-management?departmentId=${departmentId}&mode=department`)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-emerald-200 uppercase tracking-widest"
-          >
-            <FileEdit size={16} /> Manage KPIs
-          </button>
+          {!isViewOnly && (
+            <>
+              <button
+                onClick={() => setIsEditModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-indigo-200 uppercase tracking-widest"
+              >
+                <Target size={16} /> Update Actuals
+              </button>
+              <button
+                onClick={() => navigate(`/hr/kpi-management?departmentId=${departmentId}&mode=department`)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-emerald-200 uppercase tracking-widest"
+              >
+                <FileEdit size={16} /> Manage KPIs
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -191,7 +197,7 @@ export const DepartmentKpiDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {isEditModalOpen && department && kpis && (
+      {!isViewOnly && isEditModalOpen && department && kpis && (
         <DepartmentKpiEditModal 
           department={department}
           kpis={kpis}

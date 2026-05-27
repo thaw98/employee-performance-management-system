@@ -13,10 +13,11 @@ import {
   Filter,
   ArrowUpDown,
   FileDown,
+  FileSpreadsheet,
 } from 'lucide-react';
+import * as XLSX from 'xlsx-js-style';
 import {
   useGetPerformanceSummariesQuery,
-  type PerformanceReportSummary,
 } from '../../features/performanceReport/performanceReportApi';
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl';
 import { exportPerformanceReportListPdf } from '../../utils/exportPerformanceReportListPdf';
@@ -67,7 +68,14 @@ const formatScore = (score: number | null) =>
 
 /* ── Component ───────────────────────────────────────── */
 
-export const PerformanceReportPage: React.FC = () => {
+type PerformanceReportPageProps = {
+  basePath?: string;
+  readOnly?: boolean;
+};
+
+export const PerformanceReportPage: React.FC<PerformanceReportPageProps> = ({
+  basePath = '/hr/performance-reports',
+}) => {
   const navigate = useNavigate();
   const { data: summaries = [], isLoading, error } = useGetPerformanceSummariesQuery();
   const [searchTerm, setSearchTerm] = useState('');
@@ -147,6 +155,41 @@ export const PerformanceReportPage: React.FC = () => {
 
   const totalPages = Math.ceil(filtered.length / pageSize) || 1;
 
+  const handleExportExcel = () => {
+    const rows = filtered.map((emp, index) => ({
+      No: index + 1,
+      Employee: emp.employeeName,
+      'Staff No': emp.staffNo || '-',
+      Department: emp.departmentName || '-',
+      Position: emp.positionName || '-',
+      'KPI Score': formatScore(emp.kpiScore),
+      'Appraisal Score': formatScore(emp.appraisalScore),
+      'Self-Assessment Score': formatScore(emp.selfAssessmentScore),
+      'Feedback Score': formatScore(emp.feedbackScore),
+      PIP: emp.hasActivePip ? 'Active' : 'None',
+      Overall: formatScore(emp.overallRating),
+      Eligibility: emp.promotionEligibility,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet['!cols'] = [
+      { wch: 6 },
+      { wch: 24 },
+      { wch: 14 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 12 },
+      { wch: 16 },
+      { wch: 20 },
+      { wch: 16 },
+      { wch: 10 },
+      { wch: 10 },
+      { wch: 18 },
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Performance Reports');
+    XLSX.writeFile(workbook, `performance-report-summary-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   const toggleSort = (field: 'overallRating' | 'employeeName') => {
     setCurrentPage(1);
     if (sortField === field) {
@@ -198,14 +241,24 @@ export const PerformanceReportPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => exportPerformanceReportListPdf(filtered)}
-          disabled={filtered.length === 0}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
-        >
-          <FileDown size={18} />
-          Export PDF
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            onClick={() => exportPerformanceReportListPdf(filtered)}
+            disabled={filtered.length === 0}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            <FileDown size={18} />
+            Export PDF
+          </button>
+          <button
+            onClick={handleExportExcel}
+            disabled={filtered.length === 0}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            <FileSpreadsheet size={18} />
+            Export Excel
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -366,7 +419,7 @@ export const PerformanceReportPage: React.FC = () => {
                 <tr
                   key={emp.employeeId}
                   className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/hr/performance-reports/${emp.employeeId}`)}
+                  onClick={() => navigate(`${basePath}/${emp.employeeId}`)}
                 >
                   {/* Employee */}
                   <td className="px-4 py-3">
@@ -452,7 +505,7 @@ export const PerformanceReportPage: React.FC = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/hr/performance-reports/${emp.employeeId}`);
+                        navigate(`${basePath}/${emp.employeeId}`);
                       }}
                       className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-emerald-600 transition-colors"
                       title="View Details"

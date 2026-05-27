@@ -119,7 +119,7 @@ public class PipController {
     }
 
     @GetMapping("/notes")
-    @PreAuthorize("hasRole('HR')")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
     public ResponseEntity<ApiResponse<Page<PipCommunicationNoteDto>>> getAllPipNotes(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) Long employeeId,

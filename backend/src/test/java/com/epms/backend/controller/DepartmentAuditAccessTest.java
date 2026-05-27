@@ -44,4 +44,14 @@ class DepartmentAuditAccessTest {
                 .contains("AUDIT")
                 .contains("principal.roleId == 5");
     }
+
+    @Test
+    void managedDepartmentPositionsRequiresDepartmentHeadRoleId() throws NoSuchMethodException {
+        Method getMyManagedPositions = DepartmentPositionsByDepartmentController.class.getDeclaredMethod(
+                "getMyManagedPositions", com.epms.backend.security.UserPrincipal.class);
+        PreAuthorize preAuthorize = getMyManagedPositions.getAnnotation(PreAuthorize.class);
+
+        assertThat(preAuthorize).isNotNull();
+        assertThat(preAuthorize.value()).isEqualTo("principal.roleId == 2");
+    }
 }

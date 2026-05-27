@@ -47,7 +47,7 @@ import {
 } from './feedbackReportTheme'
 
 type FeedbackReportPageProps = {
-  mode: 'hr' | 'manager' | 'employee'
+  mode: 'hr' | 'manager' | 'employee' | 'audit'
 }
 
 type ExportSection = 'summary' | 'individual'
@@ -966,7 +966,8 @@ function EmployeeOwnFeedbackReport() {
   )
 }
 
-function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
+function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' }) {
+  const reportMode = mode === 'audit' ? 'hr' : mode
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | undefined>()
   const [reportCycleId, setReportCycleId] = useState<number | undefined>()
   const [reportDownload, setReportDownload] = useState<string | null>(null)
@@ -989,14 +990,14 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
     : undefined
   const [fetchExportData, { isFetching: isExporting }] = useLazyGetFeedbackReportExportDataQuery()
   useEffect(() => {
-    if (mode === 'manager' && departments.length > 0 && !selectedDepartmentId) {
+    if (reportMode === 'manager' && departments.length > 0 && !selectedDepartmentId) {
       setSelectedDepartmentId(departments[0].departmentId)
     }
-  }, [departments, mode, selectedDepartmentId])
+  }, [departments, reportMode, selectedDepartmentId])
 
   const displayedDepartment = selectedDepartmentId
     ? selectedDepartment
-    : mode === 'manager'
+    : reportMode === 'manager'
       ? departments[0]
       : undefined
 
@@ -1323,7 +1324,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
     return <div className="py-16 text-center text-sm text-slate-500">Loading feedback report...</div>
   }
 
-  if (mode === 'manager') {
+  if (reportMode === 'manager') {
     return (
       <div className="space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -1338,7 +1339,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
           canChangeDepartment={departments.length > 1}
           onClearDepartment={() => setSelectedDepartmentId(undefined)}
           reportReviewCycle={undefined}
-          roleMode={mode}
+          roleMode={reportMode}
           onExportExcel={handleExportExcel}
           onExportPdf={handleExportPdf}
           exportDownload={reportDownload}
@@ -1353,7 +1354,9 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Feedback Report</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Company-wide feedback analytics by department.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {mode === 'audit' ? 'Read-only company-wide feedback analytics by department.' : 'Company-wide feedback analytics by department.'}
+          </p>
         </div>
       </div>
 
@@ -1383,7 +1386,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' }) {
         canChangeDepartment
         onClearDepartment={() => setSelectedDepartmentId(undefined)}
         reportReviewCycle={selectedReportCycle}
-        roleMode={mode}
+        roleMode={reportMode}
         onExportExcel={handleExportExcel}
         onExportPdf={handleExportPdf}
         exportDownload={reportDownload}

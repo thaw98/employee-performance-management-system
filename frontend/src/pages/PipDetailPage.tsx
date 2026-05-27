@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useLocation, useParams, Link } from 'react-router-dom'
 import {
   useGetPipByIdQuery,
   useUpdateProgressMutation,
@@ -39,22 +39,9 @@ const getActionErrorMessage = (error: unknown, fallback: string) => {
 export default function PipDetailPage() {
   const { id } = useParams<{ id: string }>()
   const pipId = parseInt(id!)
+  const location = useLocation()
   const { data: pip, isLoading } = useGetPipByIdQuery(pipId)
   const { user } = useSelector((state: RootState) => state.auth)
-  const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery()
-  const defaultSignature = defaultSigResponse?.data ?? null
-  const hasDefaultSignature = Boolean(defaultSignature?.signatureData)
-
-  const [updateProgress] = useUpdateProgressMutation()
-  const [scheduleMeeting] = useScheduleMeetingMutation()
-  const [closePip] = useClosePipMutation()
-  const [manualClosePip, { isLoading: isManualClosing }] = useManualClosePipMutation()
-  const [employeeSign, { isLoading: isSigningEmployee }] = useEmployeeSignMutation()
-  const [managerSign, { isLoading: isSigningManager }] = useManagerSignMutation()
-  const [markPipCompleted, { isLoading: isMarkingCompleted }] = useMarkPipCompletedMutation()
-  const [reopenPip] = useReopenPipMutation()
-  const [reviewPip] = useReviewPipMutation()
-
   const employeeRecordId = pip?.employee?.id
   const { data: trainingHistory, isLoading: isTrainingHistoryLoading } = useGetTrainingHistoryQuery(
     employeeRecordId != null ? String(employeeRecordId) : '',
@@ -92,7 +79,24 @@ export default function PipDetailPage() {
   const userRole = user?.role?.toUpperCase().replace(/\s+/g, '_') || ''
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
   const isAdmin = userRole === 'HR'
+  const isAudit = user?.roleId === 5 || userRole === 'AUDIT' || location.pathname.startsWith('/audit/')
   const isEmployee = userRole === 'EMPLOYEE'
+  const { data: defaultSigResponse, isLoading: isDefaultSigLoading } = useGetDefaultSignatureQuery(undefined, {
+    skip: isAudit,
+  })
+  const defaultSignature = defaultSigResponse?.data ?? null
+  const hasDefaultSignature = Boolean(defaultSignature?.signatureData)
+
+  const [updateProgress] = useUpdateProgressMutation()
+  const [scheduleMeeting] = useScheduleMeetingMutation()
+  const [closePip] = useClosePipMutation()
+  const [manualClosePip, { isLoading: isManualClosing }] = useManualClosePipMutation()
+  const [employeeSign, { isLoading: isSigningEmployee }] = useEmployeeSignMutation()
+  const [managerSign, { isLoading: isSigningManager }] = useManagerSignMutation()
+  const [markPipCompleted, { isLoading: isMarkingCompleted }] = useMarkPipCompletedMutation()
+  const [reopenPip] = useReopenPipMutation()
+  const [reviewPip] = useReviewPipMutation()
+
   const signatureSettingsPath = isAdmin
     ? '/hr/settings/signature'
     : isEmployee
@@ -200,7 +204,7 @@ export default function PipDetailPage() {
       (user?.employeeId && pip.manager?.employeeId && user.employeeId === pip.manager.employeeId)
     )
   )
-  const routeBase = isAdmin ? '/hr/pip-monitoring' : isEmployee ? '/employee/pip' : '/manager/pip'
+  const routeBase = isAudit ? '/audit/pip-monitoring' : isAdmin ? '/hr/pip-monitoring' : isEmployee ? '/employee/pip' : '/manager/pip'
 
   if (isLoading || !pip) return <div className="p-8">Loading PIP details...</div>
 

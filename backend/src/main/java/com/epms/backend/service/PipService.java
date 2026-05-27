@@ -210,7 +210,7 @@ public class PipService {
             boolean isAdmin = "ADMIN".equals(roleName) || "SUPER_ADMIN".equals(roleName);
             boolean isManager = "DEPARTMENT_HEAD".equals(roleName) || "TEAM_HEAD".equals(roleName) || "MANAGER".equals(roleName) || roleName.contains("MANAGER");
 
-            if (isHr(actor) || isAdmin) {
+            if (isHr(actor) || isAudit(actor) || isAdmin) {
                 if (departmentId != null) {
                     predicates.add(cb.equal(root.get("employee").get("department").get("id"), departmentId));
                 }
@@ -363,8 +363,8 @@ public class PipService {
             LocalDate dateTo,
             Pageable pageable,
             User actor) {
-        if (!isHr(actor)) {
-            throw new RuntimeException("Only HR can review all PIP notes");
+        if (!isHr(actor) && !isAudit(actor)) {
+            throw new RuntimeException("Only HR or Audit can review all PIP notes");
         }
         PipNoteType parsedNoteType = parseNoteType(noteType, null);
 
@@ -917,7 +917,7 @@ public class PipService {
     }
 
     private void authorizePipAccess(Pip pip, User actor) {
-        if (isHr(actor)) {
+        if (isHr(actor) || isAudit(actor)) {
             return;
         }
         if (actor.getEmployee() == null) {
@@ -986,6 +986,14 @@ public class PipService {
         }
         String name = actor.getRole().getName().trim().toUpperCase();
         return "HR".equals(name) || "ADMIN".equals(name) || "SUPER_ADMIN".equals(name);
+    }
+
+    private boolean isAudit(User actor) {
+        if (actor == null || actor.getRole() == null) {
+            return false;
+        }
+        return Long.valueOf(5L).equals(actor.getRole().getId())
+                || "AUDIT".equals(actor.getRole().getName().trim().toUpperCase());
     }
 
     private PipCommunicationNoteDto toNoteDto(PipCommunicationNote note) {

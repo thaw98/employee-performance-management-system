@@ -33,7 +33,7 @@ public class PositionController {
 	private final PositionService positionService;
 
 	@GetMapping
-	@PreAuthorize("hasRole('HR')")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<PositionListResponse>> getPositions(
 			@RequestParam(required = false) Integer page,
 			@RequestParam(required = false) Integer size,
@@ -48,7 +48,7 @@ public class PositionController {
 	}
 
 	@GetMapping("/{id}")
-	@PreAuthorize("hasRole('HR')")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<PositionDto>> getPositionById(@PathVariable Long id) {
 		return ResponseEntity.ok(ApiResponse.ok("Position fetched successfully.", positionService.getPositionById(id)));
 	}

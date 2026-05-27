@@ -50,7 +50,7 @@ public class LookupController {
 	}
 
 	@GetMapping("/roles/active")
-	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+	@PreAuthorize("hasAnyRole('HR', 'MANAGER', 'EMPLOYEE', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<List<RoleOptionDto>>> getActiveRoles() {
 		List<RoleOptionDto> roles = roleRepository.findAll().stream()
 				.filter(r -> r.getName() != null && !r.getName().isBlank())

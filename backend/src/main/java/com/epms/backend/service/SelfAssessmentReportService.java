@@ -58,7 +58,7 @@ public class SelfAssessmentReportService {
         if (cycleId == null || cycleId <= 0) {
             throw new IllegalArgumentException("cycleId is required");
         }
-        if (roleId == null || (roleId != 1L && roleId != 2L)) {
+        if (roleId == null || (roleId != 1L && roleId != 2L && roleId != 5L)) {
             throw new IllegalArgumentException("Unauthorized");
         }
 
@@ -68,7 +68,7 @@ public class SelfAssessmentReportService {
 
         List<ReportRecord> records = selfAssessmentFormService.getScoreRecords(employee, roleId).stream()
                 .filter(record -> Objects.equals(record.cycleId(), cycleId))
-                .filter(record -> roleId == 1L || isInManagerCurrentDepartment(record, employee))
+                .filter(record -> roleId == 1L || roleId == 5L || isInManagerCurrentDepartment(record, employee))
                 .map(this::toReportRecord)
                 .sorted(Comparator.comparing(ReportRecord::groupName, Comparator.nullsLast(String::compareToIgnoreCase))
                         .thenComparing(ReportRecord::employeeName, Comparator.nullsLast(String::compareToIgnoreCase)))
@@ -77,7 +77,7 @@ public class SelfAssessmentReportService {
         Map<Long, ReportRecord> previousByEmployeeId = previousCycle == null ? Map.of()
                 : selfAssessmentFormService.getScoreRecords(employee, roleId).stream()
                 .filter(record -> Objects.equals(record.cycleId(), previousCycle.getId()))
-                .filter(record -> roleId == 1L || isInManagerCurrentDepartment(record, employee))
+                .filter(record -> roleId == 1L || roleId == 5L || isInManagerCurrentDepartment(record, employee))
                 .map(this::toReportRecord)
                 .filter(record -> record.employeeId() != null)
                 .collect(java.util.stream.Collectors.toMap(
@@ -85,7 +85,7 @@ public class SelfAssessmentReportService {
                         Function.identity(),
                         (left, right) -> left));
 
-        boolean isHr = roleId == 1L;
+        boolean isCompanyWide = roleId == 1L || roleId == 5L;
         List<SelfAssessmentAnalyticsReportDto.GroupSummary> departmentSummaries = buildGroupSummaries(
                 records,
                 ReportRecord::departmentId,
@@ -106,16 +106,16 @@ public class SelfAssessmentReportService {
                 .toList();
 
         return new SelfAssessmentAnalyticsReportDto(
-                isHr ? "hr" : "manager",
+                isCompanyWide ? "hr" : "manager",
                 toCycleMetadata(cycle),
                 previousCycle == null ? null : toCycleMetadata(previousCycle),
                 buildOverallTotals(records),
-                isHr && !rankedDepartments.isEmpty() ? rankedDepartments.get(0) : null,
-                isHr && !rankedDepartments.isEmpty() ? rankedDepartments.get(rankedDepartments.size() - 1) : null,
+                isCompanyWide && !rankedDepartments.isEmpty() ? rankedDepartments.get(0) : null,
+                isCompanyWide && !rankedDepartments.isEmpty() ? rankedDepartments.get(rankedDepartments.size() - 1) : null,
                 departmentSummaries,
                 positionSummaries,
-                buildRadar(records, isHr ? ReportRecord::departmentName : ReportRecord::positionName),
-                buildHighlights(records, isHr ? ReportRecord::departmentName : ReportRecord::positionName),
+                buildRadar(records, isCompanyWide ? ReportRecord::departmentName : ReportRecord::positionName),
+                buildHighlights(records, isCompanyWide ? ReportRecord::departmentName : ReportRecord::positionName),
                 buildEmployeeDirectory(records, previousByEmployeeId));
     }
 

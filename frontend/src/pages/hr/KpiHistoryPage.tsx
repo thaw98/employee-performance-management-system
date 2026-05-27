@@ -10,8 +10,10 @@ import { useGetDepartmentsQuery } from '../../features/department/api/department
 import { useGetPositionsQuery } from '../../features/position/api/positionApi';
 import { Search, History, Calendar, User, Briefcase, Building2, Target, CheckCircle2, AlertCircle, Eye, LayoutGrid, Download } from 'lucide-react';
 import { format } from 'date-fns';
+import { useKpiViewContext } from '../../hooks/useKpiViewContext';
 
 export const KpiHistoryPage: React.FC = () => {
+  const { isViewOnly } = useKpiViewContext();
   const [activeTab, setActiveTab] = useState('all');
   
   // Filters
@@ -320,11 +322,17 @@ export const KpiHistoryPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">KPI History</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">View and search historical KPI definitions and performance records.</p>
+          <p className="text-slate-500 text-sm font-medium mt-1">
+            {isViewOnly
+              ? 'View-only access to historical KPI definitions and performance records.'
+              : 'View and search historical KPI definitions and performance records.'}
+          </p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-2.5 bg-[#2463eb] hover:bg-[#1d4ed8] text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-[#dbeafe] uppercase tracking-widest">
-          <Download size={16} /> Export History
-        </button>
+        {!isViewOnly && (
+          <button className="flex items-center gap-2 px-6 py-2.5 bg-[#2463eb] hover:bg-[#1d4ed8] text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-[#dbeafe] uppercase tracking-widest">
+            <Download size={16} /> Export History
+          </button>
+        )}
       </div>
 
       {/* Tabs */}

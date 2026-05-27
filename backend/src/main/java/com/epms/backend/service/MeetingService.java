@@ -260,7 +260,7 @@ public class MeetingService {
     public MeetingResponse getMeetingDetails(Long id, Long userId) {
         Meeting meeting = meetingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Meeting not found"));
-        verifyParticipantOrHr(meeting, userId);
+        verifyParticipantOrHrOrAudit(meeting, userId);
         return mapToResponse(meeting);
     }
 
@@ -550,7 +550,7 @@ public class MeetingService {
     public List<MeetingNoteResponse> getMeetingNotes(Long meetingId, Long userId) {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new RuntimeException("Meeting not found"));
-        verifyParticipantOrHr(meeting, userId);
+        verifyParticipantOrHrOrAudit(meeting, userId);
 
         return meetingNoteRepository.findByMeetingIdOrderByCreatedDateAsc(meetingId)
                 .stream()
@@ -625,18 +625,18 @@ public class MeetingService {
         }
     }
 
-    private void verifyParticipantOrHr(Meeting meeting, Long userId) {
-        if (isHrUser(userId)) {
+    private void verifyParticipantOrHrOrAudit(Meeting meeting, Long userId) {
+        if (isHrOrAuditUser(userId)) {
             return;
         }
         verifyParticipant(meeting, userId);
     }
 
-    private boolean isHrUser(Long userId) {
+    private boolean isHrOrAuditUser(Long userId) {
         return userRepository.findById(userId)
                 .map(User::getRole)
                 .map(Role::getId)
-                .map(roleId -> roleId.equals(1L))
+                .map(roleId -> roleId.equals(1L) || roleId.equals(5L))
                 .orElse(false);
     }
 

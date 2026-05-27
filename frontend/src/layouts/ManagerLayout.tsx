@@ -19,6 +19,7 @@ import {
   PenLine,
   ClipboardList,
   ClipboardCheck,
+  Briefcase,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -56,7 +57,10 @@ const ManagerLayout: React.FC = () => {
   const menuItems: DashMenuItem[] = [
     { label: 'Dashboard', path: '/manager/dashboard', icon: <LayoutDashboard size={18} /> },
     ...(authUser?.roleId === 2
-      ? [{ label: 'Employees', path: '/manager/employees', icon: <Users size={18} /> }]
+      ? [
+          { label: 'Employees', path: '/manager/employees', icon: <Users size={18} /> },
+          { label: 'Positions', path: '/manager/positions', icon: <Briefcase size={18} /> },
+        ]
       : []),
     {
       label: 'KPI',

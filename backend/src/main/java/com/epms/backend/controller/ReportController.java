@@ -39,7 +39,7 @@ public class ReportController {
     }
 
     @GetMapping("/summary")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'AUDIT') or principal.roleId == 5")
     public ResponseEntity<byte[]> getPipSummaryReport(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String status,
@@ -58,7 +58,7 @@ public class ReportController {
     }
 
     @GetMapping("/progress")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'AUDIT') or principal.roleId == 5")
     public ResponseEntity<byte[]> getPipProgressReport(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String status,
@@ -77,7 +77,7 @@ public class ReportController {
     }
 
     @GetMapping("/summary/data")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'AUDIT') or principal.roleId == 5")
     public ResponseEntity<ApiResponse<List<PipSummaryReportDto>>> getPipSummaryReportData(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String status,
@@ -95,7 +95,7 @@ public class ReportController {
     }
 
     @GetMapping("/progress/data")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER', 'AUDIT') or principal.roleId == 5")
     public ResponseEntity<ApiResponse<PipProgressReportDto>> getPipProgressReportData(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String status,
