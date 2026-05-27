@@ -586,10 +586,11 @@ public class EmployeeImportTemplateService {
     private void addDateValidation(Sheet sheet,
             int firstRow, int lastRow, int firstCol, int lastCol) {
         DataValidationHelper dvh = sheet.getDataValidationHelper();
+        // Use DATE() formulas so Excel recognises the boundary values as date serials
         DataValidationConstraint dvc = dvh.createDateConstraint(
                 DataValidationConstraint.OperatorType.BETWEEN,
-                "01-01-1900",
-                "31-12-9999",
+                "DATE(1900,1,1)",
+                "DATE(9999,12,31)",
                 "dd-mm-yyyy");
         DataValidation dv = dvh.createValidation(dvc,
                 new CellRangeAddressList(firstRow, lastRow, firstCol, lastCol));
