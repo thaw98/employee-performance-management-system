@@ -107,6 +107,7 @@ public class FeedbackReportDtos {
         private String departmentName;
         private Double totalAverageScore;
         private List<EmployeeCriteriaAverageDto> criteriaAverages;
+        private List<String> additionalComments;
 
         public EmployeeFeedbackDetailReportDto() {}
 
@@ -117,12 +118,24 @@ public class FeedbackReportDtos {
                 String departmentName,
                 Double totalAverageScore,
                 List<EmployeeCriteriaAverageDto> criteriaAverages) {
+            this(employeeId, employeeName, departmentId, departmentName, totalAverageScore, criteriaAverages, List.of());
+        }
+
+        public EmployeeFeedbackDetailReportDto(
+                Long employeeId,
+                String employeeName,
+                Long departmentId,
+                String departmentName,
+                Double totalAverageScore,
+                List<EmployeeCriteriaAverageDto> criteriaAverages,
+                List<String> additionalComments) {
             this.employeeId = employeeId;
             this.employeeName = employeeName;
             this.departmentId = departmentId;
             this.departmentName = departmentName;
             this.totalAverageScore = totalAverageScore;
             this.criteriaAverages = criteriaAverages;
+            this.additionalComments = additionalComments;
         }
 
         public Long getEmployeeId() { return employeeId; }
@@ -137,6 +150,8 @@ public class FeedbackReportDtos {
         public void setTotalAverageScore(Double totalAverageScore) { this.totalAverageScore = totalAverageScore; }
         public List<EmployeeCriteriaAverageDto> getCriteriaAverages() { return criteriaAverages; }
         public void setCriteriaAverages(List<EmployeeCriteriaAverageDto> criteriaAverages) { this.criteriaAverages = criteriaAverages; }
+        public List<String> getAdditionalComments() { return additionalComments; }
+        public void setAdditionalComments(List<String> additionalComments) { this.additionalComments = additionalComments; }
     }
 
     public static class TopBottomEmployeeSummaryDto {

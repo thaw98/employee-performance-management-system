@@ -30,6 +30,7 @@ interface FeedbackItem {
     score: number;
     remark: string;
     anonymous?: boolean;
+    additionalComments?: string | null;
 }
 
 interface FeedbackDetail {
@@ -113,7 +114,7 @@ export function GetFeedbackPage() {
     const generatePDF = (item: FeedbackItem) => {
         const doc = new jsPDF();
         const showEvaluatorName = !item.anonymous && item.evaluatorName?.trim().toLowerCase() !== 'anonymous';
-        const detailsStartY = showEvaluatorName ? 72 : 65;
+        let detailsStartY = showEvaluatorName ? 72 : 65;
         
         doc.setFontSize(20);
         doc.text('360-Degree Feedback Assessment Report', 105, 20, { align: 'center' });
@@ -126,6 +127,12 @@ export function GetFeedbackPage() {
         }
         doc.text(`Overall Score: ${item.score.toFixed(1)}%`, 14, showEvaluatorName ? 56 : 49);
         doc.text(`Performance Remark: ${item.remark}`, 14, showEvaluatorName ? 63 : 56);
+        if (item.additionalComments?.trim()) {
+            doc.text('Additional Comments:', 14, detailsStartY);
+            const commentLines = doc.splitTextToSize(item.additionalComments.trim(), 180);
+            doc.text(commentLines, 14, detailsStartY + 7);
+            detailsStartY += 14 + commentLines.length * 5;
+        }
         
         autoTable(doc, {
             startY: detailsStartY,
@@ -320,21 +327,31 @@ export function GetFeedbackPage() {
                                                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Fetching details...</p>
                                             </div>
                                         ) : (
-                                            details.map((d, i) => (
-                                                <div key={i} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4">
-                                                    <div className="flex items-center justify-between">
-                                                        <h5 className="font-black text-slate-800">{d.criteriaName}</h5>
-                                                        <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-blue-100">
-                                                            {d.rating}
-                                                        </span>
+                                            <>
+                                                {details.map((d, i) => (
+                                                    <div key={i} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <h5 className="font-black text-slate-800">{d.criteriaName}</h5>
+                                                            <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-blue-100">
+                                                                {d.rating}
+                                                            </span>
+                                                        </div>
+                                                        <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed">
+                                                            {d.comment || (
+                                                                <span className="text-slate-300 italic">No comments provided.</span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed">
-                                                        {d.comment || (
-                                                            <span className="text-slate-300 italic">No comments provided.</span>
+                                                ))}
+                                                <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                                    <h5 className="font-black text-slate-800">Additional Comments</h5>
+                                                    <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                                                        {selectedFeedback?.additionalComments?.trim() || (
+                                                            <span className="text-slate-300 italic">No additional comments provided.</span>
                                                         )}
                                                     </div>
                                                 </div>
-                                            ))
+                                            </>
                                         )}
                                     </div>
 

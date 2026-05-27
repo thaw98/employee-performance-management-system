@@ -32,6 +32,7 @@ interface HistoryItem {
     status?: string;
     reviewCycleId?: number;
     reviewCycleName?: string;
+    additionalComments?: string | null;
 }
 
 interface FeedbackDetail {
@@ -197,7 +198,19 @@ export function FeedbackHistoryPage() {
                 alternateRowStyles: { fillColor: [249, 250, 251] }
             });
 
-            const finalY = (doc as any).lastAutoTable.finalY + 15;
+            let finalY = (doc as any).lastAutoTable.finalY + 15;
+            if (item.additionalComments?.trim()) {
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(8, 85, 191);
+                doc.text('ADDITIONAL COMMENTS', 20, finalY);
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(50);
+                const commentLines = doc.splitTextToSize(item.additionalComments.trim(), 170);
+                doc.text(commentLines, 20, finalY + 7);
+                finalY += 15 + commentLines.length * 5;
+            }
             doc.setFontSize(10);
             doc.setTextColor(150);
             doc.text('This is a system-generated report for the 360-degree feedback system.', 105, finalY, { align: 'center' });
@@ -423,21 +436,31 @@ export function FeedbackHistoryPage() {
                                                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Fetching details...</p>
                                             </div>
                                         ) : (
-                                            details.map((d, i) => (
-                                                <div key={i} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4">
-                                                    <div className="flex items-center justify-between">
-                                                        <h5 className="font-black text-slate-800">{d.criteriaName}</h5>
-                                                        <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-blue-100">
-                                                            {d.rating}
-                                                        </span>
+                                            <>
+                                                {details.map((d, i) => (
+                                                    <div key={i} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <h5 className="font-black text-slate-800">{d.criteriaName}</h5>
+                                                            <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-blue-100">
+                                                                {d.rating}
+                                                            </span>
+                                                        </div>
+                                                        <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed">
+                                                            {d.comment || (
+                                                                <span className="text-slate-300 italic">No comments provided for this criteria.</span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed">
-                                                        {d.comment || (
-                                                            <span className="text-slate-300 italic">No comments provided for this criteria.</span>
+                                                ))}
+                                                <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                                    <h5 className="font-black text-slate-800">Additional Comments</h5>
+                                                    <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                                                        {selectedFeedback?.additionalComments?.trim() || (
+                                                            <span className="text-slate-300 italic">No additional comments provided.</span>
                                                         )}
                                                     </div>
                                                 </div>
-                                            ))
+                                            </>
                                         )}
                                     </div>
 

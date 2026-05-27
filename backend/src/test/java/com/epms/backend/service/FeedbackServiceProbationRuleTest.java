@@ -117,6 +117,15 @@ class FeedbackServiceProbationRuleTest {
         assertEquals("Probation employees cannot receive 360 feedback", ex.getMessage());
     }
 
+    @Test
+    void submitFeedback_rejectsAdditionalCommentsOverMaxLength() {
+        FeedbackSubmissionRequest request = new FeedbackSubmissionRequest();
+        request.setAdditionalComments("a".repeat(1001));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> feedbackService.submitFeedback(10L, request));
+        assertEquals("Additional comments must be 1000 characters or fewer", ex.getMessage());
+    }
+
     private static Department newDepartment(Long id) {
         Department department = new Department();
         department.setId(id);

@@ -81,6 +81,15 @@ function formatScore(value?: number | null) {
   return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(1) : '0.0'
 }
 
+function getAdditionalComments(comments?: string[] | null) {
+  return (comments ?? []).map((comment) => comment.trim()).filter(Boolean)
+}
+
+function formatAdditionalComments(comments?: string[] | null) {
+  const values = getAdditionalComments(comments)
+  return values.length > 0 ? values.join('\n\n') : '-'
+}
+
 function buildCriteriaAveragesFromExportRows(rows: EmployeeFeedbackDetailReportDto[]): CriteriaAverageDto[] {
   const totals = new Map<number, { criteriaName: string; total: number; count: number }>()
 
@@ -804,6 +813,21 @@ function DepartmentDetailReport({
                       </div>
                     )}
                   </div>
+
+                  <div>
+                    <h3 className="mb-3 text-sm font-black text-slate-900 dark:text-slate-100">Additional Comments</h3>
+                    <div className="space-y-2">
+                      {getAdditionalComments(employeeDetail.additionalComments).length > 0 ? (
+                        getAdditionalComments(employeeDetail.additionalComments).map((comment, index) => (
+                          <div key={`${index}-${comment}`} className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-medium leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300">
+                            {comment}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-800/60">No additional comments provided.</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="py-16 text-center text-sm text-slate-500">Employee details could not be loaded.</div>
@@ -950,6 +974,7 @@ function EmployeeOwnFeedbackReport() {
           ['Employee', report.employeeName],
           ['Department', report.departmentName],
           ['Total Average Feedback Score', formatScore(report.totalAverageScore)],
+          ['Additional Comments', formatAdditionalComments(report.additionalComments)],
         ]),
         'Employee Detail',
       )
@@ -999,6 +1024,7 @@ function EmployeeOwnFeedbackReport() {
           ['Employee', report.employeeName],
           ['Department', report.departmentName],
           ['Total Average Feedback Score', formatScore(report.totalAverageScore)],
+          ['Additional Comments', formatAdditionalComments(report.additionalComments)],
         ],
         theme: 'grid',
         margin: { left: margin, right: margin },
@@ -1085,6 +1111,20 @@ function EmployeeOwnFeedbackReport() {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+            <div>
+              <h3 className="mb-3 text-sm font-black text-slate-900 dark:text-slate-100">Additional Comments</h3>
+              <div className="space-y-2">
+                {getAdditionalComments(report.additionalComments).length > 0 ? (
+                  getAdditionalComments(report.additionalComments).map((comment, index) => (
+                    <div key={`${index}-${comment}`} className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-medium leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300">
+                      {comment}
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-800/60">No additional comments provided.</div>
+                )}
               </div>
             </div>
           </div>
@@ -1190,6 +1230,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
         Employee: employee.employeeName,
         Department: employee.departmentName,
         'Total Average Feedback Score': formatScore(employee.totalAverageScore),
+        'Additional Comments': formatAdditionalComments(employee.additionalComments),
       }
       criteriaNames.forEach((criteriaName) => {
         const criteria = filters.criteriaId
@@ -1214,6 +1255,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
       ['Employee', selectedEmployee?.employeeName ?? '-'],
       ['Department', selectedEmployee?.departmentName ?? '-'],
       ['Total Average Feedback Score', formatScore(selectedEmployee?.totalAverageScore)],
+      ['Additional Comments', formatAdditionalComments(selectedEmployee?.additionalComments)],
       [],
       ['Criteria Averages'],
       ['Criteria', 'Average Score'],
@@ -1223,6 +1265,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
       ['Employee', selectedEmployee?.employeeName ?? '-'],
       ['Department', selectedEmployee?.departmentName ?? '-'],
       ['Total Average Feedback Score', formatScore(selectedEmployee?.totalAverageScore)],
+      ['Additional Comments', formatAdditionalComments(selectedEmployee?.additionalComments)],
     ]
     const individualCriteriaSheetRows = [
       ['Criteria', 'Average Score'],
@@ -1274,7 +1317,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
           XLSX.utils.aoa_to_sheet([
             employeeRows.length
               ? Object.keys(employeeRows[0])
-              : ['Rank', 'Employee', 'Department', 'Total Average Feedback Score'],
+              : ['Rank', 'Employee', 'Department', 'Total Average Feedback Score', 'Additional Comments'],
             ...employeeRows.map((row) => Object.values(row)),
           ]),
           'Employee Feedback',
@@ -1353,7 +1396,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
           doc.addPage()
           y = 14
         }
-        const summaryEmployeeHeaders = Object.keys(employeeRows[0] ?? { Employee: '', Department: '', 'Total Average Feedback Score': '' })
+        const summaryEmployeeHeaders = Object.keys(employeeRows[0] ?? { Employee: '', Department: '', 'Total Average Feedback Score': '', 'Additional Comments': '' })
         const summaryEmployeeFontSize = Math.max(5, Math.min(7, Math.floor(usableWidth / Math.max(1, summaryEmployeeHeaders.length) / 2.4)))
         autoTable(doc, {
           startY: y,
@@ -1410,6 +1453,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
             ['Employee', selectedEmployee?.Employee ?? '-'],
             ['Department', selectedEmployee?.Department ?? '-'],
             ['Total Average Feedback Score', selectedEmployee?.['Total Average Feedback Score'] ?? '-'],
+            ['Additional Comments', selectedEmployee?.['Additional Comments'] ?? '-'],
           ],
           theme: 'grid',
           margin: { left: margin, right: margin },
@@ -1426,7 +1470,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
           y = 14
         }
         const selectedCriteriaRows = employeeRows.length
-          ? Object.entries(employeeRows[0]).filter(([key]) => !['Rank', 'Employee', 'Department', 'Total Average Feedback Score'].includes(key))
+          ? Object.entries(employeeRows[0]).filter(([key]) => !['Rank', 'Employee', 'Department', 'Total Average Feedback Score', 'Additional Comments'].includes(key))
           : []
         autoTable(doc, {
           startY: y,

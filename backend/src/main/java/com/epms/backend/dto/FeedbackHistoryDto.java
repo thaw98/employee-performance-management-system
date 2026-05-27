@@ -15,6 +15,7 @@ public class FeedbackHistoryDto {
     private Double score;
     private String remark;
     private Boolean anonymous;
+    private String additionalComments;
     private String status;
     private Long reviewCycleId;
     private String reviewCycleName;

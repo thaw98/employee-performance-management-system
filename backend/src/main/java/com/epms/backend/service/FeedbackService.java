@@ -27,6 +27,8 @@ import java.util.LinkedHashMap;
 
 @Service
 public class FeedbackService {
+    private static final int ADDITIONAL_COMMENTS_MAX_LENGTH = 1000;
+
 
     private final FeedbackRepository feedbackRepository;
     private final FeedbackDraftRepository feedbackDraftRepository;
@@ -221,6 +223,10 @@ public class FeedbackService {
                 count += 1;
             }
         }
+        List<String> additionalComments = feedbacks.stream()
+                .map(Feedback::getAdditionalComments)
+                .filter(this::hasText)
+                .collect(Collectors.toList());
 
         List<com.epms.backend.dto.FeedbackReportDtos.EmployeeCriteriaAverageDto> criteriaAverages = criteriaAgg.entrySet().stream()
                 .map(entry -> new com.epms.backend.dto.FeedbackReportDtos.EmployeeCriteriaAverageDto(
@@ -238,7 +244,8 @@ public class FeedbackService {
                 department != null ? department.getId() : null,
                 department != null ? department.getName() : null,
                 count > 0 ? total / count : 0d,
-                criteriaAverages);
+                criteriaAverages,
+                additionalComments);
     }
 
     public com.epms.backend.dto.FeedbackReportDtos.TopBottomEmployeeSummaryDto getTopBottomEmployeeSummary(
@@ -484,6 +491,7 @@ public class FeedbackService {
 
     @Transactional
     public void submitFeedback(Long evaluatorId, FeedbackSubmissionRequest request) {
+        String additionalComments = normalizeAdditionalComments(request.getAdditionalComments());
         Employee evaluator = employeeRepository.findById(evaluatorId)
                 .orElseThrow(() -> new RuntimeException("Evaluator not found"));
         Employee evaluatee = employeeRepository.findById(request.getEvaluateeId())
@@ -517,6 +525,7 @@ public class FeedbackService {
         feedback.setEvaluatee(evaluatee);
         feedback.setRole(request.getRole());
         feedback.setAnonymous(Boolean.TRUE.equals(request.getAnonymous()));
+        feedback.setAdditionalComments(additionalComments);
         feedback.setCreatedDate(Instant.now());
         ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
         feedback.setReviewCycle(activeCycle);
@@ -582,6 +591,7 @@ public class FeedbackService {
     @Transactional
     public FeedbackDraftDto saveDraft(Long evaluatorId, FeedbackSubmissionRequest request) {
         cleanupExpiredDrafts();
+        String additionalComments = normalizeAdditionalComments(request.getAdditionalComments());
         Employee evaluator = employeeRepository.findById(evaluatorId)
                 .orElseThrow(() -> new RuntimeException("Evaluator not found"));
         Employee evaluatee = employeeRepository.findById(request.getEvaluateeId())
@@ -606,6 +616,7 @@ public class FeedbackService {
         draft.setReviewCycle(cycle);
         draft.setRole(request.getRole());
         draft.setAnonymous(Boolean.TRUE.equals(request.getAnonymous()));
+        draft.setAdditionalComments(additionalComments);
         draft.getDetails().clear();
 
         if (request.getDetails() != null) {
@@ -685,6 +696,7 @@ public class FeedbackService {
         dto.setScore(entity.getScore());
         dto.setRemark(entity.getRemark());
         dto.setAnonymous(Boolean.TRUE.equals(entity.getAnonymous()));
+        dto.setAdditionalComments(entity.getAdditionalComments());
         dto.setStatus("SUBMITTED");
         if (entity.getReviewCycle() != null) {
             dto.setReviewCycleId(entity.getReviewCycle().getId());
@@ -803,6 +815,7 @@ public class FeedbackService {
         dto.setEvaluateeDepartment(draft.getEvaluatee().getDepartment() != null ? draft.getEvaluatee().getDepartment().getName() : "N/A");
         dto.setRole(draft.getRole());
         dto.setAnonymous(Boolean.TRUE.equals(draft.getAnonymous()));
+        dto.setAdditionalComments(draft.getAdditionalComments());
         dto.setReviewCycleId(draft.getReviewCycle().getId());
         dto.setReviewCycleName(draft.getReviewCycle().getName());
         dto.setUpdatedAt(draft.getUpdatedAt());
@@ -887,6 +900,17 @@ public class FeedbackService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private String normalizeAdditionalComments(String value) {
+        if (!hasText(value)) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() > ADDITIONAL_COMMENTS_MAX_LENGTH) {
+            throw new RuntimeException("Additional comments must be 1000 characters or fewer");
+        }
+        return trimmed;
     }
 
     private String like(String value) {
