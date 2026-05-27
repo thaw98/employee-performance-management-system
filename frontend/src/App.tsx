@@ -286,6 +286,7 @@ function App() {
             <Route path="reports" element={<ManagerReportsPage />} />
             <Route path="reports/kpi" element={<ManagerKpiReportsPage />} />
             <Route path="reports/feedback" element={<FeedbackReportPage mode="manager" />} />
+            <Route path="reports/appraisal" element={<AppraisalReportsPage mode="manager" />} />
             <Route path="reports/self-assessment" element={<SelfAssessmentReportPage mode="manager" />} />
             <Route path="*" element={<Navigate to="/manager/dashboard" replace />} />
           </Route>

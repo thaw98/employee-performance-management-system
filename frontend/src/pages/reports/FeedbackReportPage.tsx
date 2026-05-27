@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { skipToken } from '@reduxjs/toolkit/query'
 import { useNavigate } from 'react-router-dom'
+import {
+  Bar,
+  BarChart as RechartsBarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -126,6 +137,11 @@ function isQuarterCycle(cycle: ReviewCycleDto) {
   return searchable.includes('QUARTER') || searchable.includes('QTR') || /\bQ[1-4]\b/.test(searchable)
 }
 
+function isYearlyCycle(cycle: ReviewCycleDto) {
+  const searchable = `${cycle.cycleType ?? ''} ${cycle.name ?? ''} ${cycle.code ?? ''}`.toUpperCase()
+  return !isQuarterCycle(cycle) && (searchable.includes('YEAR') || searchable.includes('ANNUAL') || searchable.includes('FISCAL'))
+}
+
 function getToday() {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
@@ -208,6 +224,164 @@ function EmployeeSummaryCard({
   )
 }
 
+function DepartmentFeedbackCharts({
+  yearlyCycles,
+  quarterCycles,
+  fallbackCycles,
+}: {
+  yearlyCycles: ReviewCycleDto[]
+  quarterCycles: ReviewCycleDto[]
+  fallbackCycles: ReviewCycleDto[]
+}) {
+  const yearlyOptions = yearlyCycles.length > 0 ? yearlyCycles : fallbackCycles
+  const quarterOptions = quarterCycles.length > 0 ? quarterCycles : fallbackCycles
+  const activeYearlyCycle = yearlyOptions.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE') ?? yearlyOptions[yearlyOptions.length - 1]
+  const activeQuarterCycle = quarterOptions.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE') ?? quarterOptions[quarterOptions.length - 1]
+  const [yearlyCycleId, setYearlyCycleId] = useState<number | undefined>()
+  const [quarterCycleId, setQuarterCycleId] = useState<number | undefined>()
+  const selectedYearlyCycle = yearlyOptions.find((cycle) => cycle.id === yearlyCycleId) ?? activeYearlyCycle
+  const selectedQuarterCycle = quarterOptions.find((cycle) => cycle.id === quarterCycleId) ?? activeQuarterCycle
+
+  const { data: yearlyResponse, isLoading: isYearlyLoading, isError: isYearlyError } = useGetEmployeeRankingQuery(
+    selectedYearlyCycle ? { reviewCycleId: selectedYearlyCycle.id, order: 'desc' } : skipToken,
+  )
+  const { data: quarterResponse, isLoading: isQuarterLoading, isError: isQuarterError } = useGetEmployeeRankingQuery(
+    selectedQuarterCycle ? { reviewCycleId: selectedQuarterCycle.id, order: 'desc' } : skipToken,
+  )
+  const { data: allDepartmentsResponse, isLoading: isAllDepartmentsLoading } = useGetEmployeeRankingQuery({ order: 'desc' })
+
+  const toDepartmentChartData = (rows: EmployeeRankingDto[]) => {
+    const totals = new Map<string, { department: string; total: number; count: number }>()
+    rows.forEach((employee) => {
+      const department = employee.departmentName || 'Unknown Department'
+      const current = totals.get(department) ?? { department, total: 0, count: 0 }
+      current.total += Number.isFinite(employee.averageScore) ? employee.averageScore : 0
+      current.count += 1
+      totals.set(department, current)
+    })
+
+    return Array.from(totals.values())
+      .map((department) => {
+        const average = department.count > 0 ? department.total / department.count : 0
+        return {
+          department: department.department,
+          shortDepartment: department.department.length > 14 ? `${department.department.slice(0, 14)}...` : department.department,
+          average: Number(formatScore(average)),
+        }
+      })
+      .sort((a, b) => a.department.localeCompare(b.department))
+  }
+
+  const allDepartmentRows = Array.isArray(allDepartmentsResponse?.data) ? allDepartmentsResponse.data : []
+  const selectedYearlyRows = Array.isArray(yearlyResponse?.data) ? yearlyResponse.data : []
+  const selectedQuarterRows = Array.isArray(quarterResponse?.data) ? quarterResponse.data : []
+  const isYearlyUsingFallback = selectedYearlyRows.length === 0 && allDepartmentRows.length > 0
+  const isQuarterUsingFallback = selectedQuarterRows.length === 0 && allDepartmentRows.length > 0
+  const yearlyRows = isYearlyUsingFallback ? allDepartmentRows : selectedYearlyRows
+  const quarterRows = isQuarterUsingFallback ? allDepartmentRows : selectedQuarterRows
+  const yearlyData = toDepartmentChartData(yearlyRows)
+  const quarterData = toDepartmentChartData(quarterRows)
+  const getScoreDomain = (rows: { average: number }[]): [number, number] => {
+    const maxScore = rows.reduce((max, row) => Math.max(max, row.average), 0)
+    return [0, maxScore <= 5 ? 5 : 100]
+  }
+
+  const renderEmpty = (message: string) => (
+    <div className="flex h-[280px] items-center justify-center text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
+      {message}
+    </div>
+  )
+
+  return (
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">All Departments Feedback Average</h2>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Line graph by yearly review cycle.</p>
+          </div>
+          <select
+            value={selectedYearlyCycle?.id ?? ''}
+            onChange={(event) => setYearlyCycleId(event.target.value ? Number(event.target.value) : undefined)}
+            className="h-10 min-w-52 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          >
+            {yearlyOptions.map((cycle) => (
+              <option key={cycle.id} value={cycle.id}>{cycle.name}</option>
+            ))}
+          </select>
+        </div>
+        {isYearlyLoading || (selectedYearlyRows.length === 0 && isAllDepartmentsLoading) ? (
+          renderEmpty('Loading yearly department averages...')
+        ) : isYearlyError ? (
+          renderEmpty('Yearly chart data could not be loaded.')
+        ) : yearlyData.length === 0 ? (
+          renderEmpty('No feedback averages found.')
+        ) : (
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={yearlyData} margin={{ top: 12, right: 12, left: -16, bottom: 18 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="shortDepartment" tick={{ fontSize: 11 }} interval={0} angle={-18} textAnchor="end" height={50} />
+                <YAxis domain={getScoreDomain(yearlyData)} tick={{ fontSize: 11 }} />
+                <Tooltip
+                  formatter={(value) => [`${value}`, 'Average']}
+                  labelFormatter={(_, payload) => payload?.[0]?.payload?.department ?? ''}
+                />
+                <Line type="monotone" dataKey="average" stroke="#2463eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Departments Feedback</h2>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Bar graph by quarterly review cycle.</p>
+          </div>
+          <select
+            value={selectedQuarterCycle?.id ?? ''}
+            onChange={(event) => setQuarterCycleId(event.target.value ? Number(event.target.value) : undefined)}
+            className="h-10 min-w-52 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          >
+            {quarterOptions.map((cycle) => (
+              <option key={cycle.id} value={cycle.id}>{cycle.name}</option>
+            ))}
+          </select>
+        </div>
+        {isQuarterUsingFallback && (
+          <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 dark:bg-blue-950/30 dark:text-blue-200">
+            No scores were found for the selected quarterly cycle, so all available feedback is shown.
+          </p>
+        )}
+        {isQuarterLoading || (selectedQuarterRows.length === 0 && isAllDepartmentsLoading) ? (
+          renderEmpty('Loading quarterly department averages...')
+        ) : isQuarterError ? (
+          renderEmpty('Quarterly chart data could not be loaded.')
+        ) : quarterData.length === 0 ? (
+          renderEmpty('No feedback averages found.')
+        ) : (
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsBarChart data={quarterData} margin={{ top: 12, right: 12, left: -16, bottom: 18 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="shortDepartment" tick={{ fontSize: 11 }} interval={0} angle={-18} textAnchor="end" height={50} />
+                <YAxis domain={getScoreDomain(quarterData)} tick={{ fontSize: 11 }} />
+                <Tooltip
+                  formatter={(value) => [`${value}`, 'Average']}
+                  labelFormatter={(_, payload) => payload?.[0]?.payload?.department ?? ''}
+                />
+                <Bar dataKey="average" fill="#2463eb" radius={[6, 6, 0, 0]} />
+              </RechartsBarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function DepartmentDetailReport({
   selectedDepartment,
   departments,
@@ -218,7 +392,6 @@ function DepartmentDetailReport({
   onExportExcel,
   onExportPdf,
   exportDownload,
-  exportDisabled = false,
 }: {
   selectedDepartment?: ReportDepartmentDto
   departments: ReportDepartmentDto[]
@@ -229,7 +402,6 @@ function DepartmentDetailReport({
   onExportExcel: (section: ExportSection, filters: FeedbackExportFilters) => void
   onExportPdf: (section: ExportSection, filters: FeedbackExportFilters) => void
   exportDownload: string | null
-  exportDisabled?: boolean
 }) {
   const navigate = useNavigate()
   const authUser = useAppSelector((state) => state.auth.user)
@@ -297,7 +469,6 @@ function DepartmentDetailReport({
   const criteriaIsVeryDense = criteriaAverages.length > 12
   const criteriaGap = criteriaIsVeryDense ? 4 : criteriaIsDense ? 6 : 8
   const summaryExportDisabled = exportDownload !== null
-  const individualExportDisabled = exportDisabled || !selectedEmployeeId
   const selectedCriteria = criteriaId
     ? criteriaAverages.find((criteria) => criteria.criteriaId === criteriaId)
     : undefined
@@ -529,7 +700,8 @@ function DepartmentDetailReport({
             )}
           </div>
 
-          <div className="flex min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
+          <div className="flex h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div>
               <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">{selected?.departmentName ?? 'All Departments'} Feedback Criteria</h1>
@@ -578,33 +750,7 @@ function DepartmentDetailReport({
           </div>
 
           <div className="space-y-6">
-          {selectedEmployeeId && (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Employee Detail</h2>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => onExportPdf('individual', currentExportFilters)}
-                  disabled={individualExportDisabled}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${feedbackReportBtnPdf} ${feedbackReportBtnPrimaryDisabled}`}
-                >
-                  <Download size={16} />
-                  {exportDownload === 'individual-pdf' ? 'Downloading...' : 'PDF'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onExportExcel('individual', currentExportFilters)}
-                  disabled={individualExportDisabled}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${feedbackReportBtnExcel} ${feedbackReportBtnPrimaryDisabled}`}
-                >
-                  <FileText size={16} />
-                  {exportDownload === 'individual-excel' ? 'Downloading...' : 'Excel'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="flex min-h-[520px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex h-[520px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           {selectedEmployeeId ? (
             <div className="flex min-h-0 flex-1 flex-col">
               <button
@@ -684,7 +830,7 @@ function DepartmentDetailReport({
                 <div className="py-12 text-center text-sm text-slate-500">No employee scores found.</div>
               ) : (
                 <div className="flex min-h-0 flex-1 flex-col">
-                  <div className="min-h-0 flex-1 space-y-2">
+                  <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                   {paginatedRanking.map((employee, index) => (
                     <button
                       key={employee.employeeId}
@@ -711,13 +857,13 @@ function DepartmentDetailReport({
                     </button>
                   ))}
                   </div>
-                  <div className="mt-4 flex flex-col gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-wrap items-center gap-4">
-                      <span>
+                  <div className="mt-3 flex shrink-0 flex-col gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <div className="flex flex-col gap-2">
+                      <span className="leading-snug">
                         Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{rankingStartIndex} - {rankingEndIndex}</span> of{' '}
                         <span className="font-semibold text-slate-700 dark:text-slate-200">{ranking.length}</span> employees
                       </span>
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center justify-between gap-2">
                         <span className="text-slate-400">Rows:</span>
                         <select
                           value={rankingPageSize}
@@ -725,7 +871,7 @@ function DepartmentDetailReport({
                             setRankingPageSize(Number(event.target.value))
                             setRankingPage(0)
                           }}
-                          className={`h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 ${feedbackReportFocusRing}`}
+                          className={`h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 ${feedbackReportFocusRing}`}
                         >
                           {[5, 10, 20, 50].map((rows) => (
                             <option key={rows} value={rows}>{rows}</option>
@@ -733,24 +879,24 @@ function DepartmentDetailReport({
                         </select>
                       </label>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                       <button
                         type="button"
                         disabled={safeRankingPage === 0}
                         onClick={() => setRankingPage((page) => Math.max(0, page - 1))}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800"
+                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800"
                       >
                         <ChevronLeft size={16} />
                         Prev
                       </button>
-                      <span className={`flex h-12 min-w-12 items-center justify-center rounded-xl px-4 text-sm font-bold ${feedbackReportBtnPrimary}`}>
+                      <span className={`flex h-9 min-w-10 items-center justify-center rounded-lg px-3 text-xs font-bold ${feedbackReportBtnPrimary}`}>
                         {safeRankingPage + 1}
                       </span>
                       <button
                         type="button"
                         disabled={safeRankingPage >= rankingTotalPages - 1}
                         onClick={() => setRankingPage((page) => Math.min(rankingTotalPages - 1, page + 1))}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800"
+                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800"
                       >
                         Next
                         <ChevronRight size={16} />
@@ -761,6 +907,7 @@ function DepartmentDetailReport({
               )}
             </>
           )}
+          </div>
           </div>
           </div>
     </div>
@@ -777,9 +924,7 @@ function EmployeeOwnFeedbackReport() {
   const quarterCycles = sortedReviewCycles.filter(isQuarterCycle)
   const activeReviewCycle = sortedReviewCycles.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE') ?? sortedReviewCycles[sortedReviewCycles.length - 1]
   const activeQuarterCycle = quarterCycles.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE') ?? quarterCycles[quarterCycles.length - 1]
-  const [reportCycleId, setReportCycleId] = useState<number | undefined>()
-  const reportCycleOptions = quarterCycles.length > 0 ? quarterCycles : sortedReviewCycles
-  const selectedReportCycle = reportCycleOptions.find((cycle) => cycle.id === reportCycleId) ?? activeQuarterCycle ?? activeReviewCycle
+  const selectedReportCycle = activeQuarterCycle ?? activeReviewCycle
   const { data: reportResponse, isLoading } = useGetMyFeedbackReportQuery({ reviewCycleId: selectedReportCycle?.id })
   const report = reportResponse?.data
   const exportDisabled = reportDownload !== null || !report
@@ -895,21 +1040,6 @@ function EmployeeOwnFeedbackReport() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <label className="block max-w-sm space-y-1.5">
-          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Review Cycle</span>
-          <select
-            value={selectedReportCycle?.id ?? ''}
-            onChange={(event) => setReportCycleId(event.target.value ? Number(event.target.value) : undefined)}
-            className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            {reportCycleOptions.map((cycle) => (
-              <option key={cycle.id} value={cycle.id}>{cycle.name}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Individual Report</h2>
         <div className="flex flex-wrap gap-2">
@@ -969,7 +1099,6 @@ function EmployeeOwnFeedbackReport() {
 function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' }) {
   const reportMode = mode === 'audit' ? 'hr' : mode
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | undefined>()
-  const [reportCycleId, setReportCycleId] = useState<number | undefined>()
   const [reportDownload, setReportDownload] = useState<string | null>(null)
 
   const { data: departmentsResponse, isLoading: isDepartmentsLoading } = useGetFeedbackReportDepartmentsQuery()
@@ -979,16 +1108,16 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
     () => [...reviewCycles].sort((a, b) => a.startDate.localeCompare(b.startDate)),
     [reviewCycles],
   )
+  const yearlyCycles = sortedReviewCycles.filter(isYearlyCycle)
   const quarterCycles = sortedReviewCycles.filter(isQuarterCycle)
   const activeReviewCycle = sortedReviewCycles.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE') ?? sortedReviewCycles[sortedReviewCycles.length - 1]
   const activeQuarterCycle = quarterCycles.find((cycle) => cycle.isActive || cycle.status === 'ACTIVE') ?? quarterCycles[quarterCycles.length - 1]
-  const reportCycleOptions = quarterCycles.length > 0 ? quarterCycles : sortedReviewCycles
-  const selectedReportCycle = reportCycleOptions.find((cycle) => cycle.id === reportCycleId) ?? activeQuarterCycle ?? activeReviewCycle
+  const selectedReportCycle = activeQuarterCycle ?? activeReviewCycle
   const selectedDepartment = selectedDepartmentId
     ? departments.find((department) => department.departmentId === selectedDepartmentId)
       ?? undefined
     : undefined
-  const [fetchExportData, { isFetching: isExporting }] = useLazyGetFeedbackReportExportDataQuery()
+  const [fetchExportData] = useLazyGetFeedbackReportExportDataQuery()
   useEffect(() => {
     if (reportMode === 'manager' && departments.length > 0 && !selectedDepartmentId) {
       setSelectedDepartmentId(departments[0].departmentId)
@@ -1343,7 +1472,6 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
           onExportExcel={handleExportExcel}
           onExportPdf={handleExportPdf}
           exportDownload={reportDownload}
-          exportDisabled={isExporting || reportDownload !== null || !displayedDepartment}
         />
       </div>
     )
@@ -1360,22 +1488,11 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <label className="block max-w-sm space-y-1.5">
-          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Review Cycle</span>
-          <select
-            value={selectedReportCycle?.id ?? ''}
-            onChange={(event) => setReportCycleId(event.target.value ? Number(event.target.value) : undefined)}
-            className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            {reportCycleOptions.map((cycle) => (
-              <option key={cycle.id} value={cycle.id}>
-                {cycle.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <DepartmentFeedbackCharts
+        yearlyCycles={yearlyCycles}
+        quarterCycles={quarterCycles}
+        fallbackCycles={sortedReviewCycles}
+      />
 
       <DepartmentDetailReport
         selectedDepartment={displayedDepartment}
@@ -1390,7 +1507,6 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
         onExportExcel={handleExportExcel}
         onExportPdf={handleExportPdf}
         exportDownload={reportDownload}
-        exportDisabled={isExporting || reportDownload !== null}
       />
     </div>
   )

@@ -97,7 +97,7 @@ interface Assignment {
 
 const CHART_COLORS = [...APPRAISAL_REPORT_CHART_COLORS];
 
-export default function AppraisalReportsPage() {
+export default function AppraisalReportsPage({ mode = 'hr' }: { mode?: 'hr' | 'manager' | 'audit' }) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -119,7 +119,8 @@ export default function AppraisalReportsPage() {
   const fetchAssignments = async () => {
     setIsLoading(true);
     try {
-      const resp = await axios.get('/appraisal-assignments');
+      const endpoint = mode === 'manager' ? '/appraisal-assignments/my-team' : '/appraisal-assignments';
+      const resp = await axios.get(endpoint);
       setAssignments(resp.data.data || []);
     } catch (err) {
       toast.error('Failed to fetch appraisal data');
