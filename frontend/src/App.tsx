@@ -343,6 +343,8 @@ function App() {
             <Route path="pip-notes" element={<PipNotesReviewPage />} />
             <Route path="self-assessment/history" element={<SelfAssessmentScoreRecordsPage />} />
             <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage readOnly />} />
+            <Route path="meetings" element={<MeetingsPage />} />
+            <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />

@@ -13,6 +13,7 @@ import {
     Award,
     RefreshCcw,
     FileText,
+    Calendar,
 } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -71,6 +72,14 @@ const AuditLayout: React.FC = () => {
             icon: <FileText size={18} />,
             subItems: [
                 { label: 'History', path: '/audit/self-assessment/history', icon: <History size={16} /> },
+            ],
+        },
+        {
+            label: 'Meetings',
+            path: '/audit/meetings?section=history',
+            icon: <Calendar size={18} />,
+            subItems: [
+                { label: 'Meeting History', path: '/audit/meetings?section=history', icon: <History size={16} /> },
             ],
         },
         {
