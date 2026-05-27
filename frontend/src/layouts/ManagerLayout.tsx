@@ -143,6 +143,7 @@ const ManagerLayout: React.FC = () => {
             { label: 'PIP Report', path: '/manager/reports', icon: <BarChart size={16} /> },
             { label: 'KPI Report', path: '/manager/reports/kpi', icon: <Target size={16} /> },
             { label: 'Feedback Report', path: '/manager/reports/feedback', icon: <RefreshCcw size={16} /> },
+            { label: 'Appraisal Report', path: '/manager/reports/appraisal', icon: <Award size={16} /> },
             { label: 'Self-Assessment Report', path: '/manager/reports/self-assessment', icon: <FileText size={16} /> },
           ],
         },
