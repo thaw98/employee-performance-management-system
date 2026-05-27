@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { DashSidebar } from './DashSidebar'
 import { DashTopBar } from './DashTopBar'
-import type { DashMenuItem } from './DashMenuNav'
+import type { DashMenuSection } from './DashMenuNav'
 import { usePersistentSidebarCollapse } from './usePersistentSidebarCollapse'
 
 interface DashLayoutShellUser {
@@ -16,7 +16,7 @@ interface DashLayoutShellUser {
 interface DashLayoutShellProps {
   brandTitle?: string
   brandSubtitle?: string
-  menuItems: DashMenuItem[]
+  menuSections: DashMenuSection[]
   user?: DashLayoutShellUser | null
   searchPlaceholder?: string
   children: ReactNode
@@ -25,7 +25,7 @@ interface DashLayoutShellProps {
 export function DashLayoutShell({
   brandTitle = 'EPMS',
   brandSubtitle = 'Performance System',
-  menuItems,
+  menuSections,
   user,
   searchPlaceholder,
   children,
@@ -53,7 +53,8 @@ export function DashLayoutShell({
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  const homePath = menuItems.find((item) => item.label === 'Dashboard')?.path
+  const allMenuItems = menuSections.flatMap((section) => section.items)
+  const homePath = allMenuItems.find((item) => item.label === 'Dashboard')?.path
 
   const shellClass = [
     'dash-shell',
@@ -82,7 +83,7 @@ export function DashLayoutShell({
         brandTitle={brandTitle}
         brandSubtitle={brandSubtitle}
         homePath={homePath}
-        menuItems={menuItems}
+        menuSections={menuSections}
         user={user}
         isCollapsed={isSidebarCollapsed}
         isMobileOpen={isMobileOpen}

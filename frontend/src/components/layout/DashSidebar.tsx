@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
-import { DashMenuNav, type DashMenuItem } from './DashMenuNav'
+import { DashMenuNav, type DashMenuSection } from './DashMenuNav'
 
 interface DashSidebarUser {
   name?: string | null
@@ -13,7 +13,7 @@ interface DashSidebarProps {
   brandTitle: string
   brandSubtitle: string
   homePath?: string
-  menuItems: DashMenuItem[]
+  menuSections: DashMenuSection[]
   user?: DashSidebarUser | null
   isCollapsed: boolean
   isMobileOpen: boolean
@@ -23,18 +23,17 @@ export function DashSidebar({
   brandTitle,
   brandSubtitle,
   homePath,
-  menuItems,
+  menuSections,
   user,
   isCollapsed,
   isMobileOpen,
 }: DashSidebarProps) {
   const avatarSrc = resolveProfilePictureSrc(user?.profilePictureUrl)
-  const initial = user?.name?.charAt(0).toUpperCase() || 'U'
   const displayRole = (user?.role || 'Role').toUpperCase()
 
   const navSection: ReactNode = (
     <nav className="dash-sidebar-nav">
-      <DashMenuNav items={menuItems} isCollapsed={isCollapsed} />
+      <DashMenuNav sections={menuSections} isCollapsed={isCollapsed} />
     </nav>
   )
 

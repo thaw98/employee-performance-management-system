@@ -17,7 +17,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../app/store';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { DashLayoutShell } from '../components/layout/DashLayoutShell';
-import type { DashMenuItem } from '../components/layout/DashMenuNav';
+import type { DashMenuItem, DashMenuSection } from '../components/layout/DashMenuNav';
 import {
   EMPLOYEE_SELF_ASSESSMENT_BASE_PATH,
   EMPLOYEE_SELF_ASSESSMENT_HISTORY_PATH,
@@ -51,38 +51,55 @@ const EmployeeLayout: React.FC = () => {
 
   const isEmployeeRole = Number(user?.roleId) === 4;
 
-  const menuItems: DashMenuItem[] = [
-    { label: 'Dashboard', path: '/employee/dashboard', icon: <LayoutDashboard size={18} /> },
+  const menuSections: DashMenuSection[] = [
     {
-      label: 'Appraisals',
-      path: '/employee/appraisals',
-      icon: <FileText size={18} />,
-      subItems: [
-        { label: 'My Appraisals', path: '/employee/appraisals', icon: <ClipboardList size={16} /> },
-        { label: 'History', path: '/employee/appraisals/history', icon: <History size={16} /> },
+      label: 'Main',
+      items: [
+        { label: 'Dashboard', path: '/employee/dashboard', icon: <LayoutDashboard size={18} /> },
+        {
+          label: 'Appraisals',
+          path: '/employee/appraisals',
+          icon: <FileText size={18} />,
+          subItems: [
+            { label: 'My Appraisals', path: '/employee/appraisals', icon: <ClipboardList size={16} /> },
+            { label: 'History', path: '/employee/appraisals/history', icon: <History size={16} /> },
+          ],
+        },
+        { label: 'My KPIs', path: '/employee/kpis', icon: <Target size={18} /> },
+        { label: 'My PIPs', path: '/employee/pip', icon: <TrendingUp size={18} /> },
       ],
     },
-    { label: 'My KPIs', path: '/employee/kpis', icon: <Target size={18} /> },
-    { label: 'My PIPs', path: '/employee/pip', icon: <TrendingUp size={18} /> },
     {
-      label: '360 Feedback',
-      path: '/employee/360-feedback/give',
-      icon: <RefreshCcw size={18} />,
-      subItems: [
-        { label: 'Give Feedback', path: '/employee/360-feedback/give', icon: <Send size={16} /> },
-        { label: 'Get Feedback', path: '/employee/360-feedback/received', icon: <Inbox size={16} /> },
-        { label: 'Feedback History', path: '/employee/360-feedback/history', icon: <History size={16} /> },
+      label: 'Management',
+      items: [
+        {
+          label: '360 Feedback',
+          path: '/employee/360-feedback/give',
+          icon: <RefreshCcw size={18} />,
+          subItems: [
+            { label: 'Give Feedback', path: '/employee/360-feedback/give', icon: <Send size={16} /> },
+            { label: 'Get Feedback', path: '/employee/360-feedback/received', icon: <Inbox size={16} /> },
+            { label: 'Feedback History', path: '/employee/360-feedback/history', icon: <History size={16} /> },
+          ],
+        },
+        { label: 'Meetings', path: '/employee/meetings', icon: <Calendar size={18} /> },
+        ...(isEmployeeRole ? [selfAssessmentItem] : []),
       ],
     },
-    { label: 'Meetings', path: '/employee/meetings', icon: <Calendar size={18} /> },
-    ...(isEmployeeRole ? [selfAssessmentItem, reportsItem] : [reportsItem, selfAssessmentItem]),
+    {
+      label: 'Analytics',
+      items: [
+        reportsItem,
+        ...(!isEmployeeRole ? [selfAssessmentItem] : []),
+      ],
+    },
   ];
 
   return (
     <DashLayoutShell
       brandTitle="EPMS"
       brandSubtitle="Performance System"
-      menuItems={menuItems}
+      menuSections={menuSections}
       user={user}
       searchPlaceholder="Search..."
     >
