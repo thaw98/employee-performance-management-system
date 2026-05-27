@@ -89,9 +89,26 @@ public class PerformanceReportService {
                 kpiResult.score, appraisalResult.score, saResult.score, feedbackResult.score);
 
         // 7. Determine eligibility
+        boolean allScoresCompleted = kpiResult.score != null
+                && appraisalResult.score != null
+                && saResult.score != null
+                && feedbackResult.score != null;
         String performanceLevel = determinePerformanceLevel(overallRating);
-        String promotionEligibility = determinePromotionEligibility(overallRating, hasActivePip);
-        boolean eligible = overallRating != null && overallRating >= 4.0 && !hasActivePip;
+        String promotionEligibility = determinePromotionEligibility(overallRating, hasActivePip, allScoresCompleted);
+        boolean eligible = allScoresCompleted && !hasActivePip && overallRating != null && overallRating >= 3.5;
+
+        java.time.LocalDate joinedLocalDate = emp.getDateOfJoining();
+        if (joinedLocalDate == null) {
+            if (emp.getUserAccount() != null && emp.getUserAccount().getCreatedDate() != null) {
+                joinedLocalDate = java.time.LocalDate.ofInstant(emp.getUserAccount().getCreatedDate(), java.time.ZoneId.systemDefault());
+            } else if (emp.getCreatedDate() != null) {
+                joinedLocalDate = java.time.LocalDate.ofInstant(emp.getCreatedDate(), java.time.ZoneId.systemDefault());
+            }
+        }
+        String joinedDateStr = null;
+        if (joinedLocalDate != null) {
+            joinedDateStr = joinedLocalDate.toString();
+        }
 
         return PerformanceReportSummaryDto.builder()
                 .employeeId(emp.getId())
@@ -100,6 +117,7 @@ public class PerformanceReportService {
                 .departmentName(emp.getDepartment() != null ? emp.getDepartment().getName() : null)
                 .positionName(emp.getPosition() != null ? emp.getPosition().getName() : null)
                 .profilePictureUrl(emp.getProfilePictureUrl())
+                .joinedDate(joinedDateStr)
                 .kpiScore(kpiResult.score)
                 .kpiPeriod(kpiResult.period)
                 .appraisalScore(appraisalResult.score)
@@ -144,12 +162,16 @@ public class PerformanceReportService {
         }
 
         // Fallback: average of individual scores
-        double avg = kpis.stream()
+        java.util.OptionalDouble avgOpt = kpis.stream()
                 .filter(k -> k.getScore() != null)
                 .mapToDouble(k -> k.getScore().doubleValue())
-                .average()
-                .orElse(0.0);
-        double normalized = normalizeToFivePoint(avg, 100.0);
+                .average();
+
+        if (avgOpt.isEmpty()) {
+            return new KpiResult(null, period);
+        }
+
+        double normalized = normalizeToFivePoint(avgOpt.getAsDouble(), 100.0);
         return new KpiResult(round(normalized), period);
     }
 
@@ -201,9 +223,13 @@ public class PerformanceReportService {
                 .max(Comparator.comparing(f -> f.getUpdatedDate() != null ? f.getUpdatedDate() : f.getCreatedDate()));
 
         if (latest.isEmpty()) {
-            // Try any with score
+            // Try any with score and is submitted/reviewed (exclude unsubmitted/draft states)
             latest = forms.stream()
                     .filter(f -> f.getTotalScore() != null)
+                    .filter(f -> f.getStatus() != SelfAssessmentFormStatus.DRAFT
+                            && f.getStatus() != SelfAssessmentFormStatus.NOT_STARTED
+                            && f.getStatus() != SelfAssessmentFormStatus.NOT_SUBMITTED
+                            && f.getStatus() != SelfAssessmentFormStatus.REOPENED)
                     .max(Comparator.comparing(f -> f.getUpdatedDate() != null ? f.getUpdatedDate() : f.getCreatedDate()));
         }
 
@@ -272,7 +298,7 @@ public class PerformanceReportService {
         if (sa != null) scores.add(sa);
         if (feedback != null) scores.add(feedback);
 
-        if (scores.isEmpty()) {
+        if (scores.size() < 2) {
             return null;
         }
 
@@ -291,9 +317,10 @@ public class PerformanceReportService {
         return "Unsatisfactory";
     }
 
-    private String determinePromotionEligibility(Double rating, boolean hasActivePip) {
+    private String determinePromotionEligibility(Double rating, boolean hasActivePip, boolean allScoresCompleted) {
         if (rating == null) return "No Data";
         if (hasActivePip) return "Not eligible";
+        if (!allScoresCompleted) return "Not eligible";
         if (rating >= 4.5) return "Strongly recommended";
         if (rating >= 3.5) return "Eligible";
         if (rating >= 2.5) return "Possible";

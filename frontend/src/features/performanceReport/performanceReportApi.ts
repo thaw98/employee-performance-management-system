@@ -7,6 +7,7 @@ export interface PerformanceReportSummary {
   departmentName: string | null;
   positionName: string | null;
   profilePictureUrl: string | null;
+  joinedDate: string | null;
   kpiScore: number | null;
   kpiPeriod: string | null;
   appraisalScore: number | null;

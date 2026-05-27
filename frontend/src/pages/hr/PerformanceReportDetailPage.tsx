@@ -46,6 +46,63 @@ const getProgressColor = (score: number | null) => {
   return 'bg-red-500';
 };
 
+/** Convert dd/MM/yyyy or yyyy-MM-dd string to a human-friendly relative duration like "2 years 3 months" */
+const formatDuration = (dateStr: string | null | undefined): string | null => {
+  if (!dateStr) return null;
+  let day = 1;
+  let month = 1;
+  let year = 2024;
+  
+  if (dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      year = Number(parts[0]);
+      month = Number(parts[1]);
+      day = Number(parts[2]);
+    } else {
+      return dateStr;
+    }
+  } else if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      day = Number(parts[0]);
+      month = Number(parts[1]);
+      year = Number(parts[2]);
+    } else {
+      return dateStr;
+    }
+  } else {
+    return dateStr;
+  }
+
+  const joined = new Date(year, month - 1, day);
+  const now = new Date();
+  if (isNaN(joined.getTime())) return dateStr;
+
+  let years = now.getFullYear() - joined.getFullYear();
+  let months = now.getMonth() - joined.getMonth();
+  let days = now.getDate() - joined.getDate();
+
+  if (days < 0) {
+    months--;
+    days += new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+  }
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+
+  const segments: string[] = [];
+  if (years > 0) segments.push(`${years} year${years > 1 ? 's' : ''}`);
+  if (months > 0) segments.push(`${months} month${months > 1 ? 's' : ''}`);
+  if (segments.length === 0 && days >= 7) {
+    const weeks = Math.floor(days / 7);
+    segments.push(`${weeks} week${weeks > 1 ? 's' : ''}`);
+  }
+  if (segments.length === 0) segments.push(`${Math.max(days, 1)} day${days > 1 ? 's' : ''}`);
+  return segments.join(' ');
+};
+
 /* ── Score Card Component ─────────────────────────────── */
 
 const ScoreCard: React.FC<{
@@ -172,9 +229,15 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {report.positionName || 'No Position'} · {report.departmentName || 'No Department'}
             </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-              Staff No: {report.staffNo || '—'}
-            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400 dark:text-slate-500 mt-1">
+              <span>Staff No: {report.staffNo || '—'}</span>
+              {report.joinedDate && (
+                <>
+                  <span className="text-slate-300 dark:text-slate-700">•</span>
+                  <span>Joined: {formatDuration(report.joinedDate)}</span>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Overall Rating Badge */}
@@ -291,7 +354,9 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
                     ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                     : report.promotionEligibility?.trim().toLowerCase() === 'possible'
                     ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                    : report.promotionEligibility?.trim().toLowerCase() === 'not eligible'
+                    ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                    : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                 }`}
               >
                 {report.promotionEligibility}
@@ -316,10 +381,12 @@ export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPagePr
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {report.hasActivePip
                 ? '⚠️ Employee has an active PIP and is not eligible for promotion at this time.'
+                : (report.kpiScore == null || report.selfAssessmentScore == null || report.appraisalScore == null || report.feedbackScore == null)
+                ? '⚠️ All four evaluation components (KPI, Self Assessment, Appraisal, and Feedback) must be completed for promotion eligibility.'
                 : report.overallRating == null
                 ? 'ℹ️ Insufficient performance data to determine eligibility.'
-                : report.overallRating < 4.0
-                ? `⚠️ Overall rating (${formatScore(report.overallRating)}) is below the minimum threshold of 4.0 required for promotion.`
+                : report.overallRating < 3.5
+                ? `⚠️ Overall rating (${formatScore(report.overallRating)}) is below the minimum threshold of 3.5 required for promotion.`
                 : 'ℹ️ Not eligible for promotion.'}
             </p>
           </div>

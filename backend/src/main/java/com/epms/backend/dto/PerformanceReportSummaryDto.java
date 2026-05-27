@@ -18,6 +18,7 @@ public class PerformanceReportSummaryDto {
     private String departmentName;
     private String positionName;
     private String profilePictureUrl;
+    private String joinedDate;
 
     // KPI
     private Double kpiScore;
