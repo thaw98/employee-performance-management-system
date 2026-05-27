@@ -12,14 +12,20 @@ export interface DashMenuItem {
   path: string
   icon: React.ReactNode
   subItems?: DashSubMenuItem[]
+  badge?: number | string
   onMouseEnter?: () => void
   onFocus?: () => void
   isActive?: (pathname: string, search: string) => boolean
   isSubActive?: (subPath: string, pathname: string, search: string) => boolean
 }
 
-interface DashMenuNavProps {
+export interface DashMenuSection {
+  label: string
   items: DashMenuItem[]
+}
+
+interface DashMenuNavProps {
+  sections: DashMenuSection[]
   isCollapsed: boolean
 }
 
@@ -43,7 +49,11 @@ function defaultIsItemActive(item: DashMenuItem, pathname: string, search: strin
   return isOwnActive || hasActiveSub
 }
 
-export function DashMenuNav({ items, isCollapsed }: DashMenuNavProps) {
+function shouldShowBadge(badge: DashMenuItem['badge']) {
+  return badge != null && badge !== '' && badge !== 0
+}
+
+export function DashMenuNav({ sections, isCollapsed }: DashMenuNavProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
@@ -54,9 +64,11 @@ export function DashMenuNav({ items, isCollapsed }: DashMenuNavProps) {
 
   const expandSection = (label: string) => {
     const next: Record<string, boolean> = {}
-    for (const menuItem of items) {
-      if (menuItem.subItems?.length) {
-        next[menuItem.label] = menuItem.label === label
+    for (const section of sections) {
+      for (const menuItem of section.items) {
+        if (menuItem.subItems?.length) {
+          next[menuItem.label] = menuItem.label === label
+        }
       }
     }
     setExpandedMenus(next)
@@ -79,76 +91,94 @@ export function DashMenuNav({ items, isCollapsed }: DashMenuNavProps) {
     navigate(firstChildPath)
   }
 
+  const renderMenuItem = (item: DashMenuItem) => {
+    const isActive = item.isActive
+      ? item.isActive(location.pathname, location.search)
+      : defaultIsItemActive(item, location.pathname, location.search)
+    const showBadge = shouldShowBadge(item.badge)
+
+    if (item.subItems?.length) {
+      const hasActiveChild = item.subItems.some((sub) =>
+        item.isSubActive
+          ? item.isSubActive(sub.path, location.pathname, location.search)
+          : defaultIsSubActive(sub.path, location.pathname, location.search),
+      )
+      const isExpanded =
+        expandedMenus[item.label] !== undefined ? expandedMenus[item.label] : isActive || hasActiveChild
+
+      return (
+        <li key={item.label} className={`nav-group${isExpanded ? ' expanded' : ''}${hasActiveChild ? ' has-active-child' : ''}`}>
+          <button
+            type="button"
+            title={item.label}
+            className={`nav-link nav-parent${isActive || hasActiveChild ? ' active' : ''}`}
+            aria-expanded={isExpanded}
+            onClick={() => handleParentClick(item, isExpanded)}
+            onMouseEnter={item.onMouseEnter}
+            onFocus={item.onFocus}
+          >
+            <span className="nav-link-icon">{item.icon}</span>
+            <span className="sidebar-label">{item.label}</span>
+            {showBadge && !isCollapsed && (
+              <span className="nav-link-badge">{item.badge}</span>
+            )}
+            {!isCollapsed && (
+              <i
+                className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} nav-chevron`}
+                aria-hidden
+              />
+            )}
+          </button>
+          <ul className="nav-children">
+            {item.subItems.map((sub) => {
+              const isSubActive = item.isSubActive
+                ? item.isSubActive(sub.path, location.pathname, location.search)
+                : defaultIsSubActive(sub.path, location.pathname, location.search)
+              return (
+                <li key={sub.path}>
+                  <Link to={sub.path} className={`nav-link nav-child${isSubActive ? ' active' : ''}`}>
+                    <span className="nav-link-icon">{sub.icon}</span>
+                    <span className="sidebar-label">{sub.label}</span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </li>
+      )
+    }
+
+    return (
+      <li key={item.label}>
+        <Link
+          to={item.path}
+          title={item.label}
+          className={`nav-link${isActive ? ' active' : ''}`}
+          onMouseEnter={item.onMouseEnter}
+          onFocus={item.onFocus}
+        >
+          <span className="nav-link-icon">{item.icon}</span>
+          <span className="sidebar-label">{item.label}</span>
+          {showBadge && !isCollapsed && (
+            <span className="nav-link-badge">{item.badge}</span>
+          )}
+        </Link>
+      </li>
+    )
+  }
+
   return (
-    <ul className="space-y-1">
-      {items.map((item) => {
-        const isActive = item.isActive
-          ? item.isActive(location.pathname, location.search)
-          : defaultIsItemActive(item, location.pathname, location.search)
-
-        if (item.subItems?.length) {
-          const hasActiveChild = item.subItems.some((sub) =>
-            item.isSubActive
-              ? item.isSubActive(sub.path, location.pathname, location.search)
-              : defaultIsSubActive(sub.path, location.pathname, location.search),
-          )
-          const isExpanded =
-            expandedMenus[item.label] !== undefined ? expandedMenus[item.label] : isActive || hasActiveChild
-
-          return (
-            <li key={item.label} className={`nav-group${isExpanded ? ' expanded' : ''}${hasActiveChild ? ' has-active-child' : ''}`}>
-              <button
-                type="button"
-                title={item.label}
-                className={`nav-link nav-parent${isActive || hasActiveChild ? ' active' : ''}`}
-                aria-expanded={isExpanded}
-                onClick={() => handleParentClick(item, isExpanded)}
-                onMouseEnter={item.onMouseEnter}
-                onFocus={item.onFocus}
-              >
-                <span className="nav-link-icon">{item.icon}</span>
-                <span className="sidebar-label">{item.label}</span>
-                {!isCollapsed && (
-                  <i
-                    className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} nav-chevron`}
-                    aria-hidden
-                  />
-                )}
-              </button>
-              <ul className="nav-children">
-                {item.subItems.map((sub) => {
-                  const isSubActive = item.isSubActive
-                    ? item.isSubActive(sub.path, location.pathname, location.search)
-                    : defaultIsSubActive(sub.path, location.pathname, location.search)
-                  return (
-                    <li key={sub.path}>
-                      <Link to={sub.path} className={`nav-link nav-child${isSubActive ? ' active' : ''}`}>
-                        <span className="nav-link-icon">{sub.icon}</span>
-                        <span className="sidebar-label">{sub.label}</span>
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            </li>
-          )
-        }
-
-        return (
-          <li key={item.label}>
-            <Link
-              to={item.path}
-              title={item.label}
-              className={`nav-link${isActive ? ' active' : ''}`}
-              onMouseEnter={item.onMouseEnter}
-              onFocus={item.onFocus}
-            >
-              <span className="nav-link-icon">{item.icon}</span>
-              <span className="sidebar-label">{item.label}</span>
-            </Link>
-          </li>
-        )
-      })}
-    </ul>
+    <>
+      {sections.map((section) => (
+        <div key={section.label} className="dash-sidebar-section">
+          {section.label && !isCollapsed && (
+            <div className="dash-sidebar-section-label">{section.label}</div>
+          )}
+          <ul className="space-y-1">
+            {section.items.map(renderMenuItem)}
+          </ul>
+        </div>
+      ))}
+    </>
   )
 }
