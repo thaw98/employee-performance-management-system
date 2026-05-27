@@ -57,6 +57,8 @@ const overlapsDateRange = (start?: string, end?: string, startDate?: string, end
   return pipStart <= filterEnd && pipEnd >= filterStart
 }
 
+const isInvalidDateRange = (startDate: string, endDate: string) => Boolean(startDate && endDate && startDate > endDate)
+
 const getReportErrorMessage = (error: unknown) => {
   if (typeof error !== 'object' || error === null) return 'Failed to download report'
   const candidate = error as { response?: { data?: { message?: unknown } } }
@@ -71,6 +73,7 @@ export default function PipReportPage() {
   const [pipId, setPipId] = useState<number | undefined>(undefined)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const invalidDateRange = isInvalidDateRange(startDate, endDate)
 
   const { data: pips = [], isLoading } = useGetPipsQuery()
 
@@ -93,15 +96,18 @@ export default function PipReportPage() {
   ), [myPips])
 
   const filteredPips = useMemo(() => (
-    myPips.filter((pip) => {
-      const matchesStatus = !statusFilter || pip.status === statusFilter
-      const matchesPip = pipId == null || pip.id === pipId
-      const matchesDate = overlapsDateRange(pip.startDate, pip.endDate, startDate, endDate)
-      return matchesStatus && matchesPip && matchesDate
-    })
-  ), [myPips, statusFilter, pipId, startDate, endDate])
+    invalidDateRange
+      ? []
+      : myPips.filter((pip) => {
+        const matchesStatus = !statusFilter || pip.status === statusFilter
+        const matchesPip = pipId == null || pip.id === pipId
+        const matchesDate = overlapsDateRange(pip.startDate, pip.endDate, startDate, endDate)
+        return matchesStatus && matchesPip && matchesDate
+      })
+  ), [invalidDateRange, myPips, statusFilter, pipId, startDate, endDate])
 
   const handleDownloadReport = (pipId: number, format: 'pdf' | 'excel') => {
+    if (invalidDateRange) return
     downloadIndividualPipReport(
       pipId,
       format,
@@ -208,6 +214,11 @@ export default function PipReportPage() {
                 </button>
               </div>
             </div>
+            {invalidDateRange && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                Start date must be on or before end date.
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-4 gap-4">

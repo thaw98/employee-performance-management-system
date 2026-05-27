@@ -156,12 +156,29 @@ const getUniquePips = (pips?: Pip[]) => {
   )
 }
 
+const isPipForCurrentEmployee = (pip: Pip, currentUser?: { id?: number; employeeId?: string | null } | null) => {
+  if (!currentUser) return false
+
+  const authUserId = currentUser.id == null ? null : String(currentUser.id)
+  const authEmployeeId = currentUser.employeeId == null ? null : String(currentUser.employeeId)
+  const pipUserId = pip.employee.id == null ? null : String(pip.employee.id)
+  const pipEmployeeRecordId = pip.employee.employee?.id == null ? null : String(pip.employee.employee.id)
+  const pipStaffNo = pip.employee.employeeId == null ? null : String(pip.employee.employeeId)
+
+  return Boolean(
+    (authUserId && pipUserId === authUserId)
+    || (authEmployeeId && (pipEmployeeRecordId === authEmployeeId || pipStaffNo === authEmployeeId)),
+  )
+}
+
 const getDateRangeLabel = (startDate: string, endDate: string) => {
   if (startDate && endDate) return `${formatDateValue(startDate)} to ${formatDateValue(endDate)}`
   if (startDate) return `From ${formatDateValue(startDate)}`
   if (endDate) return `Through ${formatDateValue(endDate)}`
   return 'All dates'
 }
+
+const isInvalidDateRange = (startDate: string, endDate: string) => Boolean(startDate && endDate && startDate > endDate)
 
 const FILTER_LABEL_CLASS =
   'mb-2 block min-h-[2rem] text-xs font-bold uppercase leading-tight tracking-wider text-slate-500'
@@ -302,6 +319,7 @@ export default function PipMonitoringPage() {
   const isAudit = user?.roleId === 5 || userRole === 'AUDIT'
   const canViewAllPips = isHr || isAudit
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
+  const isEmployee = !isHr && !isManager
 
   const [filterDept, setFilterDept] = useState<number | undefined>(undefined)
   const [filterPos, setFilterPos] = useState<number | undefined>(undefined)
@@ -316,8 +334,9 @@ export default function PipMonitoringPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [logViewerPipId, setLogViewerPipId] = useState<number | null>(null)
   const departmentFilter = canViewAllPips ? filterDept : undefined
+  const invalidDateRange = isInvalidDateRange(startDate, endDate)
 
-  const { data: pips, isLoading, isError, error } = useGetPipsQuery({
+  const { data: pips, isLoading, isError, error } = useGetPipsQuery(invalidDateRange ? skipToken : {
     departmentId: departmentFilter,
     positionId: filterPos,
     pipId: selectedPipId,
@@ -435,10 +454,13 @@ export default function PipMonitoringPage() {
     || endDate
     || selectedPipId,
   )
-  const uniquePips = useMemo(() => getUniquePips(pips), [pips])
+  const scopedPips = useMemo(() => {
+    const unique = getUniquePips(pips)
+    return isEmployee ? unique.filter((pip) => isPipForCurrentEmployee(pip, user)) : unique
+  }, [isEmployee, pips, user])
 
   const filteredPips = useMemo(() => {
-    return uniquePips.filter((pip) => {
+    return scopedPips.filter((pip) => {
       if (selectedPipId != null && pip.id !== selectedPipId) return false
       if (selectedEmployeeId == null) return true
       return getPipEmployeeRecordId(pip) === selectedEmployeeId
@@ -452,7 +474,7 @@ export default function PipMonitoringPage() {
       const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime()
       return timeB - timeA
     })
-  }, [uniquePips, selectedEmployeeId, selectedPipId])
+  }, [scopedPips, selectedEmployeeId, selectedPipId])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -500,6 +522,7 @@ export default function PipMonitoringPage() {
   ]
 
   const handleExportPips = async () => {
+    if (invalidDateRange) return
     if (exportTargetPips.length === 0) return
     try {
       setExportError(null)
@@ -517,6 +540,7 @@ export default function PipMonitoringPage() {
   }
 
   const handlePrintPips = async () => {
+    if (invalidDateRange) return
     if (exportTargetPips.length === 0) return
     try {
       setExportError(null)
@@ -767,7 +791,7 @@ export default function PipMonitoringPage() {
                 className={FILTER_SELECT_CLASS}
               >
                 <option value="">All PIPs</option>
-                {uniquePips.map((pip) => (
+                {scopedPips.map((pip) => (
                   <option key={pip.id} value={pip.id}>
                     PIP #{pip.id} - {getPipEmployeeName(pip)}
                   </option>
@@ -776,6 +800,12 @@ export default function PipMonitoringPage() {
             </div>
           )}
         </div>
+
+        {invalidDateRange && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            Start date must be on or before end date.
+          </div>
+        )}
 
         <div className="mt-4 flex justify-end">
           <button

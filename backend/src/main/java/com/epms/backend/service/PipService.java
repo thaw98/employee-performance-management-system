@@ -50,7 +50,7 @@ public class PipService {
     private static final String STATUS_SCHEDULED = "SCHEDULED";
     private static final String DECISION_APPROVED = "APPROVED";
     private static final String DECISION_REJECTED = "REJECTED";
-    private static final BigDecimal PIP_KPI_SCORE_THRESHOLD = BigDecimal.valueOf(69);
+    private static final BigDecimal PIP_KPI_SCORE_THRESHOLD = BigDecimal.valueOf(50);
 
     private final PipRepository pipRepository;
     private final PipObjectiveRepository objectiveRepository;
@@ -77,7 +77,7 @@ public class PipService {
                 .filter(employee -> !hasBlockingPip(employee))
                 .map(employee -> new EligibleEmployeeWithScore(employee, getLatestKpiTotalScore(employee)))
                 .filter(candidate -> candidate.totalScore() != null
-                        && candidate.totalScore().compareTo(PIP_KPI_SCORE_THRESHOLD) < 0)
+                        && candidate.totalScore().compareTo(PIP_KPI_SCORE_THRESHOLD) <= 0)
                 .map(employee -> new EligibleEmployeeDTO(
                         employee.employee().getId(),
                         employee.employee().getEmployeeId(),
@@ -126,8 +126,8 @@ public class PipService {
             throw new RuntimeException("Probation employees cannot be assigned to PIP");
         }
         BigDecimal kpiScore = getLatestKpiTotalScore(employee);
-        if (kpiScore == null || kpiScore.compareTo(PIP_KPI_SCORE_THRESHOLD) >= 0) {
-            throw new RuntimeException("Only employees with KPI score below 69% can be assigned to PIP");
+        if (kpiScore == null || kpiScore.compareTo(PIP_KPI_SCORE_THRESHOLD) > 0) {
+            throw new RuntimeException("Only employees with KPI score 50% or below can be assigned to PIP");
         }
 
         boolean hasOpenPip = pipRepository.findByEmployeeAndStatusIn(employee,
@@ -206,9 +206,9 @@ public class PipService {
             List<Predicate> predicates = new ArrayList<>();
 
             // Role-based visibility
-            String roleName = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase().replace(" ", "_") : "";
+            String roleName = normalizeRoleName(actor);
             boolean isAdmin = "ADMIN".equals(roleName) || "SUPER_ADMIN".equals(roleName);
-            boolean isManager = "DEPARTMENT_HEAD".equals(roleName) || "TEAM_HEAD".equals(roleName) || "MANAGER".equals(roleName) || roleName.contains("MANAGER");
+            boolean isManager = isManagerRole(actor);
 
             if (isHr(actor) || isAudit(actor) || isAdmin) {
                 if (departmentId != null) {
@@ -931,14 +931,14 @@ public class PipService {
             return;
         }
 
-        // Allowed if they are the assigned manager
-        if (pip.getManager() != null && pip.getManager().getId().equals(actorEmployeeId)) {
+        // Allowed if they are the assigned manager and their current role permits manager access.
+        if (isManagerRole(actor) && pip.getManager() != null && pip.getManager().getId().equals(actorEmployeeId)) {
             return;
         }
 
         // Allowed if they are a department/team head and the employee is in their
         // department
-        String role = actor.getRole() != null ? actor.getRole().getName().trim().toUpperCase().replace(" ", "_") : "";
+        String role = normalizeRoleName(actor);
         if (("DEPARTMENT_HEAD".equals(role) || "TEAM_HEAD".equals(role))
                 && actor.getEmployee().getDepartment() != null
                 && pip.getEmployee() != null
@@ -981,10 +981,7 @@ public class PipService {
     }
 
     private boolean isHr(User actor) {
-        if (actor == null || actor.getRole() == null) {
-            return false;
-        }
-        String name = actor.getRole().getName().trim().toUpperCase();
+        String name = normalizeRoleName(actor);
         return "HR".equals(name) || "ADMIN".equals(name) || "SUPER_ADMIN".equals(name);
     }
 
@@ -1093,11 +1090,19 @@ public class PipService {
     }
 
     private boolean isManagerActor(User actor) {
-        if (actor == null || actor.getRole() == null || actor.getRole().getName() == null) {
-            return false;
-        }
-        String role = actor.getRole().getName().trim().toUpperCase(Locale.ROOT).replace(" ", "_");
+        String role = normalizeRoleName(actor);
         return "MANAGER".equals(role) || "DEPARTMENT_HEAD".equals(role) || "TEAM_HEAD".equals(role);
+    }
+
+    private boolean isManagerRole(User actor) {
+        return isManagerActor(actor);
+    }
+
+    private String normalizeRoleName(User actor) {
+        if (actor == null || actor.getRole() == null || actor.getRole().getName() == null) {
+            return "";
+        }
+        return actor.getRole().getName().trim().toUpperCase(Locale.ROOT).replace(" ", "_");
     }
 
     private boolean isManagedBy(Employee employee, Employee managerEmployee) {

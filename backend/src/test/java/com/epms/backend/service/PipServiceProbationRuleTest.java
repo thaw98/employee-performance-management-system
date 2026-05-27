@@ -26,6 +26,7 @@ import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.EmployeeKpi;
 import com.epms.backend.entity.Pip;
+import com.epms.backend.entity.Role;
 import com.epms.backend.entity.Signature;
 import com.epms.backend.entity.StaffType;
 import com.epms.backend.entity.User;
@@ -120,7 +121,7 @@ class PipServiceProbationRuleTest {
     }
 
     @Test
-    void getLowPerformers_excludesEmployeesWithKpiScoreAtOrAboveSixtyNinePercent() {
+    void getLowPerformers_includesEmployeesWithKpiScoreAtFiftyPercentAndExcludesAboveFiftyPercent() {
         Employee managerEmployee = new Employee();
         managerEmployee.setId(10L);
 
@@ -144,10 +145,10 @@ class PipServiceProbationRuleTest {
         when(employeeRepository.findAll()).thenReturn(List.of(lowPerformer, ineligible));
         when(kpiRepository.findLatestPeriodByEmployee_Id(1L)).thenReturn(Optional.of("May 2026"));
         when(kpiRepository.findByEmployee_IdAndPeriod(1L, "May 2026"))
-                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("68.99"))));
+                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("50.00"))));
         when(kpiRepository.findLatestPeriodByEmployee_Id(2L)).thenReturn(Optional.of("May 2026"));
         when(kpiRepository.findByEmployee_IdAndPeriod(2L, "May 2026"))
-                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("69.00"))));
+                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("50.01"))));
 
         List<EligibleEmployeeDTO> result = pipService.getLowPerformers(managerUser);
 
@@ -207,7 +208,7 @@ class PipServiceProbationRuleTest {
     }
 
     @Test
-    void getLowPerformers_includesSameDepartmentEmployeesBelowSixtyNinePercent() {
+    void getLowPerformers_includesSameDepartmentEmployeesAtOrBelowFiftyPercent() {
         Department department = newDepartment(99L, null);
 
         Employee managerEmployee = new Employee();
@@ -227,7 +228,7 @@ class PipServiceProbationRuleTest {
         when(employeeRepository.findAll()).thenReturn(List.of(employee));
         when(kpiRepository.findLatestPeriodByEmployee_Id(1L)).thenReturn(Optional.of("May 2026"));
         when(kpiRepository.findByEmployee_IdAndPeriod(1L, "May 2026"))
-                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("68.99"))));
+                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("50.00"))));
 
         List<EligibleEmployeeDTO> result = pipService.getLowPerformers(managerUser);
 
@@ -283,6 +284,61 @@ class PipServiceProbationRuleTest {
         when(employeeRepository.findById(eq(2L))).thenReturn(Optional.of(probation));
         RuntimeException ex = assertThrows(RuntimeException.class, () -> pipService.createPip(request, managerUser));
         assertEquals("Probation employees cannot be assigned to PIP", ex.getMessage());
+    }
+
+    @Test
+    void createPip_throwsForKpiScoreAboveFiftyPercent() {
+        Employee managerEmployee = new Employee();
+        managerEmployee.setId(10L);
+
+        User managerUser = new User();
+        managerUser.setEmployee(managerEmployee);
+
+        Employee employee = new Employee();
+        employee.setId(1L);
+        employee.setDepartment(newDepartment(99L, 10L));
+        employee.setStaffType(newStaffType(StaffTypes.PERMANENT));
+
+        PipCreateRequest request = new PipCreateRequest();
+        request.setEmployeeId(1L);
+        request.setStartDate(LocalDate.now());
+        request.setEndDate(LocalDate.now().plusDays(30));
+        request.setObjectives(List.of("Improve quality"));
+        request.setExpectedImprovements("Improve quality within the PIP period");
+
+        when(employeeRepository.findById(eq(1L))).thenReturn(Optional.of(employee));
+        when(kpiRepository.findLatestPeriodByEmployee_Id(1L)).thenReturn(Optional.of("May 2026"));
+        when(kpiRepository.findByEmployee_IdAndPeriod(1L, "May 2026"))
+                .thenReturn(List.of(newKpiTotalScore(new BigDecimal("50.01"))));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> pipService.createPip(request, managerUser));
+        assertEquals("Only employees with KPI score 50% or below can be assigned to PIP", ex.getMessage());
+    }
+
+    @Test
+    void getPipById_employeeRoleCannotAccessPipOnlyBecauseTheyAreAssignedManager() {
+        Employee actorEmployee = new Employee();
+        actorEmployee.setId(10L);
+
+        Role employeeRole = new Role();
+        employeeRole.setName("EMPLOYEE");
+
+        User employeeUser = new User();
+        employeeUser.setEmployee(actorEmployee);
+        employeeUser.setRole(employeeRole);
+
+        Employee pipEmployee = new Employee();
+        pipEmployee.setId(20L);
+
+        Pip pip = new Pip();
+        pip.setId(1L);
+        pip.setEmployee(pipEmployee);
+        pip.setManager(actorEmployee);
+
+        when(pipRepository.findById(1L)).thenReturn(Optional.of(pip));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> pipService.getPipById(1L, employeeUser));
+        assertEquals("You are not allowed to access this PIP", ex.getMessage());
     }
 
     private static Department newDepartment(Long id, Long managerId) {

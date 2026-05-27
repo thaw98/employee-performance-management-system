@@ -91,6 +91,8 @@ const formatDateValue = (value?: string) => {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+const isInvalidDateRange = (startDate: string, endDate: string) => Boolean(startDate && endDate && startDate > endDate)
+
 export default function PipReportPage() {
   const { user } = useSelector((state: RootState) => state.auth)
   const [activeTab, setActiveTab] = useState<'summary' | 'progress'>('summary')
@@ -102,6 +104,7 @@ export default function PipReportPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [reportDownload, setReportDownload] = useState<string | null>(null)
+  const invalidDateRange = isInvalidDateRange(startDate, endDate)
 
   const { data: departmentsResponse } = useGetDepartmentsQuery()
 
@@ -121,11 +124,11 @@ export default function PipReportPage() {
     endDate: endDate || undefined,
   }
 
-  const { data: summaryData = [], isLoading: isLoadingSummary } = useGetPipSummaryReportQuery({
+  const { data: summaryData = [], isLoading: isLoadingSummary } = useGetPipSummaryReportQuery(invalidDateRange ? skipToken : {
     ...reportFilters,
   })
 
-  const { data: progressData, isLoading: isLoadingProgress } = useGetPipProgressReportQuery({
+  const { data: progressData, isLoading: isLoadingProgress } = useGetPipProgressReportQuery(invalidDateRange ? skipToken : {
     ...reportFilters,
   })
 
@@ -136,7 +139,7 @@ export default function PipReportPage() {
     { skip: !queryEnabled }
   )
   const { data: positionsResponse } = useGetDepartmentPositionsQuery(departmentId !== undefined ? departmentId : skipToken)
-  const { data: pips = [] } = useGetPipsQuery({
+  const { data: pips = [] } = useGetPipsQuery(invalidDateRange ? skipToken : {
     departmentId,
     positionId,
     employeeName: employeeName.trim() || undefined,
@@ -198,6 +201,7 @@ export default function PipReportPage() {
   }
 
   const handleDownloadSummaryReport = async (format: PipReportFormat) => {
+    if (invalidDateRange) return
     try {
       setReportDownload(`summary-${format}`)
       await downloadPipSummaryReportExport(
@@ -216,6 +220,7 @@ export default function PipReportPage() {
   }
 
   const handleDownloadProgressReport = async (format: PipReportFormat) => {
+    if (invalidDateRange) return
     try {
       setReportDownload(`progress-${format}`)
       await downloadPipProgressReportExport(
@@ -410,6 +415,11 @@ export default function PipReportPage() {
             </button>
           </div>
         </div>
+        {invalidDateRange && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+            Start date must be on or before end date.
+          </div>
+        )}
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
@@ -449,7 +459,7 @@ export default function PipReportPage() {
                   <button
                     type="button"
                     onClick={() => handleDownloadSummaryReport('pdf')}
-                    disabled={reportDownload !== null}
+                    disabled={reportDownload !== null || invalidDateRange}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${managerReportBtnPrimary}`}
                   >
                     <Download size={16} />
@@ -458,7 +468,7 @@ export default function PipReportPage() {
                   <button
                     type="button"
                     onClick={() => handleDownloadSummaryReport('excel')}
-                    disabled={reportDownload !== null}
+                    disabled={reportDownload !== null || invalidDateRange}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${managerReportBtnPrimary}`}
                   >
                     <FileText size={16} />
@@ -624,7 +634,7 @@ export default function PipReportPage() {
                   <button
                     type="button"
                     onClick={() => handleDownloadProgressReport('pdf')}
-                    disabled={reportDownload !== null}
+                    disabled={reportDownload !== null || invalidDateRange}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${managerReportBtnPrimary}`}
                   >
                     <Download size={16} />
@@ -633,7 +643,7 @@ export default function PipReportPage() {
                   <button
                     type="button"
                     onClick={() => handleDownloadProgressReport('excel')}
-                    disabled={reportDownload !== null}
+                    disabled={reportDownload !== null || invalidDateRange}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${managerReportBtnPrimary}`}
                   >
                     <FileText size={16} />
