@@ -9,7 +9,7 @@ import { exportSelfAssessmentReportExcel } from '../../features/selfAssessmentFo
 import { exportSelfAssessmentReportPdf } from '../../features/selfAssessmentForm/exportSelfAssessmentReportPdf'
 
 type Props = {
-  mode: 'hr' | 'manager'
+  mode: 'hr' | 'manager' | 'audit'
 }
 
 type ReportTab = 'department' | 'positions' | 'directory'
@@ -255,7 +255,7 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
           <p className="text-xs font-black uppercase tracking-widest text-[#2463eb] dark:text-[#93c5fd]">Reports</p>
           <h1 className="mt-1 text-3xl font-black text-slate-950 dark:text-slate-50">Self-Assessment Report</h1>
           <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-            {mode === 'hr' ? 'Cross-department performance overview' : 'Position comparison for your current department'}
+            {mode === 'manager' ? 'Position comparison for your current department' : 'Cross-department performance overview'}
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -299,7 +299,7 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
         <MetricCard icon={<Users size={20} />} label="Missed" value={String(report?.overallTotals.missedCount ?? 0)} />
       </div>
 
-      {mode === 'hr' && (
+      {mode !== 'manager' && (
         <div className="grid gap-4 lg:grid-cols-2">
           <MetricCard icon={<Building2 size={20} />} label="Highest Department" value={report?.highestDepartment?.groupName ?? '-'} />
           <MetricCard icon={<Building2 size={20} />} label="Lowest Department" value={report?.lowestDepartment?.groupName ?? '-'} />
@@ -353,7 +353,7 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
 
         {activeTab === 'department' && (
           <SummaryTable
-            title={mode === 'hr' ? 'Department Summary' : 'Department Context'}
+            title={mode === 'manager' ? 'Department Context' : 'Department Summary'}
             rows={departmentRows}
             onRowClick={handleDepartmentClick}
             activeRowId={selectedDepartment?.groupId}

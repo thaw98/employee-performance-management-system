@@ -97,7 +97,15 @@ const ScoreCard: React.FC<{
 
 /* ── Main Component ───────────────────────────────────── */
 
-export const PerformanceReportDetailPage: React.FC = () => {
+type PerformanceReportDetailPageProps = {
+  basePath?: string;
+  readOnly?: boolean;
+};
+
+export const PerformanceReportDetailPage: React.FC<PerformanceReportDetailPageProps> = ({
+  basePath = '/hr/performance-reports',
+  readOnly = false,
+}) => {
   const { employeeId } = useParams();
   const navigate = useNavigate();
   const empId = Number(employeeId);
@@ -119,7 +127,7 @@ export const PerformanceReportDetailPage: React.FC = () => {
     return (
       <div className="space-y-4">
         <button
-          onClick={() => navigate('/hr/performance-reports')}
+          onClick={() => navigate(basePath)}
           className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
         >
           <ArrowLeft size={18} />
@@ -138,7 +146,7 @@ export const PerformanceReportDetailPage: React.FC = () => {
     <div className="space-y-6 max-w-5xl">
       {/* Back */}
       <button
-        onClick={() => navigate('/hr/performance-reports')}
+        onClick={() => navigate(basePath)}
         className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
       >
         <ArrowLeft size={18} />
@@ -292,7 +300,7 @@ export const PerformanceReportDetailPage: React.FC = () => {
           </div>
 
           {/* Promote Button — only visible if eligible */}
-          {report.promotionEligible && (
+          {report.promotionEligible && !readOnly && (
             <button
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all active:scale-[0.98]"
               onClick={() => setIsPromotionModalOpen(true)}
@@ -339,14 +347,16 @@ export const PerformanceReportDetailPage: React.FC = () => {
       </div>
 
       {/* Promotion Modal */}
-      <PromotionModal
-        isOpen={isPromotionModalOpen}
-        onClose={() => setIsPromotionModalOpen(false)}
-        employeeId={report.employeeId}
-        employeeName={report.employeeName}
-        currentPosition={report.positionName}
-        departmentName={report.departmentName}
-      />
+      {!readOnly && (
+        <PromotionModal
+          isOpen={isPromotionModalOpen}
+          onClose={() => setIsPromotionModalOpen(false)}
+          employeeId={report.employeeId}
+          employeeName={report.employeeName}
+          currentPosition={report.positionName}
+          departmentName={report.departmentName}
+        />
+      )}
     </div>
   );
 };

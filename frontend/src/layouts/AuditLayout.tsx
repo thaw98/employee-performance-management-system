@@ -4,6 +4,7 @@ import {
     LayoutDashboard,
     Activity,
     TrendingUp,
+    BarChart,
     Users,
     Building2,
     Layers,
@@ -12,6 +13,7 @@ import {
     History,
     Award,
     RefreshCcw,
+    Zap,
     FileText,
     Calendar,
 } from 'lucide-react';
@@ -87,6 +89,24 @@ const AuditLayout: React.FC = () => {
             path: '/audit/360-feedback/history',
             icon: <RefreshCcw size={18} />,
             subItems: [{ label: 'Feedback History', path: '/audit/360-feedback/history', icon: <History size={16} /> }],
+        },
+        {
+            label: 'Reports',
+            path: '/audit/reports',
+            icon: <BarChart size={18} />,
+            isActive: (pathname) =>
+                pathname === '/audit/reports'
+                || pathname.startsWith('/audit/performance-reports')
+                || pathname.startsWith('/audit/kpi-reports')
+                || pathname.startsWith('/audit/reports/'),
+            subItems: [
+                { label: 'Performance Report', path: '/audit/performance-reports', icon: <Award size={16} /> },
+                { label: 'PIP Report', path: '/audit/reports', icon: <Zap size={16} /> },
+                { label: 'KPI Report', path: '/audit/kpi-reports', icon: <BarChart size={16} /> },
+                { label: 'Feedback Report', path: '/audit/reports/feedback', icon: <RefreshCcw size={16} /> },
+                { label: 'Appraisal Report', path: '/audit/reports/appraisal', icon: <Award size={16} /> },
+                { label: 'Self-Assessment Report', path: '/audit/reports/self-assessment', icon: <FileText size={16} /> },
+            ],
         },
         { label: 'Activity Monitor', path: '/audit/activity-monitor', icon: <Activity size={18} /> },
         { label: 'Security Analytics', path: '/audit/security-analytics', icon: <TrendingUp size={18} /> },

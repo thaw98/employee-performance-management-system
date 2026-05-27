@@ -24,7 +24,7 @@ public class AppraisalAssignmentController {
     private final AppraisalHistoryService appraisalHistoryService;
 
     @GetMapping
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('HR')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
     public ResponseEntity<ApiResponse<List<AppraisalAssignment>>> getAll() {
         return ResponseEntity.ok(ApiResponse.ok("Fetched all assignments", appraisalAssignmentService.getAllAssignments()));
     }
@@ -74,6 +74,7 @@ public class AppraisalAssignmentController {
     }
 
     @PostMapping("/{id}/evaluate")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'EMPLOYEE') and principal.roleId != 5")
     public ResponseEntity<ApiResponse<AppraisalAssignment>> submitEvaluation(@PathVariable Long id, 
                                                                            @RequestBody com.epms.backend.dto.EvaluationRequest req,
                                                                            Authentication auth) {
@@ -83,6 +84,7 @@ public class AppraisalAssignmentController {
     }
 
     @PostMapping("/{id}/draft")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'EMPLOYEE') and principal.roleId != 5")
     public ResponseEntity<ApiResponse<AppraisalAssignment>> saveDraft(@PathVariable Long id,
                                                                       @RequestBody com.epms.backend.dto.EvaluationRequest req) {
         AppraisalAssignment saved = appraisalAssignmentService.saveDraft(id, req);
@@ -107,6 +109,7 @@ public class AppraisalAssignmentController {
     }
 
     @PostMapping("/{id}/approve")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'EMPLOYEE') and principal.roleId != 5")
     public ResponseEntity<ApiResponse<AppraisalAssignment>> approve(@PathVariable Long id, 
                                                                   @RequestBody ActionRequest req,
                                                                   Authentication auth) {
@@ -116,6 +119,7 @@ public class AppraisalAssignmentController {
     }
 
     @PostMapping("/{id}/reject")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'EMPLOYEE') and principal.roleId != 5")
     public ResponseEntity<ApiResponse<AppraisalAssignment>> reject(@PathVariable Long id, 
                                                                  @RequestBody ActionRequest req,
                                                                  Authentication auth) {
@@ -125,6 +129,7 @@ public class AppraisalAssignmentController {
     }
 
     @PostMapping("/{id}/return")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'EMPLOYEE') and principal.roleId != 5")
     public ResponseEntity<ApiResponse<AppraisalAssignment>> returnForRevision(@PathVariable Long id, 
                                                                             @RequestBody ActionRequest req,
                                                                             Authentication auth) {
@@ -134,6 +139,7 @@ public class AppraisalAssignmentController {
     }
 
     @PostMapping("/{id}/lock")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'EMPLOYEE') and principal.roleId != 5")
     public ResponseEntity<ApiResponse<AppraisalAssignment>> lock(@PathVariable Long id, Authentication auth) {
         UserPrincipal principal = (UserPrincipal) auth.getPrincipal();
         AppraisalAssignment saved = appraisalAssignmentService.lock(id, principal.getId(), principal.getRoleId());
@@ -141,6 +147,7 @@ public class AppraisalAssignmentController {
     }
 
     @PostMapping("/{id}/unlock")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('HR', 'MANAGER', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'EMPLOYEE') and principal.roleId != 5")
     public ResponseEntity<ApiResponse<AppraisalAssignment>> unlock(@PathVariable Long id, 
                                                                  @RequestBody ActionRequest req,
                                                                  Authentication auth) {

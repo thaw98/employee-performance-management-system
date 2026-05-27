@@ -346,6 +346,13 @@ function App() {
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
+            <Route path="reports" element={<HrReportsPage />} />
+            <Route path="reports/feedback" element={<FeedbackReportPage mode="audit" />} />
+            <Route path="reports/appraisal" element={<AppraisalReportsPage />} />
+            <Route path="reports/self-assessment" element={<SelfAssessmentReportPage mode="audit" />} />
+            <Route path="kpi-reports" element={<KpiReportsPage />} />
+            <Route path="performance-reports" element={<PerformanceReportPage basePath="/audit/performance-reports" readOnly />} />
+            <Route path="performance-reports/:employeeId" element={<PerformanceReportDetailPage basePath="/audit/performance-reports" readOnly />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
             <Route path="security-analytics" element={<SecurityAnalytics />} />

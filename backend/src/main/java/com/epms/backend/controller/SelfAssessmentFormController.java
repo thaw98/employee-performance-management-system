@@ -127,12 +127,12 @@ public class SelfAssessmentFormController {
     }
 
     @GetMapping("/reports")
-    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 2 or principal.roleId == 5")
     public ResponseEntity<ApiResponse<SelfAssessmentAnalyticsReportDto>> getSelfAssessmentReport(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam Long cycleId) {
         try {
-            Employee employee = getEmployeeFromPrincipal(principal);
+            Employee employee = Long.valueOf(5L).equals(principal.getRoleId()) ? null : getEmployeeFromPrincipal(principal);
             SelfAssessmentAnalyticsReportDto report = selfAssessmentReportService.getAnalyticsReportData(
                     employee,
                     principal.getRoleId(),
