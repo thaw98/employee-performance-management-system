@@ -23,14 +23,14 @@ public class PerformanceReportController {
     private final PerformanceReportService reportService;
 
     @GetMapping("/summaries")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'AUDIT') or principal.roleId == 5")
     public ResponseEntity<ApiResponse<List<PerformanceReportSummaryDto>>> getAllSummaries() {
         List<PerformanceReportSummaryDto> data = reportService.getAllEmployeeReportSummaries();
         return ResponseEntity.ok(ApiResponse.ok("Performance report summaries retrieved successfully", data));
     }
 
     @GetMapping("/employee/{employeeId}")
-    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+    @PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'AUDIT') or principal.roleId == 5")
     public ResponseEntity<ApiResponse<PerformanceReportSummaryDto>> getEmployeeSummary(
             @PathVariable Long employeeId) {
         PerformanceReportSummaryDto data = reportService.getEmployeeReportSummary(employeeId);

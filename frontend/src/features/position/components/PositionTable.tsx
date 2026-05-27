@@ -19,11 +19,14 @@ import type { PositionDto } from '../api/positionApi'
 interface PositionTableProps {
   data: PositionDto[]
   isLoading: boolean
-  onEdit: (id: number) => void
-  onRemove: (position: PositionDto) => void
+  onEdit?: (id: number) => void
+  onRemove?: (position: PositionDto) => void
   onShowAssignedDepartments?: (position: PositionDto) => void
   sorting: SortingState
   setSorting: OnChangeFn<SortingState>
+  showStatus?: boolean
+  emptyTitle?: string
+  emptyDescription?: string
 }
 
 function PositionTable({
@@ -34,9 +37,13 @@ function PositionTable({
   onShowAssignedDepartments,
   sorting,
   setSorting,
+  showStatus = false,
+  emptyTitle = 'No positions found',
+  emptyDescription = 'Try adjusting your search or filters',
 }: PositionTableProps) {
   const columns = useMemo<ColumnDef<PositionDto>[]>(
-    () => [
+    () => {
+      const baseColumns: ColumnDef<PositionDto>[] = [
       {
         accessorKey: 'positionCode',
         header: 'Position Code',
@@ -87,7 +94,28 @@ function PositionTable({
           )
         },
       },
-      {
+      ]
+
+      if (showStatus) {
+        baseColumns.push({
+        accessorKey: 'status',
+        header: 'Status',
+        cell: (info) => {
+          const value = (info.getValue() as string | null | undefined)?.toUpperCase() ?? 'UNKNOWN'
+          const isActive = value === 'ACTIVE'
+          return (
+            <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold ${
+              isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+            }`}>
+              {value}
+            </span>
+          )
+        },
+        })
+      }
+
+      if (onEdit || onRemove || onShowAssignedDepartments) {
+        baseColumns.push({
         id: 'actions',
         header: 'Actions',
         cell: (info) => {
@@ -104,26 +132,33 @@ function PositionTable({
                   <span>Assigned Departments</span>
                 </button>
               )}
-              <button
-                onClick={() => onEdit(row.positionId)}
-                className="p-2.5 text-slate-500 hover:bg-[#eff6ff] hover:text-[#2463eb] rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
-                title="Edit Position"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onRemove(row)}
-                className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
-                title="Remove Position"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {onEdit && (
+                <button
+                  onClick={() => onEdit(row.positionId)}
+                  className="p-2.5 text-slate-500 hover:bg-[#eff6ff] hover:text-[#2463eb] rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+                  title="Edit Position"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              )}
+              {onRemove && (
+                <button
+                  onClick={() => onRemove(row)}
+                  className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+                  title="Remove Position"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           )
         },
-      },
-    ],
-    [onEdit, onRemove, onShowAssignedDepartments]
+        })
+      }
+
+      return baseColumns
+    },
+    [onEdit, onRemove, onShowAssignedDepartments, showStatus]
   )
 
   const table = useReactTable({
@@ -196,8 +231,8 @@ function PositionTable({
                   <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
                     <Briefcase className="w-10 h-10 text-slate-400" />
                   </div>
-                  <p className="text-lg font-semibold text-slate-700">No positions found</p>
-                  <p className="text-slate-500 text-sm mt-1">Try adjusting your search or filters</p>
+                  <p className="text-lg font-semibold text-slate-700">{emptyTitle}</p>
+                  <p className="text-slate-500 text-sm mt-1">{emptyDescription}</p>
                 </div>
               </td>
             </tr>

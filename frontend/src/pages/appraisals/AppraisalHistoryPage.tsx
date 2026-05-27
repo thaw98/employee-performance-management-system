@@ -31,6 +31,7 @@ type ViewMode = 'table' | 'grid';
 
 interface AppraisalHistoryPageProps {
   mode: RoleMode;
+  readOnly?: boolean;
 }
 
 const ALL = 'ALL';
@@ -81,7 +82,7 @@ function safeFilenamePart(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'cycle';
 }
 
-export function AppraisalHistoryPage({ mode }: AppraisalHistoryPageProps) {
+export function AppraisalHistoryPage({ mode, readOnly }: AppraisalHistoryPageProps) {
   const [rows, setRows] = useState<AppraisalHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -93,6 +94,8 @@ export function AppraisalHistoryPage({ mode }: AppraisalHistoryPageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(getInitialViewMode);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+
+  const isReadOnly = Boolean(readOnly);
 
   useEffect(() => {
     localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
@@ -183,7 +186,7 @@ export function AppraisalHistoryPage({ mode }: AppraisalHistoryPageProps) {
     { total: 0, approved: 0, finalized: 0 },
   );
 
-  const canExport = cycleFilter !== ALL;
+  const canExport = !isReadOnly && cycleFilter !== ALL;
 
   const handleExport = async () => {
     if (!canExport) {
@@ -234,15 +237,17 @@ export function AppraisalHistoryPage({ mode }: AppraisalHistoryPageProps) {
               <LayoutGrid size={15} />
             </ViewModeButton>
           </div>
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={!canExport || exporting}
-            className={`inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${canExport ? `${appraisalGradientBtn} text-white shadow-[#2463eb]/20` : 'bg-slate-100 text-slate-400'}`}
-          >
-            <FileSpreadsheet size={17} />
-            {exporting ? 'Exporting...' : 'Export Cycle'}
-          </button>
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={!canExport || exporting}
+              className={`inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${canExport ? `${appraisalGradientBtn} text-white shadow-[#2463eb]/20` : 'bg-slate-100 text-slate-400'}`}
+            >
+              <FileSpreadsheet size={17} />
+              {exporting ? 'Exporting...' : 'Export Cycle'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -401,7 +406,7 @@ function HistoryGrid({ rows }: { rows: AppraisalHistoryRow[] }) {
               <p className="text-[10px] font-black text-[#2463eb] uppercase tracking-widest flex items-center gap-2">
                 <User size={13} /> {staffNo(row)}
               </p>
-              <h3 className="mt-2 text-xl font-black text-slate-900 break-words">{employeeName(row)}</h3>
+              <h3 className="mt-2 text-xl font-black text-slate-900 wrap-break-word">{employeeName(row)}</h3>
               <p className="mt-1 text-sm font-bold text-slate-500 flex items-center gap-2">
                 <Briefcase size={15} /> {row.positionName || 'Unassigned Position'}
               </p>
@@ -431,7 +436,7 @@ function DetailItem({ icon, label, value }: { icon?: React.ReactNode; label: str
         {icon}
         {label}
       </p>
-      <p className="mt-1 text-sm font-black text-slate-800 break-words">{value}</p>
+      <p className="mt-1 text-sm font-black text-slate-800 wrap-break-word">{value}</p>
     </div>
   );
 }

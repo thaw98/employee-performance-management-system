@@ -10,13 +10,14 @@ interface PositionRoleEditModalProps {
   isOpen: boolean
   onClose: () => void
   levelCode: LevelCodeDto | null
+  readOnly?: boolean
 }
 
-function PositionRoleEditModal({ isOpen, onClose, levelCode }: PositionRoleEditModalProps) {
+function PositionRoleEditModal({ isOpen, onClose, levelCode, readOnly = false }: PositionRoleEditModalProps) {
   const { data, isLoading, isFetching, isError, refetch } = useGetLevelCodeDetailQuery(levelCode?.id ?? 0, {
     skip: !isOpen || !levelCode,
   })
-  const { data: rolesData, isLoading: isRolesLoading } = useGetActiveRolesQuery()
+  const { data: rolesData, isLoading: isRolesLoading } = useGetActiveRolesQuery(undefined, { skip: readOnly })
   const [updatePositionRole, { isLoading: isSaving }] = useUpdatePositionRoleMutation()
   const [selectedRoles, setSelectedRoles] = useState<Record<number, number>>({})
 
@@ -67,7 +68,7 @@ function PositionRoleEditModal({ isOpen, onClose, levelCode }: PositionRoleEditM
                       </div>
                       <div className="min-w-0">
                         <Dialog.Title className="text-xl font-bold text-slate-900 truncate">
-                          {levelCode?.code} - Position & Role Management
+                          {levelCode?.code} - {readOnly ? 'Position & Role Details' : 'Position & Role Management'}
                         </Dialog.Title>
                         <p className="text-sm text-slate-500 mt-0.5">{positions.length} positions assigned to this level</p>
                       </div>
@@ -107,7 +108,9 @@ function PositionRoleEditModal({ isOpen, onClose, levelCode }: PositionRoleEditM
                             <th className="px-5 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Position</th>
                             <th className="px-5 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
                             <th className="px-5 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Role</th>
-                            <th className="px-5 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Action</th>
+                            {!readOnly && (
+                              <th className="px-5 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Action</th>
+                            )}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 bg-white">
@@ -133,31 +136,40 @@ function PositionRoleEditModal({ isOpen, onClose, levelCode }: PositionRoleEditM
                                   </span>
                                 </td>
                                 <td className="px-5 py-4">
-                                  <div className="relative">
-                                    <select
-                                      value={selectedRoleId || ''}
-                                      onChange={(event) => setSelectedRoles((current) => ({ ...current, [position.positionId]: Number(event.target.value) }))}
-                                      className="w-full min-w-56 pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl appearance-none bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-[#dbeafe] focus:border-[#2463eb] focus:outline-none"
+                                  {readOnly ? (
+                                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                      <Shield className="w-4 h-4 text-slate-400" />
+                                      {position.roleName ?? '—'}
+                                    </span>
+                                  ) : (
+                                    <div className="relative">
+                                      <select
+                                        value={selectedRoleId || ''}
+                                        onChange={(event) => setSelectedRoles((current) => ({ ...current, [position.positionId]: Number(event.target.value) }))}
+                                        className="w-full min-w-56 pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl appearance-none bg-white text-sm font-medium text-slate-700 focus:ring-2 focus:ring-[#dbeafe] focus:border-[#2463eb] focus:outline-none"
+                                      >
+                                        <option value="">Select Role</option>
+                                        {roles.map((role) => (
+                                          <option key={role.id} value={role.id}>{role.name}</option>
+                                        ))}
+                                      </select>
+                                      <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    </div>
+                                  )}
+                                </td>
+                                {!readOnly && (
+                                  <td className="px-5 py-4 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSave(position.positionId)}
+                                      disabled={isSaving || unchanged || !selectedRoleId}
+                                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                      <option value="">Select Role</option>
-                                      {roles.map((role) => (
-                                        <option key={role.id} value={role.id}>{role.name}</option>
-                                      ))}
-                                    </select>
-                                    <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                  </div>
-                                </td>
-                                <td className="px-5 py-4 text-right">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSave(position.positionId)}
-                                    disabled={isSaving || unchanged || !selectedRoleId}
-                                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white rounded-xl bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    <Check className="w-4 h-4" />
-                                    Save
-                                  </button>
-                                </td>
+                                      <Check className="w-4 h-4" />
+                                      Save
+                                    </button>
+                                  </td>
+                                )}
                               </tr>
                             )
                           })}

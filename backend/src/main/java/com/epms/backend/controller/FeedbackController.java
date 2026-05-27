@@ -531,9 +531,14 @@ public class FeedbackController {
     }
 
     private boolean isHr(User user) {
-        return user.getRole() != null
-                && user.getRole().getName() != null
-                && user.getRole().getName().equalsIgnoreCase("HR");
+        if (user == null || user.getRole() == null) {
+            return false;
+        }
+        Long roleId = user.getRole().getId();
+        String roleName = user.getRole().getName();
+        return Long.valueOf(1L).equals(roleId)
+                || Long.valueOf(5L).equals(roleId)
+                || (roleName != null && (roleName.equalsIgnoreCase("HR") || roleName.equalsIgnoreCase("AUDIT")));
     }
 
     private boolean isManager(User user) {

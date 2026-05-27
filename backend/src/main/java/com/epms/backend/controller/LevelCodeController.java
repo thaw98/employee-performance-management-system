@@ -27,24 +27,26 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/level-codes")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('HR')")
 public class LevelCodeController {
 
 	private final LevelCodeService levelCodeService;
 
 	@GetMapping
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<LevelCodeListResponse>> getAllLevelCodes() {
 		return ResponseEntity.ok(ApiResponse.ok("Level codes fetched successfully.",
 				levelCodeService.getAllLevelCodes()));
 	}
 
 	@GetMapping("/{id}")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<LevelCodeDetailDto>> getLevelCodeDetail(@PathVariable Long id) {
 		return ResponseEntity.ok(ApiResponse.ok("Level code detail fetched successfully.",
 				levelCodeService.getLevelCodeDetail(id)));
 	}
 
 	@PostMapping
+	@PreAuthorize("hasRole('HR')")
 	public ResponseEntity<ApiResponse<LevelCodeDto>> createLevelCode(
 			@Valid @RequestBody CreateLevelCodeRequest request) {
 		return ResponseEntity.ok(ApiResponse.ok("Level code created successfully.",
@@ -52,6 +54,7 @@ public class LevelCodeController {
 	}
 
 	@PutMapping("/{id}")
+	@PreAuthorize("hasRole('HR')")
 	public ResponseEntity<ApiResponse<LevelCodeDto>> updateLevelCode(@PathVariable Long id,
 			@Valid @RequestBody UpdateLevelCodeRequest request) {
 		return ResponseEntity.ok(ApiResponse.ok("Level code updated successfully.",
@@ -59,6 +62,7 @@ public class LevelCodeController {
 	}
 
 	@PatchMapping("/positions/{positionId}/role")
+	@PreAuthorize("hasRole('HR')")
 	public ResponseEntity<ApiResponse<LevelCodePositionDto>> updatePositionRole(@PathVariable Long positionId,
 			@Valid @RequestBody UpdatePositionRoleRequest request) {
 		return ResponseEntity.ok(ApiResponse.ok("Position role updated successfully.",

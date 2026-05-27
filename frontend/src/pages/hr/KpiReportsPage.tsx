@@ -3,9 +3,11 @@ import { useGetKpiHistorySummaryQuery, useGetDepartmentComparisonQuery } from '.
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Target, Users, Building2, TrendingUp, ChevronLeft, ChevronRight, Filter, FileSpreadsheet } from 'lucide-react';
+import { Target, Users, Building2, TrendingUp, ChevronLeft, ChevronRight, Filter, FileSpreadsheet, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx-js-style';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { toast } from 'react-hot-toast';
 import {
   KPI_REPORTS_BAR_FILL,
@@ -389,6 +391,58 @@ export default function KpiReportsPage() {
     }
   };
 
+  const handleExportPdf = () => {
+    try {
+      const doc = new jsPDF('l', 'mm', 'a4');
+      const isDeptActive = activeTab === 'department';
+      const title = isDeptActive ? 'Department Performance Comparison Report' : 'KPI Report';
+      doc.setFontSize(16);
+      doc.text(title, 14, 14);
+      doc.setFontSize(10);
+      doc.text(`KPI Period: ${selectedPeriodLabel || format(new Date(), 'MMMM yyyy')}`, 14, 22);
+      doc.text(`Export Date: ${format(new Date(), 'dd MMM yyyy')}`, 230, 22);
+
+      if (isDeptActive) {
+        autoTable(doc, {
+          startY: 30,
+          head: [['No', 'Department', 'Total Staff', 'Department Manager Name', 'Total Score']],
+          body: sortedDepartmentComparisonData.map((item, index) => [
+            index + 1,
+            item.departmentName,
+            `${item.totalStaff} Members`,
+            item.managerName || '-',
+            item.totalScore !== undefined && item.totalScore !== null ? `${Number(item.totalScore).toFixed(2)}%` : '-',
+          ]),
+          styles: { fontSize: 9, cellPadding: 2 },
+          headStyles: { fillColor: [36, 99, 235], textColor: 255 },
+        });
+      } else {
+        autoTable(doc, {
+          startY: 30,
+          head: [['No', 'Employee Name', 'Staff Number', 'Manager Name', 'Department', 'Position', 'Total Score', 'Performance Level']],
+          body: filteredData.map((item, index) => [
+            index + 1,
+            item.employeeName,
+            item.staffNo || `EMP-${item.employeeId}`,
+            item.managerName || '-',
+            item.departmentName,
+            item.positionName,
+            item.totalScore !== undefined && item.totalScore !== null ? `${Number(item.totalScore).toFixed(2)}%` : '-',
+            getPerformanceLevel(item.totalScore) || '-',
+          ]),
+          styles: { fontSize: 8, cellPadding: 1.8 },
+          headStyles: { fillColor: [36, 99, 235], textColor: 255 },
+        });
+      }
+
+      doc.save(`${isDeptActive ? 'Department_Comparison_Report' : 'KPI_Performance_Report'}_${format(new Date(), 'yyyyMMdd')}.pdf`);
+      toast.success('PDF report exported successfully!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to export PDF report');
+    }
+  };
+
   const stats = useMemo(() => {
     const totalRecords = filteredData.length;
     const totalEmployees = new Set(filteredData.map(s => s.employeeId)).size;
@@ -506,14 +560,22 @@ export default function KpiReportsPage() {
           )}
         </div>
 
-        {/* Export to Excel Button */}
-        <button
-          onClick={handleExportExcel}
-          className={`flex items-center justify-center gap-2.5 px-5 h-12 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-sm shadow-[#dbeafe] hover:from-[#1d4ed8] hover:to-[#1e40af] hover:scale-[1.02] active:scale-[0.98] cursor-pointer sm:ml-auto ${kpisGradientR}`}
-        >
-          <FileSpreadsheet size={16} />
-          <span>Export Excel</span>
-        </button>
+        <div className="flex flex-col gap-2 sm:ml-auto sm:flex-row">
+          <button
+            onClick={handleExportPdf}
+            className="flex h-12 items-center justify-center gap-2.5 rounded-2xl bg-slate-900 px-5 text-xs font-black uppercase tracking-wider text-white shadow-sm transition-all hover:bg-slate-800 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Download size={16} />
+            <span>Export PDF</span>
+          </button>
+          <button
+            onClick={handleExportExcel}
+            className={`flex items-center justify-center gap-2.5 px-5 h-12 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-sm shadow-[#dbeafe] hover:from-[#1d4ed8] hover:to-[#1e40af] hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${kpisGradientR}`}
+          >
+            <FileSpreadsheet size={16} />
+            <span>Export Excel</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Stats */}

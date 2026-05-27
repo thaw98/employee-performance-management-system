@@ -314,6 +314,8 @@ export default function PipMonitoringPage() {
   const { user } = useSelector((state: RootState) => state.auth)
   const userRole = user?.role?.toUpperCase().replace(/\s+/g, '_') || ''
   const isHr = userRole === 'HR'
+  const isAudit = user?.roleId === 5 || userRole === 'AUDIT'
+  const canViewAllPips = isHr || isAudit
   const isManager = userRole === 'DEPARTMENT_HEAD' || userRole === 'TEAM_HEAD' || userRole === 'MANAGER'
   const isEmployee = !isHr && !isManager
 
@@ -329,7 +331,7 @@ export default function PipMonitoringPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [logViewerPipId, setLogViewerPipId] = useState<number | null>(null)
-  const departmentFilter = isHr ? filterDept : undefined
+  const departmentFilter = canViewAllPips ? filterDept : undefined
 
   const { data: pips, isLoading, isError, error } = useGetPipsQuery({
     departmentId: departmentFilter,
@@ -341,14 +343,14 @@ export default function PipMonitoringPage() {
     endDate: endDate || undefined,
   })
   const { data: departmentPips } = useGetPipsQuery(
-    isHr && typeof departmentFilter === 'number'
+    canViewAllPips && typeof departmentFilter === 'number'
       ? { departmentId: departmentFilter }
       : skipToken,
   )
   const [loadTrainingHistory] = useLazyGetTrainingHistoryQuery()
 
   const managerDepartmentId = useMemo(() => {
-    if (isHr) return undefined
+    if (canViewAllPips) return undefined
     const firstPip = pips?.[0]
     const emp = firstPip?.employee as any
     const employeeObj = emp?.employee || emp
@@ -357,10 +359,10 @@ export default function PipMonitoringPage() {
       return dept.departmentId || dept.id
     }
     return undefined
-  }, [pips, isHr])
+  }, [pips, canViewAllPips])
 
   const { data: departmentsData } = useGetDepartmentsQuery()
-  const targetDepartmentId = isHr && typeof filterDept === 'number' ? filterDept : (!isHr && managerDepartmentId ? managerDepartmentId : undefined)
+  const targetDepartmentId = canViewAllPips && typeof filterDept === 'number' ? filterDept : (!canViewAllPips && managerDepartmentId ? managerDepartmentId : undefined)
   const { data: positionsData } = useGetDepartmentPositionsQuery(
     targetDepartmentId !== undefined ? targetDepartmentId : skipToken,
   )
@@ -398,7 +400,7 @@ export default function PipMonitoringPage() {
   }, [departmentPips, pips, positionsData?.data])
 
   const managerDepartmentName = useMemo(() => {
-    if (isHr) return null
+    if (canViewAllPips) return null
     const firstPip = pips?.[0]
     const emp = firstPip?.employee as any
     const employeeObj = emp?.employee || emp
@@ -407,10 +409,10 @@ export default function PipMonitoringPage() {
       return dept.departmentName || dept.name || 'My Department'
     }
     return 'My Department'
-  }, [pips, isHr])
+  }, [pips, canViewAllPips])
 
   const location = useLocation()
-  const canCreate = isManager && !isHr
+  const canCreate = isManager && !canViewAllPips
 
   const employeeFilterOptions = useMemo(() => {
     if (!pips) return []
@@ -431,9 +433,9 @@ export default function PipMonitoringPage() {
   const selectedEmployeeName = selectedEmployeeId == null
     ? 'All employees'
     : employeeFilterOptions.find((employee) => employee.id === selectedEmployeeId)?.name ?? `Employee #${selectedEmployeeId}`
-  const selectedDepartmentName = isHr && typeof filterDept === 'number'
+  const selectedDepartmentName = canViewAllPips && typeof filterDept === 'number'
     ? departments.find((department) => department.departmentId === filterDept)?.departmentName ?? `Department #${filterDept}`
-    : isHr
+    : canViewAllPips
       ? 'All departments'
       : managerDepartmentName ?? 'My Department'
   const selectedPositionName = typeof filterPos === 'number'
@@ -485,7 +487,7 @@ export default function PipMonitoringPage() {
   const paginatedPips = tablePips.slice((safeCurrentPage - 1) * rowsPerPage, safeCurrentPage * rowsPerPage)
   const selectedPip = selectedPipId == null ? undefined : filteredPips.find((pip) => pip.id === selectedPipId)
   const exportTargetPips = useMemo(() => selectedPip ? [selectedPip] : filteredPips, [filteredPips, selectedPip])
-  const monitoringExportName = `pip-monitoring-${isHr ? 'hr' : 'manager'}-${selectedPip ? `pip-${selectedPip.id}` : 'all'}-${new Date().toISOString().slice(0, 10)}`
+  const monitoringExportName = `pip-monitoring-${isAudit ? 'audit' : isHr ? 'hr' : 'manager'}-${selectedPip ? `pip-${selectedPip.id}` : 'all'}-${new Date().toISOString().slice(0, 10)}`
   const exportEmployeeCount = useMemo(() => new Set(
     exportTargetPips
       .map((pip) => getPipEmployeeRecordId(pip) ?? getPipStaffNo(pip))
@@ -615,7 +617,7 @@ export default function PipMonitoringPage() {
           <p className="text-slate-500 mt-1">Manage and track performance improvement plans across your scope.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-          {(isHr || isManager) && (
+          {(canViewAllPips || isManager) && (
             <>
               <button
                 type="button"
@@ -659,7 +661,7 @@ export default function PipMonitoringPage() {
       <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {/* Department Filter - Only for HR or if Manager has multiple (unlikely based on current backend) */}
-          {(isHr || isManager) && (
+          {(canViewAllPips || isManager) && (
             <div className="min-w-0">
               <label className={FILTER_LABEL_CLASS}>Department</label>
               <select
@@ -668,11 +670,11 @@ export default function PipMonitoringPage() {
                   setFilterDept(e.target.value ? Number(e.target.value) : undefined)
                   setFilterPos(undefined) // Reset position when department changes
                 }}
-                disabled={!isHr}
+                disabled={!canViewAllPips}
                 className={FILTER_SELECT_CLASS}
               >
-                {isHr ? <option value="">All Departments</option> : <option value="">{managerDepartmentName}</option>}
-                {isHr && departments.map((d) => (
+                {canViewAllPips ? <option value="">All Departments</option> : <option value="">{managerDepartmentName}</option>}
+                {canViewAllPips && departments.map((d) => (
                   <option key={d.departmentId} value={d.departmentId}>
                     {d.departmentName || 'Unnamed Department'}
                   </option>
@@ -682,7 +684,7 @@ export default function PipMonitoringPage() {
           )}
 
           {/* Position Filter */}
-          {(isHr || isManager) && (
+          {(canViewAllPips || isManager) && (
             <div className="min-w-0">
               <label className={FILTER_LABEL_CLASS}>Position</label>
               <select
@@ -716,7 +718,7 @@ export default function PipMonitoringPage() {
           </div>
 
           {/* Employee Name Search */}
-          {(isHr || isManager) && (
+          {(canViewAllPips || isManager) && (
             <div className="min-w-0">
               <label className={FILTER_LABEL_CLASS}>Employee Name</label>
               <div className="relative">
@@ -732,7 +734,7 @@ export default function PipMonitoringPage() {
             </div>
           )}
 
-          {(isHr || isManager) && (
+          {(canViewAllPips || isManager) && (
             <div className="min-w-0">
               <label className={FILTER_LABEL_CLASS}>Employee</label>
               <select
@@ -772,7 +774,7 @@ export default function PipMonitoringPage() {
             />
           </div>
 
-          {(isHr || isManager) && (
+          {(canViewAllPips || isManager) && (
             <div className="min-w-0">
               <label className={FILTER_LABEL_CLASS}>PIP</label>
               <select
@@ -820,7 +822,7 @@ export default function PipMonitoringPage() {
             <tr>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Employee</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Position</th>
-              {isHr && <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Department</th>}
+              {canViewAllPips && <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Department</th>}
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">KPI Score</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-center">Status</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Start Date</th>
@@ -843,7 +845,7 @@ export default function PipMonitoringPage() {
                   <td className="px-6 py-5">
                     <span className="text-sm text-slate-600 font-medium">{getPositionName(emp)}</span>
                   </td>
-                  {isHr && (
+                  {canViewAllPips && (
                     <td className="px-6 py-5 text-sm text-slate-600">
                       {getDepartmentName(emp)}
                     </td>
@@ -906,7 +908,7 @@ export default function PipMonitoringPage() {
             })}
             {tablePips.length === 0 && (
               <tr>
-                <td colSpan={isHr ? 9 : 8} className="px-6 py-20 text-center">
+                <td colSpan={canViewAllPips ? 9 : 8} className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center justify-center text-slate-400">
                     <i className="bi bi-clipboard-x text-5xl mb-4 opacity-20" />
                     <p className="text-lg font-medium">No PIP records found matching your criteria.</p>
@@ -920,7 +922,7 @@ export default function PipMonitoringPage() {
         </div>
       </div>
 
-      {(isHr || isManager) && hasActiveFilters && exportTargetPips.length > 0 && (
+      {(canViewAllPips || isManager) && hasActiveFilters && exportTargetPips.length > 0 && (
         <section className="mt-8 rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-100">
           <div className="border-b border-slate-100 px-6 py-4">
             <h2 className="text-lg font-black text-slate-900">Related PIP Detail Overview</h2>

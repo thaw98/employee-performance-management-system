@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useGetAllPipNotesQuery, useGetPipsQuery } from '../../features/pip/pipApi'
 import { useGetDepartmentsQuery } from '../../features/hrCreateEmployee/hrEmployeeAccountApi'
 import { formatDateTime } from '../../utils/dateUtils'
@@ -43,6 +43,8 @@ const getStatusClass = (status?: string) => {
 }
 
 export default function PipNotesReviewPage() {
+  const location = useLocation()
+  const pipMonitoringBasePath = location.pathname.startsWith('/audit/') ? '/audit/pip-monitoring' : '/hr/pip-monitoring'
   const [employeeName, setEmployeeName] = useState('')
   const [managerId, setManagerId] = useState<number | undefined>(undefined)
   const [departmentId, setDepartmentId] = useState<number | undefined>(undefined)
@@ -320,7 +322,7 @@ export default function PipNotesReviewPage() {
                     </p>
                   </div>
                   <Link
-                    to={`/hr/pip-monitoring/${note.pipId}`}
+                    to={`${pipMonitoringBasePath}/${note.pipId}`}
                     className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100"
                   >
                     View PIP

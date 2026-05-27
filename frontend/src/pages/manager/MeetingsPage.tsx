@@ -23,6 +23,9 @@ export function MeetingsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const location = useLocation();
     const isHrView = location.pathname.startsWith('/hr/');
+    const isAuditView = location.pathname.startsWith('/audit/');
+    const isHistoryOnlyView = (isHrView || isAuditView) && (isAuditView || searchParams.get('section') === 'history');
+    const canManageMeetings = !isHistoryOnlyView;
     const hrSection = (searchParams.get('section') || 'schedule') as 'schedule' | 'history';
     const isFaqHrMeeting = searchParams.get('target') === 'hr';
     const activeTab = (searchParams.get('tab') || 'UPCOMING') as 'UPCOMING' | 'ONGOING' | 'COMPLETED';
@@ -96,13 +99,13 @@ export function MeetingsPage() {
 
     useEffect(() => {
         fetchMeetings();
-        if (!isHrView || hrSection === 'schedule') fetchEligibleEmployees();
+        if (canManageMeetings) fetchEligibleEmployees();
         fetchDepartments();
         const interval = setInterval(() => {
-            if ((!isHrView || hrSection === 'schedule') && activeTab !== 'COMPLETED') fetchMeetings();
+            if (canManageMeetings && activeTab !== 'COMPLETED') fetchMeetings();
         }, 30000); 
         return () => clearInterval(interval);
-    }, [activeTab, page, sortBy, selectedDept, subStatus, hrSection, isHrView, isFaqHrMeeting]);
+    }, [activeTab, page, sortBy, selectedDept, subStatus, hrSection, isHrView, isFaqHrMeeting, canManageMeetings]);
 
     useEffect(() => {
         const requestedEmployeeId = searchParams.get('employeeId');
@@ -130,7 +133,7 @@ export function MeetingsPage() {
     const fetchMeetings = async () => {
         try {
             let statuses = '';
-            if (isHrView && hrSection === 'history') {
+            if (isHistoryOnlyView) {
                 statuses = subStatus === 'ALL' ? 'COMPLETED,CANCELLED' : subStatus;
             } else {
                 if (activeTab === 'UPCOMING') statuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED';
@@ -141,13 +144,13 @@ export function MeetingsPage() {
                 }
             }
 
-            let url = isHrView && hrSection === 'history'
+            let url = isHistoryOnlyView
                 ? `/meetings/history?page=${page}&size=${pageSize}&sortBy=${sortBy}`
                 : `/meetings/manager?statuses=${statuses}&page=${page}&size=${pageSize}&sortBy=${sortBy}`;
             if (statuses) url += `&statuses=${statuses}`;
             if (searchName) url += `&searchName=${encodeURIComponent(searchName)}`;
             if (selectedDept) url += `&departmentId=${selectedDept}`;
-            if (activeTab === 'COMPLETED' || (isHrView && hrSection === 'history')) {
+            if (activeTab === 'COMPLETED' || isHistoryOnlyView) {
                 if (fromDate) url += `&fromDate=${new Date(fromDate).toISOString()}`;
                 if (toDate) url += `&toDate=${new Date(toDate).toISOString()}`;
             }
@@ -158,11 +161,11 @@ export function MeetingsPage() {
                 if (selectedDept) employeeUrl += `&departmentId=${selectedDept}`;
 
                 const [managerResp, employeeResp] = await Promise.all([axios.get(url), axios.get(employeeUrl)]);
-                const managerMeetings = (managerResp.data.data.content || []).map((meeting) => ({
+                const managerMeetings = (managerResp.data.data.content || []).map((meeting: any) => ({
                     ...meeting,
                     perspective: 'manager',
                 }));
-                const employeeMeetings = (employeeResp.data.data.content || []).map((meeting) => ({
+                const employeeMeetings = (employeeResp.data.data.content || []).map((meeting: any) => ({
                     ...meeting,
                     perspective: 'employee',
                 }));
@@ -345,15 +348,15 @@ export function MeetingsPage() {
             <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                 <div>
                     <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
-                        {isHrView && hrSection === 'history' ? 'Meeting History' : isHrView ? 'Schedule Meeting' : 'Manager Meetings'}
+                        {isHistoryOnlyView ? 'Meeting History' : isHrView ? 'Schedule Meeting' : 'Manager Meetings'}
                     </h1>
                     <p className="text-slate-500 font-medium text-sm mt-1">
-                        {isHrView && hrSection === 'history'
+                        {isHistoryOnlyView
                             ? 'Review completed and cancelled meetings across all departments'
                             : 'Schedule and manage 1-on-1 meetings with your subordinates'}
                     </p>
                 </div>
-                {(!isHrView || hrSection === 'schedule') && (
+                {canManageMeetings && (
                     <button
                         onClick={() => setIsModalOpen(true)}
                         className="bg-[#2463eb] text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-[#1d4ed8] transition-colors shadow-sm"
@@ -363,7 +366,7 @@ export function MeetingsPage() {
                 )}
             </div>
 
-            {(!isHrView || hrSection === 'schedule') && (
+            {canManageMeetings && (
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-100 w-fit">
                     {['UPCOMING', 'ONGOING', 'COMPLETED'].map(tab => (
@@ -405,7 +408,7 @@ export function MeetingsPage() {
             </div>
             )}
 
-            {isHrView && hrSection === 'history' && (
+            {isHistoryOnlyView && (
                 <div className="flex items-center gap-2 justify-end">
                     <div className="relative group flex-1 md:max-w-xs">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -427,7 +430,7 @@ export function MeetingsPage() {
                 </div>
             )}
 
-            {((activeTab === 'COMPLETED' && (!isHrView || hrSection === 'schedule')) || (isHrView && hrSection === 'history')) && showFilters && (
+            {((activeTab === 'COMPLETED' && canManageMeetings) || isHistoryOnlyView) && showFilters && (
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-4 animate-in slide-in-from-top-2 duration-200">
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Status / Type</label>
@@ -436,7 +439,7 @@ export function MeetingsPage() {
                             onChange={(e) => { setSubStatus(e.target.value); setPage(0); }}
                             className="w-full bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#2463eb]"
                         >
-                            <option value="ALL">{isHrView && hrSection === 'history' ? 'All completed/cancelled' : 'All (History)'}</option>
+                            <option value="ALL">{isHistoryOnlyView ? 'All completed/cancelled' : 'All (History)'}</option>
                             <option value="COMPLETED">Completed Only</option>
                             <option value="CANCELLED">Cancelled Only</option>
                         </select>
@@ -493,9 +496,9 @@ export function MeetingsPage() {
                 )}
                 {meetings.map(m => {
                     const canOpenDetails =
-                        (isHrView && hrSection === 'history') ||
-                        (!isHrView && (m.status === 'COMPLETED' || m.status === 'CANCELLED'));
-                    const detailPath = isHrView ? `/hr/meetings/${m.id}` : `/manager/meetings/${m.id}`;
+                        isHistoryOnlyView ||
+                        (!isHrView && !isAuditView && (m.status === 'COMPLETED' || m.status === 'CANCELLED'));
+                    const detailPath = isAuditView ? `/audit/meetings/${m.id}` : isHrView ? `/hr/meetings/${m.id}` : `/manager/meetings/${m.id}`;
                     const isInvitedMeeting = isHrView && m.perspective === 'employee';
 
                     return (
@@ -531,7 +534,7 @@ export function MeetingsPage() {
                             </div>
                         </div>
 
-                        {activeTab !== 'COMPLETED' && (!isHrView || hrSection === 'schedule') && (
+                        {activeTab !== 'COMPLETED' && canManageMeetings && (
                             <div className="space-y-4">
                                 {isInvitedMeeting && m.status === 'PENDING' && (
                                     <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
@@ -606,14 +609,14 @@ export function MeetingsPage() {
                             </div>
                         )}
                         
-                        {activeTab === 'COMPLETED' && (!isHrView || hrSection === 'schedule') && (
+                        {activeTab === 'COMPLETED' && canManageMeetings && (
                             <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Click to view details</span>
                                 <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 group-hover:text-[#2463eb] transition-all" />
                             </div>
                         )}
 
-                        {isHrView && hrSection === 'history' && (
+                        {isHistoryOnlyView && (
                             <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Click to view details</span>
                                 <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 group-hover:text-[#2463eb] transition-all" />
@@ -624,7 +627,7 @@ export function MeetingsPage() {
                 })}
             </div>
 
-            {((activeTab === 'COMPLETED' && (!isHrView || hrSection === 'schedule')) || (isHrView && hrSection === 'history')) && totalPages > 1 && (
+            {((activeTab === 'COMPLETED' && canManageMeetings) || isHistoryOnlyView) && totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 mt-8">
                     <button 
                         disabled={page === 0}

@@ -25,10 +25,12 @@ import { useGetDepartmentByIdQuery } from '../../features/department/api/departm
 import { useGetPositionByIdQuery } from '../../features/position/api/positionApi';
 import { toast } from 'react-hot-toast';
 import { kpisGradientBr, kpisGradientR } from '../../features/kpi/kpisTheme';
+import { useKpiViewContext } from '../../hooks/useKpiViewContext';
 
 export const PositionKpiDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { isViewOnly } = useKpiViewContext();
   const departmentId = searchParams.get('departmentId');
   const positionId = searchParams.get('positionId');
   const [selectedPeriodMonth, setSelectedPeriodMonth] = useState<string>(getCurrentMonthValue());
@@ -81,18 +83,22 @@ export const PositionKpiDetailPage: React.FC = () => {
               <span className="text-[10px] text-slate-500">{selectedPeriodLabel}</span>
             </div>
           </div>
-          <button
-            onClick={() => setIsEditModalOpen(true)}
-            className={`flex items-center gap-2 px-4 py-2 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-[#dbeafe] hover:from-[#1d4ed8] hover:to-[#1e40af] uppercase tracking-widest ${kpisGradientR}`}
-          >
-            <Target size={16} /> Update Actuals
-          </button>
-          <button
-            onClick={() => navigate(`/hr/kpi-management?departmentId=${departmentId}&positionId=${positionId}&mode=position`)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-emerald-200 uppercase tracking-widest"
-          >
-            <FileEdit size={16} /> Manage KPIs
-          </button>
+          {!isViewOnly && (
+            <>
+              <button
+                onClick={() => setIsEditModalOpen(true)}
+                className={`flex items-center gap-2 px-4 py-2 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-[#dbeafe] hover:from-[#1d4ed8] hover:to-[#1e40af] uppercase tracking-widest ${kpisGradientR}`}
+              >
+                <Target size={16} /> Update Actuals
+              </button>
+              <button
+                onClick={() => navigate(`/hr/kpi-management?departmentId=${departmentId}&positionId=${positionId}&mode=position`)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-emerald-200 uppercase tracking-widest"
+              >
+                <FileEdit size={16} /> Manage KPIs
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -202,7 +208,7 @@ export const PositionKpiDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {isEditModalOpen && department && position && kpis && (
+      {!isViewOnly && isEditModalOpen && department && position && kpis && (
         <PositionKpiEditModal 
           department={department}
           position={position}

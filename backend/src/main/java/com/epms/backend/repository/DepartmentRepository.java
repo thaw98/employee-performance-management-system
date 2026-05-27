@@ -35,6 +35,8 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
 
 	Optional<Department> findByCodeIgnoreCase(String code);
 
+	Optional<Department> findFirstByManagerId(Long managerId);
+
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("SELECT d FROM Department d WHERE d.id = :id")
 	Optional<Department> findWithLockById(@Param("id") Long id);

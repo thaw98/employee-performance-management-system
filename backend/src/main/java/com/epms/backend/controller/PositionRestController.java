@@ -23,7 +23,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 @RestController
 @RequestMapping("/api/positions")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD')")
+@PreAuthorize("hasAnyRole('HR', 'DEPARTMENT_HEAD', 'TEAM_HEAD', 'AUDIT') or principal.roleId == 5")
 public class PositionRestController {
 
 	private final PositionRepository positionRepository;
@@ -34,10 +34,12 @@ public class PositionRestController {
 			@AuthenticationPrincipal UserPrincipal principal,
 			@RequestParam(required = false) Long departmentId) {
 		User user = userRepository.findById(principal.getId()).orElseThrow();
-		boolean isHr = user.getRole() != null && "HR".equalsIgnoreCase(user.getRole().getName());
+		boolean canBrowseAllDepartments = user.getRole() != null
+				&& ("HR".equalsIgnoreCase(user.getRole().getName())
+						|| "AUDIT".equalsIgnoreCase(user.getRole().getName()));
 
 		Long effectiveDeptId = departmentId;
-		if (!isHr) {
+		if (!canBrowseAllDepartments) {
 			if (user.getEmployee() != null && user.getEmployee().getDepartment() != null) {
 				effectiveDeptId = user.getEmployee().getDepartment().getId();
 			} else {

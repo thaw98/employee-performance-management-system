@@ -27,6 +27,7 @@ import { SecurityAnalytics } from './pages/audit/SecurityAnalytics';
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
 import { ManagerKpisPage } from './pages/manager/ManagerKpisPage';
+import ManagerPositionsPage from './pages/manager/ManagerPositionsPage';
 import { ManagerAppraisalsPage } from './pages/manager/ManagerAppraisalsPage';
 import { ManagerEvaluationPage } from './pages/manager/ManagerEvaluationPage';
 import { MyKpisPage } from './pages/employee/MyKpisPage';
@@ -63,6 +64,7 @@ import { KpiHistoryPage } from './pages/hr/KpiHistoryPage';
 import KpiReportsPage from './pages/hr/KpiReportsPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
 import DepartmentDetailPage from './pages/hr/departments/DepartmentDetailPage';
+import DepartmentEmployeeListPage from './pages/hr/departments/DepartmentEmployeeListPage';
 import DepartmentListPage from './pages/hr/departments/DepartmentListPage';
 import PositionListPage from './features/position/pages/PositionListPage';
 import LevelCodeListPage from './features/levelCode/pages/LevelCodeListPage';
@@ -173,6 +175,7 @@ function App() {
             <Route path="employees" element={<EmployeeListPage />} />
             <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
             <Route path="departments" element={<DepartmentListPage />} />
+            <Route path="departments/:departmentId/employees" element={<DepartmentEmployeeListPage />} />
             <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
             <Route path="positions" element={<PositionListPage />} />
             <Route path="level-codes" element={<LevelCodeListPage />} />
@@ -246,6 +249,7 @@ function App() {
           <Route path="/manager" element={<ManagerLayout />}>
             <Route path="dashboard" element={<ManagerDashboardPage />} />
             <Route path="employees" element={<EmployeeListPage />} />
+            <Route path="positions" element={<ManagerPositionsPage />} />
             <Route path="kpis" element={<ManagerKpisPage />} />
             <Route path="kpi-history" element={<KpiHistoryPage />} />
             <Route path="my-kpis" element={<MyKpisPage />} />
@@ -325,7 +329,30 @@ function App() {
             <Route path="dashboard" element={<AuditDashboard />} />
             <Route path="employees" element={<EmployeeListPage />} />
             <Route path="departments" element={<DepartmentListPage />} />
+            <Route path="departments/:departmentId/employees" element={<DepartmentEmployeeListPage />} />
             <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
+            <Route path="level-codes" element={<LevelCodeListPage />} />
+            <Route path="kpi-assigned" element={<KpiAssignedPage />} />
+            <Route path="kpi-history" element={<KpiHistoryPage />} />
+            <Route path="kpi-detail" element={<KpiDetailPage />} />
+            <Route path="department-kpi-detail" element={<DepartmentKpiDetailPage />} />
+            <Route path="position-kpi-detail" element={<PositionKpiDetailPage />} />
+            <Route path="appraisals/history" element={<AppraisalHistoryPage mode="hr" readOnly />} />
+            <Route path="pip-monitoring" element={<PipMonitoringPage />} />
+            <Route path="pip-monitoring/:id" element={<PipDetailPage />} />
+            <Route path="pip-notes" element={<PipNotesReviewPage />} />
+            <Route path="self-assessment/history" element={<SelfAssessmentScoreRecordsPage />} />
+            <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage readOnly />} />
+            <Route path="meetings" element={<MeetingsPage />} />
+            <Route path="meetings/:id" element={<MeetingDetailPage />} />
+            <Route path="360-feedback/history" element={<FeedbackHistoryPage />} />
+            <Route path="reports" element={<HrReportsPage />} />
+            <Route path="reports/feedback" element={<FeedbackReportPage mode="audit" />} />
+            <Route path="reports/appraisal" element={<AppraisalReportsPage />} />
+            <Route path="reports/self-assessment" element={<SelfAssessmentReportPage mode="audit" />} />
+            <Route path="kpi-reports" element={<KpiReportsPage />} />
+            <Route path="performance-reports" element={<PerformanceReportPage basePath="/audit/performance-reports" readOnly />} />
+            <Route path="performance-reports/:employeeId" element={<PerformanceReportDetailPage basePath="/audit/performance-reports" readOnly />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
             <Route path="security-analytics" element={<SecurityAnalytics />} />

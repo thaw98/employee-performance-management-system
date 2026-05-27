@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Eye, UserCheck, Target, X, CheckCircle2, AlertCircle, Users, LayoutGrid, RotateCcw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { kpisGradientBr } from '../../features/kpi/kpisTheme';
+import { useKpiViewContext } from '../../hooks/useKpiViewContext';
 
 type ViewMode = 'employee' | 'position' | 'department';
 
@@ -35,6 +36,7 @@ const primaryActionHover = 'hover:text-[#2463eb] hover:bg-[#eff6ff]';
 
 export const KpiAssignedPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isViewOnly, basePath } = useKpiViewContext();
   const [viewMode, setViewMode] = useState<ViewMode>('employee');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState<number | undefined>(undefined);
@@ -177,19 +179,25 @@ export const KpiAssignedPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Assigned KPI List</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">Overview of KPI assignments and completion status across organization.</p>
+          <p className="text-slate-500 text-sm font-medium mt-1">
+            {isViewOnly
+              ? 'View-only overview of KPI assignments and completion status across the organization.'
+              : 'Overview of KPI assignments and completion status across organization.'}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Period:</span>
           <MonthYearPicker value={periodMonth} onChange={setPeriodMonth} />
-          <button 
-            onClick={handleResetKpis}
-            disabled={isResetting}
-            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black transition-all border border-red-100 uppercase tracking-widest disabled:opacity-50 shadow-sm"
-          >
-            <RotateCcw size={16} className={isResetting ? "animate-spin" : ""} />
-            {isResetting ? "Resetting..." : "Reset Monthly KPIs"}
-          </button>
+          {!isViewOnly && (
+            <button
+              onClick={handleResetKpis}
+              disabled={isResetting}
+              className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black transition-all border border-red-100 uppercase tracking-widest disabled:opacity-50 shadow-sm"
+            >
+              <RotateCcw size={16} className={isResetting ? 'animate-spin' : ''} />
+              {isResetting ? 'Resetting...' : 'Reset Monthly KPIs'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -395,19 +403,21 @@ export const KpiAssignedPage: React.FC = () => {
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => navigate(`/hr/kpi-detail?employeeId=${emp.employeeId}`)}
+                            onClick={() => navigate(`${basePath}/kpi-detail?employeeId=${emp.employeeId}`)}
                             className={`p-2 text-slate-400 rounded-xl transition-all ${primaryActionHover}`}
                             title="View Details"
                           >
                             <Eye size={18} />
                           </button>
-                          <button
-                            onClick={() => navigate(`/hr/kpi-management?employeeId=${emp.employeeId}`)}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                            title="Manage KPIs"
-                          >
-                            <Target size={18} />
-                          </button>
+                          {!isViewOnly && (
+                            <button
+                              onClick={() => navigate(`/hr/kpi-management?employeeId=${emp.employeeId}`)}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                              title="Manage KPIs"
+                            >
+                              <Target size={18} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -429,19 +439,21 @@ export const KpiAssignedPage: React.FC = () => {
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => navigate(`/hr/position-kpi-detail?departmentId=${pos.departmentId}&positionId=${pos.positionId}`)}
+                            onClick={() => navigate(`${basePath}/position-kpi-detail?departmentId=${pos.departmentId}&positionId=${pos.positionId}`)}
                             className={`p-2 text-slate-400 rounded-xl transition-all ${primaryActionHover}`}
                             title="View Position KPI Details"
                           >
                             <Eye size={18} />
                           </button>
-                          <button
-                            onClick={() => navigate(`/hr/kpi-management?departmentId=${pos.departmentId}&positionId=${pos.positionId}&mode=position`)}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                            title="Manage Position KPIs"
-                          >
-                            <Target size={18} />
-                          </button>
+                          {!isViewOnly && (
+                            <button
+                              onClick={() => navigate(`/hr/kpi-management?departmentId=${pos.departmentId}&positionId=${pos.positionId}&mode=position`)}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                              title="Manage Position KPIs"
+                            >
+                              <Target size={18} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -458,19 +470,21 @@ export const KpiAssignedPage: React.FC = () => {
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => navigate(`/hr/department-kpi-detail?departmentId=${dept.departmentId}`)}
+                            onClick={() => navigate(`${basePath}/department-kpi-detail?departmentId=${dept.departmentId}`)}
                             className={`p-2 text-slate-400 rounded-xl transition-all ${primaryActionHover}`}
                             title="View Department KPI Details"
                           >
                             <Eye size={18} />
                           </button>
-                          <button
-                            onClick={() => navigate(`/hr/kpi-management?departmentId=${dept.departmentId}&mode=department`)}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                            title="Manage Department KPIs"
-                          >
-                            <Target size={18} />
-                          </button>
+                          {!isViewOnly && (
+                            <button
+                              onClick={() => navigate(`/hr/kpi-management?departmentId=${dept.departmentId}&mode=department`)}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                              title="Manage Department KPIs"
+                            >
+                              <Target size={18} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
