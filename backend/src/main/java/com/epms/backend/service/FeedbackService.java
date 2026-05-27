@@ -686,29 +686,46 @@ public class FeedbackService {
 
     private FeedbackHistoryDto mapToHistoryDto(Feedback entity) {
         FeedbackHistoryDto dto = new FeedbackHistoryDto();
+        Employee evaluator = entity.getEvaluator();
+        Employee evaluatee = entity.getEvaluatee();
         dto.setId(entity.getId());
         dto.setDate(entity.getCreatedDate());
-        dto.setEvaluatorName(entity.getEvaluator().getEmployeeName());
-        dto.setEvaluateeName(entity.getEvaluatee().getEmployeeName());
-        dto.setEvaluateeStaffNo(entity.getEvaluatee().getEmployeeId());
-        dto.setPosition(entity.getEvaluatee().getPosition().getName());
+        dto.setEvaluatorName(evaluator.getEmployeeName());
+        dto.setEvaluatorPosition(employeePositionName(evaluator));
+        dto.setEvaluatorDepartment(employeeDepartmentName(evaluator));
+        dto.setEvaluateeName(evaluatee.getEmployeeName());
+        dto.setEvaluateeStaffNo(evaluatee.getEmployeeId());
+        dto.setEvaluateePosition(employeePositionName(evaluatee));
+        dto.setEvaluateeDepartment(employeeDepartmentName(evaluatee));
+        dto.setPosition(dto.getEvaluateePosition());
         dto.setRole(entity.getRole());
         dto.setScore(entity.getScore());
         dto.setRemark(entity.getRemark());
         dto.setAnonymous(Boolean.TRUE.equals(entity.getAnonymous()));
         dto.setAdditionalComments(entity.getAdditionalComments());
         dto.setStatus("SUBMITTED");
-        if (entity.getReviewCycle() != null) {
-            dto.setReviewCycleId(entity.getReviewCycle().getId());
-            dto.setReviewCycleName(entity.getReviewCycle().getName());
+        ReviewCycle cycle = entity.getReviewCycle();
+        if (cycle != null) {
+            dto.setReviewCycleId(cycle.getId());
+            dto.setReviewCycleName(cycle.getName());
+            dto.setReviewCycleStartDate(cycle.getStartDate());
         } else {
-            ReviewCycle cycle = resolveCycleForDate(entity.getCreatedDate());
+            cycle = resolveCycleForDate(entity.getCreatedDate());
             if (cycle != null) {
                 dto.setReviewCycleId(cycle.getId());
                 dto.setReviewCycleName(cycle.getName());
+                dto.setReviewCycleStartDate(cycle.getStartDate());
             }
         }
         return dto;
+    }
+
+    private String employeePositionName(Employee employee) {
+        return employee != null && employee.getPosition() != null ? employee.getPosition().getName() : null;
+    }
+
+    private String employeeDepartmentName(Employee employee) {
+        return employee != null && employee.getDepartment() != null ? employee.getDepartment().getName() : null;
     }
 
     private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity) {

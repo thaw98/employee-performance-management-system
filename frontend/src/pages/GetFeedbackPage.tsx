@@ -26,6 +26,13 @@ interface FeedbackItem {
     id: number;
     date: string;
     evaluatorName: string; // We'll assume the backend provides this or we show "Anonymous"
+    evaluatorPosition?: string | null;
+    evaluatorDepartment?: string | null;
+    evaluateeName?: string | null;
+    evaluateeStaffNo?: string | null;
+    evaluateePosition?: string | null;
+    evaluateeDepartment?: string | null;
+    reviewCycleStartDate?: string | null;
     role: string;
     score: number;
     remark: string;
@@ -38,6 +45,19 @@ interface FeedbackDetail {
     rating: number;
     comment: string;
 }
+
+const formatPdfDate = (value?: string | null) => {
+    if (!value) return '-';
+
+    const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+        const [, year, month, day] = dateOnlyMatch;
+        return `${day}/${month}/${year}`;
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('en-GB');
+};
 
 export function GetFeedbackPage() {
     const [received, setReceived] = useState<FeedbackItem[]>([]);
@@ -113,20 +133,60 @@ export function GetFeedbackPage() {
 
     const generatePDF = (item: FeedbackItem) => {
         const doc = new jsPDF();
-        const showEvaluatorName = !item.anonymous && item.evaluatorName?.trim().toLowerCase() !== 'anonymous';
-        let detailsStartY = showEvaluatorName ? 72 : 65;
+        const isAnonymous = Boolean(item.anonymous) || item.evaluatorName?.trim().toLowerCase() === 'anonymous';
+        const evaluatorName = isAnonymous ? 'Anonymous' : item.evaluatorName || '-';
+        const evaluatorPosition = isAnonymous ? '-' : item.evaluatorPosition || '-';
+        const evaluatorDepartment = isAnonymous ? '-' : item.evaluatorDepartment || '-';
         
         doc.setFontSize(20);
         doc.text('360-Degree Feedback Assessment Report', 105, 20, { align: 'center' });
         
+        doc.setFontSize(12);
+        doc.setTextColor(8, 85, 191);
+        doc.text('Evaluatee Information', 14, 35);
+        autoTable(doc, {
+            startY: 39,
+            body: [
+                ['Employee Name', item.evaluateeName || '-', 'Current Position', item.evaluateePosition || '-'],
+                ['Assessment Date', formatPdfDate(item.date), 'Staff ID', item.evaluateeStaffNo || '-'],
+                ['Department', item.evaluateeDepartment || '-', 'Effective Date', formatPdfDate(item.reviewCycleStartDate)],
+            ],
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 3 },
+            columnStyles: {
+                0: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
+                1: { cellWidth: 55 },
+                2: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
+                3: { cellWidth: 55 },
+            },
+        });
+
+        let nextY = (doc as any).lastAutoTable.finalY + 8;
+        doc.setFontSize(12);
+        doc.setTextColor(8, 85, 191);
+        doc.text('Evaluator Information', 14, nextY);
+        autoTable(doc, {
+            startY: nextY + 4,
+            body: [
+                ['Employee Name', evaluatorName, 'Current Position', evaluatorPosition],
+                ['Department', evaluatorDepartment, 'Evaluator Role', item.role || '-'],
+            ],
+            theme: 'grid',
+            styles: { fontSize: 9, cellPadding: 3 },
+            columnStyles: {
+                0: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
+                1: { cellWidth: 55 },
+                2: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
+                3: { cellWidth: 55 },
+            },
+        });
+
+        let detailsStartY = (doc as any).lastAutoTable.finalY + 10;
+        doc.setTextColor(0);
         doc.setFontSize(10);
-        doc.text(`Date: ${new Date(item.date).toLocaleDateString('en-GB')} ${new Date(item.date).toLocaleTimeString('en-US', { hour12: timeFormat === '12h', hour: '2-digit', minute: '2-digit' })}`, 14, 35);
-        doc.text(`Role of Evaluator: ${item.role}`, 14, 42);
-        if (showEvaluatorName) {
-            doc.text(`Evaluator Name: ${item.evaluatorName}`, 14, 49);
-        }
-        doc.text(`Overall Score: ${item.score.toFixed(1)}%`, 14, showEvaluatorName ? 56 : 49);
-        doc.text(`Performance Remark: ${item.remark}`, 14, showEvaluatorName ? 63 : 56);
+        doc.text(`Overall Score: ${item.score.toFixed(1)}%`, 14, detailsStartY);
+        doc.text(`Performance Remark: ${item.remark}`, 14, detailsStartY + 7);
+        detailsStartY += 14;
         if (item.additionalComments?.trim()) {
             doc.text('Additional Comments:', 14, detailsStartY);
             const commentLines = doc.splitTextToSize(item.additionalComments.trim(), 180);

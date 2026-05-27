@@ -23,15 +23,22 @@ import { useGetProfileQuery } from '../features/user/userApi';
 interface HistoryItem {
     id: number;
     date: string;
+    evaluatorName?: string | null;
+    evaluatorPosition?: string | null;
+    evaluatorDepartment?: string | null;
     evaluateeName: string;
     evaluateeStaffNo: string;
+    evaluateePosition?: string | null;
+    evaluateeDepartment?: string | null;
     position: string;
     role: string;
     score: number;
     remark: string;
+    anonymous?: boolean;
     status?: string;
     reviewCycleId?: number;
     reviewCycleName?: string;
+    reviewCycleStartDate?: string | null;
     additionalComments?: string | null;
 }
 
@@ -40,6 +47,19 @@ interface FeedbackDetail {
     rating: number;
     comment: string;
 }
+
+const formatPdfDate = (value?: string | null) => {
+    if (!value) return '-';
+
+    const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+        const [, year, month, day] = dateOnlyMatch;
+        return `${day}/${month}/${year}`;
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('en-GB');
+};
 
 export function FeedbackHistoryPage() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -154,33 +174,68 @@ export function FeedbackHistoryPage() {
             doc.setFont('helvetica', 'normal');
             doc.text(`Reference ID: FB-2026-${id} | Generated: ${new Date().toLocaleString()}`, 105, 28, { align: 'center' });
 
-            // Summary Box
-            doc.setFillColor(248, 250, 252);
-            doc.roundedRect(20, 35, 170, 45, 3, 3, 'F');
-            
-            doc.setFontSize(12);
-            doc.setTextColor(50);
-            doc.setFont('helvetica', 'bold');
-            doc.text('BASIC INFORMATION', 25, 45);
+            const isAnonymous = Boolean(item.anonymous) || item.evaluatorName?.trim().toLowerCase() === 'anonymous';
+            const evaluatorName = isAnonymous ? 'Anonymous' : item.evaluatorName || '-';
+            const evaluatorPosition = isAnonymous ? '-' : item.evaluatorPosition || '-';
+            const evaluatorDepartment = isAnonymous ? '-' : item.evaluatorDepartment || '-';
 
-            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(12);
+            doc.setTextColor(8, 85, 191);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Evaluatee Information', 20, 40);
+            autoTable(doc, {
+                startY: 45,
+                body: [
+                    ['Employee Name', item.evaluateeName || '-', 'Current Position', item.evaluateePosition || item.position || '-'],
+                    ['Assessment Date', formatPdfDate(item.date), 'Staff ID', item.evaluateeStaffNo || '-'],
+                    ['Department', item.evaluateeDepartment || '-', 'Effective Date', formatPdfDate(item.reviewCycleStartDate)],
+                ],
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 4 },
+                columnStyles: {
+                    0: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
+                    1: { cellWidth: 55 },
+                    2: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
+                    3: { cellWidth: 55 },
+                },
+            });
+
+            let nextY = (doc as any).lastAutoTable.finalY + 8;
+            doc.setFontSize(12);
+            doc.setTextColor(8, 85, 191);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Evaluator Information', 20, nextY);
+            autoTable(doc, {
+                startY: nextY + 5,
+                body: [
+                    ['Employee Name', evaluatorName, 'Current Position', evaluatorPosition],
+                    ['Department', evaluatorDepartment, 'Evaluator Role', item.role || '-'],
+                ],
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 4 },
+                columnStyles: {
+                    0: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
+                    1: { cellWidth: 55 },
+                    2: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
+                    3: { cellWidth: 55 },
+                },
+            });
+
+            nextY = (doc as any).lastAutoTable.finalY + 10;
             doc.setFontSize(10);
-            doc.text(`Evaluatee: ${item.evaluateeName}`, 25, 55);
-            doc.text(`Staff No: ${item.evaluateeStaffNo}`, 25, 60);
-            doc.text(`Position: ${item.position}`, 25, 65);
-            
-            doc.text(`Feedback Role: ${item.role}`, 110, 55);
-            doc.text(`Score: ${item.score.toFixed(2)}%`, 110, 60);
-            doc.text(`Category: ${item.remark}`, 110, 65);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(50);
+            doc.text(`Score: ${item.score.toFixed(2)}%`, 20, nextY);
+            doc.text(`Category: ${item.remark}`, 110, nextY);
 
             // Detailed Ratings
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(8, 85, 191);
-            doc.text('DETAILED ASSESSMENT CRITERIA', 20, 95);
+            doc.text('DETAILED ASSESSMENT CRITERIA', 20, nextY + 18);
 
             autoTable(doc, {
-                startY: 100,
+                startY: nextY + 23,
                 head: [['#', 'Assessment Criteria', 'Rating', 'Comments / Observations']],
                 body: details.map((d: any, idx: number) => [
                     idx + 1,
