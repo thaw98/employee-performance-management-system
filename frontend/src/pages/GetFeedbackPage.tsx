@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
 import { 
     Dialog, 
     DialogPanel, 
@@ -161,7 +162,7 @@ export function GetFeedbackPage() {
             },
         });
 
-        let nextY = (doc as any).lastAutoTable.finalY + 8;
+        const nextY = (doc as any).lastAutoTable.finalY + 8;
         doc.setFontSize(12);
         doc.setTextColor(8, 85, 191);
         doc.text('Evaluator Information', 14, nextY);
@@ -182,24 +183,29 @@ export function GetFeedbackPage() {
         });
 
         let detailsStartY = (doc as any).lastAutoTable.finalY + 10;
-        doc.setTextColor(0);
-        doc.setFontSize(10);
-        doc.text(`Overall Score: ${item.score.toFixed(1)}%`, 14, detailsStartY);
-        doc.text(`Performance Remark: ${item.remark}`, 14, detailsStartY + 7);
-        detailsStartY += 14;
-        if (item.additionalComments?.trim()) {
-            doc.text('Additional Comments:', 14, detailsStartY);
-            const commentLines = doc.splitTextToSize(item.additionalComments.trim(), 180);
-            doc.text(commentLines, 14, detailsStartY + 7);
-            detailsStartY += 14 + commentLines.length * 5;
-        }
-        
         autoTable(doc, {
             startY: detailsStartY,
             head: [['Criteria', 'Rating', 'Comments']],
             body: details.map(d => [d.criteriaName, d.rating, d.comment || 'N/A']),
             theme: 'striped',
             headStyles: { fillColor: [8, 85, 191] }
+        });
+
+        detailsStartY = (doc as any).lastAutoTable.finalY + 10;
+        if (item.additionalComments?.trim()) {
+            doc.setTextColor(8, 85, 191);
+            doc.setFontSize(12);
+            doc.text('Additional Comments:', 14, detailsStartY);
+            doc.setTextColor(50);
+            doc.setFontSize(10);
+            const commentLines = doc.splitTextToSize(item.additionalComments.trim(), 180);
+            doc.text(commentLines, 14, detailsStartY + 7);
+            detailsStartY += 14 + commentLines.length * 5;
+        }
+
+        addFeedbackScorePerformanceSection(doc, detailsStartY, {
+            scorePercentage: item.score,
+            remark: item.remark,
         });
         
         doc.save(`Feedback_Report_${item.date}.pdf`);

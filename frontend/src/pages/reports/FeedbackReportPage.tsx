@@ -15,6 +15,7 @@ import {
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { addFeedbackScorePerformanceSection, feedbackPercentageFromAverage } from '../../utils/feedbackScorePdf'
 import { useAppSelector } from '../../app/hooks'
 import { AlertTriangle, ArrowLeft, Award, ChevronLeft, ChevronRight, Download, FileText, Filter, Trophy } from 'lucide-react'
 import {
@@ -1036,6 +1037,15 @@ function EmployeeOwnFeedbackReport() {
         },
       })
       y = (getLastAutoTableFinalY(doc) ?? y) + 8
+      const hasAdditionalComments = getAdditionalComments(report.additionalComments).length > 0
+      if (hasAdditionalComments) {
+        y = addFeedbackScorePerformanceSection(doc, y, {
+          scorePercentage: feedbackPercentageFromAverage(report.totalAverageScore),
+          marginLeft: margin,
+          marginRight: margin,
+          primaryColor: FEEDBACK_REPORT_PRIMARY_RGB,
+        })
+      }
       if (y > pageHeight - 35) {
         doc.addPage()
         y = 14
@@ -1050,6 +1060,15 @@ function EmployeeOwnFeedbackReport() {
         styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
         headStyles: { fillColor: [...FEEDBACK_REPORT_PRIMARY_RGB], textColor: 255 },
       })
+      if (!hasAdditionalComments) {
+        y = (getLastAutoTableFinalY(doc) ?? y) + 8
+        addFeedbackScorePerformanceSection(doc, y, {
+          scorePercentage: feedbackPercentageFromAverage(report.totalAverageScore),
+          marginLeft: margin,
+          marginRight: margin,
+          primaryColor: FEEDBACK_REPORT_PRIMARY_RGB,
+        })
+      }
       addPdfPageNumbers(doc)
       doc.save(`Feedback_Report_Individual_${report.employeeName.replace(/[^a-z0-9]+/gi, '_')}.pdf`)
     } finally {
@@ -1279,6 +1298,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
       individualDetailRows,
       individualEmployeeRows,
       individualRows,
+      selectedEmployee,
       summaryRows,
     }
   }
@@ -1349,7 +1369,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
     setReportDownload(`${section}-pdf`)
     try {
       const exportFilters = section === 'summary' ? { ...filters, criteriaId: undefined, criteriaName: undefined, order: undefined } : filters
-      const { criteriaAverages, departmentLabel, employeeRows, individualRows, summaryRows } = await buildExportWorkbook(exportFilters)
+      const { criteriaAverages, departmentLabel, employeeRows, individualRows, selectedEmployee: selectedEmployeeReport, summaryRows } = await buildExportWorkbook(exportFilters)
       const sectionLabel = section === 'summary' ? 'Summary' : 'Individual'
       const reportTitle = getExportReportTitle(section)
       const doc = new jsPDF('l', 'mm', 'a4')
@@ -1465,6 +1485,15 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
           },
         })
         y = (getLastAutoTableFinalY(doc) ?? y) + 8
+        const hasAdditionalComments = getAdditionalComments(selectedEmployeeReport?.additionalComments).length > 0
+        if (hasAdditionalComments) {
+          y = addFeedbackScorePerformanceSection(doc, y, {
+            scorePercentage: feedbackPercentageFromAverage(selectedEmployeeReport?.totalAverageScore),
+            marginLeft: margin,
+            marginRight: margin,
+            primaryColor: FEEDBACK_REPORT_PRIMARY_RGB,
+          })
+        }
         if (y > pageHeight - 35) {
           doc.addPage()
           y = 14
@@ -1485,6 +1514,15 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
             textColor: 255,
           },
         })
+        if (!hasAdditionalComments) {
+          y = (getLastAutoTableFinalY(doc) ?? y) + 8
+          addFeedbackScorePerformanceSection(doc, y, {
+            scorePercentage: feedbackPercentageFromAverage(selectedEmployeeReport?.totalAverageScore),
+            marginLeft: margin,
+            marginRight: margin,
+            primaryColor: FEEDBACK_REPORT_PRIMARY_RGB,
+          })
+        }
       }
       addPdfPageNumbers(doc)
       doc.save(`Feedback_Report_${sectionLabel}_${departmentLabel.replace(/[^a-z0-9]+/gi, '_')}.pdf`)

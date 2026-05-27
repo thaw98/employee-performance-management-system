@@ -11,6 +11,7 @@ import {
 import { PaginationBar } from '../components/common/PaginationBar';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
 import { 
     Dialog, 
     DialogPanel, 
@@ -221,21 +222,15 @@ export function FeedbackHistoryPage() {
                 },
             });
 
-            nextY = (doc as any).lastAutoTable.finalY + 10;
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(50);
-            doc.text(`Score: ${item.score.toFixed(2)}%`, 20, nextY);
-            doc.text(`Category: ${item.remark}`, 110, nextY);
-
             // Detailed Ratings
+            nextY = (doc as any).lastAutoTable.finalY + 10;
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(8, 85, 191);
-            doc.text('DETAILED ASSESSMENT CRITERIA', 20, nextY + 18);
+            doc.text('DETAILED ASSESSMENT CRITERIA', 20, nextY);
 
             autoTable(doc, {
-                startY: nextY + 23,
+                startY: nextY + 5,
                 head: [['#', 'Assessment Criteria', 'Rating', 'Comments / Observations']],
                 body: details.map((d: any, idx: number) => [
                     idx + 1,
@@ -266,6 +261,12 @@ export function FeedbackHistoryPage() {
                 doc.text(commentLines, 20, finalY + 7);
                 finalY += 15 + commentLines.length * 5;
             }
+            finalY = addFeedbackScorePerformanceSection(doc, finalY, {
+                scorePercentage: item.score,
+                remark: item.remark,
+                marginLeft: 20,
+                marginRight: 20,
+            });
             doc.setFontSize(10);
             doc.setTextColor(150);
             doc.text('This is a system-generated report for the 360-degree feedback system.', 105, finalY, { align: 'center' });
