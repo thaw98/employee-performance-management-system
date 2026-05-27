@@ -91,7 +91,7 @@ const HrLayout: React.FC = () => {
         { label: 'KPI Modeler', path: '/hr/kpi-management', icon: <SlidersHorizontal size={16} /> },
         { label: 'Assigned List', path: '/hr/kpi-assigned', icon: <ListChecks size={16} /> },
         { label: 'History', path: '/hr/kpi-history', icon: <History size={16} /> },
-        { label: 'Audit Logs', path: '/hr/kpi-audit-logs', icon: <ClipboardList size={16} /> },
+        //{ label: 'Audit Logs', path: '/hr/kpi-audit-logs', icon: <ClipboardList size={16} /> },
       ],
     },
     {
@@ -137,7 +137,7 @@ const HrLayout: React.FC = () => {
         { label: 'Review Submissions', path: '/hr/self-assessment/review-queue', icon: <ListChecks size={16} /> },
         { label: 'Unlock Requests', path: '/hr/self-assessment/unlock-requests', icon: <RefreshCcw size={16} /> },
         { label: 'History', path: '/hr/self-assessment/history', icon: <History size={16} /> },
-        { label: 'Audit Logs', path: '/hr/self-assessment/audit-logs', icon: <ClipboardList size={16} /> },
+        //{ label: 'Audit Logs', path: '/hr/self-assessment/audit-logs', icon: <ClipboardList size={16} /> },
       ],
     },
     {

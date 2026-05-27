@@ -356,6 +356,11 @@ function App() {
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
             <Route path="security-analytics" element={<SecurityAnalytics />} />
+            <Route path="profile" element={<UserProfilePage />} />
+            <Route path="settings/profile" element={<Navigate to="/audit/profile" replace />} />
+            <Route path="settings/signature" element={<DefaultSignaturePage />} />
+            <Route path="settings/system" element={<SystemSettingsPage />} />
+            <Route path="faq" element={<FaqPage />} />
             <Route path="*" element={<Navigate to="/audit/dashboard" replace />} />
           </Route>
         </Route>
