@@ -53,6 +53,7 @@ import { AppraisalsPage } from './pages/hr/AppraisalsPage';
 import { GiveFeedbackPage } from './pages/GiveFeedbackPage';
 import { CombinedFeedbackHistoryPage } from './pages/CombinedFeedbackHistoryPage';
 import { GetFeedbackPage } from './pages/GetFeedbackPage';
+import { FeedbackDetailPage } from './pages/FeedbackDetailPage';
 import { KpiManagementPage } from './pages/hr/KpiManagementPage';
 import { KpiAssignedPage } from './pages/hr/KpiAssignedPage';
 import { KpiDetailPage } from './pages/hr/KpiDetailPage';
@@ -185,7 +186,9 @@ function App() {
             <Route path="360-feedback/criteria" element={<CriteriaPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+            <Route path="360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/combined-history" element={<Navigate to="/hr/360-feedback/history" replace />} />
             <Route path="appraisals" element={<AppraisalsPage />} />
             <Route path="appraisals/submissions" element={<AppraisalSubmissionsPage />} />
@@ -261,7 +264,9 @@ function App() {
             <Route path="appraisals/:id/evaluate" element={<ManagerEvaluationPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+            <Route path="360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/combined-history" element={<Navigate to="/manager/360-feedback/history" replace />} />
             <Route path="profile" element={<UserProfilePage />} />
             <Route path="settings/profile" element={<Navigate to="/manager/profile" replace />} />
@@ -302,7 +307,9 @@ function App() {
             <Route path="pip/:id" element={<PipDetailPage />} />
             <Route path="360-feedback/give" element={<GiveFeedbackPage />} />
             <Route path="360-feedback/received" element={<GetFeedbackPage />} />
+            <Route path="360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+            <Route path="360-feedback/history/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="360-feedback/combined-history" element={<Navigate to="/employee/360-feedback/history" replace />} />
             <Route path="profile" element={<UserProfilePage />} />
             <Route path="settings/profile" element={<Navigate to="/employee/profile" replace />} />

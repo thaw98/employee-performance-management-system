@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { Download, Eye, FileText, Printer, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Download, Eye, FileText, Search } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -39,6 +39,19 @@ interface FeedbackDetail {
   criteriaName: string;
   rating: number;
   comment: string;
+}
+
+interface CombinedHistoryListState {
+  page?: number;
+  pageSize?: number;
+  filters?: {
+    direction?: FeedbackDirection;
+    reviewCycleId?: string;
+    feedbackType?: string;
+    fromDate?: string;
+    toDate?: string;
+    peopleSearch?: string;
+  };
 }
 
 const tabs: { label: string; value: FeedbackDirection }[] = [
@@ -89,25 +102,24 @@ const evaluatorDisplay = (item: CombinedHistoryItem) => {
 };
 
 export function CombinedFeedbackHistoryPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const restoredState = (location.state || {}) as CombinedHistoryListState;
   const [history, setHistory] = useState<CombinedHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(restoredState.page ?? 0);
+  const [pageSize, setPageSize] = useState(restoredState.pageSize ?? 10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
   const [reviewCycles, setReviewCycles] = useState<any[]>([]);
   const [filters, setFilters] = useState({
-    direction: 'ALL' as FeedbackDirection,
-    reviewCycleId: '',
-    feedbackType: '',
-    fromDate: '',
-    toDate: '',
-    peopleSearch: '',
+    direction: restoredState.filters?.direction ?? 'ALL' as FeedbackDirection,
+    reviewCycleId: restoredState.filters?.reviewCycleId ?? '',
+    feedbackType: restoredState.filters?.feedbackType ?? '',
+    fromDate: restoredState.filters?.fromDate ?? '',
+    toDate: restoredState.filters?.toDate ?? '',
+    peopleSearch: restoredState.filters?.peopleSearch ?? '',
   });
-  const [selectedFeedback, setSelectedFeedback] = useState<CombinedHistoryItem | null>(null);
-  const [details, setDetails] = useState<FeedbackDetail[]>([]);
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const { data: profileResponse } = useGetProfileQuery();
   const timeFormat = profileResponse?.data?.timeFormat || '12h';
 
@@ -149,18 +161,14 @@ export function CombinedFeedbackHistoryPage() {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  const openDetails = async (item: CombinedHistoryItem) => {
-    setSelectedFeedback(item);
-    setIsModalOpen(true);
-    setLoadingDetails(true);
-    try {
-      const resp = await axios.get(`/feedback/${item.id}/details`);
-      setDetails(resp.data.data || []);
-    } catch (err) {
-      toast.error('Failed to load feedback details');
-    } finally {
-      setLoadingDetails(false);
-    }
+  const viewDetails = (item: CombinedHistoryItem) => {
+    navigate(`${location.pathname.replace(/\/$/, '')}/${item.id}`, {
+      state: {
+        feedback: item,
+        sourcePath: location.pathname,
+        listState: { page, pageSize, filters },
+      },
+    });
   };
 
   const getRemarkColor = (remark?: string | null) => {
@@ -258,8 +266,6 @@ export function CombinedFeedbackHistoryPage() {
     }
   };
 
-  const selectedEvaluator = useMemo(() => selectedFeedback ? evaluatorDisplay(selectedFeedback) : null, [selectedFeedback]);
-
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -338,7 +344,7 @@ export function CombinedFeedbackHistoryPage() {
                     <td className="p-5"><div className="text-xs font-black text-slate-600">{item.reviewCycleName || 'N/A'}</div></td>
                     <td className="p-5 text-center"><div className="text-base font-black text-blue-600">{scoreText(item.score)}</div></td>
                     <td className="p-5 text-center"><span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase border ${getRemarkColor(item.remark)}`}>{item.remark || '-'}</span></td>
-                    <td className="p-5 text-right"><div className="flex items-center justify-end gap-2"><button onClick={() => generatePDF(item)} className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center" title="Download PDF Report"><Download size={18} /></button><button onClick={() => openDetails(item)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-white hover:text-slate-900 transition-all flex items-center justify-center border border-transparent hover:border-slate-200" title="View details"><Eye size={18} /></button></div></td>
+                    <td className="p-5 text-right"><div className="flex items-center justify-end gap-2"><button onClick={() => generatePDF(item)} className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center" title="Download PDF Report"><Download size={18} /></button><button onClick={() => viewDetails(item)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-white hover:text-slate-900 transition-all flex items-center justify-center border border-transparent hover:border-slate-200" title="View details"><Eye size={18} /></button></div></td>
                   </tr>
                 );
               })}
@@ -350,42 +356,6 @@ export function CombinedFeedbackHistoryPage() {
         )}
       </div>
 
-      <Transition show={isModalOpen} as={React.Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={() => setIsModalOpen(false)}>
-          <TransitionChild as={React.Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0"><div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" /></TransitionChild>
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4">
-              <TransitionChild as={React.Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                <DialogPanel className="w-full max-w-4xl transform overflow-hidden rounded-[32px] bg-white p-10 shadow-2xl transition-all border border-slate-100">
-                  <div className="flex items-center justify-between mb-8 gap-4">
-                    <div className="space-y-1">
-                      <DialogTitle className="text-2xl font-black text-slate-800 uppercase tracking-tight">Feedback Details</DialogTitle>
-                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{selectedFeedback?.direction === 'RECEIVED' ? 'Received from' : 'Given by'}: <span className="text-blue-600">{selectedEvaluator?.name}</span></p>
-                    </div>
-                    <div className={`px-5 py-2 rounded-2xl border-2 font-black uppercase text-xs tracking-widest ${getRemarkColor(selectedFeedback?.remark)}`}>{selectedFeedback?.remark} | {scoreText(selectedFeedback?.score)}</div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100"><h4 className="font-black text-slate-800 mb-2">Evaluator</h4><p className="font-bold text-slate-700">{selectedEvaluator?.name || '-'}</p><p className="text-xs font-bold text-slate-500">{selectedEvaluator?.position || '-'}</p><p className="text-xs font-bold text-slate-400">{selectedEvaluator?.department || ''}</p></div>
-                    <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100"><h4 className="font-black text-slate-800 mb-2">Evaluatee</h4><p className="font-bold text-slate-700">{selectedFeedback?.evaluateeName || '-'}</p><p className="text-xs font-bold text-slate-500">{selectedFeedback?.evaluateePosition || selectedFeedback?.position || '-'}</p><p className="text-xs font-bold text-slate-400">{selectedFeedback?.evaluateeDepartment || ''}</p></div>
-                  </div>
-                  <div className="space-y-6 max-h-[50vh] overflow-y-auto pr-4">
-                    {loadingDetails ? <div className="p-20 text-center"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" /></div> : (
-                      <>
-                        {details.map((detail, index) => <div key={`${detail.criteriaName}-${index}`} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4"><div className="flex items-center justify-between"><h5 className="font-black text-slate-800">{detail.criteriaName}</h5><span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg">{detail.rating}</span></div><div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium">{detail.comment || 'No comments provided for this criteria.'}</div></div>)}
-                        <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3"><h5 className="font-black text-slate-800">Additional Comments</h5><div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium whitespace-pre-wrap">{selectedFeedback?.additionalComments?.trim() || 'No additional comments provided.'}</div></div>
-                      </>
-                    )}
-                  </div>
-                  <div className="mt-10 pt-8 border-t border-slate-100 flex justify-end gap-3">
-                    <button onClick={() => setIsModalOpen(false)} className="px-8 py-3 rounded-xl text-xs font-black text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all">CLOSE</button>
-                    <button onClick={() => selectedFeedback && generatePDF(selectedFeedback)} className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 transition-all"><Printer size={16} /> PRINT REPORT</button>
-                  </div>
-                </DialogPanel>
-              </TransitionChild>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
     </div>
   );
 }

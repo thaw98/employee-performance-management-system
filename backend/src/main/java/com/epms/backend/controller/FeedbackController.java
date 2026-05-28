@@ -7,6 +7,7 @@ import com.epms.backend.dto.FeedbackAuditHistoryFilter;
 import com.epms.backend.dto.FeedbackAuditSummaryPageDto;
 import com.epms.backend.dto.FeedbackHistoryFilter;
 import com.epms.backend.dto.FeedbackHistoryDto;
+import com.epms.backend.dto.FeedbackDetailPageDto;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.Department;
@@ -287,6 +288,19 @@ public class FeedbackController {
             return ResponseEntity.ok(new ApiResponse<>(true, "Details fetched", feedbackService.getFeedbackDetails(id)));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(new ApiResponse<>(false, "Details Error: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/{id}/detail-page")
+    public ResponseEntity<ApiResponse<FeedbackDetailPageDto>> getDetailPage(@PathVariable Long id) {
+        try {
+            User user = getCurrentUser();
+            FeedbackDetailPageDto details = feedbackService.getFeedbackDetailPage(id, user.getEmployee().getId());
+            return ResponseEntity.ok(new ApiResponse<>(true, "Feedback detail page fetched", details));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(new ApiResponse<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Detail Page Error: " + e.getMessage(), null));
         }
     }
 

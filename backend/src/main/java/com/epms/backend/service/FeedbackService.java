@@ -11,6 +11,7 @@ import com.epms.backend.dto.FeedbackAuditSummaryRowDto;
 import com.epms.backend.dto.FeedbackAuditTotalsDto;
 import com.epms.backend.dto.FeedbackHistoryFilter;
 import com.epms.backend.dto.FeedbackHistoryDto;
+import com.epms.backend.dto.FeedbackDetailPageDto;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
@@ -849,6 +850,51 @@ public class FeedbackService {
         Feedback feedback = feedbackRepository.findById(feedbackId)
                 .orElseThrow(() -> new RuntimeException("Feedback not found"));
 
+        return mapFeedbackDetails(feedback);
+    }
+
+    @Transactional(readOnly = true)
+    public FeedbackDetailPageDto getFeedbackDetailPage(Long feedbackId, Long currentEmployeeId) {
+        Feedback feedback = feedbackRepository.findById(feedbackId)
+                .orElseThrow(() -> new RuntimeException("Feedback not found"));
+
+        boolean given = feedback.getEvaluator() != null && currentEmployeeId.equals(feedback.getEvaluator().getId());
+        boolean received = feedback.getEvaluatee() != null && currentEmployeeId.equals(feedback.getEvaluatee().getId());
+        if (!given && !received) {
+            throw new SecurityException("Access denied");
+        }
+
+        FeedbackHistoryDto summary = received && !given
+                ? mapToReceivedHistoryDto(feedback, "RECEIVED", true)
+                : mapToHistoryDto(feedback, "GIVEN");
+
+        FeedbackDetailPageDto dto = new FeedbackDetailPageDto();
+        dto.setId(summary.getId());
+        dto.setDate(summary.getDate());
+        dto.setDirection(summary.getDirection());
+        dto.setEvaluatorName(summary.getEvaluatorName());
+        dto.setEvaluatorStaffNo(summary.getEvaluatorStaffNo());
+        dto.setEvaluatorPosition(summary.getEvaluatorPosition());
+        dto.setEvaluatorDepartment(summary.getEvaluatorDepartment());
+        dto.setEvaluateeName(summary.getEvaluateeName());
+        dto.setEvaluateeStaffNo(summary.getEvaluateeStaffNo());
+        dto.setEvaluateePosition(summary.getEvaluateePosition());
+        dto.setEvaluateeDepartment(summary.getEvaluateeDepartment());
+        dto.setPosition(summary.getPosition());
+        dto.setRole(summary.getRole());
+        dto.setScore(summary.getScore());
+        dto.setRemark(summary.getRemark());
+        dto.setAnonymous(summary.getAnonymous());
+        dto.setAdditionalComments(summary.getAdditionalComments());
+        dto.setStatus(summary.getStatus());
+        dto.setReviewCycleId(summary.getReviewCycleId());
+        dto.setReviewCycleName(summary.getReviewCycleName());
+        dto.setReviewCycleStartDate(summary.getReviewCycleStartDate());
+        dto.setDetails(mapFeedbackDetails(feedback));
+        return dto;
+    }
+
+    private List<com.epms.backend.dto.FeedbackDetailDto> mapFeedbackDetails(Feedback feedback) {
         return feedback.getDetails().stream().map(d -> {
             com.epms.backend.dto.FeedbackDetailDto dto = new com.epms.backend.dto.FeedbackDetailDto();
             dto.setCriteriaName(d.getCriteria().getName());

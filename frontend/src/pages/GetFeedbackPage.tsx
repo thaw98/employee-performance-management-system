@@ -1,33 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
-import { 
-    Search, 
-    Eye, 
-    ChevronLeft, 
-    ChevronRight,
-    Calendar,
-    User,
-    Printer,
-    Inbox
-} from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
-import { addPdfProfessionalHeader, addPdfProfessionalFooter, addPdfSectionHeader, addPdfInfoTable } from '../utils/pdfBranding';
-import { 
-    Dialog, 
-    DialogPanel, 
-    DialogTitle, 
-    Transition, 
-    TransitionChild 
-} from '@headlessui/react';
+import { Calendar, ChevronLeft, ChevronRight, Eye, Inbox, Search, User } from 'lucide-react';
 import { useGetProfileQuery } from '../features/user/userApi';
 
 interface FeedbackItem {
     id: number;
     date: string;
-    evaluatorName: string; // We'll assume the backend provides this or we show "Anonymous"
+    evaluatorName: string;
     evaluatorPosition?: string | null;
     evaluatorDepartment?: string | null;
     evaluateeName?: string | null;
@@ -42,54 +23,30 @@ interface FeedbackItem {
     additionalComments?: string | null;
 }
 
-interface FeedbackDetail {
-    criteriaName: string;
-    rating: number;
-    comment: string;
+interface ReceivedListState {
+    page?: number;
+    searchTerm?: string;
 }
 
-const formatPdfDate = (value?: string | null) => {
-    if (!value) return '-';
-
-    const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (dateOnlyMatch) {
-        const [, year, month, day] = dateOnlyMatch;
-        return `${day}/${month}/${year}`;
-    }
-
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('en-GB');
-};
-
 export function GetFeedbackPage() {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const restoredState = (location.state || {}) as ReceivedListState;
     const [received, setReceived] = useState<FeedbackItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(0);
+    const [page, setPage] = useState(restoredState.page ?? 0);
     const [totalPages, setTotalPages] = useState(0);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState(restoredState.searchTerm ?? '');
     const { data: profileResponse } = useGetProfileQuery();
     const timeFormat = profileResponse?.data?.timeFormat || '12h';
 
-    // Modal state
-    const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
-    const [details, setDetails] = useState<FeedbackDetail[]>([]);
-    const [loadingDetails, setLoadingDetails] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const getPageItems = (): (number | 'ellipsis')[] => {
         if (totalPages <= 7) {
             return Array.from({ length: totalPages }, (_, index) => index);
         }
 
-        const candidatePages = new Set<number>([
-            0, 1, 2,
-            totalPages - 3, totalPages - 2, totalPages - 1,
-            page - 1, page, page + 1,
-        ]);
-
-        const normalizedPages = [...candidatePages]
-            .filter((value) => value >= 0 && value < totalPages)
-            .sort((left, right) => left - right);
-
+        const candidatePages = new Set<number>([0, 1, 2, totalPages - 3, totalPages - 2, totalPages - 1, page - 1, page, page + 1]);
+        const normalizedPages = [...candidatePages].filter((value) => value >= 0 && value < totalPages).sort((left, right) => left - right);
         const items: (number | 'ellipsis')[] = [];
         let previous: number | null = null;
         for (const pageNumber of normalizedPages) {
@@ -119,98 +76,14 @@ export function GetFeedbackPage() {
         }
     };
 
-    const openDetails = async (item: FeedbackItem) => {
-        setSelectedFeedback(item);
-        setIsModalOpen(true);
-        setLoadingDetails(true);
-        try {
-            const resp = await axios.get(`/feedback/${item.id}/details`);
-            setDetails(resp.data.data);
-        } catch (err) {
-            toast.error('Failed to load feedback details');
-        } finally {
-            setLoadingDetails(false);
-        }
-    };
-
-    const generatePDF = (item: FeedbackItem) => {
-        const doc = new jsPDF();
-        const margin = 14;
-        const isAnonymous = Boolean(item.anonymous) || item.evaluatorName?.trim().toLowerCase() === 'anonymous';
-        const evaluatorName = isAnonymous ? 'Anonymous' : item.evaluatorName || '-';
-        const evaluatorPosition = isAnonymous ? '-' : item.evaluatorPosition || '-';
-        const evaluatorDepartment = isAnonymous ? '-' : item.evaluatorDepartment || '-';
-
-        const genDateTime = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-        addPdfProfessionalHeader(doc, '360° Feedback Assessment Report', `Generated: ${genDateTime}`, { margin });
-
-        let currentY = 42;
-        currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });
-        currentY = addPdfInfoTable(doc, currentY + 2, [
-            ['Employee Name', item.evaluateeName || '-', 'Current Position', item.evaluateePosition || '-'],
-            ['Assessment Date', formatPdfDate(item.date), 'Staff ID', item.evaluateeStaffNo || '-'],
-            ['Department', item.evaluateeDepartment || '-', 'Effective Date', formatPdfDate(item.reviewCycleStartDate)],
-        ], { marginLeft: margin, marginRight: margin }) + 8;
-
-        currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
-        currentY = addPdfInfoTable(doc, currentY + 2, [
-            ['Employee Name', evaluatorName, 'Current Position', evaluatorPosition],
-            ['Department', evaluatorDepartment, 'Evaluator Role', item.role || '-'],
-        ], { marginLeft: margin, marginRight: margin }) + 10;
-
-        currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluation Result', { width: 182 });
-        autoTable(doc, {
-            startY: currentY + 4,
-            head: [['#', 'Criteria', 'Rating', 'Comments']],
-            body: details.map((d, i) => [i + 1, d.criteriaName, d.rating, d.comment || '-']),
-            theme: 'grid',
-            margin: { left: margin, right: margin },
-            styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
-            headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-            columnStyles: {
-                0: { cellWidth: 10, halign: 'center' },
-                2: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
+    const viewDetails = (item: FeedbackItem) => {
+        navigate(`${location.pathname.replace(/\/$/, '')}/${item.id}`, {
+            state: {
+                feedback: { ...item, direction: 'RECEIVED' },
+                sourcePath: location.pathname,
+                listState: { page, searchTerm },
             },
-            alternateRowStyles: { fillColor: [249, 250, 251] },
         });
-        currentY = (doc as any).lastAutoTable.finalY + 10;
-
-        if (item.additionalComments?.trim()) {
-            const commentLines = doc.splitTextToSize(item.additionalComments.trim(), 170);
-            const commentBoxHeight = Math.max(20, 8 + commentLines.length * 4.5);
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const footerReserved = 20;
-            
-            if (currentY + 12 + commentBoxHeight > pageHeight - footerReserved) {
-                doc.addPage();
-                currentY = 20;
-            }
-            
-            currentY = addPdfSectionHeader(doc, margin, currentY, 'Additional Comments', { width: 182 });
-            doc.setDrawColor(226, 232, 240);
-            doc.setFillColor(248, 250, 252);
-            doc.roundedRect(margin, currentY + 2, 182, commentBoxHeight, 3, 3, 'FD');
-            doc.setFont('helvetica', 'italic');
-            doc.setFontSize(9);
-            doc.setTextColor(71, 85, 105);
-            doc.text(commentLines, margin + 6, currentY + 10);
-            currentY += commentBoxHeight + 8;
-        }
-
-        currentY = addFeedbackScorePerformanceSection(doc, currentY, {
-            scorePercentage: item.score,
-            remark: item.remark,
-            marginLeft: margin,
-            marginRight: margin,
-        });
-
-        const pageCount = doc.getNumberOfPages();
-        for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
-            doc.setPage(pageNumber);
-            addPdfProfessionalFooter(doc, pageNumber, pageCount, { margin });
-        }
-
-        doc.save(`Feedback_Report_${item.id}.pdf`);
     };
 
     const getRemarkColor = (remark: string) => {
@@ -224,7 +97,7 @@ export function GetFeedbackPage() {
         }
     };
 
-    const filteredItems = received.filter(item => 
+    const filteredItems = received.filter(item =>
         item.remark.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.evaluatorName.toLowerCase().startsWith(searchTerm.toLowerCase().charAt(0))
@@ -232,7 +105,6 @@ export function GetFeedbackPage() {
 
     return (
         <div className="max-w-7xl mx-auto p-4 space-y-8 animate-in fade-in duration-500">
-            {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="space-y-1">
                     <h1 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Received Feedback</h1>
@@ -244,8 +116,8 @@ export function GetFeedbackPage() {
                 <div className="flex items-center gap-4">
                     <div className="relative group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             placeholder="Search by remark or role..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -255,7 +127,6 @@ export function GetFeedbackPage() {
                 </div>
             </div>
 
-            {/* Table Section */}
             <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
@@ -289,53 +160,30 @@ export function GetFeedbackPage() {
                                 <tr key={item.id} className="group hover:bg-blue-50/30 transition-colors">
                                     <td className="p-6">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
-                                                <Calendar size={18} />
-                                            </div>
+                                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400"><Calendar size={18} /></div>
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-slate-700">{new Date(item.date).toLocaleDateString('en-GB')}</span>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase">
-                                                    {new Date(item.date).toLocaleTimeString('en-US', { 
-                                                        hour12: timeFormat === '12h', 
-                                                        hour: '2-digit', 
-                                                        minute: '2-digit' 
-                                                    })}
-                                                </span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase">{new Date(item.date).toLocaleTimeString('en-US', { hour12: timeFormat === '12h', hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="p-6">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
-                                                <User size={18} />
-                                            </div>
+                                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400"><User size={18} /></div>
                                             <span className="font-bold text-slate-700">{item.evaluatorName}</span>
                                         </div>
                                     </td>
-                                    <td className="p-6">
-                                        <span className="px-3 py-1 rounded-lg bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tight">
-                                            {item.role}
-                                        </span>
-                                    </td>
+                                    <td className="p-6"><span className="px-3 py-1 rounded-lg bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tight">{item.role}</span></td>
                                     <td className="p-6">
                                         <div className="flex flex-col items-center">
                                             <span className="text-lg font-black text-slate-800">{item.score.toFixed(1)}%</span>
-                                            <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
-                                                <div className="h-full bg-blue-500" style={{ width: `${item.score}%` }} />
-                                            </div>
+                                            <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${item.score}%` }} /></div>
                                         </div>
                                     </td>
-                                    <td className="p-6">
-                                        <span className={`px-4 py-2 rounded-xl border-2 text-xs font-black uppercase tracking-tight ${getRemarkColor(item.remark)}`}>
-                                            {item.remark}
-                                        </span>
-                                    </td>
+                                    <td className="p-6"><span className={`px-4 py-2 rounded-xl border-2 text-xs font-black uppercase tracking-tight ${getRemarkColor(item.remark)}`}>{item.remark}</span></td>
                                     <td className="p-6 text-right">
                                         <div className="flex items-center justify-end gap-2">
-                                            <button 
-                                                onClick={() => openDetails(item)}
-                                                className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-white hover:text-slate-900 transition-all flex items-center justify-center border border-transparent hover:border-slate-200"
-                                            >
+                                            <button onClick={() => viewDetails(item)} className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-white hover:text-slate-900 transition-all flex items-center justify-center border border-transparent hover:border-slate-200" title="View details">
                                                 <Eye size={18} />
                                             </button>
                                         </div>
@@ -347,135 +195,21 @@ export function GetFeedbackPage() {
                 </table>
             </div>
 
-            {/* Detailed View Modal */}
-            <Transition show={isModalOpen} as={React.Fragment}>
-                <Dialog as="div" className="relative z-50" onClose={() => setIsModalOpen(false)}>
-                    <TransitionChild
-                        as={React.Fragment}
-                        enter="ease-out duration-300"
-                        enterFrom="opacity-0"
-                        enterTo="opacity-100"
-                        leave="ease-in duration-200"
-                        leaveFrom="opacity-100"
-                        leaveTo="opacity-0"
-                    >
-                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" />
-                    </TransitionChild>
-
-                    <div className="fixed inset-0 overflow-y-auto">
-                        <div className="flex min-h-full items-center justify-center p-4">
-                            <TransitionChild
-                                as={React.Fragment}
-                                enter="ease-out duration-300"
-                                enterFrom="opacity-0 scale-95"
-                                enterTo="opacity-100 scale-100"
-                                leave="ease-in duration-200"
-                                leaveFrom="opacity-100 scale-100"
-                                leaveTo="opacity-0 scale-95"
-                            >
-                                <DialogPanel className="w-full max-w-4xl transform overflow-hidden rounded-[32px] bg-white p-10 shadow-2xl transition-all border border-slate-100">
-                                    <div className="flex items-center justify-between mb-8">
-                                        <div className="space-y-1">
-                                            <DialogTitle className="text-2xl font-black text-slate-800 uppercase tracking-tight">
-                                                Received Feedback Details
-                                            </DialogTitle>
-                                            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                                                Role of Evaluator: <span className="text-blue-600">{selectedFeedback?.role}</span>
-                                            </p>
-                                        </div>
-                                        <div className={`px-5 py-2 rounded-2xl border-2 font-black uppercase text-xs tracking-widest ${getRemarkColor(selectedFeedback?.remark || '')}`}>
-                                            {selectedFeedback?.remark} • {selectedFeedback?.score.toFixed(1)}%
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
-                                        {loadingDetails ? (
-                                            <div className="p-20 text-center space-y-4">
-                                                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-                                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Fetching details...</p>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                {details.map((d, i) => (
-                                                    <div key={i} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4">
-                                                        <div className="flex items-center justify-between">
-                                                            <h5 className="font-black text-slate-800">{d.criteriaName}</h5>
-                                                            <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-blue-100">
-                                                                {d.rating}
-                                                            </span>
-                                                        </div>
-                                                        <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed">
-                                                            {d.comment || (
-                                                                <span className="text-slate-300 italic">No comments provided.</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
-                                                    <h5 className="font-black text-slate-800">Additional Comments</h5>
-                                                    <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
-                                                        {selectedFeedback?.additionalComments?.trim() || (
-                                                            <span className="text-slate-300 italic">No additional comments provided.</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    <div className="mt-10 pt-8 border-t border-slate-100 flex justify-end gap-3">
-                                        <button
-                                            onClick={() => setIsModalOpen(false)}
-                                            className="px-8 py-3 rounded-xl text-xs font-black text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all"
-                                        >
-                                            CLOSE
-                                        </button>
-                                        <button
-                                            onClick={() => selectedFeedback && generatePDF(selectedFeedback)}
-                                            className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-                                        >
-                                            <Printer size={16} /> PRINT REPORT
-                                        </button>
-                                    </div>
-                                </DialogPanel>
-                            </TransitionChild>
-                        </div>
-                    </div>
-                </Dialog>
-            </Transition>
-
-            {/* Pagination Controls */}
             {totalPages > 1 && (
                 <div className="flex items-center justify-center gap-3 pt-4 flex-wrap">
-                    <button 
-                        onClick={() => setPage(prev => Math.max(0, prev - 1))}
-                        disabled={page === 0}
-                        className="bg-white p-3 rounded-xl border border-slate-100 text-slate-400 hover:text-blue-600 hover:border-blue-100 disabled:opacity-0 transition-all"
-                    >
+                    <button onClick={() => setPage(prev => Math.max(0, prev - 1))} disabled={page === 0} className="bg-white p-3 rounded-xl border border-slate-100 text-slate-400 hover:text-blue-600 hover:border-blue-100 disabled:opacity-0 transition-all">
                         <ChevronLeft size={20} />
                     </button>
                     {getPageItems().map((item, index) =>
                         item === 'ellipsis' ? (
                             <span key={`ellipsis-${index}`} className="px-1 text-slate-400 text-sm select-none">...</span>
                         ) : (
-                            <button
-                                key={item}
-                                onClick={() => setPage(item)}
-                                className={`min-w-[42px] h-10 px-3 rounded-xl text-sm font-black border transition-all ${
-                                    item === page
-                                        ? 'bg-blue-600 border-blue-600 text-white'
-                                        : 'bg-white border-slate-100 text-slate-500 hover:text-blue-600 hover:border-blue-100'
-                                }`}
-                            >
+                            <button key={item} onClick={() => setPage(item)} className={`min-w-[42px] h-10 px-3 rounded-xl text-sm font-black border transition-all ${item === page ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-100 text-slate-500 hover:text-blue-600 hover:border-blue-100'}`}>
                                 {item + 1}
                             </button>
                         )
                     )}
-                    <button 
-                        onClick={() => setPage(prev => Math.min(totalPages - 1, prev + 1))}
-                        disabled={page === totalPages - 1}
-                        className="bg-white p-3 rounded-xl border border-slate-100 text-slate-400 hover:text-blue-600 hover:border-blue-100 disabled:opacity-0 transition-all"
-                    >
+                    <button onClick={() => setPage(prev => Math.min(totalPages - 1, prev + 1))} disabled={page === totalPages - 1} className="bg-white p-3 rounded-xl border border-slate-100 text-slate-400 hover:text-blue-600 hover:border-blue-100 disabled:opacity-0 transition-all">
                         <ChevronRight size={20} />
                     </button>
                 </div>

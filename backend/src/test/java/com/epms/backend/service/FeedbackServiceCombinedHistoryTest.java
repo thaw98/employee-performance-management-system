@@ -1,12 +1,15 @@
 package com.epms.backend.service;
 
 import com.epms.backend.dto.FeedbackHistoryDto;
+import com.epms.backend.dto.FeedbackDetailPageDto;
 import com.epms.backend.dto.FeedbackAuditEvaluateeHistoryDto;
 import com.epms.backend.dto.FeedbackAuditHistoryFilter;
 import com.epms.backend.dto.FeedbackAuditSummaryPageDto;
+import com.epms.backend.entity.Criteria;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.Feedback;
+import com.epms.backend.entity.FeedbackDetail;
 import com.epms.backend.entity.Position;
 import com.epms.backend.repository.CriteriaRepository;
 import com.epms.backend.repository.EmployeeRepository;
@@ -25,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -148,6 +152,62 @@ class FeedbackServiceCombinedHistoryTest {
         assertThat(row.getAnonymous()).isTrue();
     }
 
+    @Test
+    void detailPageAllowsFeedbackEvaluatorAndIncludesDetails() {
+        FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
+        FeedbackService service = newService(feedbackRepository, mock(EmployeeRepository.class));
+        Employee evaluator = employee(10L, "E010", "Evaluator", "Engineer", "Product");
+        Employee evaluatee = employee(20L, "E020", "Evaluatee", "Analyst", "Product");
+        Feedback feedback = feedback(1L, evaluator, evaluatee, "PEER", false);
+        feedback.setDetails(List.of(detail(feedback, "Communication", 5, "Clear")));
+        when(feedbackRepository.findById(1L)).thenReturn(Optional.of(feedback));
+
+        FeedbackDetailPageDto result = service.getFeedbackDetailPage(1L, 10L);
+
+        assertThat(result.getDirection()).isEqualTo("GIVEN");
+        assertThat(result.getEvaluatorName()).isEqualTo("Evaluator");
+        assertThat(result.getEvaluateeName()).isEqualTo("Evaluatee");
+        assertThat(result.getDetails()).hasSize(1);
+        assertThat(result.getDetails().get(0).getCriteriaName()).isEqualTo("Communication");
+    }
+
+    @Test
+    void detailPageAllowsFeedbackRecipientAndMasksAnonymousEvaluator() {
+        FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
+        FeedbackService service = newService(feedbackRepository, mock(EmployeeRepository.class));
+        Employee evaluator = employee(10L, "E010", "Evaluator", "Engineer", "Product");
+        Employee evaluatee = employee(20L, "E020", "Evaluatee", "Analyst", "Product");
+        Feedback feedback = feedback(1L, evaluator, evaluatee, "MANAGER", true);
+        feedback.setDetails(List.of(detail(feedback, "Leadership", 4, "Helpful")));
+        when(feedbackRepository.findById(1L)).thenReturn(Optional.of(feedback));
+
+        FeedbackDetailPageDto result = service.getFeedbackDetailPage(1L, 20L);
+
+        assertThat(result.getDirection()).isEqualTo("RECEIVED");
+        assertThat(result.getEvaluatorName()).isEqualTo("Anonymous");
+        assertThat(result.getEvaluatorStaffNo()).isNull();
+        assertThat(result.getEvaluatorPosition()).isNull();
+        assertThat(result.getEvaluatorDepartment()).isNull();
+        assertThat(result.getDetails()).hasSize(1);
+    }
+
+    @Test
+    void detailPageRejectsUnrelatedEmployee() {
+        FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
+        FeedbackService service = newService(feedbackRepository, mock(EmployeeRepository.class));
+        Feedback feedback = feedback(1L,
+                employee(10L, "E010", "Evaluator", "Engineer", "Product"),
+                employee(20L, "E020", "Evaluatee", "Analyst", "Product"),
+                "PEER",
+                false);
+        feedback.setDetails(List.of());
+        when(feedbackRepository.findById(1L)).thenReturn(Optional.of(feedback));
+
+        assertThatThrownBy(() -> service.getFeedbackDetailPage(1L, 30L))
+                .isInstanceOf(SecurityException.class)
+                .hasMessage("Access denied");
+    }
+
     private static Feedback feedback(Long id, Employee evaluator, Employee evaluatee, String role, boolean anonymous) {
         Feedback feedback = new Feedback();
         feedback.setId(id);
@@ -159,6 +219,32 @@ class FeedbackServiceCombinedHistoryTest {
         feedback.setScore(82.0);
         feedback.setRemark("Good");
         return feedback;
+    }
+
+    private static FeedbackDetail detail(Feedback feedback, String criteriaName, int rating, String comment) {
+        Criteria criteria = new Criteria();
+        criteria.setName(criteriaName);
+        FeedbackDetail detail = new FeedbackDetail();
+        detail.setFeedback(feedback);
+        detail.setCriteria(criteria);
+        detail.setRating(rating);
+        detail.setComment(comment);
+        return detail;
+    }
+
+    private static FeedbackService newService(FeedbackRepository feedbackRepository, EmployeeRepository employeeRepository) {
+        return new FeedbackService(
+                feedbackRepository,
+                mock(FeedbackDraftRepository.class),
+                employeeRepository,
+                mock(ReportingManagerResolver.class),
+                mock(CriteriaRepository.class),
+                mock(UserRepository.class),
+                mock(NotificationService.class),
+                mock(TimeSettingService.class),
+                mock(ReviewCycleService.class),
+                mock(ReviewCycleRepository.class),
+                mock(AuditService.class));
     }
 
     private static Employee employee(Long id, String staffNo, String name, String positionName, String departmentName) {
