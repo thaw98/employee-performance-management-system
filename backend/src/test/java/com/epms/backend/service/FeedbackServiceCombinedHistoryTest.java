@@ -1,6 +1,9 @@
 package com.epms.backend.service;
 
 import com.epms.backend.dto.FeedbackHistoryDto;
+import com.epms.backend.dto.FeedbackAuditEvaluateeHistoryDto;
+import com.epms.backend.dto.FeedbackAuditHistoryFilter;
+import com.epms.backend.dto.FeedbackAuditSummaryPageDto;
 import com.epms.backend.entity.Department;
 import com.epms.backend.entity.Employee;
 import com.epms.backend.entity.Feedback;
@@ -19,6 +22,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -71,6 +75,77 @@ class FeedbackServiceCombinedHistoryTest {
         assertThat(received.getEvaluatorStaffNo()).isNull();
         assertThat(received.getEvaluatorPosition()).isNull();
         assertThat(received.getEvaluatorDepartment()).isNull();
+    }
+
+    @Test
+    void auditSummaryGroupsEvaluateesAndCalculatesTotals() {
+        FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
+        FeedbackService service = new FeedbackService(
+                feedbackRepository,
+                mock(FeedbackDraftRepository.class),
+                mock(EmployeeRepository.class),
+                mock(ReportingManagerResolver.class),
+                mock(CriteriaRepository.class),
+                mock(UserRepository.class),
+                mock(NotificationService.class),
+                mock(TimeSettingService.class),
+                mock(ReviewCycleService.class),
+                mock(ReviewCycleRepository.class),
+                mock(AuditService.class));
+
+        Employee evaluatorOne = employee(10L, "E010", "Evaluator One", "Engineer", "Product");
+        Employee evaluatorTwo = employee(11L, "E011", "Evaluator Two", "Analyst", "Product");
+        Employee evaluatee = employee(20L, "E020", "Evaluatee User", "Lead", "Product");
+        Feedback anonymous = feedback(1L, evaluatorOne, evaluatee, "PEER", true);
+        anonymous.setScore(80.0);
+        Feedback named = feedback(2L, evaluatorTwo, evaluatee, "MANAGER", false);
+        named.setScore(90.0);
+
+        when(feedbackRepository.findAll(any(Specification.class))).thenReturn(List.of(anonymous, named));
+
+        FeedbackAuditSummaryPageDto page = service.getAuditHistorySummary(new FeedbackAuditHistoryFilter(), PageRequest.of(0, 10));
+
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getTotals().getTotalEvaluatees()).isEqualTo(1);
+        assertThat(page.getTotals().getTotalFeedbackCount()).isEqualTo(2);
+        assertThat(page.getTotals().getAnonymousCount()).isEqualTo(1);
+        assertThat(page.getTotals().getNonAnonymousCount()).isEqualTo(1);
+        assertThat(page.getTotals().getAverageScore()).isEqualTo(85.0);
+        assertThat(page.getContent().get(0).getEmployeeName()).isEqualTo("Evaluatee User");
+        assertThat(page.getContent().get(0).getFeedbackCount()).isEqualTo(2);
+    }
+
+    @Test
+    void auditEvaluateeHistoryKeepsRealEvaluatorIdentityForAnonymousFeedback() {
+        FeedbackRepository feedbackRepository = mock(FeedbackRepository.class);
+        EmployeeRepository employeeRepository = mock(EmployeeRepository.class);
+        FeedbackService service = new FeedbackService(
+                feedbackRepository,
+                mock(FeedbackDraftRepository.class),
+                employeeRepository,
+                mock(ReportingManagerResolver.class),
+                mock(CriteriaRepository.class),
+                mock(UserRepository.class),
+                mock(NotificationService.class),
+                mock(TimeSettingService.class),
+                mock(ReviewCycleService.class),
+                mock(ReviewCycleRepository.class),
+                mock(AuditService.class));
+
+        Employee evaluator = employee(10L, "E010", "Real Evaluator", "Engineer", "Product");
+        Employee evaluatee = employee(20L, "E020", "Evaluatee User", "Lead", "Product");
+        Feedback anonymous = feedback(1L, evaluator, evaluatee, "PEER", true);
+
+        when(employeeRepository.findById(20L)).thenReturn(Optional.of(evaluatee));
+        when(feedbackRepository.findAll(any(Specification.class))).thenReturn(List.of(anonymous));
+
+        FeedbackAuditEvaluateeHistoryDto result = service.getAuditEvaluateeHistory(20L, new FeedbackAuditHistoryFilter(), PageRequest.of(0, 10));
+
+        assertThat(result.getHistory().getContent()).hasSize(1);
+        FeedbackHistoryDto row = result.getHistory().getContent().get(0);
+        assertThat(row.getEvaluatorName()).isEqualTo("Real Evaluator");
+        assertThat(row.getEvaluatorStaffNo()).isEqualTo("E010");
+        assertThat(row.getAnonymous()).isTrue();
     }
 
     private static Feedback feedback(Long id, Employee evaluator, Employee evaluatee, String role, boolean anonymous) {

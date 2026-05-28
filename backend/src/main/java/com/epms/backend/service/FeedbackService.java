@@ -4,6 +4,11 @@ import com.epms.backend.StaffTypes;
 import com.epms.backend.audit.AuditActionType;
 import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.FeedbackDraftDto;
+import com.epms.backend.dto.FeedbackAuditEvaluateeHistoryDto;
+import com.epms.backend.dto.FeedbackAuditHistoryFilter;
+import com.epms.backend.dto.FeedbackAuditSummaryPageDto;
+import com.epms.backend.dto.FeedbackAuditSummaryRowDto;
+import com.epms.backend.dto.FeedbackAuditTotalsDto;
 import com.epms.backend.dto.FeedbackHistoryFilter;
 import com.epms.backend.dto.FeedbackHistoryDto;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
@@ -12,6 +17,7 @@ import com.epms.backend.repository.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,6 +28,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -610,6 +617,54 @@ public class FeedbackService {
         });
     }
 
+    @Transactional(readOnly = true)
+    public FeedbackAuditSummaryPageDto getAuditHistorySummary(FeedbackAuditHistoryFilter filter, Pageable pageable) {
+        List<Feedback> feedbacks = feedbackRepository.findAll(auditHistorySpec(filter));
+        Map<Long, List<Feedback>> grouped = feedbacks.stream()
+                .filter(feedback -> feedback.getEvaluatee() != null)
+                .collect(Collectors.groupingBy(feedback -> feedback.getEvaluatee().getId()));
+
+        List<FeedbackAuditSummaryRowDto> rows = grouped.values().stream()
+                .map(group -> buildAuditSummaryRow(group.get(0).getEvaluatee(), group, filter))
+                .sorted(Comparator.comparing(
+                        FeedbackAuditSummaryRowDto::getLatestFeedbackDate,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .collect(Collectors.toList());
+
+        int start = Math.min((int) pageable.getOffset(), rows.size());
+        int end = Math.min(start + pageable.getPageSize(), rows.size());
+        List<FeedbackAuditSummaryRowDto> pageRows = rows.subList(start, end);
+        long totalFeedbackCount = feedbacks.size();
+        long anonymousCount = feedbacks.stream().filter(f -> Boolean.TRUE.equals(f.getAnonymous())).count();
+        double scoreSum = feedbacks.stream().map(Feedback::getScore).filter(score -> score != null).mapToDouble(Double::doubleValue).sum();
+        long scoreCount = feedbacks.stream().map(Feedback::getScore).filter(score -> score != null).count();
+        FeedbackAuditTotalsDto totals = new FeedbackAuditTotalsDto(
+                (long) rows.size(),
+                totalFeedbackCount,
+                anonymousCount,
+                totalFeedbackCount - anonymousCount,
+                scoreCount > 0 ? scoreSum / scoreCount : 0d);
+        int totalPages = pageable.getPageSize() > 0 ? (int) Math.ceil((double) rows.size() / pageable.getPageSize()) : 0;
+        return new FeedbackAuditSummaryPageDto(pageRows, pageable.getPageNumber(), pageable.getPageSize(), totalPages, (long) rows.size(), totals);
+    }
+
+    @Transactional(readOnly = true)
+    public FeedbackAuditEvaluateeHistoryDto getAuditEvaluateeHistory(Long employeeId, FeedbackAuditHistoryFilter filter, Pageable pageable) {
+        Employee evaluatee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Evaluatee not found"));
+        List<Feedback> allRows = feedbackRepository.findAll(auditHistorySpec(filter)).stream()
+                .filter(feedback -> feedback.getEvaluatee() != null && employeeId.equals(feedback.getEvaluatee().getId()))
+                .sorted(Comparator.comparing(Feedback::getCreatedDate, Comparator.nullsLast(Comparator.reverseOrder())))
+                .collect(Collectors.toList());
+        int start = Math.min((int) pageable.getOffset(), allRows.size());
+        int end = Math.min(start + pageable.getPageSize(), allRows.size());
+        List<FeedbackHistoryDto> content = allRows.subList(start, end).stream()
+                .map(feedback -> mapToHistoryDto(feedback, "RECEIVED"))
+                .collect(Collectors.toList());
+        Page<FeedbackHistoryDto> history = new PageImpl<>(content, pageable, allRows.size());
+        return new FeedbackAuditEvaluateeHistoryDto(buildAuditSummaryRow(evaluatee, allRows, filter), history);
+    }
+
     @Transactional
     public FeedbackDraftDto saveDraft(Long evaluatorId, FeedbackSubmissionRequest request) {
         cleanupExpiredDrafts();
@@ -937,6 +992,95 @@ public class FeedbackService {
             query.orderBy(cb.desc(root.get("createdDate")));
             return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
         };
+    }
+
+    private FeedbackAuditSummaryRowDto buildAuditSummaryRow(Employee evaluatee, List<Feedback> feedbacks, FeedbackAuditHistoryFilter filter) {
+        long feedbackCount = feedbacks.size();
+        long anonymousCount = feedbacks.stream().filter(f -> Boolean.TRUE.equals(f.getAnonymous())).count();
+        double scoreSum = feedbacks.stream().map(Feedback::getScore).filter(score -> score != null).mapToDouble(Double::doubleValue).sum();
+        long scoreCount = feedbacks.stream().map(Feedback::getScore).filter(score -> score != null).count();
+        Instant latest = feedbacks.stream()
+                .map(Feedback::getCreatedDate)
+                .filter(date -> date != null)
+                .max(Instant::compareTo)
+                .orElse(null);
+        ReviewCycle filteredCycle = filter != null && filter.getReviewCycleId() != null
+                ? reviewCycleRepository.findById(filter.getReviewCycleId()).orElse(null)
+                : null;
+        return new FeedbackAuditSummaryRowDto(
+                evaluatee != null ? evaluatee.getId() : null,
+                evaluatee != null ? evaluatee.getEmployeeName() : null,
+                evaluatee != null ? evaluatee.getEmployeeId() : null,
+                employeePositionName(evaluatee),
+                employeeDepartmentName(evaluatee),
+                feedbackCount,
+                anonymousCount,
+                feedbackCount - anonymousCount,
+                scoreCount > 0 ? scoreSum / scoreCount : 0d,
+                latest,
+                filteredCycle != null ? filteredCycle.getId() : null,
+                filteredCycle != null ? filteredCycle.getName() : null);
+    }
+
+    private Specification<Feedback> auditHistorySpec(FeedbackAuditHistoryFilter filter) {
+        ReviewCycle filterCycle = filter != null && filter.getReviewCycleId() != null
+                ? reviewCycleRepository.findById(filter.getReviewCycleId()).orElse(null)
+                : null;
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (filter != null) {
+                applyAuditHistoryFilters(filter, filterCycle, root, cb, predicates);
+            }
+            query.orderBy(cb.desc(root.get("createdDate")));
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+    }
+
+    private void applyAuditHistoryFilters(
+            FeedbackAuditHistoryFilter filter,
+            ReviewCycle filterCycle,
+            jakarta.persistence.criteria.Root<Feedback> root,
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            List<jakarta.persistence.criteria.Predicate> predicates) {
+        if (filter.getReviewCycleId() != null) {
+            if (filterCycle == null) {
+                predicates.add(cb.disjunction());
+            } else {
+                Instant cycleStart = filterCycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+                Instant cycleEnd = filterCycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant();
+                predicates.add(cb.or(
+                        cb.equal(root.get("reviewCycle").get("id"), filter.getReviewCycleId()),
+                        cb.and(
+                                cb.isNull(root.get("reviewCycle")),
+                                cb.between(root.get("createdDate"), cycleStart, cycleEnd))));
+            }
+        }
+        if (filter.getFromDate() != null) {
+            predicates.add(cb.greaterThanOrEqualTo(
+                    root.get("createdDate"),
+                    filter.getFromDate().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        }
+        if (filter.getToDate() != null) {
+            predicates.add(cb.lessThanOrEqualTo(
+                    root.get("createdDate"),
+                    filter.getToDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant()));
+        }
+        if (hasText(filter.getFeedbackType())) {
+            predicates.add(cb.equal(cb.upper(root.get("role")), filter.getFeedbackType().toUpperCase(Locale.ROOT)));
+        }
+        if (hasText(filter.getSearch())) {
+            String value = like(filter.getSearch());
+            predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("evaluatee").get("employeeName")), value),
+                    cb.like(cb.lower(root.get("evaluatee").get("employeeId")), value)));
+        }
+        if (hasText(filter.getDepartment())) {
+            String department = filter.getDepartment().trim();
+            String value = like(department);
+            predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("evaluatee").get("department").get("name")), value),
+                    cb.equal(root.get("evaluatee").get("department").get("id").as(String.class), department)));
+        }
     }
 
     private ReviewCycle resolveCycleForDate(Instant createdDate) {

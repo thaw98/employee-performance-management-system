@@ -21,6 +21,7 @@ import AuditLayout from './layouts/AuditLayout';
 import { AuditDashboard } from './pages/audit/AuditDashboard';
 import { AuditLogsPage } from './pages/audit/AuditLogsPage';
 import { AuditActivityPage } from './pages/audit/AuditActivityPage';
+import { AuditFeedbackEvaluateeHistoryPage, AuditFeedbackHistoryPage } from './pages/audit/AuditFeedbackHistoryPage';
 // Dashboard Pages - Using the correct file names from your project
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
@@ -349,7 +350,8 @@ function App() {
             <Route path="self-assessment/reviews/:formId" element={<SelfAssessmentFormReviewPage readOnly />} />
             <Route path="meetings" element={<MeetingsPage />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
-            <Route path="360-feedback/history" element={<CombinedFeedbackHistoryPage />} />
+            <Route path="360-feedback/history" element={<AuditFeedbackHistoryPage />} />
+            <Route path="360-feedback/history/:employeeId" element={<AuditFeedbackEvaluateeHistoryPage />} />
             <Route path="reports" element={<HrReportsPage />} />
             <Route path="reports/feedback" element={<FeedbackReportPage mode="audit" />} />
             <Route path="reports/appraisal" element={<AppraisalReportsPage />} />
