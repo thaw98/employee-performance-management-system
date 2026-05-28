@@ -12,7 +12,7 @@ import { PaginationBar } from '../components/common/PaginationBar';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
-import { addPdfFooterBranding, addPdfHeaderBranding } from '../utils/pdfBranding';
+import { addPdfProfessionalHeader, addPdfProfessionalFooter, addPdfSectionHeader, addPdfInfoTable } from '../utils/pdfBranding';
 import { 
     Dialog, 
     DialogPanel, 
@@ -159,80 +159,38 @@ export function FeedbackHistoryPage() {
             const item = history.find(h => h.id === id);
             if (!item) return;
 
-            // Fetch full details
             const resp = await axios.get(`/feedback/${id}/details`);
             const details = resp.data.data;
 
             const doc = new jsPDF();
-            
-            // Header
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(24);
-            doc.setTextColor(8, 85, 191);
-            doc.text('PERFORMANCE FEEDBACK REPORT', 105, 20, { align: 'center' });
-            
-            doc.setFontSize(10);
-            doc.setTextColor(150);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`Reference ID: FB-2026-${id} | Generated: ${new Date().toLocaleString()}`, 105, 28, { align: 'center' });
-            addPdfHeaderBranding(doc, { margin: 20, y: 12 });
+            const margin = 14;
 
             const isAnonymous = Boolean(item.anonymous) || item.evaluatorName?.trim().toLowerCase() === 'anonymous';
             const evaluatorName = isAnonymous ? 'Anonymous' : item.evaluatorName || '-';
             const evaluatorPosition = isAnonymous ? '-' : item.evaluatorPosition || '-';
             const evaluatorDepartment = isAnonymous ? '-' : item.evaluatorDepartment || '-';
 
-            doc.setFontSize(12);
-            doc.setTextColor(8, 85, 191);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Evaluatee Information', 20, 40);
-            autoTable(doc, {
-                startY: 45,
-                body: [
-                    ['Employee Name', item.evaluateeName || '-', 'Current Position', item.evaluateePosition || item.position || '-'],
-                    ['Assessment Date', formatPdfDate(item.date), 'Staff ID', item.evaluateeStaffNo || '-'],
-                    ['Department', item.evaluateeDepartment || '-', 'Effective Date', formatPdfDate(item.reviewCycleStartDate)],
-                ],
-                theme: 'grid',
-                styles: { fontSize: 9, cellPadding: 4 },
-                columnStyles: {
-                    0: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
-                    1: { cellWidth: 55 },
-                    2: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
-                    3: { cellWidth: 55 },
-                },
-            });
+            const refId = `FB-${id}`;
+            const genDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            addPdfProfessionalHeader(doc, 'Performance Feedback Report', `Reference: ${refId}  |  ${genDate}`, { margin });
 
-            let nextY = (doc as any).lastAutoTable.finalY + 8;
-            doc.setFontSize(12);
-            doc.setTextColor(8, 85, 191);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Evaluator Information', 20, nextY);
-            autoTable(doc, {
-                startY: nextY + 5,
-                body: [
-                    ['Employee Name', evaluatorName, 'Current Position', evaluatorPosition],
-                    ['Department', evaluatorDepartment, 'Evaluator Role', item.role || '-'],
-                ],
-                theme: 'grid',
-                styles: { fontSize: 9, cellPadding: 4 },
-                columnStyles: {
-                    0: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
-                    1: { cellWidth: 55 },
-                    2: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 35 },
-                    3: { cellWidth: 55 },
-                },
-            });
+            let currentY = 42;
+            currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });
+            currentY = addPdfInfoTable(doc, currentY + 2, [
+                ['Employee Name', item.evaluateeName || '-', 'Current Position', item.evaluateePosition || item.position || '-'],
+                ['Assessment Date', formatPdfDate(item.date), 'Staff ID', item.evaluateeStaffNo || '-'],
+                ['Department', item.evaluateeDepartment || '-', 'Effective Date', formatPdfDate(item.reviewCycleStartDate)],
+            ], { marginLeft: margin, marginRight: margin }) + 8;
 
-            // Detailed Ratings
-            nextY = (doc as any).lastAutoTable.finalY + 10;
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(8, 85, 191);
-            doc.text('DETAILED ASSESSMENT CRITERIA', 20, nextY);
+            currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
+            currentY = addPdfInfoTable(doc, currentY + 2, [
+                ['Employee Name', evaluatorName, 'Current Position', evaluatorPosition],
+                ['Department', evaluatorDepartment, 'Evaluator Role', item.role || '-'],
+            ], { marginLeft: margin, marginRight: margin }) + 10;
 
+            currentY = addPdfSectionHeader(doc, margin, currentY, 'Detailed Assessment Criteria', { width: 182 });
             autoTable(doc, {
-                startY: nextY + 5,
+                startY: currentY + 4,
                 head: [['#', 'Assessment Criteria', 'Rating', 'Comments / Observations']],
                 body: details.map((d: any, idx: number) => [
                     idx + 1,
@@ -240,45 +198,45 @@ export function FeedbackHistoryPage() {
                     d.rating,
                     d.comment || 'No comment provided'
                 ]),
-                styles: { fontSize: 9, cellPadding: 5 },
-                headStyles: { fillColor: [8, 85, 191], textColor: 255 },
+                theme: 'grid',
+                margin: { left: margin, right: margin },
+                styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
+                headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 8 },
                 columnStyles: {
-                    0: { cellWidth: 10 },
-                    2: { cellWidth: 20, halign: 'center' },
-                    3: { cellWidth: 70 }
+                    0: { cellWidth: 10, halign: 'center' },
+                    2: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
                 },
                 alternateRowStyles: { fillColor: [249, 250, 251] }
             });
+            currentY = (doc as any).lastAutoTable.finalY + 10;
 
-            let finalY = (doc as any).lastAutoTable.finalY + 15;
             if (item.additionalComments?.trim()) {
-                doc.setFontSize(12);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(8, 85, 191);
-                doc.text('ADDITIONAL COMMENTS', 20, finalY);
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor(50);
+                currentY = addPdfSectionHeader(doc, margin, currentY, 'Additional Comments', { width: 182 });
+                doc.setDrawColor(226, 232, 240);
+                doc.setFillColor(248, 250, 252);
+                doc.roundedRect(margin, currentY + 2, 182, 20, 3, 3, 'FD');
+                doc.setFont('helvetica', 'italic');
+                doc.setFontSize(9);
+                doc.setTextColor(71, 85, 105);
                 const commentLines = doc.splitTextToSize(item.additionalComments.trim(), 170);
-                doc.text(commentLines, 20, finalY + 7);
-                finalY += 15 + commentLines.length * 5;
+                doc.text(commentLines, margin + 6, currentY + 10);
+                currentY += Math.max(28, 12 + commentLines.length * 5);
             }
-            finalY = addFeedbackScorePerformanceSection(doc, finalY, {
+
+            currentY = addFeedbackScorePerformanceSection(doc, currentY, {
                 scorePercentage: item.score,
                 remark: item.remark,
-                marginLeft: 20,
-                marginRight: 20,
+                marginLeft: margin,
+                marginRight: margin,
             });
-            doc.setFontSize(10);
-            doc.setTextColor(150);
-            doc.text('This is a system-generated report for the 360-degree feedback system.', 105, finalY, { align: 'center' });
+
             const pageCount = doc.getNumberOfPages();
             for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
                 doc.setPage(pageNumber);
-                addPdfFooterBranding(doc, { margin: 20, y: doc.internal.pageSize.getHeight() - 8 });
+                addPdfProfessionalFooter(doc, pageNumber, pageCount, { margin });
             }
 
-            doc.save(`Feedback_Report_${item.evaluateeStaffNo}.pdf`);
+            doc.save(`Feedback_Report_${item.evaluateeStaffNo || id}.pdf`);
             toast.success('Report generated successfully');
         } catch (err) {
             console.error(err);
