@@ -110,7 +110,8 @@ const ManagerLayout: React.FC = () => {
           subItems: [
             { label: 'Give Feedback', path: '/manager/360-feedback/give', icon: <Send size={16} /> },
             { label: 'Get Feedback', path: '/manager/360-feedback/received', icon: <Inbox size={16} /> },
-            { label: 'Feedback History', path: '/manager/360-feedback/history', icon: <History size={16} /> },
+            { label: 'Given History', path: '/manager/360-feedback/history', icon: <History size={16} /> },
+            { label: 'Feedback History', path: '/manager/360-feedback/combined-history', icon: <History size={16} /> },
           ],
         },
         ...(authUser?.roleId !== 2

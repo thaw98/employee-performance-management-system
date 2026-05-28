@@ -583,7 +583,7 @@ public class FeedbackService {
     @Transactional(readOnly = true)
     public Page<FeedbackHistoryDto> getFeedbackHistory(Long evaluatorId, FeedbackHistoryFilter filter, Pageable pageable) {
         Page<Feedback> feedbackPage = feedbackRepository.findAll(historySpec(evaluatorId, filter), pageable);
-        return feedbackPage.map(this::mapToHistoryDto);
+        return feedbackPage.map(feedback -> mapToHistoryDto(feedback, "GIVEN"));
     }
 
     @Transactional(readOnly = true)
@@ -595,6 +595,19 @@ public class FeedbackService {
     public Page<FeedbackHistoryDto> getReceivedFeedback(Long evaluateeId, Pageable pageable) {
         Page<Feedback> feedbackPage = feedbackRepository.findByEvaluateeId(evaluateeId, pageable);
         return feedbackPage.map(this::mapToReceivedHistoryDto);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<FeedbackHistoryDto> getCombinedFeedbackHistory(Long employeeId, FeedbackHistoryFilter filter, Pageable pageable) {
+        Page<Feedback> feedbackPage = feedbackRepository.findAll(combinedHistorySpec(employeeId, filter), pageable);
+        return feedbackPage.map(feedback -> {
+            boolean given = feedback.getEvaluator() != null && employeeId.equals(feedback.getEvaluator().getId());
+            boolean received = feedback.getEvaluatee() != null && employeeId.equals(feedback.getEvaluatee().getId());
+            if (received && !given) {
+                return mapToReceivedHistoryDto(feedback, "RECEIVED", true);
+            }
+            return mapToHistoryDto(feedback, "GIVEN");
+        });
     }
 
     @Transactional
@@ -694,16 +707,22 @@ public class FeedbackService {
     }
 
     private FeedbackHistoryDto mapToHistoryDto(Feedback entity) {
+        return mapToHistoryDto(entity, null);
+    }
+
+    private FeedbackHistoryDto mapToHistoryDto(Feedback entity, String direction) {
         FeedbackHistoryDto dto = new FeedbackHistoryDto();
         Employee evaluator = entity.getEvaluator();
         Employee evaluatee = entity.getEvaluatee();
         dto.setId(entity.getId());
         dto.setDate(entity.getCreatedDate());
-        dto.setEvaluatorName(evaluator.getEmployeeName());
+        dto.setDirection(direction);
+        dto.setEvaluatorName(evaluator != null ? evaluator.getEmployeeName() : null);
+        dto.setEvaluatorStaffNo(evaluator != null ? evaluator.getEmployeeId() : null);
         dto.setEvaluatorPosition(employeePositionName(evaluator));
         dto.setEvaluatorDepartment(employeeDepartmentName(evaluator));
-        dto.setEvaluateeName(evaluatee.getEmployeeName());
-        dto.setEvaluateeStaffNo(evaluatee.getEmployeeId());
+        dto.setEvaluateeName(evaluatee != null ? evaluatee.getEmployeeName() : null);
+        dto.setEvaluateeStaffNo(evaluatee != null ? evaluatee.getEmployeeId() : null);
         dto.setEvaluateePosition(employeePositionName(evaluatee));
         dto.setEvaluateeDepartment(employeeDepartmentName(evaluatee));
         dto.setPosition(dto.getEvaluateePosition());
@@ -738,12 +757,21 @@ public class FeedbackService {
     }
 
     private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity) {
-        FeedbackHistoryDto dto = mapToHistoryDto(entity);
+        return mapToReceivedHistoryDto(entity, null, false);
+    }
+
+    private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity, String direction, boolean hideAnonymousEvaluatorDetails) {
+        FeedbackHistoryDto dto = mapToHistoryDto(entity, direction);
 
         if (Boolean.TRUE.equals(entity.getAnonymous())) {
             dto.setEvaluatorName("Anonymous");
+            if (hideAnonymousEvaluatorDetails) {
+                dto.setEvaluatorStaffNo(null);
+                dto.setEvaluatorPosition(null);
+                dto.setEvaluatorDepartment(null);
+            }
         } else {
-            dto.setEvaluatorName(entity.getEvaluator().getEmployeeName());
+            dto.setEvaluatorName(entity.getEvaluator() != null ? entity.getEvaluator().getEmployeeName() : null);
         }
 
         // Invert the role for the recipient's view
@@ -937,6 +965,82 @@ public class FeedbackService {
             throw new RuntimeException("Additional comments must be 1000 characters or fewer");
         }
         return trimmed;
+    }
+
+    private Specification<Feedback> combinedHistorySpec(Long employeeId, FeedbackHistoryFilter filter) {
+        ReviewCycle filterCycle = filter != null && filter.getReviewCycleId() != null
+                ? reviewCycleRepository.findById(filter.getReviewCycleId()).orElse(null)
+                : null;
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            jakarta.persistence.criteria.Predicate given = cb.equal(root.get("evaluator").get("id"), employeeId);
+            jakarta.persistence.criteria.Predicate received = cb.equal(root.get("evaluatee").get("id"), employeeId);
+
+            if (filter != null && hasText(filter.getDirection())) {
+                if ("GIVEN".equalsIgnoreCase(filter.getDirection())) {
+                    predicates.add(given);
+                } else if ("RECEIVED".equalsIgnoreCase(filter.getDirection())) {
+                    predicates.add(received);
+                } else {
+                    predicates.add(cb.or(given, received));
+                }
+            } else {
+                predicates.add(cb.or(given, received));
+            }
+
+            if (filter != null) {
+                applySharedHistoryFilters(filter, filterCycle, root, cb, predicates);
+                if (hasText(filter.getPeopleSearch())) {
+                    String value = like(filter.getPeopleSearch());
+                    predicates.add(cb.or(
+                            cb.like(cb.lower(root.get("evaluator").get("employeeName")), value),
+                            cb.like(cb.lower(root.get("evaluator").get("employeeId")), value),
+                            cb.like(cb.lower(root.get("evaluatee").get("employeeName")), value),
+                            cb.like(cb.lower(root.get("evaluatee").get("employeeId")), value)));
+                }
+            }
+
+            query.orderBy(cb.desc(root.get("createdDate")));
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+    }
+
+    private void applySharedHistoryFilters(
+            FeedbackHistoryFilter filter,
+            ReviewCycle filterCycle,
+            jakarta.persistence.criteria.Root<Feedback> root,
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            List<jakarta.persistence.criteria.Predicate> predicates) {
+        if (filter.getReviewCycleId() != null) {
+            if (filterCycle == null) {
+                predicates.add(cb.disjunction());
+            } else {
+                Instant cycleStart = filterCycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+                Instant cycleEnd = filterCycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant();
+                predicates.add(cb.or(
+                        cb.equal(root.get("reviewCycle").get("id"), filter.getReviewCycleId()),
+                        cb.and(
+                                cb.isNull(root.get("reviewCycle")),
+                                cb.between(root.get("createdDate"), cycleStart, cycleEnd))));
+            }
+        }
+        if (filter.getStatus() != null && !filter.getStatus().isBlank()
+                && !"SUBMITTED".equalsIgnoreCase(filter.getStatus())) {
+            predicates.add(cb.disjunction());
+        }
+        if (filter.getFromDate() != null) {
+            predicates.add(cb.greaterThanOrEqualTo(
+                    root.get("createdDate"),
+                    filter.getFromDate().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        }
+        if (filter.getToDate() != null) {
+            predicates.add(cb.lessThanOrEqualTo(
+                    root.get("createdDate"),
+                    filter.getToDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant()));
+        }
+        if (hasText(filter.getFeedbackType())) {
+            predicates.add(cb.equal(cb.upper(root.get("role")), filter.getFeedbackType().toUpperCase(Locale.ROOT)));
+        }
     }
 
     private void recordFeedbackSubmittedAudit(Feedback feedback) {

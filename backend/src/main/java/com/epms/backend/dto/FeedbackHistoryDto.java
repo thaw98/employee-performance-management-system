@@ -8,7 +8,9 @@ import java.time.LocalDate;
 public class FeedbackHistoryDto {
     private Long id;
     private Instant date;
+    private String direction;
     private String evaluatorName;
+    private String evaluatorStaffNo;
     private String evaluatorPosition;
     private String evaluatorDepartment;
     private String evaluateeName;
