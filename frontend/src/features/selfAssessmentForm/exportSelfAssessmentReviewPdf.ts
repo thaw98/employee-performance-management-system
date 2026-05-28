@@ -341,11 +341,9 @@ const addReportHeader = (doc: jsPDF, form: SelfAssessmentFormDto): number => {
   doc.setFontSize(8)
   doc.text('Review Record', pageMargin, 17)
 
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8.5)
-  doc.text(`Form ID: ${form.id}`, pageWidth - pageMargin, 10, { align: 'right' })
   doc.setFont('helvetica', 'normal')
-  doc.text(`Exported: ${formatDate(new Date().toISOString())}`, pageWidth - pageMargin, 16, { align: 'right' })
+  doc.setFontSize(8.5)
+  doc.text(`Exported: ${formatDate(new Date().toISOString())}`, pageWidth - pageMargin, 10, { align: 'right' })
   addPdfHeaderBranding(doc, { margin: pageMargin, y: 22, textColor: [255, 255, 255] })
 
   doc.setTextColor(0, 0, 0)

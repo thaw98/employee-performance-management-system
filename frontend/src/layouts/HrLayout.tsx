@@ -124,8 +124,7 @@ const HrLayout: React.FC = () => {
             { label: 'Criteria', path: '/hr/360-feedback/criteria', icon: <ListFilter size={16} /> },
             { label: 'Give Feedback', path: '/hr/360-feedback/give', icon: <Send size={16} /> },
             { label: 'Get Feedback', path: '/hr/360-feedback/received', icon: <Inbox size={16} /> },
-            { label: 'Given History', path: '/hr/360-feedback/history', icon: <History size={16} /> },
-            { label: 'Feedback History', path: '/hr/360-feedback/combined-history', icon: <History size={16} /> },
+            { label: 'Feedback History', path: '/hr/360-feedback/history', icon: <History size={16} /> },
           ],
         },
         {

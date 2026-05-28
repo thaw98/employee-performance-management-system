@@ -8,7 +8,7 @@ import {
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
-import { Search, History, Calendar, User, Briefcase, Building2, Target, CheckCircle2, AlertCircle, Eye, LayoutGrid, Download } from 'lucide-react';
+import { Search, History, Calendar, User, Briefcase, Building2, Target, CheckCircle2, AlertCircle, Eye, LayoutGrid } from 'lucide-react';
 import { format } from 'date-fns';
 import { useKpiViewContext } from '../../hooks/useKpiViewContext';
 import { EmployeeAutocomplete } from '../../components/common/EmployeeAutocomplete';
@@ -324,11 +324,6 @@ export const KpiHistoryPage: React.FC = () => {
               : 'View and search historical KPI definitions and performance records.'}
           </p>
         </div>
-        {!isViewOnly && (
-          <button className="flex items-center gap-2 px-6 py-2.5 bg-[#2463eb] hover:bg-[#1d4ed8] text-white rounded-2xl text-xs font-black transition-all shadow-xl shadow-[#dbeafe] uppercase tracking-widest">
-            <Download size={16} /> Export History
-          </button>
-        )}
       </div>
 
       {/* Tabs */}

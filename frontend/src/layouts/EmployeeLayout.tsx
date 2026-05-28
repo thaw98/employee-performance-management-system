@@ -79,8 +79,7 @@ const EmployeeLayout: React.FC = () => {
           subItems: [
             { label: 'Give Feedback', path: '/employee/360-feedback/give', icon: <Send size={16} /> },
             { label: 'Get Feedback', path: '/employee/360-feedback/received', icon: <Inbox size={16} /> },
-            { label: 'Given History', path: '/employee/360-feedback/history', icon: <History size={16} /> },
-            { label: 'Feedback History', path: '/employee/360-feedback/combined-history', icon: <History size={16} /> },
+            { label: 'Feedback History', path: '/employee/360-feedback/history', icon: <History size={16} /> },
           ],
         },
         { label: 'Meetings', path: '/employee/meetings', icon: <Calendar size={18} /> },
