@@ -35,6 +35,7 @@ const AuditLayout: React.FC = () => {
             items: [
                 { label: 'Dashboard', path: '/audit/dashboard', icon: <LayoutDashboard size={18} /> },
                 { label: 'Employee List', path: '/audit/employees', icon: <Users size={18} /> },
+                { label: 'Create Employee Account', path: '/audit/employees/create-account', icon: <Users size={18} /> },
                 { label: 'Department', path: '/audit/departments', icon: <Building2 size={18} /> },
                 { label: 'Level Codes', path: '/audit/level-codes', icon: <Layers size={18} /> },
                 {

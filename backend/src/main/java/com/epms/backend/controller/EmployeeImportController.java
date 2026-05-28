@@ -32,7 +32,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/employees/import")
 @RequiredArgsConstructor
-@PreAuthorize("principal.roleId == 1")
+@PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
 public class EmployeeImportController {
 
     private final EmployeeImportTemplateService templateService;

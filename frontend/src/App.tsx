@@ -332,6 +332,7 @@ function App() {
             <Route index element={<Navigate to="/audit/dashboard" replace />} />
             <Route path="dashboard" element={<AuditDashboard />} />
             <Route path="employees" element={<EmployeeListPage />} />
+            <Route path="employees/create-account" element={<CreateEmployeeAccountPage />} />
             <Route path="departments" element={<DepartmentListPage />} />
             <Route path="departments/:departmentId/employees" element={<DepartmentEmployeeListPage />} />
             <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />

@@ -40,6 +40,7 @@ export default function EmployeeListPage() {
   const isDepartmentManager = user?.roleId === 2
   const canFilterAllDepartments = isHR || isAudit
   const canExportEmployees = isHR || isAudit
+  const canImportEmployees = isHR || isAudit
 
   // State for filters and pagination
   const [page, setPage] = useState(0)
@@ -357,13 +358,13 @@ export default function EmployeeListPage() {
           <h1 className="text-2xl font-bold text-gray-900">Employee List</h1>
           <p className="text-gray-500 mt-1">
             {isAudit
-              ? 'View employee records across all departments (read-only).'
+              ? 'View and manage employee records across all departments.'
               : 'Manage employee information and access.'}
           </p>
         </div>
         {(isHR || canExportEmployees) && (
           <div className="flex items-center gap-2">
-            {isHR && (
+            {(isHR || canImportEmployees) && (
               <>
                 <button
                   onClick={handleDownloadTemplate}
@@ -430,7 +431,7 @@ export default function EmployeeListPage() {
         onChangeStatus={handleChangeStatus}
         sorting={sorting}
         setSorting={setSorting}
-        isHR={isHR}
+        isHR={isHR || isAudit}
         showEmailColumn={canFilterAllDepartments}
       />
 

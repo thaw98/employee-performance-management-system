@@ -412,7 +412,7 @@ public class HrEmployeeService {
             employee.getId(),
             principal.getId(),
             principal.getRoleId(),
-            "HR user updated employee info for employee_id " + employee.getId(),
+            "User updated employee info for employee_id " + employee.getId(),
             null
         );
     }
@@ -445,7 +445,7 @@ public class HrEmployeeService {
             user.getId(),
             principal.getId(),
             principal.getRoleId(),
-            "HR user resent temporary password for user_account_id " + user.getId(),
+            "User resent temporary password for user_account_id " + user.getId(),
             null
         );
 
@@ -483,7 +483,7 @@ public class HrEmployeeService {
             user.getId(),
             principal.getId(),
             principal.getRoleId(),
-            "HR user sent new temporary password for user_account_id " + user.getId(),
+            "User sent new temporary password for user_account_id " + user.getId(),
             null
         );
 
@@ -833,8 +833,9 @@ public class HrEmployeeService {
     }
 
     public void validateHrOnlyAction(UserPrincipal principal) {
-        if (principal == null || principal.getRoleId() == null || principal.getRoleId() != ROLE_HR) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This action is available to HR only");
+        if (principal == null || principal.getRoleId() == null
+                || (principal.getRoleId() != ROLE_HR && principal.getRoleId() != ROLE_AUDIT)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This action is available to HR or Audit only");
         }
     }
 

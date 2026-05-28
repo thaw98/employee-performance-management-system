@@ -569,7 +569,7 @@ export function CreateEmployeeAccountPage() {
     }
   }
 
-  if (user && user.roleId !== 1) {
+  if (user && user.roleId !== 1 && user.roleId !== 5) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
         You do not have permission to create employee accounts.
@@ -768,14 +768,14 @@ export function CreateEmployeeAccountPage() {
       {created ? (
         <CreateEmployeeSuccessModal
           open={successOpen}
-          onClose={() => navigate('/hr/employees')}
+          onClose={() => navigate(user?.roleId === 5 ? '/audit/employees' : '/hr/employees')}
           employeeName={created.name}
           email={created.email}
           staffNo={created.staffNo}
           resendLoading={resendLoading}
           onResend={() => void handleResend()}
           onCreateAnother={() => resetFlow()}
-          onViewEmployeeList={() => navigate('/hr/employees')}
+          onViewEmployeeList={() => navigate(user?.roleId === 5 ? '/audit/employees' : '/hr/employees')}
         />
       ) : null}
 
