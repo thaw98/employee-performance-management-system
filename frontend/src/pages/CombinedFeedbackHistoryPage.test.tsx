@@ -34,6 +34,14 @@ vi.mock('jspdf', () => ({
     setFontSize: vi.fn(),
     setTextColor: vi.fn(),
     text: vi.fn(),
+    internal: {
+      pageSize: {
+        getWidth: vi.fn(() => 210),
+        getHeight: vi.fn(() => 297),
+      },
+    },
+    getNumberOfPages: vi.fn(() => 1),
+    setPage: vi.fn(),
     splitTextToSize: vi.fn((text: string) => [text]),
     save: mocks.save,
     };

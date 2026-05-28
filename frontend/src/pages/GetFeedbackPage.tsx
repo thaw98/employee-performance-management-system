@@ -14,6 +14,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
+import { addPdfFooterBranding, addPdfHeaderBranding } from '../utils/pdfBranding';
 import { 
     Dialog, 
     DialogPanel, 
@@ -141,6 +142,7 @@ export function GetFeedbackPage() {
         
         doc.setFontSize(20);
         doc.text('360-Degree Feedback Assessment Report', 105, 20, { align: 'center' });
+        addPdfHeaderBranding(doc, { margin: 14, y: 12 });
         
         doc.setFontSize(12);
         doc.setTextColor(8, 85, 191);
@@ -207,6 +209,11 @@ export function GetFeedbackPage() {
             scorePercentage: item.score,
             remark: item.remark,
         });
+        const pageCount = doc.getNumberOfPages();
+        for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+            doc.setPage(pageNumber);
+            addPdfFooterBranding(doc, { margin: 14, y: doc.internal.pageSize.getHeight() - 8 });
+        }
         
         doc.save(`Feedback_Report_${item.date}.pdf`);
     };

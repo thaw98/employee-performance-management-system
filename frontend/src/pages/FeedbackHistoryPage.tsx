@@ -12,6 +12,7 @@ import { PaginationBar } from '../components/common/PaginationBar';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
+import { addPdfFooterBranding, addPdfHeaderBranding } from '../utils/pdfBranding';
 import { 
     Dialog, 
     DialogPanel, 
@@ -174,6 +175,7 @@ export function FeedbackHistoryPage() {
             doc.setTextColor(150);
             doc.setFont('helvetica', 'normal');
             doc.text(`Reference ID: FB-2026-${id} | Generated: ${new Date().toLocaleString()}`, 105, 28, { align: 'center' });
+            addPdfHeaderBranding(doc, { margin: 20, y: 12 });
 
             const isAnonymous = Boolean(item.anonymous) || item.evaluatorName?.trim().toLowerCase() === 'anonymous';
             const evaluatorName = isAnonymous ? 'Anonymous' : item.evaluatorName || '-';
@@ -270,6 +272,11 @@ export function FeedbackHistoryPage() {
             doc.setFontSize(10);
             doc.setTextColor(150);
             doc.text('This is a system-generated report for the 360-degree feedback system.', 105, finalY, { align: 'center' });
+            const pageCount = doc.getNumberOfPages();
+            for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+                doc.setPage(pageNumber);
+                addPdfFooterBranding(doc, { margin: 20, y: doc.internal.pageSize.getHeight() - 8 });
+            }
 
             doc.save(`Feedback_Report_${item.evaluateeStaffNo}.pdf`);
             toast.success('Report generated successfully');

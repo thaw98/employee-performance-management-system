@@ -8,6 +8,7 @@ import axios from '../app/axiosInstance';
 import { PaginationBar } from '../components/common/PaginationBar';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
+import { addPdfFooterBranding, addPdfHeaderBranding } from '../utils/pdfBranding';
 
 type FeedbackDirection = 'ALL' | 'GIVEN' | 'RECEIVED';
 
@@ -180,6 +181,7 @@ export function CombinedFeedbackHistoryPage() {
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(120);
       doc.text(`Direction: ${item.direction || '-'} | Generated: ${new Date().toLocaleString()}`, 105, 28, { align: 'center' });
+      addPdfHeaderBranding(doc, { margin: 20, y: 12 });
 
       doc.setFontSize(12);
       doc.setTextColor(8, 85, 191);
@@ -237,6 +239,11 @@ export function CombinedFeedbackHistoryPage() {
       doc.setFontSize(10);
       doc.setTextColor(150);
       doc.text('This is a system-generated report for the 360-degree feedback system.', 105, finalY, { align: 'center' });
+      const pageCount = doc.getNumberOfPages();
+      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+        doc.setPage(pageNumber);
+        addPdfFooterBranding(doc, { margin: 20, y: doc.internal.pageSize.getHeight() - 8 });
+      }
       doc.save(`Feedback_History_${item.id}.pdf`);
       toast.success('Report generated successfully');
     } catch (err) {

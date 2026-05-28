@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { SelfAssessmentReportDto } from './api/selfAssessmentReportApi'
+import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding'
 
 const MARGIN = 12.7
 
@@ -51,6 +52,7 @@ export function exportSelfAssessmentReportPdf(report: SelfAssessmentReportDto) {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(16)
   doc.text('Self-Assessment Report', MARGIN, y)
+  addPdfHeaderBranding(doc, { margin: MARGIN, y })
   y += 7
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
@@ -125,6 +127,7 @@ export function exportSelfAssessmentReportPdf(report: SelfAssessmentReportDto) {
     doc.setPage(page)
     doc.setFontSize(8)
     doc.setTextColor(100)
+    addPdfFooterBranding(doc, { margin: MARGIN, y: 297 - 7, textColor: [100, 100, 100] })
     doc.text(`Page ${page} of ${pageCount}`, 210 - MARGIN, 297 - 7, { align: 'right' })
   }
 

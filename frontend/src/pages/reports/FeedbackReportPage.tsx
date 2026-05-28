@@ -16,6 +16,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { addFeedbackScorePerformanceSection, feedbackPercentageFromAverage } from '../../utils/feedbackScorePdf'
+import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding'
 import { useAppSelector } from '../../app/hooks'
 import { AlertTriangle, ArrowLeft, Award, ChevronLeft, ChevronRight, Download, FileText, Filter, Trophy } from 'lucide-react'
 import {
@@ -125,6 +126,7 @@ function addPdfPageNumbers(doc: jsPDF) {
   doc.setTextColor(100)
   for (let page = 1; page <= pageCount; page += 1) {
     doc.setPage(page)
+    addPdfFooterBranding(doc, { align: 'left', margin: 10, y: pageHeight - 7, textColor: [100, 100, 100] })
     doc.text(`Page ${page} of ${pageCount}`, pageWidth / 2, pageHeight - 7, { align: 'center' })
   }
   doc.setTextColor(0)
@@ -1004,6 +1006,7 @@ function EmployeeOwnFeedbackReport() {
       const usableWidth = pageWidth - margin * 2
       doc.setFontSize(16)
       doc.text(getExportReportTitle('individual'), margin, 14)
+      addPdfHeaderBranding(doc, { margin, y: 14 })
       doc.setFontSize(12)
       doc.text('Individual', margin, 22)
       autoTable(doc, {
@@ -1379,6 +1382,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
       const usableWidth = pageWidth - margin * 2
       doc.setFontSize(16)
       doc.text(reportTitle, margin, 14)
+      addPdfHeaderBranding(doc, { margin, y: 14 })
       doc.setFontSize(12)
       doc.text(sectionLabel, margin, 22)
 

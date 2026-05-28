@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { resolveMediaSrc } from './mediaUrl';
+import { addPdfFooterBranding, addPdfHeaderBranding } from './pdfBranding';
 
 interface Question {
   id: number;
@@ -157,6 +158,7 @@ const addPageFooters = (doc: jsPDF): void => {
     doc.setFontSize(7.5);
     doc.setTextColor(...slate);
     doc.text('Performance Appraisal Report', pageMargin, pageHeight - 5);
+    addPdfFooterBranding(doc, { margin: pageMargin, y: pageHeight - 5, textColor: slate });
     doc.text(`Page ${pageNumber} of ${pageCount}`, pageWidth - pageMargin, pageHeight - 5, { align: 'right' });
     doc.setTextColor(0, 0, 0);
   }
@@ -183,6 +185,7 @@ export async function exportAppraisalPdf(assignment: AppraisalAssignmentForPdf):
   doc.text(`Assignment ID: ${assignment.id}`, pageWidth - pageMargin, 10, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.text(`Exported: ${formatDate(new Date().toISOString())}`, pageWidth - pageMargin, 16, { align: 'right' });
+  addPdfHeaderBranding(doc, { margin: pageMargin, y: 22, textColor: [255, 255, 255] });
 
   doc.setTextColor(0, 0, 0);
 
