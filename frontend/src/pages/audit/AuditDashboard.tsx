@@ -178,6 +178,7 @@ export const AuditDashboard: React.FC = () => {
         if (actionType.includes('CREATE')) return <CheckCircle size={12} />;
         if (actionType.includes('UPDATE')) return <Activity size={12} />;
         if (actionType.includes('DELETE')) return <AlertCircle size={12} />;
+        if (actionType.includes('SUBMIT')) return <CheckCircle size={12} />;
         return <Clock size={12} />;
     };
 

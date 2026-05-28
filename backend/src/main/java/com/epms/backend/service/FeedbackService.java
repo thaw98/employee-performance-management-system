@@ -1,12 +1,16 @@
 package com.epms.backend.service;
 
 import com.epms.backend.StaffTypes;
+import com.epms.backend.audit.AuditActionType;
+import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.FeedbackDraftDto;
 import com.epms.backend.dto.FeedbackHistoryFilter;
 import com.epms.backend.dto.FeedbackHistoryDto;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -28,6 +32,7 @@ import java.util.LinkedHashMap;
 @Service
 public class FeedbackService {
     private static final int ADDITIONAL_COMMENTS_MAX_LENGTH = 1000;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 
     private final FeedbackRepository feedbackRepository;
@@ -41,6 +46,7 @@ public class FeedbackService {
     private final TimeSettingService timeSettingService;
     private final ReviewCycleService reviewCycleService;
     private final ReviewCycleRepository reviewCycleRepository;
+    private final AuditService auditService;
 
     public FeedbackService(
             FeedbackRepository feedbackRepository,
@@ -52,7 +58,8 @@ public class FeedbackService {
             NotificationService notificationService,
             TimeSettingService timeSettingService,
             ReviewCycleService reviewCycleService,
-            ReviewCycleRepository reviewCycleRepository) {
+            ReviewCycleRepository reviewCycleRepository,
+            AuditService auditService) {
         this.feedbackRepository = feedbackRepository;
         this.feedbackDraftRepository = feedbackDraftRepository;
         this.employeeRepository = employeeRepository;
@@ -63,6 +70,7 @@ public class FeedbackService {
         this.timeSettingService = timeSettingService;
         this.reviewCycleService = reviewCycleService;
         this.reviewCycleRepository = reviewCycleRepository;
+        this.auditService = auditService;
     }
 
     /* Reporting helpers */
@@ -553,7 +561,8 @@ public class FeedbackService {
         feedback.setRemark(calculateRemark(score));
         feedback.setDetails(details);
 
-        feedbackRepository.save(feedback);
+        Feedback savedFeedback = feedbackRepository.save(feedback);
+        recordFeedbackSubmittedAudit(savedFeedback);
 
         if (activeCycle != null) {
             feedbackDraftRepository.deleteByEvaluatorIdAndEvaluateeIdAndRoleAndReviewCycleId(
@@ -928,6 +937,78 @@ public class FeedbackService {
             throw new RuntimeException("Additional comments must be 1000 characters or fewer");
         }
         return trimmed;
+    }
+
+    private void recordFeedbackSubmittedAudit(Feedback feedback) {
+        Employee evaluator = feedback.getEvaluator();
+
+        User evaluatorUser = evaluator != null
+                ? userRepository.findByEmployee_Id(evaluator.getId()).orElse(null)
+                : null;
+        Long performedByUserId = evaluatorUser != null ? evaluatorUser.getId() : null;
+        Long performedByRoleId = evaluatorUser != null && evaluatorUser.getRole() != null
+                ? evaluatorUser.getRole().getId()
+                : null;
+
+        auditService.record(
+                AuditActionType.FEEDBACK_360_SUBMITTED,
+                AuditTargetType.FEEDBACK_360,
+                feedback.getId(),
+                performedByUserId,
+                performedByRoleId,
+                feedbackSubmittedDescription(feedback),
+                feedbackSubmittedMetadataJson(feedback));
+    }
+
+    private String feedbackSubmittedDescription(Feedback feedback) {
+        ReviewCycle reviewCycle = feedback.getReviewCycle();
+        String description = "Submitted 360 feedback from "
+                + employeeName(feedback.getEvaluator())
+                + " to "
+                + employeeName(feedback.getEvaluatee())
+                + " as "
+                + valueOrUnknown(feedback.getRole());
+        if (reviewCycle != null) {
+            description += " for review cycle "
+                    + valueOrUnknown(reviewCycle.getName())
+                    + " (id "
+                    + valueOrUnknown(reviewCycle.getId())
+                    + ")";
+        }
+        return description;
+    }
+
+    private String feedbackSubmittedMetadataJson(Feedback feedback) {
+        ReviewCycle reviewCycle = feedback.getReviewCycle();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("feedbackId", feedback.getId());
+        metadata.put("evaluatorEmployeeId", employeeId(feedback.getEvaluator()));
+        metadata.put("evaluatorName", employeeName(feedback.getEvaluator()));
+        metadata.put("evaluateeEmployeeId", employeeId(feedback.getEvaluatee()));
+        metadata.put("evaluateeName", employeeName(feedback.getEvaluatee()));
+        metadata.put("role", feedback.getRole());
+        metadata.put("anonymous", Boolean.TRUE.equals(feedback.getAnonymous()));
+        metadata.put("score", feedback.getScore());
+        metadata.put("remark", feedback.getRemark());
+        metadata.put("reviewCycleId", reviewCycle != null ? reviewCycle.getId() : null);
+        metadata.put("reviewCycleName", reviewCycle != null ? reviewCycle.getName() : null);
+        try {
+            return OBJECT_MAPPER.writeValueAsString(metadata);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize 360 feedback audit metadata", ex);
+        }
+    }
+
+    private Long employeeId(Employee employee) {
+        return employee != null ? employee.getId() : null;
+    }
+
+    private String employeeName(Employee employee) {
+        return employee != null ? employee.getEmployeeName() : null;
+    }
+
+    private String valueOrUnknown(Object value) {
+        return value != null && !String.valueOf(value).isBlank() ? String.valueOf(value) : "unknown";
     }
 
     private String like(String value) {
