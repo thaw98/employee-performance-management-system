@@ -21,8 +21,6 @@ import AuditLayout from './layouts/AuditLayout';
 import { AuditDashboard } from './pages/audit/AuditDashboard';
 import { AuditLogsPage } from './pages/audit/AuditLogsPage';
 import { AuditActivityPage } from './pages/audit/AuditActivityPage';
-import { SecurityAnalytics } from './pages/audit/SecurityAnalytics';
-
 // Dashboard Pages - Using the correct file names from your project
 import { HRDashboardPage } from './pages/hr/HRDashboardPage';
 import { ManagerDashboardPage } from './pages/manager/ManagerDashboardPage';
@@ -336,6 +334,7 @@ function App() {
             <Route path="departments" element={<DepartmentListPage />} />
             <Route path="departments/:departmentId/employees" element={<DepartmentEmployeeListPage />} />
             <Route path="departments/:departmentId" element={<DepartmentDetailPage />} />
+            <Route path="positions" element={<PositionListPage />} />
             <Route path="level-codes" element={<LevelCodeListPage />} />
             <Route path="kpi-assigned" element={<KpiAssignedPage />} />
             <Route path="kpi-history" element={<KpiHistoryPage />} />
@@ -360,7 +359,6 @@ function App() {
             <Route path="performance-reports/:employeeId" element={<PerformanceReportDetailPage basePath="/audit/performance-reports" readOnly />} />
             <Route path="logs" element={<AuditLogsPage />} />
             <Route path="activity-monitor" element={<AuditActivityPage />} />
-            <Route path="security-analytics" element={<SecurityAnalytics />} />
             <Route path="profile" element={<UserProfilePage />} />
             <Route path="settings/profile" element={<Navigate to="/audit/profile" replace />} />
             <Route path="settings/signature" element={<DefaultSignaturePage />} />
