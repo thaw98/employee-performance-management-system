@@ -295,7 +295,9 @@ public class FeedbackController {
     public ResponseEntity<ApiResponse<FeedbackDetailPageDto>> getDetailPage(@PathVariable Long id) {
         try {
             User user = getCurrentUser();
-            FeedbackDetailPageDto details = feedbackService.getFeedbackDetailPage(id, user.getEmployee().getId());
+            FeedbackDetailPageDto details = isAudit(user)
+                    ? feedbackService.getAuditFeedbackDetailPage(id)
+                    : feedbackService.getFeedbackDetailPage(id, user.getEmployee().getId());
             return ResponseEntity.ok(new ApiResponse<>(true, "Feedback detail page fetched", details));
         } catch (SecurityException e) {
             return ResponseEntity.status(403).body(new ApiResponse<>(false, e.getMessage(), null));

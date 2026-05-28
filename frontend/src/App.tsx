@@ -359,6 +359,7 @@ function App() {
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="360-feedback/history" element={<AuditFeedbackHistoryPage />} />
             <Route path="360-feedback/history/:employeeId" element={<AuditFeedbackEvaluateeHistoryPage />} />
+            <Route path="360-feedback/history/:employeeId/:feedbackId" element={<FeedbackDetailPage />} />
             <Route path="reports" element={<HrReportsPage />} />
             <Route path="reports/feedback" element={<FeedbackReportPage mode="audit" />} />
             <Route path="reports/appraisal" element={<AppraisalReportsPage />} />

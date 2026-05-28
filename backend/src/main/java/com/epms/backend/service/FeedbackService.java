@@ -894,6 +894,39 @@ public class FeedbackService {
         return dto;
     }
 
+    @Transactional(readOnly = true)
+    public FeedbackDetailPageDto getAuditFeedbackDetailPage(Long feedbackId) {
+        Feedback feedback = feedbackRepository.findById(feedbackId)
+                .orElseThrow(() -> new RuntimeException("Feedback not found"));
+
+        FeedbackHistoryDto summary = mapToHistoryDto(feedback, "RECEIVED");
+
+        FeedbackDetailPageDto dto = new FeedbackDetailPageDto();
+        dto.setId(summary.getId());
+        dto.setDate(summary.getDate());
+        dto.setDirection(summary.getDirection());
+        dto.setEvaluatorName(summary.getEvaluatorName());
+        dto.setEvaluatorStaffNo(summary.getEvaluatorStaffNo());
+        dto.setEvaluatorPosition(summary.getEvaluatorPosition());
+        dto.setEvaluatorDepartment(summary.getEvaluatorDepartment());
+        dto.setEvaluateeName(summary.getEvaluateeName());
+        dto.setEvaluateeStaffNo(summary.getEvaluateeStaffNo());
+        dto.setEvaluateePosition(summary.getEvaluateePosition());
+        dto.setEvaluateeDepartment(summary.getEvaluateeDepartment());
+        dto.setPosition(summary.getPosition());
+        dto.setRole(summary.getRole());
+        dto.setScore(summary.getScore());
+        dto.setRemark(summary.getRemark());
+        dto.setAnonymous(summary.getAnonymous());
+        dto.setAdditionalComments(summary.getAdditionalComments());
+        dto.setStatus(summary.getStatus());
+        dto.setReviewCycleId(summary.getReviewCycleId());
+        dto.setReviewCycleName(summary.getReviewCycleName());
+        dto.setReviewCycleStartDate(summary.getReviewCycleStartDate());
+        dto.setDetails(mapFeedbackDetails(feedback));
+        return dto;
+    }
+
     private List<com.epms.backend.dto.FeedbackDetailDto> mapFeedbackDetails(Feedback feedback) {
         return feedback.getDetails().stream().map(d -> {
             com.epms.backend.dto.FeedbackDetailDto dto = new com.epms.backend.dto.FeedbackDetailDto();

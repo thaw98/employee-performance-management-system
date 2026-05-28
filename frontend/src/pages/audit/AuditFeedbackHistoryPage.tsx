@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { ArrowLeft, Download, Eye, FileSpreadsheet, FileText, Search } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -369,11 +368,6 @@ export function AuditFeedbackEvaluateeHistoryPage() {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
-  const [selectedFeedback, setSelectedFeedback] = useState<AuditHistoryItem | null>(null);
-  const [details, setDetails] = useState<FeedbackDetail[]>([]);
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
   useEffect(() => {
     const loadHistory = async () => {
       try {
@@ -400,18 +394,16 @@ export function AuditFeedbackEvaluateeHistoryPage() {
     loadHistory();
   }, [employeeId, page, pageSize, searchParams]);
 
-  const openDetails = async (item: AuditHistoryItem) => {
-    setSelectedFeedback(item);
-    setIsModalOpen(true);
-    setLoadingDetails(true);
-    try {
-      const resp = await axios.get(`/feedback/${item.id}/details`);
-      setDetails(resp.data.data || []);
-    } catch {
-      toast.error('Failed to load feedback details');
-    } finally {
-      setLoadingDetails(false);
-    }
+  const viewDetails = (item: AuditHistoryItem) => {
+    const suffix = searchParams.toString();
+    const query = suffix ? `?${suffix}` : '';
+    navigate(`/audit/360-feedback/history/${employeeId}/${item.id}${query}`, {
+      state: {
+        feedback: item,
+        sourcePath: `/audit/360-feedback/history/${employeeId}${query}`,
+        listState: { page, pageSize },
+      },
+    });
   };
 
   const generatePDF = async (item: AuditHistoryItem) => {
@@ -505,7 +497,7 @@ export function AuditFeedbackEvaluateeHistoryPage() {
                   <td className="p-5 text-center font-black text-blue-600">{scoreText(item.score)}</td>
                   <td className="p-5 text-center"><span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase ${getRemarkColor(item.remark)}`}>{item.remark || '-'}</span></td>
                   <td className="p-5 text-sm font-bold text-slate-600">{formatDate(item.date)}</td>
-                  <td className="p-5 text-right"><div className="flex justify-end gap-2"><button type="button" onClick={() => openDetails(item)} title="View details" className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-100 bg-white text-slate-500 hover:text-slate-900"><Eye size={18} /></button><button type="button" onClick={() => generatePDF(item)} title="Download PDF Report" className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white"><Download size={18} /></button></div></td>
+                  <td className="p-5 text-right"><div className="flex justify-end gap-2"><button type="button" onClick={() => viewDetails(item)} title="View details" className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-100 bg-white text-slate-500 hover:text-slate-900"><Eye size={18} /></button><button type="button" onClick={() => generatePDF(item)} title="Download PDF Report" className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white"><Download size={18} /></button></div></td>
                 </tr>
               ))}
             </tbody>
@@ -513,39 +505,6 @@ export function AuditFeedbackEvaluateeHistoryPage() {
         </div>
         {!loading && totalItems > 0 && <PaginationBar pageIndex={page} pageSize={pageSize} pageCount={Math.max(1, totalPages || Math.ceil(totalItems / pageSize))} totalItems={totalItems} itemLabel="evaluations" rowsPerPageOptions={[5, 10, 20, 50]} onPageIndexChange={setPage} onPageSizeChange={(nextSize) => { setPageSize(nextSize); setPage(0); }} className="mt-0 rounded-none border-x-0 border-b-0 border-t border-slate-200/70 shadow-none" />}
       </div>
-
-      <Transition show={isModalOpen} as={React.Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={() => setIsModalOpen(false)}>
-          <TransitionChild as={React.Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0"><div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" /></TransitionChild>
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4">
-              <TransitionChild as={React.Fragment} enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                <DialogPanel className="w-full max-w-4xl transform overflow-hidden rounded-[32px] bg-white p-10 shadow-2xl transition-all border border-slate-100">
-                  <div className="flex items-center justify-between mb-8 gap-4">
-                    <div>
-                      <DialogTitle className="text-2xl font-black text-slate-800 uppercase tracking-tight">Feedback Details</DialogTitle>
-                      <p className="text-sm font-bold text-slate-400">Evaluator: <span className="text-blue-600">{selectedFeedback?.evaluatorName || '-'}</span></p>
-                    </div>
-                    <span className={`rounded-full border px-4 py-2 text-xs font-black uppercase ${selectedFeedback?.anonymous ? 'border-orange-100 bg-orange-50 text-orange-700' : 'border-emerald-100 bg-emerald-50 text-emerald-700'}`}>{selectedFeedback?.anonymous ? 'Anonymous' : 'Not Anonymous'}</span>
-                  </div>
-                  <div className="space-y-6 max-h-[50vh] overflow-y-auto pr-4">
-                    {loadingDetails ? <div className="p-20 text-center"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" /></div> : (
-                      <>
-                        {details.map((detail, index) => <div key={`${detail.criteriaName}-${index}`} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4"><div className="flex items-center justify-between gap-4"><h5 className="font-black text-slate-800">{detail.criteriaName}</h5><span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg">{detail.rating}</span></div><div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium">{detail.comment || 'No comments provided for this criteria.'}</div></div>)}
-                        <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3"><h5 className="font-black text-slate-800">Additional Comments</h5><div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium whitespace-pre-wrap">{selectedFeedback?.additionalComments?.trim() || 'No additional comments provided.'}</div></div>
-                      </>
-                    )}
-                  </div>
-                  <div className="mt-10 pt-8 border-t border-slate-100 flex justify-end gap-3">
-                    <button onClick={() => setIsModalOpen(false)} className="px-8 py-3 rounded-xl text-xs font-black text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all">CLOSE</button>
-                    <button onClick={() => selectedFeedback && generatePDF(selectedFeedback)} className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 transition-all"><Download size={16} /> PDF REPORT</button>
-                  </div>
-                </DialogPanel>
-              </TransitionChild>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
     </div>
   );
 }
