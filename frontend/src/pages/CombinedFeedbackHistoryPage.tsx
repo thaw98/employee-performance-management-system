@@ -174,10 +174,9 @@ export function CombinedFeedbackHistoryPage() {
       const doc = new jsPDF();
       const margin = 14;
 
-      const refId = `FB-${item.id}`;
-      const genDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const genDateTime = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
       const directionLabel = item.direction === 'RECEIVED' ? 'Received Feedback' : 'Given Feedback';
-      addPdfProfessionalHeader(doc, '360 Feedback History Report', `${directionLabel}  |  Reference: ${refId}  |  ${genDate}`, { margin });
+      addPdfProfessionalHeader(doc, '360° Feedback Assessment Report', `${directionLabel}  |  Generated: ${genDateTime}`, { margin });
 
       let currentY = 42;
       currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
@@ -193,11 +192,11 @@ export function CombinedFeedbackHistoryPage() {
         ['Assessment Date', formatPdfDate(item.date), 'Cycle', item.reviewCycleName || '-'],
       ], { marginLeft: margin, marginRight: margin }) + 10;
 
-      currentY = addPdfSectionHeader(doc, margin, currentY, 'Detailed Assessment Criteria', { width: 182 });
+      currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluation Result', { width: 182 });
       autoTable(doc, {
         startY: currentY + 4,
         head: [['#', 'Criteria', 'Rating', 'Comments']],
-        body: pdfDetails.map((detail, index) => [index + 1, detail.criteriaName, detail.rating, detail.comment || 'No comment provided']),
+        body: pdfDetails.map((detail, index) => [index + 1, detail.criteriaName, detail.rating, detail.comment || '-']),
         theme: 'grid',
         margin: { left: margin, right: margin },
         styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },

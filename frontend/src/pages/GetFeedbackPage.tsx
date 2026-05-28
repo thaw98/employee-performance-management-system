@@ -141,9 +141,8 @@ export function GetFeedbackPage() {
         const evaluatorPosition = isAnonymous ? '-' : item.evaluatorPosition || '-';
         const evaluatorDepartment = isAnonymous ? '-' : item.evaluatorDepartment || '-';
 
-        const refId = `FB-${item.id}`;
-        const genDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        addPdfProfessionalHeader(doc, '360-Degree Feedback Assessment Report', `Reference: ${refId}  |  ${genDate}`, { margin });
+        const genDateTime = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+        addPdfProfessionalHeader(doc, '360° Feedback Assessment Report', `Generated: ${genDateTime}`, { margin });
 
         let currentY = 42;
         currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });
@@ -159,11 +158,11 @@ export function GetFeedbackPage() {
             ['Department', evaluatorDepartment, 'Evaluator Role', item.role || '-'],
         ], { marginLeft: margin, marginRight: margin }) + 10;
 
-        currentY = addPdfSectionHeader(doc, margin, currentY, 'Detailed Assessment Criteria', { width: 182 });
+        currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluation Result', { width: 182 });
         autoTable(doc, {
             startY: currentY + 4,
             head: [['#', 'Criteria', 'Rating', 'Comments']],
-            body: details.map((d, i) => [i + 1, d.criteriaName, d.rating, d.comment || 'No comment']),
+            body: details.map((d, i) => [i + 1, d.criteriaName, d.rating, d.comment || '-']),
             theme: 'grid',
             margin: { left: margin, right: margin },
             styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
