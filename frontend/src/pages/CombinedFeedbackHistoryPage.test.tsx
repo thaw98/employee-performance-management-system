@@ -118,7 +118,14 @@ describe('CombinedFeedbackHistoryPage', () => {
     mocks.toastError.mockReset();
     mocks.get.mockImplementation((url: string) => {
       if (url.startsWith('/review-cycles')) {
-        return Promise.resolve({ data: { data: [{ id: 10, name: '2026 H1' }] } });
+        return Promise.resolve({
+          data: {
+            data: [
+              { id: 10, name: '2026 H1', startDate: '2026-01-01', status: 'ACTIVE' },
+              { id: 11, name: 'Q2 2026-2027', startDate: '2026-07-01', status: 'UPCOMING' },
+            ],
+          },
+        });
       }
       if (url.includes('/details')) {
         return Promise.resolve({ data: { data: [{ criteriaName: 'Communication', rating: 5, comment: 'Clear' }] } });
@@ -129,6 +136,19 @@ describe('CombinedFeedbackHistoryPage', () => {
 
   afterEach(() => {
     cleanup();
+  });
+
+  it('does not show future review cycles in the cycle filter', async () => {
+    render(<CombinedFeedbackHistoryPage />);
+
+    await waitFor(() => {
+      expect(mocks.get).toHaveBeenCalledWith('/review-cycles?requiresEmployeeSubmission=true');
+    });
+
+    const cycleFilter = screen.getByLabelText('Review cycle') as HTMLSelectElement;
+    const optionLabels = Array.from(cycleFilter.options).map((option) => option.text);
+    expect(optionLabels).toContain('2026 H1');
+    expect(optionLabels).not.toContain('Q2 2026-2027');
   });
 
   it('renders tabs, filters, rows, and masks anonymous received evaluator details', async () => {

@@ -65,6 +65,14 @@ const formatPdfDate = (value?: string | null) => {
 
 const scoreText = (score?: number | null) => (typeof score === 'number' ? `${score.toFixed(1)}%` : '-');
 
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const isStartedOrPastCycle = (cycle: { startDate?: string | null; status?: string | null }) => {
+  if (cycle.status?.toUpperCase() === 'UPCOMING') return false;
+  if (cycle.startDate) return cycle.startDate <= todayIso();
+  return true;
+};
+
 const isReceivedAnonymous = (item: CombinedHistoryItem) =>
   item.direction === 'RECEIVED' && (Boolean(item.anonymous) || item.evaluatorName?.trim().toLowerCase() === 'anonymous');
 
@@ -107,7 +115,7 @@ export function CombinedFeedbackHistoryPage() {
     const fetchReviewCycles = async () => {
       try {
         const resp = await axios.get('/review-cycles?requiresEmployeeSubmission=true');
-        setReviewCycles(resp.data.data || []);
+        setReviewCycles((resp.data.data || []).filter(isStartedOrPastCycle));
       } catch (err) {
         console.error('Review cycle filter load error:', err);
       }
