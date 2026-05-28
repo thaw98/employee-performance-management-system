@@ -50,6 +50,7 @@ interface FeedbackDraft {
     evaluateeDepartment?: string;
     role: 'MANAGER' | 'PEER' | 'SUBORDINATE';
     anonymous?: boolean;
+    additionalComments?: string | null;
     updatedAt?: string;
     details?: Array<{
         criteriaId: number;
@@ -61,8 +62,11 @@ interface FeedbackDraft {
 interface FeedbackFormData {
     ratings: Record<string, number | undefined>;
     comments: Record<string, string>;
+    additionalComments: string;
     anonymous: boolean;
 }
+
+const ADDITIONAL_COMMENTS_MAX_LENGTH = 1000;
 
 function formatEvaluateeMeta(staffNo: string, levelCode?: string | null) {
     const parts: string[] = [];
@@ -92,12 +96,14 @@ export function GiveFeedbackPage() {
         defaultValues: {
             ratings: {},
             comments: {},
+            additionalComments: '',
             anonymous: false
         }
     });
     const { getValues, reset, setValue, watch } = form;
     const ratings = watch('ratings') || {};
     const comments = watch('comments') || {};
+    const additionalComments = watch('additionalComments') || '';
     const isAnonymous = watch('anonymous') || false;
 
     useEffect(() => {
@@ -118,7 +124,7 @@ export function GiveFeedbackPage() {
                 skipSelectedDraftFetchRef.current = false;
                 return;
             }
-            reset({ ratings: {}, comments: {}, anonymous: false });
+            reset({ ratings: {}, comments: {}, additionalComments: '', anonymous: false });
             fetchDraft(selectedEvaluatee.id, role);
         }
     }, [selectedEvaluatee?.id, role, reset]);
@@ -206,6 +212,7 @@ export function GiveFeedbackPage() {
         reset({
             ratings: draftRatings,
             comments: draftComments,
+            additionalComments: draft.additionalComments || '',
             anonymous: Boolean(draft.anonymous)
         });
     };
@@ -241,7 +248,7 @@ export function GiveFeedbackPage() {
     };
 
     const handleRoleChange = (nextRole: 'MANAGER' | 'PEER' | 'SUBORDINATE') => {
-        reset({ ratings: {}, comments: {}, anonymous: false });
+        reset({ ratings: {}, comments: {}, additionalComments: '', anonymous: false });
         setSelectedEvaluatee(null);
         setRole(nextRole);
     };
@@ -256,6 +263,7 @@ export function GiveFeedbackPage() {
             evaluateeId: selectedEvaluatee.id,
             role: role,
             anonymous: role === 'SUBORDINATE' ? values.anonymous : true,
+            additionalComments: values.additionalComments || '',
             details: criteriaList.map(c => ({
                 criteriaId: c.id,
                 rating: values.ratings[String(c.id)] ?? null,
@@ -306,6 +314,9 @@ export function GiveFeedbackPage() {
     const handleSubmit = async () => {
         if (!selectedEvaluatee) return toast.error('Please select an employee');
         if (!isAllRatedTotal) return toast.error('Please rate all criteria');
+        if (additionalComments.length > ADDITIONAL_COMMENTS_MAX_LENGTH) {
+            return toast.error('Additional comments must be 1000 characters or fewer');
+        }
 
         try {
             setIsSubmitting(true);
@@ -313,6 +324,7 @@ export function GiveFeedbackPage() {
                 evaluateeId: selectedEvaluatee.id,
                 role: role,
                 anonymous: role === 'SUBORDINATE' ? isAnonymous : true,
+                additionalComments,
                 details: criteriaList.map(c => ({
                     criteriaId: c.id,
                     rating: ratings[String(c.id)],
@@ -764,6 +776,25 @@ export function GiveFeedbackPage() {
                                 </button>
                             </div>
                         )}
+
+                        <div className="space-y-3 rounded-2xl border-2 border-slate-100 bg-slate-50/70 p-5">
+                            <div className="flex items-center justify-between gap-3">
+                                <label htmlFor="additionalComments" className="text-sm font-black uppercase tracking-tight text-slate-800">
+                                    Additional Comments
+                                </label>
+                                <span className="text-[11px] font-black text-slate-400">
+                                    {additionalComments.length}/{ADDITIONAL_COMMENTS_MAX_LENGTH}
+                                </span>
+                            </div>
+                            <textarea
+                                id="additionalComments"
+                                maxLength={ADDITIONAL_COMMENTS_MAX_LENGTH}
+                                placeholder="Share any additional feedback here..."
+                                value={additionalComments}
+                                onChange={(e) => setValue('additionalComments', e.target.value, { shouldDirty: true, shouldTouch: true })}
+                                className="h-32 w-full resize-none rounded-2xl border-2 border-slate-100 bg-white px-5 py-4 text-sm font-bold text-slate-700 outline-none transition-all focus:border-blue-500"
+                            />
+                        </div>
                     </div>
 
                     <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -786,7 +817,7 @@ export function GiveFeedbackPage() {
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => {
-                                    reset({ ratings: {}, comments: {}, anonymous: false });
+                                    reset({ ratings: {}, comments: {}, additionalComments: '', anonymous: false });
                                     toast.success('Form cleared');
                                 }}
                                 className="px-8 py-5 bg-white border-2 border-slate-200 text-slate-500 rounded-2xl font-black text-sm hover:bg-slate-50 hover:text-slate-800 transition-all"

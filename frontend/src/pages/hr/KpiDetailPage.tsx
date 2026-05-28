@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Target, ChevronLeft, Calendar, User, Briefcase, Award, TrendingUp, ShieldCheck, FileEdit, Lock, Save, X } from 'lucide-react';
+import { Target, ChevronLeft, Calendar, Briefcase, Award, TrendingUp, ShieldCheck, FileEdit, Lock, Save, X } from 'lucide-react';
 import { 
   useGetLatestKpisByEmployeeQuery, 
   useGetEmployeeKpiPeriodsQuery, 
@@ -13,6 +13,20 @@ import { useGetEmployeeByIdQuery } from '../../features/hrEmployeeList/hrEmploye
 import { toast } from 'react-hot-toast';
 import { withGenderTitle } from '../../utils/personName';
 import { useKpiViewContext } from '../../hooks/useKpiViewContext';
+
+const formatKpiUpdatedDate = (value?: string) => {
+  if (!value) return 'N/A';
+
+  const raw = value.trim();
+  const date = new Date(raw.includes('T') ? raw : `${raw}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  return `${day}/${month}/${year}`;
+};
 
 export const KpiDetailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -206,7 +220,7 @@ export const KpiDetailPage: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="bg-slate-50/30 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
+                    <tr className="bg-slate-50/30 text-black text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
                       <th className="py-4 px-6">KPI Name</th>
                       <th className="py-4 px-6">Category</th>
                       <th className="py-4 px-6">Target/Unit</th>
@@ -242,8 +256,8 @@ export const KpiDetailPage: React.FC = () => {
                               {kpi.weightedScore?.toFixed(2) || '0.00'}
                             </td>
                             <td className="py-4 px-6 text-right">
-                              <p className="text-[10px] font-bold text-slate-400">
-                                {kpi.updatedDate ? new Date(kpi.updatedDate).toLocaleDateString() : 'N/A'}
+                              <p className="text-xs font-bold text-black">
+                                {formatKpiUpdatedDate(kpi.updatedDate)}
                               </p>
                             </td>
                           </tr>

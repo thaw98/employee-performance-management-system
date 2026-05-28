@@ -11,6 +11,8 @@ import {
 import { PaginationBar } from '../components/common/PaginationBar';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
+import { addPdfProfessionalHeader, addPdfProfessionalFooter, addPdfSectionHeader, addPdfInfoTable } from '../utils/pdfBranding';
 import { 
     Dialog, 
     DialogPanel, 
@@ -23,15 +25,23 @@ import { useGetProfileQuery } from '../features/user/userApi';
 interface HistoryItem {
     id: number;
     date: string;
+    evaluatorName?: string | null;
+    evaluatorPosition?: string | null;
+    evaluatorDepartment?: string | null;
     evaluateeName: string;
     evaluateeStaffNo: string;
+    evaluateePosition?: string | null;
+    evaluateeDepartment?: string | null;
     position: string;
     role: string;
     score: number;
     remark: string;
+    anonymous?: boolean;
     status?: string;
     reviewCycleId?: number;
     reviewCycleName?: string;
+    reviewCycleStartDate?: string | null;
+    additionalComments?: string | null;
 }
 
 interface FeedbackDetail {
@@ -39,6 +49,19 @@ interface FeedbackDetail {
     rating: number;
     comment: string;
 }
+
+const formatPdfDate = (value?: string | null) => {
+    if (!value) return '-';
+
+    const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+        const [, year, month, day] = dateOnlyMatch;
+        return `${day}/${month}/${year}`;
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('en-GB');
+};
 
 export function FeedbackHistoryPage() {
     const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -136,50 +159,38 @@ export function FeedbackHistoryPage() {
             const item = history.find(h => h.id === id);
             if (!item) return;
 
-            // Fetch full details
             const resp = await axios.get(`/feedback/${id}/details`);
             const details = resp.data.data;
 
             const doc = new jsPDF();
-            
-            // Header
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(24);
-            doc.setTextColor(8, 85, 191);
-            doc.text('PERFORMANCE FEEDBACK REPORT', 105, 20, { align: 'center' });
-            
-            doc.setFontSize(10);
-            doc.setTextColor(150);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`Reference ID: FB-2026-${id} | Generated: ${new Date().toLocaleString()}`, 105, 28, { align: 'center' });
+            const margin = 14;
 
-            // Summary Box
-            doc.setFillColor(248, 250, 252);
-            doc.roundedRect(20, 35, 170, 45, 3, 3, 'F');
-            
-            doc.setFontSize(12);
-            doc.setTextColor(50);
-            doc.setFont('helvetica', 'bold');
-            doc.text('BASIC INFORMATION', 25, 45);
+            const isAnonymous = Boolean(item.anonymous) || item.evaluatorName?.trim().toLowerCase() === 'anonymous';
+            const evaluatorName = isAnonymous ? 'Anonymous' : item.evaluatorName || '-';
+            const evaluatorPosition = isAnonymous ? '-' : item.evaluatorPosition || '-';
+            const evaluatorDepartment = isAnonymous ? '-' : item.evaluatorDepartment || '-';
 
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.text(`Evaluatee: ${item.evaluateeName}`, 25, 55);
-            doc.text(`Staff No: ${item.evaluateeStaffNo}`, 25, 60);
-            doc.text(`Position: ${item.position}`, 25, 65);
-            
-            doc.text(`Feedback Role: ${item.role}`, 110, 55);
-            doc.text(`Score: ${item.score.toFixed(2)}%`, 110, 60);
-            doc.text(`Category: ${item.remark}`, 110, 65);
+            const refId = `FB-${id}`;
+            const genDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            addPdfProfessionalHeader(doc, 'Performance Feedback Report', `Reference: ${refId}  |  ${genDate}`, { margin });
 
-            // Detailed Ratings
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(8, 85, 191);
-            doc.text('DETAILED ASSESSMENT CRITERIA', 20, 95);
+            let currentY = 42;
+            currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });
+            currentY = addPdfInfoTable(doc, currentY + 2, [
+                ['Employee Name', item.evaluateeName || '-', 'Current Position', item.evaluateePosition || item.position || '-'],
+                ['Assessment Date', formatPdfDate(item.date), 'Staff ID', item.evaluateeStaffNo || '-'],
+                ['Department', item.evaluateeDepartment || '-', 'Effective Date', formatPdfDate(item.reviewCycleStartDate)],
+            ], { marginLeft: margin, marginRight: margin }) + 8;
 
+            currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
+            currentY = addPdfInfoTable(doc, currentY + 2, [
+                ['Employee Name', evaluatorName, 'Current Position', evaluatorPosition],
+                ['Department', evaluatorDepartment, 'Evaluator Role', item.role || '-'],
+            ], { marginLeft: margin, marginRight: margin }) + 10;
+
+            currentY = addPdfSectionHeader(doc, margin, currentY, 'Detailed Assessment Criteria', { width: 182 });
             autoTable(doc, {
-                startY: 100,
+                startY: currentY + 4,
                 head: [['#', 'Assessment Criteria', 'Rating', 'Comments / Observations']],
                 body: details.map((d: any, idx: number) => [
                     idx + 1,
@@ -187,22 +198,45 @@ export function FeedbackHistoryPage() {
                     d.rating,
                     d.comment || 'No comment provided'
                 ]),
-                styles: { fontSize: 9, cellPadding: 5 },
-                headStyles: { fillColor: [8, 85, 191], textColor: 255 },
+                theme: 'grid',
+                margin: { left: margin, right: margin },
+                styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
+                headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 8 },
                 columnStyles: {
-                    0: { cellWidth: 10 },
-                    2: { cellWidth: 20, halign: 'center' },
-                    3: { cellWidth: 70 }
+                    0: { cellWidth: 10, halign: 'center' },
+                    2: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
                 },
                 alternateRowStyles: { fillColor: [249, 250, 251] }
             });
+            currentY = (doc as any).lastAutoTable.finalY + 10;
 
-            const finalY = (doc as any).lastAutoTable.finalY + 15;
-            doc.setFontSize(10);
-            doc.setTextColor(150);
-            doc.text('This is a system-generated report for the 360-degree feedback system.', 105, finalY, { align: 'center' });
+            if (item.additionalComments?.trim()) {
+                currentY = addPdfSectionHeader(doc, margin, currentY, 'Additional Comments', { width: 182 });
+                doc.setDrawColor(226, 232, 240);
+                doc.setFillColor(248, 250, 252);
+                doc.roundedRect(margin, currentY + 2, 182, 20, 3, 3, 'FD');
+                doc.setFont('helvetica', 'italic');
+                doc.setFontSize(9);
+                doc.setTextColor(71, 85, 105);
+                const commentLines = doc.splitTextToSize(item.additionalComments.trim(), 170);
+                doc.text(commentLines, margin + 6, currentY + 10);
+                currentY += Math.max(28, 12 + commentLines.length * 5);
+            }
 
-            doc.save(`Feedback_Report_${item.evaluateeStaffNo}.pdf`);
+            currentY = addFeedbackScorePerformanceSection(doc, currentY, {
+                scorePercentage: item.score,
+                remark: item.remark,
+                marginLeft: margin,
+                marginRight: margin,
+            });
+
+            const pageCount = doc.getNumberOfPages();
+            for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+                doc.setPage(pageNumber);
+                addPdfProfessionalFooter(doc, pageNumber, pageCount, { margin });
+            }
+
+            doc.save(`Feedback_Report_${item.evaluateeStaffNo || id}.pdf`);
             toast.success('Report generated successfully');
         } catch (err) {
             console.error(err);
@@ -423,21 +457,31 @@ export function FeedbackHistoryPage() {
                                                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Fetching details...</p>
                                             </div>
                                         ) : (
-                                            details.map((d, i) => (
-                                                <div key={i} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4">
-                                                    <div className="flex items-center justify-between">
-                                                        <h5 className="font-black text-slate-800">{d.criteriaName}</h5>
-                                                        <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-blue-100">
-                                                            {d.rating}
-                                                        </span>
+                                            <>
+                                                {details.map((d, i) => (
+                                                    <div key={i} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <h5 className="font-black text-slate-800">{d.criteriaName}</h5>
+                                                            <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-blue-100">
+                                                                {d.rating}
+                                                            </span>
+                                                        </div>
+                                                        <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed">
+                                                            {d.comment || (
+                                                                <span className="text-slate-300 italic">No comments provided for this criteria.</span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed">
-                                                        {d.comment || (
-                                                            <span className="text-slate-300 italic">No comments provided for this criteria.</span>
+                                                ))}
+                                                <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                                    <h5 className="font-black text-slate-800">Additional Comments</h5>
+                                                    <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                                                        {selectedFeedback?.additionalComments?.trim() || (
+                                                            <span className="text-slate-300 italic">No additional comments provided.</span>
                                                         )}
                                                     </div>
                                                 </div>
-                                            ))
+                                            </>
                                         )}
                                     </div>
 

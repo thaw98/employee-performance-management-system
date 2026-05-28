@@ -11,6 +11,7 @@ public final class AuditTargetType {
 	public static final String SELF_ASSESSMENT_FORM = "SELF_ASSESSMENT_FORM";
 	public static final String SELF_ASSESSMENT_FORM_TEMPLATE = "SELF_ASSESSMENT_FORM_TEMPLATE";
 	public static final String QUESTION_BANK = "QUESTION_BANK";
+	public static final String FEEDBACK_360 = "FEEDBACK_360";
 	public static final String EMPLOYEE_KPI = "EMPLOYEE_KPI";
 	public static final String POSITION_KPI = "POSITION_KPI";
 	public static final String DEPARTMENT_KPI = "DEPARTMENT_KPI";

@@ -9,6 +9,7 @@ import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
+import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding';
 import {
     APPRAISAL_PRIMARY,
     appraisalGradientBtn,
@@ -555,6 +556,7 @@ export function AppraisalSubmissionsPage() {
         doc.text(`Status: ${targetStatus === 'LOCKED' ? 'FINALIZED' : 'HR APPROVED'}`, 15, 30);
         doc.text(`Generated on: ${dateStr}`, 15, 35);
         doc.text(`Filter: ${filterDept === 'ALL' ? 'ALL DEPARTMENTS' : 'DEPARTMENTAL'} | ${filterPos === 'ALL' ? 'ALL POSITIONS' : String(filterPos).toUpperCase()}`, 282, 35, { align: 'right' });
+        addPdfHeaderBranding(doc, { margin: 15, y: 12, textColor: [255, 255, 255] });
 
         const tableData = filtered.map((a, index) => [
             index + 1,
@@ -587,6 +589,16 @@ export function AppraisalSubmissionsPage() {
             },
             alternateRowStyles: { fillColor: [248, 250, 252] }
         });
+
+        const pageCount = doc.getNumberOfPages();
+        for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+            doc.setPage(pageNumber);
+            addPdfFooterBranding(doc, { align: 'left', margin: 15, y: doc.internal.pageSize.getHeight() - 8 });
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(100);
+            doc.text(`Page ${pageNumber} of ${pageCount}`, doc.internal.pageSize.getWidth() - 15, doc.internal.pageSize.getHeight() - 8, { align: 'right' });
+        }
 
         doc.save(`HR_Performance_Summary_${targetStatus}_${dateStr.replace(/\//g, '-')}.pdf`);
         toast.success("Summary report exported successfully.");

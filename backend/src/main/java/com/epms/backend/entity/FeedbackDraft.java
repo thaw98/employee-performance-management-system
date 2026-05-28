@@ -45,6 +45,9 @@ public class FeedbackDraft {
     @Column(name = "anonymous")
     private Boolean anonymous = false;
 
+    @Column(name = "additional_comments", length = 1000)
+    private String additionalComments;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

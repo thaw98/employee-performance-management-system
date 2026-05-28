@@ -136,6 +136,32 @@ public class FeedbackController {
         }
     }
 
+    @GetMapping("/combined-history")
+    public ResponseEntity<ApiResponse<Page<FeedbackHistoryDto>>> getCombinedHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String direction,
+            @RequestParam(required = false) Long reviewCycleId,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
+            @RequestParam(required = false) String feedbackType,
+            @RequestParam(required = false) String peopleSearch) {
+        try {
+            User user = getCurrentUser();
+            FeedbackHistoryFilter filter = new FeedbackHistoryFilter();
+            filter.setDirection(direction);
+            filter.setReviewCycleId(reviewCycleId);
+            filter.setFromDate(fromDate);
+            filter.setToDate(toDate);
+            filter.setFeedbackType(feedbackType);
+            filter.setPeopleSearch(peopleSearch);
+            Page<FeedbackHistoryDto> history = feedbackService.getCombinedFeedbackHistory(user.getEmployee().getId(), filter, PageRequest.of(page, size));
+            return ResponseEntity.ok(new ApiResponse<>(true, "Combined feedback history fetched", history));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ApiResponse<>(false, "Combined History Error: " + e.getMessage(), null));
+        }
+    }
+
     @GetMapping("/eligible-evaluatees")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getEligible(@RequestParam String role) {
         try {

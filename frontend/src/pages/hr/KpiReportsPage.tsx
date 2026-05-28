@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'react-hot-toast';
+import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding';
 import {
   KPI_REPORTS_BAR_FILL,
   KPI_REPORTS_CHART_AXIS,
@@ -401,6 +402,7 @@ export default function KpiReportsPage() {
       doc.setFontSize(10);
       doc.text(`KPI Period: ${selectedPeriodLabel || format(new Date(), 'MMMM yyyy')}`, 14, 22);
       doc.text(`Export Date: ${format(new Date(), 'dd MMM yyyy')}`, 230, 22);
+      addPdfHeaderBranding(doc, { margin: 14, y: 14 });
 
       if (isDeptActive) {
         autoTable(doc, {
@@ -433,6 +435,15 @@ export default function KpiReportsPage() {
           styles: { fontSize: 8, cellPadding: 1.8 },
           headStyles: { fillColor: [36, 99, 235], textColor: 255 },
         });
+      }
+
+      const pageCount = doc.getNumberOfPages();
+      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+        doc.setPage(pageNumber);
+        addPdfFooterBranding(doc, { align: 'left', margin: 14, y: doc.internal.pageSize.getHeight() - 8 });
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text(`Page ${pageNumber} of ${pageCount}`, doc.internal.pageSize.getWidth() - 14, doc.internal.pageSize.getHeight() - 8, { align: 'right' });
       }
 
       doc.save(`${isDeptActive ? 'Department_Comparison_Report' : 'KPI_Performance_Report'}_${format(new Date(), 'yyyyMMdd')}.pdf`);

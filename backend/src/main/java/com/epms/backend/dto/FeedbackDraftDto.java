@@ -16,6 +16,7 @@ public class FeedbackDraftDto {
     private String evaluateeDepartment;
     private String role;
     private Boolean anonymous;
+    private String additionalComments;
     private Long reviewCycleId;
     private String reviewCycleName;
     private Instant updatedAt;

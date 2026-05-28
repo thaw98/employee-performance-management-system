@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
+import { addPdfProfessionalHeader, addPdfProfessionalFooter, addPdfSectionHeader, addPdfInfoTable } from '../utils/pdfBranding';
 import { 
     Dialog, 
     DialogPanel, 
@@ -26,10 +28,18 @@ interface FeedbackItem {
     id: number;
     date: string;
     evaluatorName: string; // We'll assume the backend provides this or we show "Anonymous"
+    evaluatorPosition?: string | null;
+    evaluatorDepartment?: string | null;
+    evaluateeName?: string | null;
+    evaluateeStaffNo?: string | null;
+    evaluateePosition?: string | null;
+    evaluateeDepartment?: string | null;
+    reviewCycleStartDate?: string | null;
     role: string;
     score: number;
     remark: string;
     anonymous?: boolean;
+    additionalComments?: string | null;
 }
 
 interface FeedbackDetail {
@@ -37,6 +47,19 @@ interface FeedbackDetail {
     rating: number;
     comment: string;
 }
+
+const formatPdfDate = (value?: string | null) => {
+    if (!value) return '-';
+
+    const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+        const [, year, month, day] = dateOnlyMatch;
+        return `${day}/${month}/${year}`;
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('en-GB');
+};
 
 export function GetFeedbackPage() {
     const [received, setReceived] = useState<FeedbackItem[]>([]);
@@ -112,30 +135,82 @@ export function GetFeedbackPage() {
 
     const generatePDF = (item: FeedbackItem) => {
         const doc = new jsPDF();
-        const showEvaluatorName = !item.anonymous && item.evaluatorName?.trim().toLowerCase() !== 'anonymous';
-        const detailsStartY = showEvaluatorName ? 72 : 65;
-        
-        doc.setFontSize(20);
-        doc.text('360-Degree Feedback Assessment Report', 105, 20, { align: 'center' });
-        
-        doc.setFontSize(10);
-        doc.text(`Date: ${new Date(item.date).toLocaleDateString('en-GB')} ${new Date(item.date).toLocaleTimeString('en-US', { hour12: timeFormat === '12h', hour: '2-digit', minute: '2-digit' })}`, 14, 35);
-        doc.text(`Role of Evaluator: ${item.role}`, 14, 42);
-        if (showEvaluatorName) {
-            doc.text(`Evaluator Name: ${item.evaluatorName}`, 14, 49);
-        }
-        doc.text(`Overall Score: ${item.score.toFixed(1)}%`, 14, showEvaluatorName ? 56 : 49);
-        doc.text(`Performance Remark: ${item.remark}`, 14, showEvaluatorName ? 63 : 56);
-        
+        const margin = 14;
+        const isAnonymous = Boolean(item.anonymous) || item.evaluatorName?.trim().toLowerCase() === 'anonymous';
+        const evaluatorName = isAnonymous ? 'Anonymous' : item.evaluatorName || '-';
+        const evaluatorPosition = isAnonymous ? '-' : item.evaluatorPosition || '-';
+        const evaluatorDepartment = isAnonymous ? '-' : item.evaluatorDepartment || '-';
+
+        const genDateTime = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+        addPdfProfessionalHeader(doc, '360° Feedback Assessment Report', `Generated: ${genDateTime}`, { margin });
+
+        let currentY = 42;
+        currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });
+        currentY = addPdfInfoTable(doc, currentY + 2, [
+            ['Employee Name', item.evaluateeName || '-', 'Current Position', item.evaluateePosition || '-'],
+            ['Assessment Date', formatPdfDate(item.date), 'Staff ID', item.evaluateeStaffNo || '-'],
+            ['Department', item.evaluateeDepartment || '-', 'Effective Date', formatPdfDate(item.reviewCycleStartDate)],
+        ], { marginLeft: margin, marginRight: margin }) + 8;
+
+        currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
+        currentY = addPdfInfoTable(doc, currentY + 2, [
+            ['Employee Name', evaluatorName, 'Current Position', evaluatorPosition],
+            ['Department', evaluatorDepartment, 'Evaluator Role', item.role || '-'],
+        ], { marginLeft: margin, marginRight: margin }) + 10;
+
+        currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluation Result', { width: 182 });
         autoTable(doc, {
-            startY: detailsStartY,
-            head: [['Criteria', 'Rating', 'Comments']],
-            body: details.map(d => [d.criteriaName, d.rating, d.comment || 'N/A']),
-            theme: 'striped',
-            headStyles: { fillColor: [8, 85, 191] }
+            startY: currentY + 4,
+            head: [['#', 'Criteria', 'Rating', 'Comments']],
+            body: details.map((d, i) => [i + 1, d.criteriaName, d.rating, d.comment || '-']),
+            theme: 'grid',
+            margin: { left: margin, right: margin },
+            styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
+            headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+            columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                2: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
+            },
+            alternateRowStyles: { fillColor: [249, 250, 251] },
         });
-        
-        doc.save(`Feedback_Report_${item.date}.pdf`);
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+
+        if (item.additionalComments?.trim()) {
+            const commentLines = doc.splitTextToSize(item.additionalComments.trim(), 170);
+            const commentBoxHeight = Math.max(20, 8 + commentLines.length * 4.5);
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const footerReserved = 20;
+            
+            if (currentY + 12 + commentBoxHeight > pageHeight - footerReserved) {
+                doc.addPage();
+                currentY = 20;
+            }
+            
+            currentY = addPdfSectionHeader(doc, margin, currentY, 'Additional Comments', { width: 182 });
+            doc.setDrawColor(226, 232, 240);
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(margin, currentY + 2, 182, commentBoxHeight, 3, 3, 'FD');
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(9);
+            doc.setTextColor(71, 85, 105);
+            doc.text(commentLines, margin + 6, currentY + 10);
+            currentY += commentBoxHeight + 8;
+        }
+
+        currentY = addFeedbackScorePerformanceSection(doc, currentY, {
+            scorePercentage: item.score,
+            remark: item.remark,
+            marginLeft: margin,
+            marginRight: margin,
+        });
+
+        const pageCount = doc.getNumberOfPages();
+        for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+            doc.setPage(pageNumber);
+            addPdfProfessionalFooter(doc, pageNumber, pageCount, { margin });
+        }
+
+        doc.save(`Feedback_Report_${item.id}.pdf`);
     };
 
     const getRemarkColor = (remark: string) => {
@@ -320,21 +395,31 @@ export function GetFeedbackPage() {
                                                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Fetching details...</p>
                                             </div>
                                         ) : (
-                                            details.map((d, i) => (
-                                                <div key={i} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4">
-                                                    <div className="flex items-center justify-between">
-                                                        <h5 className="font-black text-slate-800">{d.criteriaName}</h5>
-                                                        <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-blue-100">
-                                                            {d.rating}
-                                                        </span>
+                                            <>
+                                                {details.map((d, i) => (
+                                                    <div key={i} className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <h5 className="font-black text-slate-800">{d.criteriaName}</h5>
+                                                            <span className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-blue-100">
+                                                                {d.rating}
+                                                            </span>
+                                                        </div>
+                                                        <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed">
+                                                            {d.comment || (
+                                                                <span className="text-slate-300 italic">No comments provided.</span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed">
-                                                        {d.comment || (
-                                                            <span className="text-slate-300 italic">No comments provided.</span>
+                                                ))}
+                                                <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-3">
+                                                    <h5 className="font-black text-slate-800">Additional Comments</h5>
+                                                    <div className="bg-white p-4 rounded-xl border border-slate-100 italic text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                                                        {selectedFeedback?.additionalComments?.trim() || (
+                                                            <span className="text-slate-300 italic">No additional comments provided.</span>
                                                         )}
                                                     </div>
                                                 </div>
-                                            ))
+                                            </>
                                         )}
                                     </div>
 

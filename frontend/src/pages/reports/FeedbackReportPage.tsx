@@ -15,6 +15,8 @@ import {
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { addFeedbackScorePerformanceSection, feedbackPercentageFromAverage } from '../../utils/feedbackScorePdf'
+import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding'
 import { useAppSelector } from '../../app/hooks'
 import { AlertTriangle, ArrowLeft, Award, ChevronLeft, ChevronRight, Download, FileText, Filter, Trophy } from 'lucide-react'
 import {
@@ -81,6 +83,15 @@ function formatScore(value?: number | null) {
   return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(1) : '0.0'
 }
 
+function getAdditionalComments(comments?: string[] | null) {
+  return (comments ?? []).map((comment) => comment.trim()).filter(Boolean)
+}
+
+function formatAdditionalComments(comments?: string[] | null) {
+  const values = getAdditionalComments(comments)
+  return values.length > 0 ? values.join('\n\n') : '-'
+}
+
 function buildCriteriaAveragesFromExportRows(rows: EmployeeFeedbackDetailReportDto[]): CriteriaAverageDto[] {
   const totals = new Map<number, { criteriaName: string; total: number; count: number }>()
 
@@ -115,6 +126,7 @@ function addPdfPageNumbers(doc: jsPDF) {
   doc.setTextColor(100)
   for (let page = 1; page <= pageCount; page += 1) {
     doc.setPage(page)
+    addPdfFooterBranding(doc, { align: 'left', margin: 10, y: pageHeight - 7, textColor: [100, 100, 100] })
     doc.text(`Page ${page} of ${pageCount}`, pageWidth / 2, pageHeight - 7, { align: 'center' })
   }
   doc.setTextColor(0)
@@ -804,6 +816,21 @@ function DepartmentDetailReport({
                       </div>
                     )}
                   </div>
+
+                  <div>
+                    <h3 className="mb-3 text-sm font-black text-slate-900 dark:text-slate-100">Additional Comments</h3>
+                    <div className="space-y-2">
+                      {getAdditionalComments(employeeDetail.additionalComments).length > 0 ? (
+                        getAdditionalComments(employeeDetail.additionalComments).map((comment, index) => (
+                          <div key={`${index}-${comment}`} className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-medium leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300">
+                            {comment}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-800/60">No additional comments provided.</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="py-16 text-center text-sm text-slate-500">Employee details could not be loaded.</div>
@@ -950,6 +977,7 @@ function EmployeeOwnFeedbackReport() {
           ['Employee', report.employeeName],
           ['Department', report.departmentName],
           ['Total Average Feedback Score', formatScore(report.totalAverageScore)],
+          ['Additional Comments', formatAdditionalComments(report.additionalComments)],
         ]),
         'Employee Detail',
       )
@@ -978,6 +1006,7 @@ function EmployeeOwnFeedbackReport() {
       const usableWidth = pageWidth - margin * 2
       doc.setFontSize(16)
       doc.text(getExportReportTitle('individual'), margin, 14)
+      addPdfHeaderBranding(doc, { margin, y: 14 })
       doc.setFontSize(12)
       doc.text('Individual', margin, 22)
       autoTable(doc, {
@@ -999,6 +1028,7 @@ function EmployeeOwnFeedbackReport() {
           ['Employee', report.employeeName],
           ['Department', report.departmentName],
           ['Total Average Feedback Score', formatScore(report.totalAverageScore)],
+          ['Additional Comments', formatAdditionalComments(report.additionalComments)],
         ],
         theme: 'grid',
         margin: { left: margin, right: margin },
@@ -1010,6 +1040,15 @@ function EmployeeOwnFeedbackReport() {
         },
       })
       y = (getLastAutoTableFinalY(doc) ?? y) + 8
+      const hasAdditionalComments = getAdditionalComments(report.additionalComments).length > 0
+      if (hasAdditionalComments) {
+        y = addFeedbackScorePerformanceSection(doc, y, {
+          scorePercentage: feedbackPercentageFromAverage(report.totalAverageScore),
+          marginLeft: margin,
+          marginRight: margin,
+          primaryColor: FEEDBACK_REPORT_PRIMARY_RGB,
+        })
+      }
       if (y > pageHeight - 35) {
         doc.addPage()
         y = 14
@@ -1024,6 +1063,15 @@ function EmployeeOwnFeedbackReport() {
         styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
         headStyles: { fillColor: [...FEEDBACK_REPORT_PRIMARY_RGB], textColor: 255 },
       })
+      if (!hasAdditionalComments) {
+        y = (getLastAutoTableFinalY(doc) ?? y) + 8
+        addFeedbackScorePerformanceSection(doc, y, {
+          scorePercentage: feedbackPercentageFromAverage(report.totalAverageScore),
+          marginLeft: margin,
+          marginRight: margin,
+          primaryColor: FEEDBACK_REPORT_PRIMARY_RGB,
+        })
+      }
       addPdfPageNumbers(doc)
       doc.save(`Feedback_Report_Individual_${report.employeeName.replace(/[^a-z0-9]+/gi, '_')}.pdf`)
     } finally {
@@ -1085,6 +1133,20 @@ function EmployeeOwnFeedbackReport() {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+            <div>
+              <h3 className="mb-3 text-sm font-black text-slate-900 dark:text-slate-100">Additional Comments</h3>
+              <div className="space-y-2">
+                {getAdditionalComments(report.additionalComments).length > 0 ? (
+                  getAdditionalComments(report.additionalComments).map((comment, index) => (
+                    <div key={`${index}-${comment}`} className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-medium leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300">
+                      {comment}
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-800/60">No additional comments provided.</div>
+                )}
               </div>
             </div>
           </div>
@@ -1190,6 +1252,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
         Employee: employee.employeeName,
         Department: employee.departmentName,
         'Total Average Feedback Score': formatScore(employee.totalAverageScore),
+        'Additional Comments': formatAdditionalComments(employee.additionalComments),
       }
       criteriaNames.forEach((criteriaName) => {
         const criteria = filters.criteriaId
@@ -1214,6 +1277,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
       ['Employee', selectedEmployee?.employeeName ?? '-'],
       ['Department', selectedEmployee?.departmentName ?? '-'],
       ['Total Average Feedback Score', formatScore(selectedEmployee?.totalAverageScore)],
+      ['Additional Comments', formatAdditionalComments(selectedEmployee?.additionalComments)],
       [],
       ['Criteria Averages'],
       ['Criteria', 'Average Score'],
@@ -1223,6 +1287,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
       ['Employee', selectedEmployee?.employeeName ?? '-'],
       ['Department', selectedEmployee?.departmentName ?? '-'],
       ['Total Average Feedback Score', formatScore(selectedEmployee?.totalAverageScore)],
+      ['Additional Comments', formatAdditionalComments(selectedEmployee?.additionalComments)],
     ]
     const individualCriteriaSheetRows = [
       ['Criteria', 'Average Score'],
@@ -1236,6 +1301,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
       individualDetailRows,
       individualEmployeeRows,
       individualRows,
+      selectedEmployee,
       summaryRows,
     }
   }
@@ -1274,7 +1340,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
           XLSX.utils.aoa_to_sheet([
             employeeRows.length
               ? Object.keys(employeeRows[0])
-              : ['Rank', 'Employee', 'Department', 'Total Average Feedback Score'],
+              : ['Rank', 'Employee', 'Department', 'Total Average Feedback Score', 'Additional Comments'],
             ...employeeRows.map((row) => Object.values(row)),
           ]),
           'Employee Feedback',
@@ -1306,7 +1372,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
     setReportDownload(`${section}-pdf`)
     try {
       const exportFilters = section === 'summary' ? { ...filters, criteriaId: undefined, criteriaName: undefined, order: undefined } : filters
-      const { criteriaAverages, departmentLabel, employeeRows, individualRows, summaryRows } = await buildExportWorkbook(exportFilters)
+      const { criteriaAverages, departmentLabel, employeeRows, individualRows, selectedEmployee: selectedEmployeeReport, summaryRows } = await buildExportWorkbook(exportFilters)
       const sectionLabel = section === 'summary' ? 'Summary' : 'Individual'
       const reportTitle = getExportReportTitle(section)
       const doc = new jsPDF('l', 'mm', 'a4')
@@ -1316,6 +1382,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
       const usableWidth = pageWidth - margin * 2
       doc.setFontSize(16)
       doc.text(reportTitle, margin, 14)
+      addPdfHeaderBranding(doc, { margin, y: 14 })
       doc.setFontSize(12)
       doc.text(sectionLabel, margin, 22)
 
@@ -1353,7 +1420,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
           doc.addPage()
           y = 14
         }
-        const summaryEmployeeHeaders = Object.keys(employeeRows[0] ?? { Employee: '', Department: '', 'Total Average Feedback Score': '' })
+        const summaryEmployeeHeaders = Object.keys(employeeRows[0] ?? { Employee: '', Department: '', 'Total Average Feedback Score': '', 'Additional Comments': '' })
         const summaryEmployeeFontSize = Math.max(5, Math.min(7, Math.floor(usableWidth / Math.max(1, summaryEmployeeHeaders.length) / 2.4)))
         autoTable(doc, {
           startY: y,
@@ -1410,6 +1477,7 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
             ['Employee', selectedEmployee?.Employee ?? '-'],
             ['Department', selectedEmployee?.Department ?? '-'],
             ['Total Average Feedback Score', selectedEmployee?.['Total Average Feedback Score'] ?? '-'],
+            ['Additional Comments', selectedEmployee?.['Additional Comments'] ?? '-'],
           ],
           theme: 'grid',
           margin: { left: margin, right: margin },
@@ -1421,12 +1489,21 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
           },
         })
         y = (getLastAutoTableFinalY(doc) ?? y) + 8
+        const hasAdditionalComments = getAdditionalComments(selectedEmployeeReport?.additionalComments).length > 0
+        if (hasAdditionalComments) {
+          y = addFeedbackScorePerformanceSection(doc, y, {
+            scorePercentage: feedbackPercentageFromAverage(selectedEmployeeReport?.totalAverageScore),
+            marginLeft: margin,
+            marginRight: margin,
+            primaryColor: FEEDBACK_REPORT_PRIMARY_RGB,
+          })
+        }
         if (y > pageHeight - 35) {
           doc.addPage()
           y = 14
         }
         const selectedCriteriaRows = employeeRows.length
-          ? Object.entries(employeeRows[0]).filter(([key]) => !['Rank', 'Employee', 'Department', 'Total Average Feedback Score'].includes(key))
+          ? Object.entries(employeeRows[0]).filter(([key]) => !['Rank', 'Employee', 'Department', 'Total Average Feedback Score', 'Additional Comments'].includes(key))
           : []
         autoTable(doc, {
           startY: y,
@@ -1441,6 +1518,15 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
             textColor: 255,
           },
         })
+        if (!hasAdditionalComments) {
+          y = (getLastAutoTableFinalY(doc) ?? y) + 8
+          addFeedbackScorePerformanceSection(doc, y, {
+            scorePercentage: feedbackPercentageFromAverage(selectedEmployeeReport?.totalAverageScore),
+            marginLeft: margin,
+            marginRight: margin,
+            primaryColor: FEEDBACK_REPORT_PRIMARY_RGB,
+          })
+        }
       }
       addPdfPageNumbers(doc)
       doc.save(`Feedback_Report_${sectionLabel}_${departmentLabel.replace(/[^a-z0-9]+/gi, '_')}.pdf`)

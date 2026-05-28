@@ -1,12 +1,16 @@
 package com.epms.backend.service;
 
 import com.epms.backend.StaffTypes;
+import com.epms.backend.audit.AuditActionType;
+import com.epms.backend.audit.AuditTargetType;
 import com.epms.backend.dto.FeedbackDraftDto;
 import com.epms.backend.dto.FeedbackHistoryFilter;
 import com.epms.backend.dto.FeedbackHistoryDto;
 import com.epms.backend.dto.FeedbackSubmissionRequest;
 import com.epms.backend.entity.*;
 import com.epms.backend.repository.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,6 +31,9 @@ import java.util.LinkedHashMap;
 
 @Service
 public class FeedbackService {
+    private static final int ADDITIONAL_COMMENTS_MAX_LENGTH = 1000;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
 
     private final FeedbackRepository feedbackRepository;
     private final FeedbackDraftRepository feedbackDraftRepository;
@@ -39,6 +46,7 @@ public class FeedbackService {
     private final TimeSettingService timeSettingService;
     private final ReviewCycleService reviewCycleService;
     private final ReviewCycleRepository reviewCycleRepository;
+    private final AuditService auditService;
 
     public FeedbackService(
             FeedbackRepository feedbackRepository,
@@ -50,7 +58,8 @@ public class FeedbackService {
             NotificationService notificationService,
             TimeSettingService timeSettingService,
             ReviewCycleService reviewCycleService,
-            ReviewCycleRepository reviewCycleRepository) {
+            ReviewCycleRepository reviewCycleRepository,
+            AuditService auditService) {
         this.feedbackRepository = feedbackRepository;
         this.feedbackDraftRepository = feedbackDraftRepository;
         this.employeeRepository = employeeRepository;
@@ -61,6 +70,7 @@ public class FeedbackService {
         this.timeSettingService = timeSettingService;
         this.reviewCycleService = reviewCycleService;
         this.reviewCycleRepository = reviewCycleRepository;
+        this.auditService = auditService;
     }
 
     /* Reporting helpers */
@@ -221,6 +231,10 @@ public class FeedbackService {
                 count += 1;
             }
         }
+        List<String> additionalComments = feedbacks.stream()
+                .map(Feedback::getAdditionalComments)
+                .filter(this::hasText)
+                .collect(Collectors.toList());
 
         List<com.epms.backend.dto.FeedbackReportDtos.EmployeeCriteriaAverageDto> criteriaAverages = criteriaAgg.entrySet().stream()
                 .map(entry -> new com.epms.backend.dto.FeedbackReportDtos.EmployeeCriteriaAverageDto(
@@ -238,7 +252,8 @@ public class FeedbackService {
                 department != null ? department.getId() : null,
                 department != null ? department.getName() : null,
                 count > 0 ? total / count : 0d,
-                criteriaAverages);
+                criteriaAverages,
+                additionalComments);
     }
 
     public com.epms.backend.dto.FeedbackReportDtos.TopBottomEmployeeSummaryDto getTopBottomEmployeeSummary(
@@ -484,6 +499,7 @@ public class FeedbackService {
 
     @Transactional
     public void submitFeedback(Long evaluatorId, FeedbackSubmissionRequest request) {
+        String additionalComments = normalizeAdditionalComments(request.getAdditionalComments());
         Employee evaluator = employeeRepository.findById(evaluatorId)
                 .orElseThrow(() -> new RuntimeException("Evaluator not found"));
         Employee evaluatee = employeeRepository.findById(request.getEvaluateeId())
@@ -517,6 +533,7 @@ public class FeedbackService {
         feedback.setEvaluatee(evaluatee);
         feedback.setRole(request.getRole());
         feedback.setAnonymous(Boolean.TRUE.equals(request.getAnonymous()));
+        feedback.setAdditionalComments(additionalComments);
         feedback.setCreatedDate(Instant.now());
         ReviewCycle activeCycle = reviewCycleService.getActiveSubmissionCycle();
         feedback.setReviewCycle(activeCycle);
@@ -544,7 +561,8 @@ public class FeedbackService {
         feedback.setRemark(calculateRemark(score));
         feedback.setDetails(details);
 
-        feedbackRepository.save(feedback);
+        Feedback savedFeedback = feedbackRepository.save(feedback);
+        recordFeedbackSubmittedAudit(savedFeedback);
 
         if (activeCycle != null) {
             feedbackDraftRepository.deleteByEvaluatorIdAndEvaluateeIdAndRoleAndReviewCycleId(
@@ -565,7 +583,7 @@ public class FeedbackService {
     @Transactional(readOnly = true)
     public Page<FeedbackHistoryDto> getFeedbackHistory(Long evaluatorId, FeedbackHistoryFilter filter, Pageable pageable) {
         Page<Feedback> feedbackPage = feedbackRepository.findAll(historySpec(evaluatorId, filter), pageable);
-        return feedbackPage.map(this::mapToHistoryDto);
+        return feedbackPage.map(feedback -> mapToHistoryDto(feedback, "GIVEN"));
     }
 
     @Transactional(readOnly = true)
@@ -579,9 +597,23 @@ public class FeedbackService {
         return feedbackPage.map(this::mapToReceivedHistoryDto);
     }
 
+    @Transactional(readOnly = true)
+    public Page<FeedbackHistoryDto> getCombinedFeedbackHistory(Long employeeId, FeedbackHistoryFilter filter, Pageable pageable) {
+        Page<Feedback> feedbackPage = feedbackRepository.findAll(combinedHistorySpec(employeeId, filter), pageable);
+        return feedbackPage.map(feedback -> {
+            boolean given = feedback.getEvaluator() != null && employeeId.equals(feedback.getEvaluator().getId());
+            boolean received = feedback.getEvaluatee() != null && employeeId.equals(feedback.getEvaluatee().getId());
+            if (received && !given) {
+                return mapToReceivedHistoryDto(feedback, "RECEIVED", true);
+            }
+            return mapToHistoryDto(feedback, "GIVEN");
+        });
+    }
+
     @Transactional
     public FeedbackDraftDto saveDraft(Long evaluatorId, FeedbackSubmissionRequest request) {
         cleanupExpiredDrafts();
+        String additionalComments = normalizeAdditionalComments(request.getAdditionalComments());
         Employee evaluator = employeeRepository.findById(evaluatorId)
                 .orElseThrow(() -> new RuntimeException("Evaluator not found"));
         Employee evaluatee = employeeRepository.findById(request.getEvaluateeId())
@@ -606,6 +638,7 @@ public class FeedbackService {
         draft.setReviewCycle(cycle);
         draft.setRole(request.getRole());
         draft.setAnonymous(Boolean.TRUE.equals(request.getAnonymous()));
+        draft.setAdditionalComments(additionalComments);
         draft.getDetails().clear();
 
         if (request.getDetails() != null) {
@@ -674,38 +707,71 @@ public class FeedbackService {
     }
 
     private FeedbackHistoryDto mapToHistoryDto(Feedback entity) {
+        return mapToHistoryDto(entity, null);
+    }
+
+    private FeedbackHistoryDto mapToHistoryDto(Feedback entity, String direction) {
         FeedbackHistoryDto dto = new FeedbackHistoryDto();
+        Employee evaluator = entity.getEvaluator();
+        Employee evaluatee = entity.getEvaluatee();
         dto.setId(entity.getId());
         dto.setDate(entity.getCreatedDate());
-        dto.setEvaluatorName(entity.getEvaluator().getEmployeeName());
-        dto.setEvaluateeName(entity.getEvaluatee().getEmployeeName());
-        dto.setEvaluateeStaffNo(entity.getEvaluatee().getEmployeeId());
-        dto.setPosition(entity.getEvaluatee().getPosition().getName());
+        dto.setDirection(direction);
+        dto.setEvaluatorName(evaluator != null ? evaluator.getEmployeeName() : null);
+        dto.setEvaluatorStaffNo(evaluator != null ? evaluator.getEmployeeId() : null);
+        dto.setEvaluatorPosition(employeePositionName(evaluator));
+        dto.setEvaluatorDepartment(employeeDepartmentName(evaluator));
+        dto.setEvaluateeName(evaluatee != null ? evaluatee.getEmployeeName() : null);
+        dto.setEvaluateeStaffNo(evaluatee != null ? evaluatee.getEmployeeId() : null);
+        dto.setEvaluateePosition(employeePositionName(evaluatee));
+        dto.setEvaluateeDepartment(employeeDepartmentName(evaluatee));
+        dto.setPosition(dto.getEvaluateePosition());
         dto.setRole(entity.getRole());
         dto.setScore(entity.getScore());
         dto.setRemark(entity.getRemark());
         dto.setAnonymous(Boolean.TRUE.equals(entity.getAnonymous()));
+        dto.setAdditionalComments(entity.getAdditionalComments());
         dto.setStatus("SUBMITTED");
-        if (entity.getReviewCycle() != null) {
-            dto.setReviewCycleId(entity.getReviewCycle().getId());
-            dto.setReviewCycleName(entity.getReviewCycle().getName());
+        ReviewCycle cycle = entity.getReviewCycle();
+        if (cycle != null) {
+            dto.setReviewCycleId(cycle.getId());
+            dto.setReviewCycleName(cycle.getName());
+            dto.setReviewCycleStartDate(cycle.getStartDate());
         } else {
-            ReviewCycle cycle = resolveCycleForDate(entity.getCreatedDate());
+            cycle = resolveCycleForDate(entity.getCreatedDate());
             if (cycle != null) {
                 dto.setReviewCycleId(cycle.getId());
                 dto.setReviewCycleName(cycle.getName());
+                dto.setReviewCycleStartDate(cycle.getStartDate());
             }
         }
         return dto;
     }
 
+    private String employeePositionName(Employee employee) {
+        return employee != null && employee.getPosition() != null ? employee.getPosition().getName() : null;
+    }
+
+    private String employeeDepartmentName(Employee employee) {
+        return employee != null && employee.getDepartment() != null ? employee.getDepartment().getName() : null;
+    }
+
     private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity) {
-        FeedbackHistoryDto dto = mapToHistoryDto(entity);
+        return mapToReceivedHistoryDto(entity, null, false);
+    }
+
+    private FeedbackHistoryDto mapToReceivedHistoryDto(Feedback entity, String direction, boolean hideAnonymousEvaluatorDetails) {
+        FeedbackHistoryDto dto = mapToHistoryDto(entity, direction);
 
         if (Boolean.TRUE.equals(entity.getAnonymous())) {
             dto.setEvaluatorName("Anonymous");
+            if (hideAnonymousEvaluatorDetails) {
+                dto.setEvaluatorStaffNo(null);
+                dto.setEvaluatorPosition(null);
+                dto.setEvaluatorDepartment(null);
+            }
         } else {
-            dto.setEvaluatorName(entity.getEvaluator().getEmployeeName());
+            dto.setEvaluatorName(entity.getEvaluator() != null ? entity.getEvaluator().getEmployeeName() : null);
         }
 
         // Invert the role for the recipient's view
@@ -803,6 +869,7 @@ public class FeedbackService {
         dto.setEvaluateeDepartment(draft.getEvaluatee().getDepartment() != null ? draft.getEvaluatee().getDepartment().getName() : "N/A");
         dto.setRole(draft.getRole());
         dto.setAnonymous(Boolean.TRUE.equals(draft.getAnonymous()));
+        dto.setAdditionalComments(draft.getAdditionalComments());
         dto.setReviewCycleId(draft.getReviewCycle().getId());
         dto.setReviewCycleName(draft.getReviewCycle().getName());
         dto.setUpdatedAt(draft.getUpdatedAt());
@@ -887,6 +954,165 @@ public class FeedbackService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private String normalizeAdditionalComments(String value) {
+        if (!hasText(value)) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.length() > ADDITIONAL_COMMENTS_MAX_LENGTH) {
+            throw new RuntimeException("Additional comments must be 1000 characters or fewer");
+        }
+        return trimmed;
+    }
+
+    private Specification<Feedback> combinedHistorySpec(Long employeeId, FeedbackHistoryFilter filter) {
+        ReviewCycle filterCycle = filter != null && filter.getReviewCycleId() != null
+                ? reviewCycleRepository.findById(filter.getReviewCycleId()).orElse(null)
+                : null;
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            jakarta.persistence.criteria.Predicate given = cb.equal(root.get("evaluator").get("id"), employeeId);
+            jakarta.persistence.criteria.Predicate received = cb.equal(root.get("evaluatee").get("id"), employeeId);
+
+            if (filter != null && hasText(filter.getDirection())) {
+                if ("GIVEN".equalsIgnoreCase(filter.getDirection())) {
+                    predicates.add(given);
+                } else if ("RECEIVED".equalsIgnoreCase(filter.getDirection())) {
+                    predicates.add(received);
+                } else {
+                    predicates.add(cb.or(given, received));
+                }
+            } else {
+                predicates.add(cb.or(given, received));
+            }
+
+            if (filter != null) {
+                applySharedHistoryFilters(filter, filterCycle, root, cb, predicates);
+                if (hasText(filter.getPeopleSearch())) {
+                    String value = like(filter.getPeopleSearch());
+                    predicates.add(cb.or(
+                            cb.like(cb.lower(root.get("evaluator").get("employeeName")), value),
+                            cb.like(cb.lower(root.get("evaluator").get("employeeId")), value),
+                            cb.like(cb.lower(root.get("evaluatee").get("employeeName")), value),
+                            cb.like(cb.lower(root.get("evaluatee").get("employeeId")), value)));
+                }
+            }
+
+            query.orderBy(cb.desc(root.get("createdDate")));
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+    }
+
+    private void applySharedHistoryFilters(
+            FeedbackHistoryFilter filter,
+            ReviewCycle filterCycle,
+            jakarta.persistence.criteria.Root<Feedback> root,
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            List<jakarta.persistence.criteria.Predicate> predicates) {
+        if (filter.getReviewCycleId() != null) {
+            if (filterCycle == null) {
+                predicates.add(cb.disjunction());
+            } else {
+                Instant cycleStart = filterCycle.getStartDate().atStartOfDay(ZoneId.systemDefault()).toInstant();
+                Instant cycleEnd = filterCycle.getEndDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant();
+                predicates.add(cb.or(
+                        cb.equal(root.get("reviewCycle").get("id"), filter.getReviewCycleId()),
+                        cb.and(
+                                cb.isNull(root.get("reviewCycle")),
+                                cb.between(root.get("createdDate"), cycleStart, cycleEnd))));
+            }
+        }
+        if (filter.getStatus() != null && !filter.getStatus().isBlank()
+                && !"SUBMITTED".equalsIgnoreCase(filter.getStatus())) {
+            predicates.add(cb.disjunction());
+        }
+        if (filter.getFromDate() != null) {
+            predicates.add(cb.greaterThanOrEqualTo(
+                    root.get("createdDate"),
+                    filter.getFromDate().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        }
+        if (filter.getToDate() != null) {
+            predicates.add(cb.lessThanOrEqualTo(
+                    root.get("createdDate"),
+                    filter.getToDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).minusNanos(1).toInstant()));
+        }
+        if (hasText(filter.getFeedbackType())) {
+            predicates.add(cb.equal(cb.upper(root.get("role")), filter.getFeedbackType().toUpperCase(Locale.ROOT)));
+        }
+    }
+
+    private void recordFeedbackSubmittedAudit(Feedback feedback) {
+        Employee evaluator = feedback.getEvaluator();
+
+        User evaluatorUser = evaluator != null
+                ? userRepository.findByEmployee_Id(evaluator.getId()).orElse(null)
+                : null;
+        Long performedByUserId = evaluatorUser != null ? evaluatorUser.getId() : null;
+        Long performedByRoleId = evaluatorUser != null && evaluatorUser.getRole() != null
+                ? evaluatorUser.getRole().getId()
+                : null;
+
+        auditService.record(
+                AuditActionType.FEEDBACK_360_SUBMITTED,
+                AuditTargetType.FEEDBACK_360,
+                feedback.getId(),
+                performedByUserId,
+                performedByRoleId,
+                feedbackSubmittedDescription(feedback),
+                feedbackSubmittedMetadataJson(feedback));
+    }
+
+    private String feedbackSubmittedDescription(Feedback feedback) {
+        ReviewCycle reviewCycle = feedback.getReviewCycle();
+        String description = "Submitted 360 feedback from "
+                + employeeName(feedback.getEvaluator())
+                + " to "
+                + employeeName(feedback.getEvaluatee())
+                + " as "
+                + valueOrUnknown(feedback.getRole());
+        if (reviewCycle != null) {
+            description += " for review cycle "
+                    + valueOrUnknown(reviewCycle.getName())
+                    + " (id "
+                    + valueOrUnknown(reviewCycle.getId())
+                    + ")";
+        }
+        return description;
+    }
+
+    private String feedbackSubmittedMetadataJson(Feedback feedback) {
+        ReviewCycle reviewCycle = feedback.getReviewCycle();
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("feedbackId", feedback.getId());
+        metadata.put("evaluatorEmployeeId", employeeId(feedback.getEvaluator()));
+        metadata.put("evaluatorName", employeeName(feedback.getEvaluator()));
+        metadata.put("evaluateeEmployeeId", employeeId(feedback.getEvaluatee()));
+        metadata.put("evaluateeName", employeeName(feedback.getEvaluatee()));
+        metadata.put("role", feedback.getRole());
+        metadata.put("anonymous", Boolean.TRUE.equals(feedback.getAnonymous()));
+        metadata.put("score", feedback.getScore());
+        metadata.put("remark", feedback.getRemark());
+        metadata.put("reviewCycleId", reviewCycle != null ? reviewCycle.getId() : null);
+        metadata.put("reviewCycleName", reviewCycle != null ? reviewCycle.getName() : null);
+        try {
+            return OBJECT_MAPPER.writeValueAsString(metadata);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize 360 feedback audit metadata", ex);
+        }
+    }
+
+    private Long employeeId(Employee employee) {
+        return employee != null ? employee.getId() : null;
+    }
+
+    private String employeeName(Employee employee) {
+        return employee != null ? employee.getEmployeeName() : null;
+    }
+
+    private String valueOrUnknown(Object value) {
+        return value != null && !String.valueOf(value).isBlank() ? String.valueOf(value) : "unknown";
     }
 
     private String like(String value) {

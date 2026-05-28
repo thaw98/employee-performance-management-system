@@ -10,6 +10,7 @@ import { useEffect, useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
 import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
 import PipUnifiedLog from '../features/pip/components/PipUnifiedLog'
+import { addPdfFooterBranding, addPdfHeaderBranding } from '../utils/pdfBranding'
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-blue-100 text-blue-700',
@@ -558,6 +559,7 @@ export default function PipMonitoringPage() {
       doc.text(`Position: ${selectedPositionName}`, 260, 70)
       doc.text(`Status: ${filterStatus ? filterStatus.replace(/_/g, ' ') : 'All statuses'}`, 520, 56)
       doc.text(`Generated: ${formatDateTimeValue(new Date().toISOString())}`, 520, 70)
+      addPdfHeaderBranding(doc, { margin: 36, y: 36 })
 
       autoTable(doc, {
         head: [summaryRows[0].map((heading) => String(heading))],
@@ -588,6 +590,7 @@ export default function PipMonitoringPage() {
         doc.setPage(pageNumber)
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(8)
+        addPdfFooterBranding(doc, { align: 'left', margin: 36, y: doc.internal.pageSize.getHeight() - 18 })
         doc.text(`Page ${pageNumber} of ${pageCount}`, doc.internal.pageSize.getWidth() - 36, doc.internal.pageSize.getHeight() - 18, {
           align: 'right',
         })

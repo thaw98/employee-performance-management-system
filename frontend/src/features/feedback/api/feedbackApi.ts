@@ -27,6 +27,7 @@ export interface FeedbackSubmissionDto {
   totalPoints: number
   totalScore: number
   scoreGrade: string
+  additionalComments?: string
   details: FeedbackDetailDto[]
 }
 
@@ -45,6 +46,7 @@ export interface FeedbackHistoryDto {
   totalPoints: number
   totalScore: number
   scoreGrade: string
+  additionalComments?: string | null
   details: FeedbackHistoryDetailDto[]
 }
 
@@ -96,6 +98,7 @@ export interface EmployeeFeedbackDetailReportDto {
   departmentName: string
   totalAverageScore: number
   criteriaAverages: EmployeeCriteriaAverageDto[]
+  additionalComments: string[]
 }
 
 export interface TopBottomEmployeeSummaryDto {

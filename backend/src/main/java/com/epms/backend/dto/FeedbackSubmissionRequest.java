@@ -8,6 +8,7 @@ public class FeedbackSubmissionRequest {
     private Long evaluateeId;
     private String role;
     private Boolean anonymous;
+    private String additionalComments;
     private List<FeedbackDetailRequest> details;
 
     @Data

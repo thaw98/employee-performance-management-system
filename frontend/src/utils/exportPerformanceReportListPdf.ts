@@ -1,12 +1,12 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { type PerformanceReportSummary } from '../features/performanceReport/performanceReportApi';
+import { addPdfFooterBranding, addPdfHeaderBranding } from './pdfBranding';
 
 const pageMargin = 0.3 * 25.4; // 7.62 mm
 const navy: [number, number, number] = [28, 40, 65];
 const slate: [number, number, number] = [88, 99, 115];
 const borderColor: [number, number, number] = [220, 226, 235];
-const sectionFill: [number, number, number] = [237, 242, 247];
 
 const formatScore = (score: number | null): string =>
   score != null ? score.toFixed(1) : '—';
@@ -23,7 +23,6 @@ export function exportPerformanceReportListPdf(data: PerformanceReportSummary[])
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const contentWidth = pageWidth - pageMargin * 2;
 
   // Header Banner
   doc.setFillColor(...navy);
@@ -41,6 +40,7 @@ export function exportPerformanceReportListPdf(data: PerformanceReportSummary[])
   doc.text(`Total Records: ${data.length}`, pageWidth - pageMargin, 10, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.text(`Exported: ${formatDate()}`, pageWidth - pageMargin, 16, { align: 'right' });
+  addPdfHeaderBranding(doc, { margin: pageMargin, y: 22, textColor: [255, 255, 255] });
 
   doc.setTextColor(0, 0, 0);
 
@@ -122,6 +122,7 @@ export function exportPerformanceReportListPdf(data: PerformanceReportSummary[])
     doc.setFontSize(7.5);
     doc.setTextColor(...slate);
     doc.text(`Employee Performance Management System (EPMS) - Total Employees: ${data.length}`, pageMargin, pageHeight - 7);
+    addPdfFooterBranding(doc, { margin: pageMargin, y: pageHeight - 7, textColor: slate });
     doc.text(`Page ${i} of ${pageCount}`, pageWidth - pageMargin, pageHeight - 7, { align: 'right' });
   }
 
