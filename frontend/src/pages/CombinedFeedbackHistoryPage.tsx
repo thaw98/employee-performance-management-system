@@ -211,16 +211,25 @@ export function CombinedFeedbackHistoryPage() {
       currentY = (doc as any).lastAutoTable.finalY + 10;
 
       if (item.additionalComments?.trim()) {
+        const commentLines = doc.splitTextToSize(item.additionalComments.trim(), 170);
+        const commentBoxHeight = Math.max(20, 8 + commentLines.length * 4.5);
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const footerReserved = 20;
+        
+        if (currentY + 12 + commentBoxHeight > pageHeight - footerReserved) {
+          doc.addPage();
+          currentY = 20;
+        }
+        
         currentY = addPdfSectionHeader(doc, margin, currentY, 'Additional Comments', { width: 182 });
         doc.setDrawColor(226, 232, 240);
         doc.setFillColor(248, 250, 252);
-        doc.roundedRect(margin, currentY + 2, 182, 20, 3, 3, 'FD');
+        doc.roundedRect(margin, currentY + 2, 182, commentBoxHeight, 3, 3, 'FD');
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(9);
         doc.setTextColor(71, 85, 105);
-        const lines = doc.splitTextToSize(item.additionalComments.trim(), 170);
-        doc.text(lines, margin + 6, currentY + 10);
-        currentY += Math.max(28, 12 + lines.length * 5);
+        doc.text(commentLines, margin + 6, currentY + 10);
+        currentY += commentBoxHeight + 8;
       }
 
       currentY = addFeedbackScorePerformanceSection(doc, currentY, {
