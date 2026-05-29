@@ -298,6 +298,7 @@ export function AuditFeedbackHistoryPage() {
         </select>
         <select aria-label="Feedback type" value={filters.feedbackType} onChange={(e) => updateFilter('feedbackType', e.target.value)} className="border-2 border-slate-100 rounded-2xl px-4 py-2 text-xs font-black text-slate-500 outline-none bg-white">
           <option value="">All types</option>
+          <option value="SELF">Self Feedback</option>
           <option value="PEER">Peer</option>
           <option value="MANAGER">Manager</option>
           <option value="SUBORDINATE">Subordinate</option>

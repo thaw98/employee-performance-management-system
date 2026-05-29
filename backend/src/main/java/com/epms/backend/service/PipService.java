@@ -28,6 +28,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -98,6 +99,13 @@ public class PipService {
         }
         if (request.getEndDate().isBefore(request.getStartDate())) {
             throw new RuntimeException("End date must be on or after start date");
+        }
+        if (request.getTotalHours() == null || request.getTotalHours() < 1) {
+            throw new RuntimeException("Total hours must be at least 1");
+        }
+        long maxHours = Math.max(24L, ChronoUnit.DAYS.between(request.getStartDate(), request.getEndDate()) * 24L);
+        if (request.getTotalHours() > maxHours) {
+            throw new RuntimeException("Total hours cannot exceed " + maxHours + " hours for the selected PIP date range");
         }
         if (request.getObjectives() == null || request.getObjectives().isEmpty()) {
             throw new RuntimeException("At least one objective is required");

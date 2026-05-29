@@ -40,6 +40,8 @@ interface Evaluatee {
     statusText: string;
 }
 
+type FeedbackRole = 'SELF' | 'PEER' | 'MANAGER' | 'SUBORDINATE';
+
 interface FeedbackDraft {
     id: number;
     evaluateeId: number;
@@ -48,7 +50,7 @@ interface FeedbackDraft {
     evaluateeLevelCode?: string | null;
     evaluateePosition?: string;
     evaluateeDepartment?: string;
-    role: 'MANAGER' | 'PEER' | 'SUBORDINATE';
+    role: FeedbackRole;
     anonymous?: boolean;
     additionalComments?: string | null;
     updatedAt?: string;
@@ -67,6 +69,13 @@ interface FeedbackFormData {
 }
 
 const ADDITIONAL_COMMENTS_MAX_LENGTH = 1000;
+const FEEDBACK_ROLES: FeedbackRole[] = ['PEER', 'MANAGER', 'SUBORDINATE', 'SELF'];
+const ROLE_LABELS: Record<FeedbackRole, string> = {
+    SELF: 'SELF FEEDBACK',
+    PEER: 'PEER',
+    MANAGER: 'MANAGER',
+    SUBORDINATE: 'SUBORDINATE'
+};
 
 function formatEvaluateeMeta(staffNo: string, levelCode?: string | null) {
     const parts: string[] = [];
@@ -80,7 +89,7 @@ export function GiveFeedbackPage() {
     const [evaluatees, setEvaluatees] = useState<Evaluatee[]>([]);
     const [selectedEvaluatee, setSelectedEvaluatee] = useState<Evaluatee | null>(null);
     const [criteriaList, setCriteriaList] = useState<Criteria[]>([]);
-    const [role, setRole] = useState<'MANAGER' | 'PEER' | 'SUBORDINATE'>('PEER');
+    const [role, setRole] = useState<FeedbackRole>('PEER');
     const [roleFeedbackCount, setRoleFeedbackCount] = useState(0);
     const [roleFeedbackLimit, setRoleFeedbackLimit] = useState(5);
     const [noEligibleRemaining, setNoEligibleRemaining] = useState(false);
@@ -187,10 +196,11 @@ export function GiveFeedbackPage() {
 
                 if (skipPeerAutoSelectRef.current) {
                     skipPeerAutoSelectRef.current = false;
-                } else if (targetRole === 'PEER' && available.length > 0) {
-                    // Random Selection Logic
-                    const randomIndex = Math.floor(Math.random() * available.length);
-                    setSelectedEvaluatee(available[randomIndex]);
+                } else if ((targetRole === 'PEER' || targetRole === 'SELF') && available.length > 0) {
+                    const nextEvaluatee = targetRole === 'SELF'
+                        ? available[0]
+                        : available[Math.floor(Math.random() * available.length)];
+                    setSelectedEvaluatee(nextEvaluatee);
                 } else {
                     setSelectedEvaluatee(null);
                 }
@@ -247,7 +257,7 @@ export function GiveFeedbackPage() {
         fetchDrafts();
     };
 
-    const handleRoleChange = (nextRole: 'MANAGER' | 'PEER' | 'SUBORDINATE') => {
+    const handleRoleChange = (nextRole: FeedbackRole) => {
         reset({ ratings: {}, comments: {}, additionalComments: '', anonymous: false });
         setSelectedEvaluatee(null);
         setRole(nextRole);
@@ -262,7 +272,7 @@ export function GiveFeedbackPage() {
         return {
             evaluateeId: selectedEvaluatee.id,
             role: role,
-            anonymous: role === 'SUBORDINATE' ? values.anonymous : true,
+            anonymous: role === 'SELF' ? false : role === 'SUBORDINATE' ? values.anonymous : true,
             additionalComments: values.additionalComments || '',
             details: criteriaList.map(c => ({
                 criteriaId: c.id,
@@ -323,7 +333,7 @@ export function GiveFeedbackPage() {
             const payload = {
                 evaluateeId: selectedEvaluatee.id,
                 role: role,
-                anonymous: role === 'SUBORDINATE' ? isAnonymous : true,
+                anonymous: role === 'SELF' ? false : role === 'SUBORDINATE' ? isAnonymous : true,
                 additionalComments,
                 details: criteriaList.map(c => ({
                     criteriaId: c.id,
@@ -538,9 +548,9 @@ export function GiveFeedbackPage() {
                     <div className="flex-1 flex flex-col gap-4">
                         <div className="relative">
                             <button 
-                                onClick={() => { if (role !== 'PEER') setIsDropdownOpen(!isDropdownOpen); }}
+                                onClick={() => { if (role !== 'PEER' && role !== 'SELF') setIsDropdownOpen(!isDropdownOpen); }}
                                 className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
-                                    role === 'PEER' ? 'cursor-default border-slate-100 bg-slate-50/50' : 
+                                    role === 'PEER' || role === 'SELF' ? 'cursor-default border-slate-100 bg-slate-50/50' : 
                                     isDropdownOpen ? 'border-blue-600 ring-4 ring-blue-50 bg-white' : 'border-slate-100 bg-white hover:border-blue-200 font-bold'
                                 }`}
                             >
@@ -569,11 +579,11 @@ export function GiveFeedbackPage() {
                                     <div className="flex items-center gap-3 text-slate-400">
                                         <User size={20} />
                                         <span className="text-sm font-bold italic">
-                                            {role === 'PEER' ? 'Allocating random peer...' : 'Click to select employee...'}
+                                            {role === 'SELF' ? 'Loading your self feedback profile...' : role === 'PEER' ? 'Allocating random peer...' : 'Click to select employee...'}
                                         </span>
                                     </div>
                                 )}
-                                {role !== 'PEER' && <ChevronRight className={`transition-transform duration-300 ${isDropdownOpen ? 'rotate-90' : ''}`} />}
+                                {role !== 'PEER' && role !== 'SELF' && <ChevronRight className={`transition-transform duration-300 ${isDropdownOpen ? 'rotate-90' : ''}`} />}
                             </button>
                             
                             {isDropdownOpen && (
@@ -682,13 +692,13 @@ export function GiveFeedbackPage() {
             {/* Role Selection Tabs */}
             <div className="flex justify-center">
                 <div className="bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm flex gap-2">
-                    {(['PEER', 'MANAGER', 'SUBORDINATE'] as const).map(r => (
+                    {FEEDBACK_ROLES.map(r => (
                         <button
                             key={r}
                             onClick={() => handleRoleChange(r)}
                             className={`px-8 py-3 rounded-xl text-xs font-black transition-all ${role === r ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
                         >
-                            {r}
+                            {ROLE_LABELS[r]}
                         </button>
                     ))}
                 </div>
@@ -707,8 +717,8 @@ export function GiveFeedbackPage() {
                         <h2 className="text-3xl font-black text-slate-800 tracking-tight">All Feedbacks Given</h2>
                         <p className="text-slate-500 font-bold max-w-sm mx-auto leading-relaxed">
                             {isLimitReached 
-                                ? `You have reached the maximum limit of ${roleFeedbackLimit} feedbacks for the ${role} role in this cycle.`
-                                : `There are no remaining eligible employees to evaluate for the ${role} role at this time.`}
+                                ? `You have reached the maximum limit of ${roleFeedbackLimit} feedbacks for the ${ROLE_LABELS[role]} role in this cycle.`
+                                : `There are no remaining eligible employees to evaluate for the ${ROLE_LABELS[role]} role at this time.`}
                         </p>
                     </div>
                 </div>

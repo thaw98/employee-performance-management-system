@@ -1102,7 +1102,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                       <YesNoToggle
                         value={watchAnswers?.[index]?.yesNoAnswer}
                         onChange={(v) => handleYesNoChange(index, v, watchAnswers?.[index]?.rating)}
-	                        disabled={!canEditQuestion}
+                        disabled={!canEditQuestion}
                       />
                     </div>
 
@@ -1129,7 +1129,7 @@ export const MySelfAssessmentFormPage: React.FC = () => {
                               }
                               field.onChange(rating);
                             }}
-	                            disabled={!canEditQuestion}
+                            disabled={!canEditQuestion}
                           />
                         )}
                       />

@@ -837,6 +837,8 @@ public class FeedbackService {
     }
 
     private String getEvaluatorRoleRelation(String evaluateeRoleRelation) {
+        if ("SELF".equalsIgnoreCase(evaluateeRoleRelation))
+            return "Self";
         if ("SUBORDINATE".equalsIgnoreCase(evaluateeRoleRelation))
             return "Manager";
         if ("MANAGER".equalsIgnoreCase(evaluateeRoleRelation))
@@ -940,6 +942,10 @@ public class FeedbackService {
     public List<Employee> getEligibleEvaluatees(Long evaluatorId, String role) {
         Employee evaluator = employeeRepository.findById(evaluatorId)
                 .orElseThrow(() -> new RuntimeException("Evaluator not found"));
+
+        if ("SELF".equalsIgnoreCase(role)) {
+            return isProbationEmployee(evaluator) ? new ArrayList<>() : List.of(evaluator);
+        }
 
         if (evaluator.getDepartment() == null || evaluator.getPosition() == null
                 || evaluator.getPosition().getLevelCode() == null) {
