@@ -29,7 +29,7 @@ function PositionListPage() {
   const [assignedDepartmentsPosition, setAssignedDepartmentsPosition] = useState<PositionDto | null>(null)
   const searchDebounceRef = useRef<number | null>(null)
   const user = useAppSelector((state) => state.auth.user)
-  const canViewAssignedDepartments = user?.roleId === 1
+  const canViewAssignedDepartments = user?.roleId === 1 || user?.roleId === 5
 
   const sortParams = useMemo(() => {
     if (sorting.length > 0) {

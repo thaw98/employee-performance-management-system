@@ -37,29 +37,33 @@ class LevelCodeAuditAccessTest {
     }
 
     @Test
-    void createLevelCodeRequiresHrRole() throws NoSuchMethodException {
+    void createLevelCodeAllowsHrAndAuditAccess() throws NoSuchMethodException {
         Method create = LevelCodeController.class.getDeclaredMethod(
                 "createLevelCode", com.epms.backend.dto.levelcode.CreateLevelCodeRequest.class);
         PreAuthorize preAuthorize = create.getAnnotation(PreAuthorize.class);
 
         assertThat(preAuthorize).isNotNull();
-        assertThat(preAuthorize.value()).isEqualTo("hasRole('HR')");
+        assertThat(preAuthorize.value())
+                .contains("hasAnyRole('HR', 'AUDIT')")
+                .contains("principal.roleId == 5");
         assertThat(create.getAnnotation(PostMapping.class)).isNotNull();
     }
 
     @Test
-    void updateLevelCodeRequiresHrRole() throws NoSuchMethodException {
+    void updateLevelCodeAllowsHrAndAuditAccess() throws NoSuchMethodException {
         Method update = LevelCodeController.class.getDeclaredMethod(
                 "updateLevelCode", Long.class, com.epms.backend.dto.levelcode.UpdateLevelCodeRequest.class);
         PreAuthorize preAuthorize = update.getAnnotation(PreAuthorize.class);
 
         assertThat(preAuthorize).isNotNull();
-        assertThat(preAuthorize.value()).isEqualTo("hasRole('HR')");
+        assertThat(preAuthorize.value())
+                .contains("hasAnyRole('HR', 'AUDIT')")
+                .contains("principal.roleId == 5");
         assertThat(update.getAnnotation(PutMapping.class)).isNotNull();
     }
 
     @Test
-    void updatePositionRoleRequiresHrRole() throws NoSuchMethodException {
+    void updatePositionRoleAllowsHrAndAuditAccess() throws NoSuchMethodException {
         Method updateRole = LevelCodeController.class.getDeclaredMethod(
                 "updatePositionRole",
                 Long.class,
@@ -67,7 +71,9 @@ class LevelCodeAuditAccessTest {
         PreAuthorize preAuthorize = updateRole.getAnnotation(PreAuthorize.class);
 
         assertThat(preAuthorize).isNotNull();
-        assertThat(preAuthorize.value()).isEqualTo("hasRole('HR')");
+        assertThat(preAuthorize.value())
+                .contains("hasAnyRole('HR', 'AUDIT')")
+                .contains("principal.roleId == 5");
         assertThat(updateRole.getAnnotation(PatchMapping.class)).isNotNull();
     }
 }

@@ -199,6 +199,17 @@ describe('CombinedFeedbackHistoryPage', () => {
     expect(screen.getAllByText('Received').length).toBeGreaterThan(0);
   });
 
+  it('masks role as dash for anonymous received feedback while showing role for given feedback', async () => {
+    renderHistoryRoute();
+
+    await screen.findByText('Aye Aye');
+    const peerRoleCells = screen.getAllByText('PEER');
+    expect(peerRoleCells.length).toBeGreaterThan(0);
+    expect(screen.queryByText('MANAGER')).toBeNull();
+    const dashCells = screen.getAllByText('-');
+    expect(dashCells.length).toBeGreaterThan(0);
+  });
+
   it('sends direction when a direction tab is selected', async () => {
     const user = userEvent.setup();
     renderHistoryRoute();

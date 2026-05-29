@@ -4,6 +4,7 @@ import axios from '../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { Calendar, ChevronLeft, ChevronRight, Eye, Inbox, Search, User } from 'lucide-react';
 import { useGetProfileQuery } from '../features/user/userApi';
+import { feedbackRoleDisplay } from '../utils/feedbackAnonymity';
 
 interface FeedbackItem {
     id: number;
@@ -21,6 +22,7 @@ interface FeedbackItem {
     remark: string;
     anonymous?: boolean;
     additionalComments?: string | null;
+    direction?: string;
 }
 
 interface ReceivedListState {
@@ -67,7 +69,7 @@ export function GetFeedbackPage() {
         try {
             setLoading(true);
             const resp = await axios.get(`/feedback/received?page=${page}&size=10`);
-            setReceived(resp.data.data.content);
+            setReceived(resp.data.data.content.map((item: FeedbackItem) => ({ ...item, direction: 'RECEIVED' })));
             setTotalPages(resp.data.data.totalPages);
         } catch (err) {
             toast.error('Failed to load received feedback');
@@ -173,7 +175,7 @@ export function GetFeedbackPage() {
                                             <span className="font-bold text-slate-700">{item.evaluatorName}</span>
                                         </div>
                                     </td>
-                                    <td className="p-6"><span className="px-3 py-1 rounded-lg bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tight">{item.role}</span></td>
+                                    <td className="p-6"><span className="px-3 py-1 rounded-lg bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-tight">{feedbackRoleDisplay(item)}</span></td>
                                     <td className="p-6">
                                         <div className="flex flex-col items-center">
                                             <span className="text-lg font-black text-slate-800">{item.score.toFixed(1)}%</span>

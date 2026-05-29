@@ -9,6 +9,7 @@ import { PaginationBar } from '../components/common/PaginationBar';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
 import { addPdfProfessionalHeader, addPdfProfessionalFooter, addPdfSectionHeader, addPdfInfoTable } from '../utils/pdfBranding';
+import { isReceivedAnonymous, feedbackRoleDisplay } from '../utils/feedbackAnonymity';
 
 type FeedbackDirection = 'ALL' | 'GIVEN' | 'RECEIVED';
 
@@ -85,9 +86,6 @@ const isStartedOrPastCycle = (cycle: { startDate?: string | null; status?: strin
   if (cycle.startDate) return cycle.startDate <= todayIso();
   return true;
 };
-
-const isReceivedAnonymous = (item: CombinedHistoryItem) =>
-  item.direction === 'RECEIVED' && (Boolean(item.anonymous) || item.evaluatorName?.trim().toLowerCase() === 'anonymous');
 
 const evaluatorDisplay = (item: CombinedHistoryItem) => {
   if (isReceivedAnonymous(item)) {
@@ -199,6 +197,7 @@ export function CombinedFeedbackHistoryPage() {
       currentY = addPdfInfoTable(doc, currentY + 2, [
         ['Employee Name', evaluator.name, 'Staff ID', evaluator.staffNo || '-'],
         ['Position', evaluator.position || '-', 'Department', evaluator.department || '-'],
+        ['Feedback Type', feedbackRoleDisplay(item), '', ''],
       ], { marginLeft: margin, marginRight: margin }) + 8;
 
       currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });
@@ -340,7 +339,7 @@ export function CombinedFeedbackHistoryPage() {
                     <td className="p-5"><span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${item.direction === 'RECEIVED' ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>{item.direction === 'RECEIVED' ? 'Received' : 'Given'}</span></td>
                     <td className="p-5"><div className="font-black text-slate-800">{evaluator.name}</div><div className="text-[11px] font-bold text-slate-500">{evaluator.position || '-'}</div><div className="text-[10px] font-bold text-slate-400 uppercase">{evaluator.department || ''}</div></td>
                     <td className="p-5"><div className="font-black text-slate-800">{item.evaluateeName || '-'}</div><div className="text-[11px] font-bold text-slate-500 uppercase">{item.evaluateeStaffNo || '-'}</div></td>
-                    <td className="p-5"><span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase">{item.role || '-'}</span></td>
+                    <td className="p-5"><span className="px-3 py-1 bg-slate-100 rounded-lg text-[10px] font-black text-slate-500 uppercase">{feedbackRoleDisplay(item)}</span></td>
                     <td className="p-5"><div className="text-xs font-black text-slate-600">{item.reviewCycleName || 'N/A'}</div></td>
                     <td className="p-5 text-center"><div className="text-base font-black text-blue-600">{scoreText(item.score)}</div></td>
                     <td className="p-5 text-center"><span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-black uppercase border ${getRemarkColor(item.remark)}`}>{item.remark || '-'}</span></td>

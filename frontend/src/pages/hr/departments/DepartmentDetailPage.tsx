@@ -130,31 +130,29 @@ export default function DepartmentDetailPage() {
         },
       ]
 
-      if (!isAudit) {
-        cols.push({
-          id: 'actions',
-          enableSorting: false,
-          header: 'Actions',
-          cell: (info) => (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedMapping(info.row.original)
-                setIsRemoveOpen(true)
-              }}
-              className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-100 hover:border-rose-600 transition-all duration-200"
-              title="Remove Position"
-            >
-              <Trash2 size={13} />
-              Remove
-            </button>
-          ),
-        })
-      }
+      cols.push({
+        id: 'actions',
+        enableSorting: false,
+        header: 'Actions',
+        cell: (info) => (
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedMapping(info.row.original)
+              setIsRemoveOpen(true)
+            }}
+            className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-100 hover:border-rose-600 transition-all duration-200"
+            title="Remove Position"
+          >
+            <Trash2 size={13} />
+            Remove
+          </button>
+        ),
+      })
 
       return cols
     },
-    [isAudit]
+    []
   )
 
   const table = useReactTable({
@@ -274,23 +272,13 @@ export default function DepartmentDetailPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              {isAudit ? (
-                <Link
-                  to={departmentsBasePath}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-white/15 text-white border border-white/25 rounded-xl font-bold text-sm hover:bg-white/25 transition-all"
-                >
-                  <ChevronLeft size={18} />
-                  Back to Departments
-                </Link>
-              ) : (
-                <button
-                  onClick={() => setIsAddOpen(true)}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#2463eb] rounded-xl font-bold text-sm shadow-2xl hover:bg-[#eff6ff] active:scale-95 transition-all"
-                >
-                  <Plus size={18} />
-                  Add Position
-                </button>
-              )}
+              <button
+                onClick={() => setIsAddOpen(true)}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#2463eb] rounded-xl font-bold text-sm shadow-2xl hover:bg-[#eff6ff] active:scale-95 transition-all"
+              >
+                <Plus size={18} />
+                Add Position
+              </button>
             </div>
           </div>
         </div>
@@ -492,29 +480,25 @@ export default function DepartmentDetailPage() {
         </div>
       </div>
 
-      {!isAudit && (
-        <>
-          <AddPositionToDepartmentDrawer
-            isOpen={isAddOpen}
-            onClose={() => setIsAddOpen(false)}
-            departmentId={departmentId}
-            existingPositionIds={existingPositionIds}
-            onSuccess={() => {
-              void refetchPositions()
-            }}
-          />
-          <ConfirmActionModal
-            isOpen={isRemoveOpen}
-            onClose={() => setIsRemoveOpen(false)}
-            onConfirm={handleRemove}
-            title="Remove Position"
-            message={`Remove "${selectedMapping?.positionName}" from this department? This action cannot be undone.`}
-            confirmText="Remove"
-            variant="danger"
-            isLoading={isRemoving}
-          />
-        </>
-      )}
+      <AddPositionToDepartmentDrawer
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        departmentId={departmentId}
+        existingPositionIds={existingPositionIds}
+        onSuccess={() => {
+          void refetchPositions()
+        }}
+      />
+      <ConfirmActionModal
+        isOpen={isRemoveOpen}
+        onClose={() => setIsRemoveOpen(false)}
+        onConfirm={handleRemove}
+        title="Remove Position"
+        message={`Remove "${selectedMapping?.positionName}" from this department? This action cannot be undone.`}
+        confirmText="Remove"
+        variant="danger"
+        isLoading={isRemoving}
+      />
     </div>
   )
 }

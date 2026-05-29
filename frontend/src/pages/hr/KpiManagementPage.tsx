@@ -713,11 +713,11 @@ export const KpiManagementPage: React.FC = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50/80 text-slate-700 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
-                <th className="py-4 px-6 w-1/4">KPI Name</th>
-                <th className="py-4 px-6">Category</th>
-                <th className="py-4 px-6">Target</th>
-                <th className="py-4 px-6">Unit</th>
-                {mode === 'individual' && <th className="py-4 px-6">Actual</th>}
+                <th className="py-4 px-6 min-w-56 whitespace-nowrap">KPI Name</th>
+                <th className="py-4 px-6 min-w-40 whitespace-nowrap">Category</th>
+                <th className="py-4 px-6 min-w-40 whitespace-nowrap">Target</th>
+                <th className="py-4 px-6 min-w-40 whitespace-nowrap">Unit</th>
+                {mode === 'individual' && <th className="py-4 px-6 min-w-40 whitespace-nowrap">Actual</th>}
                 <th className="py-4 px-6 text-center">Weight (%)</th>
                 {mode === 'individual' && <th className="py-4 px-6 text-center">Score (%)</th>}
                 {mode === 'individual' && <th className="py-4 px-6 text-right">Weighted Score</th>}
@@ -727,12 +727,12 @@ export const KpiManagementPage: React.FC = () => {
             <tbody className="divide-y divide-slate-50">
               {kpis.map((kpi, idx) => (
                 <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
-                  <td className="py-3 px-6">
+                  <td className="py-3 px-6 min-w-56 whitespace-nowrap">
                     {newNameRows[idx] ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-56">
                         <input
                           type="text"
-                          className="flex-1 bg-white border border-[#bfdbfe] rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#dbeafe]"
+                          className="flex-1 min-w-56 bg-white border border-[#bfdbfe] rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 whitespace-nowrap outline-none focus:ring-2 focus:ring-[#dbeafe]"
                           placeholder="New KPI name..."
                           value={tempNameValues[idx] || ''}
                           onChange={(e) => setTempNameValues({ ...tempNameValues, [idx]: e.target.value })}
@@ -763,10 +763,11 @@ export const KpiManagementPage: React.FC = () => {
                         addLabel="Add New KPI Name..."
                         disabled={isAlreadyDefined}
                         noResultsLabel="No KPI names found"
+                        minWidthClass="min-w-56"
                       />
                     )}
                   </td>
-                  <td className="py-3 px-6">
+                  <td className="py-3 px-6 min-w-40 whitespace-nowrap">
                     {newCategoryRows[idx] ? (
                       <div className="flex items-center gap-2">
                         <input
@@ -805,17 +806,17 @@ export const KpiManagementPage: React.FC = () => {
                       />
                     )}
                   </td>
-                  <td className="py-3 px-6">
+                  <td className="py-3 px-6 min-w-40 whitespace-nowrap">
                     <input
                       type="text"
-                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
+                      className={`w-full min-w-40 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 whitespace-nowrap focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
                       placeholder="90%"
                       value={kpi.target}
                       readOnly={isAlreadyDefined}
                       onChange={(e) => handleInputChange(idx, 'target', e.target.value)}
                     />
                   </td>
-	                  <td className="py-3 px-6">
+	                  <td className="py-3 px-6 min-w-40 whitespace-nowrap">
 	                    {newUnitRows[idx] ? (
 	                      <div className="flex items-center gap-2">
 	                        <input
@@ -857,10 +858,10 @@ export const KpiManagementPage: React.FC = () => {
 	                    )}
 	                  </td>
                   {mode === 'individual' && (
-                    <td className="py-3 px-6">
+                    <td className="py-3 px-6 min-w-40 whitespace-nowrap">
                       <input
                         type="text"
-                        className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none"
+                        className="w-full min-w-40 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 whitespace-nowrap focus:ring-2 focus:ring-[#dbeafe] outline-none"
                         placeholder="Actual"
                         value={kpi.actual}
                         onChange={(e) => handleInputChange(idx, 'actual', e.target.value)}

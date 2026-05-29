@@ -18,10 +18,9 @@ interface LevelCodeTableProps {
   onEdit: (levelCode: LevelCodeDto) => void
   sorting: SortingState
   setSorting: OnChangeFn<SortingState>
-  readOnly?: boolean
 }
 
-function LevelCodeTable({ data, isLoading, onRowClick, onEdit, sorting, setSorting, readOnly = false }: LevelCodeTableProps) {
+function LevelCodeTable({ data, isLoading, onRowClick, onEdit, sorting, setSorting }: LevelCodeTableProps) {
   const columns = useMemo<ColumnDef<LevelCodeDto>[]>(
     () => [
       {
@@ -44,27 +43,25 @@ function LevelCodeTable({ data, isLoading, onRowClick, onEdit, sorting, setSorti
           </span>
         ),
       },
-      ...(readOnly
-        ? []
-        : [{
-            id: 'actions',
-            header: 'Actions',
-            cell: (info: { row: { original: LevelCodeDto } }) => (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onEdit(info.row.original)
-                }}
-                className="p-2.5 text-slate-500 hover:bg-[#eff6ff] hover:text-[#2463eb] rounded-lg transition-all duration-200 active:scale-95"
-                title="Edit Level Code"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
-            ),
-          }]),
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: (info: { row: { original: LevelCodeDto } }) => (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onEdit(info.row.original)
+            }}
+            className="p-2.5 text-slate-500 hover:bg-[#eff6ff] hover:text-[#2463eb] rounded-lg transition-all duration-200 active:scale-95"
+            title="Edit Level Code"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+        ),
+      },
     ],
-    [onEdit, readOnly],
+    [onEdit],
   )
 
   const table = useReactTable({
