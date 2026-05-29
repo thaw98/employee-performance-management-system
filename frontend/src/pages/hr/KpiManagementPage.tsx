@@ -4,6 +4,7 @@ import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, 
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { EmployeeAutocomplete } from '../../components/common/EmployeeAutocomplete';
+import { KpiMasterCombobox } from '../../components/common/KpiMasterCombobox';
 import { useGetEmployeesQuery } from '../../features/hrEmployeeList/hrEmployeeApi';
 import { useGetDepartmentsQuery } from '../../features/department/api/departmentApi';
 import { useGetPositionsByDepartmentQuery } from '../../features/position/api/positionApi';
@@ -753,27 +754,16 @@ export const KpiManagementPage: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <select
-                        className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
+                      <KpiMasterCombobox
+                        options={kpiNames}
                         value={kpi.name}
+                        onChange={(name) => handleInputChange(idx, 'name', name)}
+                        onAddNew={() => setNewNameRows({ ...newNameRows, [idx]: true })}
+                        placeholder="KPI Name"
+                        addLabel="Add New KPI Name..."
                         disabled={isAlreadyDefined}
-                        onChange={(e) => {
-                          if (e.target.value === 'ADD_NEW') {
-                            setNewNameRows({ ...newNameRows, [idx]: true });
-                          } else {
-                            handleInputChange(idx, 'name', e.target.value);
-                          }
-                        }}
-                      >
-                        <option value="">KPI Name</option>
-                        {kpi.name && !kpiNames.some(masterName => masterName.name === kpi.name) && (
-                          <option value={kpi.name}>{kpi.name}</option>
-                        )}
-                        {kpiNames.map(masterName => (
-                          <option key={masterName.id} value={masterName.name}>{masterName.name}</option>
-                        ))}
-                        <option value="ADD_NEW" className="text-[#2463eb] font-black">+ Add New KPI Name...</option>
-                      </select>
+                        noResultsLabel="No KPI names found"
+                      />
                     )}
                   </td>
                   <td className="py-3 px-6">
@@ -803,24 +793,16 @@ export const KpiManagementPage: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <select
-                        className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
+                      <KpiMasterCombobox
+                        options={categories}
                         value={kpi.category}
+                        onChange={(category) => handleInputChange(idx, 'category', category)}
+                        onAddNew={() => setNewCategoryRows({ ...newCategoryRows, [idx]: true })}
+                        placeholder="Category"
+                        addLabel="Add New Category..."
                         disabled={isAlreadyDefined}
-                        onChange={(e) => {
-                          if (e.target.value === 'ADD_NEW') {
-                            setNewCategoryRows({ ...newCategoryRows, [idx]: true });
-                          } else {
-                            handleInputChange(idx, 'category', e.target.value);
-                          }
-                        }}
-                      >
-                        <option value="">Category</option>
-                        {categories.map(cat => (
-                          <option key={cat.id} value={cat.name}>{cat.name}</option>
-                        ))}
-                        <option value="ADD_NEW" className="text-[#2463eb] font-black">+ Add New Category...</option>
-                      </select>
+                        noResultsLabel="No categories found"
+                      />
                     )}
                   </td>
                   <td className="py-3 px-6">
@@ -860,24 +842,18 @@ export const KpiManagementPage: React.FC = () => {
 	                        </button>
 	                      </div>
 	                    ) : (
-	                      <select
-	                        className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
+	                      <KpiMasterCombobox
+	                        options={units}
 	                        value={kpi.unit || ''}
+	                        onChange={(unit) => handleInputChange(idx, 'unit', unit)}
+	                        onAddNew={() => setNewUnitRows({ ...newUnitRows, [idx]: true })}
+	                        placeholder="No Unit"
+	                        addLabel="Add New Unit..."
 	                        disabled={isAlreadyDefined}
-	                        onChange={(e) => {
-	                          if (e.target.value === 'ADD_NEW') {
-	                            setNewUnitRows({ ...newUnitRows, [idx]: true });
-	                          } else {
-	                            handleInputChange(idx, 'unit', e.target.value);
-	                          }
-	                        }}
-	                      >
-	                        <option value="">No Unit</option>
-	                        {units.map(unit => (
-	                          <option key={unit.id} value={unit.name}>{unit.name}</option>
-	                        ))}
-	                        <option value="ADD_NEW" className="text-[#2463eb] font-black">+ Add New Unit...</option>
-	                      </select>
+	                        allowEmpty
+	                        emptyLabel="No Unit"
+	                        noResultsLabel="No units found"
+	                      />
 	                    )}
 	                  </td>
                   {mode === 'individual' && (
