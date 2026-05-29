@@ -15,4 +15,5 @@ public final class AuditTargetType {
 	public static final String EMPLOYEE_KPI = "EMPLOYEE_KPI";
 	public static final String POSITION_KPI = "POSITION_KPI";
 	public static final String DEPARTMENT_KPI = "DEPARTMENT_KPI";
+	public static final String POSITION_PERMISSION = "POSITION_PERMISSION";
 }
