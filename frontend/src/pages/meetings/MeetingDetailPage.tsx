@@ -370,7 +370,7 @@ export function MeetingDetailPage() {
                             ))}
                         </div>
 
-                        {isManager && meeting.status !== 'COMPLETED' && (
+                        {isManager && (
                             <form onSubmit={handleAddNote} className="mt-4">
                                 <div className="relative">
                                     <textarea
@@ -418,7 +418,7 @@ export function MeetingDetailPage() {
                             ))}
                         </div>
 
-                        {isEmployee && meeting.status !== 'COMPLETED' && (
+                        {isEmployee && (
                             <form onSubmit={handleAddNote} className="mt-4">
                                 <div className="relative">
                                     <textarea

@@ -53,9 +53,15 @@ const EmployeeLayout: React.FC = () => {
 
   const menuSections: DashMenuSection[] = [
     {
-      label: 'Main',
+      label: 'Overview',
       items: [
-        { label: 'Dashboard', path: '/employee/dashboard', icon: <LayoutDashboard size={18} /> },
+        { label: 'Overview', path: '/employee/dashboard', icon: <LayoutDashboard size={18} /> },
+      ],
+    },
+    {
+      label: 'Performance',
+      items: [
+        { label: 'My KPIs', path: '/employee/kpis', icon: <Target size={18} /> },
         {
           label: 'Appraisals',
           path: '/employee/appraisals',
@@ -65,13 +71,6 @@ const EmployeeLayout: React.FC = () => {
             { label: 'History', path: '/employee/appraisals/history', icon: <History size={16} /> },
           ],
         },
-        { label: 'My KPIs', path: '/employee/kpis', icon: <Target size={18} /> },
-        { label: 'My PIPs', path: '/employee/pip', icon: <TrendingUp size={18} /> },
-      ],
-    },
-    {
-      label: 'Management',
-      items: [
         {
           label: '360 Feedback',
           path: '/employee/360-feedback/give',
@@ -82,13 +81,14 @@ const EmployeeLayout: React.FC = () => {
             { label: 'Feedback History', path: '/employee/360-feedback/history', icon: <History size={16} /> },
           ],
         },
-        { label: 'Meetings', path: '/employee/meetings', icon: <Calendar size={18} /> },
+        { label: 'My PIPs', path: '/employee/pip', icon: <TrendingUp size={18} /> },
         ...(isEmployeeRole ? [selfAssessmentItem] : []),
       ],
     },
     {
-      label: 'Analytics',
+      label: 'Workspace',
       items: [
+        { label: 'Meetings', path: '/employee/meetings', icon: <Calendar size={18} /> },
         reportsItem,
         ...(!isEmployeeRole ? [selfAssessmentItem] : []),
       ],

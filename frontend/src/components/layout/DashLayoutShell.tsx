@@ -54,7 +54,7 @@ export function DashLayoutShell({
   }, [])
 
   const allMenuItems = menuSections.flatMap((section) => section.items)
-  const homePath = allMenuItems.find((item) => item.label === 'Dashboard')?.path
+  const homePath = allMenuItems.find((item) => item.path.includes('/dashboard'))?.path ?? allMenuItems[0]?.path
 
   const shellClass = [
     'dash-shell',

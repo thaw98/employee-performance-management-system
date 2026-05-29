@@ -524,10 +524,6 @@ public class MeetingService {
                 .orElseThrow(() -> new RuntimeException("Meeting not found"));
         verifyParticipant(meeting, userId);
 
-        if (meeting.getStatus() == MeetingStatus.COMPLETED) {
-            throw new RuntimeException("Cannot add notes to a completed meeting");
-        }
-
         Employee author = userRepository.findById(userId)
                 .map(User::getEmployee)
                 .orElseThrow(() -> new RuntimeException("Author employee not found"));
