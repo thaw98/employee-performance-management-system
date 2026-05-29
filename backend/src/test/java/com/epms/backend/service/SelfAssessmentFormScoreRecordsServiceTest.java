@@ -66,6 +66,8 @@ class SelfAssessmentFormScoreRecordsServiceTest {
     private ReportingManagerResolver reportingManagerResolver;
     @Mock
     private SelfAssessmentUnlockRequestRepository unlockRequestRepository;
+    @Mock
+    private SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository;
 
     private SelfAssessmentFormService service;
 
@@ -88,7 +90,8 @@ class SelfAssessmentFormScoreRecordsServiceTest {
                 notificationRepository,
                 settingsRepository,
                 reportingManagerResolver,
-                unlockRequestRepository);
+                unlockRequestRepository,
+                archiveSnapshotRepository);
     }
 
     @Test

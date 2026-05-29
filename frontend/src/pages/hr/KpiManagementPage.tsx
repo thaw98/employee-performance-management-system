@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, FolderOpen, ChevronDown, Ruler, Tag } from 'lucide-react';
+import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, FolderOpen, ChevronDown, Ruler, Tag, Settings2 } from 'lucide-react';
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { EmployeeAutocomplete } from '../../components/common/EmployeeAutocomplete';
@@ -63,6 +63,25 @@ export const KpiManagementPage: React.FC = () => {
   const [periodMonth, setPeriodMonth] = useState(getCurrentMonthValue());
   const selectedPeriodLabel = formatMonthYear(periodMonth);
   const [kpis, setKpis] = useState<any[]>([]);
+  const [manageMenuOpen, setManageMenuOpen] = useState(false);
+  const manageMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (manageMenuRef.current && !manageMenuRef.current.contains(event.target as Node)) {
+        setManageMenuOpen(false);
+      }
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setManageMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   useEffect(() => {
     if (initialEmpId) {
@@ -477,25 +496,62 @@ export const KpiManagementPage: React.FC = () => {
             <Target size={14} /> Same Department
           </button>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="relative" ref={manageMenuRef}>
           <button
-            onClick={() => navigate('/hr/kpi-names')}
+            type="button"
+            onClick={() => setManageMenuOpen((open) => !open)}
+            aria-expanded={manageMenuOpen}
+            aria-haspopup="true"
             className="flex items-center gap-2 px-5 py-2.5 bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-[#bfdbfe]"
           >
-            <Tag size={16} /> Manage Names
+            <Settings2 size={16} aria-hidden />
+            Manage
+            <ChevronDown
+              size={14}
+              className={`transition-transform ${manageMenuOpen ? 'rotate-180' : ''}`}
+              aria-hidden
+            />
           </button>
-          <button
-            onClick={() => navigate('/hr/kpi-categories')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-[#bfdbfe]"
-          >
-            <FolderOpen size={16} /> Manage Categories
-          </button>
-          <button
-            onClick={() => navigate('/hr/kpi-units')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-[#bfdbfe]"
-          >
-            <Ruler size={16} /> Manage Units
-          </button>
+          {manageMenuOpen && (
+            <div
+              className="absolute right-0 top-full z-50 mt-2 min-w-[220px] overflow-hidden rounded-xl border border-[#bfdbfe] bg-white py-1 shadow-lg"
+              role="menu"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  navigate('/hr/kpi-names');
+                  setManageMenuOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-bold text-[#1d4ed8] transition-colors hover:bg-[#eff6ff]"
+              >
+                <Tag size={16} aria-hidden /> Manage Names
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  navigate('/hr/kpi-categories');
+                  setManageMenuOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-bold text-[#1d4ed8] transition-colors hover:bg-[#eff6ff]"
+              >
+                <FolderOpen size={16} aria-hidden /> Manage Categories
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  navigate('/hr/kpi-units');
+                  setManageMenuOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-bold text-[#1d4ed8] transition-colors hover:bg-[#eff6ff]"
+              >
+                <Ruler size={16} aria-hidden /> Manage Units
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

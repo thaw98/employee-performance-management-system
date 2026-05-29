@@ -488,6 +488,7 @@ export interface HrApproveManagerReviewRequest {
 
 export interface HrRejectManagerReviewRequest {
   rejectionReason: string
+  retakeDeadline: string
   signatureId?: number | null
 }
 
@@ -530,6 +531,33 @@ export type SelfAssessmentUnlockHrRejectReasonCode =
   | 'MANAGER_REVIEW_IN_PROGRESS'
   | 'DUPLICATE_REQUEST'
   | 'OTHER'
+
+export interface SelfAssessmentArchiveSnapshotDto {
+  id: number
+  originalFormId: number
+  employeeId: number
+  employeeName: string
+  employeeStaffNo: string | null
+  departmentId: number | null
+  departmentName: string | null
+  positionId: number | null
+  positionName: string | null
+  templateId: number | null
+  templateTitle: string
+  cycleId: number | null
+  cycleName: string | null
+  archivedStatus: string
+  rejectionReason: string
+  hrUserId: number
+  hrUserName: string | null
+  archivedAt: string
+  retakeDeadline: string
+  totalScore: number | null
+  managerRevisedTotalScore: number | null
+  finalApprovedTotalScore: number | null
+  ratingCategory: string | null
+  formSnapshot: string
+}
 
 export const SELF_ASSESSMENT_UNLOCK_REASON_OPTIONS: { value: SelfAssessmentUnlockReasonCode; label: string }[] = [
   { value: 'TYPO_COMMENT', label: 'Typo or comment correction' },
@@ -877,6 +905,36 @@ const normalizeFormList = (form: unknown): FormListDto => {
     assessmentDate: getOptionalString(source.assessmentDate) ?? null,
     retakeSubmittedAt: getOptionalString(source.retakeSubmittedAt) ?? null,
     createdDate: getString(source.createdDate),
+  }
+}
+
+const normalizeArchiveSnapshot = (snapshot: unknown): SelfAssessmentArchiveSnapshotDto => {
+  const source = isRecord(snapshot) ? snapshot : {}
+  return {
+    id: getNumber(source.id),
+    originalFormId: getNumber(source.originalFormId),
+    employeeId: getNumber(source.employeeId),
+    employeeName: getString(source.employeeName),
+    employeeStaffNo: getOptionalString(source.employeeStaffNo) ?? null,
+    departmentId: source.departmentId != null ? getNumber(source.departmentId) : null,
+    departmentName: getOptionalString(source.departmentName) ?? null,
+    positionId: source.positionId != null ? getNumber(source.positionId) : null,
+    positionName: getOptionalString(source.positionName) ?? null,
+    templateId: source.templateId != null ? getNumber(source.templateId) : null,
+    templateTitle: getString(source.templateTitle),
+    cycleId: source.cycleId != null ? getNumber(source.cycleId) : null,
+    cycleName: getOptionalString(source.cycleName) ?? null,
+    archivedStatus: getString(source.archivedStatus),
+    rejectionReason: getString(source.rejectionReason),
+    hrUserId: getNumber(source.hrUserId),
+    hrUserName: getOptionalString(source.hrUserName) ?? null,
+    archivedAt: getString(source.archivedAt),
+    retakeDeadline: getString(source.retakeDeadline),
+    totalScore: source.totalScore != null ? getNumber(source.totalScore) : null,
+    managerRevisedTotalScore: source.managerRevisedTotalScore != null ? getNumber(source.managerRevisedTotalScore) : null,
+    finalApprovedTotalScore: source.finalApprovedTotalScore != null ? getNumber(source.finalApprovedTotalScore) : null,
+    ratingCategory: getOptionalString(source.ratingCategory) ?? null,
+    formSnapshot: getString(source.formSnapshot),
   }
 }
 
@@ -1507,6 +1565,36 @@ export const selfAssessmentFormApi = baseApi.injectEndpoints({
       invalidatesTags: ['QuestionBank'],
       transformResponse: (response: unknown) => normalizeQuestionBankItem(getResponseData(response)),
     }),
+
+    getArchiveList: builder.query<
+      { content: SelfAssessmentArchiveSnapshotDto[]; totalElements: number; totalPages: number },
+      { page?: number; size?: number; search?: string } | void
+    >({
+      query: (arg) => {
+        const page = typeof arg === 'object' ? (arg.page ?? 0) : 0
+        const size = typeof arg === 'object' ? (arg.size ?? 20) : 20
+        const search = typeof arg === 'object' ? arg.search : undefined
+        const params = new URLSearchParams({ page: String(page), size: String(size) })
+        if (search) params.append('search', search)
+        return `/self-assessment-forms/archive?${params.toString()}`
+      },
+      providesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => {
+        const data = getResponseData(response) as Record<string, unknown> | null
+        const content = (data as Record<string, unknown>)?.content
+        return {
+          content: getArray(content).map(normalizeArchiveSnapshot),
+          totalElements: Number((data as Record<string, unknown>)?.totalElements ?? 0),
+          totalPages: Number((data as Record<string, unknown>)?.totalPages ?? 0),
+        }
+      },
+    }),
+
+    getArchiveDetail: builder.query<SelfAssessmentArchiveSnapshotDto, number>({
+      query: (archiveId) => `/self-assessment-forms/archive/${archiveId}`,
+      providesTags: ['SelfAssessmentForm'],
+      transformResponse: (response: unknown) => normalizeArchiveSnapshot(getResponseData(response)),
+    }),
   }),
 })
 
@@ -1558,4 +1646,6 @@ export const {
   useUnlockSelfAssessmentRequestMutation,
   useRejectSelfAssessmentUnlockRequestMutation,
   useGetScoreRecordsQuery,
+  useGetArchiveListQuery,
+  useGetArchiveDetailQuery,
 } = selfAssessmentFormApi

@@ -6,12 +6,17 @@ import com.epms.backend.dto.selfassessmentform.ScoreRecordDto;
 import com.epms.backend.dto.selfassessmentform.EmployeeDisputeRequest;
 import com.epms.backend.dto.selfassessmentform.report.SelfAssessmentAnalyticsReportDto;
 import com.epms.backend.entity.Employee;
+import com.epms.backend.entity.SelfAssessmentArchiveSnapshot;
 import com.epms.backend.repository.EmployeeRepository;
+import com.epms.backend.repository.SelfAssessmentArchiveSnapshotRepository;
 import com.epms.backend.security.UserPrincipal;
 import com.epms.backend.service.SelfAssessmentFormService;
 import com.epms.backend.service.SelfAssessmentReportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -30,6 +35,7 @@ public class SelfAssessmentFormController {
     private final SelfAssessmentFormService selfAssessmentFormService;
     private final SelfAssessmentReportService selfAssessmentReportService;
     private final EmployeeRepository employeeRepository;
+    private final SelfAssessmentArchiveSnapshotRepository archiveSnapshotRepository;
 
     @GetMapping("/me/status")
     public ResponseEntity<ApiResponse<FormStatusDto>> getMyFormStatus(@AuthenticationPrincipal UserPrincipal principal) {
@@ -649,6 +655,41 @@ public class SelfAssessmentFormController {
         try {
             selfAssessmentFormService.createDueTomorrowNotifications();
             return ResponseEntity.ok(ApiResponse.ok("Notifications created", null));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/archive")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
+    public ResponseEntity<ApiResponse<Page<SelfAssessmentArchiveSnapshot>>> getArchive(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "archivedAt"));
+            Page<SelfAssessmentArchiveSnapshot> result;
+            if (search != null && !search.trim().isEmpty()) {
+                result = archiveSnapshotRepository.searchByKeyword(search.trim(), pageRequest);
+            } else {
+                result = archiveSnapshotRepository.findByOrderByArchivedAtDesc(pageRequest);
+            }
+            return ResponseEntity.ok(ApiResponse.ok("Archive retrieved", result));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/archive/{archiveId}")
+    @PreAuthorize("principal.roleId == 1 or principal.roleId == 5")
+    public ResponseEntity<ApiResponse<SelfAssessmentArchiveSnapshot>> getArchiveDetail(
+            @PathVariable Long archiveId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        try {
+            SelfAssessmentArchiveSnapshot snapshot = archiveSnapshotRepository.findById(archiveId)
+                    .orElseThrow(() -> new RuntimeException("Archive snapshot not found"));
+            return ResponseEntity.ok(ApiResponse.ok("Archive detail retrieved", snapshot));
         } catch (RuntimeException ex) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(ex.getMessage()));
         }
