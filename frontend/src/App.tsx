@@ -61,6 +61,7 @@ import { DepartmentKpiDetailPage } from './pages/hr/DepartmentKpiDetailPage';
 import { PositionKpiDetailPage } from './pages/hr/PositionKpiDetailPage';
 import { KpiCategoryPage } from './pages/hr/KpiCategoryPage';
 import { KpiUnitPage } from './pages/hr/KpiUnitPage';
+import { KpiNamePage } from './pages/hr/KpiNamePage';
 import { KpiHistoryPage } from './pages/hr/KpiHistoryPage';
 import KpiReportsPage from './pages/hr/KpiReportsPage';
 import { AppraisalSubmissionsPage } from './pages/hr/AppraisalSubmissionsPage';
@@ -201,6 +202,7 @@ function App() {
             <Route path="position-kpi-detail" element={<PositionKpiDetailPage />} />
             <Route path="kpi-categories" element={<KpiCategoryPage />} />
             <Route path="kpi-units" element={<KpiUnitPage />} />
+            <Route path="kpi-names" element={<KpiNamePage />} />
             <Route path="kpi-history" element={<KpiHistoryPage />} />
             <Route path="kpi-reports" element={<KpiReportsPage />} />
             <Route path='AppraisalSubmissionsPage' element={<AppraisalSubmissionsPage />} />

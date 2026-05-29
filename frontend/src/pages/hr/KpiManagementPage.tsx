@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, FolderOpen, ChevronDown, Ruler } from 'lucide-react';
+import { Plus, Trash2, Save, AlertCircle, CheckCircle2, Target, User, Users, X, ClipboardList, FolderOpen, ChevronDown, Ruler, Tag } from 'lucide-react';
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { MonthYearPicker } from '../../components/common/MonthYearPicker';
 import { EmployeeAutocomplete } from '../../components/common/EmployeeAutocomplete';
@@ -18,6 +18,7 @@ import {
 import { useGetDepartmentByIdQuery } from '../../features/department/api/departmentApi';
 import { useGetCategoriesQuery, useAddCategoryMutation } from '../../features/kpi/kpiCategoryApi';
 import { useGetUnitsQuery, useAddUnitMutation } from '../../features/kpi/kpiUnitApi';
+import { useGetNamesQuery, useAddNameMutation } from '../../features/kpi/kpiNameApi';
 import {
   useGetKpiTemplatesQuery,
   useCreateKpiTemplateMutation
@@ -123,12 +124,33 @@ export const KpiManagementPage: React.FC = () => {
   const [addCategory] = useAddCategoryMutation();
   const { data: units = [] } = useGetUnitsQuery();
   const [addUnit] = useAddUnitMutation();
+  const { data: kpiNames = [] } = useGetNamesQuery();
+  const [addName] = useAddNameMutation();
 
   // Manual Category Logic
+  const [newNameRows, setNewNameRows] = useState<Record<number, boolean>>({});
+  const [tempNameValues, setTempNameValues] = useState<Record<number, string>>({});
   const [newCategoryRows, setNewCategoryRows] = useState<Record<number, boolean>>({});
   const [tempCategoryValues, setTempCategoryValues] = useState<Record<number, string>>({});
   const [newUnitRows, setNewUnitRows] = useState<Record<number, boolean>>({});
   const [tempUnitValues, setTempUnitValues] = useState<Record<number, string>>({});
+
+  const handleAddNewName = async (idx: number) => {
+    const name = tempNameValues[idx];
+    if (!name || !name.trim()) {
+      toast.error('KPI name cannot be empty');
+      return;
+    }
+
+    try {
+      await addName({ name: name.trim() }).unwrap();
+      handleInputChange(idx, 'name', name.trim());
+      setNewNameRows(prev => ({ ...prev, [idx]: false }));
+      toast.success(`KPI name "${name}" added and selected`);
+    } catch (err) {
+      toast.error('Failed to add KPI name');
+    }
+  };
 
   const handleAddNewCategory = async (idx: number) => {
     const name = tempCategoryValues[idx];
@@ -456,6 +478,12 @@ export const KpiManagementPage: React.FC = () => {
         </div>
         <div className="flex flex-wrap gap-2">
           <button
+            onClick={() => navigate('/hr/kpi-names')}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-[#bfdbfe]"
+          >
+            <Tag size={16} /> Manage Names
+          </button>
+          <button
             onClick={() => navigate('/hr/kpi-categories')}
             className="flex items-center gap-2 px-5 py-2.5 bg-[#eff6ff] hover:bg-[#dbeafe] text-[#1d4ed8] rounded-xl text-xs font-black transition-all uppercase tracking-widest border border-[#bfdbfe]"
           >
@@ -699,14 +727,54 @@ export const KpiManagementPage: React.FC = () => {
               {kpis.map((kpi, idx) => (
                 <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
                   <td className="py-3 px-6">
-                    <input
-                      type="text"
-                      className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
-                      placeholder="e.g., Sales Target"
-                      value={kpi.name}
-                      readOnly={isAlreadyDefined}
-                      onChange={(e) => handleInputChange(idx, 'name', e.target.value)}
-                    />
+                    {newNameRows[idx] ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          className="flex-1 bg-white border border-[#bfdbfe] rounded-lg px-3 py-1.5 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-[#dbeafe]"
+                          placeholder="New KPI name..."
+                          value={tempNameValues[idx] || ''}
+                          onChange={(e) => setTempNameValues({ ...tempNameValues, [idx]: e.target.value })}
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleAddNewName(idx)}
+                          className="p-1.5 bg-[#2463eb] text-white rounded-lg hover:bg-[#1d4ed8] transition-colors"
+                          title="Save KPI Name"
+                        >
+                          <Save size={14} />
+                        </button>
+                        <button
+                          onClick={() => setNewNameRows({ ...newNameRows, [idx]: false })}
+                          className="p-1.5 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors"
+                          title="Cancel"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        className={`w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-[#dbeafe] outline-none ${isAlreadyDefined ? 'cursor-not-allowed opacity-70' : ''}`}
+                        value={kpi.name}
+                        disabled={isAlreadyDefined}
+                        onChange={(e) => {
+                          if (e.target.value === 'ADD_NEW') {
+                            setNewNameRows({ ...newNameRows, [idx]: true });
+                          } else {
+                            handleInputChange(idx, 'name', e.target.value);
+                          }
+                        }}
+                      >
+                        <option value="">KPI Name</option>
+                        {kpi.name && !kpiNames.some(masterName => masterName.name === kpi.name) && (
+                          <option value={kpi.name}>{kpi.name}</option>
+                        )}
+                        {kpiNames.map(masterName => (
+                          <option key={masterName.id} value={masterName.name}>{masterName.name}</option>
+                        ))}
+                        <option value="ADD_NEW" className="text-[#2463eb] font-black">+ Add New KPI Name...</option>
+                      </select>
+                    )}
                   </td>
                   <td className="py-3 px-6">
                     {newCategoryRows[idx] ? (

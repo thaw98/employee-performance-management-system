@@ -143,7 +143,7 @@ export function FeedbackDetailPage() {
       const margin = 14;
       if (isAuditView) {
         const genDateTime = new Date().toLocaleString('en-GB');
-        addPdfProfessionalHeader(doc, 'Audit 360 Feedback Assessment Report', `Generated: ${genDateTime}`, { margin });
+        addPdfProfessionalHeader(doc, '360 Feedback Assessment Report', `Generated: ${genDateTime}`, { margin });
         let currentY = 42;
         currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
         currentY = addPdfInfoTable(doc, currentY + 2, [
@@ -186,7 +186,7 @@ export function FeedbackDetailPage() {
           doc.setPage(pageNumber);
           addPdfProfessionalFooter(doc, pageNumber, pageCount, { margin });
         }
-        doc.save(`Audit_360_Feedback_${data.id}.pdf`);
+        doc.save(`360_Feedback_${data.id}.pdf`);
         toast.success('Report generated successfully');
         return;
       }
