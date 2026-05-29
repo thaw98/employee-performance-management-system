@@ -8,7 +8,7 @@ import axios from '../app/axiosInstance';
 import { PaginationBar } from '../components/common/PaginationBar';
 import { useGetProfileQuery } from '../features/user/userApi';
 import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
-import { addPdfProfessionalHeader, addPdfProfessionalFooter, addPdfSectionHeader, addPdfInfoTable } from '../utils/pdfBranding';
+import { addPdfProfessionalHeader, addPdfProfessionalFooter, addPdfSectionHeader, addPdfInfoTable, loadPdfLogo } from '../utils/pdfBranding';
 import { isReceivedAnonymous, feedbackRoleDisplay } from '../utils/feedbackAnonymity';
 
 type FeedbackDirection = 'ALL' | 'GIVEN' | 'RECEIVED';
@@ -188,9 +188,10 @@ export function CombinedFeedbackHistoryPage() {
       const doc = new jsPDF();
       const margin = 14;
 
+      const logoDataUrl = await loadPdfLogo();
       const genDateTime = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
       const directionLabel = item.direction === 'RECEIVED' ? 'Received Feedback' : 'Given Feedback';
-      addPdfProfessionalHeader(doc, '360° Feedback Assessment Report', `${directionLabel}  |  Generated: ${genDateTime}`, { margin });
+      addPdfProfessionalHeader(doc, '360° Feedback Assessment Report', `${directionLabel}  |  Generated: ${genDateTime}`, { margin, logoDataUrl });
 
       let currentY = 42;
       currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });

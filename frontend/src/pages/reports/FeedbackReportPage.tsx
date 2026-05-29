@@ -16,7 +16,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { addFeedbackScorePerformanceSection, feedbackPercentageFromAverage } from '../../utils/feedbackScorePdf'
-import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding'
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding'
 import { useAppSelector } from '../../app/hooks'
 import { AlertTriangle, ArrowLeft, Award, ChevronLeft, ChevronRight, Download, FileText, Filter, Trophy } from 'lucide-react'
 import {

@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { type PerformanceReportSummary } from '../features/performanceReport/performanceReportApi';
-import { addPdfFooterBranding, addPdfHeaderBranding } from './pdfBranding';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from './pdfBranding';
 
 const pageMargin = 0.3 * 25.4; // 7.62 mm
 const navy: [number, number, number] = [28, 40, 65];
@@ -19,14 +19,19 @@ const formatDate = (): string => {
   return `${day}/${month}/${year}`;
 };
 
-export function exportPerformanceReportListPdf(data: PerformanceReportSummary[]): void {
+export async function exportPerformanceReportListPdf(data: PerformanceReportSummary[]): Promise<void> {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
+  const logoDataUrl = await loadPdfLogo();
+
   // Header Banner
   doc.setFillColor(...navy);
   doc.rect(0, 0, pageWidth, 26, 'F');
+  if (logoDataUrl) {
+    addPdfHeaderLogo(doc, logoDataUrl, { x: pageMargin, y: 5, width: 24, height: 12 });
+  }
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);

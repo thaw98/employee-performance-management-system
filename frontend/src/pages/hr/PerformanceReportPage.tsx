@@ -243,7 +243,7 @@ export const PerformanceReportPage: React.FC<PerformanceReportPageProps> = ({
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <button
-            onClick={() => exportPerformanceReportListPdf(filtered)}
+            onClick={() => { exportPerformanceReportListPdf(filtered) }}
             disabled={filtered.length === 0}
             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
           >

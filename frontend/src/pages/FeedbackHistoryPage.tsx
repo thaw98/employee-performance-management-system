@@ -12,7 +12,7 @@ import { PaginationBar } from '../components/common/PaginationBar';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
-import { addPdfProfessionalHeader, addPdfProfessionalFooter, addPdfSectionHeader, addPdfInfoTable } from '../utils/pdfBranding';
+import { addPdfProfessionalHeader, addPdfProfessionalFooter, addPdfSectionHeader, addPdfInfoTable, loadPdfLogo } from '../utils/pdfBranding';
 import { 
     Dialog, 
     DialogPanel, 
@@ -165,6 +165,7 @@ export function FeedbackHistoryPage() {
             const doc = new jsPDF();
             const margin = 14;
 
+            const logoDataUrl = await loadPdfLogo();
             const isAnonymous = Boolean(item.anonymous) || item.evaluatorName?.trim().toLowerCase() === 'anonymous';
             const evaluatorName = isAnonymous ? 'Anonymous' : item.evaluatorName || '-';
             const evaluatorPosition = isAnonymous ? '-' : item.evaluatorPosition || '-';
@@ -172,7 +173,7 @@ export function FeedbackHistoryPage() {
 
             const refId = `FB-${id}`;
             const genDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-            addPdfProfessionalHeader(doc, 'Performance Feedback Report', `Reference: ${refId}  |  ${genDate}`, { margin });
+            addPdfProfessionalHeader(doc, 'Performance Feedback Report', `Reference: ${refId}  |  ${genDate}`, { margin, logoDataUrl });
 
             let currentY = 42;
             currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });

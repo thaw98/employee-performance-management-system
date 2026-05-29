@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
-import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding';
 import {
     appraisalGradientIcon,
     appraisalGradientBtn,
@@ -88,7 +88,7 @@ export const ManagerAppraisalsPage: React.FC = () => {
         }
     };
 
-    const handleExportSummaryPDF = () => {
+    const handleExportSummaryPDF = async () => {
         // Filter based on the currently active tab (HR_APPROVED or LOCKED)
         const targetStatus = filterStatus === 'LOCKED' ? 'LOCKED' : 'HR_APPROVED';
         const filteredByStatus = assignments.filter(a => a.status === targetStatus);
@@ -112,9 +112,14 @@ export const ManagerAppraisalsPage: React.FC = () => {
         const deptName = filtered[0].employee.department?.name || (filtered[0].employee.department as any)?.departmentName || 'Department';
         const dateStr = formatCycleDate(new Date().toISOString().split('T')[0]);
 
+        const logoDataUrl = await loadPdfLogo();
+
         // Header
         doc.setFillColor(36, 99, 235);
         doc.rect(0, 0, 297, 40, 'F');
+        if (logoDataUrl) {
+            addPdfHeaderLogo(doc, logoDataUrl, { x: 15, y: 5, width: 24, height: 12 });
+        }
         
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(24);

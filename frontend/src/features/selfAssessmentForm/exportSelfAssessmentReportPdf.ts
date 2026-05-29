@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { SelfAssessmentReportDto } from './api/selfAssessmentReportApi'
-import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding'
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding'
 
 const MARGIN = 12.7
 
@@ -44,10 +44,15 @@ const addTable = (doc: jsPDF, y: number, head: string[][], body: (string | numbe
 const performers = (items: { employeeName: string; score: number }[]) =>
   items.map((item) => `${item.employeeName} (${score(item.score)})`).join(', ') || '-'
 
-export function exportSelfAssessmentReportPdf(report: SelfAssessmentReportDto) {
+export async function exportSelfAssessmentReportPdf(report: SelfAssessmentReportDto) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const role = report.role === 'manager' ? 'manager' : 'hr'
   let y = MARGIN
+
+  const logoDataUrl = await loadPdfLogo()
+  if (logoDataUrl) {
+    addPdfHeaderLogo(doc, logoDataUrl, { x: MARGIN, y: 3, width: 24, height: 12 })
+  }
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(16)
