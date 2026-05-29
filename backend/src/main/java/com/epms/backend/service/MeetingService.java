@@ -5,6 +5,7 @@ import com.epms.backend.entity.*;
 import com.epms.backend.repository.EmployeeRepository;
 import com.epms.backend.repository.MeetingNoteRepository;
 import com.epms.backend.repository.MeetingRepository;
+import com.epms.backend.repository.PipCommunicationNoteRepository;
 import com.epms.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import jakarta.persistence.criteria.Predicate;
@@ -25,6 +26,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +36,7 @@ public class MeetingService {
 
     private final MeetingRepository meetingRepository;
     private final MeetingNoteRepository meetingNoteRepository;
+    private final PipCommunicationNoteRepository pipCommunicationNoteRepository;
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
@@ -85,6 +89,7 @@ public class MeetingService {
         meeting.setStatus(MeetingStatus.PENDING);
 
         meeting = meetingRepository.save(meeting);
+        copyPipNotesToMeetingIfNeeded(meeting, request.description());
 
         notificationService.send(
                 employee.getUserAccount(),
@@ -93,6 +98,66 @@ public class MeetingService {
                 "MEETING");
 
         return mapToResponse(meeting);
+    }
+
+    private void copyPipNotesToMeetingIfNeeded(Meeting meeting, String description) {
+        Long pipId = extractPipId(description);
+        if (pipId == null) return;
+
+        List<PipCommunicationNote> pipNotes = pipCommunicationNoteRepository.findByPip_IdOrderByCreatedDateDesc(pipId);
+        for (int i = pipNotes.size() - 1; i >= 0; i--) {
+            PipCommunicationNote pipNote = pipNotes.get(i);
+            User authorUser = pipNote.getAuthor();
+            Employee author = authorUser != null ? authorUser.getEmployee() : null;
+            if (author == null || pipNote.getContent() == null || pipNote.getContent().isBlank()) continue;
+
+            MeetingNote meetingNote = new MeetingNote();
+            meetingNote.setMeeting(meeting);
+            meetingNote.setAuthor(author);
+            meetingNote.setNoteType(author.getId().equals(meeting.getManager().getId())
+                    ? MeetingNoteType.MANAGER_NOTE
+                    : MeetingNoteType.EMPLOYEE_NOTE);
+            meetingNote.setContent(pipNote.getContent());
+            meetingNote.setCreatedDate(pipNote.getCreatedDate() != null ? pipNote.getCreatedDate() : Instant.now());
+            meetingNoteRepository.save(meetingNote);
+        }
+    }
+
+    private Long extractPipId(String description) {
+        if (description == null || description.isBlank()) return null;
+        Matcher tagged = Pattern.compile("\\[PIP_ID:(\\d+)]").matcher(description);
+        if (tagged.find()) return Long.parseLong(tagged.group(1));
+        Matcher labeled = Pattern.compile("PIP\\s+#(\\d+)", Pattern.CASE_INSENSITIVE).matcher(description);
+        return labeled.find() ? Long.parseLong(labeled.group(1)) : null;
+    }
+
+    @Transactional(readOnly = true)
+    public List<PipFollowUpMeetingResponse> getPipFollowUpMeetings(Long pipId, Long userId) {
+        String pipTag = "[PIP_ID:%d]".formatted(pipId);
+        String pipLabel = "PIP #%d".formatted(pipId);
+        String title = "PIP follow up meeting";
+
+        Specification<Meeting> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.or(
+                    cb.equal(root.get("manager").get("userAccount").get("id"), userId),
+                    cb.equal(root.get("employee").get("userAccount").get("id"), userId)));
+            predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("description")), "%" + pipTag.toLowerCase() + "%"),
+                    cb.and(
+                            cb.equal(cb.lower(root.get("title")), title.toLowerCase()),
+                            cb.like(cb.lower(root.get("description")), "%" + pipLabel.toLowerCase() + "%"))));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return meetingRepository.findAll(spec, org.springframework.data.domain.Sort.by("scheduledTime").descending())
+                .stream()
+                .map(meeting -> new PipFollowUpMeetingResponse(
+                        mapToResponse(meeting),
+                        meetingNoteRepository.findByMeetingIdOrderByCreatedDateAsc(meeting.getId()).stream()
+                                .map(this::mapToNoteResponse)
+                                .collect(Collectors.toList())))
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -476,6 +541,7 @@ public class MeetingService {
         Meeting meeting = meetingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Meeting not found"));
         verifyParticipant(meeting, userId);
+        MeetingStatus previousStatus = meeting.getStatus();
 
         if (status == MeetingStatus.ONGOING) {
             Instant now = Instant.now();
@@ -488,6 +554,18 @@ public class MeetingService {
 
         meeting.setStatus(status);
         meeting = meetingRepository.save(meeting);
+        if (status == MeetingStatus.ONGOING && previousStatus != MeetingStatus.ONGOING) {
+            notificationService.send(
+                    meeting.getManager().getUserAccount(),
+                    "Meeting Started",
+                    "The scheduled meeting with " + meeting.getEmployee().getEmployeeName() + " has started.",
+                    "MEETING");
+            notificationService.send(
+                    meeting.getEmployee().getUserAccount(),
+                    "Meeting Started",
+                    "The scheduled meeting with Manager " + meeting.getManager().getEmployeeName() + " has started.",
+                    "MEETING");
+        }
         return mapToResponse(meeting);
     }
 

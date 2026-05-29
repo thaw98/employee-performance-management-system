@@ -5,6 +5,7 @@ import com.epms.backend.dto.pip.PipSignatureRequest;
 import com.epms.backend.dto.pip.PipCreateRequest;
 import com.epms.backend.dto.pip.EligibleEmployeeDTO;
 import com.epms.backend.dto.pip.ProgressUpdateRequest;
+import com.epms.backend.dto.pip.PipObjectiveHoursIncreaseRequest;
 import com.epms.backend.dto.pip.MeetingScheduleRequest;
 import com.epms.backend.dto.pip.PipCloseRequest;
 import com.epms.backend.dto.pip.PipReopenRequest;
@@ -158,6 +159,46 @@ public class PipController {
         User user = userRepository.findById(principal.getId()).orElseThrow();
         PipObjective objective = pipService.updateObjectiveProgress(objectiveId, request, user);
         return ResponseEntity.ok(ApiResponse.ok("Progress updated successfully", objective));
+    }
+
+    @PutMapping("/objectives/{objectiveId}/hours")
+    @PreAuthorize("hasAnyRole('DEPARTMENT_HEAD', 'TEAM_HEAD', 'MANAGER')")
+    public ResponseEntity<ApiResponse<PipObjective>> increaseObjectiveHours(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long objectiveId,
+            @RequestBody PipObjectiveHoursIncreaseRequest request) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        PipObjective objective = pipService.increaseObjectiveHours(objectiveId, request, user);
+        return ResponseEntity.ok(ApiResponse.ok("Objective hours increased successfully", objective));
+    }
+
+    @PostMapping("/objectives/{objectiveId}/sessions/start")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<ApiResponse<PipObjective>> startObjectiveSession(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long objectiveId) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        PipObjective objective = pipService.startObjectiveSession(objectiveId, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP timer started successfully", objective));
+    }
+
+    @PostMapping("/objectives/{objectiveId}/sessions/end")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<ApiResponse<PipObjective>> endObjectiveSession(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long objectiveId) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        PipObjective objective = pipService.endObjectiveSession(objectiveId, user);
+        return ResponseEntity.ok(ApiResponse.ok("PIP timer ended successfully", objective));
+    }
+
+    @PostMapping("/sessions/end-active")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<ApiResponse<Void>> endActiveEmployeeSessions(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        User user = userRepository.findById(principal.getId()).orElseThrow();
+        pipService.endActiveEmployeeSessions(user);
+        return ResponseEntity.ok(ApiResponse.ok("Active PIP timers ended successfully", null));
     }
 
     @PostMapping("/{id}/meetings")

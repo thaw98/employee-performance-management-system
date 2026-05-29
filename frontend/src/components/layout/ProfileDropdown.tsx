@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import { logout } from '../../features/auth/authSlice'
 import { useGetProfileQuery } from '../../features/user/userApi'
+import axios from '../../app/axiosInstance'
 import { resolveProfilePictureSrc } from '../../utils/mediaUrl'
 import { getRoleGroup } from '../../utils/dashboardRedirect'
 import { ChevronDown, User, Settings, LogOut, PenLine, Calendar, HelpCircle } from 'lucide-react'
@@ -41,7 +42,8 @@ export function ProfileDropdown({ variant = 'default' }: ProfileDropdownProps) {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await axios.post('/pips/sessions/end-active').catch(() => undefined)
     dispatch(logout())
     navigate('/login')
   }
@@ -173,7 +175,7 @@ export function ProfileDropdown({ variant = 'default' }: ProfileDropdownProps) {
                 role="menuitem"
                 onClick={() => {
                   setIsOpen(false)
-                  handleLogout()
+                  void handleLogout()
                 }}
               >
                 <span className="profile-dropdown-icon profile-dropdown-icon--red">
@@ -288,7 +290,7 @@ export function ProfileDropdown({ variant = 'default' }: ProfileDropdownProps) {
 
           <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 px-2">
             <button
-              onClick={handleLogout}
+              onClick={() => void handleLogout()}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-red-600 dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all group"
             >
               <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center justify-center group-hover:bg-red-600 group-hover:text-white transition-colors">
