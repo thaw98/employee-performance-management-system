@@ -288,91 +288,60 @@ export default function DepartmentListPage() {
       },
       ]
 
-      if (!isAudit) {
-        cols.push({
-          id: 'actions',
-          enableSorting: false,
-          header: 'Actions',
-          cell: (info) => {
-            const row = info.row.original
-            return (
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => {
-                    setSelectedDept(row)
-                    setIsEditOpen(true)
-                  }}
-                  className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
-                  title="Edit Department"
-                >
-                  <Edit2 size={13} />
-                  Edit
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedDept(row)
-                    setIsDeleteOpen(true)
-                  }}
-                  className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-100 hover:border-rose-600 transition-all duration-200"
-                  title="Delete Department"
-                >
-                  <Trash2 size={13} />
-                  Delete
-                </button>
-                <Link
-                  to={`${departmentsBasePath}/${row.departmentId}`}
-                  className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
-                  title="View Positions"
-                >
-                  <BriefcaseBusiness size={13} />
-                  Positions
-                </Link>
-                <Link
-                  to={`${departmentsBasePath}/${row.departmentId}/employees`}
-                  className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-100 hover:border-emerald-600 transition-all duration-200"
-                  title="View Employee List"
-                >
-                  <Users size={13} />
-                  Employee List
-                </Link>
-              </div>
-            )
-          },
-        })
-      } else {
-        cols.push({
-          id: 'actions',
-          enableSorting: false,
-          header: 'View',
-          cell: (info) => {
-            const row = info.row.original
-            return (
-              <div className="flex items-center gap-1.5">
-                <Link
-                  to={`${departmentsBasePath}/${row.departmentId}`}
-                  className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
-                  title="View Positions"
-                >
-                  <BriefcaseBusiness size={13} />
-                  Positions
-                </Link>
-                <Link
-                  to={`${departmentsBasePath}/${row.departmentId}/employees`}
-                  className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-100 hover:border-emerald-600 transition-all duration-200"
-                  title="View Employee List"
-                >
-                  <Users size={13} />
-                  Employee List
-                </Link>
-              </div>
-            )
-          },
-        })
-      }
+      cols.push({
+        id: 'actions',
+        enableSorting: false,
+        header: 'Actions',
+        cell: (info) => {
+          const row = info.row.original
+          return (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  setSelectedDept(row)
+                  setIsEditOpen(true)
+                }}
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
+                title="Edit Department"
+              >
+                <Edit2 size={13} />
+                Edit
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedDept(row)
+                  setIsDeleteOpen(true)
+                }}
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-100 hover:border-rose-600 transition-all duration-200"
+                title="Delete Department"
+              >
+                <Trash2 size={13} />
+                Delete
+              </button>
+              <Link
+                to={`${departmentsBasePath}/${row.departmentId}`}
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#2463eb] bg-[#eff6ff] hover:bg-[#2463eb] hover:text-white border border-[#dbeafe] hover:border-[#2463eb] transition-all duration-200"
+                title="View Positions"
+              >
+                <BriefcaseBusiness size={13} />
+                Positions
+              </Link>
+              <Link
+                to={`${departmentsBasePath}/${row.departmentId}/employees`}
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-100 hover:border-emerald-600 transition-all duration-200"
+                title="View Employee List"
+              >
+                <Users size={13} />
+                Employee List
+              </Link>
+            </div>
+          )
+        },
+      })
 
       return cols
     },
-    [departmentsBasePath, isAudit]
+    [departmentsBasePath]
   )
 
   const table = useReactTable({
@@ -454,15 +423,13 @@ export default function DepartmentListPage() {
               </p>
             </div>
           </div>
-          {!isAudit && (
-            <button
-              onClick={() => setIsAddOpen(true)}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-[#2463eb] rounded-xl font-bold text-sm shadow-xl hover:bg-[#eff6ff] active:scale-95 transition-all w-full sm:w-auto"
-            >
-              <Plus size={18} />
-              Add New Department
-            </button>
-          )}
+          <button
+            onClick={() => setIsAddOpen(true)}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-white text-[#2463eb] rounded-xl font-bold text-sm shadow-xl hover:bg-[#eff6ff] active:scale-95 transition-all w-full sm:w-auto"
+          >
+            <Plus size={18} />
+            Add New Department
+          </button>
         </div>
       </div>
 
@@ -714,31 +681,27 @@ export default function DepartmentListPage() {
         </div>
       </div>
 
-      {!isAudit && (
-        <>
-          <AddDepartmentModal
-            isOpen={isAddOpen}
-            onClose={() => setIsAddOpen(false)}
-            onSuccess={loadDepartments}
-          />
-          <EditDepartmentModal
-            isOpen={isEditOpen}
-            onClose={() => setIsEditOpen(false)}
-            department={selectedDept}
-            onSuccess={loadDepartments}
-          />
-          <ConfirmActionModal
-            isOpen={isDeleteOpen}
-            onClose={() => setIsDeleteOpen(false)}
-            onConfirm={handleDelete}
-            title="Delete Department"
-            message={`Are you sure you want to delete "${selectedDept?.departmentName}"? This action cannot be undone.`}
-            confirmText="Delete"
-            variant="danger"
-            isLoading={isDeleting}
-          />
-        </>
-      )}
+      <AddDepartmentModal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onSuccess={loadDepartments}
+      />
+      <EditDepartmentModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        department={selectedDept}
+        onSuccess={loadDepartments}
+      />
+      <ConfirmActionModal
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Department"
+        message={`Are you sure you want to delete "${selectedDept?.departmentName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   )
 }

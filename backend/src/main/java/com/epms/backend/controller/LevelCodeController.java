@@ -46,7 +46,7 @@ public class LevelCodeController {
 	}
 
 	@PostMapping
-	@PreAuthorize("hasRole('HR')")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<LevelCodeDto>> createLevelCode(
 			@Valid @RequestBody CreateLevelCodeRequest request) {
 		return ResponseEntity.ok(ApiResponse.ok("Level code created successfully.",
@@ -54,7 +54,7 @@ public class LevelCodeController {
 	}
 
 	@PutMapping("/{id}")
-	@PreAuthorize("hasRole('HR')")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<LevelCodeDto>> updateLevelCode(@PathVariable Long id,
 			@Valid @RequestBody UpdateLevelCodeRequest request) {
 		return ResponseEntity.ok(ApiResponse.ok("Level code updated successfully.",
@@ -62,7 +62,7 @@ public class LevelCodeController {
 	}
 
 	@PatchMapping("/positions/{positionId}/role")
-	@PreAuthorize("hasRole('HR')")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<LevelCodePositionDto>> updatePositionRole(@PathVariable Long positionId,
 			@Valid @RequestBody UpdatePositionRoleRequest request) {
 		return ResponseEntity.ok(ApiResponse.ok("Position role updated successfully.",

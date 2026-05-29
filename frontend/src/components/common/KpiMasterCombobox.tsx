@@ -18,6 +18,7 @@ interface KpiMasterComboboxProps {
   allowEmpty?: boolean;
   emptyLabel?: string;
   noResultsLabel?: string;
+  minWidthClass?: string;
 }
 
 export function KpiMasterCombobox({
@@ -31,6 +32,7 @@ export function KpiMasterCombobox({
   allowEmpty = false,
   emptyLabel = 'None',
   noResultsLabel = 'No results found',
+  minWidthClass = 'min-w-40',
 }: KpiMasterComboboxProps) {
   const [query, setQuery] = useState('');
 
@@ -49,7 +51,7 @@ export function KpiMasterCombobox({
   }, [allNames, query]);
 
   return (
-    <div className="relative">
+    <div className={`relative ${minWidthClass}`}>
       <Combobox
         value={value || null}
         onChange={(name: string | null) => {
@@ -61,7 +63,7 @@ export function KpiMasterCombobox({
       >
         <div className="relative">
           <ComboboxInput
-            className={`w-full rounded-lg border-none bg-slate-50 px-3 py-2 pr-8 text-sm font-bold text-slate-800 outline-none placeholder:font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-[#dbeafe] ${disabled ? 'cursor-not-allowed opacity-70' : ''}`}
+            className={`w-full ${minWidthClass} rounded-lg border-none bg-slate-50 px-3 py-2 pr-8 text-sm font-bold text-slate-800 whitespace-nowrap outline-none placeholder:font-medium placeholder:text-slate-400 focus:ring-2 focus:ring-[#dbeafe] ${disabled ? 'cursor-not-allowed opacity-70' : ''}`}
             displayValue={(name: string | null) => name ?? ''}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={placeholder}

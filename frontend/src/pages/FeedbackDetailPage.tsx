@@ -7,6 +7,7 @@ import autoTable from 'jspdf-autotable';
 import axios from '../app/axiosInstance';
 import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
 import { addPdfProfessionalFooter, addPdfInfoTable, addPdfProfessionalHeader, addPdfSectionHeader } from '../utils/pdfBranding';
+import { isReceivedAnonymous, feedbackRoleDisplay } from '../utils/feedbackAnonymity';
 
 interface FeedbackDetail {
   criteriaName: string;
@@ -67,21 +68,6 @@ const getRemarkColor = (remark?: string | null) => {
   }
 };
 
-const isReceivedAnonymous = (feedback: Partial<FeedbackDetailPageData>) =>
-  feedback.direction === 'RECEIVED' && (Boolean(feedback.anonymous) || feedback.evaluatorName?.trim().toLowerCase() === 'anonymous');
-
-const evaluatorDisplay = (feedback: Partial<FeedbackDetailPageData>) => {
-  if (isReceivedAnonymous(feedback)) {
-    return { name: 'Anonymous', staffNo: '', position: '-', department: '-' };
-  }
-  return {
-    name: feedback.evaluatorName || '-',
-    staffNo: feedback.evaluatorStaffNo || '',
-    position: feedback.evaluatorPosition || '-',
-    department: feedback.evaluatorDepartment || '-',
-  };
-};
-
 const sourceTitle = (sourcePath?: string, data?: Partial<FeedbackDetailPageData>) =>
   sourcePath?.includes('/received') || data?.direction === 'RECEIVED'
     ? 'Received Feedback Details'
@@ -124,7 +110,15 @@ export function FeedbackDetailPage() {
         department: data.evaluatorDepartment || '-',
       };
     }
-    return evaluatorDisplay(data);
+    if (isReceivedAnonymous(data)) {
+      return { name: 'Anonymous', staffNo: '', position: '-', department: '-' };
+    }
+    return {
+      name: data.evaluatorName || '-',
+      staffNo: data.evaluatorStaffNo || '',
+      position: data.evaluatorPosition || '-',
+      department: data.evaluatorDepartment || '-',
+    };
   }, [data, isAuditView]);
   const title = isAuditView ? 'Feedback Details' : sourceTitle(routeState.sourcePath, data || undefined);
 
@@ -191,7 +185,9 @@ export function FeedbackDetailPage() {
         return;
       }
 
-      const pdfEvaluator = evaluatorDisplay(data);
+      const pdfEvaluator = isReceivedAnonymous(data)
+        ? { name: 'Anonymous', staffNo: '', position: '-', department: '-' }
+        : { name: data.evaluatorName || '-', staffNo: data.evaluatorStaffNo || '', position: data.evaluatorPosition || '-', department: data.evaluatorDepartment || '-' };
       const genDateTime = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
       const directionLabel = data.direction === 'RECEIVED' ? 'Received Feedback' : 'Given Feedback';
       addPdfProfessionalHeader(doc, '360 Feedback Assessment Report', `${directionLabel}  |  Generated: ${genDateTime}`, { margin });
@@ -201,6 +197,7 @@ export function FeedbackDetailPage() {
       currentY = addPdfInfoTable(doc, currentY + 2, [
         ['Employee Name', pdfEvaluator.name, 'Staff ID', pdfEvaluator.staffNo || '-'],
         ['Position', pdfEvaluator.position || '-', 'Department', pdfEvaluator.department || '-'],
+        ['Feedback Type', feedbackRoleDisplay(data), '', ''],
       ], { marginLeft: margin, marginRight: margin }) + 8;
 
       currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluatee Information', { width: 182 });
@@ -316,6 +313,7 @@ export function FeedbackDetailPage() {
               <p className="font-bold text-slate-700">{evaluator?.name || '-'}</p>
               <p className="text-xs font-bold text-slate-500">{evaluator?.position || '-'}</p>
               <p className="text-xs font-bold text-slate-400">{evaluator?.department || ''}</p>
+              <p className="text-xs font-bold text-slate-400 mt-1">Type: {feedbackRoleDisplay(data)}</p>
             </div>
             <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
               <h2 className="font-black text-slate-800 mb-2">Evaluatee</h2>

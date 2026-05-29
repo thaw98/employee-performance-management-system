@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { SortingState } from '@tanstack/react-table'
 import toast from 'react-hot-toast'
-import { useAppSelector } from '../../../app/hooks'
 import {
   ChevronLeft,
   ChevronRight,
@@ -26,9 +25,6 @@ import PositionRoleEditModal from '../components/PositionRoleEditModal'
 import { useGetActiveRolesQuery } from '../../position/api/positionApi'
 
 function LevelCodeListPage() {
-  const user = useAppSelector((state) => state.auth.user)
-  const isAudit = user?.roleId === 5
-
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
   const [search, setSearch] = useState('')
@@ -126,28 +122,24 @@ function LevelCodeListPage() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
-                  {isAudit ? 'Level Codes' : 'Level Code Management'}
+                  Level Code Management
                 </h1>
                 <p className="text-slate-500 text-sm font-medium">
-                  {isAudit
-                    ? 'View level codes and position role assignments (read-only)'
-                    : 'Manage level codes and role assignments by position'}
+                  Manage level codes and role assignments by position
                 </p>
               </div>
             </div>
-            {!isAudit && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingLevelCode(null)
-                  setIsLevelCodeModalOpen(true)
-                }}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white text-sm font-semibold rounded-xl hover:from-[#1d4ed8] hover:to-[#1e40af] shadow-lg shadow-[#dbeafe] transition-all duration-200 active:scale-95"
-              >
-                <Plus className="w-4 h-4" />
-                Create Level Code
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setEditingLevelCode(null)
+                setIsLevelCodeModalOpen(true)
+              }}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white text-sm font-semibold rounded-xl hover:from-[#1d4ed8] hover:to-[#1e40af] shadow-lg shadow-[#dbeafe] transition-all duration-200 active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              Create Level Code
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -205,18 +197,17 @@ function LevelCodeListPage() {
             </div>
 
             <div className="p-6">
-              <LevelCodeTable
-                data={pagedLevelCodes}
-                isLoading={isLoading}
-                onRowClick={setRoleModalLevelCode}
-                onEdit={(levelCode) => {
-                  setEditingLevelCode(levelCode)
-                  setIsLevelCodeModalOpen(true)
-                }}
-                sorting={sorting}
-                setSorting={setSorting}
-                readOnly={isAudit}
-              />
+            <LevelCodeTable
+              data={pagedLevelCodes}
+              isLoading={isLoading}
+              onRowClick={setRoleModalLevelCode}
+              onEdit={(levelCode) => {
+                setEditingLevelCode(levelCode)
+                setIsLevelCodeModalOpen(true)
+              }}
+              sorting={sorting}
+              setSorting={setSorting}
+            />
             </div>
 
             {totalPages > 0 && (
@@ -252,21 +243,18 @@ function LevelCodeListPage() {
         </div>
       </div>
 
-      {!isAudit && (
-        <LevelCodeModal
-          isOpen={isLevelCodeModalOpen}
-          onClose={() => setIsLevelCodeModalOpen(false)}
-          onSubmit={handleSubmitLevelCode}
-          levelCode={editingLevelCode}
-          existingCodes={levelCodes.map((levelCode) => levelCode.code)}
-          isLoading={isCreating || isUpdating}
-        />
-      )}
+      <LevelCodeModal
+        isOpen={isLevelCodeModalOpen}
+        onClose={() => setIsLevelCodeModalOpen(false)}
+        onSubmit={handleSubmitLevelCode}
+        levelCode={editingLevelCode}
+        existingCodes={levelCodes.map((levelCode) => levelCode.code)}
+        isLoading={isCreating || isUpdating}
+      />
       <PositionRoleEditModal
         isOpen={!!roleModalLevelCode}
         onClose={() => setRoleModalLevelCode(null)}
         levelCode={roleModalLevelCode}
-        readOnly={isAudit}
       />
     </div>
   )

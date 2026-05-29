@@ -54,26 +54,26 @@ public class PositionController {
 	}
 
 	@GetMapping("/{id}/departments")
-	@PreAuthorize("hasRole('HR') and principal.roleId == 1")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<List<AssignedDepartmentDto>> getDepartmentsByPositionId(@PathVariable Long id) {
 		return ResponseEntity.ok(positionService.getDepartmentsByPositionId(id));
 	}
 
 	@PostMapping
-	@PreAuthorize("hasRole('HR')")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<PositionDto>> createPosition(@Valid @RequestBody CreatePositionRequest request) {
 		return ResponseEntity.ok(ApiResponse.ok("Position created successfully.", positionService.createPosition(request)));
 	}
 
 	@PutMapping("/{id}")
-	@PreAuthorize("hasRole('HR')")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<PositionDto>> updatePosition(@PathVariable Long id,
 			@Valid @RequestBody UpdatePositionRequest request) {
 		return ResponseEntity.ok(ApiResponse.ok("Position updated successfully.", positionService.updatePosition(id, request)));
 	}
 
 	@PatchMapping("/{id}/status")
-	@PreAuthorize("hasRole('HR')")
+	@PreAuthorize("hasAnyRole('HR', 'AUDIT') or principal.roleId == 5")
 	public ResponseEntity<ApiResponse<PositionDto>> toggleStatus(@PathVariable Long id) {
 		return ResponseEntity.ok(ApiResponse.ok("Position status updated successfully.", positionService.toggleStatus(id)));
 	}

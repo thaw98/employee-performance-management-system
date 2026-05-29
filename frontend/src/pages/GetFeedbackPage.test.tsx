@@ -138,4 +138,21 @@ describe('GetFeedbackPage', () => {
     expect(screen.getByText('Teamwork')).toBeTruthy();
     expect(screen.getByText('Collaborative')).toBeTruthy();
   });
+
+  it('renders evaluator role as dash for anonymous received feedback', async () => {
+    render(
+      <MemoryRouter initialEntries={['/employee/360-feedback/received']}>
+        <LocationProbe />
+        <Routes>
+          <Route path="/employee/360-feedback/received" element={<GetFeedbackPage />} />
+          <Route path="/employee/360-feedback/received/:feedbackId" element={<FeedbackDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Anonymous');
+    const roleCells = screen.getAllByText('-');
+    expect(roleCells.length).toBeGreaterThan(0);
+    expect(screen.queryByText('PEER')).toBeNull();
+  });
 });
