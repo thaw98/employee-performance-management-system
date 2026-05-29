@@ -1,34 +1,22 @@
 // src/pages/audit/AuditDashboard.tsx
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
     Activity,
-    Shield,
     Users,
     Database,
-    Filter,
-    RefreshCw,
     ChevronLeft,
     ChevronRight,
     Eye,
     X,
     FileText,
-    Download,
     Calendar,
     TrendingUp,
     AlertCircle,
     CheckCircle,
     Clock,
     UserCheck,
-    BarChart3,
     PieChart,
-    Search,
-    SlidersHorizontal,
-    Maximize2,
-    Minimize2,
-    MoreVertical,
     Copy,
-    Share2,
     Printer,
 } from 'lucide-react';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
@@ -69,16 +57,11 @@ const COLORS = {
 const CHART_COLORS = [COLORS.primary, COLORS.secondary, COLORS.warning, COLORS.purple, COLORS.pink, COLORS.indigo];
 
 export const AuditDashboard: React.FC = () => {
-    const navigate = useNavigate();
     const [filters, setFilters] = useState<AuditFilter>({ page: 0, size: 15 });
-    const [showFilters, setShowFilters] = useState(false);
     const [selectedLog, setSelectedLog] = useState<any>(null);
-    const [dateRange, setDateRange] = useState({ start: '', end: '' });
-    const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-    const [exportLoading, setExportLoading] = useState(false);
 
-    const { data: logsData, isLoading: logsLoading, refetch: refetchLogs } = useGetAuditLogsQuery(filters);
-    const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } = useGetAuditSummaryQuery();
+    const { data: logsData, isLoading: logsLoading } = useGetAuditLogsQuery(filters);
+    const { data: summary, isLoading: summaryLoading } = useGetAuditSummaryQuery();
 
     // Prepare chart data from logs
     const chartData = useMemo(() => {
@@ -125,35 +108,8 @@ export const AuditDashboard: React.FC = () => {
         setFilters(prev => ({ ...prev, [key]: value, page: 0 }));
     };
 
-    const applyDateRange = () => {
-        setFilters(prev => ({
-            ...prev,
-            startDate: dateRange.start || undefined,
-            endDate: dateRange.end || undefined,
-            page: 0,
-        }));
-    };
-
     const resetFilters = () => {
         setFilters({ page: 0, size: 15 });
-        setDateRange({ start: '', end: '' });
-        setShowFilters(false);
-    };
-
-    const handleRefresh = () => {
-        refetchLogs();
-        refetchSummary();
-    };
-
-    const handleExport = async () => {
-        setExportLoading(true);
-        try {
-            // Simulate export - replace with actual API call
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            alert('Export completed! Check your downloads folder.');
-        } finally {
-            setExportLoading(false);
-        }
     };
 
     const handlePageChange = (newPage: number) => {
@@ -209,56 +165,12 @@ export const AuditDashboard: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header with Quick Actions */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Audit Dashboard</h1>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Real-time system activity monitoring and security audit trail
-                    </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    <button
-                        onClick={() => setViewMode(viewMode === 'table' ? 'grid' : 'table')}
-                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                    >
-                        {viewMode === 'table' ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
-                        {viewMode === 'table' ? 'Grid View' : 'Table View'}
-                    </button>
-                    <button
-                        onClick={handleExport}
-                        disabled={exportLoading}
-                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                    >
-                        {exportLoading ? (
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-transparent" />
-                        ) : (
-                            <Download size={16} />
-                        )}
-                        Export
-                    </button>
-                    <button
-                        onClick={() => setShowFilters(!showFilters)}
-                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                    >
-                        <SlidersHorizontal size={16} />
-                        Filters
-                    </button>
-                    <button
-                        onClick={() => navigate('/audit/logs')}
-                        className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:shadow-md transition-all"
-                    >
-                        <FileText size={16} />
-                        All Audits
-                    </button>
-                    <button
-                        onClick={handleRefresh}
-                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                        title="Refresh"
-                    >
-                        <RefreshCw size={16} className={logsLoading ? 'animate-spin' : ''} />
-                    </button>
-                </div>
+            {/* Header */}
+            <div>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Audit Dashboard</h1>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Real-time system activity monitoring and security audit trail
+                </p>
             </div>
 
             {/* Statistics Cards */}
@@ -350,91 +262,6 @@ export const AuditDashboard: React.FC = () => {
                     </ResponsiveContainer>
                 </div>
             </div>
-
-            {/* Filters Panel - Professional */}
-            {showFilters && (
-                <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                    <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Filter size={18} className="text-indigo-600" />
-                                <h3 className="font-semibold text-slate-900 dark:text-white">Advanced Filters</h3>
-                            </div>
-                            <button onClick={() => setShowFilters(false)} className="text-slate-400 hover:text-slate-600">
-                                <X size={18} />
-                            </button>
-                        </div>
-                    </div>
-                    <div className="p-5">
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            <div>
-                                <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">Action Type</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g., EMPLOYEE_CREATED"
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                    value={filters.actionType || ''}
-                                    onChange={(e) => handleFilterChange('actionType', e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">Target Type</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g., EMPLOYEE"
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                    value={filters.targetType || ''}
-                                    onChange={(e) => handleFilterChange('targetType', e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">User ID</label>
-                                <input
-                                    type="number"
-                                    placeholder="Enter user ID"
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                    value={filters.userId || ''}
-                                    onChange={(e) => handleFilterChange('userId', e.target.value ? parseInt(e.target.value) : undefined)}
-                                />
-                            </div>
-                            <div className="flex items-end gap-2">
-                                <button
-                                    onClick={applyDateRange}
-                                    className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                                >
-                                    Apply Filters
-                                </button>
-                                <button
-                                    onClick={resetFilters}
-                                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
-                                >
-                                    Reset
-                                </button>
-                            </div>
-                        </div>
-                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">Start Date</label>
-                                <input
-                                    type="date"
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                    value={dateRange.start}
-                                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">End Date</label>
-                                <input
-                                    type="date"
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                    value={dateRange.end}
-                                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Audit Logs Table - Enhanced */}
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
