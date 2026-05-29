@@ -910,12 +910,31 @@ public class FeedbackService {
         message = feedbackChatMessageRepository.save(message);
 
         if (recipient != null && recipient.getUserAccount() != null) {
+            // Use "Anonymous" as the author name in the notification when the feedback is anonymous,
+            // to avoid revealing the real evaluator's identity.
+            String notifAuthorName = Boolean.TRUE.equals(feedback.getAnonymous())
+                    ? "Anonymous"
+                    : author.getEmployeeName();
+
+            // Embed a recipient marker so the frontend can route the notification correctly:
+            //   [EVALUATOR_RECIPIENT] → the recipient of this notification is the feedback GIVER
+            //                           → frontend routes to Feedback History
+            //   [EVALUATEE_RECIPIENT] → the recipient is the feedback RECEIVER
+            //                           → frontend routes to Received Feedback
+            boolean recipientIsEvaluator = recipient.getUserAccount() != null
+                    && feedback.getEvaluator() != null
+                    && feedback.getEvaluator().getUserAccount() != null
+                    && feedback.getEvaluator().getUserAccount().getId()
+                        .equals(recipient.getUserAccount().getId());
+            String recipientMarker = recipientIsEvaluator ? " [EVALUATOR_RECIPIENT]" : " [EVALUATEE_RECIPIENT]";
+
             notificationService.send(
                     recipient.getUserAccount(),
                     "New Feedback Chat Message",
-                    author.getEmployeeName() + " sent a feedback chat message for feedback #"
+                    notifAuthorName + " sent a feedback chat message for feedback #"
                             + feedback.getId() + " at "
-                            + DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm").withZone(ZoneId.systemDefault()).format(message.getCreatedDate()),
+                            + DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm").withZone(ZoneId.systemDefault()).format(message.getCreatedDate())
+                            + recipientMarker,
                     "360_FEEDBACK");
         }
 
@@ -976,11 +995,24 @@ public class FeedbackService {
 
     private FeedbackChatMessageDto mapFeedbackChatMessage(FeedbackChatMessage message) {
         Employee author = message.getAuthor();
+        Feedback feedback = message.getFeedback();
+        // Determine the display name for the author.
+        // If the feedback is anonymous and the message was written by the evaluator,
+        // show "Anonymous" to protect the evaluator's identity.
+        boolean authorIsEvaluator = author != null
+                && feedback.getEvaluator() != null
+                && author.getId().equals(feedback.getEvaluator().getId());
+        String authorDisplayName;
+        if (Boolean.TRUE.equals(feedback.getAnonymous()) && authorIsEvaluator) {
+            authorDisplayName = "Anonymous";
+        } else {
+            authorDisplayName = author != null ? author.getEmployeeName() : "Unknown";
+        }
         return new FeedbackChatMessageDto(
                 message.getId(),
-                message.getFeedback().getId(),
+                feedback.getId(),
                 author != null ? author.getId() : null,
-                author != null ? author.getEmployeeName() : "Unknown",
+                authorDisplayName,
                 message.getContent(),
                 message.getCreatedDate());
     }

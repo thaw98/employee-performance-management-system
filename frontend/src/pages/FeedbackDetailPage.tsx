@@ -383,7 +383,9 @@ export function FeedbackDetailPage() {
 
         {!isAuditView && (
           <div className="mt-8 rounded-2xl border border-slate-100 bg-slate-50/60 p-5">
-            <h2 className="mb-4 text-sm font-black uppercase tracking-widest text-slate-800">Feedback Chat</h2>
+            <h2 className="mb-4 text-sm font-black uppercase tracking-widest text-slate-800">
+              {data.anonymous ? 'Anonymous Chat' : 'Feedback Chat'}
+            </h2>
             <div className="mb-4 max-h-[320px] space-y-3 overflow-y-auto rounded-xl border border-slate-100 bg-white p-4">
               {chatMessages.length === 0 ? (
                 <p className="py-6 text-center text-sm font-bold text-slate-400">No chat messages yet.</p>
