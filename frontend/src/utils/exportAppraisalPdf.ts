@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { resolveMediaSrc } from './mediaUrl';
-import { addPdfFooterBranding, addPdfHeaderBranding } from './pdfBranding';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from './pdfBranding';
 
 interface Question {
   id: number;
@@ -169,9 +169,14 @@ export async function exportAppraisalPdf(assignment: AppraisalAssignmentForPdf):
   const pageWidth = doc.internal.pageSize.getWidth();
   const contentWidth = pageWidth - pageMargin * 2;
 
+  const logoDataUrl = await loadPdfLogo();
+
   // Header Banner
   doc.setFillColor(...navy);
   doc.rect(0, 0, pageWidth, 26, 'F');
+  if (logoDataUrl) {
+    addPdfHeaderLogo(doc, logoDataUrl, { x: pageMargin, y: 5, width: 24, height: 12 });
+  }
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);

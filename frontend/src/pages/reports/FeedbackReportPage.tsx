@@ -16,7 +16,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { addFeedbackScorePerformanceSection, feedbackPercentageFromAverage } from '../../utils/feedbackScorePdf'
-import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding'
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding'
 import { useAppSelector } from '../../app/hooks'
 import { AlertTriangle, ArrowLeft, Award, ChevronLeft, ChevronRight, Download, FileText, Filter, Trophy } from 'lucide-react'
 import {
@@ -1004,6 +1004,10 @@ function EmployeeOwnFeedbackReport() {
       const pageHeight = doc.internal.pageSize.getHeight()
       const margin = 10
       const usableWidth = pageWidth - margin * 2
+      const logoDataUrl = await loadPdfLogo()
+      if (logoDataUrl) {
+        addPdfHeaderLogo(doc, logoDataUrl, { x: margin, y: 3, width: 24, height: 12 })
+      }
       doc.setFontSize(16)
       doc.text(getExportReportTitle('individual'), margin, 14)
       addPdfHeaderBranding(doc, { margin, y: 14 })
@@ -1380,6 +1384,10 @@ function HrManagerFeedbackReport({ mode }: { mode: 'hr' | 'manager' | 'audit' })
       const pageHeight = doc.internal.pageSize.getHeight()
       const margin = 10
       const usableWidth = pageWidth - margin * 2
+      const logoDataUrl = await loadPdfLogo()
+      if (logoDataUrl) {
+        addPdfHeaderLogo(doc, logoDataUrl, { x: margin, y: 3, width: 24, height: 12 })
+      }
       doc.setFontSize(16)
       doc.text(reportTitle, margin, 14)
       addPdfHeaderBranding(doc, { margin, y: 14 })

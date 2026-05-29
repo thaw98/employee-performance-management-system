@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 import axios from '../../app/axiosInstance';
 import { PaginationBar } from '../../components/common/PaginationBar';
 import { addFeedbackScorePerformanceSection } from '../../utils/feedbackScorePdf';
-import { addPdfInfoTable, addPdfProfessionalFooter, addPdfProfessionalHeader, addPdfSectionHeader } from '../../utils/pdfBranding';
+import { addPdfInfoTable, addPdfProfessionalFooter, addPdfProfessionalHeader, addPdfSectionHeader, loadPdfLogo } from '../../utils/pdfBranding';
 
 interface AuditSummaryRow {
   employeeId: number;
@@ -238,7 +238,8 @@ export function AuditFeedbackHistoryPage() {
       const exportRows = await fetchExportRows();
       const doc = new jsPDF();
       const margin = 14;
-      addPdfProfessionalHeader(doc, '360 Feedback Summary', `Generated: ${new Date().toLocaleString('en-GB')}`, { margin });
+      const logoDataUrl = await loadPdfLogo();
+      addPdfProfessionalHeader(doc, '360 Feedback Summary', `Generated: ${new Date().toLocaleString('en-GB')}`, { margin, logoDataUrl });
       let currentY = addPdfSectionHeader(doc, margin, 42, 'Report Filters', { width: 182 });
       currentY = addPdfInfoTable(doc, currentY + 2, filterSummary, { marginLeft: margin, marginRight: margin }) + 8;
       currentY = addPdfSectionHeader(doc, margin, currentY, 'Totals', { width: 182 });
@@ -412,7 +413,8 @@ export function AuditFeedbackEvaluateeHistoryPage() {
       const pdfDetails: FeedbackDetail[] = resp.data.data || [];
       const doc = new jsPDF();
       const margin = 14;
-      addPdfProfessionalHeader(doc, '360 Feedback Assessment Report', `Generated: ${new Date().toLocaleString('en-GB')}`, { margin });
+      const logoDataUrl = await loadPdfLogo();
+      addPdfProfessionalHeader(doc, '360 Feedback Assessment Report', `Generated: ${new Date().toLocaleString('en-GB')}`, { margin, logoDataUrl });
       let currentY = 42;
       currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
       currentY = addPdfInfoTable(doc, currentY + 2, [

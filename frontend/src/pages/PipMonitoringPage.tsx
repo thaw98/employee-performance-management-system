@@ -10,7 +10,7 @@ import { useEffect, useState, useMemo } from 'react'
 import type { RootState } from '../app/store'
 import { useGetDepartmentsQuery, useGetDepartmentPositionsQuery } from '../features/hrCreateEmployee/hrEmployeeAccountApi'
 import PipUnifiedLog from '../features/pip/components/PipUnifiedLog'
-import { addPdfFooterBranding, addPdfHeaderBranding } from '../utils/pdfBranding'
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../utils/pdfBranding'
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-blue-100 text-blue-700',
@@ -547,6 +547,12 @@ export default function PipMonitoringPage() {
       setExportError(null)
       const summaryRows = buildPipSummaryPdfRows(exportTargetPips)
       const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
+
+      const logoDataUrl = await loadPdfLogo()
+      if (logoDataUrl) {
+        addPdfHeaderLogo(doc, logoDataUrl, { x: 36, y: 18, width: 68, height: 34 })
+      }
+
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(18)
       doc.text('PIP Monitoring Report', 36, 36)

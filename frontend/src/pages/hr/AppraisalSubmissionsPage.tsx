@@ -9,7 +9,7 @@ import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
-import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding';
 import {
     APPRAISAL_PRIMARY,
     appraisalGradientBtn,
@@ -528,7 +528,7 @@ export function AppraisalSubmissionsPage() {
         }
     };
 
-    const handleExportSummaryPDF = () => {
+    const handleExportSummaryPDF = async () => {
         // Filter based on the currently active tab (HR_APPROVED or LOCKED)
         const targetStatus = activeTab === 'LOCKED' ? 'LOCKED' : 'HR_APPROVED';
         
@@ -543,9 +543,14 @@ export function AppraisalSubmissionsPage() {
         const doc = new jsPDF('l', 'mm', 'a4');
         const dateStr = new Date().toLocaleDateString();
 
+        const logoDataUrl = await loadPdfLogo();
+
         // Header
         doc.setFillColor(8, 85, 191);
         doc.rect(0, 0, 297, 40, 'F');
+        if (logoDataUrl) {
+            addPdfHeaderLogo(doc, logoDataUrl, { x: 15, y: 5, width: 24, height: 12 });
+        }
         
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(24);

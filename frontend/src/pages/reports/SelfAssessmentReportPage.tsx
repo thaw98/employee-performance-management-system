@@ -248,9 +248,9 @@ export default function SelfAssessmentReportPage({ mode }: Props) {
     setSelectedPosition(null)
   }
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!report) return
-    exportSelfAssessmentReportPdf(report)
+    await exportSelfAssessmentReportPdf(report)
     toast.success('PDF exported')
   }
 

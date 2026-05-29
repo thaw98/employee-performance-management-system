@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'react-hot-toast';
-import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding';
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding';
 import {
   KPI_REPORTS_BAR_FILL,
   KPI_REPORTS_CHART_AXIS,
@@ -392,11 +392,17 @@ export default function KpiReportsPage() {
     }
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     try {
       const doc = new jsPDF('l', 'mm', 'a4');
       const isDeptActive = activeTab === 'department';
       const title = isDeptActive ? 'Department Performance Comparison Report' : 'KPI Report';
+
+      const logoDataUrl = await loadPdfLogo();
+      if (logoDataUrl) {
+        addPdfHeaderLogo(doc, logoDataUrl, { x: 14, y: 3, width: 24, height: 12 });
+      }
+
       doc.setFontSize(16);
       doc.text(title, 14, 14);
       doc.setFontSize(10);

@@ -6,7 +6,7 @@ import type {
   SelfAssessmentSubmissionAttemptDto,
 } from './api/selfAssessmentFormApi'
 import { resolveMediaSrc } from '../../utils/mediaUrl'
-import { addPdfFooterBranding, addPdfHeaderBranding } from '../../utils/pdfBranding'
+import { addPdfFooterBranding, addPdfHeaderBranding, addPdfHeaderLogo, loadPdfLogo } from '../../utils/pdfBranding'
 
 interface SignatureExportItem {
   label: string
@@ -327,12 +327,15 @@ export const resolveAttemptsForExport = (
   return attempts
 }
 
-const addReportHeader = (doc: jsPDF, form: SelfAssessmentFormDto): number => {
+const addReportHeader = (doc: jsPDF, form: SelfAssessmentFormDto, logoDataUrl: string | null): number => {
   const pageWidth = doc.internal.pageSize.getWidth()
   const contentWidth = pageWidth - pageMargin * 2
 
   doc.setFillColor(...navy)
   doc.rect(0, 0, pageWidth, 26, 'F')
+  if (logoDataUrl) {
+    addPdfHeaderLogo(doc, logoDataUrl, { x: pageMargin, y: 5, width: 24, height: 12 })
+  }
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(15)
@@ -608,7 +611,8 @@ export async function exportSelfAssessmentReviewPdf(
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const attempts = resolveAttemptsForExport(form)
 
-  let y = addReportHeader(doc, form)
+  const logoDataUrl = await loadPdfLogo()
+  let y = addReportHeader(doc, form, logoDataUrl)
 
   y = addInfoSection(doc, 'Employee Information', [
     ['Employee name', form.employee?.employeeName ?? '-'],

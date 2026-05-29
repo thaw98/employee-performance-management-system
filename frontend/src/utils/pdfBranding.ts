@@ -18,6 +18,61 @@ interface PdfBrandingOptions {
 const defaultSlate: PdfRgb = [88, 99, 115]
 const primaryDefault: PdfRgb = [37, 99, 235]
 
+let cachedLogoDataUrl: string | null = null
+let logoLoadPromise: Promise<string | null> | null = null
+
+export async function loadPdfLogo(): Promise<string | null> {
+  if (cachedLogoDataUrl !== null) return cachedLogoDataUrl
+  if (logoLoadPromise) return logoLoadPromise
+
+  logoLoadPromise = (async () => {
+    try {
+      const response = await fetch('/ace-logo.png')
+      if (!response.ok) return null
+      const blob = await response.blob()
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(reader.error)
+        reader.readAsDataURL(blob)
+      })
+    } catch {
+      return null
+    }
+  })()
+
+  const result = await logoLoadPromise
+  cachedLogoDataUrl = result
+  return result
+}
+
+export interface PdfHeaderLogoOptions {
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+}
+
+export function addPdfHeaderLogo(
+  doc: jsPDF,
+  logoDataUrl: string,
+  options: PdfHeaderLogoOptions = {},
+): void {
+  const {
+    x = 14,
+    y = 5,
+    width = 24,
+    height = 12,
+  } = options
+
+  try {
+    const fmt = logoDataUrl.includes('image/png') ? 'PNG' : 'JPEG'
+    doc.addImage(logoDataUrl, fmt, x, y, width, height)
+  } catch {
+    // Silently ignore if logo fails to render
+  }
+}
+
 export function addPdfHeaderBranding(doc: jsPDF, options: PdfBrandingOptions = {}): void {
   const pageWidth = doc.internal.pageSize.getWidth()
   const {
@@ -57,7 +112,7 @@ export function addPdfProfessionalHeader(
   doc: jsPDF,
   title: string,
   subtitle: string,
-  options?: { margin?: number; primaryColor?: PdfRgb }
+  options?: { margin?: number; primaryColor?: PdfRgb; logoDataUrl?: string | null }
 ): void {
   const pageWidth = doc.internal.pageSize.getWidth()
   const m = options?.margin ?? 14
@@ -65,6 +120,10 @@ export function addPdfProfessionalHeader(
 
   doc.setFillColor(primary[0], primary[1], primary[2])
   doc.rect(0, 0, pageWidth, 4, 'F')
+
+  if (options?.logoDataUrl) {
+    addPdfHeaderLogo(doc, options.logoDataUrl, { x: m, y: 5, width: 24, height: 12 })
+  }
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(20)

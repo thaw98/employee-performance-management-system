@@ -6,7 +6,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import axios from '../app/axiosInstance';
 import { addFeedbackScorePerformanceSection } from '../utils/feedbackScorePdf';
-import { addPdfProfessionalFooter, addPdfInfoTable, addPdfProfessionalHeader, addPdfSectionHeader } from '../utils/pdfBranding';
+import { addPdfProfessionalFooter, addPdfInfoTable, addPdfProfessionalHeader, addPdfSectionHeader, loadPdfLogo } from '../utils/pdfBranding';
 import { isReceivedAnonymous, feedbackRoleDisplay } from '../utils/feedbackAnonymity';
 
 interface FeedbackDetail {
@@ -130,14 +130,15 @@ export function FeedbackDetailPage() {
     navigate(-1);
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     if (!data) return;
     try {
       const doc = new jsPDF();
       const margin = 14;
+      const logoDataUrl = await loadPdfLogo();
       if (isAuditView) {
         const genDateTime = new Date().toLocaleString('en-GB');
-        addPdfProfessionalHeader(doc, '360 Feedback Assessment Report', `Generated: ${genDateTime}`, { margin });
+        addPdfProfessionalHeader(doc, '360 Feedback Assessment Report', `Generated: ${genDateTime}`, { margin, logoDataUrl });
         let currentY = 42;
         currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
         currentY = addPdfInfoTable(doc, currentY + 2, [
@@ -190,7 +191,7 @@ export function FeedbackDetailPage() {
         : { name: data.evaluatorName || '-', staffNo: data.evaluatorStaffNo || '', position: data.evaluatorPosition || '-', department: data.evaluatorDepartment || '-' };
       const genDateTime = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
       const directionLabel = data.direction === 'RECEIVED' ? 'Received Feedback' : 'Given Feedback';
-      addPdfProfessionalHeader(doc, '360 Feedback Assessment Report', `${directionLabel}  |  Generated: ${genDateTime}`, { margin });
+      addPdfProfessionalHeader(doc, '360 Feedback Assessment Report', `${directionLabel}  |  Generated: ${genDateTime}`, { margin, logoDataUrl });
 
       let currentY = 42;
       currentY = addPdfSectionHeader(doc, margin, currentY, 'Evaluator Information', { width: 182 });
