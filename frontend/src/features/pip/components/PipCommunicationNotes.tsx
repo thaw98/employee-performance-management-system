@@ -162,22 +162,13 @@ export function PipCommunicationNotes({
       createdAt: note.createdAt,
       content: note.content,
     }))
-    const normalizedMeetingNotes = meetingNotes.map((note) => ({
-      id: note.id,
-      source: 'meeting' as const,
-      note: null,
-      noteType: note.noteType,
-      authorName: note.authorName,
-      createdAt: note.createdAt,
-      content: note.content,
-    }))
 
-    return [...communicationNotes, ...followupNotes, ...normalizedMeetingNotes].sort((a, b) => {
+    return [...communicationNotes, ...followupNotes].sort((a, b) => {
       const bTime = new Date(b.createdAt).getTime()
       const aTime = new Date(a.createdAt).getTime()
       return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0)
     })
-  }, [communicationQuery.data?.content, followupQuery.data?.content, meetingNotes])
+  }, [communicationQuery.data?.content, followupQuery.data?.content])
 
   const isLoadingNotes =
     communicationQuery.isLoading ||

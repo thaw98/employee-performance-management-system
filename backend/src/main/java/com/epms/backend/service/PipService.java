@@ -470,7 +470,7 @@ public class PipService {
         update.setUpdatedBy(actor.getEmployee());
         update.setUpdateDate(LocalDate.now());
         update.setCreatedDate(Instant.now());
-        update.setCompletedHours(pip.getCompletedHours());
+        update.setCompletedHours(null);
         progressUpdateRepository.save(update);
 
         pipRepository.save(pip);
@@ -1018,7 +1018,7 @@ public class PipService {
         update.setUpdatedBy(updatedBy);
         update.setUpdateDate(LocalDate.now());
         update.setCreatedDate(endedAt);
-        update.setCompletedHours(pip.getCompletedHours());
+        update.setCompletedHours(elapsedHours.setScale(0, RoundingMode.FLOOR).intValue());
         progressUpdateRepository.save(update);
         pipRepository.save(pip);
         sendPipTimerStoppedNotification(objective, seconds, endedAt);

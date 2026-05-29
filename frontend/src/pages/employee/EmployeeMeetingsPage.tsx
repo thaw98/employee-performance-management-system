@@ -106,7 +106,7 @@ export function EmployeeMeetingsPage() {
     const fetchMeetings = async () => {
         try {
             let statuses = '';
-            if (activeTab === 'UPCOMING') statuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED';
+            if (activeTab === 'UPCOMING') statuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED,DECLINED';
             if (activeTab === 'ONGOING') statuses = 'ONGOING';
             if (activeTab === 'COMPLETED') {
                 if (subStatus === 'ALL') statuses = 'COMPLETED,CANCELLED';
@@ -184,6 +184,16 @@ export function EmployeeMeetingsPage() {
             fetchMeetings();
         } catch (err) {
             toast.error('Failed to accept meeting');
+        }
+    };
+
+    const handleDecline = async (id: number) => {
+        try {
+            await axios.put(`/meetings/${id}/decline`);
+            toast.success('Meeting declined');
+            fetchMeetings();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to decline meeting');
         }
     };
 
@@ -350,7 +360,9 @@ export function EmployeeMeetingsPage() {
                         <p className="text-slate-500 text-sm mt-2">You don't have any meetings in this category.</p>
                     </div>
                 )}
-                {meetings.map(m => (
+                {meetings.map(m => {
+                    const isDepartmentMeeting = m.meetingScope === 'DEPARTMENT';
+                    return (
                     <div 
                         key={m.id} 
                         onClick={() => (m.status === 'COMPLETED' || m.status === 'CANCELLED') && navigate(`/employee/meetings/${m.id}`)}
@@ -379,6 +391,12 @@ export function EmployeeMeetingsPage() {
                                     <Clock size={14} className="text-slate-400" />
                                     <span>{getDuration(m)} {m.status === 'COMPLETED' ? '(Actual)' : 'minutes'}</span>
                                 </div>
+                                {isDepartmentMeeting && (
+                                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs font-bold text-blue-800">
+                                        <div>Total invited: {m.totalInvitedMembers ?? 0}</div>
+                                        <div>Accepted: {m.acceptedMembers ?? 0} | Declined: {m.declinedMembers ?? 0} | Pending: {m.pendingMembers ?? 0}</div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -399,12 +417,21 @@ export function EmployeeMeetingsPage() {
                                         >
                                             <Check size={16} /> Accept
                                         </button>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); openReschedule(m.id); }}
-                                            className="bg-amber-50 text-amber-600 px-3 py-2 rounded-xl border border-amber-100 hover:bg-amber-100 transition-colors flex items-center gap-1 text-sm font-bold"
-                                        >
-                                            <Clock size={16} /> Reschedule
-                                        </button>
+                                        {isDepartmentMeeting ? (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleDecline(m.id); }}
+                                                className="bg-rose-50 text-rose-600 px-3 py-2 rounded-xl border border-rose-100 hover:bg-rose-100 transition-colors flex items-center gap-1 text-sm font-bold"
+                                            >
+                                                <XCircle size={16} /> Decline
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); openReschedule(m.id); }}
+                                                className="bg-amber-50 text-amber-600 px-3 py-2 rounded-xl border border-amber-100 hover:bg-amber-100 transition-colors flex items-center gap-1 text-sm font-bold"
+                                            >
+                                                <Clock size={16} /> Reschedule
+                                            </button>
+                                        )}
                                     </>
                                 )}
 
@@ -437,7 +464,8 @@ export function EmployeeMeetingsPage() {
                             </div>
                         )}
                     </div>
-                ))}
+                    )
+                })}
             </div>
 
             {activeTab === 'COMPLETED' && totalPages > 1 && (

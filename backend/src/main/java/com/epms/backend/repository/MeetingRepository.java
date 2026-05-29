@@ -19,6 +19,9 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long>, JpaSpec
     Page<Meeting> findByEmployeeId(Long employeeId, Pageable pageable);
     Page<Meeting> findByEmployeeIdAndStatusIn(Long employeeId, List<MeetingStatus> statuses, Pageable pageable);
     List<Meeting> findByStatusIn(List<MeetingStatus> statuses);
+    List<Meeting> findByMeetingGroupKey(String meetingGroupKey);
+    long countByMeetingGroupKey(String meetingGroupKey);
+    long countByMeetingGroupKeyAndStatus(String meetingGroupKey, MeetingStatus status);
     long countByScheduledTimeAfterAndStatusIn(Instant scheduledTime, List<MeetingStatus> statuses);
     long countByScheduledTimeBetweenAndStatusIn(Instant start, Instant end, List<MeetingStatus> statuses);
 }

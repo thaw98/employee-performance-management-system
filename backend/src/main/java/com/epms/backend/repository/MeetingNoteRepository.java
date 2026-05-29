@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface MeetingNoteRepository extends JpaRepository<MeetingNote, Long> {
     List<MeetingNote> findByMeetingIdOrderByCreatedDateAsc(Long meetingId);
+    List<MeetingNote> findByMeeting_MeetingGroupKeyOrderByCreatedDateAsc(String meetingGroupKey);
 }

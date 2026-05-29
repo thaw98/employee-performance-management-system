@@ -102,6 +102,8 @@ export function MeetingsPage() {
 
     // Form state
     const [employeeId, setEmployeeId] = useState('');
+    const [selectedScheduleDept, setSelectedScheduleDept] = useState('');
+    const [departmentMeeting, setDepartmentMeeting] = useState(false);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [scheduledTime, setScheduledTime] = useState('');
@@ -174,7 +176,7 @@ export function MeetingsPage() {
             if (isHistoryOnlyView) {
                 statuses = subStatus === 'ALL' ? 'COMPLETED,CANCELLED' : subStatus;
             } else {
-                if (activeTab === 'UPCOMING') statuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED';
+                if (activeTab === 'UPCOMING') statuses = 'PENDING,ACCEPTED,RESCHEDULE_REQUESTED,RESCHEDULE_MGR,CANCEL_REQUESTED,DECLINED';
                 if (activeTab === 'ONGOING') statuses = 'ONGOING';
                 if (activeTab === 'COMPLETED') {
                     if (subStatus === 'ALL') statuses = 'COMPLETED,CANCELLED';
@@ -220,7 +222,11 @@ export function MeetingsPage() {
             }
 
             const resp = await axios.get(url);
-            setMeetings((resp.data.data.content || []).map((meeting: any) => ({ ...meeting, perspective: 'manager' })));
+            const rows = (resp.data.data.content || []).map((meeting: any) => ({ ...meeting, perspective: 'manager' }));
+            setMeetings(Array.from(new Map(rows.map((meeting: any) => [
+                meeting.meetingScope === 'DEPARTMENT' && meeting.meetingGroupKey ? meeting.meetingGroupKey : meeting.id,
+                meeting,
+            ])).values()));
             setTotalPages(resp.data.data.totalPages || 0);
         } catch (err: any) {
             const errorMsg = err.response?.data?.message || 'Failed to load meetings';
@@ -283,7 +289,9 @@ export function MeetingsPage() {
         }
         try {
             const payload = {
-                employeeId: parseInt(employeeId),
+                employeeId: departmentMeeting ? undefined : parseInt(employeeId),
+                departmentId: departmentMeeting ? parseInt(selectedScheduleDept) : undefined,
+                departmentMeeting,
                 title,
                 description,
                 scheduledTime: new Date(scheduledTimeValue).toISOString(),
@@ -293,6 +301,7 @@ export function MeetingsPage() {
             toast.success('Meeting scheduled successfully');
             setIsModalOpen(false);
             setEmployeeId('');
+            setDepartmentMeeting(false);
             setTitle('');
             setDescription('');
             setScheduledTime('');
@@ -334,6 +343,16 @@ export function MeetingsPage() {
             fetchMeetings();
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to accept meeting');
+        }
+    };
+
+    const handleDecline = async (id: number) => {
+        try {
+            await axios.put(`/meetings/${id}/decline`);
+            toast.success('Meeting declined');
+            fetchMeetings();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Failed to decline meeting');
         }
     };
 
@@ -553,6 +572,7 @@ export function MeetingsPage() {
                         (!isHrView && !isAuditView && (m.status === 'COMPLETED' || m.status === 'CANCELLED'));
                     const detailPath = isAuditView ? `/audit/meetings/${m.id}` : isHrView ? `/hr/meetings/${m.id}` : `/manager/meetings/${m.id}`;
                     const isInvitedMeeting = isHrView && m.perspective === 'employee';
+                    const isDepartmentMeeting = m.meetingScope === 'DEPARTMENT';
 
                     return (
                     <div 
@@ -573,8 +593,8 @@ export function MeetingsPage() {
                             <div className="space-y-2 mb-6">
                                 <div className="flex items-center gap-2 text-sm text-slate-600">
                                     <User size={14} className="text-slate-400" />
-                                    <span className="font-semibold">{m.employeeName}</span>
-                                    {m.departmentName && <span className="text-xs text-slate-400">({m.departmentName})</span>}
+                                    <span className="font-semibold">{isDepartmentMeeting ? `Participants: ${m.departmentName || 'Department'}` : m.employeeName}</span>
+                                    {!isDepartmentMeeting && m.departmentName && <span className="text-xs text-slate-400">({m.departmentName})</span>}
                                 </div>
                                 <div className="flex items-center gap-2 text-sm text-slate-600">
                                     <Calendar size={14} className="text-slate-400" />
@@ -584,6 +604,12 @@ export function MeetingsPage() {
                                     <Clock size={14} className="text-slate-400" />
                                     <span>{getDuration(m)} {m.status === 'COMPLETED' ? '(Actual)' : 'minutes'}</span>
                                 </div>
+                                {isDepartmentMeeting && (
+                                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs font-bold text-blue-800">
+                                        <div>Total invited: {m.totalInvitedMembers ?? 0}</div>
+                                        <div>Accepted: {m.acceptedMembers ?? 0} | Declined: {m.declinedMembers ?? 0} | Pending: {m.pendingMembers ?? 0}</div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -592,10 +618,14 @@ export function MeetingsPage() {
                                 {isInvitedMeeting && m.status === 'PENDING' && (
                                     <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
                                         <p className="text-xs font-bold text-emerald-800 uppercase mb-1">Meeting Invitation</p>
-                                        <p className="text-xs text-emerald-700 mb-3">Accept the meeting or propose another time.</p>
+                                        <p className="text-xs text-emerald-700 mb-3">{isDepartmentMeeting ? 'Accept or decline this department meeting.' : 'Accept the meeting or propose another time.'}</p>
                                         <div className="flex gap-2">
                                             <button onClick={(e) => { e.stopPropagation(); handleAccept(m.id); }} className="flex-1 bg-emerald-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors">Accept</button>
-                                            <button onClick={(e) => { e.stopPropagation(); openRescheduleModal(m); }} className="flex-1 bg-white border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold hover:bg-emerald-50 transition-colors">Reschedule</button>
+                                            {isDepartmentMeeting ? (
+                                                <button onClick={(e) => { e.stopPropagation(); handleDecline(m.id); }} className="flex-1 bg-white border border-rose-200 text-rose-700 py-2 rounded-lg text-xs font-bold hover:bg-rose-50 transition-colors">Decline</button>
+                                            ) : (
+                                                <button onClick={(e) => { e.stopPropagation(); openRescheduleModal(m); }} className="flex-1 bg-white border border-emerald-200 text-emerald-700 py-2 rounded-lg text-xs font-bold hover:bg-emerald-50 transition-colors">Reschedule</button>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -721,16 +751,53 @@ export function MeetingsPage() {
                             </button>
                         </div>
                         <form onSubmit={handleSchedule} className="p-6 space-y-5">
-                            <div>
-                                <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Select Employee</label>
-                                <select 
-                                    required
+                            {!isFaqHrMeeting && (
+                                <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDepartmentMeeting(false)}
+                                        className={`rounded-lg px-3 py-2 text-xs font-black uppercase ${!departmentMeeting ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+                                    >
+                                        One-on-One
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setDepartmentMeeting(true);
+                                            setEmployeeId('');
+                                        }}
+                                        className={`rounded-lg px-3 py-2 text-xs font-black uppercase ${departmentMeeting ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+                                    >
+                                        Department
+                                    </button>
+                                </div>
+                            )}
+                            {departmentMeeting ? (
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Select Department</label>
+                                    <select 
+                                        required
+                                        value={selectedScheduleDept}
+                                        onChange={(e) => setSelectedScheduleDept(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
+                                    >
+                                        <option value="">Select a department...</option>
+                                        {departments.map((dept: any) => (
+                                            <option key={dept.id} value={dept.id}>{dept.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Select Employee</label>
+                                    <select 
+                                        required
                                     value={employeeId}
                                     onChange={(e) => setEmployeeId(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold focus:border-[#2463eb] focus:ring-1 focus:ring-[#dbeafe] outline-none transition-all disabled:cursor-not-allowed disabled:text-slate-400"
                                 >
                                     <option value="">
-                                        {isFaqHrMeeting ? 'Select HR employee...' : 'Select a subordinate...'}
+                                        {departmentMeeting ? 'All active employees in your department' : isFaqHrMeeting ? 'Select HR employee...' : 'Select a subordinate...'}
                                     </option>
                                     {selectableEmployees.length === 0 && (
                                         <option value="" disabled>
@@ -741,7 +808,8 @@ export function MeetingsPage() {
                                         <option key={emp.id} value={emp.id}>{emp.name} ({emp.position})</option>
                                     ))}
                                 </select>
-                            </div>
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Meeting Title</label>
                                 <input 
