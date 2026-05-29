@@ -18,7 +18,7 @@ import {
     sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, ChevronDown, HelpCircle, GripVertical, RotateCcw, Calendar, Clock, Users, Filter, FileSpreadsheet, FileText, Send, Building2, Check, RefreshCcw, History } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, CheckCircle2, ChevronRight, ChevronDown, HelpCircle, GripVertical, RotateCcw, Calendar, Clock, Users, Filter, FileSpreadsheet, FileText, Send, Building2, Check, RefreshCcw, History, Download } from 'lucide-react';
 import { SelfAssessmentReviewCycleInfo, formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 import {
     APPRAISAL_PRIMARY,
@@ -26,8 +26,32 @@ import {
     appraisalGradientCard,
     appraisalGradientHeader,
 } from '../../features/appraisals/appraisalTheme';
+import AppraisalImportModal from '../../features/appraisals/AppraisalImportModal';
+import { useAppSelector } from '../../app/hooks';
 
 const PRIMARY = APPRAISAL_PRIMARY;
+
+const API_BASE =
+    (import.meta.env.VITE_API_BASE_URL as string)?.replace(/\/$/, '') ||
+    'http://localhost:8080';
+
+function downloadBlob(url: string, filename: string, token: string | null) {
+    return fetch(`${API_BASE}/api${url}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+        .then((r) => {
+            if (!r.ok) throw new Error('Download failed');
+            return r.blob();
+        })
+        .then((blob) => {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        });
+}
 
 interface Category {
     id?: number;
@@ -572,6 +596,10 @@ export function AppraisalsPage() {
     const [isReorderingCat, setIsReorderingCat] = useState(false);
     const [isReorderingQue, setIsReorderingQue] = useState(false);
 
+    // Import Modal State
+    const [showImportModal, setShowImportModal] = useState(false);
+    const authToken = useAppSelector((s) => s.auth.token);
+
     // Target Audience State
     const [allPositions, setAllPositions] = useState<DepartmentPositionMapping[]>([]);
     const [employeeCounts, setEmployeeCounts] = useState<Record<string, number>>({});
@@ -900,6 +928,26 @@ export function AppraisalsPage() {
                 <div>
                     <h1 className="text-4xl font-black tracking-tight" style={{ color: PRIMARY }}>Appraisals Management</h1>
                     <p className="text-slate-500 mt-2 font-medium">Configure performance appraisal categories and their specific questions.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => {
+                            downloadBlob('/appraisals/import/template', 'appraisal_import_template.xlsx', authToken).catch(
+                                () => toast.error('Failed to download template'),
+                            );
+                        }}
+                        className="flex items-center gap-2 px-4 py-3 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-[#60a5fa] hover:text-[#2463eb] hover:bg-[#eff6ff]/50 transition-all shadow-sm"
+                    >
+                        <Download size={16} />
+                        Download Template
+                    </button>
+                    <button
+                        onClick={() => setShowImportModal(true)}
+                        className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-[#2463eb] to-[#1d4ed8] text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:from-[#1d4ed8] hover:to-[#1e40af] transition-all shadow-lg shadow-[#dbeafe]"
+                    >
+                        <FileSpreadsheet size={16} />
+                        Import
+                    </button>
                 </div>
                 <div className="flex bg-slate-100 p-1.5 rounded-2xl">
                     <button 
@@ -1716,6 +1764,17 @@ export function AppraisalsPage() {
                     </div>
                 </div>
             )}
+
+            {/* Appraisal Import Modal */}
+            <AppraisalImportModal
+                isOpen={showImportModal}
+                onClose={() => setShowImportModal(false)}
+                onImportSuccess={() => {
+                    fetchCategories();
+                    toast.success('Categories and questions imported successfully!');
+                }}
+                token={authToken}
+            />
         </div>
     );
 }

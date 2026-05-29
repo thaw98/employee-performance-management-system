@@ -4,8 +4,10 @@ import com.epms.backend.entity.AppraisalQuestion;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AppraisalQuestionRepository extends JpaRepository<AppraisalQuestion, Long> {
     List<AppraisalQuestion> findByCategoryIdOrderBySortOrderAsc(Long categoryId);
+    Optional<AppraisalQuestion> findByCategoryIdAndQuestionTextIgnoreCase(Long categoryId, String questionText);
 }
