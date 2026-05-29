@@ -625,8 +625,8 @@ export const ManagerEvaluationPage: React.FC = () => {
                         <div className="grid gap-4">
                             {category.questions.map((question) => (
                                 <div key={question.id} className="bg-white rounded-3xl border border-slate-200/60 p-8 shadow-sm hover:shadow-md transition-all group">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-                                        <div className="flex-1 space-y-2">
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[10px] font-black text-[#2463eb] bg-[#eff6ff] px-2 py-0.5 rounded-full uppercase">Question</span>
                                                 {question.isRequired && <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">* Required</span>}
@@ -634,28 +634,26 @@ export const ManagerEvaluationPage: React.FC = () => {
                                             <h4 className="text-base font-bold text-slate-800 leading-relaxed">{question.questionText}</h4>
                                         </div>
 
-                                        <div className="flex flex-col items-center gap-4">
-                                            <div className="flex gap-2">
-                                                {[...Array(assignment.template?.maxRating || 5)].map((_, i) => {
-                                                    const maxRating = assignment.template?.maxRating || 5;
-                                                    const ratingValue = maxRating - i;
-                                                    const isSelected = answers[question.id]?.rating === ratingValue;
-                                                    return (
-                                                        <button
-                                                            key={ratingValue}
-                                                            onClick={() => !isReadOnly && handleRatingChange(question.id, ratingValue)}
-                                                            disabled={isReadOnly}
-                                                            className={`h-11 w-11 rounded-xl flex items-center justify-center text-sm font-black transition-all ${
-                                                                isSelected 
-                                                                ? 'bg-[#2463eb] text-white shadow-lg shadow-[#2463eb]/30 ring-2 ring-[#2463eb]/50 ring-offset-2' + (!isReadOnly ? ' scale-110' : '') 
-                                                                : 'bg-white border-2 border-slate-100 text-slate-400 hover:border-[#2463eb]/30 hover:text-[#2463eb] hover:bg-slate-50'
-                                                            } ${isReadOnly ? 'cursor-default' : 'hover:scale-105 active:scale-95'}`}
-                                                        >
-                                                            {ratingValue}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {[...Array(assignment.template?.maxRating || 5)].map((_, i) => {
+                                                const maxRating = assignment.template?.maxRating || 5;
+                                                const ratingValue = maxRating - i;
+                                                const isSelected = answers[question.id]?.rating === ratingValue;
+                                                return (
+                                                    <button
+                                                        key={ratingValue}
+                                                        onClick={() => !isReadOnly && handleRatingChange(question.id, ratingValue)}
+                                                        disabled={isReadOnly}
+                                                        className={`h-11 w-11 rounded-xl flex items-center justify-center text-sm font-black transition-all ${
+                                                            isSelected 
+                                                            ? 'bg-[#2463eb] text-white shadow-lg shadow-[#2463eb]/30 ring-2 ring-[#2463eb]/50 ring-offset-2' + (!isReadOnly ? ' scale-110' : '') 
+                                                            : 'bg-white border-2 border-slate-300 text-slate-500 hover:border-[#2463eb]/40 hover:text-[#2463eb] hover:bg-slate-50'
+                                                        } ${isReadOnly ? 'cursor-default' : 'hover:scale-105 active:scale-95'}`}
+                                                    >
+                                                        {ratingValue}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                     
