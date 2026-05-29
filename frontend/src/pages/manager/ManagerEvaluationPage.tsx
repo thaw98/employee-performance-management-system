@@ -15,28 +15,28 @@ import {
     Building2,
     Calendar,
     AlertCircle,
-    RotateCcw,
     Clock,
-    Download
+    Download,
+    Send,
+    X,
+    AlertTriangle,
 } from 'lucide-react';
 import { formatCycleDate } from '../self-assessment-form/SelfAssessmentReviewCycleInfo';
 import { formatDate } from '../../utils/dateUtils';
-import SignatureCanvas from 'react-signature-canvas';
+import { formatRatingCategory } from '../../utils/formatRatingCategory';
 import { useRef } from 'react';
-import {
-    captureDrawnSignatureDataUrl,
-    SIGNATURE_PAD_HEIGHT,
-    SIGNATURE_PAD_WIDTH,
-} from '../../components/signature/signatureCanvasUtils';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
+import {
+    InlineDefaultSignaturePad,
+    type InlineDefaultSignaturePadHandle,
+} from '../../components/signature/InlineDefaultSignaturePad';
+import { useGetDefaultSignatureQuery } from '../../features/user/userApi';
 import { exportAppraisalPdf } from '../../utils/exportAppraisalPdf';
 import {
     appraisalGradientIcon,
     appraisalGradientBtn,
     appraisalGradientSoft,
 } from '../../features/appraisals/appraisalTheme';
-import ConfirmActionModal from '../../features/hrEmployeeList/components/ConfirmActionModal';
-
 interface EvaluationFormData {
     answers: Record<string, { rating: number; comments: string }>;
     comments: string;
@@ -112,9 +112,12 @@ export const ManagerEvaluationPage: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
     const [savingDraft, setSavingDraft] = useState(false);
-    const [isUsingSavedSignature, setIsUsingSavedSignature] = useState(false);
-    const sigCanvas = useRef<any>(null);
-    const [defaultSignature, setDefaultSignature] = useState<string | null>(null);
+    const [hasPadDrawing, setHasPadDrawing] = useState(false);
+    const [needsInlineSignature, setNeedsInlineSignature] = useState(false);
+    const [isSavingInlineSignature, setIsSavingInlineSignature] = useState(false);
+    const inlineSignaturePadRef = useRef<InlineDefaultSignaturePadHandle>(null);
+    const { data: defaultSigResponse, isLoading: isDefaultSigLoading, refetch: refetchDefaultSig } = useGetDefaultSignatureQuery();
+    const hasDefaultSignature = Boolean(defaultSigResponse?.data?.signatureData);
     const form = useForm<EvaluationFormData>({
         defaultValues: {
             answers: {},
@@ -125,7 +128,6 @@ export const ManagerEvaluationPage: React.FC = () => {
     const { getValues, reset, setValue, watch, formState } = form;
     const answers = watch('answers');
     const comments = watch('comments');
-    const signature = watch('signature');
     const isReadOnly = assignment?.status !== 'PENDING_MANAGER' && assignment?.status !== 'RETURNED';
     const autosaveDisabled = loading || !assignment || Boolean(isReadOnly);
 
@@ -162,19 +164,18 @@ export const ManagerEvaluationPage: React.FC = () => {
 
     useEffect(() => {
         fetchForm();
-        fetchDefaultSignature();
     }, [id]);
 
-    const fetchDefaultSignature = async () => {
-        try {
-            const resp = await axios.get('/signatures/default');
-            if (resp.data.success && resp.data.data) {
-                setDefaultSignature(resp.data.data.signatureData);
-            }
-        } catch (err) {
-            console.error("Failed to fetch default signature", err);
+    useEffect(() => {
+        if (!showSubmitConfirm) {
+            setHasPadDrawing(false);
+            setNeedsInlineSignature(false);
+            return;
         }
-    };
+        if (!isDefaultSigLoading && !hasDefaultSignature) {
+            setNeedsInlineSignature(true);
+        }
+    }, [showSubmitConfirm, isDefaultSigLoading, hasDefaultSignature]);
 
     const handleDownloadPdf = async () => {
         if (!assignment) return;
@@ -188,14 +189,6 @@ export const ManagerEvaluationPage: React.FC = () => {
         }
     };
 
-    useEffect(() => {
-        if (!loading && assignment && defaultSignature) {
-            if (!signature) {
-                setValue('signature', defaultSignature, { shouldDirty: false });
-                setIsUsingSavedSignature(true);
-            }
-        }
-    }, [loading, assignment, defaultSignature, setValue, signature]);
     const fetchForm = async () => {
         try {
             setLoading(true);
@@ -245,34 +238,13 @@ export const ManagerEvaluationPage: React.FC = () => {
         setValue(`answers.${questionId}.comments`, comments, { shouldDirty: true, shouldTouch: true });
     };
 
-    const captureSignature = useCallback(() => {
-        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
-            return captureDrawnSignatureDataUrl(sigCanvas.current.getCanvas());
+    const resolveSubmissionSignature = useCallback(async (): Promise<string> => {
+        if (defaultSigResponse?.data?.signatureData) {
+            return defaultSigResponse.data.signatureData;
         }
-        const currentSignature = getValues('signature');
-        if (currentSignature) {
-            return currentSignature;
-        }
-        return defaultSignature || '';
-    }, [defaultSignature, getValues]);
-
-    const handleClearSignature = () => {
-        if (sigCanvas.current) {
-            sigCanvas.current.clear();
-        }
-        setValue('signature', '', { shouldDirty: true, shouldTouch: true });
-        setIsUsingSavedSignature(false);
-    };
-
-    const handleUseDefaultSignature = () => {
-        if (defaultSignature) {
-            setValue('signature', defaultSignature, { shouldDirty: true, shouldTouch: true });
-            setIsUsingSavedSignature(true);
-            toast.success("Default signature applied");
-        } else {
-            toast.error("No default signature found in Settings");
-        }
-    };
+        const refreshed = await refetchDefaultSig();
+        return refreshed.data?.data?.signatureData || getValues('signature') || '';
+    }, [defaultSigResponse, refetchDefaultSig, getValues]);
 
     const handleSaveDraft = async () => {
         try {
@@ -285,12 +257,14 @@ export const ManagerEvaluationPage: React.FC = () => {
                 }
             }
 
-            const finalSignature = captureSignature();
-            setValue('signature', finalSignature, { shouldDirty: false });
+            const finalSignature = await resolveSubmissionSignature();
+            if (finalSignature) {
+                setValue('signature', finalSignature, { shouldDirty: false });
+            }
             await axios.post(`/appraisal-assignments/${id}/draft`, toEvaluationPayload({
                 ...getValues(),
                 signature: finalSignature,
-            }, true));
+            }, Boolean(finalSignature)));
             toast.success('Draft saved');
             await fetchForm();
         } catch (error: any) {
@@ -301,17 +275,9 @@ export const ManagerEvaluationPage: React.FC = () => {
     };
 
     const handleSubmitClick = () => {
-        const finalSignature = captureSignature();
-        setValue('signature', finalSignature, { shouldDirty: false });
-
         const unanswered = Object.values(answers).some(a => a.rating === 0);
         if (unanswered) {
             toast.error('Please rate all items before submitting');
-            return;
-        }
-
-        if (!finalSignature || !finalSignature.trim()) {
-            toast.error('Please provide your signature or set one in Settings');
             return;
         }
 
@@ -327,11 +293,26 @@ export const ManagerEvaluationPage: React.FC = () => {
             }
         }
 
-        const finalSignature = captureSignature();
-        setValue('signature', finalSignature, { shouldDirty: false });
-
         try {
+            if (needsInlineSignature && !hasDefaultSignature) {
+                const pad = inlineSignaturePadRef.current;
+                if (!pad) {
+                    toast.error('Signature pad is not ready. Please try again.');
+                    return;
+                }
+                setIsSavingInlineSignature(true);
+                const saved = await pad.saveAsDefault();
+                if (!saved) return;
+            }
+
             setSubmitting(true);
+            const finalSignature = await resolveSubmissionSignature();
+            if (!finalSignature?.trim()) {
+                toast.error('A signature is required before submitting');
+                return;
+            }
+            setValue('signature', finalSignature, { shouldDirty: false });
+
             const payload = toEvaluationPayload({
                 ...getValues(),
                 signature: finalSignature,
@@ -347,6 +328,7 @@ export const ManagerEvaluationPage: React.FC = () => {
             toast.error('Failed to submit evaluation');
         } finally {
             setSubmitting(false);
+            setIsSavingInlineSignature(false);
         }
     };
 
@@ -382,12 +364,12 @@ export const ManagerEvaluationPage: React.FC = () => {
                 : 'text-emerald-600';
 
     return (
-        <div className="min-h-screen bg-slate-50/50 pb-20">
-            {/* Sticky Header */}
-            <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-6 py-4">
-                <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className={`min-h-screen bg-slate-50/50 ${!isReadOnly ? 'pb-24' : 'pb-8'}`}>
+            <main className="max-w-5xl mx-auto px-6 pt-6 space-y-8">
+                {/* Page Header */}
+                <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <button 
+                        <button
                             onClick={() => navigate('/manager/appraisals')}
                             className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-500"
                         >
@@ -402,29 +384,6 @@ export const ManagerEvaluationPage: React.FC = () => {
                             </p>
                         </div>
                     </div>
-                    {!isReadOnly && (
-                        <div className="flex items-center gap-3">
-                            <span className={`hidden text-xs font-bold sm:inline ${saveStatusTone}`}>
-                                {saveStatus}
-                            </span>
-                            <button
-                                onClick={handleSaveDraft}
-                                disabled={savingDraft || autosave.isSaving}
-                                className="flex items-center gap-2 border border-slate-200 bg-white text-slate-700 px-4 py-2.5 rounded-2xl font-bold text-sm shadow-sm hover:bg-slate-50 transition-all disabled:opacity-50"
-                            >
-                                {savingDraft || autosave.isSaving ? <Loader2 size={18} className="animate-spin" /> : <Clock size={18} />}
-                                Save Draft
-                            </button>
-                            <button
-                                onClick={handleSubmitClick}
-                                disabled={submitting || savingDraft}
-                                className={`flex items-center gap-2 ${appraisalGradientBtn} text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#2463eb]/20 transition-all disabled:opacity-50`}
-                            >
-                                {submitting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                                Submit Evaluation
-                            </button>
-                        </div>
-                    )}
                     {isReadOnly && (
                         <div className="flex items-center gap-3">
                             {(assignment.status === 'SUBMITTED' || assignment.status === 'HR_APPROVED' || assignment.status === 'LOCKED') && (
@@ -438,7 +397,7 @@ export const ManagerEvaluationPage: React.FC = () => {
                                 </button>
                             )}
                             <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
-                                assignment.status === 'SUBMITTED' ? 'bg-[#eff6ff] text-[#2463eb] border-[#dbeafe]' : 
+                                assignment.status === 'SUBMITTED' ? 'bg-[#eff6ff] text-[#2463eb] border-[#dbeafe]' :
                                 assignment.status === 'HR_APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                                 assignment.status === 'LOCKED' ? 'bg-slate-900 text-white border-slate-900' :
                                 'bg-slate-100 text-slate-500 border-slate-200'
@@ -448,9 +407,6 @@ export const ManagerEvaluationPage: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </header>
-
-            <main className="max-w-5xl mx-auto px-6 mt-8 space-y-8">
                 {/* HR Feedback if returned or rejected */}
                 {(assignment.status === 'RETURNED' || assignment.status === 'REJECTED') && assignment.hrComments && (
                     <section className="bg-red-50 border border-red-100 rounded-3xl p-6 flex items-start gap-4">
@@ -508,10 +464,10 @@ export const ManagerEvaluationPage: React.FC = () => {
                                 {assignment.totalScore?.toFixed(1) || '0.0'}%
                             </p>
                         </div>
-                        <div className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-3xl space-y-2 shadow-sm">
+                        <div className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-3xl space-y-2 shadow-sm min-w-0 overflow-hidden">
                             <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Performance Category</p>
-                            <p className="text-2xl font-bold text-emerald-700">
-                                {assignment.ratingCategory || 'N/A'}
+                            <p className="text-lg sm:text-xl font-bold text-emerald-700 break-words leading-snug">
+                                {formatRatingCategory(assignment.ratingCategory)}
                             </p>
                         </div>
                         <div className="p-6 bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200 rounded-3xl space-y-2 shadow-sm">
@@ -610,82 +566,25 @@ export const ManagerEvaluationPage: React.FC = () => {
                             />
                         </div>
 
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-xl font-black flex items-center gap-3">
-                                            <PenLine className="text-[#60a5fa]" /> Digital Signature
-                                        </h3>
-                                        {!isReadOnly && defaultSignature && (
-                                            <button 
-                                                onClick={handleUseDefaultSignature}
-                                                className="text-[10px] font-black uppercase tracking-widest text-[#60a5fa] hover:text-white transition-colors flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10"
-                                            >
-                                                <CheckCircle2 size={12} /> Use Saved Signature
-                                            </button>
-                                        )}
-                                    </div>
-                                    
-                                    <div className="relative bg-white/5 border-2 border-white/10 rounded-3xl overflow-hidden group hover:border-[#2463eb]/50 transition-all">
-                                        {isReadOnly ? (
-                                            <div className="h-40 flex items-center justify-center p-6 bg-white rounded-3xl">
-                                                {assignment.managerSignature ? (
-                                                    <img src={resolveMediaSrc(assignment.managerSignature)} alt="Manager Signature" className="h-full object-contain" />
-                                                ) : (
-                                                    <span className="text-slate-300 italic text-sm">No signature provided</span>
-                                                )}
-                                            </div>
+                        {isReadOnly && (
+                            <div className="space-y-4">
+                                <h3 className="text-xl font-black flex items-center gap-3">
+                                    <PenLine className="text-[#60a5fa]" /> Digital Signature
+                                </h3>
+                                <div className="relative bg-white/5 border-2 border-white/10 rounded-3xl overflow-hidden">
+                                    <div className="h-40 flex items-center justify-center p-6 bg-white rounded-3xl">
+                                        {assignment.managerSignature ? (
+                                            <img src={resolveMediaSrc(assignment.managerSignature)} alt="Manager Signature" className="h-full object-contain" />
                                         ) : (
-                                            <div className="relative h-40 bg-white rounded-2xl overflow-hidden group">
-                                                {isUsingSavedSignature && signature && (
-                                                    <div 
-                                                        className="absolute inset-0 z-10 flex items-center justify-center p-8 bg-white cursor-pointer"
-                                                        onClick={() => setIsUsingSavedSignature(false)}
-                                                    >
-                                                        <img 
-                                                            src={resolveMediaSrc(signature)} 
-                                                            alt="Saved Signature" 
-                                                            className="max-w-full max-h-full object-contain opacity-90 transition-transform group-hover:scale-105"
-                                                        />
-                                                        <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <span className="text-[9px] font-black text-[#2463eb] bg-[#eff6ff] px-2 py-1 rounded-md uppercase tracking-tighter">Click to Draw Manually</span>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                <SignatureCanvas
-                                                    ref={sigCanvas}
-                                                    clearOnResize={false}
-                                                    penColor="#0f172a"
-                                                    onBegin={() => setIsUsingSavedSignature(false)}
-                                                    onEnd={() => {
-                                                        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
-                                                            setValue(
-                                                                'signature',
-                                                                captureDrawnSignatureDataUrl(sigCanvas.current.getCanvas()),
-                                                                { shouldDirty: true, shouldTouch: true },
-                                                            );
-                                                        }
-                                                        setIsUsingSavedSignature(false);
-                                                    }}
-                                                    canvasProps={{
-                                                        width: SIGNATURE_PAD_WIDTH,
-                                                        height: SIGNATURE_PAD_HEIGHT,
-                                                        className: 'w-full h-40 cursor-crosshair touch-none',
-                                                        style: { background: 'white' },
-                                                    }}
-                                                />
-                                                <button
-                                                    onClick={handleClearSignature}
-                                                    className="absolute top-2 right-2 p-2 text-slate-400 hover:text-red-500 transition-colors z-20"
-                                                >
-                                                    <RotateCcw size={16} />
-                                                </button>
-                                            </div>
+                                            <span className="text-slate-300 italic text-sm">No signature provided</span>
                                         )}
                                     </div>
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Authorized Manager Signature</p>
                                 </div>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Authorized Manager Signature</p>
+                            </div>
+                        )}
 
-                                 {isReadOnly && (
+                        {isReadOnly && (
                                     <div className="flex flex-col md:flex-row justify-end gap-6">
                                         <div className="bg-white rounded-[2rem] p-6 border border-slate-100 flex items-center gap-4 shadow-xl">
                                             <div className="text-right">
@@ -718,16 +617,115 @@ export const ManagerEvaluationPage: React.FC = () => {
                 </section>
             </main>
 
-            <ConfirmActionModal
-                isOpen={showSubmitConfirm}
-                onClose={() => !submitting && setShowSubmitConfirm(false)}
-                onConfirm={handleConfirmSubmit}
-                title="Submit Evaluation"
-                message="Submitting this evaluation will finalize it and send it to HR. You will not be able to make further changes."
-                confirmText="Submit Evaluation"
-                cancelText="Cancel"
-                isLoading={submitting}
-            />
+            {!isReadOnly && (
+                <div className="fixed bottom-0 left-64 right-0 z-40 border-t border-slate-200 bg-white/85 backdrop-blur-xl">
+                    <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
+                        <span className={`hidden text-xs font-bold sm:inline ${saveStatusTone}`}>
+                            {saveStatus}
+                        </span>
+                        <div className="flex flex-1 items-center justify-end gap-3 sm:flex-initial">
+                            <button
+                                onClick={handleSaveDraft}
+                                disabled={savingDraft || autosave.isSaving}
+                                className="flex items-center gap-2 border border-slate-200 bg-white text-slate-700 px-4 py-2.5 rounded-2xl font-bold text-sm shadow-sm hover:bg-slate-50 transition-all disabled:opacity-50"
+                            >
+                                {savingDraft || autosave.isSaving ? <Loader2 size={18} className="animate-spin" /> : <Clock size={18} />}
+                                Save Draft
+                            </button>
+                            <button
+                                onClick={handleSubmitClick}
+                                disabled={submitting || savingDraft}
+                                className={`flex items-center gap-2 ${appraisalGradientBtn} text-white px-6 py-2.5 rounded-2xl font-bold text-sm shadow-lg shadow-[#2463eb]/20 transition-all disabled:opacity-50`}
+                            >
+                                {submitting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                                Submit Evaluation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showSubmitConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] text-white shadow-md shadow-[#2463eb]/20">
+                                    <Send size={18} />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold tracking-tight text-slate-900">
+                                        Submit Evaluation
+                                    </h3>
+                                    <p className="text-xs text-slate-500">
+                                        This action cannot be undone
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => !submitting && !isSavingInlineSignature && setShowSubmitConfirm(false)}
+                                disabled={submitting || isSavingInlineSignature}
+                                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-5">
+                            <p className="text-sm leading-relaxed text-slate-600">
+                                Submitting this evaluation will finalize it and send it to HR. You will not be able to make further changes.
+                            </p>
+                            {needsInlineSignature && (
+                                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3.5">
+                                    <p className="text-sm font-semibold text-amber-900">
+                                        Default signature is required before submission.
+                                    </p>
+                                    <p className="mt-1 text-xs text-amber-800">
+                                        Sign below. Your signature will be saved as your default when you confirm submission.
+                                    </p>
+                                    <InlineDefaultSignaturePad
+                                        ref={inlineSignaturePadRef}
+                                        onDrawingChange={setHasPadDrawing}
+                                        disabled={isSavingInlineSignature || submitting}
+                                    />
+                                </div>
+                            )}
+                            <div className="mt-4 flex gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3.5">
+                                <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600" />
+                                <p className="text-sm leading-snug font-medium text-amber-800">
+                                    Once submitted, this evaluation cannot be edited and will be sent to HR for review.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+                            <button
+                                type="button"
+                                onClick={() => setShowSubmitConfirm(false)}
+                                disabled={submitting || isSavingInlineSignature}
+                                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmSubmit}
+                                disabled={
+                                    submitting
+                                    || isSavingInlineSignature
+                                    || isDefaultSigLoading
+                                    || (needsInlineSignature && !hasPadDrawing)
+                                }
+                                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#2463eb] to-[#1d4ed8] px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#dbeafe] transition-all hover:shadow-lg hover:shadow-[#2463eb]/30 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <CheckCircle2 size={16} />
+                                {isSavingInlineSignature ? 'Saving signature…' : submitting ? 'Submitting…' : 'Submit Evaluation'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');

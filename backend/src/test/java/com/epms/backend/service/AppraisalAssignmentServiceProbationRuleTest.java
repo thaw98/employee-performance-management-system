@@ -37,18 +37,21 @@ class AppraisalAssignmentServiceProbationRuleTest {
     private com.epms.backend.repository.UserRepository userRepository;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private SignatureStorageService signatureStorageService;
 
     private AppraisalAssignmentService appraisalAssignmentService;
 
     @BeforeEach
     void setUp() {
         appraisalAssignmentService = new AppraisalAssignmentService(
-            appraisalAssignmentRepository, 
-            appraisalAnswerRepository, 
-            appraisalQuestionRepository, 
+            appraisalAssignmentRepository,
+            appraisalAnswerRepository,
+            appraisalQuestionRepository,
             auditService,
             userRepository,
-            notificationService
+            notificationService,
+            signatureStorageService
         );
     }
 

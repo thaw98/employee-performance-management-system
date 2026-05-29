@@ -4,6 +4,7 @@ import axios from '../../app/axiosInstance';
 import { toast } from 'react-hot-toast';
 import { Search, Eye, CheckCircle, CheckCircle2, XCircle, RotateCcw, Lock, Unlock, LockOpen, FileText, User, Loader2, Building2, ChevronDown, Award, MessageSquare, Target, Download } from 'lucide-react';
 import { formatDate } from '../../utils/dateUtils';
+import { formatRatingCategory } from '../../utils/formatRatingCategory';
 import SignatureCanvas from 'react-signature-canvas';
 import { resolveMediaSrc } from '../../utils/mediaUrl';
 import { jsPDF } from 'jspdf';
@@ -1040,10 +1041,10 @@ export function AppraisalSubmissionsPage() {
                                         {selectedAsmt.totalScore?.toFixed(1) || '0.0'}%
                                     </p>
                                 </div>
-                                <div className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-3xl space-y-2">
+                                <div className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-3xl space-y-2 min-w-0 overflow-hidden">
                                     <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Performance Category</p>
-                                    <p className="text-2xl font-bold text-emerald-700">
-                                        {selectedAsmt.ratingCategory || 'N/A'}
+                                    <p className="text-lg sm:text-xl font-bold text-emerald-700 break-words leading-snug">
+                                        {formatRatingCategory(selectedAsmt.ratingCategory)}
                                     </p>
                                 </div>
                                 <div className="p-6 bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200 rounded-3xl space-y-2">

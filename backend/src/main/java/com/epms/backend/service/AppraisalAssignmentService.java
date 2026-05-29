@@ -26,6 +26,7 @@ public class AppraisalAssignmentService {
     private final AuditService auditService;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final SignatureStorageService signatureStorageService;
 
     public List<AppraisalAssignment> getAllAssignments() {
         List<AppraisalAssignment> list = appraisalAssignmentRepository.findAll().stream()
@@ -104,7 +105,7 @@ public class AppraisalAssignmentService {
         replaceAnswers(assignment, req);
         assignment.setManagerComments(req.getComments());
         if (req.getSignature() != null) {
-            assignment.setManagerSignature(req.getSignature());
+            assignment.setManagerSignature(persistSignatureIfNeeded(req.getSignature()));
         }
         assignment.setUpdatedAt(Instant.now());
         recalculateScore(assignment);
@@ -131,7 +132,7 @@ public class AppraisalAssignmentService {
         replaceAnswers(assignment, req);
         assignment.setStatus(AppraisalStatus.SUBMITTED);
         assignment.setManagerComments(req.getComments());
-        assignment.setManagerSignature(req.getSignature());
+        assignment.setManagerSignature(persistSignatureIfNeeded(req.getSignature()));
         assignment.setManagerSignedAt(Instant.now());
         assignment.setSubmittedAt(Instant.now());
         assignment.setUpdatedAt(Instant.now());
@@ -193,7 +194,7 @@ public class AppraisalAssignmentService {
 
         assignment.setStatus(AppraisalStatus.HR_APPROVED);
         assignment.setHrComments(comments);
-        assignment.setHrSignature(signature);
+        assignment.setHrSignature(persistSignatureIfNeeded(signature));
         assignment.setHrSignedAt(Instant.now());
         assignment.setUpdatedAt(Instant.now());
 
@@ -418,6 +419,20 @@ public class AppraisalAssignmentService {
         else if (assignment.getTotalScore() >= 75) assignment.setRatingCategory("GOOD");
         else if (assignment.getTotalScore() >= 50) assignment.setRatingCategory("AVERAGE");
         else assignment.setRatingCategory("NEEDS_IMPROVEMENT");
+    }
+
+    private String persistSignatureIfNeeded(String signature) {
+        if (signature == null || signature.isBlank()) {
+            return signature;
+        }
+        String trimmed = signature.trim();
+        if (trimmed.startsWith(SignatureStorageService.PUBLIC_PATH_PREFIX + "/")) {
+            return trimmed;
+        }
+        if (trimmed.startsWith("data:image/png;base64,")) {
+            return signatureStorageService.storeDrawnPng(trimmed);
+        }
+        return trimmed;
     }
 
     private boolean isProbationEmployee(AppraisalAssignment assignment) {
